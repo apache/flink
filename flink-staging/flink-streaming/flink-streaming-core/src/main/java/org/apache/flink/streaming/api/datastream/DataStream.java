@@ -88,7 +88,7 @@ import com.google.common.base.Preconditions;
  * <li>{@link DataStream#map},
  * <li>{@link DataStream#filter}, or
  * </ul>
- * 
+ *
  * @param <T> The type of the elements in this Stream
  */
 public class DataStream<T> {
@@ -110,7 +110,7 @@ public class DataStream<T> {
 
 	/**
 	 * Returns the ID of the {@link DataStream} in the current {@link StreamExecutionEnvironment}.
-	 * 
+	 *
 	 * @return ID of the DataStream
 	 */
 	public Integer getId() {
@@ -119,7 +119,7 @@ public class DataStream<T> {
 
 	/**
 	 * Gets the parallelism for this operator.
-	 * 
+	 *
 	 * @return The parallelism set for this operator.
 	 */
 	public int getParallelism() {
@@ -128,7 +128,7 @@ public class DataStream<T> {
 
 	/**
 	 * Gets the type of the stream.
-	 * 
+	 *
 	 * @return The type of the datastream.
 	 */
 	public TypeInformation<T> getType() {
@@ -163,7 +163,7 @@ public class DataStream<T> {
 	 * Creates a new {@link DataStream} by merging {@link DataStream} outputs of
 	 * the same type with each other. The DataStreams merged using this operator
 	 * will be transformed simultaneously.
-	 * 
+	 *
 	 * @param streams
 	 *            The DataStreams to union output with.
 	 * @return The {@link DataStream}.
@@ -195,7 +195,7 @@ public class DataStream<T> {
 	 * Operator used for directing tuples to specific named outputs using an
 	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
 	 * Calling this method on an operator creates a new {@link SplitDataStream}.
-	 * 
+	 *
 	 * @param outputSelector
 	 *            The user defined
 	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
@@ -211,7 +211,7 @@ public class DataStream<T> {
 	 * {@link DataStream} outputs of (possible) different types with each other.
 	 * The DataStreams connected using this operator can be used with
 	 * CoFunctions to apply joint transformations.
-	 * 
+	 *
 	 * @param dataStream
 	 *            The DataStream with which this stream will be connected.
 	 * @return The {@link ConnectedDataStream}.
@@ -221,7 +221,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * 
+	 *
 	 * It creates a new {@link KeyedDataStream} that uses the provided key for partitioning
 	 * its operator states. 
 	 *
@@ -268,12 +268,12 @@ public class DataStream<T> {
 		return new KeyedDataStream<T>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
 				getType(), getExecutionConfig())));
 	}
-	
+
 	/**
 	 * Partitions the operator state of a {@link DataStream} by the given key positions. 
 	 * Mind that keyBy does not affect the partitioning of the {@link DataStream}
 	 * but only the way explicit state is partitioned among parallel instances.
-	 * 
+	 *
 	 * @param fields
 	 *            The position of the fields on which the states of the {@link DataStream}
 	 *            will be partitioned.
@@ -298,7 +298,7 @@ public class DataStream<T> {
 	 * This operator also affects the
 	 * partitioning of the stream, by forcing values with the same key to go to
 	 * the same processing instance.
-	 * 
+	 *
 	 * @param fields
 	 *            One or more field expressions on which the DataStream will be
 	 *            grouped.
@@ -316,7 +316,7 @@ public class DataStream<T> {
 	 * <p/>
 	 * This operator also affects the partitioning of the stream, by forcing
 	 * values with the same key to go to the same processing instance.
-	 * 
+	 *
 	 * @param keySelector
 	 *            The {@link KeySelector} that will be used to extract keys for
 	 *            the values
@@ -453,7 +453,7 @@ public class DataStream<T> {
 	 * <p>
 	 * This setting only effects the how the outputs will be distributed between
 	 * the parallel instances of the next processing operator.
-	 * 
+	 *
 	 * @return The DataStream with broadcast partitioning set.
 	 */
 	public DataStream<T> broadcast() {
@@ -467,7 +467,7 @@ public class DataStream<T> {
 	 * <p>
 	 * This setting only effects the how the outputs will be distributed between
 	 * the parallel instances of the next processing operator.
-	 * 
+	 *
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> shuffle() {
@@ -482,7 +482,7 @@ public class DataStream<T> {
 	 * <p>
 	 * This setting only effects the how the outputs will be distributed between
 	 * the parallel instances of the next processing operator.
-	 * 
+	 *
 	 * @return The DataStream with forward partitioning set.
 	 */
 	public DataStream<T> forward() {
@@ -497,7 +497,7 @@ public class DataStream<T> {
 	 * <p>
 	 * This setting only effects the how the outputs will be distributed between
 	 * the parallel instances of the next processing operator.
-	 * 
+	 *
 	 * @return The DataStream with rebalance partitioning set.
 	 */
 	public DataStream<T> rebalance() {
@@ -509,7 +509,7 @@ public class DataStream<T> {
 	 * all go to the first instance of the next processing operator. Use this
 	 * setting with care since it might cause a serious performance bottleneck
 	 * in the application.
-	 * 
+	 *
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<T> global() {
@@ -540,7 +540,7 @@ public class DataStream<T> {
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
-	 * 
+	 *
 	 * @return The iterative data stream created.
 	 */
 	public IterativeDataStream<T> iterate() {
@@ -571,11 +571,11 @@ public class DataStream<T> {
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
-	 * 
+	 *
 	 * @param maxWaitTimeMillis
 	 *            Number of milliseconds to wait between inputs before shutting
 	 *            down
-	 * 
+	 *
 	 * @return The iterative data stream created.
 	 */
 	public IterativeDataStream<T> iterate(long maxWaitTimeMillis) {
@@ -588,7 +588,7 @@ public class DataStream<T> {
 	 * MapFunction call returns exactly one element. The user can also extend
 	 * {@link RichMapFunction} to gain access to other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
+	 *
 	 * @param mapper
 	 *            The MapFunction that is called for each element of the
 	 *            DataStream.
@@ -611,11 +611,11 @@ public class DataStream<T> {
 	 * including none. The user can also extend {@link RichFlatMapFunction} to
 	 * gain access to other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
+	 *
 	 * @param flatMapper
 	 *            The FlatMapFunction that is called for each element of the
 	 *            DataStream
-	 * 
+	 *
 	 * @param <R>
 	 *            output type
 	 * @return The transformed {@link DataStream}.
@@ -637,7 +637,7 @@ public class DataStream<T> {
 	 * user can also extend {@link RichFilterFunction} to gain access to other
 	 * features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
+	 *
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the
 	 *            DataStream.
@@ -655,13 +655,13 @@ public class DataStream<T> {
 	 * <p>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of
 	 * fields.
-	 * 
+	 *
 	 * @param fieldIndexes
 	 *            The field indexes of the input tuples that are retained. The
 	 *            order of fields in the output tuple corresponds to the order
 	 *            of field indexes.
 	 * @return The projected DataStream
-	 * 
+	 *
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -676,7 +676,7 @@ public class DataStream<T> {
 	 * into one DataStream over a specified time window. It builds all pair
 	 * combinations of elements of both DataStreams, i.e., it builds a Cartesian
 	 * product.
-	 * 
+	 *
 	 * <p>
 	 * This method returns a {@link StreamCrossOperator} on which the
 	 * {@link StreamCrossOperator#onWindow} should be called to define the
@@ -684,12 +684,12 @@ public class DataStream<T> {
 	 * <p>
 	 * Call {@link StreamCrossOperator.CrossWindow#with(org.apache.flink.api.common.functions.CrossFunction)}
 	 * to define a custom cross function.
-	 * 
+	 *
 	 * @param dataStreamToCross
 	 *            The other DataStream with which this DataStream is crossed.
 	 * @return A {@link StreamCrossOperator} to continue the definition of the
 	 *         cross transformation.
-	 * 
+	 *
 	 */
 	public <IN2> StreamCrossOperator<T, IN2> cross(DataStream<IN2> dataStreamToCross) {
 		return new StreamCrossOperator<T, IN2>(this, dataStreamToCross);
@@ -711,12 +711,12 @@ public class DataStream<T> {
 	 * The user can also use the
 	 * {@link org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator.JoinPredicate.JoinedStream#with}
 	 * to apply a custom join function.
-	 * 
+	 *
 	 * @param dataStreamToJoin
 	 *            The other DataStream with which this DataStream is joined.
 	 * @return A {@link StreamJoinOperator} to continue the definition of the
 	 *         Join transformation.
-	 * 
+	 *
 	 */
 	public <IN2> StreamJoinOperator<T, IN2> join(DataStream<IN2> dataStreamToJoin) {
 		return new StreamJoinOperator<T, IN2>(this, dataStreamToJoin);
@@ -750,13 +750,13 @@ public class DataStream<T> {
 	 * {@link WindowedDataStream#every(WindowingHelper)}, for example with 3 second slides:</br>
 	 *
 	 * <pre>
-	 * 
+	 *
 	 * {@code
 	 * ds.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(3, TimeUnit.SECONDS)).sum(field)
 	 * }
 	 *
 	 * </pre>
-	 * 
+	 *
 	 * @param policyHelper
 	 *            Any {@link WindowingHelper} such as {@link Time},
 	 *            {@link Count}, {@link Delta} {@link FullStream} to define the
@@ -779,7 +779,7 @@ public class DataStream<T> {
 	 *
 	 * <p>
 	 * For most common use-cases please refer to {@link #window(WindowingHelper)}
-	 * 
+	 *
 	 * @param trigger
 	 *            The {@link TriggerPolicy} that will determine how often the
 	 *            user function is called on the window.
@@ -795,7 +795,7 @@ public class DataStream<T> {
 	/**
 	 * Create a {@link WindowedDataStream} on the full stream history, to
 	 * produce periodic aggregates.
-	 * 
+	 *
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
 	@SuppressWarnings("rawtypes")
@@ -810,7 +810,7 @@ public class DataStream<T> {
 	 * <p>
 	 * For each element of the DataStream the result of
 	 * {@link Object#toString()} is written.
-	 * 
+	 *
 	 * @return The closed DataStream.
 	 */
 	public DataStreamSink<T> print() {
@@ -824,7 +824,7 @@ public class DataStream<T> {
 	 * <p>
 	 * For each element of the DataStream the result of
 	 * {@link Object#toString()} is written.
-	 * 
+	 *
 	 * @return The closed DataStream.
 	 */
 	public DataStreamSink<T> printToErr() {
@@ -838,10 +838,10 @@ public class DataStream<T> {
 	 * <p>
 	 * For every element of the DataStream the result of {@link Object#toString()}
 	 * is written.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
-	 * 
+	 *
 	 * @return the closed DataStream.
 	 */
 	public DataStreamSink<T> writeAsText(String path) {
@@ -855,12 +855,12 @@ public class DataStream<T> {
 	 * <p>
 	 * For every element of the DataStream the result of {@link Object#toString()}
 	 * is written.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
 	 * @param millis
 	 *            the file update frequency
-	 * 
+	 *
 	 * @return the closed DataStream
 	 */
 	public DataStreamSink<T> writeAsText(String path, long millis) {
@@ -874,13 +874,13 @@ public class DataStream<T> {
 	 * <p>
 	 * For every element of the DataStream the result of {@link Object#toString()}
 	 * is written.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
 	 * @param writeMode
 	 *            Control the behavior for existing files. Options are
 	 *            NO_OVERWRITE and OVERWRITE.
-	 * 
+	 *
 	 * @return the closed DataStream.
 	 */
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
@@ -895,7 +895,7 @@ public class DataStream<T> {
 	 * <p>
 	 * For every element of the DataStream the result of {@link Object#toString()}
 	 * is written.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
 	 * @param writeMode
@@ -903,7 +903,7 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 * @param millis
 	 *            the file update frequency
-	 * 
+	 *
 	 * @return the closed DataStream.
 	 */
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode, long millis) {
@@ -918,19 +918,15 @@ public class DataStream<T> {
 	 * <p>
 	 * For every field of an element of the DataStream the result of {@link Object#toString()}
 	 * is written. This method can only be used on data streams of tuples.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
-	 * 
+	 *
 	 * @return the closed DataStream
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(String path) {
-		Preconditions.checkArgument(getType().isTupleType(),
-				"The writeAsCsv() method can only be used on data sets of tuples.");
-		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
-				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return write((OutputFormat<T>) of, 0L);
+		return writeAsCsv(path, null, 0L, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 
 	/**
@@ -945,16 +941,12 @@ public class DataStream<T> {
 	 *            the path pointing to the location the text file is written to
 	 * @param millis
 	 *            the file update frequency
-	 * 
+	 *
 	 * @return the closed DataStream
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(String path, long millis) {
-		Preconditions.checkArgument(getType().isTupleType(),
-				"The writeAsCsv() method can only be used on data sets of tuples.");
-		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
-				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		return write((OutputFormat<T>) of, millis);
+		return writeAsCsv(path, null, millis, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 
 	/**
@@ -963,25 +955,18 @@ public class DataStream<T> {
 	 * <p>
 	 * For every field of an element of the DataStream the result of {@link Object#toString()}
 	 * is written. This method can only be used on data streams of tuples.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
 	 * @param writeMode
 	 *            Controls the behavior for existing files. Options are
 	 *            NO_OVERWRITE and OVERWRITE.
-	 * 
+	 *
 	 * @return the closed DataStream
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
-		Preconditions.checkArgument(getType().isTupleType(),
-				"The writeAsCsv() method can only be used on data sets of tuples.");
-		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
-				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-		if (writeMode != null) {
-			of.setWriteMode(writeMode);
-		}
-		return write((OutputFormat<T>) of, 0L);
+		return writeAsCsv(path, writeMode, 0L, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 
 	/**
@@ -991,7 +976,7 @@ public class DataStream<T> {
 	 * <p>
 	 * For every field of an element of the DataStream the result of {@link Object#toString()}
 	 * is written. This method can only be used on data streams of tuples.
-	 * 
+	 *
 	 * @param path
 	 *            the path pointing to the location the text file is written to
 	 * @param writeMode
@@ -999,16 +984,48 @@ public class DataStream<T> {
 	 *            NO_OVERWRITE and OVERWRITE.
 	 * @param millis
 	 *            the file update frequency
-	 * 
+	 *
 	 * @return the closed DataStream
 	 */
 	@SuppressWarnings("unchecked")
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode,
-			long millis) {
+				long millis) {
+		return writeAsCsv(path, writeMode, millis, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically, in every millis milliseconds.
+	 *
+	 * <p>
+	 * For every field of an element of the DataStream the result of {@link Object#toString()}
+	 * is written. This method can only be used on data streams of tuples.
+	 *
+	 * @param path
+	 *            the path pointing to the location the text file is written to
+	 * @param writeMode
+	 *            Controls the behavior for existing files. Options are
+	 *            NO_OVERWRITE and OVERWRITE.
+	 * @param millis
+	 *            the file update frequency
+	 * @param rowDelimiter
+	 *            the delimiter for two rows
+	 * @param fieldDelimiter
+	 *            the delimiter for two fields
+	 *
+	 * @return the closed DataStream
+	 */
+	@SuppressWarnings("unchecked")
+	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
+			String path,
+			WriteMode writeMode,
+			long millis,
+			String rowDelimiter,
+			String fieldDelimiter) {
 		Preconditions.checkArgument(getType().isTupleType(),
 				"The writeAsCsv() method can only be used on data sets of tuples.");
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
-				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+				rowDelimiter, fieldDelimiter);
 		if (writeMode != null) {
 			of.setWriteMode(writeMode);
 		}
@@ -1018,7 +1035,7 @@ public class DataStream<T> {
 	/**
 	 * Writes the DataStream to a socket as a byte array. The format of the
 	 * output is specified by a {@link SerializationSchema}.
-	 * 
+	 *
 	 * @param hostName
 	 *            host of the socket
 	 * @param port
@@ -1032,10 +1049,10 @@ public class DataStream<T> {
 		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
 		return returnStream;
 	}
-	
+
 	/**
 	 * Writes the dataStream into an output, described by an OutputFormat.
-	 * 
+	 *
 	 * @param format The output format
 	 * @param millis the write frequency
 	 * @return The closed DataStream
@@ -1047,7 +1064,7 @@ public class DataStream<T> {
 	/**
 	 * Method for passing user defined operators along with the type
 	 * information that will transform the DataStream.
-	 * 
+	 *
 	 * @param operatorName
 	 *            name of the operator, for logging purposes
 	 * @param outTypeInfo
@@ -1093,7 +1110,7 @@ public class DataStream<T> {
 	 * Adds the given sink to this DataStream. Only streams with sinks added
 	 * will be executed once the {@link StreamExecutionEnvironment#execute()}
 	 * method is called.
-	 * 
+	 *
 	 * @param sinkFunction
 	 *            The object containing the sink's invoke function.
 	 * @return The closed DataStream.

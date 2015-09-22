@@ -17,27 +17,86 @@
 
 package org.apache.flink.streaming.scala.api;
 
+import junit.framework.Assert;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.scala.OutputFormatTestPrograms;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-public class TextOutputFormatITCase extends StreamingProgramTestBase {
+import java.io.File;
+
+import static org.junit.Assert.assertTrue;
+
+public class TextOutputFormatITCase extends StreamingMultipleProgramsTestBase {
 
 	protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	public AbstractTestBase fileInfo = new AbstractTestBase(new Configuration()) {
+		@Override
+		public void startCluster() throws Exception {
+			super.startCluster();
+		}
+	};
+
+	@Before
+	public void createFile() throws Exception {
+		File f = fileInfo.createAndRegisterTempFile("result");
+		resultPath = f.toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
+	@Test
+	public void testPath() throws Exception {
 		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
 	}
 
-	@Override
-	protected void postSubmit() throws Exception {
+	@Test
+	public void testPathMillis() throws Exception {
+		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, 1);
+	}
+
+	@Test
+	public void testPathWriteMode() throws Exception {
+		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
+	}
+
+	@Test
+	public void testPathWriteModeMillis() throws Exception {
+		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1);
+	}
+
+	@Test
+	public void failtestPathWriteMode() throws Exception {
+		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
+		try {
+			OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
+		} catch (Exception e) {
+			assertTrue(e.getCause().getMessage().indexOf("File already exists") != -1);
+			return;
+		}
+		Assert.fail();
+	}
+
+	@Test
+	public void failtestPathWriteModeMillis() throws Exception {
+		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
+		try {
+			OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1);
+		} catch (Exception e) {
+			assertTrue(e.getCause().getMessage().indexOf("File already exists") != -1);
+			return;
+		}
+		Assert.fail();
+	}
+
+	@After
+	public void closeFile() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+		fileInfo.stopCluster();
 	}
 
 }
