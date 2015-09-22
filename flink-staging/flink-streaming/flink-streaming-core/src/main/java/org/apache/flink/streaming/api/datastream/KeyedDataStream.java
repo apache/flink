@@ -35,7 +35,8 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * @param <T> The type of the elements in the Keyed Stream
  */
 public class KeyedDataStream<T> extends DataStream<T> {
-	KeySelector<T, ?> keySelector;
+	
+	protected final KeySelector<T, ?> keySelector;
 
 	/**
 	 * Creates a new {@link KeyedDataStream} using the given {@link KeySelector}
