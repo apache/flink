@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util.keys;
 import java.lang.reflect.Array;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -31,15 +32,27 @@ import org.apache.flink.api.java.tuple.Tuple;
 public class KeySelectorUtil {
 
 	public static <X> KeySelector<X, ?> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
+		if (!(typeInfo instanceof CompositeType)) {
+			throw new InvalidTypesException(
+					"This key operation requires a composite type such as Tuples, POJOs, or Case Classes.");
+		}
+
+		CompositeType<X> compositeType = (CompositeType<X>) typeInfo;
+		
 		int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
-		int keyLength = logicalKeyPositions.length;
-		boolean[] orders = new boolean[keyLength];
-		// TODO: Fix using KeySelector everywhere
-		TypeComparator<X> comparator = ((CompositeType<X>) typeInfo).createComparator(
-				logicalKeyPositions, orders, 0, executionConfig);
-		return new ComparableKeySelector<X>(comparator, keyLength);
+		int numKeyFields = logicalKeyPositions.length;
+		
+		// use ascending order here, the code paths for that are usually a slight bit faster
+		boolean[] orders = new boolean[numKeyFields];
+		for (int i = 0; i < numKeyFields; i++) {
+			orders[i] = true;
+		}
+		
+		TypeComparator<X> comparator = compositeType.createComparator(logicalKeyPositions, orders, 0, executionConfig);
+		return new ComparableKeySelector<X>(comparator, numKeyFields);
 	}
 
+	
 	public static <X, K> KeySelector<X, K> getSelectorForOneKey(Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo,
 			ExecutionConfig executionConfig) {
 		if (partitioner != null) {
@@ -57,25 +70,28 @@ public class KeySelectorUtil {
 		return new OneKeySelector<X, K>(comparator);
 	}
 
+	
 	public static class OneKeySelector<IN, K> implements KeySelector<IN, K> {
 
 		private static final long serialVersionUID = 1L;
 
-		private TypeComparator<IN> comparator;
-		private Object[] keyArray;
-		private K key;
+		private final TypeComparator<IN> comparator;
+
+		/** Reusable array to hold the key objects. Since this is initially empty (all positions
+		 * are null), it does not have any serialization problems */
+		@SuppressWarnings("NonSerializableFieldInSerializableClass")
+		private final Object[] keyArray;
 
 		public OneKeySelector(TypeComparator<IN> comparator) {
 			this.comparator = comparator;
-			keyArray = new Object[1];
+			this.keyArray = new Object[1];
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
 		public K getKey(IN value) throws Exception {
 			comparator.extractKeys(value, keyArray, 0);
-			key = (K) keyArray[0];
-			return key;
+			return (K) keyArray[0];
 		}
 
 	}
@@ -84,10 +100,13 @@ public class KeySelectorUtil {
 
 		private static final long serialVersionUID = 1L;
 
-		private TypeComparator<IN> comparator;
-		private int keyLength;
-		private Object[] keyArray;
-		private Tuple key;
+		private final TypeComparator<IN> comparator;
+		private final int keyLength;
+
+		/** Reusable array to hold the key objects. Since this is initially empty (all positions
+		 * are null), it does not have any serialization problems */
+		@SuppressWarnings("NonSerializableFieldInSerializableClass")
+		private final Object[] keyArray;
 
 		public ComparableKeySelector(TypeComparator<IN> comparator, int keyLength) {
 			this.comparator = comparator;
@@ -97,7 +116,7 @@ public class KeySelectorUtil {
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
-			key = Tuple.getTupleClass(keyLength).newInstance();
+			Tuple key = Tuple.getTupleClass(keyLength).newInstance();
 			comparator.extractKeys(value, keyArray, 0);
 			for (int i = 0; i < keyLength; i++) {
 				key.setField(keyArray[i], i);
