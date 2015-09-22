@@ -4,8 +4,12 @@
 
 package org.apache.flink.ml.nn.util
 
+import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
+
 import scala.collection.mutable.ListBuffer
 import collection.mutable
+
 
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   val maxPerBox = 3
@@ -14,26 +18,28 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
   class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]){
 
-    var objects = new ListBuffer[ListBuffer[Double]]
+    //var objects = new ListBuffer[ListBuffer[Double]]
+    var objects = new ListBuffer[DenseVector]
 
-    def overlap(obj:ListBuffer[Double],radius:Double):Boolean = {
+    def overlap(obj:DenseVector,radius:Double):Boolean = {
       var count = 0
-      for (i <- obj.indices){
+      for (i <- 0 to obj.size - 1){
         if(obj(i) - radius < c(i) + L(i)/2 && obj(i)+radius > c(i) - L(i)/2){
           count += 1
         }
       }
 
-      if (count == obj.length){
+      if (count == obj.size){
         true
       } else{
         false
       }
     }
 
-    def whichChild(obj:ListBuffer[Double]):Int = {
+    def whichChild(obj:DenseVector):Int = {
+
       var count = 0
-      for (i <- obj.indices){
+      for (i <- 0 to obj.size - 1){
         if (obj(i) > c(i)) {
           count += Math.pow(2,i).toInt
         }
@@ -92,11 +98,11 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  def insert(ob:ListBuffer[Double]){
+  def insert(ob:DenseVector){
     insertRecur(ob,root)
   }
 
-  private def insertRecur(ob:ListBuffer[Double],n:Node) {
+  private def insertRecur(ob:DenseVector,n:Node) {
     if(n.children==null) {
       if(n.objects.length < maxPerBox )
       {
@@ -116,24 +122,26 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  def searchNeighbors(obj:ListBuffer[Double],radius:Double):mutable.Buffer[ListBuffer[Double]] = {
-    val ret = mutable.Buffer[ListBuffer[Double]]()
+  def searchNeighbors(obj:DenseVector,radius:Double):mutable.Buffer[DenseVector] = {
+    val ret = mutable.Buffer[DenseVector]()
     searchRecur(obj,radius,root,ret)
     ret
   }
 
-  private def searchRecur(obj:ListBuffer[Double],radius:Double,n:Node,ret:mutable.Buffer[ListBuffer[Double]]) {
+  private def searchRecur(obj:DenseVector,radius:Double,n:Node,ret:mutable.Buffer[DenseVector]) {
     if(n.children==null) {
-      ret ++= n.objects.filter(o => distance(o,obj) < radius)
+      ret ++= n.objects.filter(o => distanceSq(o,obj) < radius)
     } else {
       for(child <- n.children; if !child.overlap(obj,radius))
         searchRecur(obj,radius,child,ret)
     }
   }
 
-  private def distance(a:ListBuffer[Double],b:ListBuffer[Double]):Double = {
-    val diffSQ = (a, b).zipped.map(_ - _).map(x=>math.pow(x,2))
-    math.sqrt(diffSQ.sum)
+  private def distanceSq(a:DenseVector,b:DenseVector):Double = {
+    SquaredEuclideanDistanceMetric().distance(a,b)
+
+    //val diffSQ = (a, b).zipped.map(_ - _).map(x=>math.pow(x,2))
+   // math.sqrt(diffSQ.sum)
   }
 
 }

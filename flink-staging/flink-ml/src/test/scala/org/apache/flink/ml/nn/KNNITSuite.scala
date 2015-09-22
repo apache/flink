@@ -25,6 +25,9 @@ import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
+
+
+
 import scala.util.Random
 import org.apache.flink.api.scala.DataSetUtils._
 
