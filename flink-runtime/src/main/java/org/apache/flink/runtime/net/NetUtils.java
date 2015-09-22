@@ -193,6 +193,8 @@ public class NetUtils {
 			if(tryToConnect(localhostName, targetAddress, strategy.getTimeout(), logging)) {
 				LOG.debug("Using InetAddress.getLocalHost() immediately for the connecting address");
 				return localhostName;
+			} else {
+				return null;
 			}
 		}
 
