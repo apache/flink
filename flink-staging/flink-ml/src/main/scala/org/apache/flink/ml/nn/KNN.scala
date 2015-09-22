@@ -180,11 +180,11 @@ object KNN {
 
                   //println("training =        !")
 
-                  ///training = Block(?, Vector(DenseVector))
+                  ///training = Block(?, Vector(DenseVector))  Maybe "?" = "block label" ???
                   /// training.values = Vector(DenseVector))
 
                   //print(training.values(0)(0))
-                  
+
                   val bPart = training.values.map{ v => LabeledVector(Math.floor(v(0)/delx)*nPartRoot + Math.floor(v(1)/dely), v) }
                   //println("Here is bPart:    ")
                   //println(bPart)

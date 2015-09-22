@@ -61,14 +61,14 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     //// Generate alternate trainingSet
     val r = scala.util.Random
-    val rSeq = Seq.fill(10000)(DenseVector(r.nextFloat, r.nextFloat))
+    val rSeq = Seq.fill(10000)(DenseVector(r.nextFloat, r.nextFloat)) //// form DataSet out of DenseVector
     /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
    // val trainingSet= env.fromCollection(Seq.fill(100)(DenseVector(r.nextFloat, r.nextFloat)))
      val trainingSet= env.fromCollection(rSeq)
 
     trainingSet.print
 
-    val testingSet = env.fromElements(DenseVector(0.0, 0.0)) /// single point
+    val testingSet = env.fromElements(DenseVector(0.0, 0.0)) /// single point, but generally DataSet[DenseVector]
     testingSet.print
 
     //// BELOW SEEMS TO RUN kNN FOR A SINGLE POINT TO COMPARE WITH OUTPUT OF knn
