@@ -365,6 +365,84 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		}
 	}
 
+	// -------------- BOOLEAN
+
+	/**
+	 * Returns the Boolean value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public boolean getBoolean(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Boolean.valueOf(value);
+	}
+
+	/**
+	 * Returns the Boolean value for the given key. If the key does not exists it will return the default value given.
+	 * The method returns whether the string of the value is "true" ignoring cases.
+	 */
+	public boolean getBoolean(String key, boolean defaultValue) {
+		addToDefaults(key, Boolean.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Boolean.valueOf(value);
+		}
+	}
+
+	// -------------- SHORT
+
+	/**
+	 * Returns the Short value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public short getShort(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Short.valueOf(value);
+	}
+
+	/**
+	 * Returns the Short value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Short.
+	 */
+	public short getShort(String key, short defaultValue) {
+		addToDefaults(key, Short.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Short.valueOf(value);
+		}
+	}
+
+	// -------------- BYTE
+
+	/**
+	 * Returns the Byte value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public byte getByte(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Byte.valueOf(value);
+	}
+
+	/**
+	 * Returns the Byte value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Byte.
+	 */
+	public byte getByte(String key, byte defaultValue) {
+		addToDefaults(key, Byte.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Byte.valueOf(value);
+		}
+	}
+
 	// --------------- Internals
 
 	protected void addToDefaults(String key, String value) {
