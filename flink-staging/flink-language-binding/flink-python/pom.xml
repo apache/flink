@@ -23,7 +23,7 @@ under the License.
     <parent>
         <artifactId>flink-language-binding-parent</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>0.10-SNAPSHOT</version>
+        <version>0.10.0-milestone-1</version>
         <relativePath>..</relativePath>
     </parent>
 	
