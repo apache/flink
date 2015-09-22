@@ -75,87 +75,6 @@ public class NetUtils {
 		}
 	}
 
-	/**
-	 * Find out the TaskManager's own IP address, simple version.
-	 */
-	public static InetAddress resolveAddress(InetSocketAddress jobManagerAddress) throws IOException {
-		AddressDetectionState strategy = jobManagerAddress != null ? AddressDetectionState.ADDRESS: AddressDetectionState.HEURISTIC;
-
-		while (true) {
-			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
-
-			while (e.hasMoreElements()) {
-				NetworkInterface n = e.nextElement();
-				Enumeration<InetAddress> ee = n.getInetAddresses();
-
-				while (ee.hasMoreElements()) {
-					InetAddress i = ee.nextElement();
-
-					switch (strategy) {
-						case ADDRESS:
-							if (hasCommonPrefix(jobManagerAddress.getAddress().getAddress(), i.getAddress())) {
-								if (tryToConnect(i, jobManagerAddress, strategy.getTimeout(), true)) {
-									LOG.info("Determined {} as the machine's own IP address", i);
-									return i;
-								}
-							}
-							break;
-
-						case FAST_CONNECT:
-						case SLOW_CONNECT:
-							boolean correct = tryToConnect(i, jobManagerAddress, strategy.getTimeout(), true);
-							if (correct) {
-								LOG.info("Determined {} as the machine's own IP address", i);
-								return i;
-							}
-							break;
-
-						case HEURISTIC:
-							if (LOG.isDebugEnabled()) {
-								LOG.debug("ResolveAddress using heuristic strategy for " + i + " with" +
-										" isLinkLocalAddress:" + i.isLinkLocalAddress() +
-										" isLoopbackAddress:" + i.isLoopbackAddress() + ".");
-							}
-
-							if (!i.isLinkLocalAddress() && !i.isLoopbackAddress() && i instanceof Inet4Address){
-								LOG.warn("Hostname " + InetAddress.getLocalHost().getHostName() + " resolves to " +
-										"loopback address. Using instead " + i.getHostAddress() + " on network " +
-										"interface " + n.getName() + ".");
-								return i;
-							}
-							break;
-
-						default:
-							throw new RuntimeException("Unknown address detection strategy: " + strategy);
-					}
-				}
-			}
-			// state control
-			switch (strategy) {
-				case ADDRESS:
-					strategy = AddressDetectionState.FAST_CONNECT;
-					break;
-				case FAST_CONNECT:
-					strategy = AddressDetectionState.SLOW_CONNECT;
-					break;
-				case SLOW_CONNECT:
-					if (!InetAddress.getLocalHost().isLoopbackAddress()) {
-						LOG.info("Heuristically taking " + InetAddress.getLocalHost() + " as own " +
-								"IP address.");
-						return InetAddress.getLocalHost();
-					} else {
-						strategy = AddressDetectionState.HEURISTIC;
-						break;
-					}
-				case HEURISTIC:
-					throw new RuntimeException("Unable to resolve own inet address by connecting " +
-							"to address (" + jobManagerAddress + ").");
-			}
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Defaulting to detection strategy " + strategy);
-			}
-		}
-	}
 
 	/**
 	 * Finds the local network address from which this machine can connect to the target
@@ -190,14 +109,6 @@ public class NetUtils {
 
 		long currentSleepTime = MIN_SLEEP_TIME;
 		long elapsedTime = 0;
-
-		// before trying with different strategies: test with getLocalHost():
-		InetAddress localhostName = InetAddress.getLocalHost();
-
-		if(tryToConnect(localhostName, targetAddress, AddressDetectionState.ADDRESS.getTimeout(), false)) {
-			LOG.debug("Using immediately InetAddress.getLocalHost() for the connecting address");
-			return localhostName;
-		}
 
 		// loop while there is time left
 		while (elapsedTime < maxWaitMillis) {
@@ -275,6 +186,16 @@ public class NetUtils {
 														InetSocketAddress targetAddress,
 														boolean logging) throws IOException
 	{
+		// try LOCAL_HOST strategy independent of the network interfaces
+		if(strategy == AddressDetectionState.LOCAL_HOST) {
+			InetAddress localhostName = InetAddress.getLocalHost();
+
+			if(tryToConnect(localhostName, targetAddress, strategy.getTimeout(), logging)) {
+				LOG.debug("Using InetAddress.getLocalHost() immediately for the connecting address");
+				return localhostName;
+			}
+		}
+
 		final byte[] targetAddressBytes = targetAddress.getAddress().getAddress();
 
 		// for each network interface
@@ -289,13 +210,6 @@ public class NetUtils {
 				InetAddress interfaceAddress = ee.nextElement();
 
 				switch (strategy) {
-					case LOCAL_HOST:
-						InetAddress localhostName = InetAddress.getLocalHost();
-
-						if(tryToConnect(localhostName, targetAddress, strategy.getTimeout(), logging)) {
-							LOG.debug("Using immediately InetAddress.getLocalHost() for the connecting address");
-							return localhostName;
-						}
 					case ADDRESS:
 						if (hasCommonPrefix(targetAddressBytes, interfaceAddress.getAddress())) {
 							LOG.debug("Target address {} and local address {} share prefix - trying to connect.",
