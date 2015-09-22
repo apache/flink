@@ -76,22 +76,27 @@ public class UtilsTest {
 			throw new NullPointerException("Initialize test appender first");
 		}
 		LoggingEvent found = null;
-		for(LoggingEvent event: testAppender.events) {
-			if(event.getMessage().toString().contains(expected)) {
-				found = event;
-				break;
+		// make sure that different threads are not logging while the logs are checked
+		synchronized (testAppender.events) {
+			for (LoggingEvent event : testAppender.events) {
+				if (event.getMessage().toString().contains(expected)) {
+					found = event;
+					break;
+				}
 			}
 		}
 		return found;
 	}
 
 	public static class TestAppender extends AppenderSkeleton {
-		public List<LoggingEvent> events = new ArrayList<LoggingEvent>();
+		public final List<LoggingEvent> events = new ArrayList<>();
 		public void close() {}
 		public boolean requiresLayout() {return false;}
 		@Override
 		protected void append(LoggingEvent event) {
-			events.add(event);
+			synchronized (events){
+				events.add(event);
+			}
 		}
 	}
 }
