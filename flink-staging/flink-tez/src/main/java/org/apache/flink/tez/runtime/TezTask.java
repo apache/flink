@@ -378,7 +378,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 					UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
 							this.inputIterators[inputNum], this.invokable, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 							this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-							this.config.getSpillingThresholdInput(inputNum));
+							this.config.getSpillingThresholdInput(inputNum), this.executionConfig.isObjectReuseEnabled());
 					// set the input to null such that it will be lazily fetched from the input strategy
 					this.inputs[inputNum] = null;
 					this.localStrategies[inputNum] = sorter;
@@ -414,7 +414,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 							(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 							this.invokable, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 							this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-							this.config.getSpillingThresholdInput(inputNum));
+							this.config.getSpillingThresholdInput(inputNum), this.executionConfig.isObjectReuseEnabled());
 					cSorter.setUdfConfiguration(this.config.getStubParameters());
 
 					// set the input to null such that it will be lazily fetched from the input strategy

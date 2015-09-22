@@ -147,7 +147,8 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 				comp,
 				this.perSortFractionMem,
 				32,
-				0.8f
+				0.8f,
+				false
 		);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
