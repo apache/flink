@@ -25,7 +25,11 @@ import backtype.storm.generated.RebalanceOptions;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.generated.SubmitOptions;
 import backtype.storm.generated.TopologyInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.streaming.util.ClusterUtil;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.util.Map;
 
@@ -41,7 +45,14 @@ public class FlinkLocalCluster {
 
 	public void submitTopologyWithOpts(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology,
 			final SubmitOptions submitOpts) throws Exception {
-		ClusterUtil.startOnMiniCluster(topology.getStreamGraph().getJobGraph(topologyName), topology.getNumberOfTasks());
+		JobGraph jobGraph = topology.getStreamGraph().getJobGraph(topologyName);
+		Configuration jobConfiguration = jobGraph.getJobConfiguration();
+
+		if (conf != null) {
+			InstantiationUtil.writeObjectToConfig(conf, jobConfiguration, StormConfig.STORM_DEFAULT_CONFIG);
+		}
+
+		ClusterUtil.startOnMiniCluster(jobGraph, topology.getNumberOfTasks());
 	}
 
 	public void killTopology(final String topologyName) {

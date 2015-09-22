@@ -27,11 +27,13 @@ public class ExclamationWithStormSpoutITCase extends StreamingProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;
+	protected String exclamationNum;
 
 	@Override
 	protected void preSubmit() throws Exception {
 		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
 		this.resultPath = this.getTempDirPath("result");
+		this.exclamationNum = "3";
 	}
 
 	@Override
@@ -41,7 +43,7 @@ public class ExclamationWithStormSpoutITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		ExclamationWithStormSpout.main(new String[]{this.textPath, this.resultPath});
+		ExclamationWithStormSpout.main(new String[]{this.textPath, this.resultPath, this.exclamationNum});
 	}
 
 }

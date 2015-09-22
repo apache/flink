@@ -47,6 +47,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 
+import org.apache.flink.stormcompatibility.util.StormConfig;
+import org.apache.flink.util.InstantiationUtil;
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -66,7 +68,6 @@ import java.util.Map;
 public class FlinkClient {
 
 	/** The client's configuration */
-	@SuppressWarnings("unused")
 	private final Map<?,?> conf;
 	/** The jobmanager's host name */
 	private final String jobManagerHost;
@@ -181,6 +182,15 @@ public class FlinkClient {
 		jobGraph.addJar(new Path(uploadedJarFile.getAbsolutePath()));
 
 		final Configuration configuration = jobGraph.getJobConfiguration();
+
+		/* set storm configuration */
+		if (this.conf != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(this.conf, configuration, StormConfig.STORM_DEFAULT_CONFIG);
+			} catch (final IOException e) {
+				throw new RuntimeException("Problem with serialize storm configuration", e);
+			}
+		}
 
 		final Client client;
 

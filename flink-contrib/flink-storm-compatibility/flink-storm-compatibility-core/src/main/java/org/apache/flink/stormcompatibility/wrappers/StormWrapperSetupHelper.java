@@ -26,8 +26,13 @@ import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyContext;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -105,6 +110,41 @@ class StormWrapperSetupHelper {
 		}
 
 		return new FlinkTopologyContext(new StormTopology(spoutSpecs, bolts, null), taskToComponents, taskId);
+	}
+
+	/**
+	 * Get storm configuration from StreamingRuntimeContext.
+	 * @param ctx The RuntimeContext of operator.
+	 * @return The storm configuration map.
+	 * @throws Exception
+	 * 		If configuration contains classes from the user code, it may lead to ClassNotFoundException.
+	 */
+	public static Map getStormConfFromContext(final RuntimeContext ctx)
+			throws Exception {
+		Map stormConf = null;
+		if (ctx instanceof StreamingRuntimeContext) {
+			Configuration jobConfiguration = ((StreamingRuntimeContext) ctx).getJobConfiguration();
+
+			if (jobConfiguration != null) {
+				/* topologies mode */
+				stormConf = (Map) InstantiationUtil.readObjectFromConfig(jobConfiguration, StormConfig.STORM_DEFAULT_CONFIG, StormWrapperSetupHelper.class.getClassLoader());
+
+				/* embedded mode */
+				if (stormConf == null) {
+					byte[] bytes = (byte[])jobConfiguration.getBytes(ExecutionConfig.CONFIG_KEY, null);
+					if (bytes != null) {
+						ExecutionConfig executionConfig;
+						executionConfig = (ExecutionConfig)InstantiationUtil.deserializeObject(bytes, StormWrapperSetupHelper.class.getClassLoader());
+						Configuration jobParameters = (Configuration)executionConfig.getGlobalJobParameters();
+						if (jobParameters != null) {
+							stormConf = jobParameters.getConfDataClone();
+						}
+					}
+				}
+			}
+		}
+
+		return stormConf;
 	}
 
 }

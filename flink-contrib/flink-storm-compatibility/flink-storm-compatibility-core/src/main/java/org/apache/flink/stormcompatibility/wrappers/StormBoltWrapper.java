@@ -18,6 +18,7 @@ package org.apache.flink.stormcompatibility.wrappers;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
 
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -205,7 +206,12 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 					this.numberOfAttributes, flinkCollector));
 		}
 
-		this.bolt.prepare(null, topologyContext, stormCollector);
+		Map config = new HashMap();
+		Map stormConf = StormWrapperSetupHelper.getStormConfFromContext(super.getRuntimeContext());
+		if (stormConf != null) {
+			config.putAll(stormConf);
+		}
+		this.bolt.prepare(config, topologyContext, stormCollector);
 	}
 
 	@Override

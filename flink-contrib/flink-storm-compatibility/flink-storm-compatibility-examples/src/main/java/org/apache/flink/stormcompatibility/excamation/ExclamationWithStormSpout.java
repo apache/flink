@@ -20,6 +20,7 @@ package org.apache.flink.stormcompatibility.excamation;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.stormcompatibility.util.FiniteStormFileSpout;
 import org.apache.flink.stormcompatibility.util.FiniteStormInMemorySpout;
@@ -67,8 +68,8 @@ public class ExclamationWithStormSpout {
 		final DataStream<String> text = getTextDataStream(env);
 
 		final DataStream<String> exclaimed = text
-				.map(new ExclamationMap())
-				.map(new ExclamationMap());
+				.map(new ExclamationMap(exclamationNum))
+				.map(new ExclamationMap(exclamationNum));
 
 		// emit result
 		if (fileOutput) {
@@ -76,6 +77,15 @@ public class ExclamationWithStormSpout {
 		} else {
 			exclaimed.print();
 		}
+
+		// set textpath and exclamation marks num of bolt&map
+		Configuration conf = new Configuration();
+		if (textPath != null) {
+			final String[] tokens = textPath.split(":");
+			final String inputFile = tokens[tokens.length - 1];
+			conf.setString("textpath", inputFile);
+		}
+		env.getConfig().setGlobalJobParameters(conf);
 
 		// execute program
 		env.execute("Streaming Exclamation with Storm spout source");
@@ -87,10 +97,23 @@ public class ExclamationWithStormSpout {
 
 	private static class ExclamationMap implements MapFunction<String, String> {
 		private static final long serialVersionUID = -684993133807698042L;
+		private String exclamation;
+
+		public ExclamationMap() {
+			exclamation = "!!!";
+		}
+
+		public ExclamationMap(int exclamationNum) {
+			StringBuilder builder = new StringBuilder();
+			for (int index = 0; index < exclamationNum; ++index) {
+				builder.append('!');
+			}
+			exclamation = builder.toString();
+		}
 
 		@Override
 		public String map(String value) throws Exception {
-			return value + "!!!";
+			return value + exclamation;
 		}
 	}
 
@@ -101,35 +124,35 @@ public class ExclamationWithStormSpout {
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputPath;
+	private static int exclamationNum;
 
 	private static boolean parseParameters(final String[] args) {
 
 		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if (args.length == 2) {
+			if (args.length == 3) {
 				textPath = args[0];
 				outputPath = args[1];
+				exclamationNum = Integer.parseInt(args[2]);
 			} else {
-				System.err.println("Usage: ExclamationWithStormSpout <text path> <result path>");
+				System.err.println("Usage: ExclamationWithStormSpout <text path> <result path> <exclamation num>");
 				return false;
 			}
 		} else {
+			exclamationNum = 3;
 			System.out.println("Executing ExclamationWithStormSpout example with built-in default " +
 					"data");
 			System.out.println("  Provide parameters to read input data from a file");
-			System.out.println("  Usage: ExclamationWithStormSpout <text path> <result path>");
+			System.out.println("  Usage: ExclamationWithStormSpout <text path> <result path> <exclamation num>");
 		}
 		return true;
 	}
 
 	private static DataStream<String> getTextDataStream(final StreamExecutionEnvironment env) {
 		if (fileOutput) {
-			// read the text file from given input path
-			final String[] tokens = textPath.split(":");
-			final String localFile = tokens[tokens.length - 1];
 			return env.addSource(
-					new FiniteStormSpoutWrapper<String>(new FiniteStormFileSpout(localFile),
+					new FiniteStormSpoutWrapper<String>(new FiniteStormFileSpout(),
 							new String[] { Utils.DEFAULT_STREAM_ID }),
 							TypeExtractor.getForClass(String.class)).setParallelism(1);
 		}

@@ -36,7 +36,7 @@ import backtype.storm.utils.Utils;
  * The input is a plain text file with lines separated by newline characters.
  * <p/>
  * <p/>
- * Usage: <code>StormExclamationWithStormBolt &lt;text path&gt; &lt;result path&gt;</code><br/>
+ * Usage: <code>StormExclamationWithStormBolt &lt;text path&gt; &lt;result path&gt; &lt;exclamation num&gt;</code><br/>
  * If no parameters are provided, the program is run with default data from
  * {@link WordCountData}.
  * <p/>
@@ -69,7 +69,7 @@ public class ExclamationWithStormBolt {
 						TypeExtractor.getForObject(""),
 				new StormBoltWrapper<String, String>(new ExclamationBolt(),
 						new String[] { Utils.DEFAULT_STREAM_ID }))
-						.map(new ExclamationMap());
+						.map(new ExclamationMap(exclamationNum));
 
 		// emit result
 		if (fileOutput) {
@@ -88,9 +88,23 @@ public class ExclamationWithStormBolt {
 
 	private static class ExclamationMap implements MapFunction<String, String> {
 
+		private String exclamation;
+
+		public ExclamationMap() {
+			exclamation = "!!!";
+		}
+
+		public ExclamationMap(int exclamationNum) {
+			StringBuilder builder = new StringBuilder();
+			for (int index = 0; index < exclamationNum; ++index) {
+				builder.append('!');
+			}
+			exclamation = builder.toString();
+		}
+
 		@Override
 		public String map(String value) throws Exception {
-			return value + "!!!";
+			return value + exclamation;
 		}
 	}
 
@@ -101,23 +115,26 @@ public class ExclamationWithStormBolt {
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputPath;
+	private static int exclamationNum;
 
 	private static boolean parseParameters(final String[] args) {
 
 		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if (args.length == 2) {
+			if (args.length == 3) {
 				textPath = args[0];
 				outputPath = args[1];
+				exclamationNum = Integer.parseInt(args[2]);
 			} else {
-				System.err.println("Usage: ExclamationWithStormBolt <text path> <result path>");
+				System.err.println("Usage: ExclamationWithStormBolt <text path> <result path> <exclamation num>");
 				return false;
 			}
 		} else {
+			exclamationNum = 3;
 			System.out.println("Executing ExclamationWithStormBolt example with built-in default data");
 			System.out.println("  Provide parameters to read input data from a file");
-			System.out.println("  Usage: ExclamationWithStormBolt <text path> <result path>");
+			System.out.println("  Usage: ExclamationWithStormBolt <text path> <result path> <exclamation num>");
 		}
 		return true;
 	}
