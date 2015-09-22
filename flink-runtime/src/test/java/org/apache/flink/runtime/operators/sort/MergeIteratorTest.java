@@ -114,7 +114,9 @@ public class MergeIteratorTest {
 			Assert.assertTrue(comparator.compare(k1, k2) <= 0);
 			Assert.assertEquals(expected[pos++], k2); 
 			
+			Tuple2<Integer, String> tmp = rec1;
 			rec1 = rec2;
+			rec2 = tmp;
 		}
 	}
 	
@@ -151,7 +153,9 @@ public class MergeIteratorTest {
 
 			Assert.assertTrue(comparator.compare(rec1.f0, rec2.f0) <= 0);
 			
+			Tuple2<Integer, String> tmp = rec1;
 			rec1 = rec2;
+			rec2 = tmp;
 		}
 		
 		Assert.assertEquals("Too few elements returned from stream.", 50, elementsFound);
@@ -193,7 +197,9 @@ public class MergeIteratorTest {
 				break;
 			}
 			
+			Tuple2<Integer, String> tmp = rec1;
 			rec1 = rec2;
+			rec2 = tmp;
 		}
 		
 		Assert.assertTrue("Merge must have returned a wrong result", violationFound);

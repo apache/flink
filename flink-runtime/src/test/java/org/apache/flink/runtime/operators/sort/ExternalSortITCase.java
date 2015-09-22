@@ -133,8 +133,10 @@ public class ExternalSortITCase {
 				pairsEmitted++;
 				
 				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
-				
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
+				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 			
@@ -180,8 +182,10 @@ public class ExternalSortITCase {
 				pairsEmitted++;
 				
 				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
-				
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
+				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 			
@@ -227,7 +231,10 @@ public class ExternalSortITCase {
 				pairsEmitted++;
 				
 				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
+				rec2 = tmp;
 			}
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 			
@@ -277,7 +284,10 @@ public class ExternalSortITCase {
 				pairsRead++;
 				
 				Assert.assertTrue(keyComparator.compare(rec1.f0, rec2.f0) <= 0);
+
+				Tuple2<Integer, String> tmp = rec1;
 				rec1 = rec2;
+				rec2 = tmp;
 				
 				// log
 				if (pairsRead == nextStep) {
