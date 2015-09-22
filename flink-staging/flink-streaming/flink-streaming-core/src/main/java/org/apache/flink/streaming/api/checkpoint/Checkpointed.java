@@ -61,5 +61,5 @@ public interface Checkpointed<T extends Serializable> {
 	 *
 	 * @param state The state to be restored. 
 	 */
-	void restoreState(T state);
+	void restoreState(T state) throws Exception;
 }
