@@ -31,7 +31,7 @@ object Classification {
     LabeledVector(1.0000, DenseVector(-0.4060, -0.1760)),
     LabeledVector(1.0000, DenseVector(-0.0060, -0.1760)),
     LabeledVector(1.0000, DenseVector(-0.9060, -0.3760)),
-    LabeledVector(1.0000,, DenseVector(-0.3060, -0.1760)),
+    LabeledVector(1.0000, DenseVector(-0.3060, -0.1760)),
     LabeledVector(2.0000, DenseVector(-0.4060, -0.3760)),
     LabeledVector(1.0000, DenseVector(-0.2060, -0.0760)),
     LabeledVector(1.0000, DenseVector(-1.6060, -0.6760)),
@@ -131,3 +131,6 @@ object Classification {
 
   val expectedWeightVector = DenseVector(-1.95, -3.45)
 }
+
+
+

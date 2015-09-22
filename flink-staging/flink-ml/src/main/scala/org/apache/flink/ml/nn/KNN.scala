@@ -172,30 +172,44 @@ object KNN {
                     Ordering.by(_._4))
 
                   // MAKE CHANGES HERE FOR SIMPLE PARTITION OF DOMAIN INTO BOXES
-                  val min = 0.0
-                  val max = 1.0
+                  val min_x = 0.0
+                  val max_x = 1.0
                   val nPartRoot = 4
-                  println("training =        !")
+                  val delx = (max_x - min_x)/nPartRoot
+                  val dely = (max_x - min_x)/nPartRoot
+
+                  //println("training =        !")
+
                   ///training = Block(?, Vector(DenseVector))
                   /// training.values = Vector(DenseVector))
-                  print(training.values(0))
 
-                  val bPart = training.values.map{ v=> LabeledVector(Math.floor(v(0))*nPartRoot + Math.floor(v(1)), v) }
-
+                  //print(training.values(0)(0))
+                  
+                  val bPart = training.values.map{ v => LabeledVector(Math.floor(v(0)/delx)*nPartRoot + Math.floor(v(1)/dely), v) }
+                  //println("Here is bPart:    ")
+                  //println(bPart)
                   //// PARTITION DOMAIN TO n UNIFORM BOXES
 
+                  //println(testing)  //// testing.values._1 = ? Maybe related Blocks or a priority?
+                                        //// testing.values._2 = DenseVector
+                  //println(training)
+
                   for (a <- testing.values) {
-
                     //// GET BOX ID FOR a
-
+                    val idA = Math.floor(a._2(0)/delx)*nPartRoot + Math.floor(a._2(1)/dely)
+                    val bFilt = bPart.filter{ _.label==idA}
+                    //println()
+                    println("bFilt =   " + bFilt)
                     /////THIS LOOP WILL THEN ONLY BE OVER TRAINING VALUES IN THAT BOX
                     //for (b <- training.values) {
-                     for (b <- bPart.vector)
+                    val bFiltVect = bFilt.map(_.vector)
+                    //println(bFiltVect)
+                     for (b <- bFiltVect){
                       // (training vector, input vector, input key, distance)
                       queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
                       if (queue.size > k) {
                         queue.dequeue()
-                      }1
+                      }
                     }
 
                     for (v <- queue) {
