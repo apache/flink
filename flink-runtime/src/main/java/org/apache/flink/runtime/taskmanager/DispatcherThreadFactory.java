@@ -16,13 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.runtime.taskmanager;
+
+import java.util.concurrent.ThreadFactory;
 
 /**
- * The base interface for all user-defined functions.
- * 
- * <p>This interface is empty in order to allow extending interfaces to
- * be SAM (single abstract method) interfaces that can be implemented via Java 8 lambdas.</p>
+ * Thread factory that creates threads with a given name, associates them with a given
+ * thread group, and set them to daemon mode.
  */
-public interface Function extends java.io.Serializable {
+public class DispatcherThreadFactory implements ThreadFactory {
+	
+	private final ThreadGroup group;
+	
+	private final String threadName;
+	
+	/**
+	 * Creates a new thread factory.
+	 * 
+	 * @param group The group that the threads will be associated with.
+	 * @param threadName The name for the threads.
+	 */
+	public DispatcherThreadFactory(ThreadGroup group, String threadName) {
+		this.group = group;
+		this.threadName = threadName;
+	}
+
+	@Override
+	public Thread newThread(Runnable r) {
+		Thread t = new Thread(group, r, threadName);
+		t.setDaemon(true);
+		return t;
+	}
 }
