@@ -340,6 +340,12 @@ under the License.
 				<artifactId>zookeeper</artifactId>
 				<version>${zookeeper.version}</version>
 			</dependency>
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-all</artifactId>
+				<version>4.0.27.Final</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
