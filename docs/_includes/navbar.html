@@ -16,6 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+{% capture quickstart %}{{site.baseurl}}/quickstart{% endcapture %}
 {% capture setup %}{{site.baseurl}}/setup{% endcapture %}
 {% capture apis %}{{site.baseurl}}/apis{% endcapture %}
 {% capture libs %}{{site.baseurl}}/libs{% endcapture %}
@@ -40,8 +41,19 @@ under the License.
           <ul class="nav navbar-nav">
             <li{% if page.url == '/index.html' %} class="active"{% endif %}><a href="{{ site.baseurl}}/index.html">Overview<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
 
+            <!-- Quickstart -->
+            <li class="dropdown{% if page.url contains '/quickstart/' %} active{% endif %}">
+              <a href="{{ quickstart }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Quickstart <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li><a href="{{ quickstart }}/setup_quickstart.html">Setup</a></li>
+                <li><a href="{{ quickstart }}/java_api_quickstart.html">Java API</a></li>
+                <li><a href="{{ quickstart }}/scala_api_quickstart.html">Scala API</a></li>
+                <li><a href="{{ quickstart }}/run_example_quickstart.html">Run Step-by-Step Example</a></li>
+              </ul>
+            </li>
+
             <!-- Setup -->
-            <li class="dropdown{% if page.url contains setup %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/setup/' %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li><a href="{{ setup }}/building.html">Build Flink {{ site.version }}</a></li>
@@ -53,7 +65,7 @@ under the License.
                 <li><a href="{{ setup }}/yarn_setup.html">YARN</a></li>
                 <li><a href="{{ setup }}/gce_setup.html">GCloud</a></li>
                 <li><a href="{{ setup }}/flink_on_tez.html">Flink on Tez <span class="badge">Beta</span></a></li>
-                <li><a href="{{ setup }}/jobmanager_high_availability.html">JobManager High Availability<a></li>
+                <li><a href="{{ setup }}/jobmanager_high_availability.html">JobManager High Availability</a></li>
 
                 <li class="divider"></li>
                 <li><a href="{{ setup }}/config.html">Configuration</a></li>
@@ -61,7 +73,7 @@ under the License.
             </li>
 
             <!-- Programming Guides -->
-            <li class="dropdown{% if page.url contains apis %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/apis/' %} active{% endif %}">
               <a href="{{ apis }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Programming Guides <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li><a href="{{ apis }}/programming_guide.html"><strong>Batch: DataSet API</strong></a></li>
@@ -87,7 +99,7 @@ under the License.
             </li>
 
             <!-- Libraries -->
-            <li class="dropdown{% if page.url contains libs %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %}">
               <a href="{{ libs }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Libraries <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
                   <li><a href="{{ libs }}/spargel_guide.html">Graphs: Spargel</a></li>
@@ -98,7 +110,7 @@ under the License.
             </li>
 
             <!-- Internals -->
-            <li class="dropdown{% if page.url contains internals %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/internals/' %} active{% endif %}">
               <a href="{{ internals }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Internals <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li role="presentation" class="dropdown-header"><strong>Contribute</strong></li>
