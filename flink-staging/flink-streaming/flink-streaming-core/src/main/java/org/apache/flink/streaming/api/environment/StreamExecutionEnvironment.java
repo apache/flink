@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.environment;
 
 import com.esotericsoftware.kryo.Serializer;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -49,6 +49,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
@@ -72,10 +73,12 @@ import org.apache.flink.util.SplittableIterator;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * {@link org.apache.flink.api.java.ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -83,25 +86,33 @@ import java.util.List;
  */
 public abstract class StreamExecutionEnvironment {
 
-	public final static String DEFAULT_JOB_NAME = "Flink Streaming Job";
+	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
 	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
-
+	
+	/** The time characteristic that is used if none other is set */
+	private static TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
+	
+	// ------------------------------------------------------------------------
+	
 	private long bufferTimeout = 100;
 
-	private ExecutionConfig config = new ExecutionConfig();
+	private final ExecutionConfig config = new ExecutionConfig();
 
-	protected List<StreamTransformation<?>> transformations = Lists.newArrayList();
+	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
 
 	protected boolean isChainingEnabled = true;
 
 	protected long checkpointInterval = -1; // disabled
 
-	protected CheckpointingMode checkpointingMode = null;
+	protected CheckpointingMode checkpointingMode;
 
 	protected boolean forceCheckpointing = false;
 
 	protected StateHandleProvider<?> stateHandleProvider;
+	
+	/** The time characteristic used by the data streams */
+	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
 	/** The environment of the context (local by default, cluster if invoked through command line) */
 	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
@@ -515,6 +526,30 @@ public abstract class StreamExecutionEnvironment {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Time characteristic
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Sets the time characteristic for the stream, e.g., processing time, event time,
+	 * or ingestion time.
+	 * 
+	 * @param characteristic The time characteristic.
+	 */
+	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
+		this.timeCharacteristic = Objects.requireNonNull(characteristic);
+	}
+
+	/**
+	 * Gets the time characteristic for the stream, e.g., processing time, event time,
+	 * or ingestion time.
+	 * 
+	 * @return The time characteristic.
+	 */
+	public TimeCharacteristic getStreamTimeCharacteristic() {
+		return timeCharacteristic;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	// Data stream creations
 	// --------------------------------------------------------------------------------------------

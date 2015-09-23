@@ -22,14 +22,15 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
-import org.apache.flink.streaming.runtime.operators.windows.AggregatingProcessingTimeWindowOperator;
+import org.apache.flink.streaming.api.windowing.windowpolicy.Time;
 import org.apache.flink.util.Collector;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @SuppressWarnings("serial")
 public class GroupedProcessingTimeWindowExample {
@@ -75,31 +76,20 @@ public class GroupedProcessingTimeWindowExample {
 				});
 		
 		stream
-				.groupBy(new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>())
-//				.window(Time.of(2500, TimeUnit.MILLISECONDS)).every(Time.of(500, TimeUnit.MILLISECONDS))
-//				.reduceWindow(new SummingReducer())
-//				.flatten()
-//		.partitionByHash(new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>())
-//		.transform(
-//				"Aligned time window",
-//				TypeInfoParser.<Tuple2<Long, Long>>parse("Tuple2<Long, Long>"),
-//				new AccumulatingProcessingTimeWindowOperator<Long, Tuple2<Long, Long>, Tuple2<Long, Long>>(
-//						new SummingWindowFunction<Long>(),
-//						new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>(),
-//						2500, 500))
-			.transform(
-				"Aligned time window",
-				TypeInfoParser.<Tuple2<Long, Long>>parse("Tuple2<Long, Long>"),
-				new AggregatingProcessingTimeWindowOperator<Long, Tuple2<Long, Long>>(
-						new SummingReducer(),
-						new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>(),
-						2500, 500))
+			.keyBy(0)
+			.window(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
+			.reduceWindow(new SummingReducer())
+
+			// alternative: use a mapWindow function which does not pre-aggregate
+//			.keyBy(new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>())
+//			.window(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
+//			.mapWindow(new SummingWindowFunction())
 				
 			.addSink(new SinkFunction<Tuple2<Long, Long>>() {
-					@Override
-					public void invoke(Tuple2<Long, Long> value) {
-			}
-		});
+				@Override
+				public void invoke(Tuple2<Long, Long> value) {
+				}
+			});
 		
 		env.execute();
 	}
@@ -113,47 +103,16 @@ public class GroupedProcessingTimeWindowExample {
 		}
 	}
 
-	public static class IdentityKeyExtractor<T> implements KeySelector<T, T> {
+	public static class SummingWindowFunction implements KeyedWindowFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Long> {
 
 		@Override
-		public T getKey(T value) {
-			return value;
-		}
-	}
-
-	public static class IdentityWindowFunction<K, T> implements KeyedWindowFunction<K, T, T> {
-
-		@Override
-		public void evaluate(K k, Iterable<T> values, Collector<T> out) throws Exception {
-			for (T v : values) {
-				out.collect(v);
-			}
-		}
-	}
-	
-	public static class CountingWindowFunction<K, T> implements KeyedWindowFunction<K, T, Long> {
-		
-		@Override
-		public void evaluate(K k, Iterable<T> values, Collector<Long> out) throws Exception {
-			long count = 0;
-			for (T ignored : values) {
-				count++;
-			}
-
-			out.collect(count);
-		}
-	}
-
-	public static class SummingWindowFunction<K> implements KeyedWindowFunction<K, Tuple2<K, Long>, Tuple2<K, Long>> {
-
-		@Override
-		public void evaluate(K key, Iterable<Tuple2<K, Long>> values, Collector<Tuple2<K, Long>> out) throws Exception {
+		public void evaluate(Long key, Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
 			long sum = 0L;
-			for (Tuple2<K, Long> value : values) {
+			for (Tuple2<Long, Long> value : values) {
 				sum += value.f1;
 			}
 
-			out.collect(new Tuple2<K, Long>(key, sum));
+			out.collect(new Tuple2<>(key, sum));
 		}
 	}
 

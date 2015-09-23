@@ -29,7 +29,8 @@ import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.common.functions.ReduceFunction
 
 
-class GroupedDataStream[T](javaStream: GroupedJavaStream[T]) extends DataStream[T](javaStream){
+class GroupedDataStream[T, K](javaStream: GroupedJavaStream[T, K]) 
+  extends DataStream[T](javaStream) {
  
   /**
    * Creates a new [[DataStream]] by reducing the elements of this DataStream
