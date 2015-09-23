@@ -383,7 +383,7 @@ class JobManager(
             jobInfo.end = timeStamp
 
             // is the client waiting for the job result?
-            if(jobInfo.client != ActorRef.noSender) {
+            if (jobInfo.client != ActorRef.noSender) {
               newJobStatus match {
                 case JobStatus.FINISHED =>
                   val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
@@ -391,43 +391,46 @@ class JobManager(
                   } catch {
                     case e: Exception =>
                       log.error(s"Cannot fetch final accumulators for job $jobID", e)
+
                       val exception = new JobExecutionException(jobID,
                         "Failed to retrieve accumulator results.", e)
+
                       jobInfo.client ! decorateMessage(JobResultFailure(
                         new SerializedThrowable(exception)))
+
                       Collections.emptyMap()
                   }
-                val result = new SerializedJobExecutionResult(
-                  jobID,
-                  jobInfo.duration,
-                  accumulatorResults)
+
+                  val result = new SerializedJobExecutionResult(
+                    jobID,
+                    jobInfo.duration,
+                    accumulatorResults)
                   jobInfo.client ! decorateMessage(JobResultSuccess(result))
 
                 case JobStatus.CANCELED =>
-                // the error may be packed as a serialized throwable
-                val unpackedError = SerializedThrowable.get(
-                  error, executionGraph.getUserClassLoader())
-                
-                jobInfo.client ! decorateMessage(JobResultFailure(
-                  new SerializedThrowable(
-                    new JobCancellationException(jobID, "Job was cancelled.", unpackedError))))
+                  // the error may be packed as a serialized throwable
+                  val unpackedError = SerializedThrowable.get(
+                    error, executionGraph.getUserClassLoader())
+
+                  jobInfo.client ! decorateMessage(JobResultFailure(
+                    new SerializedThrowable(
+                      new JobCancellationException(jobID, "Job was cancelled.", unpackedError))))
 
                 case JobStatus.FAILED =>
-                val unpackedError = SerializedThrowable.get(
-                  error, executionGraph.getUserClassLoader())
-                
-                jobInfo.client ! decorateMessage(JobResultFailure(
-                  new SerializedThrowable(
-                    new JobExecutionException(jobID, "Job execution failed.", unpackedError))))
+                  val unpackedError = SerializedThrowable.get(
+                    error, executionGraph.getUserClassLoader())
+
+                  jobInfo.client ! decorateMessage(JobResultFailure(
+                    new SerializedThrowable(
+                      new JobExecutionException(jobID, "Job execution failed.", unpackedError))))
 
                 case x =>
-                val exception = new JobExecutionException(jobID, s"$x is not a terminal state.")
-                jobInfo.client ! decorateMessage(JobResultFailure(
-                  new SerializedThrowable(exception)))
+                  val exception = new JobExecutionException(jobID, s"$x is not a terminal state.")
+                  jobInfo.client ! decorateMessage(JobResultFailure(
+                    new SerializedThrowable(exception)))
                   throw exception
               }
             }
-
 
             if (jobInfo.sessionAlive) {
               jobInfo.setLastActive()
