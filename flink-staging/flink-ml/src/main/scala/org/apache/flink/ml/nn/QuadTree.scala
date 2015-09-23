@@ -22,6 +22,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     var objects = new ListBuffer[DenseVector]
 
     def overlap(obj:DenseVector,radius:Double):Boolean = {
+ //     println("obj.size from overlap                    " + obj.size)
       var count = 0
       for (i <- 0 to obj.size - 1){
         if(obj(i) - radius < c(i) + L(i)/2 && obj(i)+radius > c(i) - L(i)/2){
@@ -30,9 +31,14 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       }
 
       if (count == obj.size){
-        true
+
+        println("true!!!!!")
+        println("objects =   " + this.objects)
+        println("children (to test if null....) =   " + this.children)
+
+        return true
       } else{
-        false
+        return false
       }
     }
 
@@ -89,12 +95,12 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   }
 
   def printTreeRecur(n:Node){
-    if(n.children !=null) {
+    if(n.children != null) {
       for (c <- n.children){
         printTreeRecur(c)
       }
     }else{
-      println("printing tree:  " + n.objects)
+      //println("printing tree:  " + n.objects)
     }
   }
 
@@ -122,26 +128,37 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  def searchNeighbors(obj:DenseVector,radius:Double):mutable.Buffer[DenseVector] = {
-    val ret = mutable.Buffer[DenseVector]()
+  def searchNeighbors(obj:DenseVector,radius:Double):ListBuffer[DenseVector] = {
+    var ret = new ListBuffer[DenseVector]
     searchRecur(obj,radius,root,ret)
     ret
   }
 
-  private def searchRecur(obj:DenseVector,radius:Double,n:Node,ret:mutable.Buffer[DenseVector]) {
+  private def searchRecur(obj:DenseVector,radius:Double,n:Node,ret:ListBuffer[DenseVector]) {
     if(n.children==null) {
-      ret ++= n.objects.filter(o => distanceSq(o,obj) < radius)
+      //println("n.objects    =    " + n.objects)
+      ret ++= n.objects.filter(o => distance(o,obj) < radius)
     } else {
-      for(child <- n.children; if !child.overlap(obj,radius))
-        searchRecur(obj,radius,child,ret)
+      for(child <- n.children) {
+        //; if(!child.overlap(obj,radius)))
+        searchRecur(obj, radius, child, ret)
+      }
     }
   }
 
-  private def distanceSq(a:DenseVector,b:DenseVector):Double = {
-    SquaredEuclideanDistanceMetric().distance(a,b)
+   def distance(a:DenseVector,b:DenseVector):Double = {
+    var diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
+    math.sqrt(diffSQ)
+  }
+
+  //println("a    " + a)
+    //println("b   " + a)
+    //println("dist    " +     SquaredEuclideanDistanceMetric().distance(a,b))
+
+   // SquaredEuclideanDistanceMetric().distance(a,b)
 
     //val diffSQ = (a, b).zipped.map(_ - _).map(x=>math.pow(x,2))
    // math.sqrt(diffSQ.sum)
-  }
+  //}
 
 }

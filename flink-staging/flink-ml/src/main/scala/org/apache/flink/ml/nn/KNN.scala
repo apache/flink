@@ -28,6 +28,11 @@ import org.apache.flink.ml.metrics.distances.{DistanceMetric, EuclideanDistanceM
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.util.Collector
 
+import org.apache.flink.ml.nn.util.QuadTree
+import scala.collection.mutable.ListBuffer
+import org.apache.flink.ml.math.DenseVector
+
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -171,6 +176,20 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
+
+                  /// need to automate getting max/min values....
+
+                  val MinVec = ListBuffer(0.0, 0.0)
+                  val MaxVec = ListBuffer(1.0, 1.0)
+                  var trainingQuadTree = new QuadTree(MinVec, MaxVec)
+
+                  ///training.values.map(v => DenseVector(v.))
+                  for (v <- training.values){
+                    trainingQuadTree.insert(v.asInstanceOf[DenseVector])
+                  }
+                  //println("trainingQuadTree =    " + trainingQuadTree.printTree())
+                  trainingQuadTree.printTree()
+                  /*
                   // MAKE CHANGES HERE FOR SIMPLE PARTITION OF DOMAIN INTO BOXES
                   val min_x = 0.0
                   val max_x = 1.0
@@ -178,14 +197,22 @@ object KNN {
                   val delx = (max_x - min_x)/nPartRoot
                   val dely = (max_x - min_x)/nPartRoot
 
-                  //println("training =        !")
+                  println("training =        !" +  training)
+                  println("training.values =        !"  +  training.values)
+                  for (v <- training.values){
+                    println("v   =  " + v)
+                  }
+                  */
 
                   ///training = Block(?, Vector(DenseVector))  Maybe "?" = "block label" ???
                   /// training.values = Vector(DenseVector))
 
                   //print(training.values(0)(0))
 
+                  /*
                   val bPart = training.values.map{ v => LabeledVector(Math.floor(v(0)/delx)*nPartRoot + Math.floor(v(1)/dely), v) }
+                  */
+
                   //println("Here is bPart:    ")
                   //println(bPart)
                   //// PARTITION DOMAIN TO n UNIFORM BOXES
@@ -193,18 +220,32 @@ object KNN {
                   //println(testing)  //// testing.values._1 = ? Maybe related Blocks or a priority?
                                         //// testing.values._2 = DenseVector
                   //println(training)
+                  val FiltTest = trainingQuadTree.searchNeighbors(DenseVector(0.0,0.0),0.5)
+                  println("FiltTest =   " + FiltTest)
+
 
                   for (a <- testing.values) {
                     //// GET BOX ID FOR a
+                    //println("made it to main loop:      ")
+                    //val bFiltVect = trainingQuadTree.searchNeighbors(a.asInstanceOf[DenseVector],0.5)
+                    val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],0.5)
+
+                    println(" bFiltVect  =    " + bFiltVect)
+
+                    /*
                     val idA = Math.floor(a._2(0)/delx)*nPartRoot + Math.floor(a._2(1)/dely)
                     val bFilt = bPart.filter{ _.label==idA}
+
                     //println()
                     println("bFilt =   " + bFilt)
                     /////THIS LOOP WILL THEN ONLY BE OVER TRAINING VALUES IN THAT BOX
                     //for (b <- training.values) {
                     val bFiltVect = bFilt.map(_.vector)
+                    */
+
                     //println(bFiltVect)
                      for (b <- bFiltVect){
+                      //for (b <- training.values){
                       // (training vector, input vector, input key, distance)
                       queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
                       if (queue.size > k) {
