@@ -21,8 +21,8 @@ package org.apache.flink.streaming.api.scala
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-import org.apache.flink.api.common.functions.{ReduceFunction, FlatMapFunction, MapFunction,
-  Partitioner, FoldFunction, FilterFunction}
+import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
+import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction, Partitioner, FilterFunction}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -30,17 +30,12 @@ import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator}
-import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.operators.{StreamGroupedReduce, StreamReduce}
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.state.OperatorState
 import org.apache.flink.api.common.functions.{RichMapFunction, RichFlatMapFunction, RichFilterFunction}
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.KeyedDataStream
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 
@@ -244,20 +239,20 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(fields: Int*): GroupedDataStream[T] = javaStream.groupBy(fields: _*)
+  def groupBy(fields: Int*): GroupedDataStream[T, JavaTuple] = javaStream.groupBy(fields: _*)
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(firstField: String, otherFields: String*): GroupedDataStream[T] = 
+  def groupBy(firstField: String, otherFields: String*): GroupedDataStream[T, JavaTuple] = 
    javaStream.groupBy(firstField +: otherFields.toArray: _*)   
   
   /**
    * Groups the elements of a DataStream by the given K key to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy[K: TypeInformation](fun: T => K): GroupedDataStream[T] = {
+  def groupBy[K: TypeInformation](fun: T => K): GroupedDataStream[T, K] = {
 
     val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
@@ -605,7 +600,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   private[flink] def isStatePartitioned: Boolean = {
-    javaStream.isInstanceOf[KeyedDataStream[T]]
+    javaStream.isInstanceOf[KeyedDataStream[_, _]]
   }
 
   /**

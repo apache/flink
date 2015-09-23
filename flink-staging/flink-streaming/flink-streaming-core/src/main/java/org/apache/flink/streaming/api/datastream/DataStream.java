@@ -229,8 +229,8 @@ public class DataStream<T> {
 	 *            The KeySelector to be used for extracting the key for partitioning
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
 	 */
-	public KeyedDataStream<T> keyBy(KeySelector<T,?> key){
-		return new KeyedDataStream<T>(this, clean(key));
+	public <K> KeyedDataStream<T, K> keyBy(KeySelector<T, K> key){
+		return new KeyedDataStream<T, K>(this, clean(key));
 	}
 
 	/**
@@ -241,7 +241,7 @@ public class DataStream<T> {
 	 *            will be grouped.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
 	 */
-	public KeyedDataStream<T> keyBy(int... fields) {
+	public KeyedDataStream<T, Tuple> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return keyBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
 		} else {
@@ -260,12 +260,12 @@ public class DataStream<T> {
 	 *            partitioned.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
 	 **/
-	public KeyedDataStream<T> keyBy(String... fields) {
+	public KeyedDataStream<T, Tuple> keyBy(String... fields) {
 		return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
 	}
 
-	private KeyedDataStream<T> keyBy(Keys<T> keys) {
-		return new KeyedDataStream<T>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
+	private KeyedDataStream<T, Tuple> keyBy(Keys<T> keys) {
+		return new KeyedDataStream<T, Tuple>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
 				getType(), getExecutionConfig())));
 	}
 	
@@ -279,7 +279,7 @@ public class DataStream<T> {
 	 *            will be partitioned.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
 	 */
-	public GroupedDataStream<T> groupBy(int... fields) {
+	public GroupedDataStream<T, Tuple> groupBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return groupBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
 		} else {
@@ -304,7 +304,7 @@ public class DataStream<T> {
 	 *            grouped.
 	 * @return The grouped {@link DataStream}
 	 **/
-	public GroupedDataStream<T> groupBy(String... fields) {
+	public GroupedDataStream<T, Tuple> groupBy(String... fields) {
 		return groupBy(new Keys.ExpressionKeys<T>(fields, getType()));
 	}
 
@@ -322,13 +322,13 @@ public class DataStream<T> {
 	 *            the values
 	 * @return The grouped {@link DataStream}
 	 */
-	public GroupedDataStream<T> groupBy(KeySelector<T, ?> keySelector) {
-		return new GroupedDataStream<T>(this, clean(keySelector));
+	public <K> GroupedDataStream<T, K> groupBy(KeySelector<T, K> keySelector) {
+		return new GroupedDataStream<T, K>(this, clean(keySelector));
 	}
 
-	private GroupedDataStream<T> groupBy(Keys<T> keys) {
-		return new GroupedDataStream<T>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
-				getType(), getExecutionConfig())));
+	private GroupedDataStream<T, Tuple> groupBy(Keys<T> keys) {
+		return new GroupedDataStream<T, Tuple>(this, 
+				clean(KeySelectorUtil.getSelectorForKeys(keys, getType(), getExecutionConfig())));
 	}
 
 	/**

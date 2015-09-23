@@ -38,8 +38,8 @@ package object scala {
   implicit def javaToScalaStream[R](javaStream: JavaStream[R]): DataStream[R] =
     new DataStream[R](javaStream)
     
-  implicit def javaToScalaGroupedStream[R](javaStream: GroupedJavaStream[R]): 
-  GroupedDataStream[R] = new GroupedDataStream[R](javaStream)    
+  implicit def javaToScalaGroupedStream[R, K](javaStream: GroupedJavaStream[R, K]): 
+  GroupedDataStream[R, K] = new GroupedDataStream[R, K](javaStream)    
 
   implicit def javaToScalaWindowedStream[R](javaWStream: JavaWStream[R]): WindowedDataStream[R] =
     new WindowedDataStream[R](javaWStream)

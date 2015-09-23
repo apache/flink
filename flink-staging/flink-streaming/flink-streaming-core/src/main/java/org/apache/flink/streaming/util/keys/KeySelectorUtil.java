@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 public class KeySelectorUtil {
 
-	public static <X> KeySelector<X, ?> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
+	public static <X> KeySelector<X, Tuple> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
 		if (!(typeInfo instanceof CompositeType)) {
 			throw new InvalidTypesException(
 					"This key operation requires a composite type such as Tuples, POJOs, or Case Classes.");
@@ -93,9 +93,15 @@ public class KeySelectorUtil {
 			comparator.extractKeys(value, keyArray, 0);
 			return (K) keyArray[0];
 		}
-
 	}
 
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * A key selector for selecting key fields via a TypeComparator.
+	 *
+	 * @param <IN> The type from which the key is extracted.
+	 */
 	public static class ComparableKeySelector<IN> implements KeySelector<IN, Tuple> {
 
 		private static final long serialVersionUID = 1L;
@@ -126,6 +132,13 @@ public class KeySelectorUtil {
 
 	}
 
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * A key selector for selecting individual array fields as keys and returns them as a Tuple.
+	 * 
+	 * @param <IN> The type from which the key is extracted, i.e., the array type.
+	 */
 	public static final class ArrayKeySelector<IN> implements KeySelector<IN, Tuple> {
 
 		private static final long serialVersionUID = 1L;

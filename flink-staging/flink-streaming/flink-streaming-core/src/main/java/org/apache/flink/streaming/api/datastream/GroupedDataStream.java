@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
  * @param <OUT>
  *            The output type of the {@link GroupedDataStream}.
  */
-public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
+public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 
 	/**
 	 * Creates a new {@link GroupedDataStream}, group inclusion is determined using
@@ -48,7 +48,7 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 	 * @param dataStream Base stream of data
 	 * @param keySelector Function for determining group inclusion
 	 */
-	public GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
+	public GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, KEY> keySelector) {
 		super(dataStream, keySelector);
 	}
 
@@ -324,8 +324,6 @@ public class GroupedDataStream<OUT> extends KeyedDataStream<OUT> {
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 		StreamGroupedReduce<OUT> operator = new StreamGroupedReduce<OUT>(clean(aggregate), keySelector);
-		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Grouped Aggregation",
-				getType(), operator);
-		return returnStream;
+		return transform("Grouped Aggregation", getType(), operator);
 	}
 }

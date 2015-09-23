@@ -103,7 +103,7 @@ public class WindowedDataStream<OUT> {
 		this.triggerHelper = policyHelper;
 
 		if (dataStream instanceof GroupedDataStream) {
-			this.discretizerKey = ((GroupedDataStream<OUT>) dataStream).keySelector;
+			this.discretizerKey = ((GroupedDataStream<OUT, ?>) dataStream).keySelector;
 		}
 	}
 
@@ -115,7 +115,7 @@ public class WindowedDataStream<OUT> {
 		this.userEvicter = evicter;
 
 		if (dataStream instanceof GroupedDataStream) {
-			this.discretizerKey = ((GroupedDataStream<OUT>) dataStream).keySelector;
+			this.discretizerKey = ((GroupedDataStream<OUT, ?>) dataStream).keySelector;
 		}
 	}
 
