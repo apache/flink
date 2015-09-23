@@ -142,6 +142,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	@Override
 	public void invoke(IN value) throws Exception {
 		byte[] msg = schema.serialize(value);
+
 		try {
 			outputStream.write(msg);
 			if (autoFlush) {
@@ -260,6 +261,8 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	// ------------------------------------------------------------------------
 	
 	int getCurrentNumberOfRetries() {
-		return retries;
+		synchronized (lock) {
+			return retries;
+		}
 	}
 }
