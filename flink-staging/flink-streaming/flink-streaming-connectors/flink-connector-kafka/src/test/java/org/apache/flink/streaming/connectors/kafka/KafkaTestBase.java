@@ -316,6 +316,28 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 	}
 
+	protected static void tryExecutePropagateExceptions(StreamExecutionEnvironment see, String name) throws Exception {
+		try {
+			see.execute(name);
+		}
+		catch (ProgramInvocationException | JobExecutionException root) {
+			Throwable cause = root.getCause();
+
+			// search for nested SuccessExceptions
+			int depth = 0;
+			while (!(cause instanceof SuccessException)) {
+				if (cause == null || depth++ == 20) {
+					throw root;
+				}
+				else {
+					cause = cause.getCause();
+				}
+			}
+		}
+	}
+	
+	
+
 	protected static void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
 		
 		// create topic with one client
@@ -331,6 +353,12 @@ public abstract class KafkaTestBase extends TestLogger {
 		// validate that the topic has been created
 		final long deadline = System.currentTimeMillis() + 30000;
 		do {
+			try {
+				Thread.sleep(100);
+			}
+			catch (InterruptedException e) {
+				// restore interrupted state
+			}
 			List<PartitionInfo> partitions = FlinkKafkaConsumer.getPartitionsForTopic(topic, standardProps);
 			if (partitions != null && partitions.size() > 0) {
 				return;
