@@ -176,19 +176,20 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
+                  //// automated max/min values to get bounding box
+                  var MinVec =  new ListBuffer[Double]
+                  var MaxVec =  new ListBuffer[Double]
+                  for ( i <- 0 to training.values(0).size - 1){
+                    val minTrain = training.values.map(x => x(i)).min
+                    val minTest = testing.values.map(x => x._2(i)).min
 
-                  /// need to automate getting max/min values....
+                    val maxTrain = training.values.map(x => x(i)).max
+                    val maxTest = testing.values.map(x => x._2(i)).max
 
+                    MinVec = MinVec :+ Array(minTrain, minTest).min
+                    MaxVec = MaxVec :+ Array(maxTrain, maxTest).max
+                  }
 
-
-
-
-
-
-
-
-                  val MinVec = ListBuffer(0.0, 0.0)
-                  val MaxVec = ListBuffer(1.0, 1.0)
                   var trainingQuadTree = new QuadTree(MinVec, MaxVec)
                   for (v <- training.values){
                     trainingQuadTree.insert(v.asInstanceOf[DenseVector])
@@ -198,7 +199,7 @@ object KNN {
 
 
 
-                  /*
+                  /**
                   // MAKE CHANGES HERE FOR SIMPLE PARTITION OF DOMAIN INTO BOXES
                   val min_x = 0.0
                   val max_x = 1.0
@@ -215,17 +216,17 @@ object KNN {
                   /// training.values = Vector(DenseVector))
 
                   val bPart = training.values.map{ v => LabeledVector(Math.floor(v(0)/delx)*nPartRoot + Math.floor(v(1)/dely), v) }
-                  */
+                  **/
 
                   for (a <- testing.values) {
-                    //// GET BOX ID FOR a
-                    //println("made it to main loop:      ")
+
+                    ///// NEED TO AUTOMATE GETTING radius  TO FEED INTO SEARCH NEIGHBORS
 
                     val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],0.02)
 
                     //println(" bFiltVect  =    " + bFiltVect)
 
-                    /*
+                    /**
                     val idA = Math.floor(a._2(0)/delx)*nPartRoot + Math.floor(a._2(1)/dely)
                     val bFilt = bPart.filter{ _.label==idA}
 
@@ -234,7 +235,7 @@ object KNN {
                     /////THIS LOOP WILL THEN ONLY BE OVER TRAINING VALUES IN THAT BOX
                     //for (b <- training.values) {
                     val bFiltVect = bFilt.map(_.vector)
-                    */
+                    **/
 
                      for (b <- bFiltVect){
                       //for (b <- training.values){

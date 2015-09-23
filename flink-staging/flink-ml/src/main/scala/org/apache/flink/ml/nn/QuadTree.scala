@@ -150,12 +150,9 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
   private def searchRecur(obj:DenseVector,radius:Double,n:Node,ret:ListBuffer[DenseVector]) {
     if(n.children==null) {
-      //println("n.objects    =    " + n.objects)
-      //ret ++= n.objects.filter(o => distance(o,obj) < radius)
       ret ++= n.objects
     } else {
       for(child <- n.children; if(child.isNear(obj,radius))) {
-        //; if(!child.overlap(obj,radius)))
         searchRecur(obj, radius, child, ret)
       }
     }
