@@ -344,7 +344,7 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-all</artifactId>
-				<version>4.0.27.Final</version>
+				<version>4.0.31.Final</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
