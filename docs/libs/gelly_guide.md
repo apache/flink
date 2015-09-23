@@ -800,6 +800,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * Label Propagation
 * Simple Community Detection
 * Connected Components
+* Triangle Count
 * GSA PageRank
 * GSA Connected Components
 * GSA Single-Source Shortest Paths
