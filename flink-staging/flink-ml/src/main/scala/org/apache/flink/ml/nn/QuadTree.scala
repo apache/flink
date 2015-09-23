@@ -8,21 +8,18 @@ import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 
 import scala.collection.mutable.ListBuffer
-import collection.mutable
 
 
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
-  val maxPerBox = 3
+  val maxPerBox = 5
   var size = 0
   val dim = minVec.length
 
   class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]){
 
-    //var objects = new ListBuffer[ListBuffer[Double]]
     var objects = new ListBuffer[DenseVector]
 
     def overlap(obj:DenseVector,radius:Double):Boolean = {
- //     println("obj.size from overlap                    " + obj.size)
       var count = 0
       for (i <- 0 to obj.size - 1){
         if(obj(i) - radius < c(i) + L(i)/2 && obj(i)+radius > c(i) - L(i)/2){
@@ -39,6 +36,24 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
         return true
       } else{
         return false
+      }
+    }
+
+    def isNear(obj:DenseVector,radius:Double):Boolean = {
+
+      var minDist = 0.0
+      for (i <- 0 to obj.size - 1){
+        if (obj(i) < c(i) - L(i)/2){
+          minDist += math.pow(math.abs(obj(i) - c(i) + L(i)/2),2)
+        } else if (obj(i) > c(i) + L(i)/2){
+          minDist += math.pow(math.abs(obj(i) - c(i) - L(i)/2),2)
+        }
+      }
+      minDist = math.sqrt(minDist)
+      if (minDist < radius){
+        true
+      }else{
+        false
       }
     }
 
@@ -74,7 +89,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
         val cPartMap = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
         cPart2 = cPart2.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
-        return cPartMap ++ cPart2
+        return cPart2 ++ cPartMap// ++ cPart2
       }
 
       var cPart2 = cPart.clone()
@@ -83,12 +98,12 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       cPart2 = cPart2.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
       cPart -= cPart.head
-      cPart ++= partitionBox(cPartMap,L.take(dim-1),dim-1)
       cPart ++= partitionBox(cPart2,L.take(dim-1),dim-1)
+      cPart ++= partitionBox(cPartMap,L.take(dim-1),dim-1)
     }
   }
 
-  val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),(minVec, maxVec).zipped.map(_ - _),null)
+  val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),(maxVec, minVec).zipped.map(_ - _),null)
 
   def printTree(){
     printTreeRecur(root)
@@ -100,7 +115,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
         printTreeRecur(c)
       }
     }else{
-      //println("printing tree:  " + n.objects)
     }
   }
 
@@ -137,9 +151,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   private def searchRecur(obj:DenseVector,radius:Double,n:Node,ret:ListBuffer[DenseVector]) {
     if(n.children==null) {
       //println("n.objects    =    " + n.objects)
-      ret ++= n.objects.filter(o => distance(o,obj) < radius)
+      //ret ++= n.objects.filter(o => distance(o,obj) < radius)
+      ret ++= n.objects
     } else {
-      for(child <- n.children) {
+      for(child <- n.children; if(child.isNear(obj,radius))) {
         //; if(!child.overlap(obj,radius)))
         searchRecur(obj, radius, child, ret)
       }
@@ -150,15 +165,5 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     var diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
     math.sqrt(diffSQ)
   }
-
-  //println("a    " + a)
-    //println("b   " + a)
-    //println("dist    " +     SquaredEuclideanDistanceMetric().distance(a,b))
-
-   // SquaredEuclideanDistanceMetric().distance(a,b)
-
-    //val diffSQ = (a, b).zipped.map(_ - _).map(x=>math.pow(x,2))
-   // math.sqrt(diffSQ.sum)
-  //}
 
 }
