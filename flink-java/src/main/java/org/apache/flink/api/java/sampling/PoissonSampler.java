@@ -19,6 +19,7 @@ package org.apache.flink.api.java.sampling;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.math3.distribution.PoissonDistribution;
+import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Iterator;
 import java.util.Random;
@@ -53,7 +54,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 			this.poissonDistribution = new PoissonDistribution(fraction);
 			this.poissonDistribution.reseedRandomGenerator(seed);
 		}
-		this.random = new Random(seed);
+		this.random = new XORShiftRandom(seed);
 	}
 	
 	/**
@@ -67,7 +68,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 		if (this.fraction > 0) {
 			this.poissonDistribution = new PoissonDistribution(fraction);
 		}
-		this.random = new Random();
+		this.random = new XORShiftRandom();
 	}
 	
 	/**
