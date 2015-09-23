@@ -40,10 +40,7 @@ object Messages {
 
   case object JobManagerStopped
 
-  case class StartYarnSession(
-      configuration: Configuration,
-      actorSystemPort: Int,
-      webServerport: Int)
+  case class StartYarnSession(config: Configuration, webServerPort: Int)
 
   case class TriggerApplicationClientRegistration(
       jobManagerAkkaURL: String,

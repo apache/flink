@@ -25,6 +25,7 @@ import java.util.Collections
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
@@ -182,8 +183,8 @@ class YarnJobManager(
           instanceManager.getTotalNumberOfSlots)
       )
 
-    case StartYarnSession(conf, actorSystemPort, webServerPort) =>
-      startYarnSession(conf, actorSystemPort, webServerPort)
+    case StartYarnSession(hadoopConfig, webServerPort) =>
+      startYarnSession(hadoopConfig, webServerPort)
 
     case jnf: JobNotFound =>
       log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")
@@ -425,12 +426,7 @@ class YarnJobManager(
     allocatedContainersList map { runningCont => runningCont.getId}
   }
 
-  private def startYarnSession(
-      conf: Configuration,
-      actorSystemPort: Int,
-      webServerPort: Int)
-    : Unit = {
-
+  private def startYarnSession(conf: Configuration, webServerPort: Int): Unit = {
     Try {
       log.info("Start yarn session.")
       memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
@@ -482,6 +478,8 @@ class YarnJobManager(
       // Register with ResourceManager
       val url = s"http://$applicationMasterHost:$webServerPort"
       log.info(s"Registering ApplicationMaster with tracking url $url.")
+
+      val actorSystemPort = AkkaUtils.getAddress(system).port.getOrElse(-1)
 
       val response = rm.registerApplicationMaster(
         applicationMasterHost,

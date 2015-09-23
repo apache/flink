@@ -28,7 +28,7 @@ import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor, StreamingMode}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
@@ -274,7 +274,9 @@ object TestingUtils {
         actorSystem,
         Some(JobManager.JOB_MANAGER_NAME),
         Some(JobManager.ARCHIVE_NAME),
-        StreamingMode.BATCH_ONLY)
+        StreamingMode.BATCH_ONLY,
+        classOf[JobManager],
+        classOf[MemoryArchivist])
 
     new AkkaActorGateway(actor, null)
   }

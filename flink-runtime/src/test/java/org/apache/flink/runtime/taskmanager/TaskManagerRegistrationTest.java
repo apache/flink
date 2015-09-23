@@ -30,6 +30,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -596,6 +597,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			actorSystem,
 			NONE_STRING,
 			NONE_STRING,
-			StreamingMode.BATCH_ONLY)._1();
+			StreamingMode.BATCH_ONLY,
+			JobManager.class,
+			MemoryArchivist.class)._1();
 	}
 }

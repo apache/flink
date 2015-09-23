@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
+import scala.Option;
 
 import java.util.UUID;
 
@@ -77,12 +78,12 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	}
 
 	@Override
-	public LeaderElectionService createLeaderElectionService(LeaderElectionService originalService) {
+	public Option<LeaderElectionService> createLeaderElectionService() {
 		leaderElectionServices[leaderElectionServiceCounter] = new TestingLeaderElectionService();
 
 		LeaderElectionService result = leaderElectionServices[leaderElectionServiceCounter++];
 
-		return result;
+		return Option.apply(result);
 	}
 
 	@Override

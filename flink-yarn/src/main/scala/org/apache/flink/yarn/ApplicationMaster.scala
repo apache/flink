@@ -22,11 +22,12 @@ import java.security.PrivilegedAction
 
 import akka.actor._
 import grizzled.slf4j.Logger
+import org.apache.flink.api.common.ExecutionMode
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
 import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManagerMode, JobManager}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.util.{StandaloneUtils, EnvironmentInformation}
 import org.apache.flink.runtime.webmonitor.WebMonitor
@@ -65,13 +66,10 @@ object ApplicationMaster {
 
     ugi.doAs(new PrivilegedAction[Object] {
       override def run(): Object = {
-
-        var actorSystem: ActorSystem = null
-        var webserver: WebMonitor = null
+        var webMonitorOption: Option[WebMonitor] = None
+        var actorSystemOption: Option[ActorSystem] = None
 
         try {
-          val conf = new YarnConfiguration()
-
           val env = System.getenv()
 
           if (LOG.isDebugEnabled) {
@@ -83,7 +81,7 @@ object ApplicationMaster {
 
           val logDirs = env.get(Environment.LOG_DIRS.key())
 
-          val executionMode = if(hasStreamingMode(env)) {
+          val streamingMode = if(hasStreamingMode(env)) {
             LOG.info("Starting ApplicationMaster/JobManager in streaming mode")
             StreamingMode.STREAMING
           } else {
@@ -103,57 +101,35 @@ object ApplicationMaster {
 
           val config = createConfiguration(currDir, dynamicPropertiesEncodedString)
 
-          val (
-            system: ActorSystem,
-            jobManager: ActorRef,
-            archiver: ActorRef) = startJobManager(
+          val (actorSystem, jmActor, archivActor, webMonitor) =
+            JobManager.startActorSystemAndJobManagerActors(
               config,
+              JobManagerMode.CLUSTER,
+              streamingMode,
               ownHostname,
-              executionMode)
+              0,
+              classOf[YarnJobManager],
+              classOf[MemoryArchivist]
+            )
 
-          actorSystem = system
+          actorSystemOption = Option(actorSystem)
+          webMonitorOption = webMonitor
+
           val address = AkkaUtils.getAddress(actorSystem)
           val jobManagerPort = address.port.get
 
-          if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
-            // start the web info server
-            LOG.info("Starting Job Manger web frontend.")
-            config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
-            config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
-            // set JobManager host/port for web interface.
-            config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ownHostname)
-            config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort)
-
-            // TODO: Add support for HA: Make web server work independently from the JM
-            val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(config)
-
-            webserver = if(
-              config.getBoolean(
-                ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
-                false)) {
-              JobManager.startWebRuntimeMonitor(config, leaderRetrievalService, actorSystem)
-            } else {
-              new WebInfoServer(config, leaderRetrievalService, actorSystem)
-            }
-
-            webserver.start()
-          }
-
-          val jobManagerWebPort = if (webserver == null) {
-            LOG.warn("Web server is null. It will not be accessible through YARN")
-            -1
-          } else {
-            webserver.getServerPort
-          }
+          val webServerPort = webMonitor.map(_.getServerPort()).getOrElse(-1)
 
           // generate configuration file for TaskManagers
           generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, ownHostname,
-            jobManagerPort, jobManagerWebPort, logDirs, slots, taskManagerCount,
+            jobManagerPort, webServerPort, logDirs, slots, taskManagerCount,
             dynamicPropertiesEncodedString)
+
+          val hadoopConfig = new YarnConfiguration();
 
           // send "start yarn session" message to YarnJobManager.
           LOG.info("Starting YARN session on Job Manager.")
-          jobManager ! StartYarnSession(conf, jobManagerPort, jobManagerWebPort)
+          jmActor ! StartYarnSession(hadoopConfig, webServerPort)
 
           LOG.info("Application Master properly initiated. Awaiting termination of actor system.")
           actorSystem.awaitTermination()
@@ -162,15 +138,17 @@ object ApplicationMaster {
           case t: Throwable =>
             LOG.error("Error while running the application master.", t)
 
-            if (actorSystem != null) {
-              actorSystem.shutdown()
-              actorSystem.awaitTermination()
+            actorSystemOption.foreach {
+              actorSystem =>
+                actorSystem.shutdown()
+                actorSystem.awaitTermination()
             }
         }
         finally {
-          if (webserver != null) {
-            LOG.debug("Stopping Job Manager web frontend.")
-            webserver.stop()
+          webMonitorOption.foreach {
+            webMonitor =>
+              LOG.debug("Stopping Job Manager web frontend.")
+              webMonitor.stop()
           }
         }
 
@@ -226,59 +204,6 @@ object ApplicationMaster {
     }
 
     output.close()
-  }
-
-  /**
-   * Starts the JobManager and all its components.
-   *
-   * @return (Configuration, JobManager ActorSystem, JobManager ActorRef, Archiver ActorRef)
-   */
-  def startJobManager(
-      configuration: Configuration,
-      hostname: String,
-      streamingMode: StreamingMode)
-    : (ActorSystem, ActorRef, ActorRef) = {
-
-    LOG.info("Starting JobManager for YARN")
-
-    // set port to 0 to let Akka automatically determine the port.
-    LOG.debug("Starting JobManager actor system")
-    val jobManagerSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, 0)))
-
-    // start all the components inside the job manager
-    LOG.debug("Starting JobManager components")
-    val (executionContext,
-      instanceManager,
-      scheduler,
-      libraryCacheManager,
-      archiveProps,
-      executionRetries,
-      delayBetweenRetries,
-      timeout,
-      _,
-      leaderElectionService) = JobManager.createJobManagerComponents(configuration)
-
-    // start the archiver
-    val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
-
-    val jobManagerProps = Props(
-      new YarnJobManager(
-        configuration,
-        executionContext,
-        instanceManager,
-        scheduler,
-        libraryCacheManager,
-        archiver,
-        executionRetries,
-        delayBetweenRetries,
-        timeout,
-        streamingMode,
-        leaderElectionService))
-
-    LOG.debug("Starting JobManager actor")
-    val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
-
-    (jobManagerSystem, jobManager, archiver)
   }
 
   def createConfiguration(curDir: String, dynamicPropertiesEncodedString: String): Configuration = {
