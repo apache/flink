@@ -186,7 +186,7 @@ object KNN {
 
 
 
-                  /*
+
                   val MinVec = ListBuffer(0.0, 0.0)
                   val MaxVec = ListBuffer(1.0, 1.0)
                   var trainingQuadTree = new QuadTree(MinVec, MaxVec)
@@ -194,7 +194,8 @@ object KNN {
                     trainingQuadTree.insert(v.asInstanceOf[DenseVector])
                   }
                   trainingQuadTree.printTree()
-                  */
+
+
 
 
                   /*
@@ -220,7 +221,7 @@ object KNN {
                     //// GET BOX ID FOR a
                     //println("made it to main loop:      ")
 
-                    //val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],0.002)
+                    val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],0.02)
 
                     //println(" bFiltVect  =    " + bFiltVect)
 
@@ -235,9 +236,8 @@ object KNN {
                     val bFiltVect = bFilt.map(_.vector)
                     */
 
-                     //for (b <- bFiltVect){
-
-                      for (b <- training.values){
+                     for (b <- bFiltVect){
+                      //for (b <- training.values){
                       // (training vector, input vector, input key, distance)
                       queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
                       if (queue.size > k) {
