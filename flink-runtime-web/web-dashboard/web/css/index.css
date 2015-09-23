@@ -138,6 +138,9 @@
 .nav.nav-tabs {
   margin-bottom: 20px;
 }
+.table .table {
+  background-color: transparent;
+}
 .table th {
   font-weight: normal;
   color: #999;
@@ -155,6 +158,48 @@
 }
 .table.table-inner {
   background-color: transparent;
+}
+.table.table-properties {
+  table-layout: fixed;
+  white-space: nowrap;
+}
+.table.table-properties td {
+  width: 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  -o-text-overflow: ellipsis;
+  text-overflow: ellipsis;
+}
+.table.table-body-hover > tbody {
+  border-top: none;
+  border-left: 2px solid transparent;
+}
+.table.table-body-hover > tbody.active {
+  border-left: 2px solid #000;
+}
+.table.table-body-hover > tbody:hover td:not(.tab-column),
+.table.table-body-hover > tbody.active td:not(.tab-column) {
+  background-color: #f0f0f0;
+}
+.table.table-body-hover > tbody:hover td.tab-column li.active,
+.table.table-body-hover > tbody.active td.tab-column li.active {
+  background-color: #f0f0f0;
+}
+.table.table-activable th.tab-column,
+.table.table-activable td.tab-column {
+  border-top: none;
+  width: 47px;
+}
+.table.table-activable td.tab-column {
+  border-right: 1px solid #ddd;
+}
+.table.table-activable td {
+  position: relative;
+}
+.table .small-label {
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #999;
 }
 .panel.panel-dashboard .huge {
   font-size: 28px;
@@ -392,48 +437,6 @@ pre.exception {
   position: absolute;
   top: 10px;
   right: 10px;
-}
-.table.table-properties {
-  table-layout: fixed;
-  white-space: nowrap;
-}
-.table.table-properties td {
-  width: 50%;
-  white-space: nowrap;
-  overflow: hidden;
-  -o-text-overflow: ellipsis;
-  text-overflow: ellipsis;
-}
-.table.table-body-hover > tbody {
-  border-top: none;
-  border-left: 2px solid transparent;
-}
-.table.table-body-hover > tbody.active {
-  border-left: 2px solid #000;
-}
-.table.table-body-hover > tbody:hover td:not(.tab-column),
-.table.table-body-hover > tbody.active td:not(.tab-column) {
-  background-color: #f0f0f0;
-}
-.table.table-body-hover > tbody:hover td.tab-column li.active,
-.table.table-body-hover > tbody.active td.tab-column li.active {
-  background-color: #f0f0f0;
-}
-.table.table-activable th.tab-column,
-.table.table-activable td.tab-column {
-  border-top: none;
-  width: 47px;
-}
-.table.table-activable td.tab-column {
-  border-right: 1px solid #ddd;
-}
-.table.table-activable td {
-  position: relative;
-}
-.table .small-label {
-  text-transform: uppercase;
-  font-size: 13px;
-  color: #999;
 }
 .label-group .label {
   display: inline-block;
