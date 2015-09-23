@@ -40,6 +40,17 @@ under the License.
           <ul class="nav navbar-nav">
             <li{% if page.url == '/index.html' %} class="active"{% endif %}><a href="{{ site.baseurl}}/index.html">Overview<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
 
+            <!-- Quickstart -->
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Quickstart <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li><a href="{{ quickstart }}/quickstart/setup_quickstart.html">Setup</a></li>
+                <li><a href="{{ quickstart }}/quickstart/java_api_quickstart.html">Java API</a></li>
+                <li><a href="{{ quickstart }}/quickstart/scala_api_quickstart.html">Scala API</a></li>
+                <li><a href="{{ quickstart }}/quickstart/run_example_quickstart.html">Run Step-by-Step Example</a></li>
+              </ul>
+            </li>
+
             <!-- Setup -->
             <li class="dropdown{% if page.url contains setup %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
