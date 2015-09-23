@@ -35,7 +35,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>${shading-artifact.name}</module>
+		<module>${shading-artifact-module.name}</module>
 	</modules>
 
 	<profiles>

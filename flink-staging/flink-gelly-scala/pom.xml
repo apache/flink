@@ -21,8 +21,8 @@ under the License.
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>flink-staging</artifactId>
         <groupId>org.apache.flink</groupId>
+        <artifactId>flink-staging</artifactId>
         <version>0.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>

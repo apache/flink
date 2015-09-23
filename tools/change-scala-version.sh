@@ -79,3 +79,27 @@ find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<source>.*flink-dist\)'$FROM_SUFFIX'/\1'$TO_SUFFIX'/g' {}" \;
 find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
+
+
+if [ "$TO_VERSION" == "2.11" ]; then
+  # set the profile activation to !scala-2.11 in parent pom, so that it activates by default
+  bash -c "sed_i 's/<name>scala-2.11<\/name>/<name>!scala-2.11<\/name>/g' $BASEDIR/pom.xml" \;
+  # set the profile activation in all sub modules to scala-2.11 (so that they are disabled by default)
+  find $BASEDIR/flink-* -name 'pom.xml' -not -path '*target*' -print \
+    -exec bash -c "sed_i 's/<name>!scala-2.11<\/name>/<name>scala-2.11<\/name>/g' {}" \;
+
+  # set the name of the shading artifact properly
+  bash -c "sed_i 's/\(shading-artifact.name>flink-shaded[a-z0-9\-]*\)'$FROM_SUFFIX'<\/shading-artifact.name>/\1'$TO_SUFFIX'<\/shading-artifact.name>/g' $BASEDIR/pom.xml" \;
+fi
+
+if [ "$TO_VERSION" == "2.10" ]; then
+  # do the opposite as above
+  bash -c "sed_i 's/<name>!scala-2.11<\/name>/<name>scala-2.11<\/name>/g' $BASEDIR/pom.xml" \;
+  # also for the other files
+  find $BASEDIR/flink-* -name 'pom.xml' -not -path '*target*' -print \
+    -exec bash -c "sed_i 's/<name>scala-2.11<\/name>/<name>!scala-2.11<\/name>/g' {}" \;
+
+  # unset shading artifact name
+  bash -c "sed_i 's/\(shading-artifact.name>flink-shaded[a-z0-9\-]*\)'$FROM_SUFFIX'<\/shading-artifact.name>/\1'$TO_SUFFIX'<\/shading-artifact.name>/g' $BASEDIR/pom.xml" \;
+fi
+
