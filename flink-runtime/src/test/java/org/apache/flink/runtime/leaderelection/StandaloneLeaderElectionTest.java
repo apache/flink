@@ -48,7 +48,7 @@ public class StandaloneLeaderElectionTest extends TestLogger {
 			assertTrue(contender.isLeader());
 			assertEquals(null, contender.getLeaderSessionID());
 
-			testingListener.waitForLeader(1000l);
+			testingListener.waitForNewLeader(1000l);
 
 			assertEquals(TEST_URL, testingListener.getAddress());
 			assertEquals(null, testingListener.getLeaderSessionID());
