@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.sampling;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Iterator;
 import java.util.Random;
@@ -44,7 +45,7 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	 * @param fraction Sample fraction, aka the Bernoulli sampler possibility.
 	 */
 	public BernoulliSampler(double fraction) {
-		this(fraction, new Random());
+		this(fraction, new XORShiftRandom());
 	}
 	
 	/**
@@ -54,7 +55,7 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 	 * @param seed     Random number generator seed.
 	 */
 	public BernoulliSampler(double fraction, long seed) {
-		this(fraction, new Random(seed));
+		this(fraction, new XORShiftRandom(seed));
 	}
 	
 	/**
