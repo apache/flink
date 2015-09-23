@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A rule to retry failed tests for a fixed number of times.
@@ -35,11 +36,11 @@ import static com.google.common.base.Preconditions.checkArgument;
  * <pre>
  * public class YourTest {
  *
- *     {@literal@}Rule
+ *     {@literal @}Rule
  *     public RetryRule retryRule = new RetryRule();
  *
- *     {@literal@}Test
- *     {@literal@}RetryOnFailure(times=1)
+ *     {@literal @}Test
+ *     {@literal @}RetryOnFailure(times=1)
  *     public void yourTest() {
  *         // This will be retried 1 time (total runs 2) before failing the test.
  *         throw new Exception("Failing test");
@@ -54,18 +55,32 @@ public class RetryRule implements TestRule {
 	@Override
 	public Statement apply(Statement statement, Description description) {
 		RetryOnFailure retryOnFailure = description.getAnnotation(RetryOnFailure.class);
+		RetryOnException retryOnException = description.getAnnotation(RetryOnException.class);
 
-		if (retryOnFailure != null) {
+		// sanity check that we don't use expected exceptions with the RetryOnX annotations
+		if (retryOnFailure != null || retryOnException != null) {
 			Test test = description.getAnnotation(Test.class);
 			if (test.expected() != Test.None.class) {
 				throw new IllegalArgumentException("You cannot combine the RetryOnFailure " +
 						"annotation with the Test(expected) annotation.");
 			}
-
-			statement = new RetryOnFailureStatement(retryOnFailure.times(), statement);
 		}
 
-		return statement;
+		// sanity check that we don't use both annotations
+		if (retryOnFailure != null && retryOnException != null) {
+			throw new IllegalArgumentException(
+					"You cannot combine the RetryOnFailure and RetryOnException annotations.");
+		}
+		
+		if (retryOnFailure != null) {
+			return new RetryOnFailureStatement(retryOnFailure.times(), statement);
+		}
+		else if (retryOnException != null) {
+			return new RetryOnExceptionStatement(retryOnException.times(), retryOnException.exception(), statement);
+		}
+		else {
+			return statement;
+		}
 	}
 
 	/**
@@ -110,4 +125,45 @@ public class RetryRule implements TestRule {
 		}
 	}
 
+	/**
+	 * Retries a test in case of a failure.
+	 */
+	private static class RetryOnExceptionStatement extends Statement {
+
+		private final Class<? extends Throwable> exceptionClass;
+		private final int timesOnFailure;
+		private final Statement statement;
+		
+		private int currentRun;
+
+		private RetryOnExceptionStatement(int timesOnFailure, Class<? extends Throwable> exceptionClass, Statement statement) {
+			checkArgument(timesOnFailure >= 0, "Negatives number of retries on failure");
+			this.exceptionClass = checkNotNull(exceptionClass);
+			this.timesOnFailure = timesOnFailure;
+			this.statement = statement;
+		}
+
+		/**
+		 * Retry a test in case of a failure with a specific exception
+		 *
+		 * @throws Throwable
+		 */
+		@Override
+		public void evaluate() throws Throwable {
+			for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
+				try {
+					statement.evaluate();
+					break; // success
+				}
+				catch (Throwable t) {
+					LOG.debug(String.format("Test run failed (%d/%d).", currentRun, timesOnFailure + 1), t);
+
+					if (!exceptionClass.isAssignableFrom(t.getClass()) || currentRun >= timesOnFailure) {
+						// Throw the failure if retried too often, or if it is the wrong exception
+						throw t;
+					}
+				}
+			}
+		}
+	}
 }

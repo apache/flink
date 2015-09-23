@@ -23,9 +23,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to use with {@link RetryRule}.
+ * Annotation to use with {@link org.apache.flink.testutils.junit.RetryRule}.
  *
- * <p>Add the {@link RetryRule} to your test and annotate tests with {@link RetryOnFailure}.
+ * <p>Add the {@link org.apache.flink.testutils.junit.RetryRule} to your test and
+ * annotate tests with {@link org.apache.flink.testutils.junit.RetryOnException}.
  *
  * <pre>
  * public class YourTest {
@@ -34,16 +35,26 @@ import java.lang.annotation.Target;
  *     public RetryRule retryRule = new RetryRule();
  *
  *     {@literal @}Test
- *     {@literal @}RetryOnFailure(times=1)
- *     public void yourTest() {
+ *     {@literal @}RetryOnException(times=1, exception=IOException.class)
+ *     public void yourTest() throws Exception {
  *         // This will be retried 1 time (total runs 2) before failing the test.
- *         throw new Exception("Failing test");
+ *         throw new IOException("Failing test");
+ *     }
+ *     
+ *     {@literal @}Test
+ *     {@literal @}RetryOnException(times=1, exception=IOException.class)
+ *     public void yourTest() throws Exception {
+ *         // This will not be retried, because it throws the wrong exception
+ *         throw new IllegalStateException("Failing test");
  *     }
  * }
  * </pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ java.lang.annotation.ElementType.METHOD })
-public @interface RetryOnFailure {
+@Target(java.lang.annotation.ElementType.METHOD)
+public @interface RetryOnException {
+
 	int times();
+	
+	Class<? extends Throwable> exception();
 }
