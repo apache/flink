@@ -233,7 +233,7 @@ under the Apache License (v 2.0):
  - Apache Sling (org.apache.sling:org.apache.sling.commons.json:2.0.6 - http://sling.apache.org)
  - Google Guava (com.google.guava:guava:18.0 - https://code.google.com/p/guava-libraries/)
  - Google Protocol Buffers Java API (com.google.protobuf:protobuf-java:2.5.0 - https://github.com/google/protobuf/)
- - Netty (io.netty:netty-all:4.0.27.Final - http://netty.io)
+ - Netty (io.netty:netty-all:4.0.31.Final - http://netty.io)
  - Netty (io.netty:netty:3.8.0.Final - http://netty.io)
  - Javassist (org.javassist:javassist:3.18.1-GA - http://www.javassist.org)
  - Kryo-Serializers (de.javakaffee:kryo-serializers:0.27 - https://github.com/magro/kryo-serializers/) - Copyright 2010 Martin Grotzke
