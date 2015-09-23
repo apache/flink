@@ -40,6 +40,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -64,11 +65,14 @@ import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOn
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
+import org.apache.flink.testutils.junit.RetryOnException;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.Assert;
 
+import org.junit.Rule;
 import scala.collection.Seq;
 
 import java.lang.reflect.Field;
@@ -93,8 +97,10 @@ import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public abstract class KafkaConsumerTestBase extends KafkaTestBase {
-
-
+	
+	@Rule
+	public RetryRule retryRule = new RetryRule();
+	
 	// ------------------------------------------------------------------------
 	//  Required methods by the abstract test base
 	// ------------------------------------------------------------------------
@@ -242,11 +248,16 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * <pre>
 	 * (generator source) --> (kafka sink)-[KAFKA-TOPIC]-(kafka source) --> (validating sink)
 	 * </pre>
+	 * 
+	 * We need to externally retry this test. We cannot let Flink's retry mechanism do it, because the Kafka producer
+	 * does not guarantee exactly-once output. Hence a recovery would introduce duplicates that
+	 * cause the test to fail.
 	 */
+	@RetryOnException(times=2, exception=kafka.common.NotLeaderForPartitionException.class)
 	public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
 		LOG.info("Starting runSimpleConcurrentProducerConsumerTopology()");
 
-		final String topic = "concurrentProducerConsumerTopic";
+		final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
 		final int parallelism = 3;
 		final int elementsPerPartition = 100;
 		final int totalElements = parallelism * elementsPerPartition;
@@ -256,7 +267,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final StreamExecutionEnvironment env =
 				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.setParallelism(parallelism);
-		env.setNumberOfExecutionRetries(0);
 		env.getConfig().disableSysoutLogging();
 
 		TypeInformation<Tuple2<Long, String>> longStringType = TypeInfoParser.parse("Tuple2<Long, String>");
@@ -331,7 +341,23 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			}
 		}).setParallelism(1);
 
-		tryExecute(env, "runSimpleConcurrentProducerConsumerTopology");
+		try {
+			tryExecutePropagateExceptions(env, "runSimpleConcurrentProducerConsumerTopology");
+		}
+		catch (ProgramInvocationException | JobExecutionException e) {
+			// look for NotLeaderForPartitionException
+			Throwable cause = e.getCause();
+
+			// search for nested SuccessExceptions
+			int depth = 0;
+			while (cause != null && depth++ < 20) {
+				if (cause instanceof kafka.common.NotLeaderForPartitionException) {
+					throw (Exception) cause;
+				}
+				cause = cause.getCause();
+			}
+			throw e;
+		}
 
 		LOG.info("Finished runSimpleConcurrentProducerConsumerTopology()");
 
