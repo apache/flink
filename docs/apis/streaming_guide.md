@@ -1972,7 +1972,7 @@ Example:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<String> stream = env
-	.addSource(new RMQSource<String>("localhost", "hello", new SimpleStringSchema))
+	.addSource(new RMQSource<String>("localhost", "hello", new SimpleStringSchema()))
 	.print
 {% endhighlight %}
 </div>
