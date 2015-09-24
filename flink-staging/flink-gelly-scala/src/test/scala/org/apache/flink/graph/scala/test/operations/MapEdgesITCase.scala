@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.scala.test.operations
 
-
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.Edge
@@ -29,32 +28,13 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
+import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class MapEdgesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
 MultipleProgramsTestBase(mode) {
 
-  private var resultPath: String = null
   private var expectedResult: String = null
-
-  var tempFolder: TemporaryFolder = new TemporaryFolder()
-
-  @Rule
-  def getFolder(): TemporaryFolder = {
-    tempFolder;
-  }
-
-  @Before
-  @throws(classOf[Exception])
-  def before {
-    resultPath = tempFolder.newFile.toURI.toString
-  }
-
-  @After
-  @throws(classOf[Exception])
-  def after {
-    TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
 
   @Test
   @throws(classOf[Exception])
@@ -62,9 +42,7 @@ MultipleProgramsTestBase(mode) {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    graph.mapEdges(new AddOneMapper)
-      .getEdgesAsTuple3().writeAsCsv(resultPath)
-    env.execute
+    val res = graph.mapEdges(new AddOneMapper).getEdges.collect.toList
     expectedResult = "1,2,13\n" +
       "1,3,14\n" + "" +
       "2,3,24\n" +
@@ -72,6 +50,7 @@ MultipleProgramsTestBase(mode) {
       "3,5,36\n" +
       "4,5,46\n" +
       "5,1,52\n"
+    TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
   @Test
@@ -80,9 +59,8 @@ MultipleProgramsTestBase(mode) {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    graph.mapEdges(edge => edge.getValue + 1)
-      .getEdgesAsTuple3().writeAsCsv(resultPath)
-    env.execute
+    val res = graph.mapEdges(edge => edge.getValue + 1)
+      .getEdges.collect.toList
     expectedResult = "1,2,13\n" +
       "1,3,14\n" + "" +
       "2,3,24\n" +
@@ -90,6 +68,7 @@ MultipleProgramsTestBase(mode) {
       "3,5,36\n" +
       "4,5,46\n" +
       "5,1,52\n"
+    TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
   final class AddOneMapper extends MapFunction[Edge[Long, Long], Long] {

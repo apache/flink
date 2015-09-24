@@ -28,32 +28,13 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
+import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class MapVerticesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
 MultipleProgramsTestBase(mode) {
 
-  private var resultPath: String = null
   private var expectedResult: String = null
-
-  var tempFolder: TemporaryFolder = new TemporaryFolder()
-
-  @Rule
-  def getFolder(): TemporaryFolder = {
-    tempFolder;
-  }
-
-  @Before
-  @throws(classOf[Exception])
-  def before {
-    resultPath = tempFolder.newFile.toURI.toString
-  }
-
-  @After
-  @throws(classOf[Exception])
-  def after {
-    TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
 
   @Test
   @throws(classOf[Exception])
@@ -61,15 +42,13 @@ MultipleProgramsTestBase(mode) {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    graph.mapVertices(new AddOneMapper)
-      .getVerticesAsTuple2().writeAsCsv(resultPath)
-    env.execute
-
+    val res = graph.mapVertices(new AddOneMapper).getVertices.collect.toList
     expectedResult = "1,2\n" +
       "2,3\n" +
       "3,4\n" +
       "4,5\n" +
       "5,6\n";
+    TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
   @Test
@@ -78,15 +57,13 @@ MultipleProgramsTestBase(mode) {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    graph.mapVertices(vertex => vertex.getValue + 1)
-      .getVerticesAsTuple2().writeAsCsv(resultPath)
-    env.execute
-
+    val res = graph.mapVertices(vertex => vertex.getValue + 1).getVertices.collect.toList
     expectedResult = "1,2\n" +
       "2,3\n" +
       "3,4\n" +
       "4,5\n" +
       "5,6\n";
+    TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
   final class AddOneMapper extends MapFunction[Vertex[Long, Long], Long] {
