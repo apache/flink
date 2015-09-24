@@ -24,9 +24,10 @@ import org.apache.flink.api.scala.DataSetUtils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.Vector
-import org.apache.flink.ml.metrics.distances.{DistanceMetric, EuclideanDistanceMetric}
+import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric, DistanceMetric, EuclideanDistanceMetric}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.util.Collector
+
 
 import org.apache.flink.ml.nn.util.QuadTree
 import scala.collection.mutable.ListBuffer
@@ -176,15 +177,16 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
-                  //// automated max/min values to get bounding box
+                  //// automated max/min values to get bounding box (add/subtract 0.01 to
+                  // avoid error when detecting points near the boundary)
                   var MinVec =  new ListBuffer[Double]
                   var MaxVec =  new ListBuffer[Double]
                   for ( i <- 0 to training.values(0).size - 1){
-                    val minTrain = training.values.map(x => x(i)).min
-                    val minTest = testing.values.map(x => x._2(i)).min
+                    val minTrain = training.values.map(x => x(i)).min - 0.01
+                    val minTest = testing.values.map(x => x._2(i)).min - 0.01
 
-                    val maxTrain = training.values.map(x => x(i)).max
-                    val maxTest = testing.values.map(x => x._2(i)).max
+                    val maxTrain = training.values.map(x => x(i)).max + 0.01
+                    val maxTest = testing.values.map(x => x._2(i)).max + 0.01
 
                     MinVec = MinVec :+ Array(minTrain, minTest).min
                     MaxVec = MaxVec :+ Array(maxTrain, maxTest).max
@@ -195,8 +197,6 @@ object KNN {
                     trainingQuadTree.insert(v.asInstanceOf[DenseVector])
                   }
                   trainingQuadTree.printTree()
-
-
 
 
                   /**
@@ -220,11 +220,21 @@ object KNN {
 
                   for (a <- testing.values) {
 
-                    ///// NEED TO AUTOMATE GETTING radius  TO FEED INTO SEARCH NEIGHBORS
+                    /////  Find siblings' objects and do kNN there
+                    var siblingObjects = trainingQuadTree.searchNeighborsSibling(a._2.asInstanceOf[DenseVector])
 
-                    val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],0.02)
+                          /// do KNN query on siblingObjects and get max distance of kNN
+                    val knnSiblings = siblingObjects.map (
+                            v => SquaredEuclideanDistanceMetric().distance(a._2, v)
+                    ).sortWith(_<_).take(k)
 
-                    //println(" bFiltVect  =    " + bFiltVect)
+                    var rad = knnSiblings.last
+
+                    //// NOW ONLY WANT TO SCAN THROUGH OTHER NEARBY, BUT NON-SIBLING POINTS
+                    //// EVENTUALLY SHOULD REFINE searchNeighbors TO NOT KEEP ANY SIBLINGS
+                    //// CURRENTLY PICKING UP SIBLINGS TOO !!
+                    val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],math.sqrt(rad))
+
 
                     /**
                     val idA = Math.floor(a._2(0)/delx)*nPartRoot + Math.floor(a._2(1)/dely)

@@ -9,15 +9,18 @@ import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 
 import scala.collection.mutable.ListBuffer
 
-
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
-  val maxPerBox = 5
+  val maxPerBox = 20
   var size = 0
   val dim = minVec.length
 
   class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]){
 
     var objects = new ListBuffer[DenseVector]
+
+    def isInNode(obj:DenseVector): Boolean ={
+      overlap(obj,0.0)
+    }
 
     def overlap(obj:DenseVector,radius:Double):Boolean = {
       var count = 0
@@ -28,11 +31,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       }
 
       if (count == obj.size){
-
-        println("true!!!!!")
-        println("objects =   " + this.objects)
-        println("children (to test if null....) =   " + this.children)
-
         return true
       } else{
         return false
@@ -105,6 +103,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
   val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),(maxVec, minVec).zipped.map(_ - _),null)
 
+  //// primitive printing of tree for testing/debugging
   def printTree(){
     printTreeRecur(root)
   }
@@ -142,6 +141,40 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
+
+  /**
+   *
+   * Finds all objects in minimal bounding box and objects in sibling nodes
+   */
+  def searchNeighborsSibling(obj:DenseVector):ListBuffer[DenseVector] = {
+    var ret = new ListBuffer[DenseVector]
+    searchRecurSibling(obj,root,ret)
+    ret
+  }
+
+  private def searchRecurSibling(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
+    if(n.children != null) {
+      for(child <- n.children; if child.isInNode(obj)) {
+        if (child.children == null) {
+          for (c <- n.children) {
+            ret ++= c.objects
+          }
+        }
+        else {
+          for(child <- n.children) {
+            searchRecurSibling(obj, child, ret)
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   *
+   *
+   *
+   *
+   */
   def searchNeighbors(obj:DenseVector,radius:Double):ListBuffer[DenseVector] = {
     var ret = new ListBuffer[DenseVector]
     searchRecur(obj,radius,root,ret)
@@ -152,7 +185,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     if(n.children==null) {
       ret ++= n.objects
     } else {
-      for(child <- n.children; if(child.isNear(obj,radius))) {
+      for(child <- n.children; if child.isNear(obj,radius)) {
         searchRecur(obj, radius, child, ret)
       }
     }
