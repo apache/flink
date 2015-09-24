@@ -28,32 +28,13 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
+import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class ReduceOnNeighborMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMode)
   extends MultipleProgramsTestBase(mode) {
 
-  private var resultPath: String = null
   private var expectedResult: String = null
-
-  var tempFolder: TemporaryFolder = new TemporaryFolder()
-
-  @Rule
-  def getFolder(): TemporaryFolder = {
-    tempFolder;
-  }
-
-  @Before
-  @throws(classOf[Exception])
-  def before {
-    resultPath = tempFolder.newFile.toURI.toString
-  }
-
-  @After
-  @throws(classOf[Exception])
-  def after {
-    TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
 
   @Test
   @throws(classOf[Exception])
@@ -61,9 +42,10 @@ class ReduceOnNeighborMethodsITCase(mode: MultipleProgramsTestBase.TestExecution
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    graph.reduceOnNeighbors(new SumNeighbors, EdgeDirection.ALL).writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "1,10\n" + "2,4\n" + "3,12\n" + "4,8\n" + "5,8\n"
+    val res = graph.reduceOnNeighbors(new SumNeighbors, EdgeDirection.ALL)
+    .collect.toList
+    expectedResult = "(1,10)\n" + "(2,4)\n" + "(3,12)\n" + "(4,8)\n" + "(5,8)\n"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
@@ -72,9 +54,9 @@ class ReduceOnNeighborMethodsITCase(mode: MultipleProgramsTestBase.TestExecution
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    graph.reduceOnNeighbors(new SumNeighbors, EdgeDirection.OUT).writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "1,5\n" + "2,3\n" + "3,9\n" + "4,5\n" + "5,1\n"
+    val res = graph.reduceOnNeighbors(new SumNeighbors, EdgeDirection.OUT).collect.toList
+    expectedResult = "(1,5)\n" + "(2,3)\n" + "(3,9)\n" + "(4,5)\n" + "(5,1)\n"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
@@ -84,9 +66,9 @@ class ReduceOnNeighborMethodsITCase(mode: MultipleProgramsTestBase.TestExecution
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val result = graph.groupReduceOnNeighbors(new SumAllNeighbors, EdgeDirection.ALL)
-    result.writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "1,11\n" + "2,6\n" + "3,15\n" + "4,12\n" + "5,13\n"
+    val res = result.collect.toList
+    expectedResult = "(1,11)\n" + "(2,6)\n" + "(3,15)\n" + "(4,12)\n" + "(5,13)\n"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
@@ -97,9 +79,9 @@ class ReduceOnNeighborMethodsITCase(mode: MultipleProgramsTestBase.TestExecution
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val result = graph.groupReduceOnNeighbors(new
         SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo, EdgeDirection.IN)
-    result.writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "3,59\n" + "3,118\n" + "4,204\n" + "4,102\n" + "5,570\n" + "5,285"
+    val res = result.collect.toList
+    expectedResult = "(3,59)\n" + "(3,118)\n" + "(4,204)\n" + "(4,102)\n" + "(5,570)\n" + "(5,285)"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   final class SumNeighbors extends ReduceNeighborsFunction[Long] {

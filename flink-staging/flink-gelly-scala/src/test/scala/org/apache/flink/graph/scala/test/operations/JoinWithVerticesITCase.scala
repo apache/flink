@@ -28,32 +28,13 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
+import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class JoinWithVerticesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
 MultipleProgramsTestBase(mode) {
 
-  private var resultPath: String = null
   private var expectedResult: String = null
-
-  var tempFolder: TemporaryFolder = new TemporaryFolder()
-
-  @Rule
-  def getFolder(): TemporaryFolder = {
-    tempFolder;
-  }
-
-  @Before
-  @throws(classOf[Exception])
-  def before {
-    resultPath = tempFolder.newFile.toURI.toString
-  }
-
-  @After
-  @throws(classOf[Exception])
-  def after {
-    TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
 
   @Test
   @throws(classOf[Exception])
@@ -63,9 +44,9 @@ MultipleProgramsTestBase(mode) {
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val result: Graph[Long, Long, Long] = graph.joinWithVertices(graph.getVertices.map(new
         VertexToTuple2Map[Long, Long]), new AddValuesMapper)
-    result.getVerticesAsTuple2().writeAsCsv(resultPath)
-    env.execute
+    val res = result.getVertices.collect.toList
     expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
+    TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
   @Test
@@ -77,9 +58,9 @@ MultipleProgramsTestBase(mode) {
     val tupleSet = graph.getVertices.map(new VertexToTuple2Map[Long, Long])
     val result: Graph[Long, Long, Long] = graph.joinWithVertices[Long](tupleSet,
       (originalvalue: Long, tuplevalue: Long) => originalvalue + tuplevalue)
-    result.getVerticesAsTuple2().writeAsCsv(resultPath)
-    env.execute
+    val res = result.getVertices.collect.toList
     expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
+    TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
 
 

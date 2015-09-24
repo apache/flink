@@ -100,7 +100,8 @@ object Graph {
                               env: ExecutionEnvironment): Graph[K, VV, EV] = {
     val javaTupleVertices = vertices.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
     val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
-    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleVertices, javaTupleEdges, env.getJavaEnv))
+    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleVertices, javaTupleEdges,
+        env.getJavaEnv))
   }
 
   /**
@@ -678,7 +679,8 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   /**
   * Adds the given list edges to the graph.
   *
-  * When adding an edge for a non-existing set of vertices, the edge is considered invalid and ignored.
+  * When adding an edge for a non-existing set of vertices,
+  * the edge is considered invalid and ignored.
   *
   * @param newEdges the data set of edges to be added
   * @return a new graph containing the existing edges plus the newly added edges.
@@ -757,7 +759,8 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
 
   /**
   * Performs Difference on the vertex and edge sets of the input graphs
-  * removes common vertices and edges. If a source/target vertex is removed, its corresponding edge will also be removed
+  * removes common vertices and edges. If a source/target vertex is removed,
+  * its corresponding edge will also be removed
   * @param graph the graph to perform difference with
   * @return a new graph where the common vertices and edges have been removed
   */

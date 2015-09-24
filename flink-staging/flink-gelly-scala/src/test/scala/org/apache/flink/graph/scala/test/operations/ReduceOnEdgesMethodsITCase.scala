@@ -28,32 +28,13 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
+import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class ReduceOnEdgesMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMode)
   extends MultipleProgramsTestBase(mode) {
 
-  private var resultPath: String = null
   private var expectedResult: String = null
-
-  var tempFolder: TemporaryFolder = new TemporaryFolder()
-
-  @Rule
-  def getFolder(): TemporaryFolder = {
-    tempFolder;
-  }
-
-  @Before
-  @throws(classOf[Exception])
-  def before {
-    resultPath = tempFolder.newFile.toURI.toString
-  }
-
-  @After
-  @throws(classOf[Exception])
-  def after {
-    TestBaseUtils.compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
 
   @Test
   @throws(classOf[Exception])
@@ -61,13 +42,10 @@ class ReduceOnEdgesMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMod
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val result = graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour,
-      EdgeDirection.ALL)
-    result.writeAsCsv(resultPath)
-    env.execute
-
-
-    expectedResult = "5,1\n" + "5,3\n" + "5,4"
+    val res = graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour,
+      EdgeDirection.ALL).collect.toList
+    expectedResult = "(5,1)\n" + "(5,3)\n" + "(5,4)"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
 
@@ -77,13 +55,12 @@ class ReduceOnEdgesMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMod
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val result = graph.groupReduceOnEdges(new SelectNeighbors, EdgeDirection.ALL)
-    result.writeAsCsv(resultPath)
-    env.execute
-
-
-    expectedResult = "1,2\n" + "1,3\n" + "1,5\n" + "2,1\n" + "2,3\n" + "3,1\n" + "3,2\n" +
-      "3,4\n" + "3,5\n" + "4,3\n" + "4,5\n" + "5,1\n" + "5,3\n" + "5,4"
+    val res = graph.groupReduceOnEdges(new SelectNeighbors, EdgeDirection.ALL)
+    .collect.toList
+    expectedResult = "(1,2)\n" + "(1,3)\n" + "(1,5)\n" + "(2,1)\n" + "(2,3)\n" +
+      "(3,1)\n" + "(3,2)\n" + "(3,4)\n" + "(3,5)\n" + "(4,3)\n" + "(4,5)\n" +
+      "(5,1)\n" + "(5,3)\n" + "(5,4)"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
@@ -94,9 +71,9 @@ class ReduceOnEdgesMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMod
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val verticesWithLowestOutNeighbor: DataSet[(Long, Long)] = graph.reduceOnEdges(new
         SelectMinWeightNeighborNoValue, EdgeDirection.OUT)
-    verticesWithLowestOutNeighbor.writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "1,12\n" + "2,23\n" + "3,34\n" + "4,45\n" + "5,51\n"
+    val res = verticesWithLowestOutNeighbor.collect.toList
+    expectedResult = "(1,12)\n" + "(2,23)\n" + "(3,34)\n" + "(4,45)\n" + "(5,51)\n"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
@@ -107,9 +84,9 @@ class ReduceOnEdgesMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMod
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val verticesWithLowestOutNeighbor: DataSet[(Long, Long)] = graph.reduceOnEdges(new
         SelectMinWeightNeighborNoValue, EdgeDirection.IN)
-    verticesWithLowestOutNeighbor.writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "1,51\n" + "2,12\n" + "3,13\n" + "4,34\n" + "5,35\n"
+    val res = verticesWithLowestOutNeighbor.collect.toList
+    expectedResult = "(1,51)\n" + "(2,12)\n" + "(3,13)\n" + "(4,34)\n" + "(5,35)\n"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
@@ -120,9 +97,9 @@ class ReduceOnEdgesMethodsITCase(mode: MultipleProgramsTestBase.TestExecutionMod
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val verticesWithMaxEdgeWeight: DataSet[(Long, Long)] = graph.reduceOnEdges(new
         SelectMaxWeightNeighborNoValue, EdgeDirection.ALL)
-    verticesWithMaxEdgeWeight.writeAsCsv(resultPath)
-    env.execute
-    expectedResult = "1,51\n" + "2,23\n" + "3,35\n" + "4,45\n" + "5,51\n"
+    val res = verticesWithMaxEdgeWeight.collect.toList
+    expectedResult = "(1,51)\n" + "(2,23)\n" + "(3,35)\n" + "(4,45)\n" + "(5,51)\n"
+    TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   final class SelectNeighborsValueGreaterThanFour extends EdgesFunctionWithVertexValue[Long,
