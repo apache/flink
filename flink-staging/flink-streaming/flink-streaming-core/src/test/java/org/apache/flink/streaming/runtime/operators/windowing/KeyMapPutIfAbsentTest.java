@@ -16,37 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.windows;
+package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.junit.Test;
 
-import java.util.BitSet;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class KeyMapPutTest {
-
+public class KeyMapPutIfAbsentTest {
+	
 	@Test
-	public void testPutUniqueKeysAndGrowth() {
+	public void testPutIfAbsentUniqueKeysAndGrowth() {
 		try {
 			KeyMap<Integer, Integer> map = new KeyMap<>();
-
+			IntegerFactory factory = new IntegerFactory();
+			
 			final int numElements = 1000000;
-
+			
 			for (int i = 0; i < numElements; i++) {
-				map.put(i, 2 * i + 1);
+				factory.set(2 * i + 1);
+				map.putIfAbsent(i, factory);
 
 				assertEquals(i+1, map.size());
 				assertTrue(map.getCurrentTableCapacity() > map.size());
 				assertTrue(map.getCurrentTableCapacity() > map.getRehashThreshold());
 				assertTrue(map.size() <= map.getRehashThreshold());
 			}
-
+			
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
@@ -54,25 +51,11 @@ public class KeyMapPutTest {
 			for (int i = 0; i < numElements; i++) {
 				assertEquals(2 * i + 1, map.get(i).intValue());
 			}
-
+			
 			for (int i = numElements - 1; i >= 0; i--) {
 				assertEquals(2 * i + 1, map.get(i).intValue());
 			}
 
-			BitSet bitset = new BitSet();
-			int numContained = 0;
-			for (KeyMap.Entry<Integer, Integer> entry : map) {
-				numContained++;
-				
-				assertEquals(entry.getKey() * 2 + 1, entry.getValue().intValue());
-				assertFalse(bitset.get(entry.getKey()));
-				bitset.set(entry.getKey());
-			}
-
-			assertEquals(numElements, numContained);
-			assertEquals(numElements, bitset.cardinality());
-			
-			
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
@@ -83,54 +66,56 @@ public class KeyMapPutTest {
 			fail(e.getMessage());
 		}
 	}
-
+	
 	@Test
-	public void testPutDuplicateKeysAndGrowth() {
+	public void testPutIfAbsentDuplicateKeysAndGrowth() {
 		try {
-			final KeyMap<Integer, Integer> map = new KeyMap<>();
+			KeyMap<Integer, Integer> map = new KeyMap<>();
+			IntegerFactory factory = new IntegerFactory();
+			
 			final int numElements = 1000000;
 
 			for (int i = 0; i < numElements; i++) {
-				Integer put = map.put(i, 2*i+1);
-				assertNull(put);
+				int val = 2 * i + 1;
+				factory.set(val);
+				Integer put = map.putIfAbsent(i, factory);
+				assertEquals(val, put.intValue());
 			}
 
 			for (int i = 0; i < numElements; i += 3) {
-				Integer put = map.put(i, 2*i);
-				assertNotNull(put);
-				assertEquals(2*i+1, put.intValue());
+				factory.set(2 * i);
+				Integer put = map.putIfAbsent(i, factory);
+				assertEquals(2 * i + 1, put.intValue());
 			}
 
 			for (int i = 0; i < numElements; i++) {
-				int expected = (i % 3 == 0) ? (2*i) : (2*i+1);
-				assertEquals(expected, map.get(i).intValue());
+				assertEquals(2 * i + 1, map.get(i).intValue());
 			}
-			
+
 			assertEquals(numElements, map.size());
 			assertEquals(numElements, map.traverseAndCountElements());
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
 			assertTrue(map.getLongestChainLength() <= 7);
-
-			
-			BitSet bitset = new BitSet();
-			int numContained = 0;
-			for (KeyMap.Entry<Integer, Integer> entry : map) {
-				numContained++;
-
-				int key = entry.getKey();
-				int expected = key % 3 == 0 ? (2*key) : (2*key+1);
-
-				assertEquals(expected, entry.getValue().intValue());
-				assertFalse(bitset.get(key));
-				bitset.set(key);
-			}
-
-			assertEquals(numElements, numContained);
-			assertEquals(numElements, bitset.cardinality());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	private static class IntegerFactory implements KeyMap.LazyFactory<Integer> {
+		
+		private Integer toCreate;
+		
+		public void set(Integer toCreate) {
+			this.toCreate = toCreate;
+		}
+
+		@Override
+		public Integer create() {
+			return toCreate;
 		}
 	}
 }

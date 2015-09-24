@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.windows;
+package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.junit.Test;
 

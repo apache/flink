@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.windowpolicy.WindowPolicy;
-import org.apache.flink.streaming.runtime.operators.windows.PolicyToOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.PolicyToOperator;
 
 /**
  * A KeyedWindowDataStream represents a data stream where elements are grouped by key, and 

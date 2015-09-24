@@ -16,20 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.operators.windows;
+package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
 
-public class AggregatingProcessingTimeWindowOperator<KEY, IN> 
-		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, IN>  {
+
+public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT> 
+		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT>  {
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
 	
-	public AggregatingProcessingTimeWindowOperator(
-			ReduceFunction<IN> function,
+	public AccumulatingProcessingTimeWindowOperator(
+			KeyedWindowFunction<IN, OUT, KEY> function,
 			KeySelector<IN, KEY> keySelector,
 			long windowLength,
 			long windowSlide)
@@ -38,10 +39,10 @@ public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 	}
 
 	@Override
-	protected AggregatingKeyedTimePanes<IN, KEY> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
+	protected AccumulatingKeyedTimePanes<IN, KEY, OUT> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
-		ReduceFunction<IN> windowFunction = (ReduceFunction<IN>) function;
+		KeyedWindowFunction<IN, OUT, KEY> windowFunction = (KeyedWindowFunction<IN, OUT, KEY>) function;
 		
-		return new AggregatingKeyedTimePanes<IN, KEY>(keySelector, windowFunction);
+		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}
 }
