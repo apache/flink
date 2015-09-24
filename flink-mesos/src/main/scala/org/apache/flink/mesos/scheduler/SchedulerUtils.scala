@@ -262,7 +262,11 @@ trait SchedulerUtils {
         credsBuilder.setSecret(ByteString.copyFromUtf8(secret))
       }
     }
-    val credential = if (credsBuilder == null) Some(credsBuilder.build) else None
+    val credential = if (credsBuilder != null) {
+      Some(credsBuilder.build)
+    } else {
+      None
+    }
 
     (frameworkBuilder.build(), credential)
   }

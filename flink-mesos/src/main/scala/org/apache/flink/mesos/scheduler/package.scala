@@ -18,7 +18,6 @@
 
 package org.apache.flink.mesos
 
-import java.net.InetAddress
 import java.nio.file.Paths
 
 import org.apache.mesos.Protos.{SlaveID, TaskID}
@@ -102,7 +101,9 @@ package object scheduler {
   val DEFAULT_MESOS_MASTER = "zk://127.0.0.1:2181/mesos"
 
   case class Conf(confDir: String = Paths.get(".").toAbsolutePath.toString,
-                  host: String = InetAddress.getLocalHost.getHostName)
-  sealed case class RunningTaskManager(taskId: TaskID, slaveId: SlaveID)
+                  host: String = "",
+                  port: Int = -1)
+  sealed case class RunningTaskManager(taskId: TaskID,
+                                       slaveId: SlaveID)
 
 }

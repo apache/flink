@@ -152,9 +152,9 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
 
       // create executor
       val command = createTaskManagerCommand(requiredMem.toInt)
-      val log4jUrl = s"${httpConfigServerAddress.get}/log4j-mesos.properties"
+      val log4jUrl = s"${httpConfigServerAddress.get}/log4j.properties"
       val executorInfo = createExecutorInfo(s"$taskManagerCount", role,
-        Set(uberJarLocation, httpConfigServerAddress.get), command, nativeLibPath)
+        Set(uberJarLocation, log4jUrl), command, nativeLibPath)
 
       // create task
       val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskManagerCount").build()
@@ -177,6 +177,9 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
         conf.copy(confDir = path.toPath.toAbsolutePath.toString) } text "confDir is required"
       opt[String]('h', "host") valueName "hostname override for the scheduler" action { (h, c) =>
         c.copy(host = h) } text "hostname to use for the scheduler (if not same as localhost)"
+      opt[Int]('p', "port") valueName "port to use for serving configuration" action { (p,c) =>
+        c.copy(port = p)
+      }
     }
 
     // parse the config
@@ -192,12 +195,14 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
     GlobalConfiguration.loadConfiguration(cliConf.confDir)
 
     // start the local http server for service the configuration
-    val server = new HttpServer(cliConf.confDir)
-    httpConfigServerAddress = Some(s"http://${cliConf.host}:${server.port}")
-    LOG.debug(s"Serving configuration via: $httpConfigServerAddress")
+    val server = new HttpServer(cliConf)
 
     // start the http server is a separate thread
     new Thread { override def run: Unit = { server.start() } }.start()
+
+    // save the http config server address
+    httpConfigServerAddress = Some(s"http://${server.host}:${server.port}")
+    LOG.debug(s"Serving configuration via: $httpConfigServerAddress")
 
     // start job manager thread
     val jobManagerThread = createJobManagerThread(cliConf.host)

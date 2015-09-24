@@ -25,7 +25,9 @@ import unfiltered.response.ResponseString
 
 import scala.io.Source
 
-class HttpServer(confDir: String) {
+class HttpServer(conf: Conf) {
+  val confDir: String = conf.confDir
+
   val consoleLog4jConfiguration = ResponseString(
     """
       |log4j.rootLogger=INFO, stdout
@@ -54,11 +56,27 @@ class HttpServer(confDir: String) {
   }
 
   // serve using an embedded jetty server running via any available local port
-  val svr = unfiltered.jetty.Server.anylocal.plan(configServerPlan)
+  val svr = {
+    val _svr = if (conf.port == -1) {
+      unfiltered.jetty.Server.anylocal
+    } else {
+      unfiltered.jetty.Server.local(conf.port)
+    }
+    _svr.plan(configServerPlan)
+  }
+
   val port = svr.ports.last
 
   def start(): Unit = {
     svr.run()
+  }
+
+  val host: String = {
+    if (conf.host == "") {
+      svr.portBindings.map(_.connector.getHost).head
+    } else {
+      conf.host
+    }
   }
 
 }
