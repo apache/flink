@@ -34,11 +34,11 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * 
  * 
  * @param <T> The type of the elements in the Keyed Stream.
- * @param <K> The type of the key in the Keyed Stream.
+ * @param <KEY> The type of the key in the Keyed Stream.
  */
-public class KeyedDataStream<T, K> extends DataStream<T> {
+public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	
-	protected final KeySelector<T, K> keySelector;
+	protected final KeySelector<T, KEY> keySelector;
 
 	/**
 	 * Creates a new {@link KeyedDataStream} using the given {@link KeySelector}
@@ -49,13 +49,13 @@ public class KeyedDataStream<T, K> extends DataStream<T> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedDataStream(DataStream<T> dataStream, KeySelector<T, K> keySelector) {
+	public KeyedDataStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
 		super(dataStream.getExecutionEnvironment(), new PartitionTransformation<T>(dataStream.getTransformation(), new HashPartitioner<T>(keySelector)));
 		this.keySelector = keySelector;
 	}
 
 	
-	public KeySelector<T, K> getKeySelector() {
+	public KeySelector<T, KEY> getKeySelector() {
 		return this.keySelector;
 	}
 
@@ -98,8 +98,8 @@ public class KeyedDataStream<T, K> extends DataStream<T> {
 	 * @param policy The policy that defines the window.
 	 * @return The windows data stream. 
 	 */
-	public KeyedWindowDataStream<T, K> window(WindowPolicy policy) {
-		return new KeyedWindowDataStream<T, K>(this, policy);
+	public KeyedWindowDataStream<T, KEY> window(WindowPolicy policy) {
+		return new KeyedWindowDataStream<T, KEY>(this, policy);
 	}
 
 	/**
@@ -112,7 +112,7 @@ public class KeyedDataStream<T, K> extends DataStream<T> {
 	 * @param slide The additional policy defining the slide of the window. 
 	 * @return The windows data stream.
 	 */
-	public KeyedWindowDataStream<T, K> window(WindowPolicy window, WindowPolicy slide) {
-		return new KeyedWindowDataStream<T, K>(this, window, slide);
+	public KeyedWindowDataStream<T, KEY> window(WindowPolicy window, WindowPolicy slide) {
+		return new KeyedWindowDataStream<T, KEY>(this, window, slide);
 	}
 }

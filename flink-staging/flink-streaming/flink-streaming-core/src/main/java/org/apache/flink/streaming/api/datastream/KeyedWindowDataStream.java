@@ -43,13 +43,13 @@ import org.apache.flink.streaming.runtime.operators.windowing.PolicyToOperator;
  * KeyedWindowDataStream will be collapsed together with the KeyedDataStream and the operation
  * over the window into one single operation.
  * 
- * @param <Type> The type of elements in the stream.
- * @param <Key> The type of the key by which elements are grouped.
+ * @param <T> The type of elements in the stream.
+ * @param <K> The type of the key by which elements are grouped.
  */
-public class KeyedWindowDataStream<Type, Key> {
+public class KeyedWindowDataStream<T, K> {
 
 	/** The keyed data stream that is windowed by this stream */
-	private final KeyedDataStream<Type, Key> input;
+	private final KeyedDataStream<T, K> input;
 
 	/** The core window policy */
 	private final WindowPolicy windowPolicy;
@@ -58,11 +58,11 @@ public class KeyedWindowDataStream<Type, Key> {
 	private final WindowPolicy slidePolicy;
 	
 	
-	public KeyedWindowDataStream(KeyedDataStream<Type, Key> input, WindowPolicy windowPolicy) {
+	public KeyedWindowDataStream(KeyedDataStream<T, K> input, WindowPolicy windowPolicy) {
 		this(input, windowPolicy, null);
 	}
 
-	public KeyedWindowDataStream(KeyedDataStream<Type, Key> input,
+	public KeyedWindowDataStream(KeyedDataStream<T, K> input,
 								WindowPolicy windowPolicy, WindowPolicy slidePolicy) 
 	{
 		TimeCharacteristic time = input.getExecutionEnvironment().getStreamTimeCharacteristic();
@@ -91,7 +91,7 @@ public class KeyedWindowDataStream<Type, Key> {
 	 * @param function The reduce function.
 	 * @return The data stream that is the result of applying the reduce function to the window. 
 	 */
-	public DataStream<Type> reduceWindow(ReduceFunction<Type> function) {
+	public DataStream<T> reduceWindow(ReduceFunction<T> function) {
 		String callLocation = Utils.getCallLocationName();
 		return createWindowOperator(function, input.getType(), "Reduce at " + callLocation);
 	}
@@ -107,10 +107,10 @@ public class KeyedWindowDataStream<Type, Key> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <Result> DataStream<Result> mapWindow(KeyedWindowFunction<Type, Result, Key> function) {
+	public <Result> DataStream<Result> mapWindow(KeyedWindowFunction<T, Result, K> function) {
 		String callLocation = Utils.getCallLocationName();
 
-		TypeInformation<Type> inType = input.getType();
+		TypeInformation<T> inType = input.getType();
 		TypeInformation<Result> resultType = TypeExtractor.getUnaryOperatorReturnType(
 				function, KeyedWindowFunction.class, true, true, inType, null, false);
 
@@ -125,9 +125,9 @@ public class KeyedWindowDataStream<Type, Key> {
 			Function function, TypeInformation<Result> resultType, String functionName) {
 
 		String opName = windowPolicy.toString(slidePolicy) + " of " + functionName;
-		KeySelector<Type, Key> keySel = input.getKeySelector();
+		KeySelector<T, K> keySel = input.getKeySelector();
 		
-		OneInputStreamOperator<Type, Result> operator =
+		OneInputStreamOperator<T, Result> operator =
 				PolicyToOperator.createOperatorForPolicies(windowPolicy, slidePolicy, function, keySel);
 		
 		return input.transform(opName, resultType, operator);

@@ -35,11 +35,11 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
  * partitioned by the given {@link KeySelector}. Operators like {@link #reduce},
  * {@link #fold} etc. can be applied on the {@link GroupedDataStream} to
  * get additional functionality by the grouping.
- * 
- * @param <OUT>
- *            The output type of the {@link GroupedDataStream}.
+ *
+ * @param <T> The type of the elements in the Grouped Stream.
+ * @param <KEY> The type of the key in the Keyed Stream.
  */
-public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
+public class GroupedDataStream<T, KEY> extends KeyedDataStream<T, KEY> {
 
 	/**
 	 * Creates a new {@link GroupedDataStream}, group inclusion is determined using
@@ -48,7 +48,7 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 * @param dataStream Base stream of data
 	 * @param keySelector Function for determining group inclusion
 	 */
-	public GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, KEY> keySelector) {
+	public GroupedDataStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
 		super(dataStream, keySelector);
 	}
 
@@ -64,8 +64,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            element of the input values with the same key.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return transform("Grouped Reduce", getType(), new StreamGroupedReduce<OUT>(
+	public SingleOutputStreamOperator<T, ?> reduce(ReduceFunction<T> reducer) {
+		return transform("Grouped Reduce", getType(), new StreamGroupedReduce<T>(
 				clean(reducer), keySelector));
 	}
 
@@ -82,12 +82,12 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The initialValue passed to the folders for each key.
 	 * @return The transformed DataStream.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<OUT, R> folder) {
+	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<T, R> folder) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
 				Utils.getCallLocationName(), true);
 
-		return transform("Grouped Fold", outType, new StreamGroupedFold<OUT, R>(clean(folder),
+		return transform("Grouped Fold", outType, new StreamGroupedFold<T, R>(clean(folder),
 				keySelector, initialValue));
 	}
 
@@ -100,8 +100,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to sum
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
-		return aggregate(new SumAggregator<OUT>(positionToSum, getType(), getExecutionConfig()));
+	public SingleOutputStreamOperator<T, ?> sum(int positionToSum) {
+		return aggregate(new SumAggregator<T>(positionToSum, getType(), getExecutionConfig()));
 	}
 
 	/**
@@ -117,8 +117,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
-		return aggregate(new SumAggregator<OUT>(field, getType(), getExecutionConfig()));
+	public SingleOutputStreamOperator<T, ?> sum(String field) {
+		return aggregate(new SumAggregator<T>(field, getType(), getExecutionConfig()));
 	}
 
 	/**
@@ -130,8 +130,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
-		return aggregate(new ComparableAggregator<OUT>(positionToMin, getType(), AggregationType.MIN,
+	public SingleOutputStreamOperator<T, ?> min(int positionToMin) {
+		return aggregate(new ComparableAggregator<T>(positionToMin, getType(), AggregationType.MIN,
 				getExecutionConfig()));
 	}
 
@@ -148,8 +148,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> min(String field) {
-		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MIN,
+	public SingleOutputStreamOperator<T, ?> min(String field) {
+		return aggregate(new ComparableAggregator<T>(field, getType(), AggregationType.MIN,
 				false, getExecutionConfig()));
 	}
 
@@ -162,8 +162,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
-		return aggregate(new ComparableAggregator<OUT>(positionToMax, getType(), AggregationType.MAX,
+	public SingleOutputStreamOperator<T, ?> max(int positionToMax) {
+		return aggregate(new ComparableAggregator<T>(positionToMax, getType(), AggregationType.MAX,
 				getExecutionConfig()));
 	}
 
@@ -180,8 +180,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> max(String field) {
-		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MAX,
+	public SingleOutputStreamOperator<T, ?> max(String field) {
+		return aggregate(new ComparableAggregator<T>(field, getType(), AggregationType.MAX,
 				false, getExecutionConfig()));
 	}
 
@@ -202,7 +202,7 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 * @return The transformed DataStream.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
+	public SingleOutputStreamOperator<T, ?> minBy(String field, boolean first) {
 		return aggregate(new ComparableAggregator(field, getType(), AggregationType.MINBY,
 				first, getExecutionConfig()));
 	}
@@ -223,8 +223,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            be returned
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
-		return aggregate(new ComparableAggregator<OUT>(field, getType(), AggregationType.MAXBY,
+	public SingleOutputStreamOperator<T, ?> maxBy(String field, boolean first) {
+		return aggregate(new ComparableAggregator<T>(field, getType(), AggregationType.MAXBY,
 				first, getExecutionConfig()));
 	}
 
@@ -238,7 +238,7 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+	public SingleOutputStreamOperator<T, ?> minBy(int positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -252,7 +252,7 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(String positionToMinBy) {
+	public SingleOutputStreamOperator<T, ?> minBy(String positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -270,8 +270,8 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            minimal value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
-		return aggregate(new ComparableAggregator<OUT>(positionToMinBy, getType(), AggregationType.MINBY, first,
+	public SingleOutputStreamOperator<T, ?> minBy(int positionToMinBy, boolean first) {
+		return aggregate(new ComparableAggregator<T>(positionToMinBy, getType(), AggregationType.MINBY, first,
 				getExecutionConfig()));
 	}
 
@@ -285,7 +285,7 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+	public SingleOutputStreamOperator<T, ?> maxBy(int positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -299,7 +299,7 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(String positionToMaxBy) {
+	public SingleOutputStreamOperator<T, ?> maxBy(String positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -317,13 +317,13 @@ public class GroupedDataStream<OUT, KEY> extends KeyedDataStream<OUT, KEY> {
 	 *            maximum value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
-		return aggregate(new ComparableAggregator<OUT>(positionToMaxBy, getType(), AggregationType.MAXBY, first,
+	public SingleOutputStreamOperator<T, ?> maxBy(int positionToMaxBy, boolean first) {
+		return aggregate(new ComparableAggregator<T>(positionToMaxBy, getType(), AggregationType.MAXBY, first,
 				getExecutionConfig()));
 	}
 
-	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
-		StreamGroupedReduce<OUT> operator = new StreamGroupedReduce<OUT>(clean(aggregate), keySelector);
+	protected SingleOutputStreamOperator<T, ?> aggregate(AggregationFunction<T> aggregate) {
+		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(clean(aggregate), keySelector);
 		return transform("Grouped Aggregation", getType(), operator);
 	}
 }
