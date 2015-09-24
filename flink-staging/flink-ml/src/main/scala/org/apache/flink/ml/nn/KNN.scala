@@ -73,6 +73,7 @@ import scala.reflect.ClassTag
   * (Default value: '''EuclideanDistanceMetric()''')
   *
   */
+
 class KNN extends Predictor[KNN] {
 
   import KNN._
@@ -181,7 +182,7 @@ object KNN {
                   // avoid error when detecting points near the boundary)
                   var MinVec =  new ListBuffer[Double]
                   var MaxVec =  new ListBuffer[Double]
-                  for ( i <- 0 to training.values(0).size - 1){
+                  for ( i <- 0 to training.values.head.size - 1){
                     val minTrain = training.values.map(x => x(i)).min - 0.01
                     val minTest = testing.values.map(x => x._2(i)).min - 0.01
 
@@ -193,30 +194,13 @@ object KNN {
                   }
 
                   var trainingQuadTree = new QuadTree(MinVec, MaxVec)
+                  if (trainingQuadTree.maxPerBox < k){
+                    trainingQuadTree.maxPerBox = k
+                  }
+
                   for (v <- training.values){
                     trainingQuadTree.insert(v.asInstanceOf[DenseVector])
                   }
-                  trainingQuadTree.printTree()
-
-
-                  /**
-                  // MAKE CHANGES HERE FOR SIMPLE PARTITION OF DOMAIN INTO BOXES
-                  val min_x = 0.0
-                  val max_x = 1.0
-                  val nPartRoot = 4
-                  val delx = (max_x - min_x)/nPartRoot
-                  val dely = (max_x - min_x)/nPartRoot
-
-                  println("training =        !" +  training)
-                  println("training.values =        !"  +  training.values)
-                  for (v <- training.values){
-                    println("v   =  " + v)
-                  }
-                  ///training = Block(?, Vector(DenseVector))  Maybe "?" = "block label" ???
-                  /// training.values = Vector(DenseVector))
-
-                  val bPart = training.values.map{ v => LabeledVector(Math.floor(v(0)/delx)*nPartRoot + Math.floor(v(1)/dely), v) }
-                  **/
 
                   for (a <- testing.values) {
 
@@ -234,18 +218,6 @@ object KNN {
                     //// EVENTUALLY SHOULD REFINE searchNeighbors TO NOT KEEP ANY SIBLINGS
                     //// CURRENTLY PICKING UP SIBLINGS TOO !!
                     val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],math.sqrt(rad))
-
-
-                    /**
-                    val idA = Math.floor(a._2(0)/delx)*nPartRoot + Math.floor(a._2(1)/dely)
-                    val bFilt = bPart.filter{ _.label==idA}
-
-                    //println()
-                    println("bFilt =   " + bFilt)
-                    /////THIS LOOP WILL THEN ONLY BE OVER TRAINING VALUES IN THAT BOX
-                    //for (b <- training.values) {
-                    val bFiltVect = bFilt.map(_.vector)
-                    **/
 
                      for (b <- bFiltVect){
                       //for (b <- training.values){

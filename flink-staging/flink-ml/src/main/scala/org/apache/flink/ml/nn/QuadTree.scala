@@ -35,15 +35,19 @@ import scala.collection.mutable.ListBuffer
  * @param maxVec
  */
 
+//////////// CHANGE OR ADD CONSTRUCTOR OF THE CLASS TO ALLOW WHOLE SET TO BE INPUT AND CREATE BOUNDING
+/////////// BOX AUTOMATICALLY.............................
 
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
-  val maxPerBox = 20
-  var size = 0
-  val dim = minVec.length
+  var maxPerBox = 20
 
   class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]){
 
     var objects = new ListBuffer[DenseVector]
+
+    def getCenterLength(): (ListBuffer[Double],ListBuffer[Double]) ={
+      (c,L)
+    }
 
     def isInNode(obj:DenseVector): Boolean ={
       overlap(obj,0.0)
@@ -127,6 +131,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
      * @param dim
      * @return
      */
+
     def partitionBox(cPart:ListBuffer[ListBuffer[Double]],L:ListBuffer[Double], dim:Int):ListBuffer[ListBuffer[Double]]=
     {
       if (L.length == 1){
@@ -136,7 +141,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
         val cPartMap = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
         cPart2 = cPart2.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
-        return cPart2 ++ cPartMap// ++ cPart2
+        return cPart2 ++ cPartMap
       }
 
       var cPart2 = cPart.clone()
@@ -166,6 +171,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
         printTreeRecur(c)
       }
     }else{
+      println("printing tree: n.objects " + n.objects)
     }
   }
 
@@ -197,7 +203,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       insertRecur(ob, n.children(n.whichChild(ob)))
     }
   }
-
 
   /** Finds all objects in minimal bounding box and also all siblings' objects.
     * Used in KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
@@ -231,13 +236,12 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-
   /** Finds all objects within a neigiborhood of obj of a specified radius
     * scope is modified from original 2D version in:
     * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
     *
-    * original version only looks in minimal box, but for the KNN Query, we look at
-    * all nearby boxes
+    * original version only looks in minimal box; for the KNN Query, we look at
+    * all nearby boxes.  Moreover, there is no filtering by radius
    *
    * @param obj
    * @param radius
@@ -260,8 +264,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   }
 
    def distance(a:DenseVector,b:DenseVector):Double = {
-    var diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
+    val diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
     math.sqrt(diffSQ)
   }
-
 }

@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-
 import org.apache.flink.ml.nn.util.QuadTree
 import org.apache.flink.test.util.FlinkTestBase
 import org.apache.flink.ml.math.DenseVector
@@ -25,46 +24,89 @@ import org.apache.flink.ml.math.DenseVector
 import org.scalatest.{Matchers, FlatSpec}
 import scala.collection.mutable.ListBuffer
 
-/// Test of Quadtree class
-
-/*
-Constructor for the Quadtree class
-class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
-*/
+/** Test of Quadtree class
+  * Constructor for the Quadtree class:
+  * class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double])
+  *
+ */
 
 class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "The QuadTree Class"
 
-  it should "construct and search a QuadTree properly" in {
+  it should "partition into equal size sub-boxes and search for nearby objects properly" in {
 
-    /////// very basic test of creating a 2D rectangle and a single splitting
     val minVec = ListBuffer(-1.0, -0.5)
     val maxVec = ListBuffer(1.0, 0.5)
 
     val myTree = new QuadTree(minVec, maxVec)
-    println("Created new QuadTree!")
+    myTree.maxPerBox = 3
+
+    /**
+     * WANT TO MAKE SURE THAT OBJECTS INSERTED ARE IN BOUNDING BOX??
+     * 2 OPTIONS:  RE-BUILD TREE WHEN AN OUTSIDE OBJECT IS ADDED, OR NOT ALLOW OBJECT TO BE ADDED
+     *
+     */
 
     myTree.insert(DenseVector(-0.25, 0.3))
-    println("added 1 element...")
     myTree.insert(DenseVector(-0.20, 0.31))
-    println("added 2 element...")
     myTree.insert(DenseVector(-0.21, 0.29))
-    println("added 3 element...")
+
+    /** Tree will partition once the 4th point is added
+     */
 
     myTree.insert(DenseVector(0.2, 0.27))
     myTree.insert(DenseVector(0.2, 0.26))
 
     myTree.insert(DenseVector(-0.21, 0.289))
+    myTree.insert(DenseVector(-0.1, 0.289))
 
-    myTree.printTree()
+    myTree.insert(DenseVector(0.7, 0.45))
 
-    println("testing searchNeighbors....")
-    /// need to test search feature................
-    //val neighbors = myTree.searchNeighbors(DenseVector(-0.24,0.29), 0.02)
-    val neighbors = myTree.searchNeighbors(DenseVector(0.0,0.0), 0.5)
-    println("neighbors =    " + neighbors)
-    val d = myTree.distance(DenseVector(0.19, 0.27),DenseVector(0.2, 0.27))
-    println("d = " + d)
+    /**
+     * Exact values of (centers,dimensions) of root + children nodes, to test
+     * partitionBox and makeChildren methods; exact values are given to avoid
+     * essentially copying and pasting the code to automatically generate them
+     * from minVec/maxVec
+     */
 
+    val knownCentersLengths = Set( (ListBuffer(0.0,0.0), ListBuffer(2.0,1.0)),
+      (ListBuffer(-0.5, -0.25), ListBuffer(1.0, 0.5)),
+      (ListBuffer(-0.5, 0.25), ListBuffer(1.0, 0.5)),
+      (ListBuffer(0.5, -0.25), ListBuffer(1.0, 0.5)),
+      (ListBuffer(0.5, 0.25), ListBuffer(1.0, 0.5))
+    )
+
+    /**
+     * (centers,dimensions) computed from QuadTree.makeChildren
+     */
+
+    var computedCentersLength =  Set( ( ListBuffer(0.0,0.0) , ListBuffer(2.0,1.0) ))
+    for (c <- myTree.root.children){
+      computedCentersLength += c.getCenterLength()
+    }
+
+    /**
+     * Tests search for nearby neighbors, make sure the right object is contained in neighbor search
+     * the neighbor search will contain more points
+     */
+    val neighborsComputed = myTree.searchNeighbors(DenseVector(0.7001,0.45001), 0.001)
+    val isNeighborInSearch = neighborsComputed.contains(DenseVector(0.7, 0.45))
+
+    /**
+     * Test ability to get all objects in minimal bounding box + objects in siblings' block method
+     *  In this case, drawing a picture of the QuadTree shows that
+     *  (-0.2, 0.31), (-0.21, 0.29), (-0.21, 0.289), (-0.1, 0.289)
+     *  are objects near (-0.2001, 0.31001)
+     */
+
+    val siblingsObjectsComputed = myTree.searchNeighborsSibling(DenseVector(-0.2001, 0.31001))
+    val isSiblingsInSearch = siblingsObjectsComputed.contains(DenseVector(-0.2, 0.31)) &&
+      siblingsObjectsComputed.contains(DenseVector(-0.21, 0.29)) &&
+      siblingsObjectsComputed.contains(DenseVector(-0.21, 0.289)) &&
+      siblingsObjectsComputed.contains( DenseVector(-0.1, 0.289))
+
+    computedCentersLength should be(knownCentersLengths)
+    isNeighborInSearch should be(true)
+    isSiblingsInSearch should be(true)
   }
 }

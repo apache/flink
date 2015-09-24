@@ -26,16 +26,12 @@ import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
 
-
-
 import scala.util.Random
 import org.apache.flink.api.scala.DataSetUtils._
 
 class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "The KNN Join Implementation"
 
-
-  /*
   it should "throw an exception when the given K is not valid" in {
     intercept[IllegalArgumentException] {
       KNN().setK(0)
@@ -47,8 +43,6 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
       KNN().setBlocks(0)
     }
   }
-*/
-
 
   it should "calculate kNN join correctly" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
