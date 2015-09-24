@@ -340,7 +340,7 @@ class TypeInformationGenTest {
     Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
     Assert.assertEquals(
       classOf[CustomType],
-      ti.asInstanceOf[ObjectArrayTypeInfo[_, _]].getComponentType)
+      ti.asInstanceOf[ObjectArrayTypeInfo[_, _]].getComponentInfo.getTypeClass)
   }
 
   @Test

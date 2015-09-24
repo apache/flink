@@ -21,9 +21,10 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.Configuration;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -49,7 +50,7 @@ public class RemoteExecutorHostnameResolutionTest {
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}
-		catch (ProgramInvocationException e) {
+		catch (IOException e) {
 			// that is what we want!
 			assertTrue(e.getCause() instanceof UnknownHostException);
 		}
@@ -67,11 +68,11 @@ public class RemoteExecutorHostnameResolutionTest {
 		
 		try {
 			InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-			RemoteExecutor exec = new RemoteExecutor(add, Collections.<String>emptyList());
+			RemoteExecutor exec = new RemoteExecutor(add, Collections.<String>emptyList(), new Configuration());
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
 		}
-		catch (ProgramInvocationException e) {
+		catch (IOException e) {
 			// that is what we want!
 			assertTrue(e.getCause() instanceof UnknownHostException);
 		}

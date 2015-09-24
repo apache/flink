@@ -43,12 +43,14 @@ import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
 /**
- * This class encapsulates a single job (an instantiated data flow), together with some parameters.
- * Parameters include the name and a default parallelism. The job is referenced by the data sinks,
- * from which a traversal reaches all connected nodes of the job.
+ * This class represents Flink programs, in the form of dataflow plans.
+ *
+ * <p>The dataflow is referenced by the data sinks, from which all connected
+ * operators of the data flow can be reached via backwards traversal</p>.
  */
 public class Plan implements Visitable<Operator<?>> {
 
+	/** The default parallelism indicates to use the cluster's default */
 	private static final int DEFAULT_PARALELLISM = -1;
 	
 	/**
@@ -57,34 +59,31 @@ public class Plan implements Visitable<Operator<?>> {
 	 */
 	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<GenericDataSinkBase<?>>(4);
 
-	/**
-	 * The name of the job.
-	 */
+	/** The name of the job. */
 	protected String jobName;
 
-	/**
-	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
-	 */
+	/** The default parallelism to use for nodes that have no explicitly specified parallelism. */
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
 	
-	/**
-	 * Hash map for files in the distributed cache: registered name to cache entry.
-	 */
+	/** Hash map for files in the distributed cache: registered name to cache entry. */
 	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<String, DistributedCacheEntry>();
+	
+	/** Config object for runtime execution parameters. */
+	protected ExecutionConfig executionConfig;
 
-	/**
-	 * Config object for runtime execution parameters.
-	 */
-	protected ExecutionConfig executionConfig = null;
+	/** The ID of the Job that this dataflow plan belongs to */
+	private JobID jobId;
+	
+	private long sessionTimeout;
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new program plan with the given name, describing the data flow that ends at the
+	 * Creates a new dataflow plan with the given name, describing the data flow that ends at the
 	 * given data sinks.
-	 * <p>
-	 * If not all of the sinks of a data flow are given to the plan, the flow might
-	 * not be translated entirely. 
+	 * 
+	 * <p>If not all of the sinks of a data flow are given to the plan, the flow might
+	 * not be translated entirely.</p>
 	 *  
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
@@ -238,7 +237,37 @@ public class Plan implements Visitable<Operator<?>> {
 		checkNotNull(jobName, "The job name must not be null.");
 		this.jobName = jobName;
 	}
-	
+
+	/**
+	 * Gets the ID of the job that the dataflow plan belongs to.
+	 * If this ID is not set, then the dataflow represents its own
+	 * independent job.
+	 * 
+	 * @return The ID of the job that the dataflow plan belongs to.
+	 */
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	/**
+	 * Sets the ID of the job that the dataflow plan belongs to.
+	 * If this ID is set to {@code null}, then the dataflow represents its own
+	 * independent job.
+	 * 
+	 * @param jobId The ID of the job that the dataflow plan belongs to.
+	 */
+	public void setJobId(JobID jobId) {
+		this.jobId = jobId;
+	}
+
+	public void setSessionTimeout(long sessionTimeout) {
+		this.sessionTimeout = sessionTimeout;
+	}
+
+	public long getSessionTimeout() {
+		return sessionTimeout;
+	}
+
 	/**
 	 * Gets the default parallelism for this job. That degree is always used when an operator
 	 * is not explicitly given a parallelism.

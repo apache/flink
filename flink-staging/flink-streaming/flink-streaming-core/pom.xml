@@ -100,6 +100,16 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- disable fork reuse for the streaming project, because of
+			incorrect declaration of tests -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<reuseForks>false</reuseForks>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

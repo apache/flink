@@ -75,7 +75,11 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	protected void run() throws Exception {
-		while (running && inputProcessor.processInput(streamOperator));
+		while (running && inputProcessor.processInput(streamOperator, lock)) {
+			if (timerException != null) {
+				throw timerException;
+			}
+		}
 	}
 
 	@Override

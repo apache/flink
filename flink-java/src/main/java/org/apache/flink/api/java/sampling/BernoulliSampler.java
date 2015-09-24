@@ -28,11 +28,15 @@ import java.util.Random;
  * Bernoulli experiment.
  *
  * @param <T> The type of sample.
+ * @see <a href="http://erikerlandson.github.io/blog/2014/09/11/faster-random-samples-with-gap-sampling/">Gap Sampling</a>
  */
 public class BernoulliSampler<T> extends RandomSampler<T> {
 	
 	private final double fraction;
 	private final Random random;
+	
+	// THRESHOLD is a tuning parameter for choosing sampling method according to the fraction.
+	private final static double THRESHOLD = 0.33;
 	
 	/**
 	 * Create a Bernoulli sampler with sample fraction and default random number generator.
@@ -102,15 +106,35 @@ public class BernoulliSampler<T> extends RandomSampler<T> {
 			}
 
 			private T getNextSampledElement() {
-				while (input.hasNext()) {
-					T element = input.next();
-
-					if (random.nextDouble() <= fraction) {
-						return element;
+				if (fraction <= THRESHOLD) {
+					double rand = random.nextDouble();
+					double u = Math.max(rand, EPSILON);
+					int gap = (int) (Math.log(u) / Math.log(1 - fraction));
+					int elementCount = 0;
+					if (input.hasNext()) {
+						T element = input.next();
+						while (input.hasNext() && elementCount < gap) {
+							element = input.next();
+							elementCount++;
+						}
+						if (elementCount < gap) {
+							return null;
+						} else {
+							return element;
+						}
+					} else {
+						return null;
 					}
-				}
+				} else {
+					while (input.hasNext()) {
+						T element = input.next();
 
-				return null;
+						if (random.nextDouble() <= fraction) {
+							return element;
+						}
+					}
+					return null;
+				}
 			}
 		};
 	}

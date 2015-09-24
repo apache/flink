@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk;
 
 import org.apache.flink.core.memory.DataInputView;
@@ -24,9 +23,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.ListMemorySegmentSource;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
@@ -34,6 +32,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode
 import org.apache.flink.runtime.operators.testutils.TestData.Key;
 import org.apache.flink.runtime.operators.testutils.TestData.Value;
 import org.apache.flink.types.Record;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -41,7 +40,6 @@ import org.junit.Test;
 
 import java.io.EOFException;
 import java.util.ArrayList;
-
 
 public class SpillingBufferTest {
 	
@@ -69,7 +67,7 @@ public class SpillingBufferTest {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
 	}
 
@@ -91,8 +89,7 @@ public class SpillingBufferTest {
 	// --------------------------------------------------------------------------------------------
 	
 	@Test
-	public void testWriteReadInMemory() throws Exception
-	{
+	public void testWriteReadInMemory() throws Exception {
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 		
 		// create the writer output view
@@ -150,9 +147,9 @@ public class SpillingBufferTest {
 	}
 	
 	@Test
-	public void testWriteReadTooMuchInMemory() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadTooMuchInMemory() throws Exception {
+		final TestData.Generator generator = new TestData.Generator(
+				SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
@@ -217,9 +214,9 @@ public class SpillingBufferTest {
 	// --------------------------------------------------------------------------------------------
 	
 	@Test
-	public void testWriteReadExternal() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadExternal() throws Exception {
+		final TestData.Generator generator = new TestData.Generator(
+				SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
@@ -276,9 +273,9 @@ public class SpillingBufferTest {
 	}
 
 	@Test
-	public void testWriteReadTooMuchExternal() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadTooMuchExternal() throws Exception {
+		final TestData.Generator generator = new TestData.Generator(
+				SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);

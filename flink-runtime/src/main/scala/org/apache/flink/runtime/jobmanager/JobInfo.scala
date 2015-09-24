@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorRef
 
+
 /**
  * Utility class to store job information on the [[JobManager]]. The JobInfo stores which actor
  * submitted the job, when the start time and, if already terminated, the end time was.
@@ -29,7 +30,15 @@ import akka.actor.ActorRef
  * @param client Actor which submitted the job
  * @param start Starting time
  */
-class JobInfo(val client: ActorRef, val start: Long){
+class JobInfo(val client: ActorRef, val start: Long,
+              val sessionTimeout: Long) {
+
+  var sessionAlive = sessionTimeout > 0
+
+  var lastActive = 0L
+
+  setLastActive()
+
   var end: Long = -1
 
   def duration: Long = {
@@ -39,8 +48,13 @@ class JobInfo(val client: ActorRef, val start: Long){
       -1
     }
   }
+
+  def setLastActive() =
+    lastActive = System.currentTimeMillis()
 }
 
 object JobInfo{
-  def apply(client: ActorRef, start: Long) = new JobInfo(client, start)
+  def apply(client: ActorRef, start: Long,
+            sessionTimeout: Long) =
+    new JobInfo(client, start, sessionTimeout)
 }

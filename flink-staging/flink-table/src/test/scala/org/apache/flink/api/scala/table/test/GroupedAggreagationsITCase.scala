@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.ExpressionException
+import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -55,7 +55,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       .groupBy('_foo)
-      .select('a.avg)
+      .select('a.avg).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -71,7 +71,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       .groupBy('b)
-      .select('b, 'a.sum)
+      .select('b, 'a.sum).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -87,7 +87,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
       .groupBy('b)
-      .select('a.sum)
+      .select('a.sum).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -108,7 +108,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
           |Max (a ) as c1, a.max as c2,
           |Avg ( a ) as d1, a.avg as d2,
           |Count(a) as e1, a.count as e2
-        """.stripMargin)
+        """.stripMargin).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()

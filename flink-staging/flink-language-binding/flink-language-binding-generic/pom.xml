@@ -21,8 +21,8 @@ under the License.
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <artifactId>flink-language-binding-parent</artifactId>
         <groupId>org.apache.flink</groupId>
+        <artifactId>flink-language-binding-parent</artifactId>
         <version>0.10-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>

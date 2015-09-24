@@ -18,11 +18,14 @@
 
 package org.apache.flink.api
 
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.java.{DataSet => JavaDataSet}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo, TypeUtils}
+
 import _root_.scala.reflect.ClassTag
 import language.experimental.macros
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
 
 /**
  * The Flink Scala API. [[org.apache.flink.api.scala.ExecutionEnvironment]] is the starting-point
@@ -70,4 +73,28 @@ package object scala {
     }
     st(depth).toString
   }
+
+  def createTuple2TypeInformation[T1, T2](
+      t1: TypeInformation[T1],
+      t2: TypeInformation[T2])
+    : TypeInformation[(T1, T2)] =
+    new CaseClassTypeInfo[(T1, T2)](
+      classOf[(T1, T2)],
+      Array(t1, t2),
+      Seq(t1, t2),
+      Array("_1", "_2")) {
+
+      override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(T1, T2)] = {
+        val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
+        for (i <- 0 until getArity) {
+          fieldSerializers(i) = types(i).createSerializer(executionConfig)
+        }
+
+        new CaseClassSerializer[(T1, T2)](classOf[(T1, T2)], fieldSerializers) {
+          override def createInstance(fields: Array[AnyRef]) = {
+            (fields(0).asInstanceOf[T1], fields(1).asInstanceOf[T2])
+          }
+        }
+      }
+    }
 }

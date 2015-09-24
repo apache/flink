@@ -174,9 +174,9 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 				while (this.running && probeSideInput.nextKey()) {
 					IT1 current = probeSideInput.getCurrent();
 
-					buildSideRecord = prober.getMatchFor(current, buildSideRecord);
-					if (buildSideRecord != null) {
-						siIter.set(buildSideRecord);
+					IT2 matchedRecord = prober.getMatchFor(current, buildSideRecord);
+					if (matchedRecord != null) {
+						siIter.set(matchedRecord);
 						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
 					} else {
 						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);

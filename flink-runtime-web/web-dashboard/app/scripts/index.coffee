@@ -28,23 +28,29 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
 # --------------------------------------
 
-.constant 'flinkConfig', {
+.value 'flinkConfig', {
   jobServer: 'http://localhost:8081'
-  newServer: 'http://localhost:8081'
 #  jobServer: 'http://localhost:3000/new-server'
-#  newServer: 'http://localhost:3000/new-server'
-  refreshInterval: 10000
+  "refresh-interval": 10000
 }
 
 # --------------------------------------
 
-.run (JobsService, flinkConfig, $interval) ->
-  JobsService.listJobs()
+.run (JobsService, MainService, flinkConfig, $interval) ->
+  MainService.loadConfig().then (config) ->
+    angular.extend flinkConfig, config
 
-  $interval ->
     JobsService.listJobs()
-  , flinkConfig.refreshInterval
 
+    $interval ->
+      JobsService.listJobs()
+    , flinkConfig["refresh-interval"]
+
+
+# --------------------------------------
+
+.config ($uiViewScrollProvider) ->
+  $uiViewScrollProvider.useAnchorScroll()
 
 # --------------------------------------
 
@@ -80,17 +86,25 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
   .state "single-job.plan",
     url: ""
+    abstract: true
     views:
       details:
         templateUrl: "partials/jobs/job.plan.html"
         controller: 'JobPlanController'
 
-  .state "single-job.plan.node",
-    url: "/{nodeid:int}"
+  .state "single-job.plan.overview",
+    url: ""
     views:
-      node:
-        templateUrl: "partials/jobs/job.plan.node.html"
-        controller: 'JobPlanNodeController'
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.overview.html"
+        controller: 'JobPlanOverviewController' 
+
+  .state "single-job.plan.accumulators",
+    url: "/accumulators"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.accumulators.html"
+        controller: 'JobPlanAccumulatorsController' 
 
   .state "single-job.timeline",
     url: "/timeline"
@@ -116,11 +130,26 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
     views:
       details:
         templateUrl: "partials/jobs/job.exceptions.html"
+        controller: 'JobExceptionsController'
+
+  .state "single-job.properties",
+    url: "/properties"
+    views:
+      details:
+        templateUrl: "partials/jobs/job.properties.html"
+        controller: 'JobPropertiesController'
 
   .state "single-job.config",
     url: "/config"
     views:
       details:
         templateUrl: "partials/jobs/job.config.html"
+
+  .state "taskmanagers",
+    url: "/taskmanagers"
+    views:
+      main:
+        templateUrl: "partials/taskmanagers/index.html"
+        controller: 'TaskManagersController'
 
   $urlRouterProvider.otherwise "/overview"

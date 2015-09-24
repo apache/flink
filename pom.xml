@@ -73,7 +73,7 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<shading-artifact.name>error</shading-artifact.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
-		<hadoop-two.version>2.2.0</hadoop-two.version>
+		<hadoop-two.version>2.3.0</hadoop-two.version>
 		<!-- Need to use a user property here because the surefire/failsafe
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -84,6 +84,9 @@ under the License.
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3.7</akka.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
+		<!-- Default scala versions, may be overwritten by build profiles -->
+		<scala.version>2.10.4</scala.version>
+		<scala.binary.version>2.10</scala.binary.version>
 		<chill.version>0.5.2</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<tez.version>0.6.1</tez.version>
@@ -333,40 +336,22 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-recipes</artifactId>
-				<version>${curator.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-test</artifactId>
-				<version>${curator.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
 				<groupId>org.apache.zookeeper</groupId>
 				<artifactId>zookeeper</artifactId>
 				<version>${zookeeper.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-all</artifactId>
+				<version>4.0.31.Final</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<profiles>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-			<properties>
-				<scala.version>2.10.4</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-		</profile>
+		
+		<!-- Profile to switch to Scala Version 2.11 -->
 		<profile>
 			<id>scala-2.11</id>
 			<activation>
@@ -380,6 +365,7 @@ under the License.
 			</properties>
 		</profile>
 
+		<!-- Profile to switch to Hadoop 1 -->
 		<profile>
 			<id>hadoop-1</id>
 			<activation>
@@ -393,6 +379,8 @@ under the License.
 				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
 			</properties>
 		</profile>
+
+		<!-- Default profile, which builds for Hadoop 2 -->
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -405,31 +393,33 @@ under the License.
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 				<shading-artifact.name>flink-shaded-hadoop2</shading-artifact.name>
 			</properties>
+			<modules>
+				<module>flink-yarn</module>
+			</modules>
 		</profile>
 
+		<!-- Profile to deactivate the YARN tests -->
+		<profile>
+			<id>include-yarn-tests</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-yarn-tests</module>
+			</modules>
+		</profile>
+
+		<!-- Profile to set the Hadoop 2 version properly for TEZ -->
 		<profile>
 			<id>include-tez</id>
 			<properties>
 				<hadoop.version>2.6.0</hadoop.version>
 			</properties>
 		</profile>
-		<profile>
-			<id>include-yarn</id>
-			<activation>
-				<property>
-				<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-				<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<properties>
-				<shading-artifact.name>flink-shaded-include-yarn</shading-artifact.name>
-			</properties>
-			<modules>
-				<module>flink-yarn</module>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-
+		
 		<profile>
 			<id>include-mesos</id>
 			<modules>
@@ -454,20 +444,18 @@ under the License.
 				</repository>
 				<!-- Hortonworks -->
 				<repository>
-					<releases>
-						<enabled>true</enabled>
-						<updatePolicy>always</updatePolicy>
-						<checksumPolicy>warn</checksumPolicy>
-					</releases>
-					<snapshots>
-						<enabled>false</enabled>
-						<updatePolicy>never</updatePolicy>
-						<checksumPolicy>fail</checksumPolicy>
-					</snapshots>
 					<id>HDPReleases</id>
 					<name>HDP Releases</name>
 					<url>http://repo.hortonworks.com/content/repositories/releases/</url>
-					<layout>default</layout>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
+				</repository>
+				<repository>
+					<id>HortonworksJettyHadoop</id>
+					<name>HDP Jetty</name>
+					<url>http://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
 				</repository>
 				<!-- MapR -->
 				<repository>
@@ -760,11 +748,9 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/css/vendor.css</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/fonts/FontAwesome.otf</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/fonts/fontawesome*</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/js/index.js</exclude>
-                        <exclude>flink-runtime-web/web-dashboard/web/js/vendor.js</exclude>
+
+                        <!-- generated contents -->
+						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
@@ -810,7 +796,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.12.1</version>
+				<version>2.16</version>
 				<executions>
 					<execution>
 						<id>validate</id>
@@ -842,7 +828,7 @@ under the License.
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -865,7 +851,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>

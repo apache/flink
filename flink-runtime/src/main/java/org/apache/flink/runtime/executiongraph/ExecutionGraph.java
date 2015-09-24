@@ -178,6 +178,9 @@ public class ExecutionGraph implements Serializable {
 
 	/** Flag that indicate whether the executed dataflow should be periodically snapshotted */
 	private boolean snapshotCheckpointsEnabled;
+
+	/** Flag to indicate whether the Graph has been archived */
+	private boolean isArchived = false;
 		
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
@@ -280,6 +283,14 @@ public class ExecutionGraph implements Serializable {
 	//  Configuration of Data-flow wide execution settings  
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Gets the number of job vertices currently held by this execution graph.
+	 * @return The current number of job vertices.
+	 */
+	public int getNumberOfExecutionJobVertices() {
+		return this.verticesInCreationOrder.size();
+	}
+	
 	public void setNumberOfRetriesLeft(int numberOfRetriesLeft) {
 		if (numberOfRetriesLeft < -1) {
 			throw new IllegalArgumentException();
@@ -318,6 +329,9 @@ public class ExecutionGraph implements Serializable {
 		return scheduleMode;
 	}
 
+	public boolean isArchived() {
+		return isArchived;
+	}
 	public void enableSnapshotCheckpointing(
 			long interval,
 			long checkpointTimeout,
@@ -576,27 +590,8 @@ public class ExecutionGraph implements Serializable {
 	 * @return an Array containing the StringifiedAccumulatorResult objects
 	 */
 	public StringifiedAccumulatorResult[] getAccumulatorResultsStringified() {
-
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
-
-		int num = accumulatorMap.size();
-		StringifiedAccumulatorResult[] resultStrings = new StringifiedAccumulatorResult[num];
-
-		int i = 0;
-		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-
-			StringifiedAccumulatorResult result;
-			Accumulator<?, ?> value = entry.getValue();
-			if (value != null) {
-				result = new StringifiedAccumulatorResult(entry.getKey(), value.getClass().getSimpleName(), value.toString());
-			} else {
-				result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
-			}
-
-			resultStrings[i++] = result;
-		}
-
-		return resultStrings;
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -790,6 +785,8 @@ public class ExecutionGraph implements Serializable {
 		requiredJarFiles.clear();
 		jobStatusListenerActors.clear();
 		executionListenerActors.clear();
+
+		isArchived = true;
 	}
 
 	public ExecutionConfig getExecutionConfig() {
@@ -827,7 +824,7 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	void jobVertexInFinalState(ExecutionJobVertex ev) {
+	void jobVertexInFinalState() {
 		synchronized (progressLock) {
 			if (numFinishedJobVertices >= verticesInCreationOrder.size()) {
 				throw new IllegalStateException("All vertices are already finished, cannot transition vertex to finished.");
@@ -857,20 +854,25 @@ public class ExecutionGraph implements Serializable {
 					else if (current == JobStatus.FAILING) {
 						if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
 							numberOfRetriesLeft--;
-							future(new Callable<Object>() {
-								@Override
-								public Object call() throws Exception {
-									try {
-										LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
-										Thread.sleep(delayBeforeRetrying);
+							
+							if (delayBeforeRetrying > 0) {
+								future(new Callable<Object>() {
+									@Override
+									public Object call() throws Exception {
+										try {
+											LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
+											Thread.sleep(delayBeforeRetrying);
+										}
+										catch(InterruptedException e){
+											// should only happen on shutdown
+										}
+										restart();
+										return null;
 									}
-									catch(InterruptedException e){
-										// should only happen on shutdown
-									}
-									restart();
-									return null;
-								}
-							}, executionContext);
+								}, executionContext);
+							} else {
+								restart();
+							}
 							break;
 						}
 						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
@@ -922,19 +924,18 @@ public class ExecutionGraph implements Serializable {
 				case RUNNING:
 					return attempt.switchToRunning();
 				case FINISHED:
-					Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = null;
-					Map<String, Accumulator<?, ?>> userAccumulators = null;
 					try {
 						AccumulatorSnapshot accumulators = state.getAccumulators();
-						flinkAccumulators = accumulators.deserializeFlinkAccumulators();
-						userAccumulators = accumulators.deserializeUserAccumulators(userClassLoader);
+						Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators =
+							accumulators.deserializeFlinkAccumulators();
+						Map<String, Accumulator<?, ?>> userAccumulators =
+							accumulators.deserializeUserAccumulators(userClassLoader);
+						attempt.markFinished(flinkAccumulators, userAccumulators);
 					}
 					catch (Exception e) {
-						// we do not fail the job on deserialization problems of accumulators, but only log
 						LOG.error("Failed to deserialize final accumulator results.", e);
+						attempt.markFailed(e);
 					}
-
-					attempt.markFinished(flinkAccumulators, userAccumulators);
 					return true;
 				case CANCELED:
 					attempt.cancelingComplete();

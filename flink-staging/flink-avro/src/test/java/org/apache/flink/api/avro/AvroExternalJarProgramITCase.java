@@ -19,12 +19,21 @@
 package org.apache.flink.api.avro;
 
 import java.io.File;
+import java.net.InetAddress;
 
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.RemoteExecutor;
 import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.FlinkPlan;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -32,35 +41,34 @@ import org.junit.Test;
 public class AvroExternalJarProgramITCase {
 
 	private static final String JAR_FILE = "target/maven-test-jar.jar";
-	
+
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 
 	@Test
 	public void testExternalProgram() {
-		
+
 		ForkableFlinkMiniCluster testMiniCluster = null;
-		
+
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
 			testMiniCluster = new ForkableFlinkMiniCluster(config, false);
 			testMiniCluster.start();
-			
+
 			String jarFile = JAR_FILE;
 			String testData = getClass().getResource(TEST_DATA_FILE).toString();
-			
+
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
+
 
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, testMiniCluster.getLeaderRPCPort());
-						
-			Client c = new Client(
-					config,
-					program.getUserCodeClassLoader(),
-					-1);
 
-			c.setPrintStatusDuringExecution(false);
-			c.run(program, 4, true);
+			Client client = new Client(config);
+
+			client.setPrintStatusDuringExecution(false);
+			client.runBlocking(program, 4);
+
 		}
 		catch (Throwable t) {
 			System.err.println(t.getMessage());
@@ -71,7 +79,9 @@ public class AvroExternalJarProgramITCase {
 			if (testMiniCluster != null) {
 				try {
 					testMiniCluster.stop();
-				} catch (Throwable t) {}
+				} catch (Throwable t) {
+					// ignore
+				}
 			}
 		}
 	}

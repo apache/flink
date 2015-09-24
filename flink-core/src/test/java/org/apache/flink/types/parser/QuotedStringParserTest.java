@@ -25,6 +25,7 @@ public class QuotedStringParserTest extends ParserTestBase<String> {
     @Override
     public String[] getValidTestValues() {
         return new String[] {
+                "\"\\\"Hello World\\\"\"",
                 "\"abcdefgh\"", "\"i\"", "\"jklmno\"", "\"abc|de|fgh\"",
                 "\"abc&&&&def&&&&ghij\"", "\"i\"", "\"Hello9\"",
                 "abcdefgh", "i", "jklmno", "Hello9"
@@ -34,6 +35,7 @@ public class QuotedStringParserTest extends ParserTestBase<String> {
     @Override
     public String[] getValidTestResults() {
         return new String[] {
+                "\\\"Hello World\\\"",
                 "abcdefgh", "i", "jklmno", "abc|de|fgh",
                 "abc&&&&def&&&&ghij", "i", "Hello9",
                 "abcdefgh", "i", "jklmno", "Hello9"

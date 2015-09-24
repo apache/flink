@@ -56,6 +56,11 @@ html(lang='en')
               i.fa.fa-server.fa-fw
               | 
               | Completed Jobs
+          li
+            a(ui-sref="taskmanagers" ui-sref-active='active')
+              i.fa.fa-sitemap.fa-fw
+              | 
+              | Task Managers
 
     #content(ng-class="{ 'sidebar-visible': sidebarVisible }")
       div(ui-view='main')

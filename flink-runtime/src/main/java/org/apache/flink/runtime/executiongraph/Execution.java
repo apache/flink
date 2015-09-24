@@ -23,6 +23,7 @@ import akka.dispatch.OnFailure;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -959,6 +960,10 @@ public class Execution implements Serializable {
 		return vertex.getSimpleName() + " - execution #" + attemptNumber;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Accumulators
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Update accumulators (discarded when the Execution has already been terminated).
 	 * @param flinkAccumulators the flink internal accumulators
@@ -973,14 +978,23 @@ public class Execution implements Serializable {
 			}
 		}
 	}
+	
 	public Map<String, Accumulator<?, ?>> getUserAccumulators() {
 		return userAccumulators;
+	}
+
+	public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
 	}
 
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
 		return flinkAccumulators;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Standard utilities
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),

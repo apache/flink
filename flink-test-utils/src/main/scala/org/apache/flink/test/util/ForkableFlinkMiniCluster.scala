@@ -34,9 +34,8 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages
 .NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager,
 TestingJobManager, TestingMemoryArchivist}
-import org.apache.flink.runtime.webmonitor.WebMonitor
 
-import scala.concurrent.{Future, Promise, Await}
+import scala.concurrent.{Future, Await}
 
 /**
  * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution
@@ -160,7 +159,7 @@ class ForkableFlinkMiniCluster(
       system,
       hostname,
       Some(TaskManager.TASK_MANAGER_NAME + index),
-      Some(createLeaderRetrievalService),
+      Some(createLeaderRetrievalService()),
       localExecution,
       streamingMode,
       classOf[TestingTaskManager])
@@ -186,7 +185,7 @@ class ForkableFlinkMiniCluster(
           val newJobManagerActorSystem = if(!singleActorSystem) {
             startJobManagerActorSystem(index)
           } else {
-            jmActorSystems(0)
+            jmActorSystems.head
           }
 
           val newJobManagerActor = startJobManager(index, newJobManagerActorSystem)
@@ -197,7 +196,7 @@ class ForkableFlinkMiniCluster(
             Seq(newJobManagerActorSystem),
             1))
 
-          val lrs = createLeaderRetrievalService
+          val lrs = createLeaderRetrievalService()
 
           leaderRetrievalService = Some(lrs)
           lrs.start(this)
@@ -222,7 +221,7 @@ class ForkableFlinkMiniCluster(
         val taskManagerActorSystem  = if(!singleActorSystem) {
           startTaskManagerActorSystem(index)
         } else {
-          tmActorSystems(0)
+          tmActorSystems.head
         }
 
         val taskManagerActor = startTaskManager(index, taskManagerActorSystem)
@@ -241,7 +240,7 @@ class ForkableFlinkMiniCluster(
     zookeeperCluster = if(recoveryMode == RecoveryMode.ZOOKEEPER && zookeeperURL.equals("")) {
       LOG.info("Starting ZooKeeper cluster.")
 
-      val testingCluster = new TestingCluster(numJobManagers)
+      val testingCluster = new TestingCluster(1)
 
       configuration.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, testingCluster.getConnectString)
 

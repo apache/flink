@@ -166,8 +166,8 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableP
 				IT1 buildSideRecord = this.solutionSideRecord;
 
 				while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-					buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
-					joinFunction.join(buildSideRecord, probeSideRecord, collector);
+					IT1 matchedRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
+					joinFunction.join(matchedRecord, probeSideRecord, collector);
 				}
 			} else if (objectMap != null) {
 				final JoinHashMap<IT1> hashTable = this.objectMap;

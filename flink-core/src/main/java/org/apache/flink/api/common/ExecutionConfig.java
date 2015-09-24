@@ -21,10 +21,10 @@ package org.apache.flink.api.common;
 import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A config to define the behavior of the program execution. It allows to define (among other
@@ -94,19 +94,15 @@ public class ExecutionConfig implements Serializable {
 	private boolean timestampsEnabled = false;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
-	// we store them in lists to ensure they are registered in order in all kryo instances.
+	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
 
-	private final List<Entry<Class<?>, Serializer<?>>> registeredTypesWithKryoSerializers =
-			new ArrayList<Entry<Class<?>, Serializer<?>>>();
+	private final LinkedHashMap<Class<?>, SerializableSerializer<?>> registeredTypesWithKryoSerializers = new LinkedHashMap<Class<?>, SerializableSerializer<?>>();
 
-	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> registeredTypesWithKryoSerializerClasses =
-			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
+	private final LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> registeredTypesWithKryoSerializerClasses = new LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>();
 
-	private final List<Entry<Class<?>, Serializer<?>>> defaultKryoSerializers =
-			new ArrayList<Entry<Class<?>, Serializer<?>>>();
+	private final LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers = new LinkedHashMap<Class<?>, SerializableSerializer<?>>();
 
-	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> defaultKryoSerializerClasses =
-			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
+	private final LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses = new LinkedHashMap<Class<?>, Class<? extends Serializer<?>>>();
 
 	private final LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<Class<?>>();
 
@@ -457,19 +453,12 @@ public class ExecutionConfig implements Serializable {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void addDefaultKryoSerializer(Class<?> type, T serializer) {
 		if (type == null || serializer == null) {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
-		if (!(serializer instanceof java.io.Serializable)) {
-			throw new IllegalArgumentException("The serializer instance must be serializable, (for distributing it in the cluster), "
-					+ "as defined by java.io.Serializable. For stateless serializers, you can use the "
-					+ "'registerSerializer(Class, Class)' method to register the serializer via its class.");
-		}
-		Entry<Class<?>, Serializer<?>> e = new Entry<Class<?>, Serializer<?>>(type, serializer);
-		if(!defaultKryoSerializers.contains(e)) {
-			defaultKryoSerializers.add(e);
-		}
+
+		defaultKryoSerializers.put(type, new SerializableSerializer<T>(serializer));
 	}
 
 	/**
@@ -482,10 +471,7 @@ public class ExecutionConfig implements Serializable {
 		if (type == null || serializerClass == null) {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
-		Entry<Class<?>, Class<? extends Serializer<?>>> e = new Entry<Class<?>, Class<? extends Serializer<?>>>(type, serializerClass);
-		if(!defaultKryoSerializerClasses.contains(e)) {
-			defaultKryoSerializerClasses.add(e);
-		}
+		defaultKryoSerializerClasses.put(type, serializerClass);
 	}
 
 	/**
@@ -497,19 +483,12 @@ public class ExecutionConfig implements Serializable {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
 		if (type == null || serializer == null) {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
-		if (!(serializer instanceof java.io.Serializable)) {
-			throw new IllegalArgumentException("The serializer instance must be serializable, (for distributing it in the cluster), "
-					+ "as defined by java.io.Serializable. For stateless serializers, you can use the "
-					+ "'registerSerializer(Class, Class)' method to register the serializer via its class.");
-		}
-		Entry<Class<?>, Serializer<?>> e = new Entry<Class<?>, Serializer<?>>(type, serializer);
-		if(!registeredTypesWithKryoSerializers.contains(e)) {
-			registeredTypesWithKryoSerializers.add(e);
-		}
+
+		registeredTypesWithKryoSerializers.put(type, new SerializableSerializer<T>(serializer));
 	}
 
 	/**
@@ -522,10 +501,7 @@ public class ExecutionConfig implements Serializable {
 		if (type == null || serializerClass == null) {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
-		Entry<Class<?>, Class<? extends Serializer<?>>> e = new Entry<Class<?>, Class<? extends Serializer<?>>>(type, serializerClass);
-		if(!registeredTypesWithKryoSerializerClasses.contains(e)) {
-			registeredTypesWithKryoSerializerClasses.add(e);
-		}
+		registeredTypesWithKryoSerializerClasses.put(type, serializerClass);
 	}
 
 	/**
@@ -563,14 +539,14 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered types with Kryo Serializers.
 	 */
-	public List<Entry<Class<?>, Serializer<?>>> getRegisteredTypesWithKryoSerializers() {
+	public LinkedHashMap<Class<?>, SerializableSerializer<?>> getRegisteredTypesWithKryoSerializers() {
 		return registeredTypesWithKryoSerializers;
 	}
 
 	/**
 	 * Returns the registered types with their Kryo Serializer classes.
 	 */
-	public List<Entry<Class<?>, Class<? extends Serializer<?>>>> getRegisteredTypesWithKryoSerializerClasses() {
+	public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> getRegisteredTypesWithKryoSerializerClasses() {
 		return registeredTypesWithKryoSerializerClasses;
 	}
 
@@ -578,14 +554,14 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the registered default Kryo Serializers.
 	 */
-	public List<Entry<Class<?>, Serializer<?>>> getDefaultKryoSerializers() {
+	public LinkedHashMap<Class<?>, SerializableSerializer<?>> getDefaultKryoSerializers() {
 		return defaultKryoSerializers;
 	}
 
 	/**
 	 * Returns the registered default Kryo Serializer classes.
 	 */
-	public List<Entry<Class<?>, Class<? extends Serializer<?>>>> getDefaultKryoSerializerClasses() {
+	public LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> getDefaultKryoSerializerClasses() {
 		return defaultKryoSerializerClasses;
 	}
 
@@ -630,63 +606,75 @@ public class ExecutionConfig implements Serializable {
 		this.autoTypeRegistrationEnabled = false;
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof ExecutionConfig) {
+			ExecutionConfig other = (ExecutionConfig) obj;
+
+			return other.canEqual(this) &&
+				Objects.equals(executionMode, other.executionMode) &&
+				useClosureCleaner == other.useClosureCleaner &&
+				parallelism == other.parallelism &&
+				numberOfExecutionRetries == other.numberOfExecutionRetries &&
+				forceKryo == other.forceKryo &&
+				objectReuse == other.objectReuse &&
+				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
+				forceAvro == other.forceAvro &&
+				Objects.equals(codeAnalysisMode, other.codeAnalysisMode) &&
+				printProgressDuringExecution == other.printProgressDuringExecution &&
+				Objects.equals(globalJobParameters, other.globalJobParameters) &&
+				autoWatermarkInterval == other.autoWatermarkInterval &&
+				timestampsEnabled == other.timestampsEnabled &&
+				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
+				defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses) &&
+				registeredKryoTypes.equals(other.registeredKryoTypes) &&
+				registeredPojoTypes.equals(other.registeredPojoTypes);
+
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+			executionMode,
+			useClosureCleaner,
+			parallelism,
+			numberOfExecutionRetries,
+			forceKryo,
+			objectReuse,
+			autoTypeRegistrationEnabled,
+			forceAvro,
+			codeAnalysisMode,
+			printProgressDuringExecution,
+			globalJobParameters,
+			autoWatermarkInterval,
+			timestampsEnabled,
+			registeredTypesWithKryoSerializerClasses,
+			defaultKryoSerializerClasses,
+			registeredKryoTypes,
+			registeredPojoTypes);
+	}
+
+	public boolean canEqual(Object obj) {
+		return obj instanceof ExecutionConfig;
+	}
+
 
 	// ------------------------------ Utilities  ----------------------------------
 
-	public static class Entry<K, V> implements Serializable {
+	public static class SerializableSerializer<T extends Serializer<?> & Serializable> implements Serializable {
+		private static final long serialVersionUID = 4687893502781067189L;
 
-		private static final long serialVersionUID = 1L;
+		private T serializer;
 
-		private final K k;
-		private final V v;
-
-		public Entry(K k, V v) {
-			this.k = k;
-			this.v = v;
+		public SerializableSerializer(T serializer) {
+			this.serializer = serializer;
 		}
 
-		public K getKey() {
-			return k;
-		}
-
-		public V getValue() {
-			return v;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			Entry entry = (Entry) o;
-
-			if (k != null ? !k.equals(entry.k) : entry.k != null) {
-				return false;
-			}
-			if (v != null ? !v.equals(entry.v) : entry.v != null) {
-				return false;
-			}
-
-			return true;
-		}
-
-		@Override
-		public int hashCode() {
-			int result = k != null ? k.hashCode() : 0;
-			result = 31 * result + (v != null ? v.hashCode() : 0);
-			return result;
-		}
-
-		@Override
-		public String toString() {
-			return "Entry{" +
-					"k=" + k +
-					", v=" + v +
-					'}';
+		public T getSerializer() {
+			return serializer;
 		}
 	}
 

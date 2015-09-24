@@ -51,7 +51,7 @@ public class SinkJoiner extends TwoInputNode {
 	}
 	
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Internal Utility Node";
 	}
 	

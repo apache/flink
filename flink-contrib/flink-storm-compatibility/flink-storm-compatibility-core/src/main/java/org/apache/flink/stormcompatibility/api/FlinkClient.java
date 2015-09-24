@@ -31,6 +31,7 @@ import backtype.storm.generated.NotAliveException;
 import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
@@ -55,7 +56,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -174,26 +174,26 @@ public class FlinkClient {
 			throw new RuntimeException("Problem with jar file " + uploadedJarFile.getAbsolutePath(), e);
 		}
 
-		final List<File> jarFiles = new ArrayList<File>();
-		jarFiles.add(uploadedJarFile);
-
 		final JobGraph jobGraph = topology.getStreamGraph().getJobGraph(name);
 		jobGraph.addJar(new Path(uploadedJarFile.getAbsolutePath()));
 
 		final Configuration configuration = jobGraph.getJobConfiguration();
 
-		final Client client;
-
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 
-		client = new Client(
-			configuration,
-			JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()),
-			-1);
+		final Client client;
+		try {
+			client = new Client(configuration);
+		} catch (IOException e) {
+			throw new RuntimeException("Could not establish a connection to the job manager", e);
+		}
 
 		try {
-			client.run(jobGraph, false);
+			ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
+					Lists.newArrayList(uploadedJarFile),
+					this.getClass().getClassLoader());
+			client.runDetached(jobGraph, classLoader);
 		} catch (final ProgramInvocationException e) {
 			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);
 		}

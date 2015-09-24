@@ -39,7 +39,6 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.fs.s3.S3FileSystem;
 import org.junit.Before;
 import org.junit.Test;
 

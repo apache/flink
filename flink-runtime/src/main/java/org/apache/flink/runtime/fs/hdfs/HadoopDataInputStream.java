@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.fs.hdfs;
 
 import java.io.IOException;
@@ -26,11 +25,10 @@ import org.apache.flink.core.fs.FSDataInputStream;
 /**
  * Concrete implementation of the {@link FSDataInputStream} for the
  * Hadoop Distributed File System.
- * 
  */
 public final class HadoopDataInputStream extends FSDataInputStream {
 
-	private org.apache.hadoop.fs.FSDataInputStream fsDataInputStream = null;
+	private final org.apache.hadoop.fs.FSDataInputStream fsDataInputStream;
 
 	/**
 	 * Creates a new data input stream from the given HDFS input stream
@@ -39,13 +37,15 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	 *        the HDFS input stream
 	 */
 	public HadoopDataInputStream(org.apache.hadoop.fs.FSDataInputStream fsDataInputStream) {
+		if (fsDataInputStream == null) {
+			throw new NullPointerException();
+		}
 		this.fsDataInputStream = fsDataInputStream;
 	}
 
 
 	@Override
 	public synchronized void seek(long desired) throws IOException {
-
 		fsDataInputStream.seek(desired);
 	}
 
@@ -68,17 +68,22 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	public int read(byte[] buffer, int offset, int length) throws IOException {
 		return fsDataInputStream.read(buffer, offset, length);
 	}
-
-
+	
 	@Override
 	public int available() throws IOException {
 		return fsDataInputStream.available();
 	}
-
 
 	@Override
 	public long skip(long n) throws IOException {
 		return fsDataInputStream.skip(n);
 	}
 
+	/**
+	 * Gets the wrapped Hadoop input stream.
+	 * @return The wrapped Hadoop input stream.
+	 */
+	public org.apache.hadoop.fs.FSDataInputStream getHadoopInputStream() {
+		return fsDataInputStream;
+	}
 }

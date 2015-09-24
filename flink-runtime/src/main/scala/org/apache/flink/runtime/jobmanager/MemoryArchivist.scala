@@ -20,10 +20,12 @@ package org.apache.flink.runtime.jobmanager
 
 import java.util
 
+import akka.actor.ActorRef
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.accumulators._
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils
 import org.apache.flink.runtime.{FlinkActor, LogMessages}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
@@ -64,12 +66,12 @@ class MemoryArchivist(private val max_entries: Int)
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event. The insert order is preserved through a LinkedHashMap.
    */
-  val graphs = mutable.LinkedHashMap[JobID, ExecutionGraph]()
+  protected val graphs = mutable.LinkedHashMap[JobID, ExecutionGraph]()
 
   /* Counters for finished, canceled, and failed jobs */
-  var finishedCnt: Int = 0
-  var canceledCnt: Int = 0
-  var failedCnt: Int = 0
+  private[this] var finishedCnt: Int = 0
+  private[this] var canceledCnt: Int = 0
+  private[this] var failedCnt: Int = 0
 
   override def preStart(): Unit = {
     log.info(s"Started memory archivist ${self.path}")
@@ -78,10 +80,13 @@ class MemoryArchivist(private val max_entries: Int)
   override def handleMessage: Receive = {
     
     /* Receive Execution Graph to archive */
-    case ArchiveExecutionGraph(jobID, graph) => 
-      // wrap graph inside a soft reference
-      graphs.update(jobID, graph)
-
+    case ArchiveExecutionGraph(jobID, graph) =>
+      // Keep lru order in case we override a graph (from multiple job submission in one session).
+      // This deletes old ExecutionGraph with this JobID from the history but avoids to store
+      // redundant ExecutionGraphs.
+      // TODO Allow ExecutionGraphs with the same jobID to be stored and displayed in web interface
+      graphs.remove(jobID)
+      graphs.put(jobID, graph)
       // update job counters
       graph.getState match {
         case JobStatus.FINISHED => finishedCnt += 1
@@ -93,6 +98,8 @@ class MemoryArchivist(private val max_entries: Int)
 
       trimHistory()
 
+    case msg : InfoMessage => handleWebServerInfoMessage(msg, sender())
+      
     case RequestArchivedJob(jobID: JobID) =>
       val graph = graphs.get(jobID)
       sender ! decorateMessage(ArchivedJob(graph))
@@ -114,23 +121,6 @@ class MemoryArchivist(private val max_entries: Int)
 
     case RequestJobCounts =>
       sender ! decorateMessage((finishedCnt, canceledCnt, failedCnt))
-
-    case _ : RequestJobsOverview =>
-      try {
-        sender ! createJobsOverview()
-      }
-      catch {
-        case t: Throwable => log.error("Exception while creating the jobs overview", t)
-      }
-
-    case _ : RequestJobsWithIDsOverview =>
-      try {
-        sender ! createJobsWithIDsOverview()
-      }
-      catch {
-        case t: Throwable => log.error("Exception while creating the jobs overview", t)
-      }
-
 
     case RequestAccumulatorResults(jobID) =>
       try {
@@ -165,6 +155,33 @@ class MemoryArchivist(private val max_entries: Int)
     throw new RuntimeException("Received unknown message " + message)
   }
 
+  
+  private def handleWebServerInfoMessage(message: InfoMessage, theSender: ActorRef): Unit = {
+    message match {
+      case _ : RequestJobsOverview =>
+        try {
+          sender ! decorateMessage(createJobsOverview())
+        }
+        catch {
+          case t: Throwable => log.error("Exception while creating the jobs overview", t)
+        }
+  
+      case _ : RequestJobsWithIDsOverview =>
+        try {
+          sender ! decorateMessage(createJobsWithIDsOverview())
+        }
+        catch {
+          case t: Throwable => log.error("Exception while creating the jobs overview", t)
+        }
+
+      case _ : RequestJobDetails =>
+        val details = graphs.values.map {
+          v => WebMonitorUtils.createDetailsForJob(v)
+        }.toArray[JobDetails]
+        
+        theSender ! decorateMessage(new MultipleJobsDetails(null, details))
+    }
+  }
 
   // --------------------------------------------------------------------------
   //  Request Responses

@@ -17,8 +17,18 @@
  */
 package org.apache.flink.api.table.expressions
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.table.ExpressionException
 
 case class Cast(child: Expression, tpe: TypeInformation[_]) extends UnaryExpression {
-  def typeInfo = tpe
+  def typeInfo = tpe match {
+    case BasicTypeInfo.STRING_TYPE_INFO => tpe
+
+    case b if b.isBasicType && child.typeInfo.isBasicType => tpe
+
+    case _ => throw new ExpressionException(
+      s"Invalid cast: $this. Casts are only valid betwixt primitive types.")
+  }
+
+  override def toString = s"$child.cast($tpe)"
 }

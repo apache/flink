@@ -36,6 +36,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService}
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
@@ -55,7 +56,7 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
-import org.apache.flink.runtime.webmonitor.WebMonitor
+import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 import org.apache.flink.runtime.{FlinkActor, StreamingMode, LeaderSessionMessageFilter}
 import org.apache.flink.runtime.LogMessages
 import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
@@ -73,6 +74,8 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -120,7 +123,7 @@ class JobManager(
 
   override val log = Logger(getClass)
 
-  /** List of current jobs running jobs */
+  /** Either running or not yet archived jobs (session hasn't been ended). */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
   var leaderSessionID: Option[UUID] = None
@@ -380,48 +383,67 @@ class JobManager(
             jobInfo.end = timeStamp
 
             // is the client waiting for the job result?
-            if(jobInfo.client != ActorRef.noSender) {
+            if (jobInfo.client != ActorRef.noSender) {
               newJobStatus match {
                 case JobStatus.FINISHED =>
                   val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                  executionGraph.getAccumulatorsSerialized()
+                    executionGraph.getAccumulatorsSerialized()
                   } catch {
                     case e: Exception =>
-                      log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
+                      log.error(s"Cannot fetch final accumulators for job $jobID", e)
+
+                      val exception = new JobExecutionException(jobID,
+                        "Failed to retrieve accumulator results.", e)
+
+                      jobInfo.client ! decorateMessage(JobResultFailure(
+                        new SerializedThrowable(exception)))
+
                       Collections.emptyMap()
                   }
-                val result = new SerializedJobExecutionResult(
-                  jobID,
-                  jobInfo.duration,
-                  accumulatorResults)
+
+                  val result = new SerializedJobExecutionResult(
+                    jobID,
+                    jobInfo.duration,
+                    accumulatorResults)
                   jobInfo.client ! decorateMessage(JobResultSuccess(result))
 
                 case JobStatus.CANCELED =>
-                // the error may be packed as a serialized throwable
-                val unpackedError = SerializedThrowable.get(
-                  error, executionGraph.getUserClassLoader())
-                
-                jobInfo.client ! decorateMessage(JobResultFailure(
-                  new SerializedThrowable(
-                    new JobCancellationException(jobID, "Job was cancelled.", unpackedError))))
+                  // the error may be packed as a serialized throwable
+                  val unpackedError = SerializedThrowable.get(
+                    error, executionGraph.getUserClassLoader())
+
+                  jobInfo.client ! decorateMessage(JobResultFailure(
+                    new SerializedThrowable(
+                      new JobCancellationException(jobID, "Job was cancelled.", unpackedError))))
 
                 case JobStatus.FAILED =>
-                val unpackedError = SerializedThrowable.get(
-                  error, executionGraph.getUserClassLoader())
-                
-                jobInfo.client ! decorateMessage(JobResultFailure(
-                  new SerializedThrowable(
-                    new JobExecutionException(jobID, "Job execution failed.", unpackedError))))
+                  val unpackedError = SerializedThrowable.get(
+                    error, executionGraph.getUserClassLoader())
+
+                  jobInfo.client ! decorateMessage(JobResultFailure(
+                    new SerializedThrowable(
+                      new JobExecutionException(jobID, "Job execution failed.", unpackedError))))
 
                 case x =>
-                val exception = new JobExecutionException(jobID, s"$x is not a terminal state.")
-                jobInfo.client ! decorateMessage(JobResultFailure(
-                  new SerializedThrowable(exception)))
+                  val exception = new JobExecutionException(jobID, s"$x is not a terminal state.")
+                  jobInfo.client ! decorateMessage(JobResultFailure(
+                    new SerializedThrowable(exception)))
                   throw exception
               }
             }
 
-            removeJob(jobID)
+            if (jobInfo.sessionAlive) {
+              jobInfo.setLastActive()
+              val lastActivity = jobInfo.lastActive
+              context.system.scheduler.scheduleOnce(jobInfo.sessionTimeout seconds) {
+                // remove only if no activity occurred in the meantime
+                if (lastActivity == jobInfo.lastActive) {
+                  removeJob(jobID)
+                }
+              }
+            } else {
+              removeJob(jobID)
+            }
 
           }
         case None =>
@@ -550,6 +572,18 @@ class JobManager(
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
 
+    case RemoveCachedJob(jobID) =>
+      currentJobs.get(jobID) match {
+        case Some((graph, info)) =>
+          if (graph.getState.isTerminalState) {
+            removeJob(graph.getJobID)
+          } else {
+            // triggers removal upon completion of job
+            info.sessionAlive = false
+          }
+        case None =>
+      }
+
     case Disconnect(msg) =>
       val taskManager = sender()
 
@@ -619,19 +653,26 @@ class JobManager(
         }
 
         // see if there already exists an ExecutionGraph for the corresponding job ID
-        executionGraph = currentJobs.getOrElseUpdate(
-          jobGraph.getJobID,
-          (new ExecutionGraph(
-            executionContext,
-            jobGraph.getJobID,
-            jobGraph.getName,
-            jobGraph.getJobConfiguration(),
-            timeout,
-            jobGraph.getUserJarBlobKeys(),
-            userCodeLoader),
-            JobInfo(client, System.currentTimeMillis())
-          )
-        )._1
+        executionGraph = currentJobs.get(jobGraph.getJobID) match {
+          case Some((graph, jobInfo)) =>
+            jobInfo.setLastActive()
+            graph
+          case None =>
+            val graph = new ExecutionGraph(
+              executionContext,
+              jobGraph.getJobID,
+              jobGraph.getName,
+              jobGraph.getJobConfiguration,
+              timeout,
+              jobGraph.getUserJarBlobKeys,
+              userCodeLoader)
+            val jobInfo = JobInfo(
+              client,
+              System.currentTimeMillis(),
+              jobGraph.getSessionTimeout)
+            currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
+            graph
+        }
 
         // configure the execution graph
         val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries() >= 0) {
@@ -643,7 +684,15 @@ class JobManager(
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode())
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling())
-        executionGraph.setJsonPlan(jobGraph.getJsonPlan())
+        
+        try {
+          executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph))
+        }
+        catch {
+          case t: Throwable =>
+            log.warn("Cannot create JSON plan for job", t)
+            executionGraph.setJsonPlan("{}")
+        }
         
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
@@ -858,6 +907,9 @@ class JobManager(
 
   /**
    * Dedicated handler for monitor info request messages.
+   * 
+   * Note that this handler does not fail. Errors while responding to info messages are logged,
+   * but will not cause the actor to crash.
    *
    * @param actorMessage The info request message.
    */
@@ -905,23 +957,27 @@ class JobManager(
                 ourJobs, archiveOverview)
           }(context.dispatcher)
 
-        case _ : RequestStatusWithJobIDsOverview =>
-
-          val ourJobs = createJobStatusWithIDsOverview()
-
-          val numTMs = instanceManager.getNumberOfRegisteredTaskManagers()
-          val numSlotsTotal = instanceManager.getTotalNumberOfSlots()
-          val numSlotsAvailable = instanceManager.getNumberOfAvailableSlots()
-
-          // add to that the jobs from the archive
-          val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
-          future.onSuccess {
-            case archiveOverview: JobsWithIDsOverview =>
-              theSender ! new StatusWithJobIDsOverview(numTMs, numSlotsTotal, numSlotsAvailable,
-                ourJobs, archiveOverview)
-          }(context.dispatcher)
-
-        case _ => throw new Exception("Unrecognized info message " + actorMessage)
+        case msg : RequestJobDetails => 
+          
+          val ourDetails: Array[JobDetails] = if (msg.shouldIncludeRunning()) {
+            currentJobs.values.map {
+              v => WebMonitorUtils.createDetailsForJob(v._1)
+            }.toArray[JobDetails]
+          } else {
+            null
+          }
+          
+          if (msg.shouldIncludeFinished()) {
+            val future = (archive ? msg)(timeout)
+            future.onSuccess {
+              case archiveDetails: MultipleJobsDetails =>
+                theSender ! new MultipleJobsDetails(ourDetails, archiveDetails.getFinishedJobs())
+            }(context.dispatcher)
+          } else {
+            theSender ! new MultipleJobsDetails(ourDetails, null)
+          }
+          
+        case _ => log.error("Unrecognized info message " + actorMessage)
       }
     }
     catch {
@@ -970,25 +1026,26 @@ class JobManager(
    * @param jobID ID of the job to remove and archive
    */
   private def removeJob(jobID: JobID): Unit = {
-    currentJobs.remove(jobID) match {
-      case Some((eg, _)) =>
-        try {
-          eg.prepareForArchiving()
+    currentJobs.synchronized {
+      currentJobs.remove(jobID) match {
+        case Some((eg, _)) =>
+          try {
+            eg.prepareForArchiving()
+            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
+          } catch {
+            case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
+              "archiving.", t)
+          }
 
-          archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
-        } catch {
-          case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
-            "archiving.", t)
-        }
+        case None =>
+      }
 
-      case None =>
-    }
-
-    try {
-      libraryCacheManager.unregisterJob(jobID)
-    } catch {
-      case t: Throwable =>
-        log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+      try {
+        libraryCacheManager.unregisterJob(jobID)
+      } catch {
+        case t: Throwable =>
+          log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+      }
     }
   }
 

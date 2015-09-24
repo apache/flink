@@ -53,7 +53,7 @@ public class UnaryOperatorNode extends SingleInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return this.name;
 	}
 

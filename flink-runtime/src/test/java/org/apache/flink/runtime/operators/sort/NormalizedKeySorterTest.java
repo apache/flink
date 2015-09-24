@@ -25,9 +25,8 @@ import java.util.Random;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.Key;
@@ -36,15 +35,15 @@ import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- */
-public class NormalizedKeySorterTest
-{
+
+public class NormalizedKeySorterTest {
+	
 	private static final long SEED = 649180756312423613L;
 	
 	private static final long SEED2 = 97652436586326573L;
@@ -57,12 +56,12 @@ public class NormalizedKeySorterTest
 	
 	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
 
-	private DefaultMemoryManager memoryManager;
+	private MemoryManager memoryManager;
 
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
+		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
 	}
 
 	@After
@@ -77,16 +76,14 @@ public class NormalizedKeySorterTest
 		}
 	}
 
-	private NormalizedKeySorter<Record> newSortBuffer(List<MemorySegment> memory) throws Exception
-	{
-		@SuppressWarnings("unchecked")
-		RecordComparator accessors = new RecordComparator(new int[] {0}, new Class[]{Key.class});
+	private NormalizedKeySorter<Record> newSortBuffer(List<MemorySegment> memory) throws Exception {
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		RecordComparator accessors = new RecordComparator(new int[] {0}, new Class[]{ Key.class });
 		return new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
 	}
 
 	@Test
-	public void testWriteAndRead() throws Exception
-	{
+	public void testWriteAndRead() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
@@ -123,12 +120,12 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testWriteAndIterator() throws Exception
-	{
+	public void testWriteAndIterator() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
@@ -162,12 +159,12 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testReset() throws Exception
-	{
+	public void testReset() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
@@ -218,7 +215,8 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	/**
@@ -227,8 +225,7 @@ public class NormalizedKeySorterTest
 	 * and compares for equality.
 	 */
 	@Test
-	public void testSwap() throws Exception
-	{
+	public void testSwap() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
@@ -271,7 +268,8 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	/**
@@ -280,8 +278,7 @@ public class NormalizedKeySorterTest
 	 * ones.
 	 */
 	@Test
-	public void testCompare() throws Exception
-	{
+	public void testCompare() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
@@ -315,12 +312,12 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testSort() throws Exception
-	{
+	public void testSort() throws Exception {
 		final int NUM_RECORDS = 559273;
 		
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
@@ -365,16 +362,16 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testSortShortStringKeys() throws Exception
-	{
+	public void testSortShortStringKeys() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
-		
-		@SuppressWarnings("unchecked")
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		RecordComparator accessors = new RecordComparator(new int[] {1}, new Class[]{Value.class});
 		NormalizedKeySorter<Record> sorter = new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
 		
@@ -414,16 +411,16 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testSortLongStringKeys() throws Exception
-	{
+	public void testSortLongStringKeys() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		@SuppressWarnings("unchecked")
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		RecordComparator accessors = new RecordComparator(new int[] {1}, new Class[]{Value.class});
 		NormalizedKeySorter<Record> sorter = new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
 		
@@ -463,6 +460,7 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 }

@@ -67,6 +67,11 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		runFailOnDeployTest();
 	}
 
+	@Test
+	public void testInvalidOffset() throws Exception {
+		runInvalidOffsetTest();
+	}
+
 	// --- source to partition mappings and exactly once ---
 	
 	@Test

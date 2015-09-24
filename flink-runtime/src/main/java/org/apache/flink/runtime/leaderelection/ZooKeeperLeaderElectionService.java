@@ -122,6 +122,13 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 	@Override
 	public void confirmLeaderSessionID(UUID leaderSessionID) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(
+				"Confirm leader session ID {} for leader {}.",
+				leaderSessionID,
+				leaderContender.getAddress());
+		}
+
 		Preconditions.checkNotNull(leaderSessionID);
 
 		if(leaderLatch.hasLeadership()) {
@@ -133,8 +140,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 				}
 			}
 		} else {
-			LOG.warn("The leader session ID " + leaderSessionID + " was confirmed even though the" +
-					"corresponding JobManager was not elected as the leader.");
+			LOG.warn("The leader session ID {} was confirmed even though the" +
+					"corresponding JobManager was not elected as the leader.", leaderSessionID);
 		}
 	}
 
@@ -152,6 +159,14 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		synchronized (lock) {
 			issuedLeaderSessionID = UUID.randomUUID();
 			confirmedLeaderSessionID = null;
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+					"Grant leadership to contender {} with session ID {}.",
+					leaderContender.getAddress(),
+					issuedLeaderSessionID);
+			}
+
 			leaderContender.grantLeadership(issuedLeaderSessionID);
 		}
 	}
@@ -161,6 +176,11 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		synchronized (lock) {
 			issuedLeaderSessionID = null;
 			confirmedLeaderSessionID = null;
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Revoke leadership of {}.", leaderContender.getAddress());
+			}
+
 			leaderContender.revokeLeadership();
 		}
 	}
@@ -171,16 +191,33 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			// leaderSessionID is null if the leader contender has not yet confirmed the session ID
 			if (leaderLatch.hasLeadership()) {
 				synchronized (lock) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(
+							"Leader node changed while {} is the leader with session ID {}.",
+							leaderContender.getAddress(),
+							confirmedLeaderSessionID);
+					}
+
 					if (confirmedLeaderSessionID != null) {
 						ChildData childData = cache.getCurrentData();
 
 						if (childData == null) {
+							if (LOG.isDebugEnabled()) {
+								LOG.debug(
+									"Writing leader information into empty node by {}.",
+									leaderContender.getAddress());
+							}
 							writeLeaderInformation(confirmedLeaderSessionID);
 						} else {
 							byte[] data = childData.getData();
 
 							if (data == null || data.length == 0) {
 								// the data field seems to be empty, rewrite information
+								if (LOG.isDebugEnabled()) {
+									LOG.debug(
+										"Writing leader information into node with empty data field by {}.",
+										leaderContender.getAddress());
+								}
 								writeLeaderInformation(confirmedLeaderSessionID);
 							} else {
 								ByteArrayInputStream bais = new ByteArrayInputStream(data);
@@ -192,6 +229,11 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 								if (!leaderAddress.equals(this.leaderContender.getAddress()) ||
 										(leaderSessionID == null || !leaderSessionID.equals(confirmedLeaderSessionID))) {
 									// the data field does not correspond to the expected leader information
+									if (LOG.isDebugEnabled()) {
+										LOG.debug(
+											"Correcting leader information by {}.",
+											leaderContender.getAddress());
+									}
 									writeLeaderInformation(confirmedLeaderSessionID);
 								}
 							}
@@ -214,6 +256,12 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		// this method does not have to be synchronized because the curator framework client
 		// is thread-safe
 		try {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+					"Write leader information: Leader={}, session ID={}.",
+					leaderContender.getAddress(),
+					leaderSessionID);
+			}
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			ObjectOutputStream oos = new ObjectOutputStream(baos);
 
@@ -257,6 +305,13 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 						// node has been created in the meantime --> try again
 					}
 				}
+			}
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+					"Successfully wrote leader information: Leader={}, session ID={}.",
+					leaderContender.getAddress(),
+					leaderSessionID);
 			}
 		} catch (Exception e) {
 			leaderContender.handleError(

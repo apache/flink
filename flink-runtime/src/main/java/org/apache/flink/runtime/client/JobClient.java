@@ -122,7 +122,6 @@ public class JobClient {
 	 * @param jobGraph    JobGraph describing the Flink job
 	 * @param timeout     Timeout for futures
 	 * @param sysoutLogUpdates prints log updates to system out if true
-	 * @param userCodeClassloader class loader to be used for deserialization
 	 * @return The job execution result
 	 * @throws org.apache.flink.runtime.client.JobExecutionException Thrown if the job
 	 *                                                               execution fails.
@@ -133,7 +132,7 @@ public class JobClient {
 			JobGraph jobGraph,
 			FiniteDuration timeout,
 			boolean sysoutLogUpdates,
-			ClassLoader userCodeClassloader) throws JobExecutionException {
+			ClassLoader classLoader) throws JobExecutionException {
 
 		checkNotNull(actorSystem, "The actorSystem must not be null.");
 		checkNotNull(jobManagerGateway, "The jobManagerGateway must not be null.");
@@ -182,7 +181,7 @@ public class JobClient {
 			SerializedJobExecutionResult result = ((JobManagerMessages.JobResultSuccess) answer).result();
 			if (result != null) {
 				try {
-					return result.toJobExecutionResult(userCodeClassloader);
+					return result.toJobExecutionResult(classLoader);
 				}
 				catch (Throwable t) {
 					throw new JobExecutionException(jobGraph.getJobID(),
@@ -199,7 +198,7 @@ public class JobClient {
 
 			SerializedThrowable serThrowable = ((JobManagerMessages.JobResultFailure) answer).cause();
 			if (serThrowable != null) {
-				Throwable cause = serThrowable.deserializeError(userCodeClassloader);
+				Throwable cause = serThrowable.deserializeError(classLoader);
 				if (cause instanceof JobExecutionException) {
 					throw (JobExecutionException) cause;
 				}
@@ -230,7 +229,7 @@ public class JobClient {
 			ActorGateway jobManagerGateway,
 			JobGraph jobGraph,
 			FiniteDuration timeout,
-			ClassLoader userCodeClassloader) throws JobExecutionException {
+			ClassLoader classLoader) throws JobExecutionException {
 
 		checkNotNull(jobManagerGateway, "The jobManagerGateway must not be null.");
 		checkNotNull(jobGraph, "The jobGraph must not be null.");
@@ -269,7 +268,7 @@ public class JobClient {
 		else if (result instanceof JobManagerMessages.JobResultFailure) {
 			try {
 				SerializedThrowable t = ((JobManagerMessages.JobResultFailure) result).cause();
-				throw t.deserializeError(userCodeClassloader);
+				throw t.deserializeError(classLoader);
 			}
 			catch (JobExecutionException e) {
 				throw e;

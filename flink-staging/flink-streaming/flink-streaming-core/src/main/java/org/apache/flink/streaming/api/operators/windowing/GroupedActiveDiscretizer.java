@@ -79,9 +79,7 @@ public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	}
 
 	@Override
-	public void close() throws Exception {
-		super.close();
-
+	public void dispose() {
 		try {
 			centralCheck.running = false;
 			centralThread.interrupt();

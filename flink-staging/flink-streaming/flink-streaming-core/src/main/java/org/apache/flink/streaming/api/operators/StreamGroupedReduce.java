@@ -29,17 +29,21 @@ public class StreamGroupedReduce<IN> extends StreamReduce<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private KeySelector<IN, ?> keySelector;
-	private Map<Object, IN> values;
+	private transient Map<Object, IN> values;
 
 	public StreamGroupedReduce(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector) {
 		super(reducer);
 		this.keySelector = keySelector;
-		values = new HashMap<Object, IN>();
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		Object key = keySelector.getKey(element.getValue());
+
+		if (values == null) {
+			values = new HashMap<Object, IN>();
+		}
+
 		IN currentValue = values.get(key);
 		if (currentValue != null) {
 			// TODO: find a way to let operators copy elements (maybe)

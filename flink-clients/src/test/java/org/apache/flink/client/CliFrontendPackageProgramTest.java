@@ -38,6 +38,9 @@ import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -294,11 +297,10 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(progArgs, prog.getArguments());
 
 			Configuration c = new Configuration();
-			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-			Client cli = new Client(c, getClass().getClassLoader());
-			
+			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
+
 			// we expect this to fail with a "ClassNotFoundException"
-			cli.getOptimizedPlanAsJson(prog, 666);
+			Client.getOptimizedPlanAsJson(compiler, prog, 666);
 			fail("Should have failed with a ClassNotFoundException");
 		}
 		catch (ProgramInvocationException e) {

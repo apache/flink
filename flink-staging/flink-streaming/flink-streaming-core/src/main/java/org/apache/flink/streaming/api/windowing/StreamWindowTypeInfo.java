@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -25,10 +26,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class StreamWindowTypeInfo<T> extends TypeInformation<StreamWindow<T>> {
 
 	private static final long serialVersionUID = 1L;
-	TypeInformation<T> innerType;
+
+	final TypeInformation<T> innerType;
 
 	public StreamWindowTypeInfo(TypeInformation<T> innerType) {
-		this.innerType = innerType;
+		this.innerType = Preconditions.checkNotNull(innerType);
 	}
 
 	public TypeInformation<T> getInnerType() {
@@ -50,10 +52,10 @@ public class StreamWindowTypeInfo<T> extends TypeInformation<StreamWindow<T>> {
 		return innerType.getArity();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Class<StreamWindow<T>> getTypeClass() {
-		// TODO Auto-generated method stub
-		return null;
+		return (Class<StreamWindow<T>>)(Object)StreamWindow.class;
 	}
 
 	@Override
@@ -64,6 +66,34 @@ public class StreamWindowTypeInfo<T> extends TypeInformation<StreamWindow<T>> {
 	@Override
 	public TypeSerializer<StreamWindow<T>> createSerializer(ExecutionConfig conf) {
 		return new StreamWindowSerializer<T>(innerType, conf);
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + "<" + innerType + ">";
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof StreamWindowTypeInfo) {
+			@SuppressWarnings("unchecked")
+			StreamWindowTypeInfo<T> streamWindowTypeInfo = (StreamWindowTypeInfo<T>) obj;
+
+			return streamWindowTypeInfo.canEqual(this) &&
+				innerType.equals(streamWindowTypeInfo.innerType);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return innerType.hashCode();
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StreamWindowTypeInfo;
 	}
 
 	@Override

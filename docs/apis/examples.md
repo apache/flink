@@ -42,7 +42,7 @@ Each binary release of Flink contains an `examples` directory with jar files for
 To run the WordCount example, issue the following command:
 
 ~~~bash
-./bin/flink run ./examples/flink-java-examples-{{site.version}}-WordCount.jar
+./bin/flink run ./examples/WordCount.jar
 ~~~
 
 The other examples can be started in a similar way.
@@ -50,7 +50,7 @@ The other examples can be started in a similar way.
 Note that many examples run without passing any arguments for them, by using build-in data. To run WordCount with real data, you have to pass the path to the data:
 
 ~~~bash
-./bin/flink run ./examples/flink-java-examples-{{site.version}}-WordCount.jar /path/to/some/text/data /path/to/result
+./bin/flink run ./examples/WordCount.jar /path/to/some/text/data /path/to/result
 ~~~
 
 Note that non-local file systems require a schema prefix, such as `hdfs://`.

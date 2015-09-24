@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util.keys;
 import java.lang.reflect.Array;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -27,51 +28,31 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple10;
-import org.apache.flink.api.java.tuple.Tuple11;
-import org.apache.flink.api.java.tuple.Tuple12;
-import org.apache.flink.api.java.tuple.Tuple13;
-import org.apache.flink.api.java.tuple.Tuple14;
-import org.apache.flink.api.java.tuple.Tuple15;
-import org.apache.flink.api.java.tuple.Tuple16;
-import org.apache.flink.api.java.tuple.Tuple17;
-import org.apache.flink.api.java.tuple.Tuple18;
-import org.apache.flink.api.java.tuple.Tuple19;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple20;
-import org.apache.flink.api.java.tuple.Tuple21;
-import org.apache.flink.api.java.tuple.Tuple22;
-import org.apache.flink.api.java.tuple.Tuple23;
-import org.apache.flink.api.java.tuple.Tuple24;
-import org.apache.flink.api.java.tuple.Tuple25;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
-import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.api.java.tuple.Tuple8;
-import org.apache.flink.api.java.tuple.Tuple9;
 
 public class KeySelectorUtil {
 
-	public static Class<?>[] tupleClasses = new Class[] { Tuple1.class, Tuple2.class, Tuple3.class,
-			Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class,
-			Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class,
-			Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class,
-			Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class,
-			Tuple25.class };
-
 	public static <X> KeySelector<X, ?> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
+		if (!(typeInfo instanceof CompositeType)) {
+			throw new InvalidTypesException(
+					"This key operation requires a composite type such as Tuples, POJOs, or Case Classes.");
+		}
+
+		CompositeType<X> compositeType = (CompositeType<X>) typeInfo;
+		
 		int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
-		int keyLength = logicalKeyPositions.length;
-		boolean[] orders = new boolean[keyLength];
-		// TODO: Fix using KeySelector everywhere
-		TypeComparator<X> comparator = ((CompositeType<X>) typeInfo).createComparator(
-				logicalKeyPositions, orders, 0, executionConfig);
-		return new ComparableKeySelector<X>(comparator, keyLength);
+		int numKeyFields = logicalKeyPositions.length;
+		
+		// use ascending order here, the code paths for that are usually a slight bit faster
+		boolean[] orders = new boolean[numKeyFields];
+		for (int i = 0; i < numKeyFields; i++) {
+			orders[i] = true;
+		}
+		
+		TypeComparator<X> comparator = compositeType.createComparator(logicalKeyPositions, orders, 0, executionConfig);
+		return new ComparableKeySelector<X>(comparator, numKeyFields);
 	}
 
+	
 	public static <X, K> KeySelector<X, K> getSelectorForOneKey(Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo,
 			ExecutionConfig executionConfig) {
 		if (partitioner != null) {
@@ -89,25 +70,28 @@ public class KeySelectorUtil {
 		return new OneKeySelector<X, K>(comparator);
 	}
 
+	
 	public static class OneKeySelector<IN, K> implements KeySelector<IN, K> {
 
 		private static final long serialVersionUID = 1L;
 
-		private TypeComparator<IN> comparator;
-		private Object[] keyArray;
-		private K key;
+		private final TypeComparator<IN> comparator;
+
+		/** Reusable array to hold the key objects. Since this is initially empty (all positions
+		 * are null), it does not have any serialization problems */
+		@SuppressWarnings("NonSerializableFieldInSerializableClass")
+		private final Object[] keyArray;
 
 		public OneKeySelector(TypeComparator<IN> comparator) {
 			this.comparator = comparator;
-			keyArray = new Object[1];
+			this.keyArray = new Object[1];
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
 		public K getKey(IN value) throws Exception {
 			comparator.extractKeys(value, keyArray, 0);
-			key = (K) keyArray[0];
-			return key;
+			return (K) keyArray[0];
 		}
 
 	}
@@ -116,10 +100,13 @@ public class KeySelectorUtil {
 
 		private static final long serialVersionUID = 1L;
 
-		private TypeComparator<IN> comparator;
-		private int keyLength;
-		private Object[] keyArray;
-		private Tuple key;
+		private final TypeComparator<IN> comparator;
+		private final int keyLength;
+
+		/** Reusable array to hold the key objects. Since this is initially empty (all positions
+		 * are null), it does not have any serialization problems */
+		@SuppressWarnings("NonSerializableFieldInSerializableClass")
+		private final Object[] keyArray;
 
 		public ComparableKeySelector(TypeComparator<IN> comparator, int keyLength) {
 			this.comparator = comparator;
@@ -129,7 +116,7 @@ public class KeySelectorUtil {
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
-			key = (Tuple) tupleClasses[keyLength - 1].newInstance();
+			Tuple key = Tuple.getTupleClass(keyLength).newInstance();
 			comparator.extractKeys(value, keyArray, 0);
 			for (int i = 0; i < keyLength; i++) {
 				key.setField(keyArray[i], i);
@@ -139,12 +126,11 @@ public class KeySelectorUtil {
 
 	}
 
-	public static class ArrayKeySelector<IN> implements KeySelector<IN, Tuple> {
+	public static final class ArrayKeySelector<IN> implements KeySelector<IN, Tuple> {
 
 		private static final long serialVersionUID = 1L;
-
-		Tuple key;
-		int[] fields;
+		
+		private final int[] fields;
 
 		public ArrayKeySelector(int... fields) {
 			this.fields = fields;
@@ -152,10 +138,9 @@ public class KeySelectorUtil {
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
-			key = (Tuple) tupleClasses[fields.length - 1].newInstance();
+			Tuple key = Tuple.getTupleClass(fields.length).newInstance();
 			for (int i = 0; i < fields.length; i++) {
-				int pos = fields[i];
-				key.setField(Array.get(value, fields[pos]), i);
+				key.setField(Array.get(value, fields[i]), i);
 			}
 			return key;
 		}

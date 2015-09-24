@@ -122,6 +122,26 @@ Flink is developed against Scala *2.10*, and tested additionally against Scala *
 Newer versions may be compatible, depending on breaking changes in the language features used by Flink, and the availability of Flink's dependencies in those Scala versions. The dependencies written in Scala include for example *Kafka*, *Akka*, *Scalatest*, and *scopt*.
 
 
+## Building in encrypted filesystems
+
+If your home directory is encrypted you might encounter a `java.io.IOException: File 
+name too long` exception. Some encrypted file systems, like encfs used by Ubuntu, do not allow
+long filenames, which is the cause of this error.
+
+The workaround is to add:
+
+~~~xml
+<args>
+    <arg>-Xmax-classfile-name</arg>
+    <arg>128</arg>
+</args>
+~~~
+
+in the compiler configuration of the `pom.xml` file of the module causing the error. For example,
+if the error appears in the `flink-yarn` module, the above code should 
+be added under the `<configuration>` tag of `scala-maven-plugin`. See 
+[this issue](https://issues.apache.org/jira/browse/FLINK-2003) for more information.
+
 ## Background
 
 The builds with Maven are controlled by [properties](http://maven.apache.org/pom.html#Properties) and <a href="http://maven.apache.org/guides/introduction/introduction-to-profiles.html">build profiles</a>.

@@ -78,8 +78,8 @@ public class FlinkTopologyBuilder {
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public FlinkTopology createTopology() {
-		final StormTopology stormTopolgoy = this.stormBuilder.createTopology();
-		final FlinkTopology env = new FlinkTopology(stormTopolgoy);
+		final StormTopology stormTopology = this.stormBuilder.createTopology();
+		final FlinkTopology env = new FlinkTopology(stormTopology);
 		env.setParallelism(1);
 
 		final HashMap<String, HashMap<String, DataStream>> availableInputs = new HashMap<String, HashMap<String, DataStream>>();
@@ -121,7 +121,7 @@ public class FlinkTopologyBuilder {
 			availableInputs.put(spoutId, outputStreams);
 
 			int dop = 1;
-			final ComponentCommon common = stormTopolgoy.get_spouts().get(spoutId).get_common();
+			final ComponentCommon common = stormTopology.get_spouts().get(spoutId).get_common();
 			if (common.is_set_parallelism_hint()) {
 				dop = common.get_parallelism_hint();
 				source.setParallelism(dop);
@@ -155,7 +155,7 @@ public class FlinkTopologyBuilder {
 				final String boltId = bolt.getKey();
 				final IRichBolt userBolt = bolt.getValue();
 
-				final ComponentCommon common = stormTopolgoy.get_bolts().get(boltId).get_common();
+				final ComponentCommon common = stormTopology.get_bolts().get(boltId).get_common();
 
 				Set<Entry<GlobalStreamId, Grouping>> unprocessedInputs = unprocessdInputsPerBolt.get(boltId);
 				if (unprocessedInputs == null) {
@@ -194,9 +194,17 @@ public class FlinkTopologyBuilder {
 								final List<String> fields = grouping.get_fields();
 								if (fields.size() > 0) {
 									FlinkOutputFieldsDeclarer prodDeclarer = this.declarers.get(producerId);
-									inputStream = inputStream.groupBy(prodDeclarer
-											.getGroupingFieldIndexes(inputStreamId,
-													grouping.get_fields()));
+									if (producer.size() == 1) {
+										inputStream = inputStream.groupBy(prodDeclarer
+												.getGroupingFieldIndexes(inputStreamId,
+														grouping.get_fields()));
+									} else {
+										inputStream = inputStream
+												.groupBy(new SplitStreamTypeKeySelector(
+														prodDeclarer.getGroupingFieldIndexes(
+																inputStreamId,
+																grouping.get_fields())));
+									}
 								} else {
 									inputStream = inputStream.global();
 								}

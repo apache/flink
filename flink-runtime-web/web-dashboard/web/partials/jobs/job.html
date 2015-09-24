@@ -25,22 +25,21 @@ limitations under the License.
   <div class="navbar-info first last hidden-xs hidden-sm">{{ job.jid }}</div>
   <div class="navbar-info first last">
     <div class="label-group">
-      <bs-label status="{{status}}" ng-repeat="(status, value) in job.operators">{{value}}</bs-label>
+      <bs-label status="{{status}}" ng-repeat="(status, value) in job['status-counts']">{{value}}</bs-label>
     </div>
   </div>
-  <div class="navbar-info first last hidden-xs hidden-sm">
-    {{ job['start-time'] }}
-    - 
-    {{ job['end-time'] }}
-  </div>
-  <div class="navbar-info last first">{{job.duration}}</div>
+  <div class="navbar-info first last hidden-xs hidden-sm">{{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}<span ng-if="job['end-time'] &gt; -1">
+      - 
+      {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></div>
+  <div ng-if="job.duration &gt; -1" class="navbar-info last first">{{job.duration}} ms</div>
 </nav>
 <nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main-additional">
   <ul class="nav nav-tabs">
-    <li ui-sref-active="active"><a ui-sref=".plan">Plan</a></li>
+    <li ui-sref-active="active"><a ui-sref=".plan.overview">Plan</a></li>
     <li ui-sref-active="active"><a ui-sref=".statistics">Job Accumulators / Statistics</a></li>
     <li ui-sref-active="active"><a ui-sref=".timeline">Timeline</a></li>
     <li ui-sref-active="active"><a ui-sref=".exceptions">Exceptions</a></li>
+    <li ui-sref-active="active"><a ui-sref=".properties">Properties</a></li>
     <li ui-sref-active="active"><a ui-sref=".config">Configuration</a></li>
   </ul>
 </nav>

@@ -104,4 +104,9 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 			StringValue.copyString(source, target);
 		}
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StringArraySerializer;
+	}
 }

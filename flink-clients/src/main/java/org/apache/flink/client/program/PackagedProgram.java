@@ -40,12 +40,9 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -166,7 +163,7 @@ public class PackagedProgram {
 		}
 	}
 	
-	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
+	PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
 		this.jarFile = null;
 		this.args = args == null ? new String[0] : args;
 		
@@ -685,51 +682,5 @@ public class PackagedProgram {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
-		private List<DataSinkNode> previewPlan;
-		private Plan plan;
-		
-		private String preview = null;
-		
-		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			this.plan = createProgramPlan(jobName);
-			this.previewPlan = Optimizer.createPreOptimizedPlan((Plan) plan);
-			
-			// do not go on with anything now!
-			throw new Client.ProgramAbortException();
-		}
-
-		@Override
-		public String getExecutionPlan() throws Exception {
-			Plan plan = createProgramPlan("unused");
-			this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
-			
-			// do not go on with anything now!
-			throw new Client.ProgramAbortException();
-		}
-		
-		public void setAsContext() {
-			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-				@Override
-				public ExecutionEnvironment createExecutionEnvironment() {
-					return PreviewPlanEnvironment.this;
-				}
-			};
-			initializeContextEnvironment(factory);
-		}
-
-		public Plan getPlan() {
-			return this.plan;
-		}
-		
-		public void setPreview(String preview) {
-			this.preview = preview;
-		}
-
-	}
 }

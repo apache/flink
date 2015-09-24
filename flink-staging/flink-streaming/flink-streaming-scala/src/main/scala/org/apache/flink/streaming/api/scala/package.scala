@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api
 import _root_.scala.reflect.ClassTag
 import language.experimental.macros
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala.{createTuple2TypeInformation => apiTupleCreator}
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
@@ -28,7 +29,6 @@ import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaS
 import org.apache.flink.streaming.api.datastream.{ ConnectedDataStream => JavaConStream }
 import org.apache.flink.streaming.api.datastream.{ GroupedDataStream => GroupedJavaStream }
 import language.implicitConversions
-import org.apache.flink.streaming.api.windowing.StreamWindow
 
 package object scala {
   // We have this here so that we always have generated TypeInformationS when
@@ -72,4 +72,10 @@ package object scala {
           "supported on Case Classes (for now).")
     }
   }
+
+  def createTuple2TypeInformation[T1, T2](
+      t1: TypeInformation[T1],
+      t2: TypeInformation[T2])
+    : TypeInformation[(T1, T2)] =
+    apiTupleCreator[T1, T2](t1, t2)
 }

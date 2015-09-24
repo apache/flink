@@ -32,17 +32,22 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 
 	private static final long serialVersionUID = 1L;
 
+	
 	protected transient StreamingRuntimeContext runtimeContext;
 
 	protected transient ExecutionConfig executionConfig;
 
-	public transient Output<StreamRecord<OUT>> output;
+	protected transient Output<StreamRecord<OUT>> output;
 
 	protected boolean inputCopyDisabled = false;
 
 	// A sane default for most operators
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
 
+	// ------------------------------------------------------------------------
+	//  Life Cycle
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext) {
 		this.output = output;
@@ -50,14 +55,28 @@ public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>
 		this.runtimeContext = runtimeContext;
 	}
 
+	/**
+	 * This default implementation of the interface method does nothing.
+	 */
 	@Override
-	public void open(Configuration parameters) throws Exception {
-	}
+	public void open(Configuration parameters) throws Exception {}
 
+	/**
+	 * This default implementation of the interface method does nothing.
+	 */
 	@Override
-	public void close() throws Exception {
-	}
+	public void close() throws Exception {}
 
+	/**
+	 * This default implementation of the interface method does nothing.
+	 */
+	@Override
+	public void dispose() {}
+	
+	// ------------------------------------------------------------------------
+	//  Context and chaining properties
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		this.chainingStrategy = strategy;

@@ -18,19 +18,19 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import java.util
 import java.util.regex.{Pattern, Matcher}
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeinfo.AtomicType
-import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException
-import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor
+import org.apache.flink.api.common.typeutils.CompositeType.{TypeComparatorBuilder,
+InvalidFieldReferenceException, FlatFieldDescriptor}
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
-import org.apache.flink.api.java.typeutils.{TupleTypeInfoBase, PojoTypeInfo}
-import PojoTypeInfo.NamedFlatFieldDescriptor
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * TypeInformation for Case Classes. Creation and access is different from
@@ -38,7 +38,7 @@ import scala.collection.JavaConverters._
  */
 abstract class CaseClassTypeInfo[T <: Product](
     clazz: Class[T],
-    typeParamTypeInfos: Array[TypeInformation[_]],
+    val typeParamTypeInfos: Array[TypeInformation[_]],
     fieldTypes: Seq[TypeInformation[_]],
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
@@ -63,46 +63,19 @@ abstract class CaseClassTypeInfo[T <: Product](
     fields map { x => fieldNames.indexOf(x) }
   }
 
-  /*
-   * Comparator construction
-   */
-  var fieldComparators: Array[TypeComparator[_]] = null
-  var logicalKeyFields : Array[Int] = null
-  var comparatorHelperIndex = 0
-
-  override protected def initializeNewComparator(localKeyCount: Int): Unit = {
-    fieldComparators = new Array(localKeyCount)
-    logicalKeyFields = new Array(localKeyCount)
-    comparatorHelperIndex = 0
-  }
-
-  override protected def addCompareField(fieldId: Int, comparator: TypeComparator[_]): Unit = {
-    fieldComparators(comparatorHelperIndex) = comparator
-    logicalKeyFields(comparatorHelperIndex) = fieldId
-    comparatorHelperIndex += 1
-  }
-
-  override protected def getNewComparator(executionConfig: ExecutionConfig): TypeComparator[T] = {
-    val finalLogicalKeyFields = logicalKeyFields.take(comparatorHelperIndex)
-    val finalComparators = fieldComparators.take(comparatorHelperIndex)
-    val maxKey = finalLogicalKeyFields.max
-
-    // create serializers only up to the last key, fields after that are not needed
-    val fieldSerializers = types.take(maxKey + 1).map(_.createSerializer(executionConfig))
-    new CaseClassComparator[T](finalLogicalKeyFields, finalComparators, fieldSerializers.toArray)
-  }
-
   override def getFlatFields(
       fieldExpression: String,
       offset: Int,
       result: java.util.List[FlatFieldDescriptor]): Unit = {
     val matcher: Matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression)
+
     if (!matcher.matches) {
       throw new InvalidFieldReferenceException("Invalid tuple field reference \"" +
         fieldExpression + "\".")
     }
 
     var field: String = matcher.group(0)
+
     if ((field == ExpressionKeys.SELECT_ALL_CHAR) ||
       (field == ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
       var keyPosition: Int = 0
@@ -116,59 +89,58 @@ abstract class CaseClassTypeInfo[T <: Product](
         }
         keyPosition += 1
       }
-      return
     } else {
       field = matcher.group(1)
-    }
 
-    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field)
-    if(intFieldMatcher.matches()) {
-      // convert 0-indexed integer field into 1-indexed name field
-      field = "_" + (Integer.valueOf(field) + 1)
-    }
-
-    var pos = offset
-    val tail = matcher.group(3)
-    if (tail == null) {
-
-      for (i <- 0 until fieldNames.length) {
-        if (field == fieldNames(i)) {
-          // found field
-          fieldTypes(i) match {
-            case ct: CompositeType[_] =>
-              ct.getFlatFields("*", pos, result)
-              return
-            case _ =>
-              result.add(new FlatFieldDescriptor(pos, fieldTypes(i)))
-              return
-          }
-        } else {
-          // skipping over non-matching fields
-          pos += fieldTypes(i).getTotalFields
-        }
+      val intFieldMatcher = PATTERN_INT_FIELD.matcher(field)
+      if(intFieldMatcher.matches()) {
+        // convert 0-indexed integer field into 1-indexed name field
+        field = "_" + (Integer.valueOf(field) + 1)
       }
-      throw new InvalidFieldReferenceException("Unable to find field \"" + field +
-        "\" in type " + this + ".")
-    } else {
-      var pos = offset
-      for (i <- 0 until fieldNames.length) {
-        if (field == fieldNames(i)) {
-          // found field
-          fieldTypes(i) match {
-            case ct: CompositeType[_] =>
-              ct.getFlatFields(tail, pos, result)
-              return
-            case _ =>
-              throw new InvalidFieldReferenceException("Nested field expression \"" + tail +
-                "\" not possible on atomic type " + fieldTypes(i) + ".")
+
+      val tail = matcher.group(3)
+
+      if (tail == null) {
+        def extractFlatFields(index: Int, pos: Int): Unit = {
+          if (index >= fieldNames.size) {
+            throw new InvalidFieldReferenceException("Unable to find field \"" + field +
+              "\" in type " + this + ".")
+          } else if (field == fieldNames(index)) {
+            // found field
+            fieldTypes(index) match {
+              case ct: CompositeType[_] =>
+                ct.getFlatFields("*", pos, result)
+              case _ =>
+                result.add(new FlatFieldDescriptor(pos, fieldTypes(index)))
+            }
+          } else {
+            // skipping over non-matching fields
+            extractFlatFields(index + 1, pos + fieldTypes(index).getTotalFields())
           }
-        } else {
-          // skipping over non-matching fields
-          pos += fieldTypes(i).getTotalFields
         }
+
+        extractFlatFields(0, offset)
+      } else {
+        def extractFlatFields(index: Int, pos: Int): Unit = {
+          if (index >= fieldNames.size) {
+            throw new InvalidFieldReferenceException("Unable to find field \"" + field +
+              "\" in type " + this + ".")
+          } else if (field == fieldNames(index)) {
+            // found field
+            fieldTypes(index) match {
+              case ct: CompositeType[_] =>
+                ct.getFlatFields(tail, pos, result)
+              case _ =>
+                throw new InvalidFieldReferenceException("Nested field expression \"" + tail +
+                  "\" not possible on atomic type " + fieldTypes(index) + ".")
+            }
+          } else {
+            extractFlatFields(index + 1, pos + fieldTypes(index).getTotalFields())
+          }
+        }
+
+        extractFlatFields(0, offset)
       }
-      throw new InvalidFieldReferenceException("Unable to find field \"" + field +
-        "\" in type " + this + ".")
     }
   }
 
@@ -195,7 +167,7 @@ abstract class CaseClassTypeInfo[T <: Product](
       field = "_" + (Integer.valueOf(field) + 1)
     }
 
-    for (i <- 0 until fieldNames.length) {
+    for (i <- fieldNames.indices) {
       if (fieldNames(i) == field) {
         if (tail == null) {
           return getTypeAt(i)
@@ -225,9 +197,57 @@ abstract class CaseClassTypeInfo[T <: Product](
     }
   }
 
-  override def toString = clazz.getName + "(" + fieldNames.zip(types).map {
-    case (n, t) => n + ": " + t}
-    .mkString(", ") + ")"
+  override def createTypeComparatorBuilder(): TypeComparatorBuilder[T] = {
+    new CaseClassTypeComparatorBuilder
+  }
+
+  private class CaseClassTypeComparatorBuilder extends TypeComparatorBuilder[T] {
+    val fieldComparators: ArrayBuffer[TypeComparator[_]] = new ArrayBuffer[TypeComparator[_]]()
+    val logicalKeyFields: ArrayBuffer[Int] = new ArrayBuffer[Int]()
+
+    override def initializeTypeComparatorBuilder(size: Int): Unit = {}
+
+    override def addComparatorField(fieldId: Int, comparator: TypeComparator[_]): Unit = {
+      fieldComparators += comparator
+      logicalKeyFields += fieldId
+    }
+
+    override def createTypeComparator(config: ExecutionConfig): TypeComparator[T] = {
+      val maxIndex = logicalKeyFields.max
+
+      new CaseClassComparator[T](
+        logicalKeyFields.toArray,
+        fieldComparators.toArray,
+        types.take(maxIndex + 1).map(_.createSerializer(config))
+      )
+    }
+  }
+
+  override def toString: String = {
+    clazz.getName + "(" + fieldNames.zip(types).map {
+      case (n, t) => n + ": " + t
+    }.mkString(", ") + ")"
+  }
 
   override def isCaseClass = true
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case caseClass: CaseClassTypeInfo[_] =>
+        caseClass.canEqual(this) &&
+        super.equals(caseClass) &&
+        typeParamTypeInfos.sameElements(caseClass.typeParamTypeInfos) &&
+        fieldNames.equals(caseClass.fieldNames)
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    31 * (31 * super.hashCode() + fieldNames.hashCode()) +
+      util.Arrays.hashCode(typeParamTypeInfos.asInstanceOf[Array[AnyRef]])
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[CaseClassTypeInfo[_]]
+  }
 }

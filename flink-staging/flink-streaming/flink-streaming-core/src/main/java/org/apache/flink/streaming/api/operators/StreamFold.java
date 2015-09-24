@@ -17,27 +17,36 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 public class StreamFold<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT> {
+		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	private OUT accumulator;
-	protected TypeSerializer<OUT> outTypeSerializer;
-	protected TypeInformation<OUT> outTypeInformation;
+	protected transient OUT accumulator;
+	private byte[] serializedInitialValue;
 
-	public StreamFold(FoldFunction<IN, OUT> folder, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
+	protected TypeSerializer<OUT> outTypeSerializer;
+
+	public StreamFold(FoldFunction<IN, OUT> folder, OUT initialValue) {
 		super(folder);
 		this.accumulator = initialValue;
-		this.outTypeInformation = outTypeInformation;
 		this.chainingStrategy = ChainingStrategy.FORCE_ALWAYS;
 	}
 
@@ -50,11 +59,41 @@ public class StreamFold<IN, OUT>
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
+
+		if (serializedInitialValue == null) {
+			throw new RuntimeException("No initial value was serialized for the fold " +
+					"operator. Probably the setOutputType method was not called.");
+		}
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
+		InputViewDataInputStreamWrapper in = new InputViewDataInputStreamWrapper(
+			new DataInputStream(bais)
+		);
+
+		accumulator = outTypeSerializer.deserialize(in);
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		output.emitWatermark(mark);
+	}
+
+	@Override
+	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+		outTypeSerializer = outTypeInfo.createSerializer(executionConfig);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		OutputViewDataOutputStreamWrapper out = new OutputViewDataOutputStreamWrapper(
+			new DataOutputStream(baos)
+		);
+
+		try {
+			outTypeSerializer.serialize(accumulator, out);
+		} catch (IOException ioe) {
+			throw new RuntimeException("Unable to serialize initial value of type " +
+					accumulator.getClass().getSimpleName() + " of fold operator.", ioe);
+		}
+
+		serializedInitialValue = baos.toByteArray();
 	}
 }

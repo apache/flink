@@ -54,7 +54,7 @@ public class BinaryUnionNode extends TwoInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Union";
 	}
 

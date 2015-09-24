@@ -32,6 +32,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,7 @@ import java.io.StringWriter;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
@@ -68,7 +70,7 @@ import static org.junit.Assert.fail;
  * guaranteed to remain empty (all tasks are already deployed) and kills one of
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
-public abstract class AbstractProcessFailureRecoveryTest {
+public abstract class AbstractProcessFailureRecoveryTest extends TestLogger {
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
@@ -147,7 +149,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			// the program will very slowly consume elements until the marker file (later created by the
 			// test driver code) is present
 			final File coordinateDirClosure = coordinateTempDir;
-			final Throwable[] errorRef = new Throwable[1];
+			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
 			// we trigger program execution in a separate thread
 			Thread programTrigger = new Thread("Program Trigger") {
@@ -158,7 +160,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 					}
 					catch (Throwable t) {
 						t.printStackTrace();
-						errorRef[0] = t;
+						errorRef.set(t);
 					}
 				}
 			};
@@ -168,7 +170,18 @@ public abstract class AbstractProcessFailureRecoveryTest {
 
 			// wait until all marker files are in place, indicating that all tasks have started
 			// max 20 seconds
-			waitForMarkerFiles(coordinateTempDir, PARALLELISM, 20000);
+			if (!waitForMarkerFiles(coordinateTempDir, PARALLELISM, 120000)) {
+				// check if the program failed for some reason
+				if (errorRef.get() != null) {
+					Throwable error = errorRef.get();
+					error.printStackTrace();
+					fail("The program encountered a " + error.getClass().getSimpleName() + " : " + error.getMessage());
+				}
+				else {
+					// no error occurred, simply a timeout
+					fail("The tasks were not started within time (" + 120000 + "msecs)");
+				}
+			}
 
 			// start the third TaskManager
 			taskManagerProcess3 = new ProcessBuilder(command).start();
@@ -192,8 +205,8 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			assertFalse("The program did not finish in time", programTrigger.isAlive());
 
 			// check whether the program encountered an error
-			if (errorRef[0] != null) {
-				Throwable error = errorRef[0];
+			if (errorRef.get() != null) {
+				Throwable error = errorRef.get();
 				error.printStackTrace();
 				fail("The program encountered a " + error.getClass().getSimpleName() + " : " + error.getMessage());
 			}
@@ -316,7 +329,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 		}
 	}
 
-	protected static void waitForMarkerFiles(File basedir, int num, long timeout) {
+	protected static boolean waitForMarkerFiles(File basedir, int num, long timeout) {
 		long now = System.currentTimeMillis();
 		final long deadline = now + timeout;
 
@@ -333,7 +346,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			}
 
 			if (allFound) {
-				return;
+				return true;
 			}
 			else {
 				// not all found, wait for a bit
@@ -348,7 +361,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			}
 		}
 
-		fail("The tasks were not started within time (" + timeout + "msecs)");
+		return false;
 	}
 
 	// --------------------------------------------------------------------------------------------

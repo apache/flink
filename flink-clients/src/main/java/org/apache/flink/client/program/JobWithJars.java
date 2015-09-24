@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client.program;
 
 import java.io.File;
@@ -30,6 +29,10 @@ import java.util.List;
 
 import org.apache.flink.api.common.Plan;
 
+/**
+ * A JobWithJars is a Flink dataflow plan, together with a bunch of JAR files that contain
+ * the classes of the functions and libraries necessary for the execution.
+ */
 public class JobWithJars {
 	
 	private Plan plan;

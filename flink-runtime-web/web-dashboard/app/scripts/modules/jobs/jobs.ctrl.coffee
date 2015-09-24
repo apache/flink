@@ -42,33 +42,133 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, $rootScope) ->
+.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, $rootScope, flinkConfig, $interval) ->
+  console.log 'SingleJobController'
+
   $scope.jobid = $stateParams.jobid
-  $rootScope.job = null
+  $scope.job = null
+  $scope.plan = null
+  $scope.vertices = null
 
   JobsService.loadJob($stateParams.jobid).then (data) ->
-    $rootScope.job = data
+    $scope.job = data
+    $scope.plan = data.plan
+    $scope.vertices = data.vertices
+
+  refresher = $interval ->
+    JobsService.loadJob($stateParams.jobid).then (data) ->
+      $scope.job = data
+
+      $scope.$broadcast 'reload'
+
+  , flinkConfig["refresh-interval"]
 
   $scope.$on '$destroy', ->
-    $rootScope.job = null
+    $scope.job = null
+    $scope.plan = null
+    $scope.vertices = null
+
+    $interval.cancel(refresher)
+
 
 # --------------------------------------
 
 .controller 'JobPlanController', ($scope, $state, $stateParams, JobsService) ->
-  JobsService.loadPlan($stateParams.jobid).then (data) ->
-    $scope.plan = data
+  console.log 'JobPlanController'
+
+  $scope.nodeid = null
+  $scope.nodeUnfolded = false
+  $scope.stateList = JobsService.stateList()
+
+  $scope.changeNode = (nodeid) ->
+    if nodeid != $scope.nodeid
+      $scope.nodeid = nodeid
+      $scope.vertex = null
+      $scope.subtasks = null
+      $scope.accumulators = null
+
+      $scope.$broadcast 'reload'
+
+    else
+      $scope.nodeid = null
+      $scope.nodeUnfolded = false
+      $scope.vertex = null
+      $scope.subtasks = null
+      $scope.accumulators = null
+
+  $scope.deactivateNode = ->
+    $scope.nodeid = null
+    $scope.nodeUnfolded = false
+    $scope.vertex = null
+    $scope.subtasks = null
+    $scope.accumulators = null
+
+  $scope.toggleFold = ->
+    $scope.nodeUnfolded = !$scope.nodeUnfolded
 
 # --------------------------------------
 
-.controller 'JobPlanNodeController', ($scope, $state, $stateParams, JobsService) ->
-  $scope.nodeid = $stateParams.nodeid
-  $scope.stateList = JobsService.stateList()
+.controller 'JobPlanOverviewController', ($scope, JobsService) ->
+  console.log 'JobPlanOverviewController'
 
-  JobsService.getNode($scope.nodeid).then (data) ->
-    $scope.node = data
+  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.st)
+    JobsService.getSubtasks($scope.nodeid).then (data) ->
+      $scope.subtasks = data
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobPlanOverviewController'
+    if $scope.nodeid
+      JobsService.getSubtasks($scope.nodeid).then (data) ->
+        $scope.subtasks = data
+
+# --------------------------------------
+
+.controller 'JobPlanAccumulatorsController', ($scope, JobsService) ->
+  console.log 'JobPlanAccumulatorsController'
+
+  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.accumulators)
+    JobsService.getAccumulators($scope.nodeid).then (data) ->
+      $scope.accumulators = data.main
+      $scope.subtaskAccumulators = data.subtasks
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobPlanAccumulatorsController'
+    if $scope.nodeid
+      JobsService.getAccumulators($scope.nodeid).then (data) ->
+        $scope.accumulators = data.main
+        $scope.subtaskAccumulators = data.subtasks
 
 # --------------------------------------
 
 .controller 'JobTimelineVertexController', ($scope, $state, $stateParams, JobsService) ->
-  JobsService.getVertex($stateParams.jobid, $stateParams.vertexId).then (data) ->
+  console.log 'JobTimelineVertexController'
+
+  JobsService.getVertex($stateParams.vertexId).then (data) ->
     $scope.vertex = data
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobTimelineVertexController'
+    JobsService.getVertex($stateParams.vertexId).then (data) ->
+      $scope.vertex = data
+
+# --------------------------------------
+
+.controller 'JobExceptionsController', ($scope, $state, $stateParams, JobsService) ->
+  JobsService.loadExceptions().then (data) ->
+    $scope.exceptions = data
+
+# --------------------------------------
+
+.controller 'JobPropertiesController', ($scope, JobsService) ->
+  console.log 'JobPropertiesController'
+
+  $scope.changeNode = (nodeid) ->
+    if nodeid != $scope.nodeid
+      $scope.nodeid = nodeid
+
+      JobsService.getNode(nodeid).then (data) ->
+        $scope.node = data
+
+    else
+      $scope.nodeid = null
+      $scope.node = null

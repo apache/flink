@@ -18,7 +18,8 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -888,7 +889,10 @@ public class BarrierBufferTest {
 	private static BufferOrEvent createBuffer(int channel) {
 		// since we have no access to the contents, we need to use the size as an
 		// identifier to validate correctness here
-		Buffer buf = new Buffer(new MemorySegment(new byte[PAGE_SIZE]), FreeingBufferRecycler.INSTANCE);
+		Buffer buf = new Buffer(
+				MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE),
+				FreeingBufferRecycler.INSTANCE);
+		
 		buf.setSize(SIZE_COUNTER++);
 		return new BufferOrEvent(buf, channel);
 	}

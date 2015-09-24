@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -40,9 +41,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
+import org.apache.flink.client.program.OptimizerPlanEnvironment;
+import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FileStateHandle;
@@ -70,6 +71,7 @@ import org.apache.flink.util.SplittableIterator;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -443,7 +445,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializer
 	 * 		The serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void addDefaultKryoSerializer(Class<?> type, T serializer) {
 		config.addDefaultKryoSerializer(type, serializer);
 	}
 
@@ -472,7 +474,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param serializer
 	 * 		The serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
 		config.registerTypeWithKryoSerializer(type, serializer);
 	}
 
@@ -553,7 +555,8 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The type of the returned data stream
 	 * @return The data stream representing the given array of elements
 	 */
-	public <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
+	@SafeVarargs
+	public final <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
 		if (data.length == 0) {
 			throw new IllegalArgumentException("fromElements needs at least one element as argument");
 		}
@@ -1225,8 +1228,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
 			String... jarFiles) {
-		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
-		return env;
+		return new RemoteStreamEnvironment(host, port, jarFiles);
 	}
 
 	/**
@@ -1280,11 +1282,11 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @param jobName
 	 * 		Desired name of the job
-	 * @return The result of the job execution, containing elapsed time and
-	 * accumulators.
+	 * @return The result of the job execution: Either JobSubmissionResult or JobExecutionResult;
+	 * The latter contains elapsed time and accumulators.
 	 * @throws Exception
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public abstract JobSubmissionResult execute(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
@@ -1295,8 +1297,7 @@ public abstract class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		StreamGraph result = StreamGraphGenerator.generate(this, transformations);
-		return result;
+		return StreamGraphGenerator.generate(this, transformations);
 	}
 
 	/**

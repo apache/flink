@@ -22,7 +22,7 @@ import java.util.UUID
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
+import org.apache.flink.api.common.{JobID, ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -131,10 +131,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the UUID by which this environment is identified. The UUID sets the execution context
    * in the cluster or local environment.
    */
-  def getId: UUID = {
+  def getId: JobID = {
     javaEnv.getId
   }
-  
+
   /**
    * Gets the JobExecutionResult of the last executed job.
    */
@@ -148,12 +148,42 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Starts a new session, discarding all intermediate results.
+   */
+  def startNewSession() {
+    javaEnv.startNewSession()
+  }
+
+  /**
+   * Sets the session timeout to hold the intermediate results of a job. This only
+   * applies the updated timeout in future executions.
+   * @param timeout The timeout in seconds.
+   */
+  def setSessionTimeout(timeout: Long) {
+    javaEnv.setSessionTimeout(timeout)
+  }
+
+  /**
+   * Gets the session timeout for this environment. The session timeout defines for how long
+   * after an execution, the job and its intermediate results will be kept for future
+   * interactions.
+   *
+   * @return The session timeout, in seconds.
+   */
+  def getSessionTimeout: Long = {
+    javaEnv.getSessionTimeout
+  }
+
+  /**
    * Registers the given type with the serializer at the [[KryoSerializer]].
    *
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
-  def registerTypeWithKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+  def registerTypeWithKryoSerializer[T <: Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T)
+    : Unit = {
     javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
   }
 
@@ -178,16 +208,19 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
-  def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+  def addDefaultKryoSerializer[T <: Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T)
+    : Unit = {
     javaEnv.addDefaultKryoSerializer(clazz, serializer)
   }
-  
+
   /**
    * Registers the given type with the serialization stack. If the type is eventually
    * serialized as a POJO, then the type is registered with the POJO serializer. If the
    * type ends up being serialized with Kryo, then it will be registered at Kryo to make
    * sure that only tags are written.
-   * 
+   *
    */
   def registerType(typeClass: Class[_]) {
     javaEnv.registerType(typeClass)
@@ -290,7 +323,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
                 "Field \"" + pojoFields(i) + "\" not part of POJO type " +
                   info.getTypeClass.getCanonicalName);
             }
-            classesBuf += info.getPojoFieldAt(pos).`type`.getTypeClass
+            classesBuf += info.getPojoFieldAt(pos).getTypeInformation().getTypeClass
           }
         }
       case _ => throw new IllegalArgumentException("Type information is not valid.")
@@ -705,6 +738,33 @@ object ExecutionEnvironment {
       jarFiles: String*): ExecutionEnvironment = {
     val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*)
     javaEnv.setParallelism(parallelism)
+    new ExecutionEnvironment(javaEnv)
+  }
+
+  /**
+   * Creates a remote execution environment. The remote environment sends (parts of) the program
+   * to a cluster for execution. Note that all file paths used in the program must be accessible
+   * from the cluster. The custom configuration file is used to configure Akka specific
+   * configuration parameters for the Client only; Program parallelism can be set via
+   * [[ExecutionEnvironment.setParallelism]].
+   *
+   * Cluster configuration has to be done in the remotely running Flink instance.
+   *
+   * @param host The host name or address of the master (JobManager), where the program should be
+   *             executed.
+   * @param port The port of the master (JobManager), where the program should be executed.
+   * @param clientConfiguration Pass a custom configuration to the Client.
+   * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
+   *                 program uses user-defined functions, user-defined input formats, or any
+   *                 libraries, those must be provided in the JAR files.
+   * @return A remote environment that executes the program on a cluster.
+   */
+  def createRemoteEnvironment(
+      host: String,
+      port: Int,
+      clientConfiguration: Configuration,
+      jarFiles: String*): ExecutionEnvironment = {
+    val javaEnv = JavaEnv.createRemoteEnvironment(host, port, clientConfiguration, jarFiles: _*)
     new ExecutionEnvironment(javaEnv)
   }
 }

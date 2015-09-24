@@ -19,17 +19,18 @@
 package org.apache.flink.api.java;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -93,7 +94,8 @@ import com.google.common.base.Preconditions;
  */
 public abstract class ExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
+	/** The logger used by the environment and its subclasses */
+	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 	
 	/** The environment of the context (local by default, cluster if invoked through command line) */
 	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
@@ -105,34 +107,42 @@ public abstract class ExecutionEnvironment {
 	private static boolean allowLocalExecution = true;
 	
 	// --------------------------------------------------------------------------------------------
-	
-	private final UUID executionId;
-	
+
 	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
 	
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	/** Result from the latest execution, to be make it retrievable when using eager execution methods */
+	/** Result from the latest execution, to make it retrievable when using eager execution methods */
 	protected JobExecutionResult lastJobExecutionResult;
+
+	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
+	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph */
+	protected JobID jobID;
+	
+	/** The session timeout in seconds */
+	protected long sessionTimeout;
 	
 	/** Flag to indicate whether sinks have been cleared in previous executions */
 	private boolean wasExecuted = false;
-
-	// --------------------------------------------------------------------------------------------
-	//  Constructor and Properties
-	// --------------------------------------------------------------------------------------------
+	
 	
 	/**
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		this.executionId = UUID.randomUUID();
+		jobID = JobID.generate();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Properties
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Gets the config object.
+	 * Gets the config object that defines execution parameters.
+	 * 
+	 * @return The environment's execution configuration.
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
@@ -227,17 +237,6 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	/**
-	 * Gets the UUID by which this environment is identified. The UUID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The UUID of this environment.
-	 * @see #getIdString()
-	 */
-	public UUID getId() {
-		return this.executionId;
-	}
-
-	/**
 	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
 	 * 
 	 * @return The execution result from the latest job execution.
@@ -246,21 +245,66 @@ public abstract class ExecutionEnvironment {
 		return this.lastJobExecutionResult;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Session Management
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the UUID by which this environment is identified, as a string.
-	 * 
-	 * @return The UUID as a string.
+	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
+	 * in the cluster or local environment.
+	 *
+	 * @return The JobID of this environment.
+	 * @see #getIdString()
+	 */
+	public JobID getId() {
+		return this.jobID;
+	}
+
+	/**
+	 * Gets the JobID by which this environment is identified, as a string.
+	 *
+	 * @return The JobID as a string.
 	 * @see #getId()
 	 */
 	public String getIdString() {
-		return this.executionId.toString();
+		return this.jobID.toString();
 	}
+
+	/**
+	 * Sets the session timeout to hold the intermediate results of a job. This only
+	 * applies the updated timeout in future executions.
+	 * 
+	 * @param timeout The timeout, in seconds.
+	 */
+	public void setSessionTimeout(long timeout) {
+		throw new IllegalStateException("Support for sessions is currently disabled. " +
+				"It will be enabled in future Flink versions.");
+		// Session management is disabled, revert this commit to enable
+		//if (timeout < 0) {
+		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
+		//}
+		//this.sessionTimeout = timeout;
+	}
+
+	/**
+	 * Gets the session timeout for this environment. The session timeout defines for how long
+	 * after an execution, the job and its intermediate results will be kept for future
+	 * interactions.
+	 * 
+	 * @return The session timeout, in seconds.
+	 */
+	public long getSessionTimeout() {
+		return sessionTimeout;
+	}
+
+	/**
+	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
+	 */
+	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
-
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
@@ -271,7 +315,7 @@ public abstract class ExecutionEnvironment {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void addDefaultKryoSerializer(Class<?> type, T serializer) {
 		config.addDefaultKryoSerializer(type, serializer);
 	}
 
@@ -294,7 +338,7 @@ public abstract class ExecutionEnvironment {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
 		config.registerTypeWithKryoSerializer(type, serializer);
 	}
 
@@ -703,7 +747,8 @@ public abstract class ExecutionEnvironment {
 	 * @param data The elements to make up the data set.
 	 * @return A DataSet representing the given list of elements.
 	 */
-	public <X> DataSource<X> fromElements(X... data) {
+	@SafeVarargs
+	public final <X> DataSource<X> fromElements(X... data) {
 		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
 		}
@@ -942,7 +987,7 @@ public abstract class ExecutionEnvironment {
 				}
 				if(typeInfo instanceof CompositeType) {
 					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<GenericTypeInfo<?>>();
-					Utils.getContainedGenericTypes((CompositeType)typeInfo, genericTypesInComposite);
+					Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
 					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
 						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
 					}
@@ -986,10 +1031,10 @@ public abstract class ExecutionEnvironment {
 
 		if(LOG.isDebugEnabled()) {
 			LOG.debug("Registered Kryo types: {}", Joiner.on(',').join(config.getRegisteredKryoTypes()));
-			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers()));
-			LOG.debug("Registered Kryo with Serializer Classes types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializerClasses()));
-			LOG.debug("Registered Kryo default Serializers: {}", Joiner.on(',').join(config.getDefaultKryoSerializers()));
-			LOG.debug("Registered Kryo default Serializers Classes {}", Joiner.on(',').join(config.getDefaultKryoSerializerClasses()));
+			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers().entrySet()));
+			LOG.debug("Registered Kryo with Serializer Classes types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializerClasses().entrySet()));
+			LOG.debug("Registered Kryo default Serializers: {}", Joiner.on(',').join(config.getDefaultKryoSerializers().entrySet()));
+			LOG.debug("Registered Kryo default Serializers Classes {}", Joiner.on(',').join(config.getDefaultKryoSerializerClasses().entrySet()));
 			LOG.debug("Registered POJO types: {}", Joiner.on(',').join(config.getRegisteredPojoTypes()));
 
 			// print information about static code analysis
@@ -1105,6 +1150,28 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program
+	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
+	 * cluster. The custom configuration file is used to configure Akka specific configuration parameters
+	 * for the Client only; Program parallelism can be set via {@link ExecutionEnvironment#setParallelism(int)}.
+	 *
+	 * Cluster configuration has to be done in the remotely running Flink instance.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param clientConfiguration Pass a custom configuration to the Client.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, Configuration clientConfiguration, String... jarFiles) {
+		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles);
+		rec.setClientConfiguration(clientConfiguration);
+		return rec;
+	}
+
+	/**
 	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
 	 * cluster. The execution will use the specified parallelism.
@@ -1152,4 +1219,5 @@ public abstract class ExecutionEnvironment {
 	public static boolean localExecutionIsAllowed() {
 		return allowLocalExecution;
 	}
+
 }

@@ -57,10 +57,13 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -70,7 +73,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
@@ -137,7 +139,7 @@ public class CliFrontend {
 
 	private FlinkPlan optimizedPlan;
 
-	private JobGraph jobGraph;
+	private PackagedProgram packagedProgram;
 
 	/**
 	 *
@@ -298,44 +300,51 @@ public class CliFrontend {
 			int userParallelism = options.getParallelism();
 			LOG.debug("User parallelism is set to {}", userParallelism);
 
-			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName(), userParallelism);
+			Client client = getClient(options, program.getMainClassName(), userParallelism);
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
-			if(client.getMaxSlots() != -1 && userParallelism == -1) {
-				logAndSysout("Using the parallelism provided by the remote cluster ("+client.getMaxSlots()+"). " +
-						"To use another parallelism, set it at the ./bin/flink client.");
-				userParallelism = client.getMaxSlots();
-			}
 
-			// check if detached per job yarn cluster is used to start flink
-			if(yarnCluster != null && yarnCluster.isDetached()) {
-				logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
-						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-						"yarn application -kill " + yarnCluster.getApplicationId() + "\n" +
-						"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
-				exitCode = executeProgram(program, client, userParallelism, false);
-			} else {
-				// regular (blocking) execution.
-				exitCode = executeProgram(program, client, userParallelism, true);
-			}
+			try {
+				if (client.getMaxSlots() != -1 && userParallelism == -1) {
+					logAndSysout("Using the parallelism provided by the remote cluster ("+client.getMaxSlots()+"). " +
+							"To use another parallelism, set it at the ./bin/flink client.");
+					userParallelism = client.getMaxSlots();
+				}
 
-			// show YARN cluster status if its not a detached YARN cluster.
-			if (yarnCluster != null && !yarnCluster.isDetached()) {
-				List<String> msgs = yarnCluster.getNewMessages();
-				if (msgs != null && msgs.size() > 1) {
+				// check if detached per job yarn cluster is used to start flink
+				if (yarnCluster != null && yarnCluster.isDetached()) {
+					logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
+							"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
+							"yarn application -kill " + yarnCluster.getApplicationId() + "\n" +
+							"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
+					exitCode = executeProgramDetached(program, client, userParallelism);
+				}
+				else {
+					// regular (blocking) execution.
+					exitCode = executeProgramBlocking(program, client, userParallelism);
+				}
 
-					logAndSysout("The following messages were created by the YARN cluster while running the Job:");
-					for (String msg : msgs) {
-						logAndSysout(msg);
+				// show YARN cluster status if its not a detached YARN cluster.
+				if (yarnCluster != null && !yarnCluster.isDetached()) {
+					List<String> msgs = yarnCluster.getNewMessages();
+					if (msgs != null && msgs.size() > 1) {
+
+						logAndSysout("The following messages were created by the YARN cluster while running the Job:");
+						for (String msg : msgs) {
+							logAndSysout(msg);
+						}
+					}
+					if (yarnCluster.hasFailed()) {
+						logAndSysout("YARN cluster is in failed state!");
+						logAndSysout("YARN Diagnostics: " + yarnCluster.getDiagnostics());
 					}
 				}
-				if (yarnCluster.hasFailed()) {
-					logAndSysout("YARN cluster is in failed state!");
-					logAndSysout("YARN Diagnostics: " + yarnCluster.getDiagnostics());
-				}
-			}
 
-			return exitCode;
+				return exitCode;
+			}
+			finally {
+				client.shutdown();
+			}
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -396,12 +405,14 @@ public class CliFrontend {
 			int parallelism = options.getParallelism();
 
 			LOG.info("Creating program plan dump");
-			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName(), parallelism);
-			FlinkPlan flinkPlan = client.getOptimizedPlan(program, parallelism);
+
+			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+
+			FlinkPlan flinkPlan = Client.getOptimizedPlan(compiler, program, parallelism);
 
 			if (webFrontend) {
 				this.optimizedPlan = flinkPlan;
-				this.jobGraph = client.getJobGraph(program, flinkPlan);
+				this.packagedProgram = program;
 			} else {
 				String jsonPlan = new PlanJSONDumpGenerator()
 						.getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
@@ -426,6 +437,8 @@ public class CliFrontend {
 				}
 			}
 			return 0;
+
+
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -624,11 +637,42 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait) {
-		LOG.info("Starting execution of program");
-		JobSubmissionResult execResult;
+	protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
+		JobSubmissionResult result;
 		try {
-			execResult = client.run(program, parallelism, wait);
+			result = client.runDetached(program, parallelism);
+		} catch (ProgramInvocationException e) {
+			return handleError(e);
+		} finally {
+			program.deleteExtractedLibraries();
+		}
+
+		if (result != null) {
+			// if the job has been submitted to a detached YARN cluster, there won't be any
+			// exec results, but the object will be set (for the job id)
+			if (yarnCluster != null && yarnCluster.isDetached()) {
+
+				yarnCluster.stopAfterJob(result.getJobID());
+				yarnCluster.disconnect();
+				if (!webFrontend) {
+					System.out.println("The Job has been submitted with JobID " + result.getJobID());
+				}
+				return 0;
+			} else {
+				throw new RuntimeException("Error while starting job. No Job ID set.");
+			}
+		}
+
+		return 0;
+	}
+
+	protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
+		LOG.info("Starting execution of program");
+
+		JobExecutionResult result;
+		try {
+			client.setPrintStatusDuringExecution(true);
+			result = client.runBlocking(program, parallelism);
 		}
 		catch (ProgramInvocationException e) {
 			return handleError(e);
@@ -637,39 +681,21 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		if(wait) {
-			LOG.info("Program execution finished");
+		LOG.info("Program execution finished");
+
+		if (result != null) {
+			if (!webFrontend) {
+				System.out.println("Job Runtime: " + result.getNetRuntime() + " ms");
+			}
+			Map<String, Object> accumulatorsResult = result.getAllAccumulatorResults();
+			if (accumulatorsResult.size() > 0 && !webFrontend) {
+				System.out.println("Accumulator Results: ");
+				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+			}
+		} else {
+			LOG.info("The Job did not return an execution result");
 		}
 
-		// we come here after the job has finished (or the job has been submitted)
-		if (execResult != null) {
-			// if the job has been submitted to a detached YARN cluster, there won't be any
-			// exec results, but the object will be set (for the job id)
-			if (yarnCluster != null && yarnCluster.isDetached()) {
-				if(execResult.getJobID() == null) {
-					throw new RuntimeException("Error while starting job. No Job ID set.");
-				}
-				yarnCluster.stopAfterJob(execResult.getJobID());
-				yarnCluster.disconnect();
-				if(!webFrontend) {
-					System.out.println("The Job has been submitted with JobID "+execResult.getJobID());
-				}
-				return 0;
-			}
-			if (execResult instanceof JobExecutionResult) {
-				JobExecutionResult result = (JobExecutionResult) execResult;
-				if(!webFrontend) {
-					System.out.println("Job Runtime: " + result.getNetRuntime() + " ms");
-				}
-				Map<String, Object> accumulatorsResult = result.getAllAccumulatorResults();
-				if (accumulatorsResult.size() > 0 && !webFrontend) {
-					System.out.println("Accumulator Results: ");
-					System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
-				}
-			} else {
-				LOG.info("The Job did not return an execution result");
-			}
-		}
 		return 0;
 	}
 
@@ -768,7 +794,6 @@ public class CliFrontend {
 	 * Retrieves a {@link Client} object from the given command line options and other parameters.
 	 *
 	 * @param options Command line options which contain JobManager address
-	 * @param classLoader Class loader to use by the Client
 	 * @param programName Program name
 	 * @param userParallelism Given user parallelism
 	 * @return
@@ -776,12 +801,10 @@ public class CliFrontend {
 	 */
 	protected Client getClient(
 			CommandLineOptions options,
-			ClassLoader classLoader,
 			String programName,
 			int userParallelism)
 		throws Exception {
-		InetSocketAddress jobManagerAddress = null;
-
+		InetSocketAddress jobManagerAddress;
 		int maxSlots = -1;
 
 		if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
@@ -797,14 +820,16 @@ public class CliFrontend {
 
 			// the number of slots available from YARN:
 			int yarnTmSlots = flinkYarnClient.getTaskManagerSlots();
-			if(yarnTmSlots == -1) {
+			if (yarnTmSlots == -1) {
 				yarnTmSlots = 1;
 			}
 			maxSlots = yarnTmSlots * flinkYarnClient.getTaskManagerCount();
-			if(userParallelism != -1) {
+			if (userParallelism != -1) {
 				int slotsPerTM = userParallelism / flinkYarnClient.getTaskManagerCount();
-				logAndSysout("The YARN cluster has "+maxSlots+" slots available, but the user requested a parallelism of "+userParallelism+" on YARN. " +
-						"Each of the "+flinkYarnClient.getTaskManagerCount()+" TaskManagers will get "+slotsPerTM+" slots.");
+				logAndSysout("The YARN cluster has " + maxSlots + " slots available, " +
+						"but the user requested a parallelism of " + userParallelism + " on YARN. " +
+						"Each of the " + flinkYarnClient.getTaskManagerCount() + " TaskManagers " +
+						"will get "+slotsPerTM+" slots.");
 				flinkYarnClient.setTaskManagerSlots(slotsPerTM);
 			}
 
@@ -812,11 +837,12 @@ public class CliFrontend {
 				yarnCluster = flinkYarnClient.deploy();
 				yarnCluster.connectToCluster();
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				throw new RuntimeException("Error deploying the YARN cluster", e);
 			}
 
 			jobManagerAddress = yarnCluster.getJobManagerAddress();
+			writeJobManagerAddressToConfig(jobManagerAddress);
 
 			logAndSysout("YARN cluster started");
 			logAndSysout("JobManager web interface address " + yarnCluster.getWebInterfaceURL());
@@ -848,14 +874,11 @@ public class CliFrontend {
 		else {
 			if(options.getJobManagerAddress() != null) {
 				jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
+				writeJobManagerAddressToConfig(jobManagerAddress);
 			}
 		}
 
-		if(jobManagerAddress != null) {
-			writeJobManagerAddressToConfig(jobManagerAddress);
-		}
-
-		return new Client(config, classLoader, maxSlots);
+		return new Client(config, maxSlots);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -980,8 +1003,8 @@ public class CliFrontend {
 		return this.optimizedPlan;
 	}
 
-	public JobGraph getJobGraph() {
-		return this.jobGraph;
+	public PackagedProgram getPackagedProgram() {
+		return this.packagedProgram;
 	}
 
 	public void shutdown() {

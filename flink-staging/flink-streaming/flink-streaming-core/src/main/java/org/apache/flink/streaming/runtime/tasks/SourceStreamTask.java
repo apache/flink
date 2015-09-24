@@ -29,7 +29,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * One important aspect of this is that the checkpointing and the emission of elements must never
  * occur at the same time. The execution must be serial. This is achieved by having the contract
  * with the StreamFunction that it must only modify its state or emit elements in
- * a synchronized block that locks on the checkpointLock Object. Also, the modification of the state
+ * a synchronized block that locks on the lock Object. Also, the modification of the state
  * and the emission of elements must happen in the same block of code that is protected by the
  * synchronized block.
  *
@@ -52,8 +52,7 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 	protected void run() throws Exception {
 		final Object checkpointLock = getCheckpointLock();
 		
-		final SourceOutput<StreamRecord<OUT>> output = 
-				new SourceOutput<StreamRecord<OUT>>(outputHandler.getOutput(), checkpointLock);
+		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<>(outputHandler.getOutput(), checkpointLock);
 		
 		streamOperator.run(checkpointLock, output);
 	}
@@ -65,11 +64,18 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 
 	// ------------------------------------------------------------------------
 	
-	// TODO:
-	// does this help with anything? The losk should be already held by the source function that
-	// emits. If that one does not hold the lock, then this does not help either.
-	
-	private static class SourceOutput<T> implements Output<T> {
+	/**
+	 * Special output for sources that ensures that sources synchronize on  the lock object before
+	 * emitting elements.
+	 *
+	 * <p>
+	 * This is required to ensure that no concurrent method calls on operators later in the chain
+	 * can occur. When operators register a timer the timer callback is synchronized
+	 * on the same lock object.
+	 *
+	 * @param <T> The type of elements emitted by the source.
+	 */
+	private class SourceOutput<T> implements Output<T> {
 		
 		private final Output<T> output;
 		private final Object lockObject;
@@ -89,6 +95,9 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 		@Override
 		public void collect(T record) {
 			synchronized (lockObject) {
+				if (timerException != null) {
+					throw timerException;
+				}
 				output.collect(record);
 			}
 		}

@@ -21,6 +21,7 @@ angular.module('flinkApp')
 .service 'JobsService', ($http, flinkConfig, $log, amMoment, $q, $timeout) ->
   currentJob = null
   currentPlan = null
+
   deferreds = {}
   jobs = {
     running: []
@@ -66,24 +67,33 @@ angular.module('flinkApp')
       when 'total' then 'black'
       else 'default'
 
+  @setEndTimes = (list) ->
+    angular.forEach list, (item, jobKey) ->
+      unless item['end-time'] > -1
+        item['end-time'] = item['start-time'] + item['duration']
+
+  @processVertices = (data) ->
+    angular.forEach data.vertices, (vertex, i) ->
+      vertex.type = 'regular'
+
+    data.vertices.unshift({
+      name: 'Scheduled'
+      'start-time': data.timestamps['CREATED']
+      'end-time': data.timestamps['CREATED'] + 1
+      type: 'scheduled'
+    })
+
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.newServer + "/jobs"
-    .success (data, status, headers, config) ->
-
-      angular.forEach data, (list, listKey) ->
-
+    $http.get flinkConfig.jobServer + "/joboverview"
+    .success (data, status, headers, config) =>
+      angular.forEach data, (list, listKey) =>
         switch listKey
-          when 'jobs-running' then jobs.running = list
-          when 'jobs-finished' then jobs.finished = list
-          when 'jobs-cancelled' then jobs.cancelled = list
-          when 'jobs-failed' then jobs.failed = list
-
-        angular.forEach list, (jobid, index) ->
-          $http.get flinkConfig.newServer + "/jobs/" + jobid
-          .success (details) ->
-            list[index] = details
+          when 'running' then jobs.running = @setEndTimes(list)
+          when 'finished' then jobs.finished = @setEndTimes(list)
+          when 'cancelled' then jobs.cancelled = @setEndTimes(list)
+          when 'failed' then jobs.failed = @setEndTimes(list)
 
       deferred.resolve(jobs)
       notifyObservers()
@@ -100,43 +110,23 @@ angular.module('flinkApp')
     currentJob = null
     deferreds.job = $q.defer()
 
-    $http.get flinkConfig.newServer + "/jobs/" + jobid
-    .success (data, status, headers, config) ->
-      data.time = Date.now()
+    $http.get flinkConfig.jobServer + "/jobs/" + jobid
+    .success (data, status, headers, config) =>
+      @setEndTimes(data.vertices)
+      @processVertices(data)
 
-      $http.get flinkConfig.newServer + "/jobs/" + jobid + "/vertices"
-      .success (vertices) ->
-        data = angular.extend(data, vertices)
+      $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
+      .success (jobConfig) ->
+        data = angular.extend(data, jobConfig)
 
-        $http.get flinkConfig.jobServer + "/jobsInfo?get=job&job=" + jobid
-        .success (oldVertices) ->
-          data.oldV = oldVertices[0]
+        currentJob = data
 
-          $http.get flinkConfig.jobServer + "/jobs/" + jobid + "/config"
-          .success (jobConfig) ->
-            data = angular.extend(data, jobConfig)
-
-            currentJob = data
-            deferreds.job.resolve(data)
+        deferreds.job.resolve(currentJob)
 
     deferreds.job.promise
 
-  @loadPlan = (jobid) ->
-    currentPlan = null
-    deferreds.plan = $q.defer()
-
-    $http.get flinkConfig.newServer + "/jobs/" + jobid + "/plan"
-    .success (data) ->
-      currentPlan = data
-
-      deferreds.plan.resolve(data)
-
-    deferreds.plan.promise
-
   @getNode = (nodeid) ->
     seekNode = (nodeid, data) ->
-      nodeid = parseInt(nodeid)
-
       for node in data
         return node if node.id is nodeid
         sub = seekNode(nodeid, node.step_function) if node.step_function
@@ -146,31 +136,78 @@ angular.module('flinkApp')
 
     deferred = $q.defer()
 
-    # if currentPlan
-    #   deferred.resolve(seekNode(nodeid, currentPlan.nodes))
-    # else
-    #   # deferreds.plan.promise.then (data) ->
-    #   $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) ->
-    #     console.log 'resolving getNode'
-    #     deferred.resolve(seekNode(nodeid, currentPlan.nodes))
+    deferreds.job.promise.then (data) =>
+      foundNode = seekNode(nodeid, currentJob.plan.nodes)
 
-    $q.all([deferreds.plan.promise, deferreds.job.promise]).then (data) =>
-      foundNode = seekNode(nodeid, currentPlan.nodes)
+      foundNode.vertex = @seekVertex(nodeid)
 
-      # TODO link to real vertex. for now there is no way to get the right one, so we are showing the first one - just for testing
-      @getVertex(currentJob.jid, currentJob.oldV.groupvertices[0].groupvertexid).then (vertex) ->
-        foundNode.vertex = vertex
-        deferred.resolve(foundNode)
+      deferred.resolve(foundNode)
 
     deferred.promise
 
+  @seekVertex = (nodeid) ->
+    for vertex in currentJob.vertices
+      return vertex if vertex.id is nodeid
 
-  @getVertex = (jobId, vertexId) ->
+    return null
+
+  @getVertex = (vertexid) ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "/jobsInfo?get=groupvertex&job=" + jobId + "&groupvertex=" + vertexId
-    .success (data) ->
-      deferred.resolve(data)
+    deferreds.job.promise.then (data) =>
+      vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
+      .success (data) =>
+        # TODO: change to subtasktimes
+        vertex.subtasks = data.subtasks
+
+        deferred.resolve(vertex)
+
+    deferred.promise
+
+  @getSubtasks = (vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      # vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid
+      .success (data) ->
+        subtasks = data.subtasks
+
+        deferred.resolve(subtasks)
+
+    deferred.promise
+
+  @getAccumulators = (vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      # vertex = @seekVertex(vertexid)
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
+      .success (data) ->
+        accumulators = data['user-accumulators']
+
+        $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
+        .success (data) ->
+          subtaskAccumulators = data.subtasks
+
+          deferred.resolve({ main: accumulators, subtasks: subtaskAccumulators })
+
+    deferred.promise
+
+  @loadExceptions = ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+
+      $http.get flinkConfig.jobServer + "/jobs/" + currentJob.jid + "/exceptions"
+      .success (exceptions) ->
+        currentJob.exceptions = exceptions
+
+        deferred.resolve(exceptions)
 
     deferred.promise
 

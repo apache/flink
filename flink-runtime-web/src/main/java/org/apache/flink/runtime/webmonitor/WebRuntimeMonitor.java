@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
-import com.google.common.base.Preconditions;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -38,15 +38,24 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
-import org.apache.flink.runtime.webmonitor.handlers.ExecutionPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobSummaryHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobVerticesOverviewHandler;
-import org.apache.flink.runtime.webmonitor.handlers.RequestConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobsOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobVertexDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
-import org.apache.flink.runtime.webmonitor.handlers.RequestJobIdsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.RequestOverviewHandler;
-import org.apache.flink.runtime.webmonitor.legacy.JobManagerInfoHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobIdsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ClusterOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.SubtaskCurrentAttemptDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.SubtasksAllAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
+import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,19 +67,21 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
- * The root component of the web runtime monitor.
- * 
- * <p>The web runtime monitor is based in Netty HTTP. It uses the Netty-Router library to route
+ * The root component of the web runtime monitor. This class starts the web server and creates
+ * all request handlers for the REST API.
+ * <p>
+ * The web runtime monitor is based in Netty HTTP. It uses the Netty-Router library to route
  * HTTP requests of different paths to different response handlers. In addition, it serves the static
- * files of the web frontend, such as HTML, CSS, or JS files.</p>
+ * files of the web frontend, such as HTML, CSS, or JS files.
  */
 public class WebRuntimeMonitor implements WebMonitor {
 
+	/** By default, all requests to the JobManager have a timeout of 10 seconds */ 
 	public static final FiniteDuration DEFAULT_REQUEST_TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
 	
-	public static final long DEFAULT_REFRESH_INTERVAL = 5000;
-
 	/** Logger for web frontend startup / shutdown messages */
 	private static final Logger LOG = LoggerFactory.getLogger(WebRuntimeMonitor.class);
 	
@@ -79,37 +90,37 @@ public class WebRuntimeMonitor implements WebMonitor {
 	
 	// ------------------------------------------------------------------------
 	
+	/** Guarding concurrent modifications to the server channel pipeline during startup and shutdown */
 	private final Object startupShutdownLock = new Object();
 
 	private final LeaderRetrievalService leaderRetrievalService;
 
 	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
 	private final JobManagerArchiveRetriever retriever;
+	
+	private final Router router;
 
 	private final int configuredPort;
-
-	private final Router router;
 
 	private ServerBootstrap bootstrap;
 	
 	private Channel serverChannel;
 
-	// ------------------------------------------------------------------------
-
+	
 	public WebRuntimeMonitor(
-			Configuration config,
-			LeaderRetrievalService leaderRetrievalService,
-			ActorSystem actorSystem)
-		throws IOException {
-		Preconditions.checkNotNull(config);
-		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
-
-		// figure out where our static contents is
-		final String configuredWebRoot = config.getString(ConfigConstants.JOB_MANAGER_WEB_DOC_ROOT_KEY, null);
-		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
-
-		final File webRootDir;
+				Configuration config,
+				LeaderRetrievalService leaderRetrievalService,
+				ActorSystem actorSystem) throws IOException
+	{
+		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 		
+		final WebMonitorConfig cfg = new WebMonitorConfig(config);
+		
+		// figure out where our static contents is
+		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
+		final String configuredWebRoot = cfg.getWebRoot();
+		
+		final File webRootDir;
 		if (configuredWebRoot != null) {
 			webRootDir = new File(configuredWebRoot);
 		}
@@ -118,7 +129,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 		else {
 			throw new IllegalConfigurationException("The given configuration provides neither the web-document root (" 
-					+ ConfigConstants.JOB_MANAGER_WEB_DOC_ROOT_KEY + "), not the Flink installation root ("
+					+ WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY + "), not the Flink installation root ("
 					+ ConfigConstants.FLINK_BASE_DIR_PATH_KEY + ").");
 		}
 		
@@ -129,8 +140,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 		
 		// port configuration
-		this.configuredPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		this.configuredPort = cfg.getWebFrontendPort();
 		if (this.configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + this.configuredPort);
 		}
@@ -139,27 +149,41 @@ public class WebRuntimeMonitor implements WebMonitor {
 		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
 
 		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
-
+		
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(retriever);
 
 		router = new Router()
 			// config how to interact with this web server
-			.GET("/config", handler(new RequestConfigHandler(DEFAULT_REFRESH_INTERVAL)))
+			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
 
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new RequestOverviewHandler(retriever)))
+			.GET("/overview", handler(new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
-			// currently running jobs
-			.GET("/jobs", handler(new RequestJobIdsHandler(retriever)))
-			.GET("/jobs/:jobid", handler(new JobSummaryHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices", handler(new JobVerticesOverviewHandler(currentGraphs)))
-			.GET("/jobs/:jobid/plan", handler(new ExecutionPlanHandler(currentGraphs)))
+			// overview over jobs
+			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true)))
+			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false)))
+			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true)))
+
+			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+
+			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
+
+			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs)))
+
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs)))
+
+			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs)))
 			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
+			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs)))
 
-//			.GET("/running/:jobid/:jobvertex", handler(new ExecutionPlanHandler(currentGraphs)))
-
-			// the handler for the legacy requests
-			.GET("/jobsInfo", new JobManagerInfoHandler(retriever, DEFAULT_REQUEST_TIMEOUT))
+			.GET("/taskmanagers", handler(new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));
@@ -171,13 +195,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 			if (this.bootstrap != null) {
 				throw new IllegalStateException("The server has already been started");
 			}
-
-			final Handler handler = new Handler(router);
-
+			
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-
+	
 				@Override
 				protected void initChannel(SocketChannel ch) {
+					Handler handler = new Handler(router);
+					
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new HttpObjectAggregator(65536))
@@ -188,7 +212,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			
 			NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
 			NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-
+	
 			this.bootstrap = new ServerBootstrap();
 			this.bootstrap
 					.group(bossGroup, workerGroup)
@@ -197,7 +221,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	
 			Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
 			this.serverChannel = ch;
-
+			
 			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
@@ -212,7 +236,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	public void stop() throws Exception {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.stop();
-
+			
 			if (this.serverChannel != null) {
 				this.serverChannel.close().awaitUninterruptibly();
 				this.serverChannel = null;

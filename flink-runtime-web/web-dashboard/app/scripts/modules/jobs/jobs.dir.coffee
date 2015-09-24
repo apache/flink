@@ -27,67 +27,68 @@ angular.module('flinkApp')
     data: "="
 
   link: (scope, elem, attrs) ->
-    zoom = d3.behavior.zoom()
     svgEl = elem.children()[0]
 
     containerW = elem.width()
-    angular.element(svgEl).attr('width', containerW - 16)
+    angular.element(svgEl).attr('width', containerW)
 
     analyzeTime = (data) ->
+      d3.select(svgEl).selectAll("*").remove()
+
       testData = []
 
-      angular.forEach data.groupvertex.groupmembers, (vertex, i) ->
-        vTime = data.verticetimes[vertex.vertexid]
+      angular.forEach data.subtasks, (subtask, i) ->
+        times = [
+          {
+            label: "Scheduled"
+            color: "#666"
+            borderColor: "#555"
+            starting_time: subtask.timestamps["SCHEDULED"]
+            ending_time: subtask.timestamps["DEPLOYING"]
+            type: 'regular'
+          }
+          {
+            label: "Deploying"
+            color: "#aaa"
+            borderColor: "#555"
+            starting_time: subtask.timestamps["DEPLOYING"]
+            ending_time: subtask.timestamps["RUNNING"]
+            type: 'regular'
+          }
+        ]
+
+        if subtask.timestamps["FINISHED"] > 0
+          times.push {
+            label: "Running"
+            color: "#ddd"
+            borderColor: "#555"
+            starting_time: subtask.timestamps["RUNNING"]
+            ending_time: subtask.timestamps["FINISHED"]
+            type: 'regular'
+          }
 
         testData.push {
-          label: "#{vertex.vertexinstancename} (#{i})"
-          times: [
-            {
-              label: "Scheduled"
-              color: "#666"
-              starting_time: vTime["SCHEDULED"] * 100
-              ending_time: vTime["DEPLOYING"] * 100
-            }
-            {
-              label: "Deploying"
-              color: "#aaa"
-              starting_time: vTime["DEPLOYING"] * 100
-              ending_time: vTime["RUNNING"] * 100
-            }
-            {
-              label: "Running"
-              color: "#ddd"
-              starting_time: vTime["RUNNING"] * 100
-              ending_time: vTime["FINISHED"] * 100
-            }
-          ]
+          label: "(#{subtask.subtask}) #{subtask.host}"
+          times: times
         }
 
-      chart = d3.timeline().stack().tickFormat({
-        format: d3.time.format("%S"),
-        # tickTime: d3.time.milliseconds,
-        tickInterval: 1,
+      chart = d3.timeline().stack()
+      .tickFormat({
+        format: d3.time.format("%L")
+        # tickInterval: 1
         tickSize: 1
-      }).labelFormat((label) ->
+      })
+      .prefix("single")
+      .labelFormat((label) ->
         label
-      ).margin({ left: 100, right: 0, top: 0, bottom: 0 })
+      )
+      .margin({ left: 100, right: 0, top: 0, bottom: 0 })
+      .itemHeight(30)
+      .relativeTime()
 
       svg = d3.select(svgEl)
       .datum(testData)
       .call(chart)
-      .call(zoom)
-
-      svgG = svg.select("g")
-
-      zoom.on("zoom", ->
-        ev = d3.event
-
-        svgG.selectAll('rect').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-        svgG.selectAll('text').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-      )
-
-      bbox = svgG[0][0].getBBox()
-      svg.attr('height', bbox.height + 30)
 
     analyzeTime(scope.data)
 
@@ -99,60 +100,69 @@ angular.module('flinkApp')
   template: "<svg class='timeline' width='0' height='0'></svg>"
 
   scope:
-    job: "="
+    vertices: "="
+    jobid: "="
 
   link: (scope, elem, attrs) ->
-    zoom = d3.behavior.zoom()
     svgEl = elem.children()[0]
 
     containerW = elem.width()
-    angular.element(svgEl).attr('width', containerW - 16)
+    angular.element(svgEl).attr('width', containerW)
+
+    translateLabel = (label) ->
+      label.replace("&gt;", ">")
 
     analyzeTime = (data) ->
+      d3.select(svgEl).selectAll("*").remove()
+
       testData = []
 
-      angular.forEach data.oldV.groupvertices, (vertex) ->
-        vTime = data.oldV.groupverticetimes[vertex.groupvertexid]
-
-        # console.log vTime, vertex.groupvertexid
-
-        testData.push 
-          times: [
-            label: vertex.groupvertexname
-            color: "#3fb6d8"
-            starting_time: vTime["STARTED"]
-            ending_time: vTime["ENDED"]
-            link: vertex.groupvertexid
-          ]
+      angular.forEach data, (vertex) ->
+        if vertex['start-time'] > -1
+          if vertex.type is 'scheduled'
+            testData.push 
+              times: [
+                label: translateLabel(vertex.name)
+                color: "#cccccc"
+                borderColor: "#555555"
+                starting_time: vertex['start-time']
+                ending_time: vertex['end-time']
+                type: vertex.type
+              ]
+          else
+            testData.push 
+              times: [
+                label: translateLabel(vertex.name)
+                color: "#d9f1f7"
+                borderColor: "#62cdea"
+                starting_time: vertex['start-time']
+                ending_time: vertex['end-time']
+                link: vertex.id
+                type: vertex.type
+              ]
 
       chart = d3.timeline().stack().click((d, i, datum) ->
-        $state.go "single-job.timeline.vertex", { jobid: data.jid, vertexId: d.link }
+        if d.link
+          $state.go "single-job.timeline.vertex", { jobid: scope.jobid, vertexId: d.link }
 
-      ).tickFormat({
-        format: d3.time.format("%S")
-        # tickTime: d3.time.milliseconds
-        tickInterval: 1
+      )
+      .tickFormat({
+        format: d3.time.format("%L")
+        # tickTime: d3.time.second
+        # tickInterval: 0.5
         tickSize: 1
-      }).margin({ left: 0, right: 0, top: 0, bottom: 0 })
+      })
+      .prefix("main")
+      .margin({ left: 0, right: 0, top: 0, bottom: 0 })
+      .itemHeight(30)
+      .showBorderLine()
+      .showHourTimeline()
 
       svg = d3.select(svgEl)
       .datum(testData)
       .call(chart)
-      .call(zoom)
 
-      svgG = svg.select("g")
-
-      zoom.on("zoom", ->
-        ev = d3.event
-
-        svgG.selectAll('rect').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-        svgG.selectAll('text').attr("transform", "translate(" + ev.translate[0] + ",0) scale(" + ev.scale + ",1)")
-      )
-
-      bbox = svgG[0][0].getBBox()
-      svg.attr('height', bbox.height + 30)
-
-    scope.$watch attrs.job, (data) ->
+    scope.$watch attrs.vertices, (data) ->
       analyzeTime(data) if data
 
     return
@@ -170,8 +180,10 @@ angular.module('flinkApp')
 
   scope:
     plan: '='
+    setNode: '&'
 
   link: (scope, elem, attrs) ->
+    g = null
     mainZoom = d3.behavior.zoom()
     subgraphs = []
     jobid = attrs.jobid
@@ -185,6 +197,7 @@ angular.module('flinkApp')
     d3tmpSvg = d3.select(mainTmpElement)
 
     # angular.element(mainG).empty()
+    # d3mainSvgG.selectAll("*").remove()
 
     containerW = elem.width()
     angular.element(elem.children()[0]).width(containerW)
@@ -239,26 +252,22 @@ angular.module('flinkApp')
         'node-iteration'
 
       else
-        if el.pact is "Data Source"
-          'node-source'
-        else if el.pact is "Data Sink"
-          'node-sink'
-        else
           'node-normal'
       
     # creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
     createLabelNode = (el, info, maxW, maxH) ->
-      labelValue = "<a href='#/jobs/" + jobid + "/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
+      # labelValue = "<a href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
+      labelValue = "<div href='#/jobs/" + jobid + "/vertex/" + el.id + "' class='node-label " + getNodeType(el, info) + "'>"
 
       # Nodename
       if info is "mirror"
-        labelValue += "<h3 class='node-name'>Mirror of " + el.pact + "</h3>"
+        labelValue += "<h3 class='node-name'>Mirror of " + el.operator + "</h3>"
       else
-        labelValue += "<h3 class='node-name'>" + el.pact + "</h3>"
-      if el.contents is ""
+        labelValue += "<h3 class='node-name'>" + el.operator + "</h3>"
+      if el.description is ""
         labelValue += ""
       else
-        stepName = el.contents
+        stepName = el.description
         
         # clean stepName
         stepName = shortenString(stepName)
@@ -272,9 +281,10 @@ angular.module('flinkApp')
         # Otherwise add infos    
         labelValue += "<h5>" + info + " Node</h5>"  if isSpecialIterationNode(info)
         labelValue += "<h5>Parallelism: " + el.parallelism + "</h5>"  unless el.parallelism is ""
-        labelValue += "<h5>Driver Strategy: " + shortenString(el.driver_strategy) + "</h5"  unless el.driver_strategy is `undefined`
+        labelValue += "<h5>Operation: " + shortenString(el.operator_strategy) + "</h5>"  unless el.operator is `undefined`
       
-      labelValue += "</a>"
+      # labelValue += "</a>"
+      labelValue += "</div>"
       labelValue
 
     # Extends the label of a node with an additional svg Element to present the iteration.
@@ -341,7 +351,7 @@ angular.module('flinkApp')
           labelType: 'html'
           class: getNodeType(el, "")
 
-    createEdge = (g, data, el, existingNodes, pred) ->
+    createEdge = (g, data, el, existingNodes, pred, missingNodes) ->
       unless existingNodes.indexOf(pred.id) is -1
         g.setEdge pred.id, el.id,
           label: createLabelEdge(pred)
@@ -350,8 +360,9 @@ angular.module('flinkApp')
 
       else
         missingNode = searchForNode(data, pred.id)
-        unless !missingNode or missingNode.alreadyAdded is true
-          missingNode.alreadyAdded = true
+
+        unless !missingNode or missingNodes.indexOf(missingNode.id) > -1
+          missingNodes.push(missingNode.id)
           g.setNode missingNode.id,
             label: createLabelNode(missingNode, "mirror")
             labelType: 'html'
@@ -363,6 +374,7 @@ angular.module('flinkApp')
 
     loadJsonToDagre = (g, data) ->
       existingNodes = []
+      missingNodes = []
 
       if data.nodes?
         # This is the normal json data
@@ -402,10 +414,10 @@ angular.module('flinkApp')
 
         existingNodes.push el.id
         
-        # create edges from predecessors to current node
-        if el.predecessors?
-          for pred in el.predecessors
-            createEdge(g, data, el, existingNodes, pred)
+        # create edges from inputs to current node
+        if el.inputs?
+          for pred in el.inputs
+            createEdge(g, data, el, existingNodes, pred, missingNodes)
 
       g
 
@@ -452,6 +464,9 @@ angular.module('flinkApp')
         d3mainSvgG.attr "transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")"
       )
       mainZoom(d3mainSvg)
+
+      d3mainSvgG.selectAll('.node').on 'click', (d) ->
+        scope.setNode({ nodeid: d })
 
     scope.$watch attrs.plan, (newPlan) ->
       drawGraph(newPlan) if newPlan

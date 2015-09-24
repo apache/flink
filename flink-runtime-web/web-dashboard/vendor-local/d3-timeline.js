@@ -37,18 +37,16 @@
         itemHeight = 20,
         itemMargin = 5,
         showTimeAxis = true,
-        showTodayLine = false,
         timeAxisTick = false,
         timeAxisTickFormat = {stroke: "stroke-dasharray", spacing: "4 10"},
-        showTodayFormat = {marginTop: 25, marginBottom: 0, width: 1, color: colorCycle},
         showBorderLine = false,
-        showBorderFormat = {marginTop: 25, marginBottom: 0, width: 1, color: colorCycle}
+        showHourTimeline = false,
+        showBorderFormat = {marginTop: 25, marginBottom: 0, width: 1, color: colorCycle},
+        prefix = 'timeline'
       ;
 
     function timeline (gParent) {
-      var g = gParent.append("g");
       var gParentSize = gParent[0][0].getBoundingClientRect();
-
       var gParentItem = d3.select(gParent[0][0]);
 
       var yAxisMapping = {},
@@ -57,6 +55,18 @@
         maxTime = 0;
 
       setWidth();
+
+      var gClip = gParent.append("svg:clipPath")
+        .attr("id", prefix + "-gclip")
+        .append("svg:rect")
+        .attr("clipPathUnits","objectBoundingBox")
+        .attr("x", margin.left)
+        .attr("y", margin.top)
+        .attr('width', width - margin.left - margin.right)
+        .attr("height", 1000);
+
+      var g = gParent.append("g")
+        .attr("clip-path", "url(#" + prefix + "-gclip" + ")")
 
       // check if the user wants relative time
       // if so, substract the first timestamp from each subsequent timestamps
@@ -109,7 +119,7 @@
         }
       }
 
-      var scaleFactor = (1/(ending - beginning)) * (width - margin.left - margin.right);
+      // var scaleFactor = (1/(ending - beginning)) * (width - margin.left - margin.right);
 
       // draw the axis
       var xScale = d3.time.scale()
@@ -123,16 +133,34 @@
         .ticks(tickFormat.numTicks || tickFormat.tickTime, tickFormat.tickInterval)
         .tickSize(tickFormat.tickSize);
 
+      if (showHourTimeline) {
+        var xAxis2 = d3.svg.axis()
+          .scale(xScale)
+          .orient(orient)
+          .tickFormat(d3.time.format("%X"))
+          .ticks(tickFormat.numTicks || tickFormat.tickTime, tickFormat.tickInterval)
+          .tickSize(0);
+      }
+
       if (showTimeAxis) {
+        var axisOffsetY = margin.top + (itemHeight + itemMargin) * maxStack;
+
         g.append("g")
           .attr("class", "axis")
-          .attr("transform", "translate(" + 0 +","+(margin.top + (itemHeight + itemMargin) * maxStack)+")")
+          .attr("transform", "translate(" + 0 +","+axisOffsetY+")")
           .call(xAxis);
+
+        if (showHourTimeline) {
+          g.append("g")
+            .attr("class", "axis-hour")
+            .attr("transform", "translate(" + 0 +","+(axisOffsetY + 20)+")")
+            .call(xAxis2);         
+        }
       }
 
       if (timeAxisTick) {
         g.append("g")
-          .attr("class", "axis")
+          .attr("class", "axis axis-tick")
           .attr("transform", "translate(" + 0 +","+
             (margin.top + (itemHeight + itemMargin) * maxStack)+")")
           .attr(timeAxisTickFormat.stroke, timeAxisTickFormat.spacing)
@@ -170,24 +198,40 @@
             ;
           }
 
-          g.selectAll("svg").data(data).enter()
+          var nel = g.selectAll("svg").data(data).enter().append("g")
+            .attr("class", function(d, i) { return "bar-container bar-type-" + d.type; } )
+            .attr("width", getBarWidth);
+
+          if (data[0].type != "scheduled") {
+            nel
+              .append("svg:clipPath")
+              .attr("id", prefix + "-timeline-textclip-" + i + "-" + index)
+              .attr("class", "timeline-clip")
+              .append("svg:rect")
+              .attr("clipPathUnits","objectBoundingBox")
+              .attr("x", getXPos)
+              .attr("y", getStackPosition)
+              .attr("width", getTextWidth)
+              .attr("height", itemHeight);
+          }
+
+          var bar = nel
             .append(function(d, i) {
-                return document.createElementNS(d3.ns.prefix.svg, "display" in d? d.display:display);
+              return document.createElementNS(d3.ns.prefix.svg, "display" in d? d.display:display);
             })
             .attr("x", getXPos)
             .attr("y", getStackPosition)
-            .attr("width", function (d, i) {
-              return (d.ending_time - d.starting_time) * scaleFactor;
-            })
+            .attr("rx", 5)
+            .attr("ry", 5)
+            .attr("width", getBarWidth)
             .attr("cy", function(d, i) {
                 return getStackPosition(d, i) + itemHeight/2;
             })
             .attr("cx", getXPos)
             .attr("r", itemHeight / 2)
             .attr("height", itemHeight)
-            // .style("fill", function(d, i) {
-            //   return "#ffffff";
-            // })
+            .style("stroke", function(d, i){ return d.borderColor; })
+            .style("stroke-width", 1)
             .style("fill", function(d, i){
               var dColorPropName;
               if (d.color) return d.color;
@@ -224,17 +268,15 @@
               
               return d.id ? d.id : "timelineItem_"+index+"_"+i;
             })
-          ;
 
-          g.selectAll("svg").data(data).enter()
+          var barText = nel
             .append("text")
             .attr("class", "timeline-insidelabel")
             .attr("x", getXTextPos)
             .attr("y", getStackTextPosition)
-            .attr("width", function (d, i) {
-              // console.log((d.ending_time - d.starting_time) * scaleFactor);
-              return (d.ending_time - d.starting_time) * scaleFactor;
-            })
+            // .attr("width", getTextWidth)
+            .attr("height", itemHeight)
+            .attr("clip-path", "url(#" + prefix + "-timeline-textclip-" + i + "-" + index + ")")
             .text(function(d) {
               return d.label;
             })
@@ -242,6 +284,26 @@
               click(d, index, datum);
             });
           ;
+
+          if (data[0].type == "scheduled") {
+            bar.attr('width', barText.node().getComputedTextLength() + 10);
+          }
+
+          g.selectAll("svg .bar-container").each(function(d, i) {
+            $(this).qtip({
+              content: {
+                text: d.label
+              },
+              position: {
+                my: 'bottom left',
+                at: 'top left'
+              },
+              style: {
+                classes: 'qtip-light qtip-timeline-bar'
+              }
+            });
+          });
+
 
           if (rowSeperatorsColor) {
             var lineYAxis = ( itemHeight + itemMargin / 2 + margin.top + (itemHeight + itemMargin) * yAxisMapping[index]);
@@ -254,6 +316,31 @@
               .attr("stroke-width", 1)
               .attr("stroke", rowSeperatorsColor);
             ;
+          }
+
+          if (showBorderLine) {
+            if (data[0].type == "scheduled") {
+              g.selectAll("svg").data(data).enter().append("svg:line")
+                .attr("class", "line-" + 'start')
+                .attr("x1", getBorderStart)
+                .attr("y1", getStackBorderPosition)
+                .attr("x2", getBorderStart)
+                .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
+                .style("stroke", function(d, i) { return d.color; })
+                .style("stroke-width", showBorderFormat.width);
+            }
+
+            // if (data[0].type != "scheduled") {
+            if (false) {
+              g.selectAll("svg").data(data).enter().append("svg:line")
+                .attr("class", "line-" + 'end')
+                .attr("x1", getBorderEnd)
+                .attr("y1", getStackPosition)
+                .attr("x2", getBorderEnd)
+                .attr("y2", margin.top + (itemHeight + itemMargin) * maxStack)
+                .style("stroke", function(d, i) { return d.color; })
+                .style("stroke-width", showBorderFormat.width);
+            }
           }
 
           // add the label
@@ -284,27 +371,66 @@
           }
           function getStackTextPosition(d, i) {
             if (stacked) {
-              return margin.top + (itemHeight + itemMargin) * yAxisMapping[index] + itemHeight * 0.75;
+              return margin.top + (itemHeight + itemMargin) * yAxisMapping[index] + itemHeight * 0.65;
             }
-            return margin.top + itemHeight * 0.75;
+            return margin.top + itemHeight * 0.65;
+          }
+          function getStackBorderPosition(d, i) {
+            if (stacked) {
+              return margin.top + (itemHeight + itemMargin) * yAxisMapping[index] + itemHeight - 3;
+            }
+            return margin.top + itemHeight - 3;
           }
         });
       });
 
-      if (width > gParentSize.width) {
-        var move = function() {
-          var x = Math.min(0, Math.max(gParentSize.width - width, d3.event.translate[0]));
-          zoom.translate([x, 0]);
-          g.attr("transform", "translate(" + x + ",0)");
-          scroll(x*scaleFactor, xScale);
-        };
+      var move = function() {
+        $('.qtip.qtip-timeline-bar').qtip('hide');
 
-        var zoom = d3.behavior.zoom().x(xScale).on("zoom", move);
+        g.selectAll(".bar-type-scheduled .timeline-series")
+          .attr("x", getXPos);
 
-        gParent
-          .attr("class", "scrollable")
-          .call(zoom);
-      }
+        g.selectAll(".bar-type-regular .timeline-series")
+          .attr("x", getXPos)
+          .attr("width", getBarWidth);
+
+        g.selectAll(".timeline-insidelabel")
+          .attr("x", getXTextPos);
+          // .attr("width", getTextWidth);
+
+        // g.selectAll(".timeline-clip")
+        //   .attr("x", getXPos)
+        //   .attr("width", getTextWidth);
+
+        g.selectAll(".bar-type-scheduled .timeline-clip").select('rect')
+          .attr("x", getXPos);
+
+        g.selectAll(".bar-type-regular .timeline-clip").select('rect')
+          .attr("x", getXPos)
+          .attr("width", getTextWidth);
+
+        g.selectAll("g.axis")
+          .call(xAxis);
+
+        if (showHourTimeline) {
+          g.selectAll("g.axis-hour")
+            .call(xAxis2);
+        }
+
+        if (showBorderLine) {
+          g.selectAll("line.line-start")
+            .attr("x1", getBorderStart)
+            .attr("x2", getBorderStart);
+
+          g.selectAll("line.line-end")
+            .attr("x1", getBorderEnd)
+            .attr("x2", getBorderEnd);
+        }
+      };
+
+      var zoom = d3.behavior.zoom().x(xScale).on("zoom", move);
+
+      gParent.call(zoom);
 
       if (rotateTicks) {
         g.selectAll(".tick text")
@@ -318,29 +444,35 @@
       var gSize = g[0][0].getBoundingClientRect();
       setHeight();
 
-      if (showBorderLine) {
-        g.each(function (d, i) {
-          d.forEach(function (datum) {
-            var times = datum.times;
-            times.forEach(function (time) {
-              appendLine(xScale(time.starting_time), showBorderFormat);
-              appendLine(xScale(time.ending_time), showBorderFormat);
-            });
-          });
-        });
+      bbox = g[0][0].getBBox();
+      gParent.attr('height', bbox.height + 40);
+
+      function getBorderStart(d, i) {
+        return xScale(d.starting_time);
       }
 
-      if (showTodayLine) {
-        var todayLine = xScale(new Date());
-        appendLine(todayLine, showTodayFormat);
+      function getBorderEnd(d, i) {
+        return xScale(d.ending_time);
       }
 
       function getXPos(d, i) {
-        return margin.left + (d.starting_time - beginning) * scaleFactor;
+        // return margin.left + (d.starting_time - beginning) * scaleFactor;
+        return xScale(d.starting_time);
       }
 
       function getXTextPos(d, i) {
-        return margin.left + (d.starting_time - beginning) * scaleFactor + 5;
+        // return margin.left + (d.starting_time - beginning) * scaleFactor + 5;
+        return xScale(d.starting_time) + 5;
+      }
+
+      function getBarWidth(d, i) {
+        // return (d.ending_time - d.starting_time) * scaleFactor;
+        return xScale(d.ending_time) - xScale(d.starting_time);
+      }
+
+      function getTextWidth(d, i) {
+        var w = xScale(d.ending_time) - xScale(d.starting_time);
+        return  w > 5 ? w - 5 : w;
       }
 
       function setHeight() {
@@ -381,17 +513,6 @@
         }
         // if both are set, do nothing
       }
-
-      function appendLine(lineScale, lineFormat) {
-        gParent.append("svg:line")
-          .attr("x1", lineScale)
-          .attr("y1", lineFormat.marginTop)
-          .attr("x2", lineScale)
-          .attr("y2", height - lineFormat.marginBottom)
-          .style("stroke", lineFormat.color)//"rgb(6,120,155)")
-          .style("stroke-width", lineFormat.width);
-      }
-
     }
 
     // SETTINGS
@@ -447,6 +568,12 @@
     timeline.tickFormat = function (format) {
       if (!arguments.length) return tickFormat;
       tickFormat = format;
+      return timeline;
+    };
+
+    timeline.prefix = function (p) {
+      if (!arguments.length) return prefix;
+      prefix = p;
       return timeline;
     };
 
@@ -518,20 +645,14 @@
         return timeline;
     };
 
+    timeline.showHourTimeline = function () {
+        showHourTimeline = !showHourTimeline;
+        return timeline;
+    };
+
     timeline.showBorderFormat = function(borderFormat) {
       if (!arguments.length) return showBorderFormat;
       showBorderFormat = borderFormat;
-      return timeline;
-    };
-
-    timeline.showToday = function () {
-      showTodayLine = !showTodayLine;
-      return timeline;
-    };
-
-    timeline.showTodayFormat = function(todayFormat) {
-      if (!arguments.length) return showTodayFormat;
-      showTodayFormat = todayFormat;
       return timeline;
     };
 

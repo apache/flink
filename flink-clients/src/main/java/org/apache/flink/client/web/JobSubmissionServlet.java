@@ -1,4 +1,4 @@
-/*
+ /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,9 +36,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.plan.FlinkPlan;
@@ -46,16 +48,12 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 public class JobSubmissionServlet extends HttpServlet {
 
-	/**
-	 * Serial UID for serialization interoperability.
-	 */
 	private static final long serialVersionUID = 8447312301029847397L;
 
 	// ------------------------------------------------------------------------
@@ -86,16 +84,16 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	// ------------------------------------------------------------------------
 
-	private final File jobStoreDirectory;				// the directory containing the uploaded jobs
+	private final File jobStoreDirectory;										// the directory containing the uploaded jobs
 
-	private final File planDumpDirectory;				// the directory to dump the optimizer plans to
+	private final File planDumpDirectory;										// the directory to dump the optimizer plans to
 
-	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
+	private final Map<Long, Tuple2<PackagedProgram, FlinkPlan>> submittedJobs;	// map from UIDs to the submitted jobs
 
-	private final Random rand;							// random number generator for UID
+	private final Random rand;													// random number generator for UID
 
 	private final CliFrontend cli;
-
+	
 
 
 	public JobSubmissionServlet(CliFrontend cli, File jobDir, File planDir) {
@@ -103,7 +101,7 @@ public class JobSubmissionServlet extends HttpServlet {
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
-		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, JobGraph>());
+		this.submittedJobs = Collections.synchronizedMap(new HashMap<Long, Tuple2<PackagedProgram, FlinkPlan>>());
 
 		this.rand = new Random(System.currentTimeMillis());
 	}
@@ -263,7 +261,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					}
 				}
 				else {
-					this.submittedJobs.put(uid, this.cli.getJobGraph());
+					this.submittedJobs.put(uid, new Tuple2<PackagedProgram, FlinkPlan>(this.cli.getPackagedProgram(), optPlan));
 				}
 
 				// redirect to the plan display page
@@ -295,16 +293,17 @@ public class JobSubmissionServlet extends HttpServlet {
 				return;
 			}
 
-			Long uid = null;
+			Long uid;
 			try {
 				uid = Long.parseLong(id);
-			} catch (NumberFormatException nfex) {
+			}
+			catch (NumberFormatException nfex) {
 				showErrorPage(resp, "An invalid id for the job was provided.");
 				return;
 			}
 
 			// get the retained job
-			JobGraph job = submittedJobs.remove(uid);
+			Tuple2<PackagedProgram, FlinkPlan> job = submittedJobs.remove(uid);
 			if (job == null) {
 				resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
 					"No job with the given uid was retained for later submission.");
@@ -313,8 +312,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				Client client = new Client(GlobalConfiguration.getConfiguration(), getClass().getClassLoader());
-				client.run(job, false);
+				Client client = new Client(GlobalConfiguration.getConfiguration());
+				client.runDetached(Client.getJobGraph(job.f0, job.f1), job.f0.getUserCodeClassLoader());
 			}
 			catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
@@ -328,7 +327,8 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// redirect to the start page
 			resp.sendRedirect(START_PAGE_URL);
-		} else if (action.equals(ACTION_BACK_VALUE)) {
+		}
+		else if (action.equals(ACTION_BACK_VALUE)) {
 			// remove the job from the map
 
 			String id = req.getParameter("id");
@@ -336,10 +336,11 @@ public class JobSubmissionServlet extends HttpServlet {
 				return;
 			}
 
-			Long uid = null;
+			Long uid;
 			try {
 				uid = Long.parseLong(id);
-			} catch (NumberFormatException nfex) {
+			}
+			catch (NumberFormatException nfex) {
 				showErrorPage(resp, "An invalid id for the job was provided.");
 				return;
 			}
@@ -349,9 +350,9 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// redirect to the start page
 			resp.sendRedirect(START_PAGE_URL);
-		} else {
+		}
+		else {
 			showErrorPage(resp, "Invalid action specified.");
-			return;
 		}
 	}
 
@@ -427,7 +428,7 @@ public class JobSubmissionServlet extends HttpServlet {
 	 *        The string to be split.
 	 * @return The array of split strings.
 	 */
-	private static final List<String> tokenizeArguments(String args) {
+	private static List<String> tokenizeArguments(String args) {
 		List<String> list = new ArrayList<String>();
 		StringBuilder curr = new StringBuilder();
 

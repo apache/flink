@@ -40,7 +40,7 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>include-yarn</id>
+			<id>include-yarn-tests</id>
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
@@ -73,6 +73,15 @@ under the License.
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<filters>
+								<!-- Exclude signatures -->
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
 								<filter>
 									<artifact>org.slf4j:*</artifact>
 									<excludes>

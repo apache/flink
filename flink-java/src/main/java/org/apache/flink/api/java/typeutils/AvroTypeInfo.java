@@ -56,7 +56,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 
 		for(int i = 0; i < pti.getArity(); i++) {
 			PojoField f = pti.getPojoFieldAt(i);
-			TypeInformation newType = f.type;
+			TypeInformation newType = f.getTypeInformation();
 			// check if type is a CharSequence
 			if(newType instanceof GenericTypeInfo) {
 				if((newType).getTypeClass().equals(CharSequence.class)) {
@@ -64,7 +64,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 					newType = new GenericTypeInfo(org.apache.avro.util.Utf8.class);
 				}
 			}
-			PojoField newField = new PojoField(f.field, newType);
+			PojoField newField = new PojoField(f.getField(), newType);
 			newFields.add(newField);
 		}
 		return newFields;

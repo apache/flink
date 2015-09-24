@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
@@ -65,6 +66,8 @@ import org.apache.flink.util.Collector;
 import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
+
+import javax.xml.bind.TypeConstraintException;
 
 
 public class TypeExtractorTest {
@@ -846,6 +849,25 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Test
+	public void testFunctionWithMissingGenericsAndReturns() {
+		RichMapFunction function = new RichMapFunction() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Object map(Object value) throws Exception {
+				return null;
+			}
+		};
+
+		TypeInformation info = ExecutionEnvironment.getExecutionEnvironment()
+				.fromElements("arbitrary", "data")
+				.map(function).returns("String").getResultType();
+
+		Assert.assertEquals(TypeInfoParser.parse("String"), info);
+	}
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingOnInputAsSuperclass() {
@@ -1237,7 +1259,7 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
-		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
+		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })

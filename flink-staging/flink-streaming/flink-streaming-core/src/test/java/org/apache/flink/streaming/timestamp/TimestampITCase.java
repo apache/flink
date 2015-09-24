@@ -91,6 +91,9 @@ public class TimestampITCase {
 	 * arrive at operators throughout a topology.
 	 *
 	 * <p>
+	 * This also checks whether watermarks keep propagating if a source closes early.
+	 *
+	 * <p>
 	 * This only uses map to test the workings of watermarks in a complete, running topology. All
 	 * tasks and stream operators have dedicated tests that test the watermark propagation
 	 * behaviour.
@@ -109,9 +112,9 @@ public class TimestampITCase {
 
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(initialTime, NUM_WATERMARKS));
-		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(initialTime, NUM_WATERMARKS));
+		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(initialTime, NUM_WATERMARKS / 2));
 
-		source1
+		source1.union(source2)
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
 				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
@@ -121,11 +124,32 @@ public class TimestampITCase {
 
 		// verify that all the watermarks arrived at the final custom operator
 		for (int i = 0; i < PARALLELISM; i++) {
-			for (int j = 0; j < NUM_WATERMARKS; j++) {
-				if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
+			// There can be two cases, either we get NUM_WATERMARKS + 1 watermarks or
+			// (NUM_WATERMARKS / 2) + 1 watermarks. This depends on which source get's to run first.
+			// If source1 runs first we jump directly to +Inf and skip all the intermediate
+			// watermarks. If source2 runs first we see the intermediate watermarks from
+			// NUM_WATERMARKS/2 to +Inf.
+			if (CustomOperator.finalWatermarks[i].size() == NUM_WATERMARKS + 1) {
+				for (int j = 0; j < NUM_WATERMARKS; j++) {
+					if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
+						Assert.fail("Wrong watermark.");
+					}
+				}
+				if (!CustomOperator.finalWatermarks[i].get(NUM_WATERMARKS).equals(new Watermark(Long.MAX_VALUE))) {
 					Assert.fail("Wrong watermark.");
 				}
+			} else {
+				for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
+					if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
+						Assert.fail("Wrong watermark.");
+					}
+				}
+				if (!CustomOperator.finalWatermarks[i].get(NUM_WATERMARKS / 2).equals(new Watermark(Long.MAX_VALUE))) {
+					Assert.fail("Wrong watermark.");
+				}
+
 			}
+
 		}
 	}
 
