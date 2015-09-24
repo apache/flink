@@ -75,7 +75,7 @@ public class NormalizedKeySorterTest {
 
 	private NormalizedKeySorter<Tuple2<Integer, String>> newSortBuffer(List<MemorySegment> memory) throws Exception
 	{
-		return new NormalizedKeySorter<>(TestData.getTupleSerializer(), TestData.getTupleComparator(), memory);
+		return new NormalizedKeySorter<>(TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
 	}
 
 	@Test
@@ -363,8 +363,8 @@ public class NormalizedKeySorterTest {
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
 		@SuppressWarnings("unchecked")
-		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
-		NormalizedKeySorter<Tuple2<Integer, String>> sorter = new NormalizedKeySorter<>(TestData.getTupleSerializer(), accessors, memory);
+		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = new NormalizedKeySorter<>(TestData.getIntStringTupleSerializer(), accessors, memory);
 		
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
@@ -407,8 +407,8 @@ public class NormalizedKeySorterTest {
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
 		@SuppressWarnings("unchecked")
-		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
-		NormalizedKeySorter<Tuple2<Integer, String>> sorter = new NormalizedKeySorter<>(TestData.getTupleSerializer(), accessors, memory);
+		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = new NormalizedKeySorter<>(TestData.getIntStringTupleSerializer(), accessors, memory);
 		
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);

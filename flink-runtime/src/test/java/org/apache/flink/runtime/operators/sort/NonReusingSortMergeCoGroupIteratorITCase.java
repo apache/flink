@@ -77,10 +77,10 @@ public class NonReusingSortMergeCoGroupIteratorITCase
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.serializer1 = TestData.getTupleSerializer();
-		this.serializer2 = TestData.getTupleSerializer();
-		this.comparator1 = TestData.getTupleComparator();
-		this.comparator2 = TestData.getTupleComparator();
+		this.serializer1 = TestData.getIntStringTupleSerializer();
+		this.serializer2 = TestData.getIntStringTupleSerializer();
+		this.comparator1 = TestData.getIntStringTupleComparator();
+		this.comparator2 = TestData.getIntStringTupleComparator();
 		this.pairComparator = new GenericPairComparator(this.comparator1, this.comparator2);
 	}
 	

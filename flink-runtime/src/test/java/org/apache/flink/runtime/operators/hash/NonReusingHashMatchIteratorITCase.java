@@ -84,10 +84,10 @@ public class NonReusingHashMatchIteratorITCase {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.recordSerializer = TestData.getTupleSerializer();
+		this.recordSerializer = TestData.getIntStringTupleSerializer();
 		
-		this.record1Comparator = TestData.getTupleComparator();
-		this.record2Comparator = TestData.getTupleComparator();
+		this.record1Comparator = TestData.getIntStringTupleComparator();
+		this.record2Comparator = TestData.getIntStringTupleComparator();
 		
 		this.recordPairComparator = new GenericPairComparator(record1Comparator, record2Comparator);
 		

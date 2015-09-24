@@ -38,7 +38,7 @@ public class MergeIteratorTest {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
-		this.comparator = TestData.getTupleComparator();
+		this.comparator = TestData.getIntStringTupleComparator();
 	}
 	
 	

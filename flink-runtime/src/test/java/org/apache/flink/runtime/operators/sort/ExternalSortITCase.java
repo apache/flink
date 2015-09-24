@@ -79,8 +79,8 @@ public class ExternalSortITCase {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 		
-		this.pactRecordSerializer = TestData.getTupleSerializerFactory();
-		this.pactRecordComparator = TestData.getTupleComparator();
+		this.pactRecordSerializer = TestData.getIntStringTupleSerializerFactory();
+		this.pactRecordComparator = TestData.getIntStringTupleComparator();
 	}
 
 	@After

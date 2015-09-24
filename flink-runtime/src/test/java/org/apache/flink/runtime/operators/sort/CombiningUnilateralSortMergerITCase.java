@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import org.apache.flink.api.common.ExecutionConfig;
 
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -33,7 +32,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -41,8 +39,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.MockTuple2Reader;
-import org.apache.flink.runtime.operators.testutils.TestData.MockTupleSerializerFactory;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
@@ -84,12 +80,11 @@ public class CombiningUnilateralSortMergerITCase {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 		
-		this.serializerFactory1 = TestData.getTupleSerializerFactory();
-		this.comparator1 = TestData.getTupleComparator();
+		this.serializerFactory1 = TestData.getIntStringTupleSerializerFactory();
+		this.comparator1 = TestData.getIntStringTupleComparator();
 
-		TupleTypeInfo<Tuple2<Integer, Integer>> typeInfo2 = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class);
-		this.serializerFactory2 = new MockTupleSerializerFactory(typeInfo2);
-		this.comparator2 = typeInfo2.createComparator(new int[]{0}, new boolean[]{true}, 0, new ExecutionConfig());
+		this.serializerFactory2 = TestData.getIntIntTupleSerializerFactory();
+		this.comparator2 = TestData.getIntIntTupleComparator();
 	}
 
 	@After
@@ -113,7 +108,7 @@ public class CombiningUnilateralSortMergerITCase {
 		int noKeys = 100;
 		int noKeyCnt = 10000;
 
-		MockTuple2Reader<Tuple2<Integer, Integer>> reader = new MockTuple2Reader<>();
+		TestData.MockTuple2Reader<Tuple2<Integer, Integer>> reader = TestData.getIntIntTupleReader();
 
 		LOG.debug("initializing sortmerger");
 		
@@ -152,7 +147,7 @@ public class CombiningUnilateralSortMergerITCase {
 		int noKeys = 100;
 		int noKeyCnt = 10000;
 
-		MockTuple2Reader<Tuple2<Integer, Integer>> reader = new MockTuple2Reader<>();
+		TestData.MockTuple2Reader<Tuple2<Integer, Integer>> reader = TestData.getIntIntTupleReader();
 
 		LOG.debug("initializing sortmerger");
 		
@@ -198,7 +193,7 @@ public class CombiningUnilateralSortMergerITCase {
 		final TypeComparator<Integer> keyComparator = new IntComparator(true);
 
 		// reader
-		MockTuple2Reader<Tuple2<Integer, String>> reader = new MockTuple2Reader<>();
+		TestData.MockTuple2Reader<Tuple2<Integer, String>> reader = TestData.getIntStringTupleReader();
 
 		// merge iterator
 		LOG.debug("initializing sortmerger");

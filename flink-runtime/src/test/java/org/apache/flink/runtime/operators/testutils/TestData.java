@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -37,8 +36,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
@@ -50,250 +47,6 @@ public final class TestData {
 	 * Private constructor (container class should not be instantiated)
 	 */
 	private TestData() {}
-
-	/**
-	 * Key comparator.
-	 */
-	public static class KeyComparator implements Comparator<Key> {
-		@Override
-		public int compare(Key k1, Key k2) {
-			return k1.compareTo(k2);
-		}
-	};
-
-	/**
-	 * Key implementation.
-	 */
-	public static class Key extends IntValue {
-		private static final long serialVersionUID = 1L;
-		
-		public Key() {
-			super();
-		}
-
-		public Key(int k) {
-			super(k);
-		}
-
-		public int getKey() {
-			return getValue();
-		}
-		
-		public void setKey(int key) {
-			setValue(key);
-		}
-	}
-
-	/**
-	 * Value implementation.
-	 */
-	public static class Value extends StringValue {
-		
-		private static final long serialVersionUID = 1L;
-
-		public Value() {
-			super();
-		}
-
-		public Value(String v) {
-			super(v);
-		}
-		
-		@Override
-		public boolean equals(final Object obj) {
-			if (this == obj) {
-				return true;
-			}
-			
-			if (obj.getClass() == TestData.Value.class) {
-				final StringValue other = (StringValue) obj;
-				int len = this.length();
-				
-				if (len == other.length()) {
-					final char[] tc = this.getCharArray();
-					final char[] oc = other.getCharArray();
-					int i = 0, j = 0;
-					
-					while (len-- != 0) {
-						if (tc[i++] != oc[j++]) {
-							return false;
-						}
-					}
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-
-	/**
-	 * Pair generator.
-	 */
-	public static class Generator implements MutableObjectIterator<Record> {
-		
-		public enum KeyMode {
-			SORTED, RANDOM
-		};
-
-		public enum ValueMode {
-			FIX_LENGTH, RANDOM_LENGTH, CONSTANT
-		};
-
-		private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
-			'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' };
-
-		private final long seed;
-
-		private final int keyMax;
-
-		private final int valueLength;
-
-		private final KeyMode keyMode;
-
-		private final ValueMode valueMode;
-
-		private Random random;
-
-		private int counter;
-
-		private Key key;
-		private Value value;
-
-		public Generator(long seed, int keyMax, int valueLength) {
-			this(seed, keyMax, valueLength, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
-		}
-
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode) {
-			this(seed, keyMax, valueLength, keyMode, valueMode, null);
-		}
-		
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode, Value constant) {
-			this.seed = seed;
-			this.keyMax = keyMax;
-			this.valueLength = valueLength;
-			this.keyMode = keyMode;
-			this.valueMode = valueMode;
-
-			this.random = new Random(seed);
-			this.counter = 0;
-			
-			this.key = new Key();
-			this.value = constant == null ? new Value() : constant;
-		}
-
-		public Record next(Record reuse) {
-			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-			if (this.valueMode != ValueMode.CONSTANT) {
-				this.value.setValue(randomString());
-			}
-			reuse.setField(0, this.key);
-			reuse.setField(1, this.value);
-			return reuse;
-		}
-
-		public Record next() {
-			return next(new Record(2));
-		}
-
-		public boolean next(org.apache.flink.types.Value[] target) {
-			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-			// TODO change this to something proper
-			((IntValue)target[0]).setValue(this.key.getValue());
-			((IntValue)target[1]).setValue(random.nextInt());
-			return true;
-		}
-
-		public int sizeOf(Record rec) {
-			// key
-			int valueLength = Integer.SIZE / 8;
-
-			// value
-			String text = rec.getField(1, Value.class).getValue();
-			int strlen = text.length();
-			int utflen = 0;
-			int c;
-			for (int i = 0; i < strlen; i++) {
-				c = text.charAt(i);
-				if ((c >= 0x0001) && (c <= 0x007F)) {
-					utflen++;
-				} else if (c > 0x07FF) {
-					utflen += 3;
-				} else {
-					utflen += 2;
-				}
-			}
-			valueLength += 2 + utflen;
-
-			return valueLength;
-		}
-
-		public void reset() {
-			this.random = new Random(seed);
-			this.counter = 0;
-		}
-
-		private String randomString() {
-			int length;
-
-			if (valueMode == ValueMode.FIX_LENGTH) {
-				length = valueLength;
-			} else {
-				length = valueLength - random.nextInt(valueLength / 3);
-			}
-
-			StringBuilder sb = new StringBuilder();
-			for (int i = 0; i < length; i++) {
-				sb.append(alpha[random.nextInt(alpha.length)]);
-			}
-			return sb.toString();
-		}
-
-	}
-	
-	/**
-	 * Record reader mock.
-	 */
-	public static class GeneratorIterator implements MutableObjectIterator<Record> {
-		
-		private final Generator generator;
-
-		private final int numberOfRecords;
-
-		private int counter;
-
-		public GeneratorIterator(Generator generator, int numberOfRecords) {
-			this.generator = generator;
-			this.generator.reset();
-			this.numberOfRecords = numberOfRecords;
-			this.counter = 0;
-		}
-
-		@Override
-		public Record next(Record target) {
-			if (counter < numberOfRecords) {
-				counter++;
-				return generator.next(target);
-			}
-			else {
-				return null;
-			}
-		}
-
-		@Override
-		public Record next() {
-			if (counter < numberOfRecords) {
-				counter++;
-				return generator.next();
-			}
-			else {
-				return null;
-			}
-		}
-		
-		public void reset() {
-			this.counter = 0;
-		}
-	}
 
 	/**
 	 * Tuple2<Integer, String> generator.
@@ -412,7 +165,6 @@ public final class TestData {
 
 	}
 
-
 	/**
 	 * Record reader mock.
 	 */
@@ -457,52 +209,6 @@ public final class TestData {
 			this.counter = 0;
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static class ConstantValueIterator implements MutableObjectIterator<Record> {
-		
-		private final Key key;
-		private final Value value;
-		
-		private final String valueValue;
-		
-		
-		private final int numPairs;
-		
-		private int pos;
-		
-		
-		public ConstantValueIterator(int keyValue, String valueValue, int numPairs) {
-			this.key = new Key(keyValue);
-			this.value = new Value();
-			this.valueValue = valueValue;
-			this.numPairs = numPairs;
-		}
-		
-		@Override
-		public Record next(Record reuse) {
-			if (pos < this.numPairs) {
-				this.value.setValue(this.valueValue + ' ' + pos);
-				reuse.setField(0, this.key);
-				reuse.setField(1, this.value);
-				pos++;
-				return reuse;
-			}
-			else {
-				return null;
-			}
-		}
-
-		@Override
-		public Record next() {
-			return next(new Record(2));
-		}
-
-		public void reset() {
-			this.pos = 0;
-		}
-	}
 
 	public static class TupleConstantValueIterator implements MutableObjectIterator<Tuple2<Integer, String>> {
 
@@ -545,32 +251,93 @@ public final class TestData {
 			this.pos = 0;
 		}
 	}
-	
-	private static TupleTypeInfo<Tuple2<Integer, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, String.class);
-	
-	private static TypeSerializerFactory<Tuple2<Integer, String>> serializerFactory = new MockTupleSerializerFactory(typeInfo);
-	
-	public static TupleTypeInfo<Tuple2<Integer, String>> getTupleTypeInfo() {
-		return typeInfo;
+
+	/**
+	 * An iterator that returns the Key/Value pairs with identical value a given number of times.
+	 */
+	public static final class ConstantIntIntTuplesIterator implements MutableObjectIterator<Tuple2<Integer, Integer>> {
+
+		private final int key;
+		private final int value;
+
+		private int numLeft;
+
+		public ConstantIntIntTuplesIterator(int key, int value, int count) {
+			this.key = key;
+			this.value = value;
+			this.numLeft = count;
+		}
+
+		@Override
+		public Tuple2<Integer, Integer> next(Tuple2<Integer, Integer> reuse) {
+			if (this.numLeft > 0) {
+				this.numLeft--;
+				reuse.setField(this.key, 0);
+				reuse.setField(this.value, 1);
+				return reuse;
+			} else {
+				return null;
+			}
+		}
+
+		@Override
+		public Tuple2<Integer, Integer> next() {
+			return next(new Tuple2<>(0, 0));
+		}
 	}
 
-	public static TypeSerializerFactory<Tuple2<Integer, String>> getTupleSerializerFactory() {
-		return serializerFactory;
-	}
-	
-	public static TypeSerializer<Tuple2<Integer, String>> getTupleSerializer(){
-		return serializerFactory.getSerializer();
+	//----Tuple2<Integer, String>
+	private static final TupleTypeInfo<Tuple2<Integer, String>> typeInfoIntString = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, String.class);
+
+	private static final TypeSerializerFactory<Tuple2<Integer, String>> serializerFactoryIntString = new MockTupleSerializerFactory(typeInfoIntString);
+
+	public static TupleTypeInfo<Tuple2<Integer, String>> getIntStringTupleTypeInfo() {
+		return typeInfoIntString;
 	}
 
-	public static TypeComparator<Tuple2<Integer, String>> getTupleComparator() {
-		return getTupleTypeInfo().createComparator(new int[]{0}, new boolean[]{true}, 0, null);
+	public static TypeSerializerFactory<Tuple2<Integer, String>> getIntStringTupleSerializerFactory() {
+		return serializerFactoryIntString;
 	}
 
-	public static MutableObjectIterator<Tuple2<Integer, String>> getTupleReader() {
+	public static TypeSerializer<Tuple2<Integer, String>> getIntStringTupleSerializer() {
+		return serializerFactoryIntString.getSerializer();
+	}
+
+	public static TypeComparator<Tuple2<Integer, String>> getIntStringTupleComparator() {
+		return getIntStringTupleTypeInfo().createComparator(new int[]{0}, new boolean[]{true}, 0, null);
+	}
+
+	public static MockTuple2Reader<Tuple2<Integer, String>> getIntStringTupleReader() {
 		return new MockTuple2Reader<Tuple2<Integer, String>>();
 	}
 
-	public static class MockTupleSerializerFactory<T extends Tuple> implements TypeSerializerFactory<T> {
+	//----Tuple2<Integer, Integer>
+	private static final TupleTypeInfo<Tuple2<Integer, Integer>> typeInfoIntInt = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class);
+
+	private static final TypeSerializerFactory<Tuple2<Integer, Integer>> serializerFactoryIntInt = new MockTupleSerializerFactory(typeInfoIntInt);
+
+	public static TupleTypeInfo<Tuple2<Integer, Integer>> getIntIntTupleTypeInfo() {
+		return typeInfoIntInt;
+	}
+
+	public static TypeSerializerFactory<Tuple2<Integer, Integer>> getIntIntTupleSerializerFactory() {
+		return serializerFactoryIntInt;
+	}
+
+	public static TypeSerializer<Tuple2<Integer, Integer>> getIntIntTupleSerializer() {
+		return getIntIntTupleSerializerFactory().getSerializer();
+	}
+
+	public static TypeComparator<Tuple2<Integer, Integer>> getIntIntTupleComparator() {
+		return getIntIntTupleTypeInfo().createComparator(new int[]{0}, new boolean[]{true}, 0, null);
+	}
+
+	public static MockTuple2Reader<Tuple2<Integer, Integer>> getIntIntTupleReader() {
+		return new MockTuple2Reader<>();
+	}
+
+	//----Tuple2<?, ?>
+	private static class MockTupleSerializerFactory<T extends Tuple> implements TypeSerializerFactory<T> {
 		private final TupleTypeInfo<T> info;
 
 		public MockTupleSerializerFactory(TupleTypeInfo<T> info) {

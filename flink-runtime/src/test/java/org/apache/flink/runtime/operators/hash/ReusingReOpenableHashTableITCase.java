@@ -34,8 +34,6 @@ import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
@@ -46,18 +44,14 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.ReusingHashMatchIteratorITCase.RecordMatch;
 import org.apache.flink.runtime.operators.hash.ReusingHashMatchIteratorITCase.RecordMatchRemovingJoin;
-import org.apache.flink.runtime.operators.hash.HashTableITCase.ConstantsKeyValuePairsIterator;
 import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
+import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
@@ -94,30 +88,26 @@ public class ReusingReOpenableHashTableITCase {
 	
 	
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
-	private TypeSerializer<Record> recordBuildSideAccesssor;
-	private TypeSerializer<Record> recordProbeSideAccesssor;
-	private TypeComparator<Record> recordBuildSideComparator;
-	private TypeComparator<Record> recordProbeSideComparator;
-	private TypePairComparator<Record, Record> pactRecordComparator;
+	private TypeSerializer<Tuple2<Integer, Integer>> recordBuildSideAccesssor;
+	private TypeSerializer<Tuple2<Integer, Integer>> recordProbeSideAccesssor;
+	private TypeComparator<Tuple2<Integer, Integer>> recordBuildSideComparator;
+	private TypeComparator<Tuple2<Integer, Integer>> recordProbeSideComparator;
+	private TypePairComparator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> pactRecordComparator;
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Before
 	public void beforeTest() {
-		this.recordSerializer = TestData.getTupleSerializer();
+		this.recordSerializer = TestData.getIntStringTupleSerializer();
 		
-		this.record1Comparator = TestData.getTupleComparator();
-		this.record2Comparator = TestData.getTupleComparator();
+		this.record1Comparator = TestData.getIntStringTupleComparator();
+		this.record2Comparator = TestData.getIntStringTupleComparator();
 		this.recordPairComparator = new GenericPairComparator(this.record1Comparator, this.record2Comparator);
 		
-		
-		final int[] keyPos = new int[] {0};
-		final Class<? extends Key>[] keyType = (Class<? extends Key>[]) new Class[] { IntValue.class };
-		
-		this.recordBuildSideAccesssor = RecordSerializer.get();
-		this.recordProbeSideAccesssor = RecordSerializer.get();
-		this.recordBuildSideComparator = new RecordComparator(keyPos, keyType);
-		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
-		this.pactRecordComparator = new HashTableITCase.RecordPairComparatorFirstInt();
+		this.recordBuildSideAccesssor = TestData.getIntIntTupleSerializer();
+		this.recordProbeSideAccesssor = TestData.getIntIntTupleSerializer();
+		this.recordBuildSideComparator = TestData.getIntIntTupleComparator();
+		this.recordProbeSideComparator = TestData.getIntIntTupleComparator();
+		this.pactRecordComparator = new GenericPairComparator(this.recordBuildSideComparator, this.recordProbeSideComparator);
 		
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 		this.ioManager = new IOManagerAsync();
@@ -276,16 +266,16 @@ public class ReusingReOpenableHashTableITCase {
 	//
 	//
 	
-	private MutableObjectIterator<Record> getProbeInput(final int numKeys,
+	private MutableObjectIterator<Tuple2<Integer, Integer>> getProbeInput(final int numKeys,
 			final int probeValsPerKey, final int repeatedValue1, final int repeatedValue2) {
-		MutableObjectIterator<Record> probe1 = new UniformRecordGenerator(numKeys, probeValsPerKey, true);
-		MutableObjectIterator<Record> probe2 = new ConstantsKeyValuePairsIterator(repeatedValue1, 17, 5);
-		MutableObjectIterator<Record> probe3 = new ConstantsKeyValuePairsIterator(repeatedValue2, 23, 5);
-		List<MutableObjectIterator<Record>> probes = new ArrayList<MutableObjectIterator<Record>>();
+		MutableObjectIterator<Tuple2<Integer, Integer>> probe1 = new UniformIntTupleGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<Tuple2<Integer, Integer>> probe2 = new TestData.ConstantIntIntTuplesIterator(repeatedValue1, 17, 5);
+		MutableObjectIterator<Tuple2<Integer, Integer>> probe3 = new TestData.ConstantIntIntTuplesIterator(repeatedValue2, 23, 5);
+		List<MutableObjectIterator<Tuple2<Integer, Integer>>> probes = new ArrayList<>();
 		probes.add(probe1);
 		probes.add(probe2);
 		probes.add(probe3);
-		return new UnionIterator<Record>(probes);
+		return new UnionIterator<>(probes);
 	}
 	
 	@Test
@@ -302,14 +292,14 @@ public class ReusingReOpenableHashTableITCase {
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
-		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
-		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
+		MutableObjectIterator<Tuple2<Integer, Integer>> build1 = new UniformIntTupleGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Tuple2<Integer, Integer>> build2 = new TestData.ConstantIntIntTuplesIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<Tuple2<Integer, Integer>> build3 = new TestData.ConstantIntIntTuplesIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<Tuple2<Integer, Integer>>> builds = new ArrayList<>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
+		MutableObjectIterator<Tuple2<Integer, Integer>> buildInput = new UnionIterator<>(builds);
 
 		// allocate the memory for the HashTable
 		List<MemorySegment> memSegments;
@@ -326,40 +316,40 @@ public class ReusingReOpenableHashTableITCase {
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
+		final ReOpenableMutableHashTable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> join = new ReOpenableMutableHashTable<>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager, true);
 		
 		for(int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
-			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
+			MutableObjectIterator<Tuple2<Integer, Integer>> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
 			if(probe == 0) {
 				join.open(buildInput, probeInput);
 			} else {
 				join.reopenProbe(probeInput);
 			}
 		
-			Record record;
-			final Record recordReuse = new Record();
+			Tuple2<Integer, Integer> record;
+			final Tuple2<Integer, Integer> recordReuse = new Tuple2<>();
 
 			while (join.nextRecord()) {
 				long numBuildValues = 0;
 		
-				final Record probeRec = join.getCurrentProbeRecord();
-				int key = probeRec.getField(0, IntValue.class).getValue();
+				final Tuple2<Integer, Integer> probeRec = join.getCurrentProbeRecord();
+				Integer key = probeRec.f0;
 				
-				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+				HashBucketIterator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
 				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0); 
 				}
 				else {
 					fail("No build side values found for a probe key.");
 				}
 				while ((record = buildSide.next(record)) != null) {
 					numBuildValues++;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0);
 				}
 				
 				Long contained = map.get(key);
@@ -416,14 +406,14 @@ public class ReusingReOpenableHashTableITCase {
 		final int PROBE_VALS_PER_KEY = 10;
 		
 		// create a build input that gives 3 million pairs with 3 values sharing the same key, plus 400k pairs with two colliding keys
-		MutableObjectIterator<Record> build1 = new UniformRecordGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
-		MutableObjectIterator<Record> build2 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
-		MutableObjectIterator<Record> build3 = new ConstantsKeyValuePairsIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
-		List<MutableObjectIterator<Record>> builds = new ArrayList<MutableObjectIterator<Record>>();
+		MutableObjectIterator<Tuple2<Integer, Integer>> build1 = new UniformIntTupleGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		MutableObjectIterator<Tuple2<Integer, Integer>> build2 = new TestData.ConstantIntIntTuplesIterator(REPEATED_VALUE_1, 17, REPEATED_VALUE_COUNT_BUILD);
+		MutableObjectIterator<Tuple2<Integer, Integer>> build3 = new TestData.ConstantIntIntTuplesIterator(REPEATED_VALUE_2, 23, REPEATED_VALUE_COUNT_BUILD);
+		List<MutableObjectIterator<Tuple2<Integer, Integer>>> builds = new ArrayList<>();
 		builds.add(build1);
 		builds.add(build2);
 		builds.add(build3);
-		MutableObjectIterator<Record> buildInput = new UnionIterator<Record>(builds);
+		MutableObjectIterator<Tuple2<Integer, Integer>> buildInput = new UnionIterator<>(builds);
 	
 
 		// allocate the memory for the HashTable
@@ -441,40 +431,40 @@ public class ReusingReOpenableHashTableITCase {
 		
 		// ----------------------------------------------------------------------------------------
 		
-		final ReOpenableMutableHashTable<Record, Record> join = new ReOpenableMutableHashTable<Record, Record>(
+		final ReOpenableMutableHashTable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> join = new ReOpenableMutableHashTable<>(
 				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager, true);
 		
 		for (int probe = 0; probe < NUM_PROBES; probe++) {
 			// create a probe input that gives 10 million pairs with 10 values sharing a key
-			MutableObjectIterator<Record> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
+			MutableObjectIterator<Tuple2<Integer, Integer>> probeInput = getProbeInput(NUM_KEYS, PROBE_VALS_PER_KEY, REPEATED_VALUE_1, REPEATED_VALUE_2);
 			if(probe == 0) {
 				join.open(buildInput, probeInput);
 			} else {
 				join.reopenProbe(probeInput);
 			}
-			Record record;
-			final Record recordReuse = new Record();
+			Tuple2<Integer, Integer> record;
+			final Tuple2<Integer, Integer> recordReuse = new Tuple2<>();
 
 			while (join.nextRecord())
 			{	
 				long numBuildValues = 0;
 				
-				final Record probeRec = join.getCurrentProbeRecord();
-				int key = probeRec.getField(0, IntValue.class).getValue();
+				final Tuple2<Integer, Integer> probeRec = join.getCurrentProbeRecord();
+				Integer key = probeRec.f0;
 				
-				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+				HashBucketIterator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
 				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0); 
 				}
 				else {
 					fail("No build side values found for a probe key.");
 				}
 				while ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues++;
-					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue());
+					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0);
 				}
 				
 				Long contained = map.get(key);

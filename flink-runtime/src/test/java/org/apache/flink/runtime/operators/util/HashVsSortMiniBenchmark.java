@@ -85,10 +85,10 @@ public class HashVsSortMiniBenchmark {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.serializer1 = TestData.getTupleSerializerFactory();
-		this.serializer2 = TestData.getTupleSerializerFactory();
-		this.comparator1 = TestData.getTupleComparator();
-		this.comparator2 = TestData.getTupleComparator();
+		this.serializer1 = TestData.getIntStringTupleSerializerFactory();
+		this.serializer2 = TestData.getIntStringTupleSerializerFactory();
+		this.comparator1 = TestData.getIntStringTupleComparator();
+		this.comparator2 = TestData.getIntStringTupleComparator();
 		this.pairComparator11 = new GenericPairComparator(this.comparator1, this.comparator2);
 		
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
