@@ -1,6 +1,21 @@
-/// QuadTree
 
-//package util
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package org.apache.flink.ml.nn.util
 
@@ -8,6 +23,18 @@ import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 
 import scala.collection.mutable.ListBuffer
+
+/**
+ * n-dimensional QuadTree data structure; partitions spatial data for faster queries (e.g. KNN query)
+ * The skeleton of the data structure was initially based off of the 2D Quadtree found here:
+ * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
+ *
+ * Additional methods were added to the class both for efficient KNN queries and generalizing to n-dim.
+ *
+ * @param minVec
+ * @param maxVec
+ */
+
 
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   val maxPerBox = 20
@@ -21,6 +48,13 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     def isInNode(obj:DenseVector): Boolean ={
       overlap(obj,0.0)
     }
+
+    /** Tests if obj is within a radius of the node
+     *
+     * @param obj
+     * @param radius
+     * @return
+     */
 
     def overlap(obj:DenseVector,radius:Double):Boolean = {
       var count = 0
@@ -86,6 +120,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
 
     /**  Partitioning of box into equal area/volume sub-boxes
+      * TO-DO:  refactor to remove use of .map, probably not needed.
      *
      * @param cPart
      * @param L
@@ -105,7 +140,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       }
 
       var cPart2 = cPart.clone()
-      //// need to map all centers and shift (UGLY: PROBABLY DON'T NEED A MAP!!!!)
+      //// need to map all centers and shift
       val cPartMap = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
       cPart2 = cPart2.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
@@ -117,7 +152,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
   val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),(maxVec, minVec).zipped.map(_ - _),null)
 
-  //// primitive printing of tree for testing/debugging
+    /**
+     *   primitive printing of tree for testing/debugging
+     */
+
   def printTree(){
     printTreeRecur(root)
   }
@@ -130,6 +168,11 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }else{
     }
   }
+
+  /**
+   * Recursively adds an object to the tree
+   * @param ob
+   */
 
   def insert(ob:DenseVector){
     insertRecur(ob,root)
@@ -156,11 +199,15 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   }
 
 
-  /** Finds all objects in minimal bounding box and also all siblings' objects
+  /** Finds all objects in minimal bounding box and also all siblings' objects.
+    * Used in KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
+    * max distance D_s to obj.  D_s is then used during the kNN query to find all points
+    * within a radius D_s of obj using searchNeighbors
    *
    * @param obj
    * @return
    */
+
   def searchNeighborsSibling(obj:DenseVector):ListBuffer[DenseVector] = {
     var ret = new ListBuffer[DenseVector]
     searchRecurSibling(obj,root,ret)
@@ -186,6 +233,11 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
 
   /** Finds all objects within a neigiborhood of obj of a specified radius
+    * scope is modified from original 2D version in:
+    * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
+    *
+    * original version only looks in minimal box, but for the KNN Query, we look at
+    * all nearby boxes
    *
    * @param obj
    * @param radius

@@ -98,8 +98,6 @@ class LabeledVectorTest extends FlatSpec with Matchers with FlinkTestBase {
       v => (v, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0, 0.0), v))
     }.sortBy(_._2).take(3).map(_._1).toArray
 
-    //println("answerrrrrr = :")
-    //println("answer(0) =   " + answer(0) + "    answer(1) =   " + answer(1) + "    answer(2) =   " + answer(2))
     //// ACTUAL CALL TO kNN
     ///FIRST SET UP PARAMETERS
     val knn = KNN()
