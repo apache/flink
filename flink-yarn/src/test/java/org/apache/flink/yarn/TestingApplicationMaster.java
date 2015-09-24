@@ -15,11 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
-public class FlinkYarnClient extends FlinkYarnClientBase {
+import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
+
+public class TestingApplicationMaster extends ApplicationMasterBase {
 	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return ApplicationMaster.class;
+	public Class<? extends JobManager> getJobManagerClass() {
+		return TestingYarnJobManager.class;
+	}
+
+	@Override
+	public Class<? extends MemoryArchivist> getArchivistClass() {
+		return TestingMemoryArchivist.class;
 	}
 }

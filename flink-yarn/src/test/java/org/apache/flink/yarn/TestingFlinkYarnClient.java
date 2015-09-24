@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
-public class FlinkYarnClient extends FlinkYarnClientBase {
+public class TestingFlinkYarnClient extends FlinkYarnClientBase {
 	@Override
 	protected Class<?> getApplicationMasterClass() {
-		return ApplicationMaster.class;
+		return TestingApplicationMaster.class;
 	}
 }

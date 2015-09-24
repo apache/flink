@@ -21,14 +21,12 @@ package org.apache.flink.yarn;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import org.apache.curator.test.TestingCluster;
-import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
@@ -74,7 +72,7 @@ public class YarnHighAvailability extends YarnTestBase {
 
 	@Test
 	public void testAMKill() throws Exception {
-		AbstractFlinkYarnClient flinkYarnClient = FlinkYarnSessionCli.getFlinkYarnClient();
+		TestingFlinkYarnClient flinkYarnClient = new TestingFlinkYarnClient();
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setTaskManagerCount(1);

@@ -98,7 +98,7 @@ class YarnJobManager(
   private def env = System.getenv()
 
   // indicates if this AM has been started in a detached mode.
-  val detached = java.lang.Boolean.valueOf(env.get(FlinkYarnClient.ENV_DETACHED))
+  val detached = java.lang.Boolean.valueOf(env.get(FlinkYarnClientBase.ENV_DETACHED))
   var stopWhenJobFinished: JobID = null
 
   var rmClientOption: Option[AMRMClient[ContainerRequest]] = None
@@ -429,7 +429,7 @@ class YarnJobManager(
   private def startYarnSession(conf: Configuration, webServerPort: Int): Unit = {
     Try {
       log.info("Start yarn session.")
-      memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
+      memoryPerTaskManager = env.get(FlinkYarnClientBase.ENV_TM_MEMORY).toInt
 
       val memoryLimit = Utils.calculateHeapSize(memoryPerTaskManager, flinkConfiguration)
 
@@ -448,19 +448,19 @@ class YarnJobManager(
           s"($yarnExpiryInterval). The application is likely to be killed by YARN.")
       }
 
-      numTaskManager = env.get(FlinkYarnClient.ENV_TM_COUNT).toInt
+      numTaskManager = env.get(FlinkYarnClientBase.ENV_TM_COUNT).toInt
       maxFailedContainers = flinkConfiguration.
         getInteger(ConfigConstants.YARN_MAX_FAILED_CONTAINERS, numTaskManager)
       log.info(s"Requesting $numTaskManager TaskManagers. Tolerating $maxFailedContainers failed " +
         "TaskManagers")
 
-      val remoteFlinkJarPath = env.get(FlinkYarnClient.FLINK_JAR_PATH)
+      val remoteFlinkJarPath = env.get(FlinkYarnClientBase.FLINK_JAR_PATH)
       val fs = FileSystem.get(conf)
-      val appId = env.get(FlinkYarnClient.ENV_APP_ID)
+      val appId = env.get(FlinkYarnClientBase.ENV_APP_ID)
       val currDir = env.get(Environment.PWD.key())
-      val clientHomeDir = env.get(FlinkYarnClient.ENV_CLIENT_HOME_DIR)
-      val shipListString = env.get(FlinkYarnClient.ENV_CLIENT_SHIP_FILES)
-      val yarnClientUsername = env.get(FlinkYarnClient.ENV_CLIENT_USERNAME)
+      val clientHomeDir = env.get(FlinkYarnClientBase.ENV_CLIENT_HOME_DIR)
+      val shipListString = env.get(FlinkYarnClientBase.ENV_CLIENT_SHIP_FILES)
+      val yarnClientUsername = env.get(FlinkYarnClientBase.ENV_CLIENT_USERNAME)
 
       val rm = AMRMClient.createAMRMClient[ContainerRequest]()
       rm.init(conf)
@@ -531,7 +531,7 @@ class YarnJobManager(
 
       failedContainers = 0
 
-      val hs = ApplicationMaster.hasStreamingMode(env)
+      val hs = ApplicationMasterBase.hasStreamingMode(env)
       containerLaunchContext = Some(
         createContainerLaunchContext(
           memoryLimit,
@@ -633,7 +633,7 @@ class YarnJobManager(
     // Setup classpath for container ( = TaskManager )
     val containerEnv = new java.util.HashMap[String, String]()
     Utils.setupEnv(yarnConf, containerEnv)
-    containerEnv.put(FlinkYarnClient.ENV_CLIENT_USERNAME, yarnClientUsername)
+    containerEnv.put(FlinkYarnClientBase.ENV_CLIENT_USERNAME, yarnClientUsername)
     ctx.setEnvironment(containerEnv)
 
     val user = UserGroupInformation.getCurrentUser
