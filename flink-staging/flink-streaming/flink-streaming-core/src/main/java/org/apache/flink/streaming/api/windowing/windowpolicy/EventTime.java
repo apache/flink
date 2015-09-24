@@ -33,8 +33,8 @@ public final class EventTime extends AbstractTimePolicy {
 	private static final long serialVersionUID = 8333566691833596747L;
 
 	/** Instantiation only via factory method */
-	private EventTime(long num, TimeUnit unit) {
-		super(num, unit);
+	private EventTime(long size, TimeUnit unit) {
+		super(size, unit);
 	}
 
 	@Override
@@ -54,11 +54,11 @@ public final class EventTime extends AbstractTimePolicy {
 	/**
 	 * Creates an event time policy describing an event time interval.
 	 *
-	 * @param num The length of the time interval.
+	 * @param size The size of the generated windows.
 	 * @param unit The init (seconds, milliseconds) of the time interval.
 	 * @return The event time policy.
 	 */
-	public static EventTime of(long num, TimeUnit unit) {
-		return new EventTime(num, unit);
+	public static EventTime of(long size, TimeUnit unit) {
+		return new EventTime(size, unit);
 	}
 }

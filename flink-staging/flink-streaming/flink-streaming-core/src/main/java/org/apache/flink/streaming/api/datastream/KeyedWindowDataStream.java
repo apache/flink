@@ -33,7 +33,7 @@ import org.apache.flink.streaming.runtime.operators.windows.PolicyToOperator;
 /**
  * A KeyedWindowDataStream represents a data stream where elements are grouped by key, and 
  * for each key, the stream of elements is split into windows. The windows are conceptually
- * evaluated for each key individually, meaning windows and trigger at different points
+ * evaluated for each key individually, meaning windows can trigger at different points
  * for each key.
  * <p>
  * In many cases, however, the windows are "aligned", meaning they trigger at the
@@ -102,7 +102,7 @@ public class KeyedWindowDataStream<Type, Key> {
 	 * as a regular non-windowed stream.
 	 * <p>
 	 * Not that this function requires that all data in the windows is buffered until the window
-	 * is evaluated, as the function provides no means od pre-aggregation.
+	 * is evaluated, as the function provides no means of pre-aggregation.
 	 * 
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.

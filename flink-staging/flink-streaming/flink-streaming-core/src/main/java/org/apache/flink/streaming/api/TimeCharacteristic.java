@@ -42,7 +42,7 @@ public enum TimeCharacteristic {
 	 * elements based on that time, meaning that processing speed within the streaming dataflow
 	 * does not affect windowing, but only the speed at which sources receive elements.
 	 * <p>
-	 * Ingestion time is often a good compromise between more processing time and event time.
+	 * Ingestion time is often a good compromise between processing time and event time.
 	 * It does not need and special manual form of watermark generation, and events are typically
 	 * not too much out-or-order when they arrive at operators; in fact, out-of-orderness can 
 	 * only be introduced by streaming shuffles or split/join/union operations. The fact that elements
@@ -69,7 +69,7 @@ public enum TimeCharacteristic {
 	 * with processing time, and typically also introduces more latency. The amount of extra
 	 * cost depends mostly on how much out of order the elements arrive, i.e., how long the time span
 	 * between the arrival of early and late elements is. With respect to the "time watermarks", this
-	 * means that teh cost typically depends on how early or late the watermarks for can be generated
+	 * means that the cost typically depends on how early or late the watermarks can be generated
 	 * for their timestamp.
 	 * <p>
 	 * In relation to {@link #IngestionTime}, the event time is similar, but refers the the event's

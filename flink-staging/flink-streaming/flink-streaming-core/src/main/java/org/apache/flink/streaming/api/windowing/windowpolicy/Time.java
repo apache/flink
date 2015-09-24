@@ -31,18 +31,18 @@ public final class Time extends AbstractTimePolicy {
 	private static final long serialVersionUID = 3197290738634320211L;
 
 	/** Instantiation only via factory method */
-	private Time(long num, TimeUnit unit) {
-		super(num, unit);
+	private Time(long size, TimeUnit unit) {
+		super(size, unit);
 	}
 
 	@Override
 	public AbstractTimePolicy makeSpecificBasedOnTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
 		switch (timeCharacteristic) {
 			case ProcessingTime:
-				return ProcessingTime.of(getNum(), getUnit());
+				return ProcessingTime.of(getSize(), getUnit());
 			case IngestionTime:
 			case EventTime:
-				return EventTime.of(getNum(), getUnit());
+				return EventTime.of(getSize(), getUnit());
 			default:
 				throw new IllegalArgumentException("Unknown time characteristic");
 		}
@@ -58,11 +58,11 @@ public final class Time extends AbstractTimePolicy {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#
 	 * setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}.
 	 *
-	 * @param num The length of the time interval.
+	 * @param size The size of the generated windows.
 	 * @param unit The init (seconds, milliseconds) of the time interval.
 	 * @return The time policy.
 	 */
-	public static Time of(long num, TimeUnit unit) {
-		return new Time(num, unit);
+	public static Time of(long size, TimeUnit unit) {
+		return new Time(size, unit);
 	}
 }

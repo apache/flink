@@ -299,8 +299,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   //  Time characteristic
   // --------------------------------------------------------------------------------------------
   /**
-   * Sets the time characteristic for the stream, e.g., processing time, event time,
-   * or ingestion time.
+   * Sets the time characteristic for all streams create from this environment, e.g., processing
+   * time, event time, or ingestion time.
    *
    * @param characteristic The time characteristic.
    */
@@ -309,8 +309,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Gets the time characteristic for the stream, e.g., processing time, event time,
-   * or ingestion time.
+   * Gets the time characteristic/
+   *
+   * @see #setStreamTimeCharacteristic
    *
    * @return The time characteristic.
    */

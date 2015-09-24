@@ -29,7 +29,7 @@ public abstract class WindowPolicy implements java.io.Serializable {
 	private static final long serialVersionUID = -8696529489282723113L;
 	
 	/**
-	 * If this window policies concrete instantiation depends on the time characteristic of the
+	 * If the concrete instantiation of a window policy depends on the time characteristic of the
 	 * dataflow (processing time, event time), then this method must be overridden to convert this
 	 * policy to the respective specific instantiation.
 	 * <p>

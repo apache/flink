@@ -531,8 +531,8 @@ public abstract class StreamExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Sets the time characteristic for the stream, e.g., processing time, event time,
-	 * or ingestion time.
+	 * Sets the time characteristic for all streams create from this environment, e.g., processing
+	 * time, event time, or ingestion time.
 	 * 
 	 * @param characteristic The time characteristic.
 	 */
@@ -541,9 +541,10 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Gets the time characteristic for the stream, e.g., processing time, event time,
-	 * or ingestion time.
-	 * 
+	 * Gets the time characteristic.
+	 *
+	 * @see #setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)
+	 *
 	 * @return The time characteristic.
 	 */
 	public TimeCharacteristic getStreamTimeCharacteristic() {

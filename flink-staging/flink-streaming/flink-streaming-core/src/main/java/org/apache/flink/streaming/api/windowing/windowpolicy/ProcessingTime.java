@@ -33,8 +33,8 @@ public final class ProcessingTime extends AbstractTimePolicy {
 	private static final long serialVersionUID = 7546166721132583007L;
 
 	/** Instantiation only via factory method */
-	private ProcessingTime(long num, TimeUnit unit) {
-		super(num, unit);
+	private ProcessingTime(long size, TimeUnit unit) {
+		super(size, unit);
 	}
 
 	@Override
@@ -54,12 +54,12 @@ public final class ProcessingTime extends AbstractTimePolicy {
 
 	/**
 	 * Creates a processing time policy describing a processing time interval.
-	 * 
-	 * @param num The length of the time interval.
+	 *
+	 * @param size The size of the generated windows.
 	 * @param unit The init (seconds, milliseconds) of the time interval.
 	 * @return The processing time policy.
 	 */
-	public static ProcessingTime of(long num, TimeUnit unit) {
-		return new ProcessingTime(num, unit);
+	public static ProcessingTime of(long size, TimeUnit unit) {
+		return new ProcessingTime(size, unit);
 	}
 }
