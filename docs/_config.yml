@@ -31,9 +31,6 @@ version: "0.10-SNAPSHOT"
 version_hadoop1: "0.10-hadoop1-SNAPSHOT"
 version_short: "0.10" # Used for the top navbar w/o snapshot suffix
 
-# This is the Scala version we use in this version
-scala_version: "2.10"
-
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
 website_url: "http://flink.apache.org"

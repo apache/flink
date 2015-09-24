@@ -155,12 +155,12 @@ under the License.
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>flink-java-examples-${project.version}.jar</exclude>
-				<exclude>original-flink-java-examples-${project.version}.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-sources.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-tests.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-javadoc.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-*.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}.jar</exclude>
+				<exclude>original-flink-java-examples*-${project.version}.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-sources.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-tests.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-*.jar</exclude>
 			</excludes>
 		</fileSet>
 

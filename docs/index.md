@@ -64,9 +64,11 @@ You can download the latest pre-built snapshot version from the [downloads]({{ s
 
 The Scala API uses Scala {{ site.scala_version }}. Please make sure to use a compatible version.
 
+Basically, the Scala API uses Scala 2.10. But you can use the API with Scala 2.11. To use Flink with
+Scala 2.11, please check [build guide](/setup/building.html#build-flink-for-scala-211)
+and [programming guide](/apis/programming_guide.html#scala-dependency-versions).
+
 
 ## Flink Architecture
 
 <img src="fig/process_model.svg" width="100%" alt="Flink Process Model">
-
-
