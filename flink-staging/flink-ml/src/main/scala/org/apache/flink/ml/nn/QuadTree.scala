@@ -37,6 +37,13 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       }
     }
 
+    /** Tests if obj is near a node:  minDist is defined so that every point in the box
+      * has distance to obj greater than minDist (see "Nearest Neighbors Queries" by N. Roussopoulos et al.)
+     *
+     * @param obj
+     * @param radius
+     * @return
+     */
     def isNear(obj:DenseVector,radius:Double):Boolean = {
 
       var minDist = 0.0
@@ -78,6 +85,13 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       children = Childrennodes.clone()
     }
 
+    /**  Partitioning of box into equal area/volume sub-boxes
+     *
+     * @param cPart
+     * @param L
+     * @param dim
+     * @return
+     */
     def partitionBox(cPart:ListBuffer[ListBuffer[Double]],L:ListBuffer[Double], dim:Int):ListBuffer[ListBuffer[Double]]=
     {
       if (L.length == 1){
@@ -142,9 +156,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   }
 
 
-  /**
+  /** Finds all objects in minimal bounding box and also all siblings' objects
    *
-   * Finds all objects in minimal bounding box and objects in sibling nodes
+   * @param obj
+   * @return
    */
   def searchNeighborsSibling(obj:DenseVector):ListBuffer[DenseVector] = {
     var ret = new ListBuffer[DenseVector]
@@ -169,11 +184,12 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  /**
+
+  /** Finds all objects within a neigiborhood of obj of a specified radius
    *
-   *
-   *
-   *
+   * @param obj
+   * @param radius
+   * @return
    */
   def searchNeighbors(obj:DenseVector,radius:Double):ListBuffer[DenseVector] = {
     var ret = new ListBuffer[DenseVector]
