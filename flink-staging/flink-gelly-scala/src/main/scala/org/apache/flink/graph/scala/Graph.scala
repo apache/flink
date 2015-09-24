@@ -23,26 +23,108 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
+import org.apache.flink.graph.validation.GraphValidator
 import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
 import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration, VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
-
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
+import org.apache.flink.types.NullValue
 
 object Graph {
+
+  /**
+  * Creates a Graph from a DataSet of vertices and a DataSet of edges.
+  */
   def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
   TypeInformation : ClassTag](vertices: DataSet[Vertex[K, VV]], edges: DataSet[Edge[K, EV]],
                               env: ExecutionEnvironment): Graph[K, VV, EV] = {
     wrapGraph(jg.Graph.fromDataSet[K, VV, EV](vertices.javaSet, edges.javaSet, env.getJavaEnv))
   }
 
+  /**
+  * Creates a Graph from a DataSet of edges.
+  * Vertices are created automatically and their values are set to NullValue.
+  */
+  def fromDataSet[K: TypeInformation : ClassTag, EV: TypeInformation : ClassTag]
+  (edges: DataSet[Edge[K, EV]], env: ExecutionEnvironment): Graph[K, NullValue, EV] = {
+    wrapGraph(jg.Graph.fromDataSet[K, EV](edges.javaSet, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a graph from a DataSet of edges.
+  * Vertices are created automatically and their values are set by applying the provided
+  * map function to the vertex ids.
+  */
+  def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+  TypeInformation : ClassTag](edges: DataSet[Edge[K, EV]], env: ExecutionEnvironment,
+  mapper: MapFunction[K, VV]): Graph[K, VV, EV] = {
+    wrapGraph(jg.Graph.fromDataSet[K, VV, EV](edges.javaSet, mapper, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a Graph from a Seq of vertices and a Seq of edges.
+  */
   def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
   TypeInformation : ClassTag](vertices: Seq[Vertex[K, VV]], edges: Seq[Edge[K, EV]], env:
   ExecutionEnvironment): Graph[K, VV, EV] = {
     wrapGraph(jg.Graph.fromCollection[K, VV, EV](vertices.asJavaCollection, edges
       .asJavaCollection, env.getJavaEnv))
   }
+
+  /**
+  * Creates a Graph from a Seq of edges.
+  * Vertices are created automatically and their values are set to NullValue.
+  */
+  def fromCollection[K: TypeInformation : ClassTag, EV: TypeInformation : ClassTag]
+  (edges: Seq[Edge[K, EV]], env: ExecutionEnvironment): Graph[K, NullValue, EV] = {
+    wrapGraph(jg.Graph.fromCollection[K, EV](edges.asJavaCollection, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a graph from a Seq of edges.
+  * Vertices are created automatically and their values are set by applying the provided
+  * map function to the vertex ids.
+  */
+  def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+  TypeInformation : ClassTag](edges: Seq[Edge[K, EV]], env: ExecutionEnvironment,
+  mapper: MapFunction[K, VV]): Graph[K, VV, EV] = {
+    wrapGraph(jg.Graph.fromCollection[K, VV, EV](edges.asJavaCollection, mapper, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a Graph from a DataSets of Tuples.
+  */
+  def fromTupleDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+  TypeInformation : ClassTag](vertices: DataSet[(K, VV)], edges: DataSet[(K, K, EV)],
+                              env: ExecutionEnvironment): Graph[K, VV, EV] = {
+    val javaTupleVertices = vertices.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
+    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleVertices, javaTupleEdges, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a Graph from a DataSet of Tuples representing the edges.
+  * Vertices are created automatically and their values are set to NullValue.
+  */
+  def fromTupleDataSet[K: TypeInformation : ClassTag, EV: TypeInformation : ClassTag]
+  (edges: DataSet[(K, K, EV)], env: ExecutionEnvironment): Graph[K, NullValue, EV] = {
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
+    wrapGraph(jg.Graph.fromTupleDataSet[K, EV](javaTupleEdges, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a Graph from a DataSet of Tuples representing the edges.
+  * Vertices are created automatically and their values are set by applying the provided
+  * map function to the vertex ids.
+  */
+  def fromTupleDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
+  TypeInformation : ClassTag](edges: DataSet[(K, K, EV)], env: ExecutionEnvironment,
+  mapper: MapFunction[K, VV]): Graph[K, VV, EV] = {
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
+    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleEdges, mapper, env.getJavaEnv))
+  }
+
 }
 
 /**
@@ -90,6 +172,14 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    */
   def getEdgesAsTuple3(): DataSet[(K, K, EV)] = {
     wrap(jgraph.getEdgesAsTuple3).map(jtuple => (jtuple.f0, jtuple.f1, jtuple.f2))
+  }
+
+  /**
+  * @return a DataSet of Triplets,
+  * consisting of (srcVertexId, trgVertexId, srcVertexValue, trgVertexValue, edgeValue)
+  */
+  def getTriplets(): DataSet[Triplet[K, VV, EV]] = {
+    wrap(jgraph.getTriplets())
   }
 
   /**
@@ -575,6 +665,29 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
+  * Adds the list of vertices, passed as input, to the graph.
+  * If the vertices already exist in the graph, they will not be added once more.
+  *
+  * @param verticesToAdd the list of vertices to add
+  * @return the new graph containing the existing and newly added vertices
+  */
+  def addVertices(vertices: List[Vertex[K, VV]]): Graph[K, VV, EV] = {
+    wrapGraph(jgraph.addVertices(vertices.asJava))
+  }
+
+  /**
+  * Adds the given list edges to the graph.
+  *
+  * When adding an edge for a non-existing set of vertices, the edge is considered invalid and ignored.
+  *
+  * @param newEdges the data set of edges to be added
+  * @return a new graph containing the existing edges plus the newly added edges.
+  */
+  def addEdges(edges: List[Edge[K, EV]]): Graph[K, VV, EV] = {
+    wrapGraph(jgraph.addEdges(edges.asJava))
+  }
+
+    /**
    * Adds the given edge to the graph. If the source and target vertices do
    * not exist in the graph, they will also be added.
    *
@@ -599,6 +712,17 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     wrapGraph(jgraph.removeVertex(vertex))
   }
 
+    /**
+   * Removes the given vertex and its edges from the graph.
+   *
+   * @param vertex the vertex to remove
+   * @return the new graph containing the existing vertices and edges without
+   *         the removed vertex and its edges
+   */
+  def removeVertices(vertices: List[Vertex[K, VV]]): Graph[K, VV, EV] = {
+    wrapGraph(jgraph.removeVertices(vertices.asJava))
+  }
+
   /**
    * Removes all edges that match the given edge from the graph.
    *
@@ -611,6 +735,16 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
+   * Removes all the edges that match the edges in the given data set from the graph.
+   *
+   * @param edgesToBeRemoved the list of edges to be removed
+   * @return a new graph where the edges have been removed and in which the vertices remained intact
+   */
+  def removeEdges(edges: List[Edge[K, EV]]): Graph[K, VV, EV] = {
+    wrapGraph(jgraph.removeEdges(edges.asJava))
+  }
+
+  /**
    * Performs union on the vertices and edges sets of the input graphs
    * removing duplicate vertices but maintaining duplicate edges.
    *
@@ -619,6 +753,16 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    */
   def union(graph: Graph[K, VV, EV]) = {
     wrapGraph(jgraph.union(graph.getWrappedGraph))
+  }
+
+  /**
+  * Performs Difference on the vertex and edge sets of the input graphs
+  * removes common vertices and edges. If a source/target vertex is removed, its corresponding edge will also be removed
+  * @param graph the graph to perform difference with
+  * @return a new graph where the common vertices and edges have been removed
+  */
+  def difference(graph: Graph[K, VV, EV]) = {
+    wrapGraph(jgraph.difference(graph.getWrappedGraph))
   }
 
   /**
@@ -732,4 +876,9 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     wrapGraph(jgraph.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
       maxIterations, parameters))
   }
+
+  def validate(validator: GraphValidator[K, VV, EV]): Boolean = {
+    jgraph.validate(validator)
+  }
+
 }
