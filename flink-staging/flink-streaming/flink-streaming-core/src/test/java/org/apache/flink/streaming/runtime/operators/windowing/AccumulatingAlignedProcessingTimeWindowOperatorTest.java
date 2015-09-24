@@ -20,8 +20,9 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -48,7 +49,7 @@ import static org.junit.Assert.*;
 public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
-	private final KeyedWindowFunction<String, String, String> mockFunction = mock(KeyedWindowFunction.class);
+	private final KeyedWindowFunction<String, String, String, Window> mockFunction = mock(KeyedWindowFunction.class);
 
 	@SuppressWarnings("unchecked")
 	private final KeySelector<String, String> mockKeySelector = mock(KeySelector.class);
@@ -60,11 +61,11 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 	};
 	
-	private final KeyedWindowFunction<Integer, Integer, Integer> validatingIdentityFunction = 
-			new KeyedWindowFunction<Integer, Integer, Integer>()
+	private final KeyedWindowFunction<Integer, Integer, Integer, Window> validatingIdentityFunction =
+			new KeyedWindowFunction<Integer, Integer, Integer, Window>()
 	{
 		@Override
-		public void evaluate(Integer key, Iterable<Integer> values, Collector<Integer> out) {
+		public void evaluate(Integer key, Window window, Iterable<Integer> values, Collector<Integer> out) {
 			for (Integer val : values) {
 				assertEquals(key, val);
 				out.collect(val);
@@ -471,7 +472,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			final StreamingRuntimeContext mockContext = mock(StreamingRuntimeContext.class);
 			when(mockContext.getTaskName()).thenReturn("Test task name");
 
-			KeyedWindowFunction<Integer, Integer, Integer> failingFunction = new FailingFunction(100);
+			KeyedWindowFunction<Integer, Integer, Integer, Window> failingFunction = new FailingFunction(100);
 
 			// the operator has a window time that is so long that it will not fire in this test
 			final long hundredYears = 100L * 365 * 24 * 60 * 60 * 1000;
@@ -522,7 +523,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 	
-	private static class FailingFunction implements KeyedWindowFunction<Integer, Integer, Integer> {
+	private static class FailingFunction implements KeyedWindowFunction<Integer, Integer, Integer, Window> {
 
 		private final int failAfterElements;
 		
@@ -533,7 +534,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 
 		@Override
-		public void evaluate(Integer integer, Iterable<Integer> values, Collector<Integer> out) throws Exception {
+		public void evaluate(Integer integer, Window window, Iterable<Integer> values, Collector<Integer> out) throws Exception {
 			for (Integer i : values) {
 				out.collect(i);
 				numElements++;

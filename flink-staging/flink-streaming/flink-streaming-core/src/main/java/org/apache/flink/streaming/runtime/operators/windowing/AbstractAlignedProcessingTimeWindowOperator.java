@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -181,7 +182,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 	private void computeWindow(long timestamp) throws Exception {
 		out.setTimestamp(timestamp);
 		panes.truncatePanes(numPanesPerWindow);
-		panes.evaluateWindow(out);
+		panes.evaluateWindow(out, new TimeWindow(timestamp, windowSize));
 	}
 
 	// ------------------------------------------------------------------------

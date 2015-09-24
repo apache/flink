@@ -20,6 +20,9 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Assert;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -63,6 +66,20 @@ public class TestHarnessUtil {
 		Assert.assertArrayEquals(message,
 				expected.toArray(),
 				actual.toArray());
+
+	}
+
+	/**
+	 * Compare the two queues containing operator/task output by converting them to an array first.
+	 */
+	public static void assertOutputEqualsSorted(String message, Queue<Object> expected, Queue<Object> actual, Comparator<Object> comparator) {
+		Object[] sortedExpected = expected.toArray();
+		Object[] sortedActual = actual.toArray();
+
+		Arrays.sort(sortedExpected, comparator);
+		Arrays.sort(sortedActual, comparator);
+
+		Assert.assertArrayEquals(message, sortedExpected, sortedActual);
 
 	}
 }

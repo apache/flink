@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.windows;
+package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -30,7 +31,7 @@ import java.io.Serializable;
  * @param <OUT> The type of the output value.
  * @param <KEY> The type of the key.
  */
-public interface KeyedWindowFunction<IN, OUT, KEY> extends Function, Serializable {
+public interface KeyedWindowFunction<IN, OUT, KEY, W extends Window> extends Function, Serializable {
 
 	/**
 	 * 
@@ -40,5 +41,5 @@ public interface KeyedWindowFunction<IN, OUT, KEY> extends Function, Serializabl
 	 * 
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery. 
 	 */
-	void evaluate(KEY key, Iterable<IN> values, Collector<OUT> out) throws Exception;
+	void evaluate(KEY key, W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

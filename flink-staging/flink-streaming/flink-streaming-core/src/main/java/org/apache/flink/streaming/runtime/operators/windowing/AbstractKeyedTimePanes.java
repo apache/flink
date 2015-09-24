@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayDeque;
@@ -33,7 +34,7 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 
 	public abstract void addElementToLatestPane(Type element) throws Exception;
 
-	public abstract void evaluateWindow(Collector<Result> out) throws Exception;
+	public abstract void evaluateWindow(Collector<Result> out, TimeWindow window) throws Exception;
 	
 	
 	public void dispose() {

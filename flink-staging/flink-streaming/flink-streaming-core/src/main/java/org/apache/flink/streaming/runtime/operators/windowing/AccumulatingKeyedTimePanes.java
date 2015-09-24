@@ -20,7 +20,9 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.util.UnionIterator;
-import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -32,13 +34,13 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 	private final KeyMap.LazyFactory<ArrayList<Type>> listFactory = getListFactory();
 
-	private final KeyedWindowFunction<Type, Result, Key> function;
+	private final KeyedWindowFunction<Type, Result, Key, Window> function;
 	
 	private long evaluationPass;
 
 	// ------------------------------------------------------------------------
 	
-	public AccumulatingKeyedTimePanes(KeySelector<Type, Key> keySelector, KeyedWindowFunction<Type, Result, Key> function) {
+	public AccumulatingKeyedTimePanes(KeySelector<Type, Key> keySelector, KeyedWindowFunction<Type, Result, Key, Window> function) {
 		this.keySelector = keySelector;
 		this.function = function;
 	}
@@ -53,16 +55,16 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	}
 
 	@Override
-	public void evaluateWindow(Collector<Result> out) throws Exception {
+	public void evaluateWindow(Collector<Result> out, TimeWindow window) throws Exception {
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case (tumbling window)
 			for (KeyMap.Entry<Key, ArrayList<Type>> entry : latestPane) {
-				function.evaluate(entry.getKey(), entry.getValue(), out);
+				function.evaluate(entry.getKey(), window, entry.getValue(), out);
 			}
 		}
 		else {
 			// general code path for multi-pane case
-			WindowFunctionTraversal<Key, Type, Result> evaluator = new WindowFunctionTraversal<>(function, out);
+			WindowFunctionTraversal<Key, Type, Result> evaluator = new WindowFunctionTraversal<>(function, window, out);
 			traverseAllPanes(evaluator, evaluationPass);
 		}
 		
@@ -75,7 +77,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	
 	static final class WindowFunctionTraversal<Key, Type, Result> implements KeyMap.TraversalEvaluator<Key, ArrayList<Type>> {
 
-		private final KeyedWindowFunction<Type, Result, Key> function;
+		private final KeyedWindowFunction<Type, Result, Key, Window> function;
 		
 		private final UnionIterator<Type> unionIterator;
 		
@@ -83,10 +85,13 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 		
 		private Key currentKey;
 
-		WindowFunctionTraversal(KeyedWindowFunction<Type, Result, Key> function, Collector<Result> out) {
+		private TimeWindow window;
+
+		WindowFunctionTraversal(KeyedWindowFunction<Type, Result, Key, Window> function, TimeWindow window, Collector<Result> out) {
 			this.function = function;
 			this.out = out;
 			this.unionIterator = new UnionIterator<>();
+			this.window = window;
 		}
 
 
@@ -103,7 +108,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 		@Override
 		public void keyDone() throws Exception {
-			function.evaluate(currentKey, unionIterator, out);
+			function.evaluate(currentKey, window, unionIterator, out);
 		}
 	}
 	

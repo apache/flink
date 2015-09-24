@@ -20,7 +20,8 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 
 
 public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT> 
@@ -30,7 +31,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 
 	
 	public AccumulatingProcessingTimeWindowOperator(
-			KeyedWindowFunction<IN, OUT, KEY> function,
+			KeyedWindowFunction<IN, OUT, KEY, Window> function,
 			KeySelector<IN, KEY> keySelector,
 			long windowLength,
 			long windowSlide)
@@ -41,7 +42,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 	@Override
 	protected AccumulatingKeyedTimePanes<IN, KEY, OUT> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
-		KeyedWindowFunction<IN, OUT, KEY> windowFunction = (KeyedWindowFunction<IN, OUT, KEY>) function;
+		KeyedWindowFunction<IN, OUT, KEY, Window> windowFunction = (KeyedWindowFunction<IN, OUT, KEY, Window>) function;
 		
 		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}

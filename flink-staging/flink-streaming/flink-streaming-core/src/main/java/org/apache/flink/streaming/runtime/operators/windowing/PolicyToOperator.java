@@ -21,11 +21,12 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.windowpolicy.EventTime;
 import org.apache.flink.streaming.api.windowing.windowpolicy.ProcessingTime;
 import org.apache.flink.streaming.api.windowing.windowpolicy.WindowPolicy;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
  * This class implements the conversion from window policies to concrete operator
@@ -60,7 +61,7 @@ public class PolicyToOperator {
 			}
 			else if (function instanceof KeyedWindowFunction) {
 				@SuppressWarnings("unchecked")
-				KeyedWindowFunction<IN, OUT, KEY> wf = (KeyedWindowFunction<IN, OUT, KEY>) function;
+				KeyedWindowFunction<IN, OUT, KEY, Window> wf = (KeyedWindowFunction<IN, OUT, KEY, Window>) function;
 
 				return new AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>(
 								wf, keySelector, windowLength, windowSlide);

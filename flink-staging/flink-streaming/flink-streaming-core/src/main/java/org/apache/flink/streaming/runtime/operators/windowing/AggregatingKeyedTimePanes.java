@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 
@@ -47,7 +48,7 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 	}
 
 	@Override
-	public void evaluateWindow(Collector<Type> out) throws Exception {
+	public void evaluateWindow(Collector<Type> out, TimeWindow window) throws Exception {
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case
 			for (KeyMap.Entry<Key, Type> entry : latestPane) {

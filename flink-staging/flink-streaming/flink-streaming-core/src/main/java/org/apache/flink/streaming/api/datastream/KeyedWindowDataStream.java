@@ -25,9 +25,10 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.windows.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.windowpolicy.WindowPolicy;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.PolicyToOperator;
 
 /**
@@ -107,7 +108,7 @@ public class KeyedWindowDataStream<T, K> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <Result> DataStream<Result> mapWindow(KeyedWindowFunction<T, Result, K> function) {
+	public <Result> DataStream<Result> mapWindow(KeyedWindowFunction<T, Result, K, Window> function) {
 		String callLocation = Utils.getCallLocationName();
 
 		TypeInformation<T> inType = input.getType();
