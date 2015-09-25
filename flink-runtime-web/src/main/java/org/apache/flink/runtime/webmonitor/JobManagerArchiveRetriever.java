@@ -32,11 +32,21 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Retrieves and stores the actor gateway to the current leading JobManager and its archive. In
  * case of an error, the {@link WebRuntimeMonitor} to which this instance is associated will be
  * stopped.
+ *
+ * <p>The job manager gateway only works if the web monitor and the job manager run in the same
+ * actor system, because many execution graph structures are not serializable. This breaks the nice
+ * leader retrieval abstraction and we have a special code path in case that another job manager is
+ * leader. In such a case, we get the address of the web monitor of the leading job manager and
+ * redirect to it (instead of directly communicating with it).
  */
 public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 
@@ -47,21 +57,45 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 	private final FiniteDuration timeout;
 	private final WebMonitor webMonitor;
 
+	/** Pattern to extract the host from an remote Akka URL */
+	private final Pattern hostFromLeaderAddressPattern = Pattern.compile("^.+@(.+):([0-9]+)/user/.+$");
+
+	/** The JobManager Akka URL associated with this JobManager */
+	private volatile String jobManagerAkkaUrl;
+
 	/** will be written and read concurrently */
 	private volatile ActorGateway jobManagerGateway;
 	private volatile ActorGateway archiveGateway;
+	private volatile String redirectWebMonitorAddress;
 
 	public JobManagerArchiveRetriever(
 			WebMonitor webMonitor,
 			ActorSystem actorSystem,
 			FiniteDuration lookupTimeout,
 			FiniteDuration timeout) {
-		this.webMonitor = webMonitor;
-		this.actorSystem = actorSystem;
-		this.lookupTimeout = lookupTimeout;
-		this.timeout = timeout;
+
+		this.webMonitor = checkNotNull(webMonitor);
+		this.actorSystem = checkNotNull(actorSystem);
+		this.lookupTimeout = checkNotNull(lookupTimeout);
+		this.timeout = checkNotNull(timeout);
 	}
 
+	/**
+	 * Associates this instance with the job manager identified by the given URL.
+	 *
+	 * <p>This has to match the URL retrieved by the leader retrieval service. In tests setups you
+	 * have to make sure to use the correct type of URLs.
+	 */
+	public void setJobManagerAkkaUrl(String jobManagerAkkaUrl) {
+		this.jobManagerAkkaUrl = jobManagerAkkaUrl;
+	}
+
+	/**
+	 * Returns the gateway to the job manager associated with this web monitor. Before working with
+	 * the returned gateway, make sure to check {@link #getRedirectAddress()} for a redirect. This
+	 * is necessary, because non-serializability breaks the leader retrieval abstraction (you cannot
+	 * just work with any leader).
+	 */
 	public ActorGateway getJobManagerGateway() {
 		return jobManagerGateway;
 	}
@@ -70,28 +104,68 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 		return archiveGateway;
 	}
 
+	/**
+	 * Returns the current redirect address or <code>null</code> if the job manager associated with
+	 * this web monitor is leading. In that case, work with the gateway directly.
+	 */
+	public String getRedirectAddress() {
+		return redirectWebMonitorAddress;
+	}
 
 	@Override
 	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
 		if (leaderAddress != null && !leaderAddress.equals("")) {
 			try {
-				ActorRef jobManager = AkkaUtils.getActorRef(
-						leaderAddress,
-						actorSystem,
+				ActorRef jobManager = AkkaUtils.getActorRef(leaderAddress, actorSystem,
 						lookupTimeout);
+
 				jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
 
 				Future<Object> archiveFuture = jobManagerGateway.ask(
-						JobManagerMessages.getRequestArchive(),
-						timeout);
+						JobManagerMessages.getRequestArchive(), timeout);
 
 				ActorRef archive = ((JobManagerMessages.ResponseArchive) Await.result(
-						archiveFuture,
-						timeout)
-				).actor();
-
+						archiveFuture, timeout)).actor();
 				archiveGateway = new AkkaActorGateway(archive, leaderSessionID);
-			} catch (Exception e) {
+
+				if (jobManagerAkkaUrl == null) {
+					throw new IllegalStateException("Unspecified Akka URL for the job manager " +
+							"associated with this web monitor.");
+				}
+
+				boolean isLeader = jobManagerAkkaUrl.equals(leaderAddress);
+
+				if (isLeader) {
+					// Our JobManager is leader and our work is done :)
+					redirectWebMonitorAddress = null;
+				}
+				else {
+					// We need to redirect to the leader -.-
+					//
+					// This is necessary currently, because many execution graph structures are not
+					// serializable. The proper solution here is to have these serializable and
+					// transparently work with the leading job manager instead of redirecting.
+					Future<Object> portFuture = jobManagerGateway
+							.ask(JobManagerMessages.getRequestWebMonitorPort(), timeout);
+
+					JobManagerMessages.ResponseWebMonitorPort portResponse =
+							(JobManagerMessages.ResponseWebMonitorPort) Await.result(portFuture, timeout);
+
+					int webMonitorPort = portResponse.port();
+
+					if (webMonitorPort != 1) {
+						Matcher matcher = hostFromLeaderAddressPattern.matcher(leaderAddress);
+						if (matcher.matches()) {
+							redirectWebMonitorAddress = String.format("%s:%d",
+									matcher.group(1), webMonitorPort);
+						}
+						else {
+							LOG.warn("Unexpected leader address pattern. Cannot extract host.");
+						}
+					}
+				}
+			}
+			catch (Exception e) {
 				handleError(e);
 			}
 		}
@@ -101,10 +175,11 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 	public void handleError(Exception exception) {
 		LOG.error("Received error from LeaderRetrievalService.", exception);
 
-		try{
+		try {
 			// stop associated webMonitor
 			webMonitor.stop();
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			LOG.error("Error while stopping the web server due to a LeaderRetrievalService error.", e);
 		}
 	}

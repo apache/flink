@@ -80,17 +80,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class WebRuntimeMonitor implements WebMonitor {
 
-	/** By default, all requests to the JobManager have a timeout of 10 seconds */ 
+	/** By default, all requests to the JobManager have a timeout of 10 seconds */
 	public static final FiniteDuration DEFAULT_REQUEST_TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
-	
+
 	/** Logger for web frontend startup / shutdown messages */
 	private static final Logger LOG = LoggerFactory.getLogger(WebRuntimeMonitor.class);
-	
+
 	/** Teh default path under which the static contents is stored */
 	private static final String STATIC_CONTENTS_PATH = "resources/web-runtime-monitor";
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/** Guarding concurrent modifications to the server channel pipeline during startup and shutdown */
 	private final Object startupShutdownLock = new Object();
 
@@ -98,29 +98,27 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
 	private final JobManagerArchiveRetriever retriever;
-	
+
 	private final Router router;
 
 	private final int configuredPort;
 
-	private ServerBootstrap bootstrap;
-	
+	private final ServerBootstrap bootstrap;
+
 	private Channel serverChannel;
 
-	
 	public WebRuntimeMonitor(
-				Configuration config,
-				LeaderRetrievalService leaderRetrievalService,
-				ActorSystem actorSystem) throws IOException
-	{
+			Configuration config,
+			LeaderRetrievalService leaderRetrievalService,
+			ActorSystem actorSystem) throws IOException, InterruptedException {
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
-		
+
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
-		
+
 		// figure out where our static contents is
 		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
 		final String configuredWebRoot = cfg.getWebRoot();
-		
+
 		final File webRootDir;
 		if (configuredWebRoot != null) {
 			webRootDir = new File(configuredWebRoot);
@@ -129,17 +127,17 @@ public class WebRuntimeMonitor implements WebMonitor {
 			webRootDir = new File(flinkRoot, STATIC_CONTENTS_PATH);
 		}
 		else {
-			throw new IllegalConfigurationException("The given configuration provides neither the web-document root (" 
+			throw new IllegalConfigurationException("The given configuration provides neither the web-document root ("
 					+ WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY + "), not the Flink installation root ("
 					+ ConfigConstants.FLINK_BASE_DIR_PATH_KEY + ").");
 		}
-		
+
 		// validate that the doc root is a valid directory
 		if (!(webRootDir.exists() && webRootDir.isDirectory() && webRootDir.canRead())) {
-			throw new IllegalConfigurationException("The path to the static contents (" + 
+			throw new IllegalConfigurationException("The path to the static contents (" +
 					webRootDir.getAbsolutePath() + ") is not a readable directory.");
 		}
-		
+
 		// port configuration
 		this.configuredPort = cfg.getWebFrontendPort();
 		if (this.configuredPort < 0) {
@@ -150,97 +148,97 @@ public class WebRuntimeMonitor implements WebMonitor {
 		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
 
 		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
-		
+
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(retriever);
 
 		router = new Router()
 			// config how to interact with this web server
-			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
+			.GET("/config", handler(retriever, new DashboardConfigHandler(cfg.getRefreshInterval())))
 
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/overview", handler(retriever, new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
 			// job manager configuration
 			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config)))
 
 			// overview over jobs
-			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true)))
-			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false)))
-			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true)))
+			.GET("/joboverview", handler(retriever, new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true)))
+			.GET("/joboverview/running", handler(retriever, new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false)))
+			.GET("/joboverview/completed", handler(retriever, new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true)))
 
-			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/jobs", handler(retriever, new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
-			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid", handler(retriever, new JobDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices", handler(retriever, new JobDetailsHandler(currentGraphs)))
 
-			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid", handler(retriever, new JobVertexDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(retriever, new SubtasksTimesHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(retriever, new JobVertexAccumulatorsHandler(currentGraphs)))
 
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(retriever, new SubtasksAllAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(retriever, new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(retriever, new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(retriever, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs)))
 
-			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs)))
-			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
-			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/plan", handler(retriever, new JobPlanHandler(currentGraphs)))
+			.GET("/jobs/:jobid/config", handler(retriever, new JobConfigHandler(currentGraphs)))
+			.GET("/jobs/:jobid/exceptions", handler(retriever, new JobExceptionsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/accumulators", handler(retriever, new JobAccumulatorsHandler(currentGraphs)))
 
-			.GET("/taskmanagers", handler(new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/taskmanagers", handler(retriever, new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
 			// this handler serves all the static contents
-			.GET("/:*", new StaticFileServerHandler(webRootDir));
-	}
+			.GET("/:*", new StaticFileServerHandler(retriever, webRootDir));
 
-	@Override
-	public void start() throws Exception {
 		synchronized (startupShutdownLock) {
-			if (this.bootstrap != null) {
-				throw new IllegalStateException("The server has already been started");
-			}
-			
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-	
+
 				@Override
 				protected void initChannel(SocketChannel ch) {
 					Handler handler = new Handler(router);
-					
+
 					ch.pipeline()
-						.addLast(new HttpServerCodec())
-						.addLast(new HttpObjectAggregator(65536))
-						.addLast(new ChunkedWriteHandler())
-						.addLast(handler.name(), handler);
+							.addLast(new HttpServerCodec())
+							.addLast(new HttpObjectAggregator(65536))
+							.addLast(new ChunkedWriteHandler())
+							.addLast(handler.name(), handler);
 				}
 			};
-			
+
 			NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
 			NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-	
+
 			this.bootstrap = new ServerBootstrap();
 			this.bootstrap
 					.group(bossGroup, workerGroup)
 					.channel(NioServerSocketChannel.class)
 					.childHandler(initializer);
-	
+
 			Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
 			this.serverChannel = ch;
-			
+
 			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
-			
-			LOG.info("Web frontend listening at " + address + ':' + port);
 
+			LOG.info("Web frontend listening at " + address + ':' + port);
+		}
+	}
+
+	@Override
+	public void start(String jobManagerAkkaUrl) throws Exception {
+		LOG.info("Starting with JobManager {} on port {}", jobManagerAkkaUrl, getServerPort());
+		synchronized (startupShutdownLock) {
+			retriever.setJobManagerAkkaUrl(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
 		}
 	}
-	
+
 	@Override
 	public void stop() throws Exception {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.stop();
-			
+
 			if (this.serverChannel != null) {
 				this.serverChannel.close().awaitUninterruptibly();
 				this.serverChannel = null;
@@ -249,11 +247,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 				if (bootstrap.group() != null) {
 					bootstrap.group().shutdownGracefully();
 				}
-				this.bootstrap = null;
 			}
 		}
 	}
-	
+
 	@Override
 	public int getServerPort() {
 		Channel server = this.serverChannel;
@@ -265,15 +262,17 @@ public class WebRuntimeMonitor implements WebMonitor {
 				LOG.error("Cannot access local server port", e);
 			}
 		}
-			
+
 		return -1;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
-	private static RuntimeMonitorHandler handler(RequestHandler handler) {
-		return new RuntimeMonitorHandler(handler);
+
+	private static RuntimeMonitorHandler handler(
+			JobManagerArchiveRetriever retriever, RequestHandler handler) {
+
+		return new RuntimeMonitorHandler(retriever, handler);
 	}
 }

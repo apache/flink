@@ -60,6 +60,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 	@Override
 	public String handleRequest(Map<String, String> params) throws Exception {
 		try {
+
 			ActorGateway jobManager = retriever.getJobManagerGateway();
 
 			if (jobManager != null) {
