@@ -30,7 +30,7 @@ import org.apache.flink.graph.example.utils.ExampleUtils;
 import org.apache.flink.types.NullValue;
 
 /**
- * This example illustrate how to use Gelly metrics methods and get simple statistics
+ * This example illustrates how to use Gelly metrics methods and get simple statistics
  * from the input graph.  
  * 
  * The program creates a random graph and computes and prints

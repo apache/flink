@@ -21,9 +21,8 @@ package org.apache.flink.graph.scala.utils
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.graph.Vertex
 
+@SerialVersionUID(1L)
 class Tuple2ToVertexMap[K, VV] extends MapFunction[(K, VV), Vertex[K, VV]] {
-
-  private val serialVersionUID: Long = 1L
 
   override def map(value: (K, VV)): Vertex[K, VV] = {
     new Vertex(value._1, value._2)
