@@ -22,7 +22,7 @@ USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zook
 
 STARTSTOP=$1
 DAEMON=$2
-ARGS=$3
+ARGS=("${@:3}") # get remaining arguments as array
 
 case $DAEMON in
     (jobmanager)
@@ -62,12 +62,12 @@ mkdir -p "$FLINK_PID_DIR"
 # This allows us to start multiple daemon of each type.
 id=$([ -f "$pid" ] && echo $(wc -l < $pid) || echo "0")
 
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-$DAEMON-$id-$HOSTNAME.log
-out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-$DAEMON-$id-$HOSTNAME.out
+log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}.log"
+out="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}.out"
 
-log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
+log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback.xml")
 
-JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+JAVA_VERSION=$(${JAVA_RUN} -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
 
 # Only set JVM 8 arguments if we have correctly extracted the version
 if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
@@ -90,7 +90,8 @@ case $STARTSTOP in
         fi
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} ${ARGS} > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
+
         mypid=$!
 
         # Add to pid file if successful start

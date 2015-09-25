@@ -62,14 +62,16 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 
     # Startup parameters
-    args="--configDir ${FLINK_CONF_DIR} --executionMode ${EXECUTIONMODE} --streamingMode ${STREAMINGMODE}"
+    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "${EXECUTIONMODE}" "--streamingMode" "${STREAMINGMODE}")
     if [ ! -z $HOST ]; then
-        args="${args} --host $HOST"
+        args+=("--host")
+        args+=("${HOST}")
     fi
 
     if [ ! -z $WEBUIPORT ]; then
-        args="${args} --webui-port $WEBUIPORT"
+        args+=("--webui-port")
+        args+=("${WEBUIPORT}")
     fi
 fi
 
-${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP jobmanager "${args}"
+"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP jobmanager "${args[@]}"

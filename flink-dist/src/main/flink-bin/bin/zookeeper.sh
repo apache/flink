@@ -50,7 +50,7 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 
     # Startup parameters
-    args="--zkConfigFile $ZK_CONF --peerId $PEER_ID"
+    args=("--zkConfigFile" "${ZK_CONF}" "--peerId" "${PEER_ID}")
 fi
 
-${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP zookeeper "${args}"
+"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP zookeeper "${args[@]}"
