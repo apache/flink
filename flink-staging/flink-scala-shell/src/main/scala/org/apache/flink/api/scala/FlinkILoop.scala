@@ -20,10 +20,10 @@ package org.apache.flink.api.scala
 
 import java.io.{BufferedReader, File, FileOutputStream}
 
-import scala.tools.nsc.interpreter._
-
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment}
 import org.apache.flink.util.AbstractID
+
+import scala.tools.nsc.interpreter._
 
 
 class FlinkILoop(
@@ -32,10 +32,8 @@ class FlinkILoop(
     val externalJars: Option[Array[String]],
     in0: Option[BufferedReader],
     out0: JPrintWriter)
-  extends ILoop(in0, out0) {
-  
-  
-  
+  extends ILoopCompat(in0, out0) {
+
   def this(host:String, 
            port:Int, 
            externalJars : Option[Array[String]], 
@@ -51,6 +49,7 @@ class FlinkILoop(
   def this(host: String, port: Int, in0: BufferedReader, out: JPrintWriter){
     this(host: String, port: Int, None, in0: BufferedReader, out: JPrintWriter)
   }
+
   // remote environment
   private val remoteEnv: ScalaShellRemoteEnvironment = {
     // allow creation of environments
@@ -70,17 +69,6 @@ class FlinkILoop(
     val scalaEnv = new ExecutionEnvironment(remoteEnv)
     scalaEnv
   }
-
-  addThunk {
-    intp.beQuietDuring {
-      // automatically imports the flink scala api
-      intp.addImports("org.apache.flink.api.scala._")
-      intp.addImports("org.apache.flink.api.common.functions._")
-      // with this we can access this object in the scala shell
-      intp.bindValue("env", this.scalaEnv)
-    }
-  }
-
 
   /**
    * creates a temporary directory to store compiled console files
@@ -107,6 +95,24 @@ class FlinkILoop(
     new File(tmpDirBase, "scala_shell_commands.jar")
   }
 
+  private val packageImports = Seq[String](
+    "org.apache.flink.api.scala._",
+    "org.apache.flink.api.common.functions._"
+  )
+
+  override def createInterpreter(): Unit = {
+    super.createInterpreter()
+
+    addThunk {
+      intp.beQuietDuring {
+        // import dependencies
+        intp.interpret("import " + packageImports.mkString(", "))
+
+        // set execution environment
+        intp.bind("env", this.scalaEnv)
+      }
+    }
+  }
 
   /**
    * Packages the compiled classes of the current shell session into a Jar file for execution

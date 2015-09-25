@@ -76,12 +76,6 @@ under the License.
 			<version>${scala.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>jline</artifactId>
-			<version>2.10.4</version>
-		</dependency>
-
 		<!-- tests -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -180,6 +174,7 @@ under the License.
 						<configuration>
 							<sources>
 								<source>src/main/scala</source>
+								<source>src/main/scala-${scala.binary.version}</source>
 							</sources>
 						</configuration>
 					</execution>
@@ -273,6 +268,12 @@ under the License.
 					<groupId>org.scalamacros</groupId>
 					<artifactId>quasiquotes_${scala.binary.version}</artifactId>
 					<version>${scala.macros.version}</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>jline</artifactId>
+					<version>2.10.4</version>
 				</dependency>
 			</dependencies>
 		</profile>
