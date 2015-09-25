@@ -108,7 +108,7 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
 			ActorSystem actorSystem)
-		throws IOException {
+			throws Exception {
 		if (config == null) {
 			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}
@@ -166,23 +166,16 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 		handlers = new HandlerCollection(true);
 		handlers.addHandler(resourceHandler);
 		server.setHandler(handlers);
-	}
 
-	/**
-	 * Starts the web frontend server.
-	 *
-	 * @throws Exception
-	 *         Thrown, if the start fails.
-	 */
-	public void start() throws Exception {
+		// Start the web server
 		server.start();
-		
+
 		final Connector[] connectors = server.getConnectors();
 		if (connectors != null && connectors.length > 0) {
 			Connector conn = connectors[0];
 
 			// we have to use getLocalPort() instead of getPort() http://stackoverflow.com/questions/8884865/how-to-discover-jetty-7-running-port
-			this.assignedPort = conn.getLocalPort(); 
+			this.assignedPort = conn.getLocalPort();
 			String host = conn.getHost();
 			if (host == null) { // as per method documentation
 				host = "0.0.0.0";
@@ -192,7 +185,15 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 		else {
 			LOG.warn("Unable to determine local endpoint of web frontend server");
 		}
+	}
 
+	/**
+	 * Starts the leader retrieval service.
+	 *
+	 * @throws Exception
+	 *         Thrown, if the start fails.
+	 */
+	public void start() throws Exception {
 		leaderRetrievalService.start(this);
 	}
 

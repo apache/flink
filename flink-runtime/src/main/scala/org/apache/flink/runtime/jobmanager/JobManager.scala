@@ -1263,6 +1263,37 @@ object JobManager {
       }
     }
 
+    val webMonitor: WebMonitor =
+      if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+        // TODO: Add support for HA. Webserver has to work in dedicated mode. All transferred
+        // information has to be made serializable
+        val address = AkkaUtils.getAddress(jobManagerSystem)
+
+        configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
+        configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
+
+        val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(configuration)
+
+        // start the job manager web frontend
+        if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
+          LOG.info("Starting NEW JobManger web frontend")
+          // start the new web frontend. we need to load this dynamically
+          // because it is not in the same project/dependencies
+          startWebRuntimeMonitor(configuration, leaderRetrievalService, jobManagerSystem)
+        }
+        else {
+          LOG.info("Starting JobManger web frontend")
+          new WebInfoServer(configuration, leaderRetrievalService, jobManagerSystem)
+        }
+      }
+      else {
+        null
+      }
+
+    // Reset the port (necessary in case of automatic port selection)
+    val webMonitorPort = if (webMonitor != null) webMonitor.getServerPort else -1
+    configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, webMonitorPort)
+
     try {
       // bring up the job manager actor
       LOG.info("Starting JobManager actor")
@@ -1306,37 +1337,7 @@ object JobManager {
           "TaskManager_Process_Reaper")
       }
 
-      if(configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-
-        // TODO: Add support for HA. Webserver has to work in dedicated mode. All transferred
-        // information has to be made serializable
-        val address = AkkaUtils.getAddress(jobManagerSystem)
-
-        configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
-        configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
-
-        val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(configuration)
-
-        // start the job manager web frontend
-        val webServer = if (
-          configuration.getBoolean(
-            ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
-            false)) {
-
-          LOG.info("Starting NEW JobManger web frontend")
-          // start the new web frontend. we need to load this dynamically
-          // because it is not in the same project/dependencies
-          startWebRuntimeMonitor(configuration, leaderRetrievalService, jobManagerSystem)
-        }
-        else {
-          LOG.info("Starting JobManger web frontend")
-          new WebInfoServer(configuration, leaderRetrievalService, jobManagerSystem)
-        }
-
-        if(webServer != null) {
-          webServer.start()
-        }
-      }
+      webMonitor.start()
     }
     catch {
       case t: Throwable => {

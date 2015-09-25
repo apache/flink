@@ -102,16 +102,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final int configuredPort;
 
-	private ServerBootstrap bootstrap;
+	private final ServerBootstrap bootstrap;
 	
 	private Channel serverChannel;
-
 	
 	public WebRuntimeMonitor(
 				Configuration config,
 				LeaderRetrievalService leaderRetrievalService,
-				ActorSystem actorSystem) throws IOException
-	{
+				ActorSystem actorSystem) throws IOException, InterruptedException {
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
@@ -187,47 +185,45 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(webRootDir));
-	}
 
-	@Override
-	public void start() throws Exception {
 		synchronized (startupShutdownLock) {
-			if (this.bootstrap != null) {
-				throw new IllegalStateException("The server has already been started");
-			}
-			
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-	
+
 				@Override
 				protected void initChannel(SocketChannel ch) {
 					Handler handler = new Handler(router);
-					
+
 					ch.pipeline()
-						.addLast(new HttpServerCodec())
-						.addLast(new HttpObjectAggregator(65536))
-						.addLast(new ChunkedWriteHandler())
-						.addLast(handler.name(), handler);
+							.addLast(new HttpServerCodec())
+							.addLast(new HttpObjectAggregator(65536))
+							.addLast(new ChunkedWriteHandler())
+							.addLast(handler.name(), handler);
 				}
 			};
-			
+
 			NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
 			NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-	
+
 			this.bootstrap = new ServerBootstrap();
 			this.bootstrap
 					.group(bossGroup, workerGroup)
 					.channel(NioServerSocketChannel.class)
 					.childHandler(initializer);
-	
+
 			Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
 			this.serverChannel = ch;
-			
+
 			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
-			
-			LOG.info("Web frontend listening at " + address + ':' + port);
 
+			LOG.info("Web frontend listening at " + address + ':' + port);
+		}
+	}
+
+	@Override
+	public void start() throws Exception {
+		synchronized (startupShutdownLock) {
 			leaderRetrievalService.start(retriever);
 		}
 	}
@@ -245,7 +241,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 				if (bootstrap.group() != null) {
 					bootstrap.group().shutdownGracefully();
 				}
-				this.bootstrap = null;
 			}
 		}
 	}
