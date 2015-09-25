@@ -71,7 +71,7 @@ class LabeledVectorTest extends FlatSpec with Matchers with FlinkTestBase {
     //// Generate alternate trainingSet
 
     val r = scala.util.Random
-    val rSeq = Seq.fill(10000)(DenseVector(r.nextFloat, r.nextFloat, r.nextFloat))
+    val rSeq = Seq.fill(10000)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian))
 
     /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
     // val trainingSet= env.fromCollection(Seq.fill(100)(DenseVector(r.nextFloat, r.nextFloat)))
@@ -89,10 +89,6 @@ class LabeledVectorTest extends FlatSpec with Matchers with FlinkTestBase {
       v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
     }.sortBy(_._2).take(3).map(_._1).toArray
    */
-
-    val testVect = DenseVector(0.1,0.01,-1.0,2.0)
-    println("testVect =   " + testVect)
-    println("testVect.data.min =   " + testVect.data.min) //// NEED ".data.min"
 
     val answer = rSeq.map {
       v => (v, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0, 0.0), v))

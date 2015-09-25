@@ -204,8 +204,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  /** Finds all objects in minimal bounding box and also all siblings' objects.
-    * Used in KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
+  /** Following 3 routines are used to find all objects in minimal bounding box and
+    * also all objects in the siblings' minimal bounding box.
+    *
+    * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
     * max distance D_s to obj.  D_s is then used during the kNN query to find all points
     * within a radius D_s of obj using searchNeighbors
    *
@@ -219,12 +221,29 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     ret
   }
 
+
+  def objectsInMinBox(n:Node, ret:ListBuffer[DenseVector]) {
+    if (n.children == null){
+       ret ++= n.objects
+    } else{
+      for (c <- n.children) {
+        if(c.children == null) {
+          ret ++= c.objects
+        }else{
+          objectsInMinBox(c, ret)
+        }
+      }
+    }
+  }
+
   private def searchRecurSibling(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
     if(n.children != null) {
       for(child <- n.children; if child.isInNode(obj)) {
         if (child.children == null) {
           for (c <- n.children) {
-            ret ++= c.objects
+            ////// Go down to minimal bounding box and grab object
+            objectsInMinBox(c, ret)
+            //ret ++= c.objects
           }
         }
         else {

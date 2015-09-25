@@ -204,6 +204,7 @@ object KNN {
                   }
 
                   for (a <- testing.values) {
+                    //println("a =   " + a )
 
                     /////  Find siblings' objects and do kNN there
                     var siblingObjects = trainingQuadTree.searchNeighborsSibling(a._2.asInstanceOf[DenseVector])
@@ -212,6 +213,12 @@ object KNN {
                     val knnSiblings = siblingObjects.map (
                             v => SquaredEuclideanDistanceMetric().distance(a._2, v)
                     ).sortWith(_<_).take(k)
+
+                    if(siblingObjects.isEmpty) {
+                      println("siblingsObjects =   " + siblingObjects)
+                      println("a =  " + a)
+
+                    }
 
                     var rad = knnSiblings.last
 
@@ -223,7 +230,7 @@ object KNN {
                      for (b <- bFiltVect){
 
 
-                      // for (a <- testing.values) {
+                       //for (a <- testing.values) {
                       //for (b <- training.values){
                       // (training vector, input vector, input key, distance)
                       queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))

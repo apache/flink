@@ -28,29 +28,22 @@ import org.scalatest.{FlatSpec, Matchers}
 // used only to setup and time the KNN algorithm
 
 class KNNBenchmark extends FlatSpec {
-  def time[R](block: => R): R = {
-    val t0 = System.nanoTime()
-    val result = block    // call-by-name
-    val t1 = System.nanoTime()
-    println("Elapsed time =       : " + (t1 - t0)/1000000000 + "s")
-    result
-  }
 
-  time{
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    ////////// Uniform case
     //// Generate trainingSet
-
     val r = scala.util.Random
-    val rSeq = Seq.fill(20000)(DenseVector(r.nextFloat, r.nextFloat))
+    val rSeq = Seq.fill(10000)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian, r.nextGaussian))
 
     /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
     val trainingSet = env.fromCollection(rSeq)
 
-    val rSeqTest = Seq.fill(20000)(DenseVector(r.nextFloat, r.nextFloat))
+    val rSeqTest = Seq.fill(10000)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian, r.nextGaussian))
     val testingSet = env.fromCollection(rSeqTest)
 
-    //// ACTUAL CALL TO kNN
+  val t0 = System.nanoTime()
+  //// ACTUAL CALL TO kNN
     ///FIRST SET UP PARAMETERS
     val knn = KNN()
       .setK(3)
@@ -61,5 +54,7 @@ class KNNBenchmark extends FlatSpec {
     // run knn join
     knn.fit(trainingSet)
     val result = knn.predict(testingSet).collect()
-  }
+
+    val tf = System.nanoTime()
+    println("MyElapsed time =       : " + (tf - t0)/1000000000 + "s")
 }
