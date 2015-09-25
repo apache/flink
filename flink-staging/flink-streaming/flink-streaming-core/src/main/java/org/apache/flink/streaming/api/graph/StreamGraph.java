@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -215,6 +216,11 @@ public class StreamGraph extends StreamingPlan {
 			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operatorObject;
 			// sets the output type which must be know at StreamGraph creation time
 			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+		}
+
+		if (operatorObject instanceof InputTypeConfigurable) {
+			InputTypeConfigurable inputTypeConfigurable = (InputTypeConfigurable) operatorObject;
+			inputTypeConfigurable.setInputType(inTypeInfo, executionConfig);
 		}
 
 		if (LOG.isDebugEnabled()) {
