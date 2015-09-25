@@ -116,7 +116,7 @@ make_source_release() {
   cd ..
 
   echo "Creating source package"
-  rsync -a --exclude "flink/.git" flink/ flink-$RELEASE_VERSION
+  rsync -a --exclude ".git" flink/ flink-$RELEASE_VERSION
   tar czf flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
   echo $GPG_PASSPHRASE | $GPG --batch --default-key $GPG_KEY --passphrase-fd 0 --armour --output flink-$RELEASE_VERSION-src.tgz.asc \
     --detach-sig flink-$RELEASE_VERSION-src.tgz
