@@ -84,4 +84,15 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
 	}
+
+	public void setAsContext() {
+		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+			@Override
+			public ExecutionEnvironment createExecutionEnvironment() {
+				throw new UnsupportedOperationException("Execution Environment is already defined" +
+						" for this shell.");
+			}
+		};
+		initializeContextEnvironment(factory);
+	}
 }

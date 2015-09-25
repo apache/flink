@@ -33,6 +33,19 @@ import scala.tools.nsc.Settings
 @RunWith(classOf[JUnitRunner])
 class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
 
+  test("Prevent re-creation of environment") {
+
+    val input: String =
+      """
+        val env = ExecutionEnvironment.getExecutionEnvironment
+      """.stripMargin
+
+    val output: String = processInShell(input)
+
+    output should include("UnsupportedOperationException: Execution Environment is already " +
+      "defined for this shell")
+  }
+
   test("Iteration test with iterative Pi example") {
 
     val input: String =
@@ -223,9 +236,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
       false,
       false,
       false)
-
-    val clusterEnvironment = new TestEnvironment(cl, parallelism)
-    clusterEnvironment.setAsContext()
 
     cluster = Some(cl)
   }
