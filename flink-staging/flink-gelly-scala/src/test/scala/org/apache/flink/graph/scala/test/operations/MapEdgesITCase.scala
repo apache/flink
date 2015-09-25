@@ -42,7 +42,7 @@ MultipleProgramsTestBase(mode) {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.mapEdges(new AddOneMapper).getEdges.collect.toList
+    val res = graph.mapEdges(new AddOneMapper).getEdges.collect().toList
     expectedResult = "1,2,13\n" +
       "1,3,14\n" + "" +
       "2,3,24\n" +
@@ -60,7 +60,7 @@ MultipleProgramsTestBase(mode) {
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val res = graph.mapEdges(edge => edge.getValue + 1)
-      .getEdges.collect.toList
+      .getEdges.collect().toList
     expectedResult = "1,2,13\n" +
       "1,3,14\n" + "" +
       "2,3,24\n" +

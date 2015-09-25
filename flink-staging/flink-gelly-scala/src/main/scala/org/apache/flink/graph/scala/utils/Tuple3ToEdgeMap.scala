@@ -21,9 +21,8 @@ package org.apache.flink.graph.scala.utils
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.graph.Edge
 
+@SerialVersionUID(1L)
 class Tuple3ToEdgeMap[K, EV] extends MapFunction[(K, K, EV), Edge[K, EV]] {
-
-  private val serialVersionUID: Long = 1L
 
   override def map(value: (K, K, EV)): Edge[K, EV] = {
     new Edge(value._1, value._2, value._3)

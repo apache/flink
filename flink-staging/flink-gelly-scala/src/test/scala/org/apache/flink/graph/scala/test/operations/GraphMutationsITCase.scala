@@ -119,7 +119,7 @@ MultipleProgramsTestBase(mode) {
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val newgraph = graph.removeVertex(new Vertex[Long, Long](6L, 6L))
-    val res = newgraph.getEdges.collect.toList
+    val res = newgraph.getEdges.collect().toList
     expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
       "45\n" + "5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -146,7 +146,7 @@ MultipleProgramsTestBase(mode) {
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val newgraph = graph.removeVertices(List[Vertex[Long, Long]](new Vertex[Long, Long](1L, 1L),
         new Vertex[Long, Long](6L, 6L)))
-    val res = newgraph.getEdges.collect.toList
+    val res = newgraph.getEdges.collect().toList
     expectedResult = "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
@@ -159,7 +159,7 @@ MultipleProgramsTestBase(mode) {
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val newgraph = graph.addEdge(new Vertex[Long, Long](6L, 6L), new Vertex[Long, Long](1L,
       1L), 61L)
-    val res = newgraph.getEdges.collect.toList
+    val res = newgraph.getEdges.collect().toList
     expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
       "45\n" + "5,1,51\n" + "6,1,61\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -201,7 +201,7 @@ MultipleProgramsTestBase(mode) {
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val newgraph = graph.addEdge(new Vertex[Long, Long](1L, 1L), new Vertex[Long, Long](2L,
       2L), 12L)
-    val res = newgraph.getEdges.collect.toList
+    val res = newgraph.getEdges.collect().toList
     expectedResult = "1,2,12\n" + "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5," +
       "35\n" + "4,5,45\n" + "5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -214,7 +214,7 @@ MultipleProgramsTestBase(mode) {
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val newgraph = graph.removeEdge(new Edge[Long, Long](5L, 1L, 51L))
-    val res = newgraph.getEdges.collect.toList
+    val res = newgraph.getEdges.collect().toList
     expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
@@ -226,7 +226,7 @@ MultipleProgramsTestBase(mode) {
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val newgraph = graph.removeEdge(new Edge[Long, Long](6L, 1L, 61L))
-    val res = newgraph.getEdges.collect.toList
+    val res = newgraph.getEdges.collect().toList
     expectedResult = "1,2,12\n" + "1,3,13\n" + "2,3,23\n" + "3,4,34\n" + "3,5,35\n" + "4,5," +
       "45\n" + "5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)

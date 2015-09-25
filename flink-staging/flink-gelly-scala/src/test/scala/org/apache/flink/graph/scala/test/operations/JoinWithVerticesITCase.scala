@@ -44,7 +44,7 @@ MultipleProgramsTestBase(mode) {
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val result: Graph[Long, Long, Long] = graph.joinWithVertices(graph.getVertices.map(new
         VertexToTuple2Map[Long, Long]), new AddValuesMapper)
-    val res = result.getVertices.collect.toList
+    val res = result.getVertices.collect().toList
     expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
@@ -58,7 +58,7 @@ MultipleProgramsTestBase(mode) {
     val tupleSet = graph.getVertices.map(new VertexToTuple2Map[Long, Long])
     val result: Graph[Long, Long, Long] = graph.joinWithVertices[Long](tupleSet,
       (originalvalue: Long, tuplevalue: Long) => originalvalue + tuplevalue)
-    val res = result.getVertices.collect.toList
+    val res = result.getVertices.collect().toList
     expectedResult = "1,2\n" + "2,4\n" + "3,6\n" + "4,8\n" + "5,10\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
   }
