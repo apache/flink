@@ -43,7 +43,7 @@ var path = require('path');
 var environment = 'development';
 var paths = {
   src: './app/',
-  dest: './web/',
+  dest: '../src/main/resources/web/',
   vendor: './bower_components/',
   vendorLocal: './vendor-local/',
   assets: './assets/',
@@ -168,7 +168,7 @@ gulp.task('watch', function () {
 });
 
 gulp.task('serve', serve({
-  root: 'web',
+  root: '../src/main/resources/web/',
   port: 3001
 }));
 

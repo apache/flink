@@ -93,7 +93,7 @@ bower install
 gulp
 ```
 
-The dashboard code is under `/app`. The result of the build process is under `/web`.
+The dashboard code is under `/app`. The result of the build process is under `/web` in the src/main/resources folder.
 
 When building Flink with Maven (in particular the `flink-dist` project), the generated
 files are copied into the build target, to the folder `resources/web-runtime-monitor`.

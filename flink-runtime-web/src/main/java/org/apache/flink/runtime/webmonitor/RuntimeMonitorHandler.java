@@ -60,11 +60,15 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
 		DefaultFullHttpResponse response;
+
+		response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
+		response.headers().set(HttpHeaders.Names.LOCATION, "http://google.de");
+
 		
 		try {
 			String result = handler.handleRequest(routed.pathParams());
 			byte[] bytes = result.getBytes(ENCODING);
-			
+
 			response = new DefaultFullHttpResponse(
 					HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
 
