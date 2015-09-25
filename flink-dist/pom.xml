@@ -125,33 +125,16 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-scala-shell</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-
-				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-
-			<properties>
-				<scala.version>2.10.4</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-scala-shell</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
 		<profile>
 			<id>include-yarn</id>
 			<activation>
