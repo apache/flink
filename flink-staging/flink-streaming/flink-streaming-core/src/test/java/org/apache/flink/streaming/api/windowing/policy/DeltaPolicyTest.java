@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
+import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.junit.Test;
 
 import java.util.List;

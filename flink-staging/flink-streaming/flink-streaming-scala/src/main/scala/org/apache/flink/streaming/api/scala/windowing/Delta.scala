@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.scala.windowing
 
 import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction
 import org.apache.flink.streaming.api.windowing.helper.{ Delta => JavaDelta }
-import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction
 
 object Delta {
 

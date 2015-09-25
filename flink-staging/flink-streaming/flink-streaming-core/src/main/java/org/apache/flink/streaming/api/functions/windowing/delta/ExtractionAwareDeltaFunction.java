@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.windowing.deltafunction;
+package org.apache.flink.streaming.api.functions.windowing.delta;
 
 import org.apache.flink.streaming.api.windowing.extractor.Extractor;
 

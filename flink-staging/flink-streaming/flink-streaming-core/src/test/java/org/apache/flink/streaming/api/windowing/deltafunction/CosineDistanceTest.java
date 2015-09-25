@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.windowing.deltafunction;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.streaming.api.functions.windowing.delta.CosineDistance;
 import org.junit.Test;
 
 public class CosineDistanceTest {
