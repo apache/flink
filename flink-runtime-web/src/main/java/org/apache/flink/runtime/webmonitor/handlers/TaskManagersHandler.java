@@ -23,7 +23,6 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
 import org.apache.flink.util.StringUtils;
@@ -36,27 +35,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class TaskManagersHandler implements  RequestHandler, RequestHandler.JsonResponse {
+import static com.google.common.base.Preconditions.checkNotNull;
 
-	private final JobManagerArchiveRetriever retriever;
+public class TaskManagersHandler implements RequestHandler, RequestHandler.JsonResponse {
 
 	private final FiniteDuration timeout;
 
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
-
-	public TaskManagersHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	
+	public TaskManagersHandler(FiniteDuration timeout) {
+		this.timeout = checkNotNull(timeout);
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
 				// whether one task manager's metrics are requested, or all task manager, we
 				// return them in an array. This avoids unnecessary code complexity.
@@ -117,7 +110,8 @@ public class TaskManagersHandler implements  RequestHandler, RequestHandler.Json
 
 				gen.close();
 				return writer.toString();
-			} else {
+			}
+			else {
 				throw new Exception("No connection to the leading JobManager.");
 			}
 		}

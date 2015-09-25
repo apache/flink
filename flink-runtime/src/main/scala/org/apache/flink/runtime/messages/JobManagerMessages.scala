@@ -380,6 +380,16 @@ object JobManagerMessages {
   /** Response containing the ActorRef of the archiver */
   case class ResponseArchive(actor: ActorRef)
 
+  /** Request for the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port. */
+  case object RequestWebMonitorPort
+
+  /**
+   * Response containing the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port.
+   *
+   * -1 indicates that there is no web monitor running.
+   */
+  case class ResponseWebMonitorPort(port: Integer)
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
@@ -430,5 +440,9 @@ object JobManagerMessages {
 
   def getRecoverAllJobs: AnyRef = {
     RecoverAllJobs
+  }
+  
+  def getRequestWebMonitorPort: AnyRef = {
+    RequestWebMonitorPort
   }
 }

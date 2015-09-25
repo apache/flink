@@ -24,8 +24,6 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
-
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -33,37 +31,33 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.StringWriter;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Request handler that returns a summary of the job status.
  */
 public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
 
-	private final JobManagerArchiveRetriever retriever;
-	
 	private final FiniteDuration timeout;
 	
 	private final boolean includeRunningJobs;
 	private final boolean includeFinishedJobs;
 
 	
-	public CurrentJobsOverviewHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout,
-										boolean includeRunningJobs, boolean includeFinishedJobs) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	public CurrentJobsOverviewHandler(
+			FiniteDuration timeout,
+			boolean includeRunningJobs,
+			boolean includeFinishedJobs) {
+
+		this.timeout = checkNotNull(timeout);
 		this.includeRunningJobs = includeRunningJobs;
 		this.includeFinishedJobs = includeFinishedJobs;
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
-				
 				Future<Object> future = jobManager.ask(
 						new RequestJobDetails(includeRunningJobs, includeFinishedJobs), timeout);
 				

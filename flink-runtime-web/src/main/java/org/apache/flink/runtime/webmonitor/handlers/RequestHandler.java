@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.instance.ActorGateway;
+
 import java.util.Map;
 
 public interface RequestHandler {
@@ -25,15 +27,15 @@ public interface RequestHandler {
 	/**
 	 * This interface marks handlers that return JSON data.
 	 */
-	public static interface JsonResponse {}
+	interface JsonResponse {}
 
 	/**
 	 * This interface marks handlers that return plain text data.
 	 */
-	public static interface TextResponse {}
+	interface TextResponse {}
 	
 	
 	// --------------------------------------------------------------------------------------------
 
-	String handleRequest(Map<String, String> params) throws Exception;
+	String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception;
 }

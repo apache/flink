@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
 import java.lang.reflect.{Constructor, InvocationTargetException}
-import java.net.InetSocketAddress
+import java.net.{UnknownHostException, InetAddress, InetSocketAddress}
 import java.util.UUID
 
 import akka.actor.Status.Failure
@@ -43,7 +43,7 @@ import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
+import org.apache.flink.runtime.leaderretrieval.{StandaloneLeaderRetrievalService, LeaderRetrievalService}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -128,6 +128,16 @@ class JobManager(
 
   /** Futures which have to be completed before terminating the job manager */
   var futuresToComplete: Option[Seq[Future[Unit]]] = None
+
+  /**
+   * The port of the web monitor as configured. Make sure that it is actually configured before
+   * starting the JobManager. This tightly couples the web monitor with the job manager. It is a
+   * temporary workaround until all execution graph components are properly serializable and all
+   * web monitors can transparently interact with each job manager. Currently each web server has
+   * to run in the actor system of the associated job manager.
+   */
+  val webMonitorPort : Int = flinkConfiguration.getInteger(
+    ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -729,6 +739,9 @@ class JobManager(
 
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
+
+    case RequestWebMonitorPort =>
+      sender() ! ResponseWebMonitorPort(webMonitorPort)
   }
 
   /**
@@ -1529,6 +1542,39 @@ object JobManager {
       }
     }
 
+    val webMonitor: Option[WebMonitor] =
+      if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+        val address = AkkaUtils.getAddress(jobManagerSystem)
+
+        configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
+        configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
+
+        // start the job manager web frontend
+        if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
+          val leaderRetrievalService = LeaderRetrievalUtils
+            .createLeaderRetrievalService(configuration)
+
+          LOG.info("Starting NEW JobManger web frontend")
+          // start the new web frontend. we need to load this dynamically
+          // because it is not in the same project/dependencies
+          Some(startWebRuntimeMonitor(configuration, leaderRetrievalService, jobManagerSystem))
+        }
+        else {
+          LOG.info("Starting JobManger web frontend")
+
+          // The old web frontend does not work with recovery mode
+          val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(configuration)
+          Some(new WebInfoServer(configuration, leaderRetrievalService, jobManagerSystem))
+        }
+      }
+      else {
+        None
+      }
+
+    // Reset the port (necessary in case of automatic port selection)
+    webMonitor.foreach{ monitor => configuration.setInteger(
+      ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, monitor.getServerPort) }
+
     try {
       // bring up the job manager actor
       LOG.info("Starting JobManager actor")
@@ -1574,19 +1620,10 @@ object JobManager {
           "TaskManager_Process_Reaper")
       }
 
-      val webMonitor = if (
-        configuration.getInteger(
-          ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-          0) >= 0) {
-
-        // TODO: Add support for HA. Webserver has to work in dedicated mode. All transferred
-        // information has to be made serializable
-        val address = AkkaUtils.getAddress(jobManagerSystem)
-
-        configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
-        configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
-
-        val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(configuration)
+      webMonitor.foreach {
+        monitor =>
+          val jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(configuration)
+          monitor.start(jobManagerAkkaUrl)
 
         LOG.info("Starting JobManger web frontend")
         // start the web frontend. we need to load this dynamically
@@ -1595,11 +1632,6 @@ object JobManager {
           configuration,
           leaderRetrievalService,
           jobManagerSystem)
-
-        if(webServer != null) {
-          webServer.start()
-        }
-
         Option(webServer)
       } else {
         None
@@ -1975,6 +2007,31 @@ object JobManager {
     val hostPort = NetUtils.socketAddressToUrlString(address)
 
     getJobManagerAkkaURLHelper(s"akka.tcp://flink@$hostPort", name)
+  }
+
+  /**
+   * Returns the JobManager actor's remote Akka URL, given the configured hostname and port.
+   *
+   * @param config The configuration to parse
+   * @return JobManager actor remote Akka URL
+   */
+  def getRemoteJobManagerAkkaURL(config: Configuration) : String = {
+    val (hostname, port) = TaskManager.getAndCheckJobManagerAddress(config)
+
+    var hostPort: InetSocketAddress = null
+
+    try {
+      val inetAddress: InetAddress = InetAddress.getByName(hostname)
+      hostPort = new InetSocketAddress(inetAddress, port)
+    }
+    catch {
+      case e: UnknownHostException => {
+        throw new UnknownHostException(s"Cannot resolve the JobManager hostname '$hostname' " +
+          s"specified in the configuration")
+      }
+    }
+
+    JobManager.getRemoteJobManagerAkkaURL(hostPort, Option.empty)
   }
 
   /**

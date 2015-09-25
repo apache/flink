@@ -292,7 +292,7 @@ abstract class FlinkMiniCluster(
       val webServer = WebMonitorUtils.startWebRuntimeMonitor(
         config, leaderRetrievalService, actorSystem)
 
-      webServer.start()
+      webServer.start(jobManagerAkkaURL)
 
       Option(webServer)
     } else {
