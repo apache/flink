@@ -54,6 +54,7 @@ class FlinkILoop(
   // remote environment
   private val remoteEnv: ScalaShellRemoteEnvironment = {
     val remoteEnv = new ScalaShellRemoteEnvironment(host, port, this)
+    remoteEnv.setAsContext()
     remoteEnv
   }
 
