@@ -381,7 +381,7 @@ public class WindowedDataStream<OUT> {
 				outType);
 	}
 
-	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
+	protected DiscretizedStream<OUT> discretize(WindowTransformation transformation,
 			WindowBuffer<OUT> windowBuffer) {
 
 		OneInputStreamOperator<OUT, WindowEvent<OUT>> discretizer = getDiscretizer();
