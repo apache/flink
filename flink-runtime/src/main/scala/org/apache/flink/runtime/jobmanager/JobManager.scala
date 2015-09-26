@@ -466,6 +466,33 @@ class JobManager(
           )
       }
 
+    case StopJob(jobID) =>
+      log.info(s"Trying to stop job with ID $jobID.")
+
+      currentJobs.get(jobID) match {
+        case Some((executionGraph, _)) =>
+          try {
+            if (!executionGraph.isStoppable()) {
+              sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
+                " is not stoppable."))
+            } else if(executionGraph.getState() != JobStatus.CREATED
+                && executionGraph.getState() != JobStatus.RUNNING
+                && executionGraph.getState() != JobStatus.RESTARTING) {
+              sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
+                "is not in state CREATED, RUNNING, or RESTARTING."))
+            } else {
+              executionGraph.stop()
+              sender ! StoppingSuccess(jobID)
+            }
+          } catch {
+            case t: Throwable =>  sender ! StoppingFailure(jobID, t)
+          }
+        case None =>
+          log.info(s"No job found with ID $jobID.")
+          sender ! StoppingFailure(jobID, new IllegalArgumentException("No job found with " +
+            s"ID $jobID."))
+      }
+
     case UpdateTaskExecutionState(taskExecutionState) =>
       if (taskExecutionState == null) {
         sender ! decorateMessage(false)

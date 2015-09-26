@@ -108,6 +108,10 @@ The command line can be used to
 
         ./bin/flink cancel <jobID>
 
+-   Stop a job (streaming jobs only):
+
+        ./bin/flink stop <jobID>
+
 ### Savepoints
 
 [Savepoints]({{site.baseurl}}/apis/streaming/savepoints.html) are controlled via the command line client:
@@ -246,6 +250,16 @@ Action "cancel" cancels a running program.
                                    job. Use this flag to connect to a different
                                    JobManager than the one specified in the
                                    configuration.
+
+
+Action "stop" stops a running program (streaming jobs only).
+
+  Syntax: stop [OPTIONS] <Job ID>
+  "stop" action options:
+     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
+                                   to connect. Use this flag to connect to a
+                                   different JobManager than the one specified
+                                   in the configuration.
 
 
 Action "savepoint" triggers savepoints for a running job or disposes existing ones.

@@ -170,12 +170,12 @@ public class ExecutionGraphTestUtils {
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 		ExecutionGraph graph = new ExecutionGraph(
-				executionContext,
-				new JobID(),
-				"test job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout(),
-				new NoRestartStrategy());
+			executionContext, 
+			new JobID(), 
+			"test job", 
+			new Configuration(), 
+			AkkaUtils.getDefaultTimeout(),
+			new NoRestartStrategy());
 
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));

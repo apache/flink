@@ -77,6 +77,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import static org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
+import static org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import static org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import static org.apache.flink.runtime.messages.TaskMessages.UpdatePartitionInfo;
 import static org.apache.flink.runtime.messages.TaskMessages.UpdateTaskSinglePartitionInfo;
@@ -106,10 +107,12 @@ public class Execution implements Serializable {
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
-	
+
 	private static final Logger LOG = ExecutionGraph.LOG;
-	
+
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
+
+	private static final int NUM_STOP_CALL_TRIES = 3;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -126,13 +129,13 @@ public class Execution implements Serializable {
 	private ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	private volatile ExecutionState state = CREATED;
-	
+
 	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
-	
+
 	private volatile Throwable failureCause;          // once assigned, never changes
-	
+
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
-	
+
 	private SerializedValue<StateHandle<?>> operatorState;
 	
 	private long recoveryTimestamp;
@@ -162,7 +165,7 @@ public class Execution implements Serializable {
 
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
-		
+
 		this.attemptNumber = attemptNumber;
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
@@ -172,7 +175,7 @@ public class Execution implements Serializable {
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor>();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//   Properties
 	// --------------------------------------------------------------------------------------------
@@ -200,23 +203,23 @@ public class Execution implements Serializable {
 	public InstanceConnectionInfo getAssignedResourceLocation() {
 		return assignedResourceLocation;
 	}
-	
+
 	public Throwable getFailureCause() {
 		return failureCause;
 	}
-	
+
 	public long[] getStateTimestamps() {
 		return stateTimestamps;
 	}
-	
+
 	public long getStateTimestamp(ExecutionState state) {
 		return this.stateTimestamps[state.ordinal()];
 	}
-	
+
 	public boolean isFinished() {
 		return state == FINISHED || state == FAILED || state == CANCELED;
 	}
-	
+
 	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
@@ -231,7 +234,7 @@ public class Execution implements Serializable {
 		partialInputChannelDeploymentDescriptors.clear();
 		partialInputChannelDeploymentDescriptors = null;
 	}
-	
+
 	public void setInitialState(SerializedValue<StateHandle<?>> initialState, long recoveryTimestamp) {
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
@@ -239,11 +242,11 @@ public class Execution implements Serializable {
 		this.operatorState = initialState;
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * NOTE: This method only throws exceptions if it is in an illegal state to be scheduled, or if the tasks needs
 	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
@@ -355,14 +358,14 @@ public class Execution implements Serializable {
 				slot.releaseSlot();
 				return;
 			}
-			
+
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
 
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState, recoveryTimestamp, attemptNumber);
-			
+
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 
@@ -378,10 +381,10 @@ public class Execution implements Serializable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
 							String taskname = deployment.getTaskInfo().getTaskNameWithSubtasks() + " (" + attemptId + ')';
-							
+
 							markFailed(new Exception(
 									"Cannot deploy task " + taskname + " - TaskManager (" + instance
-											+ ") not responding after a timeout of " + timeout, failure));
+									+ ") not responding after a timeout of " + timeout, failure));
 						}
 						else {
 							markFailed(failure);
@@ -402,21 +405,53 @@ public class Execution implements Serializable {
 		}
 	}
 
+	/**
+	 * Sends stop RPC call.
+	 */
+	public void stop() {
+		final SimpleSlot slot = this.assignedResource;
+
+		if (slot != null) {
+			final ActorGateway gateway = slot.getInstance().getActorGateway();
+
+			Future<Object> stopResult = gateway.retry(
+				new StopTask(attemptId),
+				NUM_STOP_CALL_TRIES,
+				timeout,
+				executionContext);
+
+			stopResult.onComplete(new OnComplete<Object>() {
+				@Override
+				public void onComplete(Throwable failure, Object success) throws Throwable {
+					if (failure != null) {
+						fail(new Exception("Task could not be stopped.", failure));
+					} else {
+						TaskOperationResult result = (TaskOperationResult) success;
+						if (!result.success()) {
+							LOG.info("Stopping task was not successful. Description: {}",
+									result.description());
+						}
+					}
+				}
+			}, executionContext);
+		}
+	}
+
 	public void cancel() {
 		// depending on the previous state, we go directly to cancelled (no cancel call necessary)
 		// -- or to canceling (cancel call needs to be sent to the task manager)
-		
+
 		// because of several possibly previous states, we need to again loop until we make a
 		// successful atomic state transition
 		while (true) {
-			
+
 			ExecutionState current = this.state;
-			
+
 			if (current == CANCELING || current == CANCELED) {
 				// already taken care of, no need to cancel again
 				return;
 			}
-				
+
 			// these two are the common cases where we need to send a cancel call
 			else if (current == RUNNING || current == DEPLOYING) {
 				// try to transition to canceling, if successful, send the cancel call
@@ -426,7 +461,7 @@ public class Execution implements Serializable {
 				}
 				// else: fall through the loop
 			}
-			
+
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
@@ -437,10 +472,10 @@ public class Execution implements Serializable {
 			else if (current == CREATED || current == SCHEDULED) {
 				// from here, we can directly switch to cancelled, because no task has been deployed
 				if (transitionState(current, CANCELED)) {
-					
+
 					// we skip the canceling state. set the timestamp, for a consistent appearance
 					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
-					
+
 					try {
 						vertex.getExecutionGraph().deregisterExecution(this);
 						if (assignedResource != null) {
@@ -745,7 +780,7 @@ public class Execution implements Serializable {
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
 
 		// we may need to loop multiple times (in the presence of concurrent calls) in order to
-		// atomically switch to failed 
+		// atomically switch to failed
 		while (true) {
 			ExecutionState current = this.state;
 
@@ -775,7 +810,7 @@ public class Execution implements Serializable {
 				finally {
 					vertex.executionFailed(t);
 				}
-				
+
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");

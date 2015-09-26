@@ -61,6 +61,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 		// basic info
 		gen.writeStringField("jid", graph.getJobID().toString());
 		gen.writeStringField("name", graph.getJobName());
+		gen.writeBooleanField("isStoppable", graph.isStoppable());
 		gen.writeStringField("state", graph.getState().name());
 		
 		// times and duration

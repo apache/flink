@@ -49,13 +49,12 @@ public class ExecutionStateProgressTest {
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 			ExecutionGraph graph = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jid,
-					"test job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout(),
-					new NoRestartStrategy());
-
+				TestingUtils.defaultExecutionContext(), 
+				jid, 
+				"test job", 
+				new Configuration(), 
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 			graph.attachJobGraph(Arrays.asList(ajv));
 
 			setGraphStatus(graph, JobStatus.RUNNING);
