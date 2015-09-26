@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
@@ -31,7 +32,7 @@ public class JobGraphTest {
 	@Test
 	public void testSerialization() {
 		try {
-			JobGraph jg = new JobGraph("The graph");
+			JobGraph jg = new JobGraph("The graph", JobType.BATCHING);
 			
 			// add some configuration values
 			{
@@ -90,7 +91,7 @@ public class JobGraphTest {
 			intermediate2.connectNewDataSetAsInput(intermediate1, DistributionPattern.POINTWISE);
 			intermediate1.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE);
 			
-			JobGraph graph = new JobGraph("TestGraph", source1, source2, intermediate1, intermediate2, target1, target2);
+			JobGraph graph = new JobGraph("TestGraph", JobType.BATCHING, source1, source2, intermediate1, intermediate2, target1, target2);
 			List<JobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
 			
 			assertEquals(6, sorted.size());
@@ -134,7 +135,7 @@ public class JobGraphTest {
 			
 			l13.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE);
 			
-			JobGraph graph = new JobGraph("TestGraph", source1, source2, root, l11, l13, l12, l2);
+			JobGraph graph = new JobGraph("TestGraph", JobType.BATCHING, source1, source2, root, l11, l13, l12, l2);
 			List<JobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
 			
 			assertEquals(7,  sorted.size());
@@ -180,7 +181,7 @@ public class JobGraphTest {
 			op2.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
 			op3.connectNewDataSetAsInput(op2, DistributionPattern.POINTWISE);
 			
-			JobGraph graph = new JobGraph("TestGraph", source, op1, op2, op3);
+			JobGraph graph = new JobGraph("TestGraph", JobType.BATCHING, source, op1, op2, op3);
 			List<JobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
 			
 			assertEquals(4,  sorted.size());
@@ -209,7 +210,7 @@ public class JobGraphTest {
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE);
 			v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE);
 			
-			JobGraph jg = new JobGraph("Cyclic Graph", v1, v2, v3, v4);
+			JobGraph jg = new JobGraph("Cyclic Graph", JobType.BATCHING, v1, v2, v3, v4);
 			try {
 				jg.getVerticesSortedTopologicallyFromSources();
 				fail("Failed to raise error on topologically sorting cyclic graph.");
@@ -241,7 +242,7 @@ public class JobGraphTest {
 			v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE);
 			target.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE);
 			
-			JobGraph jg = new JobGraph("Cyclic Graph", v1, v2, v3, v4, source, target);
+			JobGraph jg = new JobGraph("Cyclic Graph", JobType.BATCHING, v1, v2, v3, v4, source, target);
 			try {
 				jg.getVerticesSortedTopologicallyFromSources();
 				fail("Failed to raise error on topologically sorting cyclic graph.");

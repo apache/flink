@@ -76,6 +76,10 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 	}
 
+	public void stop() {
+		userFunction.stop();
+	}
+
 	/**
 	 * {@link SourceFunction.SourceContext} to be used for sources that don't emit watermarks.
 	 * In addition to {@link NonWatermarkContext} this will also not attach timestamps to sources.

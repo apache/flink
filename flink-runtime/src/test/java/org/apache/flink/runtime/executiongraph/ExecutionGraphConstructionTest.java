@@ -51,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -100,12 +101,8 @@ public class ExecutionGraphConstructionTest {
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				jobId,
-				jobName,
-				cfg,
-				AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+							JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -143,12 +140,8 @@ public class ExecutionGraphConstructionTest {
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				jobId,
-				jobName,
-				cfg,
-				AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+							JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -209,12 +202,8 @@ public class ExecutionGraphConstructionTest {
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				jobId,
-				jobName,
-				cfg,
-				AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+							JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -462,12 +451,8 @@ public class ExecutionGraphConstructionTest {
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1));
 
-		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				jobId,
-				jobName,
-				cfg,
-				AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+							JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -517,12 +502,8 @@ public class ExecutionGraphConstructionTest {
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
-		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				jobId,
-				jobName,
-				cfg,
-				AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+							JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 			fail("Attached wrong jobgraph");
@@ -577,12 +558,8 @@ public class ExecutionGraphConstructionTest {
 			
 			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					jobName,
-					cfg,
-					AkkaUtils.getDefaultTimeout());
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+								JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 			try {
 				eg.attachJobGraph(ordered);
 			}
@@ -621,12 +598,8 @@ public class ExecutionGraphConstructionTest {
 			
 			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					jobName,
-					cfg,
-					AkkaUtils.getDefaultTimeout());
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+								JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 
 			try {
 				eg.attachJobGraph(ordered);
@@ -689,14 +662,10 @@ public class ExecutionGraphConstructionTest {
 			JobVertex v8 = new JobVertex("vertex8");
 			v8.setParallelism(2);
 			
-			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
+			JobGraph jg = new JobGraph(jobId, jobName, JobType.BATCHING, v1, v2, v3, v4, v5, v6, v7, v8);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					jobName,
-					cfg,
-					AkkaUtils.getDefaultTimeout());
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
+								JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
 			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 			
 			// check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )

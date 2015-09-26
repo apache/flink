@@ -210,6 +210,11 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	}
 
 	@Override
+	public void stop() {
+		running = false;
+	}
+
+	@Override
 	protected void acknowledgeSessionIDs(List<Long> sessionIds) {
 		try {
 			for (long id : sessionIds) {

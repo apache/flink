@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -73,7 +74,7 @@ public class TaskCancelTest {
 			flink.start();
 
 			// Setup
-			final JobGraph jobGraph = new JobGraph("Cancel Big Union");
+			final JobGraph jobGraph = new JobGraph("Cancel Big Union", JobType.BATCHING);
 
 			JobVertex[] sources = new JobVertex[numberOfSources];
 			SlotSharingGroup group = new SlotSharingGroup();

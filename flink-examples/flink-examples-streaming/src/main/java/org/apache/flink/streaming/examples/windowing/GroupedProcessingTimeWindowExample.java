@@ -74,6 +74,11 @@ public class GroupedProcessingTimeWindowExample {
 					public void cancel() {
 						running = false;
 					}
+
+					@Override
+					public void stop() {
+						running = false;
+					}
 				});
 		
 		stream

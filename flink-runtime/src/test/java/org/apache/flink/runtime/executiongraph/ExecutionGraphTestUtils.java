@@ -39,6 +39,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -168,13 +169,9 @@ public class ExecutionGraphTestUtils {
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
-		ExecutionGraph graph = new ExecutionGraph(
-				executionContext,
-				new JobID(),
-				"test job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
-
+		ExecutionGraph graph = new ExecutionGraph(executionContext, new JobID(), "test job", JobType.BATCHING,
+							new Configuration(), AkkaUtils.getDefaultTimeout());
+		
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));
 

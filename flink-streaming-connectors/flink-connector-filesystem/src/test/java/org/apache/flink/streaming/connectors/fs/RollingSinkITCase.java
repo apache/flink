@@ -440,6 +440,11 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		public void cancel() {
 			running = false;
 		}
+
+		@Override
+		public void stop() {
+			running = false;
+		}
 	}
 
 	/**
@@ -473,6 +478,11 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void cancel() {
+			running = false;
+		}
+
+		@Override
+		public void stop() {
 			running = false;
 		}
 	}

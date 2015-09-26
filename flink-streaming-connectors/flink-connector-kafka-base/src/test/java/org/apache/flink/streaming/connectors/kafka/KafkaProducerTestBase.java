@@ -99,6 +99,11 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 				public void cancel() {
 					running = false;
 				}
+
+				@Override
+				public void stop() {
+					running = false;
+				}
 			})
 			.setParallelism(1);
 			

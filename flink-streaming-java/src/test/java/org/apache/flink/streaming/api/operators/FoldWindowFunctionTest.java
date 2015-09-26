@@ -87,14 +87,13 @@ public class FoldWindowFunctionTest {
 			private static final long serialVersionUID = 8297735565464653028L;
 
 			@Override
-			public void run(SourceContext<Integer> ctx) throws Exception {
-
-			}
+			public void run(SourceContext<Integer> ctx) throws Exception {}
 
 			@Override
-			public void cancel() {
+			public void cancel() {}
 
-			}
+			@Override
+			public void stop() {}
 		};
 
 		SourceTransformation<Integer> source = new SourceTransformation<>("", new StreamSource<Integer>(sourceFunction), BasicTypeInfo.INT_TYPE_INFO, 1);

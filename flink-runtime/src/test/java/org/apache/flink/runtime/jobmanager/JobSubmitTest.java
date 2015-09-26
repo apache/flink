@@ -20,6 +20,9 @@ package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -105,7 +108,7 @@ public class JobSubmitTest {
 			// create a simple job graph
 			JobVertex jobVertex = new JobVertex("Test Vertex");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex);
 
 			// request the blob port from the job manager
 			Future<Object> future = jmGateway.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
@@ -169,7 +172,7 @@ public class JobSubmitTest {
 			};
 
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex);
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

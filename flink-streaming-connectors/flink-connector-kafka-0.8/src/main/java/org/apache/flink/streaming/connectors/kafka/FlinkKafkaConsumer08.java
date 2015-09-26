@@ -374,6 +374,11 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	@Override
+	public void stop() {
+		this.cancel();
+	}
+
+	@Override
 	public void close() throws Exception {
 		cancel();
 		super.close();

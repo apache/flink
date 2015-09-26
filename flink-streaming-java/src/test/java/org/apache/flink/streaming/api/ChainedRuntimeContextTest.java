@@ -53,8 +53,10 @@ public class ChainedRuntimeContextTest extends StreamingMultipleProgramsTestBase
 		}
 
 		@Override
-		public void cancel() {
-		}
+		public void cancel() {}
+
+		@Override
+		public void stop() {}
 
 		@Override
 		public void open(Configuration c) {

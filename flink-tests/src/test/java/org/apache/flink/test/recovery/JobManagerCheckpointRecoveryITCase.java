@@ -515,6 +515,11 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 		public void cancel() {
 			isRunning = false;
 		}
+
+		@Override
+		public void stop() {
+			isRunning = false;
+		}
 	}
 
 	/**

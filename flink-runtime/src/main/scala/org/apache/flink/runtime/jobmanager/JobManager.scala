@@ -462,6 +462,23 @@ class JobManager(
           )
       }
 
+    case StopJob(jobID) =>
+      log.info(s"Trying to stop job with ID $jobID.")
+
+      currentJobs.get(jobID) match {
+        case Some((executionGraph, _)) =>
+          try {
+            executionGraph.stop()
+            sender ! StoppingSuccess(jobID)
+          } catch {
+            case t: Throwable =>  sender ! StoppingFailure(jobID, t)
+          }
+        case None =>
+          log.info(s"No job found with ID $jobID.")
+          sender ! StoppingFailure(jobID, new IllegalArgumentException("No job found with " +
+            s"ID $jobID."))
+      }
+
     case UpdateTaskExecutionState(taskExecutionState) =>
       if (taskExecutionState == null) {
         sender ! decorateMessage(false)
@@ -913,6 +930,7 @@ class JobManager(
               executionContext,
               jobGraph.getJobID,
               jobGraph.getName,
+              jobGraph.getType,
               jobGraph.getJobConfiguration,
               timeout,
               jobGraph.getUserJarBlobKeys,

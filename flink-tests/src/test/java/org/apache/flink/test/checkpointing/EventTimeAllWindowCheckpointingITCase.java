@@ -415,6 +415,11 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		}
 
 		@Override
+		public void stop() {
+			running = false;
+		}
+
+		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			numSuccessfulCheckpoints++;
 		}

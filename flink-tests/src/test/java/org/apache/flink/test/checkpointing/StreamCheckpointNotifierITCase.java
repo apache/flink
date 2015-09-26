@@ -224,6 +224,7 @@ public class StreamCheckpointNotifierITCase {
 			this.notificationsToWaitFor = notificationsToWaitFor;
 		}
 
+		@SuppressWarnings("rawtypes")
 		@Override
 		public void open(Configuration parameters) throws IOException {
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
@@ -255,6 +256,11 @@ public class StreamCheckpointNotifierITCase {
 
 		@Override
 		public void cancel() {
+			isRunning = false;
+		}
+
+		@Override
+		public void stop() {
 			isRunning = false;
 		}
 
@@ -299,6 +305,7 @@ public class StreamCheckpointNotifierITCase {
 			return Tuple1.of(value);
 		}
 
+		@SuppressWarnings("rawtypes")
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
@@ -434,6 +441,7 @@ public class StreamCheckpointNotifierITCase {
 			count = state;
 		}
 
+		@SuppressWarnings("rawtypes")
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			// record the ID of the completed checkpoint
@@ -446,6 +454,45 @@ public class StreamCheckpointNotifierITCase {
 				notificationAlready = true;
 				GeneratingSourceFunction.numPostFailureNotifications.incrementAndGet();
 			}
+		}
+
+	/**
+	 * CoFlatMap on Long values as identity transform on the left input, while ignoring the right.
+	 * As an implementation for the {@link CheckpointNotifier} interface it stores all the checkpoint
+	 * ids it has seen in a static list.
+	 */
+	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<Long, Long, Long>
+			implements CheckpointNotifier {
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		public static List<Long>[] completedCheckpoints = new List[PARALLELISM];
+		private int subtaskId;
+
+		@SuppressWarnings("rawtypes")
+		@Override
+		public void open(Configuration conf) throws IOException {
+			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
+
+			// Create a collection on the first open
+			if (completedCheckpoints[subtaskId] == null) {
+				completedCheckpoints[subtaskId] = new ArrayList<>();
+			}
+		}
+
+		@Override
+		public void flatMap1(Long value, Collector<Long> out) throws IOException {
+			out.collect(value);
+		}
+
+		@Override
+		public void flatMap2(Long value, Collector<Long> out) throws IOException {
+			// we ignore the values from the second input
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			completedCheckpoints[subtaskId].add(checkpointId);
 		}
 	}
 }

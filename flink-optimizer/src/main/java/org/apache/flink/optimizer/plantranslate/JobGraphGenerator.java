@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -217,7 +218,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// ----------- finalize the job graph -----------
 		
 		// create the job graph object
-		JobGraph graph = new JobGraph(jobId, program.getJobName());
+		JobGraph graph = new JobGraph(jobId, program.getJobName(), JobType.BATCHING);
 		graph.setNumberOfExecutionRetries(program.getOriginalPlan().getNumberOfExecutionRetries());
 		graph.setExecutionRetryDelay(program.getOriginalPlan().getExecutionRetryDelay());
 		graph.setAllowQueuedScheduling(false);

@@ -165,6 +165,9 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 		public void cancel() {}
 
 		@Override
+		public void stop() {}
+
+		@Override
 		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
 			return count;
 		}

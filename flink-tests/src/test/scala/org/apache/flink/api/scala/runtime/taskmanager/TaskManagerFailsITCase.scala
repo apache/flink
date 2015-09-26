@@ -24,6 +24,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.api.common.JobType
 import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
@@ -100,7 +101,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       receiver.setParallelism(num_tasks)
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", JobType.BATCHING, sender, receiver)
       val jobID = jobGraph.getJobID
 
       val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
@@ -152,7 +153,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       receiver.setParallelism(num_tasks)
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", JobType.BATCHING, sender, receiver)
       val jobID = jobGraph.getJobID
 
       val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
@@ -191,12 +192,12 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
-      val jobGraph = new JobGraph("Blocking Testjob", sender)
+      val jobGraph = new JobGraph("Blocking Testjob", JobType.BATCHING, sender)
 
       val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
-      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+      val jobGraph2 = new JobGraph("NoOp Testjob", JobType.BATCHING, noOp)
 
       val cluster = createDeathwatchCluster(num_slots/2, 2)
 

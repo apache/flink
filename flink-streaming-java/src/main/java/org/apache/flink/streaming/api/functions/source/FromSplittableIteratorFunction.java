@@ -55,4 +55,10 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
 	public void cancel() {
 		isRunning = false;
 	}
+
+	@Override
+	public void stop() {
+		isRunning = false;
+	}
+
 }

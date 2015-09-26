@@ -76,6 +76,19 @@ public class SourceStreamTaskTest {
 		Assert.assertEquals(10, resultElements.size());
 	}
 
+	// test flag for testStop()
+	static boolean stopped = false;
+
+	@Test
+	public void testStop() {
+		final SourceStreamTask<Object> sourceTask = new SourceStreamTask<Object>();
+		sourceTask.headOperator = new StreamSource<Object>(new TestSource());
+
+		sourceTask.stop();
+
+		Assert.assertTrue(stopped);
+	}
+
 	/**
 	 * This test ensures that the SourceStreamTask properly serializes checkpointing
 	 * and element emission. This also verifies that there are no concurrent invocations
@@ -140,7 +153,24 @@ public class SourceStreamTaskTest {
 		}
 	}
 
-	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed<Serializable> {
+	private static class TestSource extends RichSourceFunction<Object> {
+		private static final long serialVersionUID = 728864804042338806L;
+
+		@Override
+		public void run(org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext<Object> ctx)
+				throws Exception {
+		}
+
+		@Override
+		public void cancel() {}
+
+		@Override
+		public void stop() {
+			stopped = true;
+		}
+	}
+
+	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, Checkpointed {
 		private static final long serialVersionUID = 1;
 
 		private int maxElements;
@@ -182,6 +212,11 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {
+			isRunning = false;
+		}
+
+		@Override
+		public void stop() {
 			isRunning = false;
 		}
 
@@ -276,6 +311,9 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {}
+
+		@Override
+		public void stop() {}
 	}
 }
 

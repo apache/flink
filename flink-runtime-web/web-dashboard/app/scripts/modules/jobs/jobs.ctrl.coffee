@@ -80,6 +80,11 @@ angular.module('flinkApp')
     JobsService.cancelJob($stateParams.jobid).then (data) ->
       {}
 
+  $scope.stopJob = (stopEvent) ->
+    angular.element(stopEvent.currentTarget).removeClass("btn").removeClass("btn-default").html('Stopping...')
+    JobsService.stopJob($stateParams.jobid).then (data) ->
+      {}
+
   $scope.toggleHistory = ->
     $scope.showHistory = !$scope.showHistory
 

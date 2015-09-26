@@ -480,8 +480,16 @@ angular.module('flinkApp').controller('RunningJobsController', ["$scope", "$stat
       return {};
     });
   };
+
+  return $scope.stopJob = function(stopEvent) {
+    angular.element(stopEvent.currentTarget).removeClass("btn").removeClass("btn-default").html('Stopping...');
+    return JobsService.stopJob($stateParams.jobid).then(function(data) {
+      return {};
+    });
+
   return $scope.toggleHistory = function() {
     return $scope.showHistory = !$scope.showHistory;
+
   };
 }]).controller('JobPlanController', ["$scope", "$state", "$stateParams", "JobsService", function($scope, $state, $stateParams, JobsService) {
   console.log('JobPlanController');
@@ -1349,6 +1357,9 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
   };
   this.cancelJob = function(jobid) {
     return $http.get(flinkConfig.jobServer + "jobs/" + jobid + "/yarn-cancel");
+  };
+  this.stopJob = function(jobid) {
+    return $http.get("jobs/" + jobid + "/yarn-stop");
   };
   return this;
 }]);

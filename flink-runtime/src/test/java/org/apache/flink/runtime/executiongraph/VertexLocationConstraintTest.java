@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -73,14 +74,10 @@ public class VertexLocationConstraintTest {
 			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					timeout);
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(),jg.getJobID(),
+					jg.getName(), jg.getType(), jg.getJobConfiguration(), timeout);
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -144,14 +141,10 @@ public class VertexLocationConstraintTest {
 			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(2);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					timeout);
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jg.getJobID(),
+					jg.getName(), jg.getType(), jg.getJobConfiguration(), timeout);
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -219,14 +212,10 @@ public class VertexLocationConstraintTest {
 			jobVertex1.setSlotSharingGroup(sharingGroup);
 			jobVertex2.setSlotSharingGroup(sharingGroup);
 			
-			JobGraph jg = new JobGraph("test job", jobVertex1, jobVertex2);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex1, jobVertex2);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					timeout);
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jg.getJobID(),
+					jg.getName(), jg.getType(), jg.getJobConfiguration(), timeout);
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -285,14 +274,10 @@ public class VertexLocationConstraintTest {
 			JobVertex jobVertex = new JobVertex("test vertex", new JobVertexID());
 			jobVertex.setInvokableClass(DummyInvokable.class);
 			jobVertex.setParallelism(1);
-			JobGraph jg = new JobGraph("test job", jobVertex);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					timeout);
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jg.getJobID(),
+					jg.getName(), jg.getType(), jg.getJobConfiguration(), timeout);
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -349,18 +334,14 @@ public class VertexLocationConstraintTest {
 			jobVertex1.setParallelism(1);
 			jobVertex2.setParallelism(1);
 			
-			JobGraph jg = new JobGraph("test job", jobVertex1, jobVertex2);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, jobVertex1, jobVertex2);
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			jobVertex1.setSlotSharingGroup(sharingGroup);
 			jobVertex2.setSlotSharingGroup(sharingGroup);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					timeout);
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jg.getJobID(),
+					jg.getName(), jg.getType(), jg.getJobConfiguration(), timeout);
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -391,14 +372,10 @@ public class VertexLocationConstraintTest {
 	public void testArchivingClearsFields() {
 		try {
 			JobVertex vertex = new JobVertex("test vertex", new JobVertexID());
-			JobGraph jg = new JobGraph("test job", vertex);
+			JobGraph jg = new JobGraph("test job", JobType.BATCHING, vertex);
 			
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					timeout);
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jg.getJobID(),
+					jg.getName(), jg.getType(), jg.getJobConfiguration(), timeout);
 			eg.attachJobGraph(Collections.singletonList(vertex));
 			
 			ExecutionVertex ev = eg.getAllVertices().get(vertex.getID()).getTaskVertices()[0];

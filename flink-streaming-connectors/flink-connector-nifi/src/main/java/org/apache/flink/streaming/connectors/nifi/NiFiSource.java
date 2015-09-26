@@ -138,6 +138,11 @@ public class NiFiSource extends RichParallelSourceFunction<NiFiDataPacket> {
 	}
 
 	@Override
+	public void stop() {
+		running = false;
+	}
+
+	@Override
 	public void close() throws Exception {
 		super.close();
 		client.close();

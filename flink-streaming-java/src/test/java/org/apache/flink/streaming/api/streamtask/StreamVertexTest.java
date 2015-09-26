@@ -31,13 +31,11 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
 public class StreamVertexTest extends StreamingMultipleProgramsTestBase {
@@ -49,8 +47,6 @@ public class StreamVertexTest extends StreamingMultipleProgramsTestBase {
 
 		private Tuple1<Integer> tuple = new Tuple1<Integer>(0);
 
-		private int i = 0;
-
 		@Override
 		public void run(SourceContext<Tuple1<Integer>> ctx) throws Exception {
 			for (int i = 0; i < 10; i++) {
@@ -60,8 +56,10 @@ public class StreamVertexTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public void cancel() {
-		}
+		public void cancel() {}
+
+		@Override
+		public void stop() {}
 	}
 
 	public static class MyTask extends RichMapFunction<Tuple1<Integer>, Tuple2<Integer, Integer>> {
@@ -86,7 +84,6 @@ public class StreamVertexTest extends StreamingMultipleProgramsTestBase {
 
 	}
 
-	@SuppressWarnings("unused")
 	private static final int SOURCE_PARALELISM = 1;
 
 	@Test

@@ -117,6 +117,11 @@ public class StreamingScalabilityAndLatency {
 		public void cancel() {
 			running = false;
 		}
+
+		@Override
+		public void stop() {
+			running = false;
+		}
 	}
 	
 	public static class TimestampingSink implements SinkFunction<Tuple2<Long, Long>> {

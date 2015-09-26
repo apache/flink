@@ -128,4 +128,10 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 	public void cancel() {
 		isRunning = false;
 	}
+
+	@Override
+	public void stop() {
+		isRunning = false;
+	}
+
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.jobgraph.tasks.Stoppable;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -35,7 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * @param <OUT> Type of the output elements of this source.
  */
-public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
+public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> implements Stoppable {
 
 	@Override
 	protected void init() {
@@ -46,7 +47,6 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 	protected void cleanup() {
 		// does not hold any resources, so no cleanup needed
 	}
-	
 
 	@Override
 	protected void run() throws Exception {
@@ -54,14 +54,19 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<>(getHeadOutput(), checkpointLock);
 		headOperator.run(checkpointLock, output);
 	}
-	
+
 	@Override
 	protected void cancelTask() throws Exception {
 		headOperator.cancel();
 	}
 
+	@Override
+	public void stop() {
+		this.headOperator.stop();
+	}
+
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Special output for sources that ensures that sources synchronize on  the lock object before
 	 * emitting elements.
@@ -74,7 +79,7 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 	 * @param <T> The type of elements emitted by the source.
 	 */
 	private class SourceOutput<T> implements Output<T> {
-		
+
 		private final Output<T> output;
 		private final Object lockObject;
 
@@ -103,4 +108,5 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 			output.close();
 		}
 	}
+
 }

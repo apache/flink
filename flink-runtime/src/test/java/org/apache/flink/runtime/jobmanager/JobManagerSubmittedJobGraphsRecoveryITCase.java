@@ -25,6 +25,7 @@ import akka.actor.UntypedActor;
 import akka.testkit.TestActorRef;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -421,7 +422,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 	 * Creates a simple blocking JobGraph.
 	 */
 	private static JobGraph createBlockingJobGraph() {
-		JobGraph jobGraph = new JobGraph("Blocking program");
+		JobGraph jobGraph = new JobGraph("Blocking program", JobType.BATCHING);
 
 		JobVertex jobVertex = new JobVertex("Blocking Vertex");
 		jobVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);

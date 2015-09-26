@@ -58,7 +58,6 @@ public class TopSpeedWindowing {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		@SuppressWarnings({"rawtypes", "serial"})
 		DataStream<Tuple4<Integer, Integer, Double, Long>> carData;
 
 		if (fileInput) {
@@ -146,6 +145,11 @@ public class TopSpeedWindowing {
 
 		@Override
 		public void cancel() {
+			isRunning = false;
+		}
+
+		@Override
+		public void stop() {
 			isRunning = false;
 		}
 	}

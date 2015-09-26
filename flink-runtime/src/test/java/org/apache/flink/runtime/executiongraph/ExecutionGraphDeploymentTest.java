@@ -41,6 +41,7 @@ import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -78,12 +79,8 @@ public class ExecutionGraphDeploymentTest {
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
-			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobId,
-					"some job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
+			ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, "some job",
+								JobType.BATCHING, new Configuration(), AkkaUtils.getDefaultTimeout());
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -280,12 +277,8 @@ public class ExecutionGraphDeploymentTest {
 		v2.setInvokableClass(BatchTask.class);
 
 		// execution graph that executes actions synchronously
-		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.directExecutionContext(),
-				jobId,
-				"some job",
-				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(TestingUtils.directExecutionContext(), jobId, "some job",
+							JobType.BATCHING, new Configuration(), AkkaUtils.getDefaultTimeout());
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);

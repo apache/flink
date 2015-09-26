@@ -39,13 +39,13 @@ public class CliFrontendParser {
 
 
 	static final Option HELP_OPTION = new Option("h", "help", false,
-												"Show the help message for the CLI Frontend or the action.");
+			"Show the help message for the CLI Frontend or the action.");
 
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
 	public static final Option CLASS_OPTION = new Option("c", "class", true,
 			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
-					"JAR file does not specify the class in its manifest.");
+			"JAR file does not specify the class in its manifest.");
 
 	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
 			"classloader  on all nodes in the cluster. The paths must specify a protocol (e.g. file://) and be " +
@@ -55,7 +55,7 @@ public class CliFrontendParser {
 
 	static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
 			"The parallelism with which to run the program. Optional flag to override the default value " +
-					"specified in the configuration.");
+			"specified in the configuration.");
 
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
 			"supress logging output to standard out.");
@@ -67,9 +67,9 @@ public class CliFrontendParser {
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
 	static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
-			"Address of the JobManager (master) to which to connect. Specify '" + CliFrontend.YARN_DEPLOY_JOBMANAGER
-					+ "' as the JobManager to deploy a YARN cluster for the job. Use this flag to connect to a " +
-					"different JobManager than the one specified in the configuration.");
+			"Address of the JobManager (master) to which to connect. Specify '" + CliFrontend.YARN_DEPLOY_JOBMANAGER +
+			"' as the JobManager to deploy a YARN cluster for the job. Use this flag to connect to a " +
+			"different JobManager than the one specified in the configuration.");
 
 	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
@@ -123,6 +123,7 @@ public class CliFrontendParser {
 	private static final Options INFO_OPTIONS = getInfoOptions(buildGeneralOptions(new Options()));
 	private static final Options LIST_OPTIONS = getListOptions(buildGeneralOptions(new Options()));
 	private static final Options CANCEL_OPTIONS = getCancelOptions(buildGeneralOptions(new Options()));
+	private static final Options STOP_OPTIONS = getStopOptions(buildGeneralOptions(new Options()));
 	private static final Options SAVEPOINT_OPTIONS = getSavepointOptions(buildGeneralOptions(new Options()));
 
 	private static Options buildGeneralOptions(Options options) {
@@ -197,6 +198,11 @@ public class CliFrontendParser {
 		return options;
 	}
 
+	private static Options getStopOptions(Options options) {
+		options = getJobManagerAddressOption(options);
+		return options;
+	}
+
 	private static Options getSavepointOptions(Options options) {
 		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
@@ -218,6 +224,7 @@ public class CliFrontendParser {
 		printHelpForRun();
 		printHelpForInfo();
 		printHelpForList();
+		printHelpForStop();
 		printHelpForCancel();
 		printHelpForSavepoint();
 
@@ -261,6 +268,18 @@ public class CliFrontendParser {
 		System.out.println("\n  Syntax: list [OPTIONS]");
 		formatter.setSyntaxPrefix("  \"list\" action options:");
 		formatter.printHelp(" ", getListOptions(new Options()));
+		System.out.println();
+	}
+
+	public static void printHelpForStop() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"stop\" stops a running program (streaming jobs only).");
+		System.out.println("\n  Syntax: stop [OPTIONS] <Job ID>");
+		formatter.setSyntaxPrefix("  \"stop\" action options:");
+		formatter.printHelp(" ", getStopOptions(new Options()));
 		System.out.println();
 	}
 
@@ -321,6 +340,16 @@ public class CliFrontendParser {
 			return new CancelOptions(line);
 		}
 		catch (ParseException e) {
+			throw new CliArgsException(e.getMessage());
+		}
+	}
+
+	public static StopOptions parseStopCommand(String[] args) throws CliArgsException {
+		try {
+			PosixParser parser = new PosixParser();
+			CommandLine line = parser.parse(STOP_OPTIONS, args, false);
+			return new StopOptions(line);
+		} catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());
 		}
 	}

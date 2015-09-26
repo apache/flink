@@ -299,6 +299,16 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 		this.isRunning = false;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * Sets the {@link #isRunning} flag to {@code false}.
+	 */
+	@Override
+	public void stop() {
+		this.isRunning = false;
+	}
+
 	@Override
 	public void close() throws Exception {
 		this.spout.close();

@@ -174,6 +174,11 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		}
 
 		@Override
+		public void stop() {
+			isRunning = false;
+		}
+
+		@Override
 		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
 			return index;
 		}

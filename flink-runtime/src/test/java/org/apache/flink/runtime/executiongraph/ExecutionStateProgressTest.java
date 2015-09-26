@@ -29,6 +29,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -47,13 +48,8 @@ public class ExecutionStateProgressTest {
 			ajv.setParallelism(3);
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
-			ExecutionGraph graph = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jid,
-					"test job",
-					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
-
+			ExecutionGraph graph = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jid, "test job",
+					JobType.BATCHING, new Configuration(), AkkaUtils.getDefaultTimeout());
 			graph.attachJobGraph(Arrays.asList(ajv));
 
 			setGraphStatus(graph, JobStatus.RUNNING);
