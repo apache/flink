@@ -41,6 +41,9 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
+import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
+import org.apache.flink.runtime.messages.JobManagerMessages.StoppingSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
 import org.apache.flink.runtime.messages.TaskMessages.PartitionState;
@@ -48,9 +51,10 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ExecutionGraphFound;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
-
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -136,7 +140,7 @@ public class JobManagerTest {
 				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
 
 				jobManagerGateway.tell(
-						new WaitForAllVerticesToBeRunningOrFinished(jobGraph.getJobID()),
+						new WaitForAllVerticesToBeRunningOrFinished(jid),
 						testActorGateway);
 
 				expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
@@ -227,4 +231,103 @@ public class JobManagerTest {
 			}
 		}};
 	}
+
+	@Test
+	public void testStopSignal() throws Exception {
+		new JavaTestKit(system) {{
+			// Setup
+			TestingCluster cluster = null;
+
+			try {
+				cluster = startTestingCluster(2, 1, DEFAULT_AKKA_ASK_TIMEOUT());
+
+				// Create a task
+				final JobVertex sender = new JobVertex("Sender");
+				sender.setParallelism(2);
+				sender.setInvokableClass(StoppableInvokable.class);
+
+				final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+				final JobID jid = jobGraph.getJobID();
+
+				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
+
+				// we can set the leader session ID to None because we don't use this gateway to send messages
+				final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+
+				// Submit the job and wait for all vertices to be running
+				jobManagerGateway.tell(
+						new SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT),
+						testActorGateway);
+				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+
+				jobManagerGateway.tell(new WaitForAllVerticesToBeRunning(jid), testActorGateway);
+				expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
+
+				jobManagerGateway.tell(new StopJob(jid), testActorGateway);
+
+				// - The test ----------------------------------------------------------------------
+				expectMsgClass(StoppingSuccess.class);
+
+				expectMsgClass(JobManagerMessages.JobResultSuccess.class);
+			}
+			finally {
+				if (cluster != null) {
+					cluster.shutdown();
+				}
+			}
+		}};
+	}
+
+	@Test
+	public void testStopSignalFail() throws Exception {
+		new JavaTestKit(system) {{
+			// Setup
+			TestingCluster cluster = null;
+
+			try {
+				cluster = startTestingCluster(2, 1, DEFAULT_AKKA_ASK_TIMEOUT());
+
+				// Create a task
+				final JobVertex sender = new JobVertex("Sender");
+				sender.setParallelism(1);
+				sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
+
+				final JobGraph jobGraph = new JobGraph("Non-Stoppable batching test job", sender);
+				final JobID jid = jobGraph.getJobID();
+
+				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
+
+				// we can set the leader session ID to None because we don't use this gateway to send messages
+				final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+
+				// Submit the job and wait for all vertices to be running
+				jobManagerGateway.tell(
+						new SubmitJob(
+								jobGraph,
+								ListeningBehaviour.EXECUTION_RESULT),
+						testActorGateway);
+				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
+
+				jobManagerGateway.tell(new WaitForAllVerticesToBeRunning(jid), testActorGateway);
+				expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
+
+				jobManagerGateway.tell(new StopJob(jid), testActorGateway);
+
+				// - The test ----------------------------------------------------------------------
+				expectMsgClass(StoppingFailure.class);
+
+				jobManagerGateway.tell(new RequestExecutionGraph(jid), testActorGateway);
+
+				expectMsgClass(ExecutionGraphFound.class);
+			}
+			finally {
+				if (cluster != null) {
+					cluster.shutdown();
+				}
+			}
+		}};
+	}
+
 }

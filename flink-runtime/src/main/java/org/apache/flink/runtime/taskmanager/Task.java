@@ -49,8 +49,10 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
+import org.apache.flink.runtime.messages.TaskMessages.FailTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
@@ -59,6 +61,7 @@ import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -220,7 +223,7 @@ public class Task implements Runnable {
 	private volatile long recoveryTs;
 
 	/**
-	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
+	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
 	 */
 	public Task(TaskDeploymentDescriptor tdd,
@@ -308,7 +311,7 @@ public class Task implements Runnable {
 		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
-		
+
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
 	}
@@ -336,15 +339,15 @@ public class Task implements Runnable {
 	public Configuration getJobConfiguration() {
 		return jobConfiguration;
 	}
-	
+
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
 	}
-	
+
 	public ResultPartitionWriter[] getAllWriters() {
 		return writers;
 	}
-	
+
 	public SingleInputGate[] getAllInputGates() {
 		return inputGates;
 	}
@@ -445,7 +448,7 @@ public class Task implements Runnable {
 
 		try {
 			// ----------------------------
-			//  Task Bootstrap - We periodically 
+			//  Task Bootstrap - We periodically
 			//  check for canceling as a shortcut
 			// ----------------------------
 
@@ -636,7 +639,7 @@ public class Task implements Runnable {
 						LOG.error("Unexpected state in Task during an exception: " + current);
 						break;
 					}
-					// else fall through the loop and 
+					// else fall through the loop and
 				}
 			}
 			catch (Throwable tt) {
@@ -655,7 +658,7 @@ public class Task implements Runnable {
 				if (dispatcher != null && !dispatcher.isShutdown()) {
 					dispatcher.shutdownNow();
 				}
-				
+
 				// free the network resources
 				network.unregisterTask(this);
 
@@ -743,8 +746,37 @@ public class Task implements Runnable {
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
-	//  Canceling / Failing the task from the outside
+	//  Stopping / Canceling / Failing the task from the outside
 	// ----------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * Stops the executing task by calling {@link StoppableTask#stop()}.
+	 * <p>
+	 * This method never blocks.
+	 * </p>
+	 * 
+	 * @throws UnsupportedOperationException
+	 *             if the {@link AbstractInvokable} does not implement {@link StoppableTask}
+	 */
+	public void stopExecution() throws UnsupportedOperationException {
+		LOG.info("Attempting to stop task " + taskNameWithSubtask);
+		if(this.invokable instanceof StoppableTask) {
+			Runnable runnable = new Runnable() {
+				@Override
+				public void run() {
+					try {
+						((StoppableTask)Task.this.invokable).stop();
+					} catch(RuntimeException e) {
+						LOG.error("Stopping task " + taskNameWithSubtask + " failed.", e);
+						taskManager.tell(new FailTask(executionId, e));
+					}
+				}
+			};
+			executeAsyncCallRunnable(runnable, "Stopping source task " + this.taskNameWithSubtask);
+		} else {
+			throw new UnsupportedOperationException("Stopping not supported by this task.");
+		}
+	}
 
 	/**
 	 * Cancels the task execution. If the task is already in a terminal state
@@ -853,7 +885,7 @@ public class Task implements Runnable {
 	 * {@link org.apache.flink.runtime.jobgraph.tasks.StatefulTask}.
 	 * 
 	 * @param checkpointID The ID identifying the checkpoint.
-	 * @param checkpointTimestamp The timestamp associated with the checkpoint.   
+	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
 	 */
 	public void triggerCheckpointBarrier(final long checkpointID, final long checkpointTimestamp) {
 		AbstractInvokable invokable = this.invokable;
@@ -861,7 +893,7 @@ public class Task implements Runnable {
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 			if (invokable instanceof StatefulTask) {
 
-				// build a local closure 
+				// build a local closure
 				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
@@ -895,14 +927,14 @@ public class Task implements Runnable {
 			LOG.debug("Ignoring request to trigger a checkpoint for non-running task.");
 		}
 	}
-	
+
 	public void notifyCheckpointComplete(final long checkpointID) {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 			if (invokable instanceof StatefulTask) {
 
-				// build a local closure 
+				// build a local closure
 				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
@@ -1069,7 +1101,7 @@ public class Task implements Runnable {
 					logger.error("Error while canceling the task", t);
 				}
 
-				// interrupt the running thread initially 
+				// interrupt the running thread initially
 				executer.interrupt();
 				try {
 					executer.join(30000);

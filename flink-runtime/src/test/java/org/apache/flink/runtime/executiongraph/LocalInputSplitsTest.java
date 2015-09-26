@@ -267,12 +267,12 @@ public class LocalInputSplitsTest {
 			JobGraph jobGraph = new JobGraph("test job", vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					jobGraph.getJobID(),
-					jobGraph.getName(),
-					jobGraph.getJobConfiguration(),
-					TIMEOUT,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(), 
+				jobGraph.getJobID(),
+				jobGraph.getName(),  
+				jobGraph.getJobConfiguration()
+				TIMEOUT,
+				new NoRestartStrategy());
 			
 			eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 			eg.setQueuedSchedulingAllowed(false);
@@ -331,12 +331,13 @@ public class LocalInputSplitsTest {
 		JobGraph jobGraph = new JobGraph("test job", vertex);
 		
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				jobGraph.getJobID(),
-				jobGraph.getName(),
-				jobGraph.getJobConfiguration(),
-				TIMEOUT,
-				new NoRestartStrategy());
+			TestingUtils.defaultExecutionContext(),
+			jobGraph.getJobID(),
+			jobGraph.getName(),  
+			jobGraph.getJobConfiguration()
+			TIMEOUT,
+			new NoRestartStrategy());
+		
 		eg.setQueuedSchedulingAllowed(false);
 		
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());

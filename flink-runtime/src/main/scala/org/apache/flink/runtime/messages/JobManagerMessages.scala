@@ -96,6 +96,14 @@ object JobManagerMessages {
   case class CancelJob(jobID: JobID) extends RequiresLeaderSessionID
 
   /**
+   * Stops a (streaming) job with the given [[jobID]] at the JobManager. The result of
+   * stopping is sent back to the sender as a [[StoppingResponse]] message.
+   *
+   * @param jobID
+   */
+  case class StopJob(jobID: JobID) extends RequiresLeaderSessionID
+
+  /**
    * Requesting next input split for the
    * [[org.apache.flink.runtime.executiongraph.ExecutionJobVertex]]
    * of the job specified by [[jobID]]. The next input split is sent back to the sender as a
@@ -237,6 +245,23 @@ object JobManagerMessages {
    * @param cause
    */
   case class CancellationFailure(jobID: JobID, cause: Throwable) extends CancellationResponse
+
+  sealed trait StoppingResponse {
+    def jobID: JobID
+  }
+
+  /**
+   * Denotes a successful (streaming) job stopping
+   * @param jobID
+   */
+  case class StoppingSuccess(jobID: JobID) extends StoppingResponse
+
+  /**
+   * Denotes a failed (streaming) job stopping
+   * @param jobID
+   * @param cause
+   */
+  case class StoppingFailure(jobID: JobID, cause: Throwable) extends StoppingResponse
 
   /**
    * Requests all currently running jobs from the job manager. This message triggers a

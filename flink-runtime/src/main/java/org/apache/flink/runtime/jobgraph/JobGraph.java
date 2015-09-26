@@ -81,6 +81,7 @@ public class JobGraph implements Serializable {
 
 	/** Configuration which defines which restart strategy to use for the job recovery */
 	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
+	
 
 	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
 	 * job manager after it has been executed. */

@@ -36,6 +36,7 @@ import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.cli.SavepointOptions;
+import org.apache.flink.client.cli.StopOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -56,7 +57,10 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
+import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -110,6 +114,7 @@ public class CliFrontend {
 	public static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
+	private static final String ACTION_STOP = "stop";
 	private static final String ACTION_SAVEPOINT = "savepoint";
 
 	// config dir parameters
@@ -290,9 +295,6 @@ public class CliFrontend {
 		catch (FileNotFoundException e) {
 			return handleArgException(e);
 		}
-		catch (ProgramInvocationException e) {
-			return handleError(e);
-		}
 		catch (Throwable t) {
 			return handleError(t);
 		}
@@ -362,7 +364,7 @@ public class CliFrontend {
 	/**
 	 * Executes the info action.
 	 * 
-	 * @param args Command line arguments for the info action. 
+	 * @param args Command line arguments for the info action.
 	 */
 	protected int info(String[] args) {
 		LOG.info("Running 'info' command.");
@@ -568,6 +570,65 @@ public class CliFrontend {
 	}
 
 	/**
+	 * Executes the STOP action.
+	 * 
+	 * @param args Command line arguments for the stop action.
+	 */
+	protected int stop(String[] args) {
+		LOG.info("Running 'stop' command.");
+
+		StopOptions options;
+		try {
+			options = CliFrontendParser.parseStopCommand(args);
+		}
+		catch (CliArgsException e) {
+			return handleArgException(e);
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+
+		// evaluate help flag
+		if (options.isPrintHelp()) {
+			CliFrontendParser.printHelpForStop();
+			return 0;
+		}
+
+		String[] stopArgs = options.getArgs();
+		JobID jobId;
+
+		if (stopArgs.length > 0) {
+			String jobIdString = stopArgs[0];
+			try {
+				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+			}
+			catch (Exception e) {
+				return handleError(e);
+			}
+		}
+		else {
+			return handleArgException(new CliArgsException("Missing JobID"));
+		}
+
+		try {
+			ActorGateway jobManager = getJobManagerGateway(options);
+			Future<Object> response = jobManager.ask(new StopJob(jobId), clientTimeout);
+
+			final Object rc = Await.result(response, clientTimeout);
+
+			if (rc instanceof StoppingFailure) {
+				throw new Exception("Stopping the job with ID " + jobId + " failed.",
+						((StoppingFailure) rc).cause());
+			}
+
+			return 0;
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+	}
+
+	/**
 	 * Executes the CANCEL action.
 	 * 
 	 * @param args Command line arguments for the cancel action.
@@ -616,13 +677,14 @@ public class CliFrontend {
 			ActorGateway jobManager = getJobManagerGateway(options);
 			Future<Object> response = jobManager.ask(new CancelJob(jobId), clientTimeout);
 
-			try {
-				Await.result(response, clientTimeout);
-				return 0;
+			final Object rc = Await.result(response, clientTimeout);
+
+			if (rc instanceof CancellationFailure) {
+				throw new Exception("Canceling the job with ID " + jobId + " failed.",
+						((CancellationFailure) rc).cause());
 			}
-			catch (Exception e) {
-				throw new Exception("Canceling the job with ID " + jobId + " failed.", e);
-			}
+
+			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -1123,6 +1185,8 @@ public class CliFrontend {
 				return info(params);
 			case ACTION_CANCEL:
 				return cancel(params);
+			case ACTION_STOP:
+				return stop(params);
 			case ACTION_SAVEPOINT:
 				return savepoint(params);
 			case "-h":
@@ -1139,7 +1203,7 @@ public class CliFrontend {
 			default:
 				System.out.printf("\"%s\" is not a valid action.\n", action);
 				System.out.println();
-				System.out.println("Valid actions are \"run\", \"list\", \"info\", or \"cancel\".");
+				System.out.println("Valid actions are \"run\", \"list\", \"info\", \"stop\", or \"cancel\".");
 				System.out.println();
 				System.out.println("Specify the version option (-v or --version) to print Flink version.");
 				System.out.println();

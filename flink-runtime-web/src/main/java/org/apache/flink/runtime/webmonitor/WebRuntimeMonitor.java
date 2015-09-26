@@ -53,6 +53,7 @@ import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobStoppingHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexCheckpointsHandler;
@@ -245,8 +246,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
 			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))
 
-			// DELETE is the preferred way of cancelling a job (Rest-conform)
-			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()));
+			// DELETE is the preferred way of canceling a job (Rest-conform)
+			.DELETE("/jobs/:jobid/cancel", handler(new JobCancellationHandler()))
+
+			// stop a job via GET (for proper integration with YARN this has to be performed via GET)
+			.GET("/jobs/:jobid/yarn-stop", handler(new JobStoppingHandler()))
+
+			// DELETE is the preferred way of stopping a job (Rest-conform)
+			.DELETE("/jobs/:jobid/stop", handler(new JobStoppingHandler()));
 
 		if (webSubmitAllow) {
 			router

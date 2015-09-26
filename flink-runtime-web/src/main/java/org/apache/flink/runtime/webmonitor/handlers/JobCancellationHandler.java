@@ -25,6 +25,9 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
+/**
+ * Request handler for the CANCEL request.
+ */
 public class JobCancellationHandler implements RequestHandler {
 
 	@Override
