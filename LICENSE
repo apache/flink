@@ -268,6 +268,7 @@ The Apache Flink project bundles the following files under BSD licenses:
 (3-clause BSD license)
  - D3 v3.4.6 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  - D3 v3.5.6 (http://d3js.org/) - Copyright (c) 2010-2015, Michael Bostock
+ - jpmml-model(https://github.com/jpmml/jpmml-model) - Copyright (c) 2009, University of Tartu
 
 All rights reserved.
 

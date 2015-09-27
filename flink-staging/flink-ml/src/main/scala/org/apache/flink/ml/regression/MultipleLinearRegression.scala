@@ -18,15 +18,12 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.math.{Breeze, Vector}
+import org.apache.flink.api.scala.{DataSet, _}
 import org.apache.flink.ml.common._
-
-import org.apache.flink.api.scala._
-
-import org.apache.flink.ml.optimization.{LinearPrediction, SquaredLoss, GenericLossFunction, SimpleGradientDescent}
-import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
-
+import org.apache.flink.ml.math.{Breeze, Vector}
+import org.apache.flink.ml.optimization.{GenericLossFunction, LinearPrediction, SimpleGradientDescent, SquaredLoss}
+import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.dmg.pmml.{Parameter => _, _}
 
 /** Multiple linear regression using the ordinary least squares (OLS) estimator.
   *
@@ -85,9 +82,9 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *  Threshold for relative change of sum of squared residuals until convergence.
   *
   */
-class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
-  import org.apache.flink.ml._
+class MultipleLinearRegression extends Predictor[MultipleLinearRegression] with PMMLExportable{
   import MultipleLinearRegression._
+  import org.apache.flink.ml._
 
   // Stores the weights of the linear model after the fitting phase
   var weightsOption: Option[DataSet[WeightVector]] = None
@@ -123,6 +120,44 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
       }
     }
 
+  }
+
+  override def toPMML(): PMML = {
+    weightsOption match {
+      case None => {
+        throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
+          "data. This is necessary to learn the weight vector of the linear function.")
+      }
+      case Some(weights) => {
+        val model = weights.collect().head
+        val pmml = new PMML()
+        pmml.setHeader(new Header().setDescription("Multiple Linear Regression"))
+
+        // define the fields
+        val target = FieldName.create("prediction")
+        val fields = (0 until model.weights.size).map(i => FieldName.create("field_" + i))
+
+        // define the data dictionary, mining schema and regression table
+        val dictionary = new DataDictionary()
+        val miningSchema = new MiningSchema()
+        val regressionTable = new RegressionTable().setIntercept(model.intercept)
+        fields.zipWithIndex.foreach(f => {
+          miningSchema.addMiningFields(new MiningField(f._1).setUsageType(FieldUsageType.ACTIVE))
+          regressionTable.addNumericPredictors(new NumericPredictor(f._1, model.weights(f._2)))
+          dictionary.addDataFields(new DataField(f._1, OpType.CONTINUOUS, DataType.DOUBLE))
+        })
+        dictionary.addDataFields(new DataField(target, OpType.CONTINUOUS, DataType.DOUBLE))
+        miningSchema.addMiningFields(new MiningField(target).setUsageType(FieldUsageType.PREDICTED))
+
+        // define the model
+        val pmmlModel = new RegressionModel()
+          .setFunctionName(MiningFunctionType.REGRESSION)
+          .setModelType(RegressionModel.ModelType.LINEAR_REGRESSION)
+          .setMiningSchema(miningSchema)
+          .addRegressionTables(regressionTable)
+        pmml.setDataDictionary(dictionary).addModels(pmmlModel)
+      }
+    }
   }
 }
 

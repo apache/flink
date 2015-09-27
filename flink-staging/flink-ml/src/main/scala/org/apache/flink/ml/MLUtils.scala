@@ -24,6 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.SparseVector
+import org.dmg.pmml.Application
 
 /** Convenience functions for machine learning tasks
   *
@@ -38,6 +39,10 @@ import org.apache.flink.ml.math.SparseVector
   *   is specified [http://svmlight.joachims.org/ here].
   */
 object MLUtils {
+
+  val pmmlApp = new Application()
+    .setName("Flink ML")
+    .setVersion(getClass.getPackage.getImplementationVersion)
 
   val DIMENSION = "dimension"
 

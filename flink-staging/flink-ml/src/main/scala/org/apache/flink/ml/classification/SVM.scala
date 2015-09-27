@@ -18,19 +18,19 @@
 
 package org.apache.flink.ml.classification
 
+import breeze.linalg.{DenseVector => BreezeDenseVector, Vector => BreezeVector}
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
-import org.apache.flink.ml.common._
+import org.apache.flink.ml.common.{Parameter, _}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{DenseVector, Vector}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.dmg.pmml.{Parameter => _, _}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-
-import breeze.linalg.{DenseVector => BreezeDenseVector, Vector => BreezeVector}
 
 /** Implements a soft-margin SVM using the communication-efficient distributed dual coordinate
   * ascent algorithm (CoCoA) with hinge-loss function.
@@ -130,7 +130,7 @@ import breeze.linalg.{DenseVector => BreezeDenseVector, Vector => BreezeVector}
   *  distance to the hyperplane for each example. Setting it to false will return the binary
   *  class label (+1.0, -1.0) (Default value: '''false''')
   */
-class SVM extends Predictor[SVM] {
+class SVM extends Predictor[SVM] with PMMLExportable {
 
   import SVM._
 
@@ -223,6 +223,49 @@ class SVM extends Predictor[SVM] {
   def setOutputDecisionFunction(outputDecisionFunction: Boolean): SVM = {
     parameters.add(OutputDecisionFunction, outputDecisionFunction)
     this
+  }
+
+  override def toPMML(): PMML = {
+    weightsOption match {
+      case None => {
+        throw new RuntimeException("The SVM model has not been trained. Call first fit" +
+          " before calling the export operation.")
+      }
+      case Some(weights) => {
+        val model = weights.collect().head
+        val pmml = new PMML()
+        pmml.setHeader(new Header().setDescription("Support Vector Machine"))
+
+        // define the fields
+        val target = FieldName.create("prediction")
+        val fields = (0 until model.size).map(i => FieldName.create("field_" + i))
+
+        // define the data dictionary, mining schema and model
+        val dictionary = new DataDictionary()
+        val miningSchema = new MiningSchema()
+        val coefficients = new Coefficients()
+        fields.zipWithIndex.foreach(f => {
+          miningSchema.addMiningFields(new MiningField(f._1).setUsageType(FieldUsageType.ACTIVE))
+          coefficients.addCoefficients(new Coefficient().setValue(model(f._2)))
+          dictionary.addDataFields(new DataField(f._1, OpType.CONTINUOUS, DataType.DOUBLE))
+        })
+        dictionary.addDataFields(new DataField(target, OpType.CATEGORICAL, DataType.STRING)
+          .addValues(new Value("NO"))
+          .addValues(new Value("YES"))
+        )
+        miningSchema.addMiningFields(new MiningField(target).setUsageType(FieldUsageType.PREDICTED))
+
+        // define the model
+        val svmModel = new SupportVectorMachineModel()
+          .setFunctionName(MiningFunctionType.CLASSIFICATION)
+          .setSvmRepresentation (SvmRepresentationType.COEFFICIENTS)
+          .setThreshold(parameters.get(ThresholdValue).get)
+          .setMiningSchema(miningSchema)
+          .setKernel(new LinearKernel())
+          .addSupportVectorMachines(new SupportVectorMachine().setCoefficients(coefficients))
+        pmml.setDataDictionary(dictionary).addModels(svmModel)
+      }
+    }
   }
 }
 

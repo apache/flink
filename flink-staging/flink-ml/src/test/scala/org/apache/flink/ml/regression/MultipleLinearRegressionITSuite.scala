@@ -18,11 +18,19 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.api.scala._
+import java.io.File
+import javax.xml.transform.stream.StreamSource
+
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.ml.common.{ParameterMap, WeightVector}
+import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.apache.flink.test.util.FlinkTestBase
+import org.dmg.pmml._
+import org.jpmml.model.JAXBUtil
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.collection.JavaConverters._
 
 class MultipleLinearRegressionITSuite
   extends FlatSpec
@@ -129,5 +137,66 @@ class MultipleLinearRegressionITSuite
       case (truth, prediction) => Math.abs(truth - prediction)}.sum
 
     absoluteErrorSum should be < 50.0
+  }
+
+  it should "export a valid PMML object" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val mlr = MultipleLinearRegression()
+    mlr.weightsOption = Some(env.fromElements(
+      WeightVector(DenseVector(scala.Array(1.0, 2.0)), 3.0))
+    )
+
+    val tempFile = File.createTempFile("mlr-export-test", null)
+    mlr.exportToPMML(tempFile.toString)
+
+    // ------------ VERIFY THE EXPORT ---------------------------
+    val pmml = JAXBUtil.unmarshalPMML(new StreamSource(tempFile))
+
+    // header verification
+    pmml.getHeader.getApplication.getName should equal("Flink ML")
+    pmml.getHeader.getDescription should equal("Multiple Linear Regression")
+
+    // dictionary verification
+    val dataFields = pmml.getDataDictionary.getDataFields.asScala
+    dataFields.size should equal(3)
+    val field1 = dataFields.find(_.getName.getValue == "field_0")
+    val field2 = dataFields.find(_.getName.getValue == "field_1")
+    val field3 = dataFields.find(_.getName.getValue == "prediction")
+    field1 should not be None
+    field2 should not be None
+    field3 should not be None
+    field1.get.getDataType should equal(DataType.DOUBLE)
+    field2.get.getDataType should equal(DataType.DOUBLE)
+    field3.get.getDataType should equal(DataType.DOUBLE)
+    field1.get.getOpType should equal(OpType.CONTINUOUS)
+    field2.get.getOpType should equal(OpType.CONTINUOUS)
+    field3.get.getOpType should equal(OpType.CONTINUOUS)
+
+    // get the model
+    pmml.getModels.size() should equal(1)
+    val model = pmml.getModels.get(0) match {
+      case m: RegressionModel => m
+      case default => throw new Exception("Invalid model type")
+    }
+
+    // verify model
+    model.getFunctionName should equal(MiningFunctionType.REGRESSION)
+    val schema = model.getMiningSchema.getMiningFields.asScala
+    schema.size should equal(3)
+    val schema1 = schema.find(_.getName.getValue == "field_0")
+    val schema2 = schema.find(_.getName.getValue == "field_1")
+    val schema3 = schema.find(_.getName.getValue == "prediction")
+    schema1 should not be None
+    schema2 should not be None
+    schema3 should not be None
+    schema1.get.getUsageType should equal(FieldUsageType.ACTIVE)
+    schema2.get.getUsageType should equal(FieldUsageType.ACTIVE)
+    schema3.get.getUsageType should equal(FieldUsageType.PREDICTED)
+    model.getRegressionTables.get(0).getIntercept should equal(3.0)
+    val predictors = model.getRegressionTables.get(0).getNumericPredictors.asScala
+    predictors.size should equal(2)
+    predictors.find(_.getName.getValue == "field_0").get.getCoefficient should equal(1.0)
+    predictors.find(_.getName.getValue == "field_1").get.getCoefficient should equal(2.0)
   }
 }
