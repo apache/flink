@@ -27,7 +27,7 @@ import breeze.linalg.{SparseVector => BreezeSparseVector, DenseVector => BreezeD
  * @param data Array of doubles to store the vector elements
  */
 case class DenseVector(
-    val data: Array[Double])
+    data: Array[Double])
   extends Vector
   with Serializable {
 
@@ -76,8 +76,8 @@ case class DenseVector(
 
   /** Updates the element at the given index with the provided value
     *
-    * @param index
-    * @param value
+    * @param index Index whose value is updated.
+    * @param value The value used to update the index.
     */
   override def update(index: Int, value: Double): Unit = {
     require(0 <= index && index < data.length, index + " not in [0, " + data.length + ")")
@@ -115,19 +115,19 @@ case class DenseVector(
     val numCols = other.size
 
     other match {
-      case SparseVector(size, indices, data_) =>
-        val entries: Array[(Int, Int, Double)] = for {
-          i <- (0 until numRows).toArray
-          j <- indices
-          value = this(i) * other(j)
+      case sv @ SparseVector(_, _, _) =>
+        val entries = for {
+          i <- 0 until numRows
+          j <- sv.indices
+          value = this(i) * sv.data(sv.indices.indexOf(j))
           if value != 0
         } yield (i, j, value)
 
         SparseMatrix.fromCOO(numRows, numCols, entries)
       case _ =>
         val values = for {
-          i <- (0 until numRows)
-          j <- (0 until numCols)
+          i <- 0 until numRows
+          j <- 0 until numCols
         } yield this(i) * other(j)
 
         DenseMatrix(numRows, numCols, values.toArray)
