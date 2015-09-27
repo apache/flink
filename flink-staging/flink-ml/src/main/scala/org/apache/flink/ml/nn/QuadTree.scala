@@ -45,6 +45,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
     var objects = new ListBuffer[DenseVector]
 
+    /** for testing purposes only
+     *
+     * @return
+     */
     def getCenterLength(): (ListBuffer[Double],ListBuffer[Double]) ={
       (c,L)
     }
@@ -76,7 +80,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
 
     /** Tests if obj is near a node:  minDist is defined so that every point in the box
-      * has distance to obj greater than minDist (see "Nearest Neighbors Queries" by N. Roussopoulos et al.)
+      * has distance to obj greater than minDist
+      * (minDist adopted from "Nearest Neighbors Queries" by N. Roussopoulos et al.)
      *
      * @param obj
      * @param radius
@@ -136,22 +141,23 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     {
       if (L.length == 1){
 
-        var cPart2 = cPart.clone()
+        var cPartDown = cPart.clone()
         //// need to map all centers and shift
-        val cPartMap = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
-        cPart2 = cPart2.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
+        val cPartUp = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
+        cPartDown = cPartDown.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
-        return cPart2 ++ cPartMap
+        return cPartDown ++ cPartUp
       }
 
-      var cPart2 = cPart.clone()
+      var cPartDown = cPart.clone()
       //// need to map all centers and shift
-      val cPartMap = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
-      cPart2 = cPart2.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
+      //val cPartUp = ListBuffer(cPart.head.patch(dim-1, Seq(cPart.head(dim - 1) + L(dim-1)/4), 1)) // more verbose..
+      val cPartUp = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
+      cPartDown = cPartDown.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
       cPart -= cPart.head
-      cPart ++= partitionBox(cPart2,L.take(dim-1),dim-1)
-      cPart ++= partitionBox(cPartMap,L.take(dim-1),dim-1)
+      cPart ++= partitionBox(cPartDown,L.take(dim-1),dim-1)
+      cPart ++= partitionBox(cPartUp,L.take(dim-1),dim-1)
     }
   }
 
@@ -177,18 +183,18 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
   /**
    * Recursively adds an object to the tree
-   * @param ob
+   * @param obj
    */
 
-  def insert(ob:DenseVector){
-    insertRecur(ob,root)
+  def insert(obj:DenseVector){
+    insertRecur(obj,root)
   }
 
-  private def insertRecur(ob:DenseVector,n:Node) {
+  private def insertRecur(obj:DenseVector,n:Node) {
     if(n.children==null) {
       if(n.objects.length < maxPerBox )
       {
-        n.objects += ob
+        n.objects += obj
       }
 
       else{
@@ -197,10 +203,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
           insertRecur(o, n.children(n.whichChild(o)))
         }
         n.objects.clear()
-        insertRecur(ob, n.children(n.whichChild(ob)))
+        insertRecur(obj, n.children(n.whichChild(obj)))
       }
     } else{ /// move down to children
-      insertRecur(ob, n.children(n.whichChild(ob)))
+      insertRecur(obj, n.children(n.whichChild(obj)))
     }
   }
 
@@ -221,10 +227,27 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     ret
   }
 
+  private def searchRecurSibling(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
+    if(n.children != null) {
+      for(child <- n.children; if child.isInNode(obj)) {
+        if (child.children == null) {
+          for (c <- n.children) {
+            ////// Go down to minimal bounding box and grab object
+            objectsInMinBox(c, ret)
+          }
+        }
+        else {
+          for(child <- n.children) {
+            searchRecurSibling(obj, child, ret)
+          }
+        }
+      }
+    }
+  }
 
   def objectsInMinBox(n:Node, ret:ListBuffer[DenseVector]) {
     if (n.children == null){
-       ret ++= n.objects
+      ret ++= n.objects
     } else{
       for (c <- n.children) {
         if(c.children == null) {
@@ -236,24 +259,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  private def searchRecurSibling(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
-    if(n.children != null) {
-      for(child <- n.children; if child.isInNode(obj)) {
-        if (child.children == null) {
-          for (c <- n.children) {
-            ////// Go down to minimal bounding box and grab object
-            objectsInMinBox(c, ret)
-            //ret ++= c.objects
-          }
-        }
-        else {
-          for(child <- n.children) {
-            searchRecurSibling(obj, child, ret)
-          }
-        }
-      }
-    }
-  }
 
   /** Finds all objects within a neigiborhood of obj of a specified radius
     * scope is modified from original 2D version in:
@@ -266,6 +271,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
    * @param radius
    * @return
    */
+
   def searchNeighbors(obj:DenseVector,radius:Double):ListBuffer[DenseVector] = {
     var ret = new ListBuffer[DenseVector]
     searchRecur(obj,radius,root,ret)

@@ -81,8 +81,9 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
      */
 
     var computedCentersLength =  Set( ( ListBuffer(0.0,0.0) , ListBuffer(2.0,1.0) ))
-    for (c <- myTree.root.children){
-      computedCentersLength += c.getCenterLength()
+    for (child <- myTree.root.children){
+     computedCentersLength += child.getCenterLength()
+
     }
 
     /**

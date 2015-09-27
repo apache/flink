@@ -181,6 +181,7 @@ object KNN {
                   //// automated max/min values to get bounding box (add/subtract 0.01 to
                   // avoid error when detecting points near the boundary)
 
+
                   var MinVec =  new ListBuffer[Double]
                   var MaxVec =  new ListBuffer[Double]
                   for ( i <- 0 to training.values.head.size - 1){
@@ -230,8 +231,8 @@ object KNN {
                      for (b <- bFiltVect){
 
 
-                       //for (a <- testing.values) {
-                      //for (b <- training.values){
+                    // for (a <- testing.values) {
+                    //for (b <- training.values){
                       // (training vector, input vector, input key, distance)
                       queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
                       if (queue.size > k) {
