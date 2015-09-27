@@ -26,15 +26,16 @@ import scala.util.Sorting
   * indices of the non-zero vector entries and the other the corresponding vector entries
   */
 case class SparseVector(
-    val size: Int,
-    val indices: Array[Int],
-    val data: Array[Double])
+    size: Int,
+    indices: Array[Int],
+    data: Array[Double])
   extends Vector
   with Serializable {
+
   /** Updates the element at the given index with the provided value
     *
-    * @param index
-    * @param value
+    * @param index Index whose value is updated.
+    * @param value The value used to update the index.
     */
   override def update(index: Int, value: Double): Unit = {
     val resolvedIndex = locate(index)
@@ -97,17 +98,22 @@ case class SparseVector(
     val numRows = size
     val numCols = other.size
 
-    val otherIndices = other match {
-      case sv @ SparseVector(_, _, _) => sv.indices
-      case dv @ DenseVector(_) => (0 until dv.size).toArray
+    val entries = other match {
+      case sv @ SparseVector(_, _, _) =>
+       for {
+          i <- indices
+          j <- sv.indices
+          value = data(indices.indexOf(i)) * sv.data(sv.indices.indexOf(j))
+          if value != 0
+        } yield (i, j, value)
+      case _ =>
+        for {
+          i <- indices
+          j <- 0 until numCols
+          value = data(indices.indexOf(i)) * other(j)
+          if value != 0
+        } yield (i, j, value)
     }
-
-    val entries = for {
-      i <- indices
-      j <- otherIndices
-      value = this(i) * other(j)
-      if value != 0
-    } yield (i, j, value)
 
     SparseMatrix.fromCOO(numRows, numCols, entries)
   }
