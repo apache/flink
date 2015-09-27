@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.testutils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
@@ -44,26 +45,29 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 /**
  * A simple HTTP client.
  *
  * <pre>
- * HttpTestClient client = new HttpTestClient("localhost", 8081, 5000);
- * client.get("/overview");
- * SimpleHttpResponse response = client.getNextResponse(5000);
+ * HttpTestClient client = new HttpTestClient("localhost", 8081);
+ * client.sendGetRequest("/overview", timeout);
+ * SimpleHttpResponse response = client.getNextResponse(timeout);
  *
  * assertEquals(200, response.getStatus().code()); // OK
  * assertEquals("application/json", response.getType());
  * assertTrue(response.getContent().contains("\"jobs-running\":0"));
  * </pre>
+ *
+ * This code is based on Netty's HttpSnoopClient.
+ *
+ * @see <a href="https://github.com/netty/netty/blob/master/example/src/main/java/io/netty/example/http/snoop/HttpSnoopClient.java">HttpSnoopClient</a>
  */
 public class HttpTestClient implements AutoCloseable {
 
@@ -78,8 +82,8 @@ public class HttpTestClient implements AutoCloseable {
 	/** Netty's thread group for the client */
 	private final EventLoopGroup group;
 
-	/** TCP connection to the HTTP server */
-	private final Channel channel;
+	/** Client bootstrap */
+	private final Bootstrap bootstrap;
 
 	/** Responses received by the client */
 	private final BlockingQueue<SimpleHttpResponse> responses = new LinkedBlockingQueue<>();
@@ -87,21 +91,17 @@ public class HttpTestClient implements AutoCloseable {
 	/**
 	 * Creates a client instance for the server at the target host and port.
 	 *
-	 * <p>This establishes a connection to the server.
-	 *
 	 * @param host Host of the HTTP server
 	 * @param port Port of the HTTP server
-	 * @throws InterruptedException
 	 */
-	public HttpTestClient(String host, int port, int connectTimoutMs) throws InterruptedException,
-			TimeoutException {
+	public HttpTestClient(String host, int port) {
 		this.host = host;
 		this.port = port;
 
 		this.group = new NioEventLoopGroup();
 
-		Bootstrap b = new Bootstrap();
-		b.group(group)
+		this.bootstrap = new Bootstrap();
+		this.bootstrap.group(group)
 				.channel(NioSocketChannel.class)
 				.handler(new ChannelInitializer<SocketChannel>() {
 
@@ -113,16 +113,6 @@ public class HttpTestClient implements AutoCloseable {
 						p.addLast(new ClientHandler(responses));
 					}
 				});
-
-		// Make the connection attempt.
-		ChannelFuture connect = b.connect(host, port);
-
-		if (connect.await(connectTimoutMs, TimeUnit.MILLISECONDS)) {
-			this.channel = connect.channel();
-		}
-		else {
-			throw new TimeoutException("Connection failed");
-		}
 	}
 
 	/**
@@ -138,8 +128,19 @@ public class HttpTestClient implements AutoCloseable {
 	 *
 	 * @param request The {@link HttpRequest} to send to the server
 	 */
-	public void sendRequest(HttpRequest request) {
+	public void sendRequest(HttpRequest request, FiniteDuration timeout) throws InterruptedException, TimeoutException {
 		LOG.debug("Writing {}.", request);
+
+		// Make the connection attempt.
+		ChannelFuture connect = bootstrap.connect(host, port);
+
+		Channel channel;
+		if (connect.await(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+			channel = connect.channel();
+		}
+		else {
+			throw new TimeoutException("Connection failed");
+		}
 
 		channel.writeAndFlush(request);
 	}
@@ -150,7 +151,7 @@ public class HttpTestClient implements AutoCloseable {
 	 *
 	 * @param path The $path to GET (http://$host:$host/$path)
 	 */
-	public void get(String path) {
+	public void sendGetRequest(String path, FiniteDuration timeout) throws TimeoutException, InterruptedException {
 		if (!path.startsWith("/")) {
 			path = "/" + path;
 		}
@@ -160,7 +161,7 @@ public class HttpTestClient implements AutoCloseable {
 		getRequest.headers().set(HttpHeaders.Names.HOST, host);
 		getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		sendRequest(getRequest);
+		sendRequest(getRequest, timeout);
 	}
 
 	/**
@@ -177,18 +178,16 @@ public class HttpTestClient implements AutoCloseable {
 	 * Returns the next available HTTP response . A call to this method blocks until a response
 	 * becomes available or throws an Exception if the timeout fires.
 	 *
-	 * @param timeoutMs Timeout in milliseconds for the next response to become available
+	 * @param timeout Timeout in milliseconds for the next response to become available
 	 * @return The next available {@link SimpleHttpResponse}
 	 */
-	public SimpleHttpResponse getNextResponse(int timeoutMs) throws InterruptedException,
+	public SimpleHttpResponse getNextResponse(FiniteDuration timeout) throws InterruptedException,
 			TimeoutException {
 
-		checkArgument(timeoutMs >= 0, "Negative Timeout");
-
-		SimpleHttpResponse response = responses.poll(timeoutMs, TimeUnit.MILLISECONDS);
+		SimpleHttpResponse response = responses.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
 		if (response == null) {
-			throw new TimeoutException("No response within timeout of " + timeoutMs + " ms");
+			throw new TimeoutException("No response within timeout of " + timeout + " ms");
 		}
 		else {
 			return response;
@@ -200,10 +199,6 @@ public class HttpTestClient implements AutoCloseable {
 	 */
 	@Override
 	public void close() throws InterruptedException {
-		if (channel != null) {
-			channel.close().sync();
-		}
-
 		if (group != null) {
 			group.shutdownGracefully();
 		}
@@ -222,10 +217,13 @@ public class HttpTestClient implements AutoCloseable {
 
 		private final String content;
 
-		public SimpleHttpResponse(HttpResponseStatus status, String type, String content) {
+		private final String location;
+
+		public SimpleHttpResponse(HttpResponseStatus status, String type, String content, String location) {
 			this.status = status;
 			this.type = type;
 			this.content = content;
+			this.location = location;
 		}
 
 		public HttpResponseStatus getStatus() {
@@ -234,6 +232,10 @@ public class HttpTestClient implements AutoCloseable {
 
 		public String getType() {
 			return type;
+		}
+
+		public final String getLocation() {
+			return location;
 		}
 
 		public String getContent() {
@@ -250,6 +252,7 @@ public class HttpTestClient implements AutoCloseable {
 	/**
 	 * The response handler. Responses from the server are handled here.
 	 */
+	@ChannelHandler.Sharable
 	private static class ClientHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 		private final BlockingQueue<SimpleHttpResponse> responses;
@@ -257,6 +260,8 @@ public class HttpTestClient implements AutoCloseable {
 		private HttpResponseStatus currentStatus;
 
 		private String currentType;
+
+		private String currentLocation;
 
 		private String currentContent = "";
 
@@ -273,6 +278,7 @@ public class HttpTestClient implements AutoCloseable {
 
 				currentStatus = response.getStatus();
 				currentType = response.headers().get(HttpHeaders.Names.CONTENT_TYPE);
+				currentLocation = response.headers().get(HttpHeaders.Names.LOCATION);
 
 				if (HttpHeaders.isTransferEncodingChunked(response)) {
 					LOG.debug("Content is chunked");
@@ -288,10 +294,11 @@ public class HttpTestClient implements AutoCloseable {
 				// Finished with this
 				if (content instanceof LastHttpContent) {
 					responses.add(new SimpleHttpResponse(currentStatus, currentType,
-							currentContent));
+							currentContent, currentLocation));
 
 					currentStatus = null;
 					currentType = null;
+					currentLocation = null;
 					currentContent = "";
 
 					ctx.close();

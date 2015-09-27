@@ -25,6 +25,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
@@ -33,6 +34,8 @@ import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.nio.charset.Charset;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * The Netty channel handler that processes all HTTP requests.
@@ -44,27 +47,36 @@ import java.nio.charset.Charset;
 public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 	
 	private static final Charset ENCODING = Charset.forName("UTF-8");
+
+	private final JobManagerArchiveRetriever retriever;
 	
 	private final RequestHandler handler;
 	
 	private final String contentType;
 	
-	public RuntimeMonitorHandler(RequestHandler handler) {
-		if (handler == null) {
-			throw new NullPointerException();
-		}
-		this.handler = handler;
+	public RuntimeMonitorHandler(JobManagerArchiveRetriever retriever, RequestHandler handler) {
+		this.retriever = checkNotNull(retriever);
+		this.handler = checkNotNull(handler);
 		this.contentType = (handler instanceof RequestHandler.JsonResponse) ? "application/json" : "text/plain";
 	}
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
+		// Redirect to leader if necessary
+		String redirectAddress = retriever.getRedirectAddress();
+		if (redirectAddress != null) {
+			redirectAddress = String.format("http://%s%s", redirectAddress, routed.path());
+			HttpResponse redirect = RuntimeMonitorHandler.createRedirectResponse(redirectAddress);
+			KeepAliveWrite.flush(ctx, routed.request(), redirect);
+		}
+		else {
+			respondAsLeader(ctx, routed);
+		}
+	}
+
+	private void respondAsLeader(ChannelHandlerContext ctx, Routed routed) {
 		DefaultFullHttpResponse response;
 
-		response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
-		response.headers().set(HttpHeaders.Names.LOCATION, "http://google.de");
-
-		
 		try {
 			String result = handler.handleRequest(routed.pathParams());
 			byte[] bytes = result.getBytes(ENCODING);
@@ -91,5 +103,15 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 		KeepAliveWrite.flush(ctx, routed.request(), response);
+	}
+
+	public static HttpResponse createRedirectResponse(String newLocation) {
+		HttpResponse response = new DefaultFullHttpResponse(
+				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
+		response.headers().set(HttpHeaders.Names.LOCATION, newLocation);
+		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
+		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+
+		return response;
 	}
 }

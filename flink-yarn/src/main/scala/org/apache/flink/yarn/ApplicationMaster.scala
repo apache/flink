@@ -130,12 +130,14 @@ object ApplicationMaster {
               config.getBoolean(
                 ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
                 false)) {
+
               JobManager.startWebRuntimeMonitor(config, leaderRetrievalService, actorSystem)
             } else {
               new WebInfoServer(config, leaderRetrievalService, actorSystem)
             }
 
-            webserver.start()
+            val jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(config)
+            webserver.start(jobManagerAkkaUrl)
           }
 
           val jobManagerWebPort = if (webserver == null) {

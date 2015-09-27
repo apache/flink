@@ -298,7 +298,7 @@ abstract class FlinkMiniCluster(
         new WebInfoServer(config, leaderRetrievalService, actorSystem)
       }
 
-      webServer.start()
+      webServer.start(jobManagerAkkaURL)
 
       Option(webServer)
     } else {

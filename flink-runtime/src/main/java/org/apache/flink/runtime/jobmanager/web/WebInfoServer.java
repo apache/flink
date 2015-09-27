@@ -35,6 +35,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.eclipse.jetty.server.Connector;
@@ -117,6 +118,11 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 
 		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
 
+		// Sanity check for the time being
+		if (!(leaderRetrievalService instanceof StandaloneLeaderRetrievalService)) {
+			throw new IllegalArgumentException("WebInfoServer does not work with enabled recovery.");
+		}
+
 		// if port == 0, jetty will assign an available port.
 		int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
@@ -193,7 +199,7 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 	 * @throws Exception
 	 *         Thrown, if the start fails.
 	 */
-	public void start() throws Exception {
+	public void start(String jobManagerAkkaUrl) throws Exception {
 		leaderRetrievalService.start(this);
 	}
 

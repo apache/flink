@@ -41,15 +41,20 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.util.CharsetUtil;
 
+import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
+import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -57,6 +62,7 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
@@ -94,24 +100,23 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 	// ------------------------------------------------------------------------
 
+	/** JobManager retriever */
+	private final JobManagerArchiveRetriever retriever;
+
 	/** The path in which the static documents are */
 	private final File rootPath;
 
 	/** The log for all error reporting */
 	private final Logger logger;
 
-	
-	public StaticFileServerHandler(File rootPath) {
-		this(rootPath, DEFAULT_LOGGER);
+	public StaticFileServerHandler(JobManagerArchiveRetriever retriever, File rootPath) {
+		this(retriever, rootPath, DEFAULT_LOGGER);
 	}
 	
-	public StaticFileServerHandler(File rootPath, Logger logger) {
-		if (rootPath == null || logger == null) {
-			throw new NullPointerException();
-		}
-		
-		this.rootPath = rootPath;
-		this.logger = logger;
+	public StaticFileServerHandler(JobManagerArchiveRetriever retriever, File rootPath, Logger logger) {
+		this.retriever = checkNotNull(retriever);
+		this.rootPath = checkNotNull(rootPath);
+		this.logger = checkNotNull(logger);
 	}
 
 	// ------------------------------------------------------------------------
@@ -133,9 +138,27 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			requestPath = requestPath.replace('/', File.separatorChar);
 		}
 
+		// Redirect to leader if necessary
+		String redirectAddress = retriever.getRedirectAddress();
+		if (redirectAddress != null) {
+			redirectAddress = String.format("http://%s%s", redirectAddress, requestPath);
+			HttpResponse redirect = RuntimeMonitorHandler.createRedirectResponse(redirectAddress);
+			KeepAliveWrite.flush(ctx, routed.request(), redirect);
+		}
+		else {
+			respondAsLeader(ctx, request, requestPath);
+		}
+	}
+
+	/**
+	 * Response when running with leading JobManager.
+	 */
+	private void respondAsLeader(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
+			throws ParseException, IOException {
+
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
-		
+
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
 			sendError(ctx, NOT_FOUND);
 			return;
@@ -155,7 +178,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 				if (logger.isDebugEnabled()) {
 					logger.debug("Responding 'NOT MODIFIED' for file '" + file.getAbsolutePath() + '\'');
 				}
-				
+
 				sendNotModified(ctx);
 				return;
 			}
