@@ -227,7 +227,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     }
   }
 
-  /** Following 3 routines are used to find all objects in minimal bounding box and
+  /** REWORDFollowing 3 routines are used to find all objects in minimal bounding box and
     * also all objects in the siblings' minimal bounding box.
     *
     * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
@@ -237,38 +237,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
    * @param obj
    * @return
    */
-/*
-  def searchNeighborsSibling(obj:DenseVector):ListBuffer[DenseVector] = {
-    var ret = new ListBuffer[DenseVector]
-    if (root.contains(obj)) {
-      searchRecurSibling(obj, root, ret)
-      println("ret.length =    " + ret.length)
-      ret
-    } else{
-      searchRecurSibling(obj, root, ret)
-      println("ret.length =    " + ret.length)
-      ret
-    }
-  }
-
-  private def searchRecurSibling(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
-    if(n.children != null) {
-      for(child <- n.children; if child.contains(obj)) {
-        if (child.children == null) {
-          for (c <- n.children) {
-            ////// Go down to minimal bounding box and grab object
-            objectsInMinBox(c, ret)
-          }
-        }
-        else {
-          for(child <- n.children) {
-            searchRecurSibling(obj, child, ret)
-          }
-        }
-      }
-    }
-  }
-*/
 
 
   private def subOne(tuple: (Double,Node)) = tuple._1
@@ -318,20 +286,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
           MinNodes(c, nodeBuff)
         }
-    }
-  }
-
-  def objectsInMinBox(n:Node, ret:ListBuffer[DenseVector]) {
-    if (n.children == null){
-      ret ++= n.objects
-    } else{
-      for (c <- n.children) {
-        if(c.children == null) {
-          ret ++= c.objects
-        }else{
-          objectsInMinBox(c, ret)
-        }
-      }
     }
   }
 
