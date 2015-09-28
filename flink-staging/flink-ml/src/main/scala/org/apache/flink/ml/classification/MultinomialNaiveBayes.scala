@@ -33,39 +33,54 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map
 
-/** TODO better description
- * While building the model different approaches need to be compared.
- * For that purpose the fitParameters are used. Every possibility that might enhance
- * the implementation can be chosen separately by using the following list of parameters:
- *
- * Possibility 1: way of calculating document count
- *  P1 = 0 -> use .count() to get count of all documents
- *  P1 = 1 -> use a reducer and a mapper to create a broadcast data set containing the count of
- *    all documents
- *
- * Possibility 2: all words in class (order of operators)
- *    If p2 = 1 improves the speed, many other calculations must switch their operators, too.
- *  P2 = 0 -> first the reducer, than the mapper
- *  P2 = 1 -> first the mapper, than the reducer
- *
- * Possibility 3: way of calculating pwc
- *  P2 = 0 -> join singleWordsInClass and allWordsInClass to wordsInClass data set
- *  P3 = 1 -> work on singleWordsInClass data set and broadcast allWordsInClass data set
- *
- * Schneider/Rennie 1: ignore/reduce word frequency information
- *  SR1 = 0 -> word frequency information is not ignored
- *  SR1 = 1 -> word frequency information is ignored (Schneiders approach)
- *  SR1 = 2 -> word frequency information is reduced (Rennies approach)
- *
- * Schneider1: ignore P(c_j) in cMAP formula
- *  S1 = 0 -> normal cMAP formula
- *  S2 = 1 -> cMAP without P(c_j)
- *
- * Rennie1: transform document frequency
- *  R1 = 0 -> normal formula
- *  R1 = 1 -> apply inverse document frequecy
- * Note: if R1 = 1 and SR1 = 2, both approaches get applied.
- *
+/**
+  * While building the model different approaches need to be compared.
+  * For that purpose the fitParameters are used. Each "possibility" that might enhance the
+  * performance and each improvement proposed by other authors that might increase the accuracy can
+  * be activated separately by using the following list of parameters:
+  *
+  * Possibility 1 (P1): way of calculating document count
+  *  P1 = 0 -> use .count() to get count of all documents
+  *  P1 = 1 -> use a reducer and a mapper to create a broadcast data set containing the count of
+  *    all documents
+  *
+  * Possibility 2 (P2): all words in class (order of operators)
+  *    If p2 = 1 improves the speed, many other calculations must switch their operators, too.
+  *  P2 = 0 -> first the reducer, than the mapper
+  *  P2 = 1 -> first the mapper, than the reducer
+  *
+  * Possibility 3 (P3): way of calculating pwc
+  *  P2 = 0 -> join singleWordsInClass and allWordsInClass to wordsInClass data set
+  *  P3 = 1 -> work on singleWordsInClass data set and broadcast allWordsInClass data set
+  *
+  * Schneider/Rennie 1 (SR1): ignore/reduce word frequency impact
+  *  SR1 = 0 -> word frequency information is not ignored
+  *  SR1 = 1 -> word frequency information is ignored (Schneiders approach)
+  *  SR1 = 2 -> word frequency information is reduced (Rennies approach)
+  *
+  * Schneider 1 (S1): ignore P(c_j) in cMAP formula
+  *  S1 = 0 -> normal cMAP formula
+  *  S2 = 1 -> cMAP without P(c_j)
+  *
+  * Rennie 1 (R1): transform document frequency
+  *  R1 = 0 -> normal formula
+  *  R1 = 1 -> apply inverse document frequecy
+  * Note: if R1 = 1 and SR1 = 2, both approaches get applied.
+  *
+  * It is recommended to set P1, P2 and P3 to 1 for all data sets except massive ones to achieve the
+  * highestperformance.
+  * The improvements proposed by other authors are not always benefitial, so small test should be
+  * performed. For a detailed evaluation see "Design, Implementation and Evaluation of Naive Bayes
+  * Classification for the Apache Flink Big Data Analytics Platform" by Jonathan Hasenburg.
+  *
+  * The Schneider improvements are gathered from:
+  *   Schneider, K.-M. (2005). Techniques for Improving the Performance of Naive Bayes for Text
+  *   Classification. In Computational Linguistics and Intelligent Text Processing, pages 682–693.
+  *   Springer.
+  *
+  * The Rennie improvements are gathered from:
+  *   Rennie, J. D., Shih, L., Teevan, J., Karger, D. R., et al. (2003). Tackling the Poor
+  *   Assumptions of Naive Bayes Text Classifiers. In ICML, volume 3, pages 616–623.Washington DC).
  */
 class MultinomialNaiveBayes extends Predictor[MultinomialNaiveBayes] {
 
@@ -85,31 +100,61 @@ class MultinomialNaiveBayes extends Predictor[MultinomialNaiveBayes] {
 
   // ============================== Parameter configuration ========================================
 
+  /**
+   * Activate/Deactivate Possibilty 1
+   * @param value, 0 or 1
+   * @return itself
+   */
   def setP1(value: Int): MultinomialNaiveBayes = {
     parameters.add(P1, value)
     this
   }
 
+  /**
+   * Activate/Deactivate Possibilty 2
+   * @param value, 0 or 1
+   * @return itself
+   */
   def setP2(value: Int): MultinomialNaiveBayes = {
     parameters.add(P2, value)
     this
   }
 
+  /**
+   * Activate/Deactivate Possibilty 3
+   * @param value, 0 or 1
+   * @return itself
+   */
   def setP3(value: Int): MultinomialNaiveBayes = {
     parameters.add(P3, value)
     this
   }
 
+  /**
+   * Activate/Deactivate Schneider/Rennie 1
+   * @param value, 0, 1 or 2
+   * @return itself
+   */
   def setSR1(value: Int): MultinomialNaiveBayes = {
     parameters.add(SR1, value)
     this
   }
 
+  /**
+   * Activate/Deactivate Schneider 1
+   * @param value, 0 or 1
+   * @return itself
+   */
   def setS1(value: Int): MultinomialNaiveBayes = {
     parameters.add(S1, value)
     this
   }
 
+  /**
+   * Activate/Deactivate Rennie 1
+   * @param value, 0 or 1
+   * @return itself
+   */
   def setR1(value: Int): MultinomialNaiveBayes = {
     parameters.add(R1, value)
     this
@@ -294,7 +339,6 @@ object MultinomialNaiveBayes {
         //Calculate P(c)
         // 1. Map: divide count of documents for a class through total count of documents
         pc = documentsPerClass.map(line => (line._1, line._2 / documentsCount))
-
       } else if (p1 == 1) {
         //Create a data set that contains only one double value: the count of all documents
         // 1. Reduce: At the count of documents together
