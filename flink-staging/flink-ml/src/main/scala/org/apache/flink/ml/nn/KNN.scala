@@ -193,6 +193,10 @@ object KNN {
 
                     MinVec = MinVec :+ Array(minTrain, minTest).min
                     MaxVec = MaxVec :+ Array(maxTrain, maxTest).max
+
+                    //MinVec = MinVec :+ minTrain
+                    //MaxVec = MaxVec :+ maxTrain
+
                   }
 
                   var trainingQuadTree = new QuadTree(MinVec, MaxVec)
@@ -208,8 +212,10 @@ object KNN {
                     //println("a =   " + a )
 
                     /////  Find siblings' objects and do kNN there
-                    var siblingObjects = trainingQuadTree.searchNeighborsSibling(a._2.asInstanceOf[DenseVector])
+                    //var siblingObjects = trainingQuadTree.searchNeighborsSibling(a._2.asInstanceOf[DenseVector])
+                    var siblingObjects = trainingQuadTree.searchNeighborsSiblingQueue(a._2.asInstanceOf[DenseVector])
 
+                    //println("siblingsObjects =   " + siblingObjects)
                           /// do KNN query on siblingObjects and get max distance of kNN
                     val knnSiblings = siblingObjects.map (
                             v => SquaredEuclideanDistanceMetric().distance(a._2, v)
@@ -227,6 +233,7 @@ object KNN {
                     //// EVENTUALLY SHOULD REFINE searchNeighbors TO NOT KEEP ANY SIBLINGS
                     //// CURRENTLY PICKING UP SIBLINGS TOO !!
                     val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],math.sqrt(rad))
+                    //println("bFiltVect =   " + bFiltVect)
 
                      for (b <- bFiltVect){
 

@@ -41,40 +41,40 @@ import scala.collection.mutable.ListBuffer
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   var maxPerBox = 20
 
-  class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]){
+  class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]) {
 
     var objects = new ListBuffer[DenseVector]
 
     /** for testing purposes only
-     *
-     * @return
-     */
-    def getCenterLength(): (ListBuffer[Double],ListBuffer[Double]) ={
-      (c,L)
+      *
+      * @return
+      */
+    def getCenterLength(): (ListBuffer[Double], ListBuffer[Double]) = {
+      (c, L)
     }
 
-    def isInNode(obj:DenseVector): Boolean ={
-      overlap(obj,0.0)
+    def contains(obj: DenseVector): Boolean = {
+      overlap(obj, 0.0)
     }
 
     /** Tests if obj is within a radius of the node
-     *
-     * @param obj
-     * @param radius
-     * @return
-     */
+      *
+      * @param obj
+      * @param radius
+      * @return
+      */
 
-    def overlap(obj:DenseVector,radius:Double):Boolean = {
+    def overlap(obj: DenseVector, radius: Double): Boolean = {
       var count = 0
-      for (i <- 0 to obj.size - 1){
-        if(obj(i) - radius < c(i) + L(i)/2 && obj(i)+radius > c(i) - L(i)/2){
+      for (i <- 0 to obj.size - 1) {
+        if (obj(i) - radius < c(i) + L(i) / 2 && obj(i) + radius > c(i) - L(i) / 2) {
           count += 1
         }
       }
 
-      if (count == obj.size){
+      if (count == obj.size) {
         return true
-      } else{
+      } else {
         return false
       }
     }
@@ -82,27 +82,44 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     /** Tests if obj is near a node:  minDist is defined so that every point in the box
       * has distance to obj greater than minDist
       * (minDist adopted from "Nearest Neighbors Queries" by N. Roussopoulos et al.)
-     *
-     * @param obj
-     * @param radius
-     * @return
-     */
-    def isNear(obj:DenseVector,radius:Double):Boolean = {
-
-      var minDist = 0.0
-      for (i <- 0 to obj.size - 1){
-        if (obj(i) < c(i) - L(i)/2){
-          minDist += math.pow(math.abs(obj(i) - c(i) + L(i)/2),2)
-        } else if (obj(i) > c(i) + L(i)/2){
-          minDist += math.pow(math.abs(obj(i) - c(i) - L(i)/2),2)
-        }
-      }
-      minDist = math.sqrt(minDist)
-      if (minDist < radius){
+      *
+      * @param obj
+      * @param radius
+      * @return
+      */
+    def isNear(obj: DenseVector, radius: Double): Boolean = {
+      if (minDist(obj) < radius) {
         true
-      }else{
+      } else {
         false
       }
+    }
+
+    def minDist(obj: DenseVector): Double = {
+      var minDist = 0.0
+      for (i <- 0 to obj.size - 1) {
+        if (obj(i) < c(i) - L(i) / 2) {
+          minDist += math.pow(math.abs(obj(i) - c(i) + L(i) / 2), 2)
+        } else if (obj(i) > c(i) + L(i) / 2) {
+          minDist += math.pow(math.abs(obj(i) - c(i) - L(i) / 2), 2)
+        }
+      }
+      math.sqrt(minDist)
+    }
+
+
+    def getClosestChild(obj:DenseVector): Node = {
+      var bestMinDist = this.children.head.minDist(obj)
+      var index = 0
+      var count = 0
+      for (child <- this.children){
+          if(child.minDist(obj) < bestMinDist){
+            bestMinDist = child.minDist(obj)
+            index = count
+            count += 1
+          }
+      }
+      this.children(index)
     }
 
     def whichChild(obj:DenseVector):Int = {
@@ -223,13 +240,22 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
 
   def searchNeighborsSibling(obj:DenseVector):ListBuffer[DenseVector] = {
     var ret = new ListBuffer[DenseVector]
-    searchRecurSibling(obj,root,ret)
-    ret
+    if (root.contains(obj)) {
+      searchRecurSibling(obj, root, ret)
+      println("ret.length =    " + ret.length)
+      ret
+    } else{
+      //////////////////////////////////////////////////////////////println("out!   ")
+      //searchRecurSiblingOut(obj,root,ret)//////////////// INVESTIGATE WHETHER THIS IS BETTER
+      searchRecurSibling(obj, root, ret) ///////////// MAYBE COMPLEXITY ARGUMENT ?????
+      println("ret.length =    " + ret.length)
+      ret
+    }
   }
 
   private def searchRecurSibling(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
     if(n.children != null) {
-      for(child <- n.children; if child.isInNode(obj)) {
+      for(child <- n.children; if child.contains(obj)) {
         if (child.children == null) {
           for (c <- n.children) {
             ////// Go down to minimal bounding box and grab object
@@ -242,6 +268,102 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
           }
         }
       }
+    }
+  }
+  /*
+  ////// MAYBE REFINE TO LOOK AT NEAREST SIBLINGS MINIMAL BOX AND KEEP GOING UNTIL ret HAS SIZE k
+
+  ////////////////////// KEEP A PRIORITY QUEUE OF LEAF NODES, PRIORITY = MINDIST; THEN TAKE IN k POINTS
+  ///////////////////// BY KEEP POPPING THE BEST NODE
+  private def searchRecurSiblingOut(obj:DenseVector,n:Node,ret:ListBuffer[DenseVector]) {
+    if(n.children != null) {
+      val closestChild = n.getClosestChild(obj)
+        if (closestChild.children == null) {
+          for (c <- n.children) {
+            ////// Go down to minimal bounding box and grab object
+            objectsInMinBox(c, ret)
+          }
+        }
+        else {
+          for(child <- n.children) {
+            searchRecurSiblingOut(obj, child, ret)
+          }
+        }
+    }
+  }
+*/
+
+// NEEDS WORK...........................................
+
+  def subOne(tuple: (Double,Node)) = tuple._1
+
+  def searchNeighborsSiblingQueue(obj:DenseVector):ListBuffer[DenseVector] = {
+    val nodeBuff = new ListBuffer[Node]
+    var ret = new ListBuffer[DenseVector]
+    searchRecurSiblingQueue(obj, root, nodeBuff)
+    //// ret = LilstBUffer[Nodes]
+    var NodeQueue = new scala.collection.mutable.PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
+    for (n <- nodeBuff){
+      NodeQueue += ( (-n.minDist(obj),n) )  /// Queues are max, so take negative minDist
+    }
+    var count = 0
+    while(count < maxPerBox){
+      val dq = NodeQueue.dequeue()    ///////// THIS BECOMES EMPTY!!!!
+      if (dq._2.objects.nonEmpty){
+        ret ++= dq._2.objects
+        count += dq._2.objects.length
+        //println("count =  " + count)
+        //println("ret =  " + ret)
+      }
+    }
+    ret
+}
+
+/*  VERSION IF TEST IS EXCLUDED FROM BOUNDING BOX....
+    var ret = new ListBuffer[Node]
+    if (root.contains(obj)) {
+      searchRecurSiblingQueue(obj, root, ret)
+      println("ret.length =    " + ret.length)
+      ret
+    } else{
+      //////////////////////////////////////////////////////////////println("out!   ")
+      //searchRecurSiblingOut(obj,root,ret)//////////////// INVESTIGATE WHETHER THIS IS BETTER
+      searchRecurSiblingQueue(obj, root, ret) ///////////// MAYBE COMPLEXITY ARGUMENT ?????
+      println("ret.length =    " + ret.length)
+      ret
+    }
+  }
+*/
+
+  private def searchRecurSiblingQueue(obj:DenseVector,n:Node, nodeBuff:ListBuffer[Node]) {
+    if(n.children != null) {
+      for(child <- n.children; if child.contains(obj)) {
+        if (child.children == null) {
+          for (c <- n.children) {
+            ////// Go down to minimal bounding box!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            MinNodes(c,nodeBuff)    ///MAYBE THIS ISN'T GETTING ALL THE NODES OF ALL CHILDREN!!!!!!!!!
+          }                         /// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        }
+        else {
+          for(child <- n.children) {
+            searchRecurSiblingQueue(obj, child, nodeBuff)
+          }
+        }
+      }
+    }
+  }
+
+  def MinNodes(n:Node, nodeBuff:ListBuffer[Node]) {
+    if (n.children == null){
+      nodeBuff += n
+    } else{
+      for (c <- n.children) {
+        //if(c.children == null) {
+       //   nodeBuff  += c
+       // }else{
+          MinNodes(c, nodeBuff)
+        }
+      //}
     }
   }
 
@@ -258,6 +380,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
       }
     }
   }
+
+
 
 
   /** Finds all objects within a neigiborhood of obj of a specified radius

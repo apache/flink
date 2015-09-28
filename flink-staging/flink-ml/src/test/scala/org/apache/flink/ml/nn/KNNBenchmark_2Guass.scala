@@ -80,7 +80,7 @@ class KNNBenchmark_2Guass extends FlatSpec {
   /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
   val trainingSet4 = env.fromCollection(rSeq4)
 
-  var rSeqTest4 = Seq.fill(2*nFill)(DenseVector(5*r.nextGaussian, 5*r.nextGaussian))
+  var rSeqTest4 = Seq.fill(2*nFill)(DenseVector(2*r.nextGaussian, 2*r.nextGaussian))
   val testingSet4 = env.fromCollection(rSeqTest4)
 
   /////////////////////////////////////////2d
