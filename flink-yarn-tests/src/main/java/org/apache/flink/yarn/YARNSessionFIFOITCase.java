@@ -101,7 +101,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testClientStartup() {
 		LOG.info("Starting testClientStartup()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
 						"-jm", "768",
 						"-tm", "1024",
@@ -119,6 +119,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testDetachedMode()");
 		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
 		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+						"-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
 						"-jm", "768",
 						"-tm", "1024",
@@ -166,7 +167,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test(timeout=100000) // timeout after 100 seconds
 	public void testTaskManagerFailure() {
 		LOG.info("Starting testTaskManagerFailure()");
-		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		Runner runner = startWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
 				"-jm", "768",
 				"-tm", "1024",
@@ -338,6 +339,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testNonexistingQueue() {
 		LOG.info("Starting testNonexistingQueue()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
 				"-jm", "768",
 				"-tm", "1024",
@@ -362,7 +364,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testResourceComputation() {
 		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		LOG.info("Starting testResourceComputation()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "5",
 				"-jm", "256",
 				"-tm", "1585"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
@@ -390,7 +392,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testfullAlloc() {
 		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		LOG.info("Starting testfullAlloc()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "2",
 				"-jm", "256",
 				"-tm", "3840"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
@@ -413,7 +415,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"} , "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
-						"-yj", flinkUberjar.getAbsolutePath(),
+						"-yj", flinkUberjar.getAbsolutePath(), "-yt", flinkLibFolder.getAbsolutePath(),
 						"-yn", "1",
 						"-ys", "2", //test that the job is executed with a DOP of 2
 						"-yjm", "768",
@@ -441,6 +443,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-p", "2", //test that the job is executed with a DOP of 2
 						"-m", "yarn-cluster",
 						"-yj", flinkUberjar.getAbsolutePath(),
+						"-yt", flinkLibFolder.getAbsolutePath(),
 						"-yn", "1",
 						"-yjm", "768",
 						"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
@@ -477,6 +480,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		Runner runner = startWithArgs(new String[]{"run", "-m", "yarn-cluster", "-yj", flinkUberjar.getAbsolutePath(),
+						"-yt", flinkLibFolder.getAbsolutePath(),
 						"-yn", "1",
 						"-yjm", "768",
 						"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
@@ -621,6 +625,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		flinkYarnClient.setJobManagerMemory(768);
 		flinkYarnClient.setTaskManagerMemory(1024);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
+		flinkYarnClient.setShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 		String confDirPath = System.getenv("FLINK_CONF_DIR");
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 		flinkYarnClient.setFlinkConfigurationObject(GlobalConfiguration.getConfiguration());
@@ -632,9 +637,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			yarnCluster = flinkYarnClient.deploy();
 			yarnCluster.connectToCluster();
 		} catch (Exception e) {
-			System.err.println("Error while deploying YARN cluster: "+e.getMessage());
 			LOG.warn("Failing test", e);
-			Assert.fail();
+			Assert.fail("Error while deploying YARN cluster: "+e.getMessage());
 		}
 		FlinkYarnClusterStatus expectedStatus = new FlinkYarnClusterStatus(1, 1);
 		for(int second = 0; second < WAIT_TIME * 2; second++) { // run "forever"

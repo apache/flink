@@ -40,6 +40,8 @@ under the License.
 
 			<includes>
 				<include>org.apache.flink:flink-python</include>
+				<include>org.slf4j:slf4j-log4j12</include>
+				<include>log4j:log4j</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>

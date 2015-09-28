@@ -54,7 +54,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	@Test
 	public void testClientStartup() {
 		LOG.info("Starting testClientStartup()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 						"-n", "1",
 						"-jm", "768",
 						"-tm", "1024", "-qu", "qa-team"},
@@ -72,6 +72,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("Starting testNonexistingQueue()");
 		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "1",
 				"-jm", "768",
 				"-tm", "1024",
