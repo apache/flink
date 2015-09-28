@@ -28,7 +28,7 @@ Get Flink up and running in a few simple steps.
 ## Requirements
 
 Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the
-only requirement is to have a working __Java 6.x__ (or higher)
+only requirement is to have a working __Java 7.x__ (or higher)
 installation. Windows users, please take a look at the
 [Flink on Windows]({{ site.baseurl }}/setup/local_setup.html#flink-on-windows) guide which describes
 how to run Flink on Windows for local setups.
