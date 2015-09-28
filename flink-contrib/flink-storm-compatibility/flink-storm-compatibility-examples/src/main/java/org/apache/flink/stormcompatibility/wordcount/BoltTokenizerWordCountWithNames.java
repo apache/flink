@@ -20,11 +20,11 @@ package org.apache.flink.stormcompatibility.wordcount;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
@@ -124,7 +124,7 @@ public class BoltTokenizerWordCountWithNames {
 	private static DataStream<Tuple1<String>> getTextDataStream(final StreamExecutionEnvironment env) {
 		if (fileOutput) {
 			// read the text file from given input path
-			TypeInformation<Tuple1<String>> sourceType = TypeExtractor
+			TupleTypeInfo<Tuple1<String>> sourceType = (TupleTypeInfo<Tuple1<String>>)TypeExtractor
 					.getForObject(new Tuple1<String>(""));
 			return env.createInput(new CsvInputFormat<Tuple1<String>>(new Path(
 					textPath), CsvInputFormat.DEFAULT_LINE_DELIMITER,
