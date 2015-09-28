@@ -67,8 +67,8 @@ public class ConnectedDataStream<IN1, IN2> {
 
 		if ((input1 instanceof GroupedDataStream) && (input2 instanceof GroupedDataStream)) {
 			this.isGrouped = true;
-			this.keySelector1 = ((GroupedDataStream<IN1>) input1).keySelector;
-			this.keySelector2 = ((GroupedDataStream<IN2>) input2).keySelector;
+			this.keySelector1 = ((GroupedDataStream<IN1, ?>) input1).keySelector;
+			this.keySelector2 = ((GroupedDataStream<IN2, ?>) input2).keySelector;
 		} else {
 			this.isGrouped = false;
 			this.keySelector1 = null;

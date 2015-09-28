@@ -113,7 +113,9 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(3);
 
-		KeyedDataStream<Integer> keyedStream = env.fromCollection(Arrays.asList(0, 1, 2, 3, 4, 5, 6)).keyBy(new ModKey(4));
+		KeyedDataStream<Integer, Integer> keyedStream = env
+				.fromCollection(Arrays.asList(0, 1, 2, 3, 4, 5, 6))
+				.keyBy(new ModKey(4));
 
 		keyedStream.map(new StatefulMapper()).addSink(new SinkFunction<String>() {
 			private static final long serialVersionUID = 1L;
@@ -163,7 +165,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 	@SuppressWarnings("unchecked")
 	private StreamMap<Integer, String> createOperatorWithContext(List<String> output,
-			KeySelector<Integer, Serializable> partitioner, byte[] serializedState) throws Exception {
+			KeySelector<Integer, ? extends Serializable> partitioner, byte[] serializedState) throws Exception {
 		final List<String> outputList = output;
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
@@ -355,7 +357,7 @@ public class StatefulOperatorTest extends StreamingMultipleProgramsTestBase {
 
 	}
 
-	public static class ModKey implements KeySelector<Integer, Serializable> {
+	public static class ModKey implements KeySelector<Integer, Integer> {
 
 		private static final long serialVersionUID = 4193026742083046736L;
 

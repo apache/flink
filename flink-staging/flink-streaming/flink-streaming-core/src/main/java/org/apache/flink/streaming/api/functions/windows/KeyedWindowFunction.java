@@ -25,12 +25,12 @@ import java.io.Serializable;
 
 /**
  * Base interface for functions that are evaluated over keyed (grouped) windows.
- * 
- * @param <KEY> The type of the key.
+ *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
+ * @param <KEY> The type of the key.
  */
-public interface KeyedWindowFunction<KEY, IN, OUT> extends Function, Serializable {
+public interface KeyedWindowFunction<IN, OUT, KEY> extends Function, Serializable {
 
 	/**
 	 * 

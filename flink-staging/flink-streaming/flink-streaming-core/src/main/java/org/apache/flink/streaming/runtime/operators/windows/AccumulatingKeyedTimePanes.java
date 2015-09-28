@@ -32,13 +32,13 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 	private final KeyMap.LazyFactory<ArrayList<Type>> listFactory = getListFactory();
 
-	private final KeyedWindowFunction<Key, Type, Result> function;
+	private final KeyedWindowFunction<Type, Result, Key> function;
 	
 	private long evaluationPass;
 
 	// ------------------------------------------------------------------------
 	
-	public AccumulatingKeyedTimePanes(KeySelector<Type, Key> keySelector, KeyedWindowFunction<Key, Type, Result> function) {
+	public AccumulatingKeyedTimePanes(KeySelector<Type, Key> keySelector, KeyedWindowFunction<Type, Result, Key> function) {
 		this.keySelector = keySelector;
 		this.function = function;
 	}
@@ -75,7 +75,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	
 	static final class WindowFunctionTraversal<Key, Type, Result> implements KeyMap.TraversalEvaluator<Key, ArrayList<Type>> {
 
-		private final KeyedWindowFunction<Key, Type, Result> function;
+		private final KeyedWindowFunction<Type, Result, Key> function;
 		
 		private final UnionIterator<Type> unionIterator;
 		
@@ -83,7 +83,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 		
 		private Key currentKey;
 
-		WindowFunctionTraversal(KeyedWindowFunction<Key, Type, Result> function, Collector<Result> out) {
+		WindowFunctionTraversal(KeyedWindowFunction<Type, Result, Key> function, Collector<Result> out) {
 			this.function = function;
 			this.out = out;
 			this.unionIterator = new UnionIterator<>();

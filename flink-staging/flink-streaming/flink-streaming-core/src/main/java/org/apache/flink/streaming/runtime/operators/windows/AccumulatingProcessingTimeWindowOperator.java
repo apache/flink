@@ -30,7 +30,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 
 	
 	public AccumulatingProcessingTimeWindowOperator(
-			KeyedWindowFunction<KEY, IN, OUT> function,
+			KeyedWindowFunction<IN, OUT, KEY> function,
 			KeySelector<IN, KEY> keySelector,
 			long windowLength,
 			long windowSlide)
@@ -41,7 +41,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 	@Override
 	protected AccumulatingKeyedTimePanes<IN, KEY, OUT> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
-		KeyedWindowFunction<KEY, IN, OUT> windowFunction = (KeyedWindowFunction<KEY, IN, OUT>) function;
+		KeyedWindowFunction<IN, OUT, KEY> windowFunction = (KeyedWindowFunction<IN, OUT, KEY>) function;
 		
 		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}
