@@ -32,4 +32,10 @@ public class TestingApplicationMaster extends ApplicationMasterBase {
 	public Class<? extends MemoryArchivist> getArchivistClass() {
 		return TestingMemoryArchivist.class;
 	}
+
+	public static void main(String[] args) {
+		TestingApplicationMaster applicationMaster = new TestingApplicationMaster();
+
+		applicationMaster.run(args);
+	}
 }

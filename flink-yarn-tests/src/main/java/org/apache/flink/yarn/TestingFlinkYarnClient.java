@@ -18,9 +18,41 @@
 
 package org.apache.flink.yarn;
 
+import java.io.File;
+import java.io.FilenameFilter;
+import java.util.ArrayList;
+import java.util.List;
+
 public class TestingFlinkYarnClient extends FlinkYarnClientBase {
+
+	public TestingFlinkYarnClient() {
+		List<File> filesToShip = new ArrayList<>();
+
+		File testingJar = YarnTestBase.findFile(".",new TestJarFinder("flink-yarn-tests"));
+		File testingRuntimeJar = YarnTestBase.findFile(".", new TestJarFinder("flink-runtime"));
+
+		filesToShip.add(testingJar);
+		filesToShip.add(testingRuntimeJar);
+
+		setShipFiles(filesToShip);
+	}
+
 	@Override
 	protected Class<?> getApplicationMasterClass() {
 		return TestingApplicationMaster.class;
+	}
+
+	public static class TestJarFinder implements FilenameFilter {
+
+		private final String jarName;
+
+		public TestJarFinder(final String jarName) {
+			this.jarName = jarName;
+		}
+
+		@Override
+		public boolean accept(File dir, String name) {
+			return name.startsWith(jarName) && name.endsWith("-tests.jar");
+		}
 	}
 }

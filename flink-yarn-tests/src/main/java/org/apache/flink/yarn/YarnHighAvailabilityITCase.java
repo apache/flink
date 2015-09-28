@@ -41,9 +41,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-public class YarnHighAvailability extends YarnTestBase {
+public class YarnHighAvailabilityITCase extends YarnTestBase {
 
-	private static final Logger LOG = LoggerFactory.getLogger(YarnHighAvailability.class);
+	private static final Logger LOG = LoggerFactory.getLogger(YarnHighAvailabilityITCase.class);
 
 	private static TestingCluster zkCluster;
 

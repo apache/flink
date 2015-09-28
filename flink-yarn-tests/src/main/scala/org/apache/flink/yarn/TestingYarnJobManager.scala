@@ -25,6 +25,7 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
+import org.apache.flink.runtime.testingUtils.TestingJobManagerLike
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
@@ -52,5 +53,6 @@ class TestingYarnJobManager(
     delayBetweenRetries,
     timeout,
     mode,
-    leaderElectionService) {
+    leaderElectionService)
+  with TestingJobManagerLike {
 }
