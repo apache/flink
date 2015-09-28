@@ -34,8 +34,10 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-public class HadoopUtils {
+/**
+ * Utility class to work with Apache Hadoop MapRed classes.
+ */
+public final class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
 
@@ -150,5 +152,12 @@ public class HadoopUtils {
 			}
 		}
 		return retConf;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private HadoopUtils() {
+		throw new RuntimeException();
 	}
 }

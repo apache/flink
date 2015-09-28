@@ -36,8 +36,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
-
-public class Utils {
+/**
+ * Utility class that contains helper methods to work with Java APIs.
+ */
+public final class Utils {
 	
 	public static final Random RNG = new Random();
 
@@ -176,5 +178,12 @@ public class Utils {
 			}
 		}
 		return ret;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private Utils() {
+		throw new RuntimeException();
 	}
 }

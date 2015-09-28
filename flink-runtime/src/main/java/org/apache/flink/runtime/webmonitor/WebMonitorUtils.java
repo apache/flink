@@ -30,7 +30,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
  * messages with aggregate information about the state of an execution graph, to be send
  * to the web server.
  */
-public class WebMonitorUtils {
+public final class WebMonitorUtils {
 
 	public static JobDetails createDetailsForJob(ExecutionGraph job) {
 		JobStatus status = job.getState();
@@ -81,4 +81,11 @@ public class WebMonitorUtils {
 	private static final int CANCELING_POS = ExecutionState.CANCELING.ordinal();
 	private static final int CANCELED_POS = ExecutionState.CANCELED.ordinal();
 	private static final int FAILED_POS = ExecutionState.FAILED.ordinal();
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private WebMonitorUtils() {
+		throw new RuntimeException();
+	}
 }

@@ -47,7 +47,10 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
-public class Utils {
+/**
+ * Utility class that provides helper methods to work with Apache Hadoop YARN.
+ */
+public final class Utils {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
@@ -159,5 +162,12 @@ public class Utils {
 		}
 		environment.put(StringInterner.weakIntern(variable),
 				StringInterner.weakIntern(val));
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private Utils() {
+		throw new RuntimeException();
 	}
 }

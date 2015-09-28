@@ -40,6 +40,9 @@ import scala.concurrent.duration.FiniteDuration;
 import java.net.InetAddress;
 import java.util.UUID;
 
+/**
+ * Utility class to work with {@link LeaderRetrievalService} class.
+ */
 public class LeaderRetrievalUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LeaderRetrievalUtils.class);
@@ -240,5 +243,12 @@ public class LeaderRetrievalUtils {
 				connectionInfo.failure(exception);
 			}
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private LeaderRetrievalUtils() {
+		throw new RuntimeException();
 	}
 }

@@ -22,7 +22,10 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Random;
 
-public class Util {
+/**
+ * Utility class to help serialization for testing.
+ */
+public final class Util {
 
 	private static final long SEED = 64871654635745873L;
 
@@ -92,5 +95,12 @@ public class Util {
 		}
 
 		abstract protected SerializationTestType getRecord();
+	}
+
+	/**
+	 * No instantiation.
+	 */
+	private Util() {
+		throw new RuntimeException();
 	}
 }

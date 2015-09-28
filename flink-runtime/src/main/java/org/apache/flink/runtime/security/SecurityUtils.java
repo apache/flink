@@ -30,7 +30,7 @@ import java.security.PrivilegedExceptionAction;
  * 
  * The secure context will for example pick up authentication information from Kerberos.
  */
-public class SecurityUtils {
+public final class SecurityUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SecurityUtils.class);
 
@@ -58,7 +58,14 @@ public class SecurityUtils {
 		});
 	}
 
-	public static interface FlinkSecuredRunner<T> {
-		public T run() throws Exception;
+	public interface FlinkSecuredRunner<T> {
+		T run() throws Exception;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private SecurityUtils() {
+		throw new RuntimeException();
 	}
 }

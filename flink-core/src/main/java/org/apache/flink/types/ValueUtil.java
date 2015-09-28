@@ -22,7 +22,7 @@ package org.apache.flink.types;
 /**
  * convert the java.lang type into a value type
  */
-public class ValueUtil {
+public final class ValueUtil {
 	public static Value toFlinkValueType(Object java)  {
 		if (java == null) {
 			return NullValue.getInstance();
@@ -55,5 +55,12 @@ public class ValueUtil {
 			return new StringValue(((java.lang.String)java).toString());
 		}
 		throw new IllegalArgumentException("unsupported Java value");
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ValueUtil() {
+		throw new RuntimeException();
 	}
 }

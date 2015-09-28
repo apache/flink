@@ -39,7 +39,7 @@ import java.util.HashMap;
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  */
-public class InstantiationUtil {
+public final class InstantiationUtil {
 	
 	/**
 	 * A custom ObjectInputStream that can also load user-code using a

@@ -36,6 +36,9 @@ import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Utility class to work with blob data.
+ */
 public class BlobUtils {
 
 	/**
@@ -321,5 +324,12 @@ public class BlobUtils {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private BlobUtils() {
+		throw new RuntimeException();
 	}
 }

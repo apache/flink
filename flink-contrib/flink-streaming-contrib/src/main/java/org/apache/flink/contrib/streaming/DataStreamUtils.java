@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.runtime.net.NetUtils;
 
-public class DataStreamUtils {
+public final class DataStreamUtils {
 
 	/**
 	 * Returns an iterator to iterate over the elements of the DataStream.
@@ -82,5 +82,12 @@ public class DataStreamUtils {
 				throw new RuntimeException("Exception in execute()", e);
 			}
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private DataStreamUtils() {
+		throw new RuntimeException();
 	}
 }

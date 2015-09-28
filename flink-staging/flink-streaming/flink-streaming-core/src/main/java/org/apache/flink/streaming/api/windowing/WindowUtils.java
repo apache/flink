@@ -29,6 +29,9 @@ import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 
+/**
+ * Utility class that contains helper methods to work with stream windowing.
+ */
 public class WindowUtils {
 
 	public enum WindowTransformation {
@@ -189,5 +192,12 @@ public class WindowUtils {
 		} else {
 			return false;
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private WindowUtils() {
+		throw new RuntimeException();
 	}
 }

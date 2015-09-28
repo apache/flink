@@ -26,11 +26,11 @@ import java.io.IOException;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 /**
- *
+ * Utility class to help test the Flink configuration.
  */
-public class TestConfigUtils {
+public final class TestConfigUtils {
 	
-	public static final void loadGlobalConf(String[] keys, String[] values) throws IOException {
+	public static void loadGlobalConf(String[] keys, String[] values) throws IOException {
 		loadGlobalConf(getConfAsString(keys, values));
 	}
 	
@@ -62,7 +62,7 @@ public class TestConfigUtils {
 		}
 	}
 	
-	public static final String getConfAsString(String[] keys, String[] values) {
+	public static String getConfAsString(String[] keys, String[] values) {
 		if (keys == null || values == null || keys.length != values.length) {
 			throw new IllegalArgumentException();
 		}

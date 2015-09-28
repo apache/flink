@@ -26,8 +26,10 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-public class ClusterUtil {
+/**
+ * Utility class to manage mini cluster for Apache Flink.
+ */
+public final class ClusterUtil {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ClusterUtil.class);
 
@@ -83,5 +85,12 @@ public class ClusterUtil {
 	 */
 	public static void startOnMiniCluster(JobGraph jobGraph, int parallelism) throws Exception {
 		runOnMiniCluster(jobGraph, parallelism, -1, true, true, null);
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ClusterUtil() {
+		throw new RuntimeException();
 	}
 }
