@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -1303,9 +1302,8 @@ public abstract class StreamExecutionEnvironment {
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
 	 *
-	 * @return The result of the job execution, containing elapsed time and
-	 * accumulators.
-	 * @throws Exception
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
 	 */
 	public abstract JobExecutionResult execute() throws Exception;
 
@@ -1318,11 +1316,10 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @param jobName
 	 * 		Desired name of the job
-	 * @return The result of the job execution: Either JobSubmissionResult or JobExecutionResult;
-	 * The latter contains elapsed time and accumulators.
-	 * @throws Exception
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
 	 */
-	public abstract JobSubmissionResult execute(String jobName) throws Exception;
+	public abstract JobExecutionResult execute(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
