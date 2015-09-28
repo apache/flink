@@ -100,7 +100,7 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
      *  are objects near (-0.2001, 0.31001)
      */
 
-    val siblingsObjectsComputed = myTree.searchNeighborsSibling(DenseVector(-0.2001, 0.31001))
+    val siblingsObjectsComputed = myTree.searchNeighborsSiblingQueue(DenseVector(-0.2001, 0.31001))
     val isSiblingsInSearch = siblingsObjectsComputed.contains(DenseVector(-0.2, 0.31)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.29)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.289)) &&
