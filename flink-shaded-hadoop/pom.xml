@@ -85,7 +85,14 @@ under the License.
 								<filter>
 									<artifact>org.slf4j:*</artifact>
 									<excludes>
-										<exclude>org/slf4j/impl/StaticLoggerBinder*</exclude>
+										<exclude>org/slf4j/impl/**</exclude>
+									</excludes>
+								</filter>
+								<!-- Exclude Hadoop's log4j. Hadoop can use Flink's log4j dependency -->
+								<filter>
+									<artifact>log4j:*</artifact>
+									<excludes>
+										<exclude>org/apache/log4j/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
