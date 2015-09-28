@@ -487,11 +487,18 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-ytm", "1024",
 						"-ys", "2", // test requesting slots from YARN.
 						"--yarndetached", job, tmpInFile.getAbsoluteFile().toString() , tmpOutFolder.getAbsoluteFile().toString()},
-				"The Job has been submitted with JobID",
+				"Job has been submitted with JobID",
 				RunTypes.CLI_FRONTEND);
 
 		// it should usually be 2, but on slow machines, the number varies
 		Assert.assertTrue("There should be at most 2 containers running", getRunningContainers() <= 2);
+		// give the runner some time to detach
+		for (int attempt = 0; runner.isAlive() && attempt < 5; attempt++) {
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+			}
+		}
 		Assert.assertFalse("The runner should detach.", runner.isAlive());
 		LOG.info("CLI Frontend has returned, so the job is running");
 

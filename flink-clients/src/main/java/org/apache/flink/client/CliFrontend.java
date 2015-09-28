@@ -647,20 +647,13 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		if (result != null) {
-			// if the job has been submitted to a detached YARN cluster, there won't be any
-			// exec results, but the object will be set (for the job id)
-			if (yarnCluster != null && yarnCluster.isDetached()) {
+		if (yarnCluster != null && yarnCluster.isDetached()) {
+			yarnCluster.stopAfterJob(result.getJobID());
+			yarnCluster.disconnect();
+		}
 
-				yarnCluster.stopAfterJob(result.getJobID());
-				yarnCluster.disconnect();
-				if (!webFrontend) {
-					System.out.println("The Job has been submitted with JobID " + result.getJobID());
-				}
-				return 0;
-			} else {
-				throw new RuntimeException("Error while starting job. No Job ID set.");
-			}
+		if (!webFrontend) {
+			System.out.println("Job has been submitted with JobID " + result.getJobID());
 		}
 
 		return 0;
@@ -683,17 +676,14 @@ public class CliFrontend {
 
 		LOG.info("Program execution finished");
 
-		if (result != null) {
-			if (!webFrontend) {
-				System.out.println("Job Runtime: " + result.getNetRuntime() + " ms");
-			}
+		if (!webFrontend) {
+			System.out.println("Job with JobID " + result.getJobID() + " has finished.");
+			System.out.println("Job Runtime: " + result.getNetRuntime() + " ms");
 			Map<String, Object> accumulatorsResult = result.getAllAccumulatorResults();
-			if (accumulatorsResult.size() > 0 && !webFrontend) {
+			if (accumulatorsResult.size() > 0) {
 				System.out.println("Accumulator Results: ");
 				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
-		} else {
-			LOG.info("The Job did not return an execution result");
 		}
 
 		return 0;
