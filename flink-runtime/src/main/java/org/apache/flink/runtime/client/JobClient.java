@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.util.SerializedThrowable;
 
+import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,9 +75,11 @@ public class JobClient {
 		ActorSystem system = AkkaUtils.createActorSystem(config, remoting);
 		Address address = system.provider().getDefaultAddress();
 
-		String host = address.host().isDefined() ? address.host().get() : "(unknown)";
+		String hostAddress = address.host().isDefined() ?
+				NetUtils.ipAddressToUrlString(InetAddress.getByName(address.host().get())) :
+				"(unknown)";
 		int port = address.port().isDefined() ? ((Integer) address.port().get()) : -1;
-		LOG.info("Started JobClient actor system at " + host + ':' + port);
+		LOG.info("Started JobClient actor system at " + hostAddress + ':' + port);
 
 		return system;
 	}

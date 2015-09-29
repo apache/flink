@@ -365,7 +365,7 @@ public class ConnectionUtils {
 
 						boolean logging = elapsedTime >= startLoggingAfter.toMillis();
 						if (logging) {
-							LOG.info("Trying to connect to address {}." + targetAddress);
+							LOG.info("Trying to connect to address {}", targetAddress);
 						}
 
 						do {

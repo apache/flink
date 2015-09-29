@@ -69,6 +69,7 @@ import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.Assert;
 
@@ -841,7 +842,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		while (firstPart.errorCode() != 0);
 		zkClient.close();
 
-		final String leaderToShutDown = firstPart.leader().get().connectionString();
+		final kafka.cluster.Broker leaderToShutDown = firstPart.leader().get();
+		final String leaderToShutDownConnection = 
+				NetUtils.hostAndPortToUrlString(leaderToShutDown.host(), leaderToShutDown.port());
+		
+		
 		final int leaderIdToShutDown = firstPart.leader().get().id();
 		LOG.info("Leader to shutdown {}", leaderToShutDown);
 
@@ -863,7 +868,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env
 				.addSource(kafkaSource)
 				.map(new PartitionValidatingMapper(parallelism, 1))
-				.map(new BrokerKillingMapper<Integer>(leaderToShutDown, failAfterElements))
+				.map(new BrokerKillingMapper<Integer>(leaderToShutDownConnection, failAfterElements))
 				.addSink(new ValidatingExactlyOnceSink(totalElements)).setParallelism(1);
 
 		BrokerKillingMapper.killedLeaderBefore = false;
@@ -1068,14 +1073,28 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					// shut down a Kafka broker
 					KafkaServer toShutDown = null;
 					for (KafkaServer kafkaServer : brokers) {
-						if (leaderToShutDown.equals(kafkaServer.config().advertisedHostName()+ ":"+ kafkaServer.config().advertisedPort())) {
+						String connectionUrl = 
+								NetUtils.hostAndPortToUrlString(
+										kafkaServer.config().advertisedHostName(),
+										kafkaServer.config().advertisedPort());
+						if (leaderToShutDown.equals(connectionUrl)) {
 							toShutDown = kafkaServer;
 							break;
 						}
 					}
 	
 					if (toShutDown == null) {
-						throw new Exception("Cannot find broker to shut down");
+						StringBuilder listOfBrokers = new StringBuilder();
+						for (KafkaServer kafkaServer : brokers) {
+							listOfBrokers.append(
+									NetUtils.hostAndPortToUrlString(
+											kafkaServer.config().advertisedHostName(),
+											kafkaServer.config().advertisedPort()));
+							listOfBrokers.append(" ; ");
+						}
+						
+						throw new Exception("Cannot find broker to shut down: " + leaderToShutDown
+								+ " ; available brokers: " + listOfBrokers.toString());
 					}
 					else {
 						hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;

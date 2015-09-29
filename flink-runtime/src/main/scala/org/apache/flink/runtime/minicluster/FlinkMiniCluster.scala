@@ -76,7 +76,9 @@ abstract class FlinkMiniCluster(
 
   // NOTE: THIS MUST BE getByName("localhost"), which is 127.0.0.1 and
   // not getLocalHost(), which may be 127.0.1.1
-  val hostname = InetAddress.getByName("localhost").getHostAddress()
+  val hostname = userConfiguration.getString(
+    ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+    InetAddress.getByName("localhost").getHostAddress())
 
   val configuration = generateConfiguration(userConfiguration)
 
@@ -243,7 +245,7 @@ abstract class FlinkMiniCluster(
     jobManagerActorSystems = Some(jmActorSystems)
     jobManagerActors = Some(jmActors)
 
-    val lrs = createLeaderRetrievalService();
+    val lrs = createLeaderRetrievalService()
 
     leaderRetrievalService = Some(lrs)
     lrs.start(this)

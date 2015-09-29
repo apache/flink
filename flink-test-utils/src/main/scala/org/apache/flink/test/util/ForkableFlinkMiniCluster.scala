@@ -96,7 +96,7 @@ class ForkableFlinkMiniCluster(
       ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-    if(jobManagerPort > 0) {
+    if (jobManagerPort > 0) {
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
     }
 

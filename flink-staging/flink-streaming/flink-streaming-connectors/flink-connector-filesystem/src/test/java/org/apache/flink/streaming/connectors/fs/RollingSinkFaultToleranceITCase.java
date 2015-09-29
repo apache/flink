@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
+import org.apache.flink.util.NetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -64,7 +65,6 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 
 	private static MiniDFSCluster hdfsCluster;
 	private static org.apache.hadoop.fs.FileSystem dfs;
-	private static String hdfsURI;
 
 	private static String outPath;
 
@@ -82,10 +82,9 @@ public class RollingSinkFaultToleranceITCase extends StreamFaultToleranceTestBas
 
 		dfs = hdfsCluster.getFileSystem();
 
-		hdfsURI = "hdfs://" + hdfsCluster.getURI().getHost() + ":" + hdfsCluster.getNameNodePort() +"/";
-
-		outPath = hdfsURI + "/string-non-rolling-out";
-
+		outPath = "hdfs://"
+				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
+				+ "/string-non-rolling-out";
 	}
 
 	@AfterClass

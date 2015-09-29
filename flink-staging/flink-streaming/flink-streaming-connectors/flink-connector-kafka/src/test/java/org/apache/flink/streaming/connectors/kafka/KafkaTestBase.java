@@ -59,6 +59,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.NetUtils.hostAndPortToUrlString;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -148,7 +149,7 @@ public abstract class KafkaTestBase extends TestLogger {
 				SocketServer socketServer = brokers.get(i).socketServer();
 				
 				String host = socketServer.host() == null ? "localhost" : socketServer.host();
-				brokerConnectionStrings += host+":"+socketServer.port()+",";
+				brokerConnectionStrings += hostAndPortToUrlString(host, socketServer.port()) + ",";
 			}
 
 			LOG.info("ZK and KafkaServer started.");

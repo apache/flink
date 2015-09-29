@@ -40,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -78,10 +79,11 @@ public class TaskManagerProcessReapingTest {
 			tempLogFile.deleteOnExit();
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
+			final InetAddress localhost = InetAddress.getByName("localhost");
 			final int jobManagerPort = NetUtils.getAvailablePort();
 
 			// start a JobManager
-			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
+			Tuple2<String, Object> localAddress = new Tuple2<String, Object>(localhost.getHostAddress(), jobManagerPort);
 			jmActorSystem = AkkaUtils.createActorSystem(
 					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
 
@@ -109,8 +111,9 @@ public class TaskManagerProcessReapingTest {
 
 			// grab the reference to the TaskManager. try multiple times, until the process
 			// is started and the TaskManager is up
-			String taskManagerActorName = String.format("akka.tcp://flink@%s:%d/user/%s",
-					"127.0.0.1", taskManagerPort, TaskManager.TASK_MANAGER_NAME());
+			String taskManagerActorName = String.format("akka.tcp://flink@%s/user/%s",
+					org.apache.flink.util.NetUtils.ipAddressAndPortToUrlString(localhost, taskManagerPort),
+					TaskManager.TASK_MANAGER_NAME());
 
 			ActorRef taskManagerRef = null;
 			Throwable lastError = null;

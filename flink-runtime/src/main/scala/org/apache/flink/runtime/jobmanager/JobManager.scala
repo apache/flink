@@ -44,12 +44,8 @@ import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
-
-import org.apache.flink.runtime.messages.accumulators.{AccumulatorResultsErroneous,
-AccumulatorResultsFound, RequestAccumulatorResults, AccumulatorMessage,
-AccumulatorResultStringsFound, RequestAccumulatorResultsStringified}
-import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage,
-AcknowledgeCheckpoint}
+import org.apache.flink.runtime.messages.accumulators._
+import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
@@ -67,7 +63,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkSchedule
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
-import org.apache.flink.util.{SerializedValue, ExceptionUtils, InstantiationUtil}
+import org.apache.flink.util.{NetUtils, SerializedValue, ExceptionUtils, InstantiationUtil}
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -1237,7 +1233,8 @@ object JobManager {
     LOG.info("Starting JobManager")
 
     // Bring up the job manager actor system first, bind it to the given address.
-    LOG.info(s"Starting JobManager actor system at $listeningAddress:$listeningPort.")
+    val hostPortUrl = NetUtils.hostAndPortToUrlString(listeningAddress, listeningPort)
+    LOG.info(s"Starting JobManager actor system at $hostPortUrl")
 
     val jobManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(
@@ -1451,8 +1448,9 @@ object JobManager {
 
     val executionMode = config.getJobManagerMode
     val streamingMode = config.getStreamingMode
-
-    LOG.info(s"Starting JobManager on $host:$port with execution mode $executionMode and " +
+    val hostPortUrl = NetUtils.hostAndPortToUrlString(host, port)
+    
+    LOG.info(s"Starting JobManager on $hostPortUrl with execution mode $executionMode and " +
       s"streaming mode $streamingMode")
 
     (configuration, executionMode, streamingMode, host, port)
@@ -1657,7 +1655,7 @@ object JobManager {
       address: InetSocketAddress,
       name: Option[String] = None)
     : String = {
-    val hostPort = address.getAddress().getHostAddress() + ":" + address.getPort()
+    val hostPort = NetUtils.socketAddressToUrlString(address)
 
     getJobManagerAkkaURLHelper(s"akka.tcp://flink@$hostPort", name)
   }
