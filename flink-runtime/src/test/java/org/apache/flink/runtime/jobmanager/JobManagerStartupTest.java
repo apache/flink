@@ -30,7 +30,7 @@ import com.google.common.io.Files;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.util.OperatingSystem;
 import org.junit.After;

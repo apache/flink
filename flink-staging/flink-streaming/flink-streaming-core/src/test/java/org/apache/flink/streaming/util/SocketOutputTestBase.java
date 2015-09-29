@@ -19,10 +19,11 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.util.NetUtils;
+
 import org.junit.Assert;
 
 import java.io.BufferedReader;

@@ -28,13 +28,13 @@ import java.net.InetSocketAddress;
 /**
  * Tests for the network utilities.
  */
-public class NetUtilsTest {
+public class ConnectionUtilsTest {
 
 	@Test
 	public void testFindConnectableAddress() {
 		int unusedPort;
 		try {
-			unusedPort = NetUtils.getAvailablePort();
+			unusedPort = org.apache.flink.util.NetUtils.getAvailablePort();
 		}
 		catch (Throwable t) {
 			// if this system cannot find an available port,
@@ -47,7 +47,7 @@ public class NetUtilsTest {
 			InetSocketAddress unreachable = new InetSocketAddress("localhost", unusedPort);
 
 			final long start = System.currentTimeMillis();
-			InetAddress add = NetUtils.findConnectingAddress(unreachable, 2000, 400);
+			InetAddress add = ConnectionUtils.findConnectingAddress(unreachable, 2000, 400);
 
 			// check that it did not take forever
 			assertTrue(System.currentTimeMillis() - start < (OperatingSystem.isWindows() ? 30000 : 8000));
