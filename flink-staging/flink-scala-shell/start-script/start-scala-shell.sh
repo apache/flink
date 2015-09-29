@@ -77,7 +77,7 @@ done
 
 if ${EXTERNAL_LIB_FOUND}
 then
-    java -cp "$FLINK_CLASSPATH" org.apache.flink.api.scala.FlinkShell --addclasspath "$EXT_CLASSPATH" $@
+    java -cp "$FLINK_CLASSPATH" org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH" 
 else
     java -cp "$FLINK_CLASSPATH" org.apache.flink.api.scala.FlinkShell $@
 fi
