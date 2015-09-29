@@ -30,15 +30,16 @@ Flink and setting up a cluster please refer to
 To use the shell with an integrated Flink cluster just execute:
 
 ~~~bash
-bin/start-scala-shell.sh 
+bin/start-scala-shell.sh local
 ~~~
 
 in the root directory of your binary Flink directory.
 
-To use it with a running cluster you can supply the host and port of the JobManager with:
+To use it with a running cluster start the scala shell with the keyword `remote`
+and supply the host and port of the JobManager with:
 
 ~~~bash
-bin/start-scala-shell.sh --host <hostname> --port <portnumber>
+bin/start-scala-shell.sh remote <hostname> <portnumber>
 ~~~
 
 ## Usage
@@ -75,6 +76,6 @@ It is possible to add external classpaths to the Scala-shell. These will be sent
 Use the parameter `-a <path/to/jar.jar>` or `--addclasspath <path/to/jar.jar>` to load additional classes.
 
 ~~~bash
-bin/start-scala-shell --addclasspath <path/to/jar.jar>
+bin/start-scala-shell.sh [local | remote <host> <port>] --addclasspath <path/to/jar.jar>
 ~~~
 
