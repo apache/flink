@@ -21,19 +21,23 @@ package org.apache.flink.runtime.operators.hash;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteValueSerializer;
 import org.apache.flink.api.common.typeutils.base.LongComparator;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.api.java.typeutils.runtime.ValueComparator;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.types.ByteValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -146,6 +150,47 @@ public class HashTableTest {
 			ioMan.shutdown();
 		}
 	}
+
+	/**
+	 * This tests the case where no additional partition buffers are used at the point when spilling
+	 * is triggered, testing that overflow bucket buffers are taken into account when deciding which
+	 * partition to spill.
+	 */
+	@Test
+	public void testSpillingFreesOnlyOverflowSegments() {
+		final IOManager ioMan = new IOManagerAsync();
+		
+		final TypeSerializer<ByteValue> serializer = ByteValueSerializer.INSTANCE;
+		final TypeComparator<ByteValue> buildComparator = new ValueComparator<>(true, ByteValue.class);
+		final TypeComparator<ByteValue> probeComparator = new ValueComparator<>(true, ByteValue.class);
+		
+		@SuppressWarnings("unchecked")
+		final TypePairComparator<ByteValue, ByteValue> pairComparator = Mockito.mock(TypePairComparator.class);
+		
+		try {
+			final int pageSize = 32*1024;
+			final int numSegments = 34;
+
+			List<MemorySegment> memory = getMemory(numSegments, pageSize);
+
+			MutableHashTable<ByteValue, ByteValue> table = new MutableHashTable<>(
+					serializer, serializer, buildComparator, probeComparator,
+					pairComparator, memory, ioMan, 1, false);
+
+			table.open(new ByteValueIterator(100000000), new ByteValueIterator(1));
+			
+			table.close();
+			
+			checkNoTempFilesRemain(ioMan);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			ioMan.shutdown();
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//  Utilities
@@ -214,6 +259,30 @@ public class HashTableTest {
 		public Long next() {
 			if (value < numRecords) {
 				return value++;
+			} else {
+				return null;
+			}
+		}
+	}
+
+	private static class ByteValueIterator implements MutableObjectIterator<ByteValue> {
+
+		private final long numRecords;
+		private long value = 0;
+
+		ByteValueIterator(long numRecords) {
+			this.numRecords = numRecords;
+		}
+
+		@Override
+		public ByteValue next(ByteValue aLong) {
+			return next();
+		}
+
+		@Override
+		public ByteValue next() {
+			if (value++ < numRecords) {
+				return new ByteValue((byte) 0);
 			} else {
 				return null;
 			}

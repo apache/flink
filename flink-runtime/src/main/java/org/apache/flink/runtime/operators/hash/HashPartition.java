@@ -198,6 +198,19 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	public final boolean isInMemory() {
 		return this.buildSideChannel == null;
 	}
+
+	/**
+	 * Gets the number of memory segments used by this partition, which includes build side
+	 * memory buffers and overflow memory segments.
+	 * 
+	 * @return The number of occupied memory segments.
+	 */
+	public int getNumOccupiedMemorySegments() {
+		// either the number of memory segments, or one for spilling
+		final int numPartitionBuffers = this.partitionBuffers != null ? this.partitionBuffers.length : 1;
+		return numPartitionBuffers + numOverflowSegments;
+	}
+	
 	
 	public int getBuildSideBlockCount() {
 		return this.partitionBuffers == null ? this.buildSideWriteBuffer.getBlockCount() : this.partitionBuffers.length;
@@ -284,7 +297,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			throw new RuntimeException("Bug in Hybrid Hash Join: " +
 					"Request to spill a partition that has already been spilled.");
 		}
-		if (getBuildSideBlockCount() + this.numOverflowSegments < 2) {
+		if (getNumOccupiedMemorySegments() < 2) {
 			throw new RuntimeException("Bug in Hybrid Hash Join: " +
 				"Request to spill a partition with less than two buffers.");
 		}

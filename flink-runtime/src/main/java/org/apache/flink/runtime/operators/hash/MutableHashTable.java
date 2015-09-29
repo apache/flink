@@ -1093,8 +1093,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		
 		for (int i = 0; i < partitions.size(); i++) {
 			HashPartition<BT, PT> p = partitions.get(i);
-			if (p.isInMemory() && p.getBuildSideBlockCount() > largestNumBlocks) {
-				largestNumBlocks = p.getBuildSideBlockCount();
+			if (p.isInMemory() && p.getNumOccupiedMemorySegments() > largestNumBlocks) {
+				largestNumBlocks = p.getNumOccupiedMemorySegments();
 				largestPartNum = i;
 			}
 		}
