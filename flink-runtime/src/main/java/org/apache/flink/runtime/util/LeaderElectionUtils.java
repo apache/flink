@@ -24,7 +24,10 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 
-public class LeaderElectionUtils {
+/**
+ * Utility class to help working with {@link LeaderElectionService} class.
+ */
+public final class LeaderElectionUtils {
 
 	/**
 	 * Creates a {@link LeaderElectionService} based on the provided {@link Configuration} object.
@@ -53,5 +56,12 @@ public class LeaderElectionUtils {
 		}
 
 		return leaderElectionService;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private LeaderElectionUtils() {
+		throw new RuntimeException();
 	}
 }

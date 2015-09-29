@@ -30,7 +30,10 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ZooKeeperUtils {
+/**
+ * Utility class to work with Apache Zookeeper for Flink runtime.
+ */
+public final class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
 
@@ -147,5 +150,12 @@ public class ZooKeeperUtils {
 				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
 
 		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ZooKeeperUtils() {
+		throw new RuntimeException();
 	}
 }

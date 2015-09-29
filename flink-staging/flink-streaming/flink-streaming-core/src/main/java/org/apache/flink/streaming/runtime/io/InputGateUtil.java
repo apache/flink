@@ -49,4 +49,11 @@ public class InputGateUtil {
 			return new UnionInputGate(inputGates);
 		}
 	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private InputGateUtil() {
+		throw new RuntimeException();
+	}
 }

@@ -48,7 +48,10 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class SemanticPropUtil {
+/**
+ * Utility class that contains helper methods to work with {@link SemanticProperties}.
+ */
+public final class SemanticPropUtil {
 
 	private final static String REGEX_WILDCARD = "[\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR+"\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA+"]";
 	private final static String REGEX_SINGLE_FIELD = "[\\p{L}\\p{Digit}_\\$]+";
@@ -698,4 +701,10 @@ public class SemanticPropUtil {
 		}
 	}
 
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private SemanticPropUtil() {
+		throw new RuntimeException();
+	}
 }

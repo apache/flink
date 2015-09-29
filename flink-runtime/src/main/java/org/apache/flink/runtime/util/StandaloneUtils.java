@@ -29,7 +29,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-public class StandaloneUtils {
+/**
+ * Utility class to work with Flink standalone mode.
+ */
+public final class StandaloneUtils {
 
 	/**
 	 * Creates a {@link StandaloneLeaderRetrievalService} from the given configuration. The
@@ -80,5 +83,12 @@ public class StandaloneUtils {
 				Option.apply(jobManagerName));
 
 		return new StandaloneLeaderRetrievalService(jobManagerAkkaUrl);
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private StandaloneUtils() {
+		throw new RuntimeException();
 	}
 }

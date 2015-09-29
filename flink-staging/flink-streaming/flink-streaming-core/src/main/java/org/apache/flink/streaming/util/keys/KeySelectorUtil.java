@@ -29,7 +29,10 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 
-public class KeySelectorUtil {
+/**
+ * Utility class that contains helper methods to manipulating {@link KeySelector} for streaming.
+ */
+public final class KeySelectorUtil {
 
 	public static <X> KeySelector<X, Tuple> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
 		if (!(typeInfo instanceof CompositeType)) {
@@ -70,8 +73,14 @@ public class KeySelectorUtil {
 		return new OneKeySelector<X, K>(comparator);
 	}
 
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private KeySelectorUtil() {
+		throw new RuntimeException();
+	}
 	
-	public static class OneKeySelector<IN, K> implements KeySelector<IN, K> {
+	public static final class OneKeySelector<IN, K> implements KeySelector<IN, K> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -102,7 +111,7 @@ public class KeySelectorUtil {
 	 *
 	 * @param <IN> The type from which the key is extracted.
 	 */
-	public static class ComparableKeySelector<IN> implements KeySelector<IN, Tuple> {
+	public static final class ComparableKeySelector<IN> implements KeySelector<IN, Tuple> {
 
 		private static final long serialVersionUID = 1L;
 

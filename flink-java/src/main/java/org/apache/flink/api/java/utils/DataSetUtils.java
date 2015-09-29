@@ -41,7 +41,7 @@ import java.util.List;
  * This class provides simple utility methods for zipping elements in a data set with an index
  * or with a unique identifier.
  */
-public class DataSetUtils {
+public final class DataSetUtils {
 
 	/**
 	 * Method that goes over all the elements in each partition in order to retrieve
@@ -259,5 +259,12 @@ public class DataSetUtils {
 		} else {
 			return 32 - Integer.numberOfLeadingZeros((int)value);
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private DataSetUtils() {
+		throw new RuntimeException();
 	}
 }

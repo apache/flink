@@ -116,9 +116,7 @@ public class ExampleUtils {
 		return env.generateSequence(1, numVertices).flatMap(
 				new FlatMapFunction<Long, Edge<Long, NullValue>>() {
 					@Override
-					public void flatMap(Long key,
-							Collector<Edge<Long, NullValue>> out)
-							throws Exception {
+					public void flatMap(Long key, Collector<Edge<Long, NullValue>> out) throws Exception {
 						int numOutEdges = (int) (Math.random() * (numVertices / 2));
 						for (int i = 0; i < numOutEdges; i++) {
 							long target = (long) (Math.random() * numVertices) + 1;
@@ -129,7 +127,7 @@ public class ExampleUtils {
 				});
 	}
 
-	public static final DataSet<Vertex<Long, Double>> getLongDoubleVertexData(
+	public static DataSet<Vertex<Long, Double>> getLongDoubleVertexData(
 			ExecutionEnvironment env) {
 		List<Vertex<Long, Double>> vertices = new ArrayList<Vertex<Long, Double>>();
 		vertices.add(new Vertex<Long, Double>(1L, 1.0));
@@ -141,7 +139,7 @@ public class ExampleUtils {
 		return env.fromCollection(vertices);
 	}
 
-	public static final DataSet<Edge<Long, Double>> getLongDoubleEdgeData(
+	public static DataSet<Edge<Long, Double>> getLongDoubleEdgeData(
 			ExecutionEnvironment env) {
 		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
 		edges.add(new Edge<Long, Double>(1L, 2L, 12.0));
@@ -153,5 +151,12 @@ public class ExampleUtils {
 		edges.add(new Edge<Long, Double>(5L, 1L, 51.0));
 
 		return env.fromCollection(edges);
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private ExampleUtils() {
+		throw new RuntimeException();
 	}
 }
