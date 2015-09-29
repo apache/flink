@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.windowing.windowpolicy;
+package org.apache.flink.streaming.api.windowing.time;
 
 import org.apache.flink.streaming.api.TimeCharacteristic;
 
@@ -26,9 +26,7 @@ import java.util.concurrent.TimeUnit;
  * The definition of a time interval for windowing. The time characteristic referred
  * to is the default time characteristic set on the execution environment.
  */
-public final class Time extends AbstractTimePolicy {
-
-	private static final long serialVersionUID = 3197290738634320211L;
+public final class Time extends AbstractTime {
 
 	/** Instantiation only via factory method */
 	private Time(long size, TimeUnit unit) {
@@ -36,7 +34,7 @@ public final class Time extends AbstractTimePolicy {
 	}
 
 	@Override
-	public AbstractTimePolicy makeSpecificBasedOnTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
+	public AbstractTime makeSpecificBasedOnTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
 		switch (timeCharacteristic) {
 			case ProcessingTime:
 				return ProcessingTime.of(getSize(), getUnit());

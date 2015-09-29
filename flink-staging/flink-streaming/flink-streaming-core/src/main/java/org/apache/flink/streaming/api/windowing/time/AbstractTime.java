@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.windowing.windowpolicy;
+package org.apache.flink.streaming.api.windowing.time;
+
+import org.apache.flink.streaming.api.TimeCharacteristic;
 
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class AbstractTimePolicy extends WindowPolicy {
+public abstract class AbstractTime {
 
-	private static final long serialVersionUID = 6593098375698927728L;
-	
 	/** The time unit for this policy's time interval */
 	private final TimeUnit unit;
 	
@@ -33,7 +33,7 @@ public class AbstractTimePolicy extends WindowPolicy {
 	private final long size;
 
 
-	protected AbstractTimePolicy(long size, TimeUnit unit) {
+	protected AbstractTime(long size, TimeUnit unit) {
 		this.unit = checkNotNull(unit, "time unit may not be null");
 		this.size = size;
 	}
@@ -70,22 +70,8 @@ public class AbstractTimePolicy extends WindowPolicy {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	@Override
-	public String toString(WindowPolicy slidePolicy) {
-		if (slidePolicy == null) {
-			return "Tumbling Window (" + getClass().getSimpleName() + ") (" + size + ' ' + unit.name() + ')';
-		}
-		else if (slidePolicy.getClass() == getClass()) {
-			AbstractTimePolicy timeSlide = (AbstractTimePolicy) slidePolicy;
-			
-			return "Sliding Window (" + getClass().getSimpleName() + ") (length="
-					+ size + ' ' + unit.name() + ", slide=" + timeSlide.size + ' ' + timeSlide.unit.name() + ')';
-		}
-		else {
-			return super.toString(slidePolicy);
-		}
-	}
-	
+	public abstract AbstractTime makeSpecificBasedOnTimeCharacteristic(TimeCharacteristic characteristic);
+
 	@Override
 	public int hashCode() {
 		return 31 * (int) (size ^ (size >>> 32)) + unit.hashCode();
@@ -94,7 +80,7 @@ public class AbstractTimePolicy extends WindowPolicy {
 	@Override
 	public boolean equals(Object obj) {
 		if (obj != null && obj.getClass() == getClass()) {
-			AbstractTimePolicy that = (AbstractTimePolicy) obj;
+			AbstractTime that = (AbstractTime) obj;
 			return this.size == that.size && this.unit.equals(that.unit);
 		}
 		else {

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
-import org.apache.flink.streaming.api.windowing.windowpolicy.Time;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -78,7 +78,7 @@ public class GroupedProcessingTimeWindowExample {
 		
 		stream
 			.keyBy(0)
-			.window(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
+			.timeWindow(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
 			.reduceWindow(new SummingReducer())
 
 			// alternative: use a mapWindow function which does not pre-aggregate
