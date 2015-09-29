@@ -28,17 +28,22 @@ import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages.GrantLeadership
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
+import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.{DisableDisconnect,
 CheckIfJobRemoved, Alive}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
 
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import language.postfixOps
 
+/** This mixin can be used to decorate a JobManager with messages for testing purpose.
+  *
+  */
 trait TestingJobManagerLike extends FlinkActor {
   that: JobManager =>
 
@@ -59,6 +64,11 @@ trait TestingJobManagerLike extends FlinkActor {
   val waitForAccumulatorUpdate = scala.collection.mutable.HashMap[JobID, (Boolean, Set[ActorRef])]()
 
   val waitForLeader = scala.collection.mutable.HashSet[ActorRef]()
+
+  val waitForNumRegisteredTaskManagers = mutable.PriorityQueue.newBuilder(
+    new Ordering[(Int, ActorRef)] {
+      override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
+    })
 
   var disconnectDisabled = false
 
@@ -290,6 +300,27 @@ trait TestingJobManagerLike extends FlinkActor {
       waitForLeader.foreach(_ ! true)
 
       waitForLeader.clear()
+
+    case NotifyWhenAtLeastNumTaskManagerAreRegistered(numRegisteredTaskManager) =>
+      if (that.instanceManager.getNumberOfRegisteredTaskManagers >= numRegisteredTaskManager) {
+        // there are already at least numRegisteredTaskManager registered --> send Acknowledge
+        sender() ! Acknowledge
+      } else {
+        // wait until we see at least numRegisteredTaskManager being registered at the JobManager
+        waitForNumRegisteredTaskManagers += ((numRegisteredTaskManager, sender()))
+      }
+
+    case msg:RegisterTaskManager =>
+      super.handleMessage(msg)
+
+      // dequeue all senders which wait for instanceManager.getNumberOfRegisteredTaskManagers or
+      // fewer registered TaskManagers
+      while (waitForNumRegisteredTaskManagers.nonEmpty &&
+        waitForNumRegisteredTaskManagers.head._1 <=
+          instanceManager.getNumberOfRegisteredTaskManagers) {
+        val receiver = waitForNumRegisteredTaskManagers.dequeue()._2
+        receiver ! Acknowledge
+      }
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {

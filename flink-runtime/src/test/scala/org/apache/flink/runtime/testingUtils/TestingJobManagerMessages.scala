@@ -60,7 +60,8 @@ object TestingJobManagerMessages {
   /**
    * Registers a listener to receive a message when accumulators changed.
    * The change must be explicitly triggered by the TestingTaskManager which can receive an
-   * [[AccumulatorChanged]] message by a task that changed the accumulators. This message is then
+   * [[org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged]]
+   * message by a task that changed the accumulators. This message is then
    * forwarded to the JobManager which will send the accumulators in the [[UpdatedAccumulators]]
    * message when the next Heartbeat occurs.
    */
@@ -77,6 +78,14 @@ object TestingJobManagerMessages {
     *
     */
   case object NotifyWhenLeader
+
+  /**
+   * Registers to be notified by an [[org.apache.flink.runtime.messages.Messages.Acknowledge]]
+   * message when at least numRegisteredTaskManager have registered at the JobManager.
+   *
+   * @param numRegisteredTaskManager minimum number of registered TMs before the sender is notified
+   */
+  case class NotifyWhenAtLeastNumTaskManagerAreRegistered(numRegisteredTaskManager: Int)
 
   def getNotifyWhenLeader: AnyRef = NotifyWhenLeader
 }

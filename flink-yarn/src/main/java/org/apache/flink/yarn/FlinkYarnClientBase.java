@@ -22,6 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.hadoop.conf.Configuration;
@@ -55,12 +57,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -250,16 +253,13 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	@Override
 	public void setShipFiles(List<File> shipFiles) {
-		File shipFile;
-		for(Iterator<File> it = shipFiles.iterator(); it.hasNext(); ) {
-			shipFile = it.next();
+		for(File shipFile: shipFiles) {
 			// remove uberjar from ship list (by default everything in the lib/ folder is added to
 			// the list of files to ship, but we handle the uberjar separately.
-			if(shipFile.getName().startsWith("flink-dist-") && shipFile.getName().endsWith("jar")) {
-				it.remove();
+			if(!(shipFile.getName().startsWith("flink-dist-") && shipFile.getName().endsWith("jar"))) {
+				this.shipFiles.add(shipFile);
 			}
 		}
-		this.shipFiles.addAll(shipFiles);
 	}
 
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
@@ -526,8 +526,11 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
-		appContext.setMaxAppAttempts(flinkConfiguration.getInteger(ConfigConstants.YARN_APPLICATION_ATTEMPTS, 2));
-		appContext.setKeepContainersAcrossApplicationAttempts(true);
+
+		if (RecoveryMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
+			// activate re-execution of failed applications
+			activateHighAvailabilitySupport(appContext);
+		}
 
 		final ApplicationId appId = appContext.getApplicationId();
 
@@ -630,7 +633,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 					throw new YarnDeploymentException("The YARN application unexpectedly switched to state "
 						+ appState + " during deployment. \n" +
 						"Diagnostics from YARN: " + report.getDiagnostics() + "\n" +
-						"If log aggregation is enabled on your cluster, use this command to further invesitage the issue:\n" +
+						"If log aggregation is enabled on your cluster, use this command to further investigate the issue:\n" +
 						"yarn logs -applicationId " + appId);
 					//break ..
 				case RUNNING:
@@ -750,6 +753,99 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			throw new IllegalArgumentException("The passed name is null");
 		}
 		customName = name;
+	}
+
+	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws InvocationTargetException, IllegalAccessException {
+		appContext.setMaxAppAttempts(
+			flinkConfiguration.getInteger(
+				ConfigConstants.YARN_APPLICATION_ATTEMPTS,
+				YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
+
+		ApplicationSubmissionContextReflector reflector = ApplicationSubmissionContextReflector.getInstance();
+
+		reflector.setKeepContainersAcrossApplicationAttempts(appContext, true);
+		reflector.setAttemptFailuresValidityInterval(appContext, AkkaUtils.getTimeout(flinkConfiguration).toMillis());
+	}
+
+	/**
+	 * Singleton object which uses reflection to determine whether the {@link ApplicationSubmissionContext}
+	 * supports the setKeepContainersAcrossApplicationAttempts and the setAttemptFailuresValidityInterval
+	 * methods. Depending on the Hadoop version these methods are supported or not. If the methods
+	 * are not supported, then nothing happens when setKeepContainersAcrossApplicationAttempts or
+	 * setAttemptFailuresValidityInterval are called.
+	 */
+	private static class ApplicationSubmissionContextReflector {
+		private static final Logger LOG = LoggerFactory.getLogger(ApplicationSubmissionContextReflector.class);
+
+		private static final ApplicationSubmissionContextReflector instance = new ApplicationSubmissionContextReflector(ApplicationSubmissionContext.class);
+
+		public static ApplicationSubmissionContextReflector getInstance() {
+			return instance;
+		}
+
+		private static final String keepContainersMethodName = "setKeepContainersAcrossApplicationAttempts";
+		private static final String attemptsFailuresValidityIntervalMethodName = "setAttemptFailuresValidityInterval";
+
+		private final Method keepContainersMethod;
+		private final Method attemptFailuresValidityIntervalMethod;
+
+		private ApplicationSubmissionContextReflector(Class<ApplicationSubmissionContext> clazz) {
+			Method keepContainersMethod;
+			Method attemptFailuresValidityIntervalMethod;
+
+			try {
+				// this method is only supported by Hadoop 2.4.0 onwards
+				keepContainersMethod = clazz.getMethod(keepContainersMethodName, boolean.class);
+				LOG.debug("{} supports method {}.", clazz.getCanonicalName(), keepContainersMethodName);
+			} catch (NoSuchMethodException e) {
+				LOG.debug("{} does not support method {}.", clazz.getCanonicalName(), keepContainersMethodName);
+				// assign null because the Hadoop version apparently does not support this call.
+				keepContainersMethod = null;
+			}
+
+			this.keepContainersMethod = keepContainersMethod;
+
+			try {
+				// this method is only supported by Hadoop 2.6.0 onwards
+				attemptFailuresValidityIntervalMethod = clazz.getMethod(attemptsFailuresValidityIntervalMethodName, long.class);
+				LOG.debug("{} supports method {}.", clazz.getCanonicalName(), attemptsFailuresValidityIntervalMethodName);
+			} catch (NoSuchMethodException e) {
+				LOG.debug("{} does not support method {}.", clazz.getCanonicalName(), attemptsFailuresValidityIntervalMethodName);
+				// assign null because the Hadoop version apparently does not support this call.
+				attemptFailuresValidityIntervalMethod = null;
+			}
+
+			this.attemptFailuresValidityIntervalMethod = attemptFailuresValidityIntervalMethod;
+		}
+
+		public void setKeepContainersAcrossApplicationAttempts(
+				ApplicationSubmissionContext appContext,
+				boolean keepContainers) throws InvocationTargetException, IllegalAccessException {
+
+			if (keepContainersMethod != null) {
+				LOG.debug("Calling method {} of {}.", keepContainersMethod.getName(),
+					appContext.getClass().getCanonicalName());
+				keepContainersMethod.invoke(appContext, keepContainers);
+			} else {
+				LOG.debug("{} does not support method {}. Doing nothing.",
+					appContext.getClass().getCanonicalName(), keepContainersMethodName);
+			}
+		}
+
+		public void setAttemptFailuresValidityInterval(
+				ApplicationSubmissionContext appContext,
+				long validityInterval) throws InvocationTargetException, IllegalAccessException {
+			if (attemptFailuresValidityIntervalMethod != null) {
+				LOG.debug("Calling method {} of {}.",
+					attemptFailuresValidityIntervalMethod.getName(),
+					appContext.getClass().getCanonicalName());
+				attemptFailuresValidityIntervalMethod.invoke(appContext, validityInterval);
+			} else {
+				LOG.debug("{} does not support method {}. Doing nothing.",
+					appContext.getClass().getCanonicalName(),
+					attemptsFailuresValidityIntervalMethodName);
+			}
+		}
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {

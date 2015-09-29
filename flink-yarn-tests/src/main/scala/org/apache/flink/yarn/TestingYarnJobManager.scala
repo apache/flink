@@ -30,6 +30,25 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerLike
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
+/** [[YarnJobManager]] implementation which mixes in the [[TestingJobManagerLike]] mixin.
+  *
+  * This actor class is used for testing purposes on Yarn. Here we use an explicit class definition
+  * instead of an anonymous class with the respective mixin to obtain a more readable logger name.
+  *
+  * @param flinkConfiguration Configuration object for the actor
+  * @param executionContext Execution context which is used to execute concurrent tasks in the
+  *                         [[org.apache.flink.runtime.executiongraph.ExecutionGraph]]
+  * @param instanceManager Instance manager to manage the registered
+  *                        [[org.apache.flink.runtime.taskmanager.TaskManager]]
+  * @param scheduler Scheduler to schedule Flink jobs
+  * @param libraryCacheManager Manager to manage uploaded jar files
+  * @param archive Archive for finished Flink jobs
+  * @param defaultExecutionRetries Number of default execution retries
+  * @param delayBetweenRetries Delay between retries
+  * @param timeout Timeout for futures
+  * @param mode StreamingMode in which the system shall be started
+  * @param leaderElectionService LeaderElectionService to participate in the leader election
+  */
 class TestingYarnJobManager(
     flinkConfiguration: Configuration,
     executionContext: ExecutionContext,
@@ -55,4 +74,6 @@ class TestingYarnJobManager(
     mode,
     leaderElectionService)
   with TestingJobManagerLike {
+
+  override val taskManagerRunnerClass = classOf[TestingYarnTaskManagerRunner]
 }

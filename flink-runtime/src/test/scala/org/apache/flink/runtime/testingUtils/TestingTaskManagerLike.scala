@@ -38,6 +38,9 @@ import scala.concurrent.duration._
 
 import language.postfixOps
 
+/** This mixin can be used to decorate a TaskManager with messages for testing purposes.
+  *
+  */
 trait TestingTaskManagerLike extends FlinkActor {
   that: TaskManager =>
 

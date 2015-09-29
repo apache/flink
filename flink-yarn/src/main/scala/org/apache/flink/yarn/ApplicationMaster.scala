@@ -19,6 +19,9 @@ package org.apache.flink.yarn
 
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 
+/** Default implemenation of the [[ApplicationMasterBase]] which starts a [[YarnJobManager]] and a
+  * [[MemoryArchivist]].
+  */
 class ApplicationMaster extends ApplicationMasterBase {
   override def getJobManagerClass: Class[_ <: JobManager] = classOf[YarnJobManager]
   override def getArchivistClass: Class[_ <: MemoryArchivist] = classOf[MemoryArchivist]

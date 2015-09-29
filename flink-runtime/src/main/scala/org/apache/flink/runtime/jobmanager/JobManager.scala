@@ -1248,7 +1248,7 @@ object JobManager {
     jobManagerSystem.awaitTermination()
   }
 
-  /** Starts a ActorSystem, the JobManager and all its components including the WebMonitor.
+  /** Starts an ActorSystem, the JobManager and all its components including the WebMonitor.
     *
     * @param configuration The configuration object for the JobManager
     * @param executionMode The execution mode in which to run. Execution mode LOCAL with spawn an

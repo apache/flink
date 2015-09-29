@@ -239,19 +239,6 @@ public abstract class YarnTestBase extends TestLogger {
 		return yarnSiteXML;
 	}
 
-	public static File writeFlinkConfigYaml(org.apache.flink.configuration.Configuration flinkConfiguration) throws IOException {
-		tmp.create();
-		File flinkConfigYaml = new File(tmp.newFolder().getAbsolutePath() + "/flink-conf.yaml");
-
-		FileWriter writer = new FileWriter(flinkConfigYaml);
-		flinkConfiguration.writeYaml(writer);
-
-		writer.flush();
-		writer.close();
-
-		return flinkConfigYaml;
-	}
-
 	/**
 	 * This method checks the written TaskManager and JobManager log files
 	 * for exceptions.
@@ -596,11 +583,7 @@ public abstract class YarnTestBase extends TestLogger {
 	// -------------------------- Tear down -------------------------- //
 
 	@AfterClass
-	public static void tearDown() {
-		/*
-			We don't shut down the MiniCluster, as it is prone to blocking infinitely.
-		*/
-		
+	public static void copyOnTravis() {
 		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
 		// The files from there are picked up by the ./tools/travis_watchdog.sh script

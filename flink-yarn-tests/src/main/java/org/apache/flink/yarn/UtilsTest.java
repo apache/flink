@@ -17,6 +17,8 @@
  */
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
@@ -35,7 +37,7 @@ public class UtilsTest {
 
 	@Test
 	public void testUberjarLocator() {
-		File dir = YarnTestBase.findFile(".", new YarnTestBase.RootDirFilenameFilter());
+		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
 		Assert.assertNotNull(dir);
 		Assert.assertTrue(dir.getName().endsWith(".jar"));
 		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
@@ -45,6 +47,54 @@ public class UtilsTest {
 		Assert.assertTrue(files.contains("lib"));
 		Assert.assertTrue(files.contains("bin"));
 		Assert.assertTrue(files.contains("conf"));
+	}
+
+	/**
+	 * Remove 15% of the heap, at least 384MB.
+	 *
+	 */
+	@Test
+	public void testHeapCutoff() {
+		Configuration conf = new Configuration();
+		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
+		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
+
+		// test different configuration
+		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf) );
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "1000");
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.1");
+		Assert.assertEquals(3000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.5");
+		Assert.assertEquals(2000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgument() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "1.1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgumentNegative() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "-0.01");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void tooMuchCutoff() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "6000");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 
 

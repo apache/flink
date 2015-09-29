@@ -29,7 +29,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManagerMode, JobManager}
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.webmonitor.WebMonitor
-import org.apache.flink.yarn.Messages.StartYarnSession
+import org.apache.flink.yarn.YarnMessages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
@@ -37,6 +37,13 @@ import org.slf4j.LoggerFactory
 
 import scala.io.Source
 
+/** Base class for all application masters. This base class provides functionality to start a
+  * [[JobManager]] implementation in a Yarn container.
+  *
+  * The only functions which have to be overwritten are the getJobManagerClass and
+  * getArchivistClass, which define the actors to be started.
+  *
+  */
 abstract class ApplicationMasterBase {
   import scala.collection.JavaConverters._
 
@@ -102,11 +109,19 @@ abstract class ApplicationMasterBase {
       val ownHostname = env.get(Environment.NM_HOST.key())
       require(ownHostname != null, "Own hostname in YARN not set.")
 
+      log.debug("Yarn assigned hostname for application master {}.", ownHostname)
+
       val taskManagerCount = env.get(FlinkYarnClientBase.ENV_TM_COUNT).toInt
       val slots = env.get(FlinkYarnClientBase.ENV_SLOTS).toInt
       val dynamicPropertiesEncodedString = env.get(FlinkYarnClientBase.ENV_DYNAMIC_PROPERTIES)
 
       val config = createConfiguration(currDir, dynamicPropertiesEncodedString)
+
+      // if a web monitor shall be started, set the port to random binding
+      if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
+        config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
+        config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
+      }
 
       val (actorSystem, jmActor, archivActor, webMonitor) =
         JobManager.startActorSystemAndJobManagerActors(
@@ -124,11 +139,14 @@ abstract class ApplicationMasterBase {
 
       val address = AkkaUtils.getAddress(actorSystem)
       val jobManagerPort = address.port.get
+      val akkaHostname = address.host.get
+
+      log.debug("Actor system bound hostname {}.", akkaHostname)
 
       val webServerPort = webMonitor.map(_.getServerPort()).getOrElse(-1)
 
       // generate configuration file for TaskManagers
-      generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, ownHostname,
+      generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, akkaHostname,
         jobManagerPort, webServerPort, logDirs, slots, taskManagerCount,
         dynamicPropertiesEncodedString)
 

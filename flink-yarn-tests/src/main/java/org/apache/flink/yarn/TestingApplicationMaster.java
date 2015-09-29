@@ -22,6 +22,10 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 
+/**
+ * Yarn application master which starts the {@link TestingYarnJobManager} and the
+ * {@link TestingMemoryArchivist}.
+ */
 public class TestingApplicationMaster extends ApplicationMasterBase {
 	@Override
 	public Class<? extends JobManager> getJobManagerClass() {

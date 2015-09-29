@@ -250,7 +250,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	@Override
 	public void stopAfterJob(JobID jobID) {
 		Preconditions.checkNotNull("The job id must not be null", jobID);
-		Future<Object> messageReceived = ask(applicationClient, new Messages.LocalStopAMAfterJob(jobID), akkaTimeout);
+		Future<Object> messageReceived = ask(applicationClient, new YarnMessages.LocalStopAMAfterJob(jobID), akkaTimeout);
 		try {
 			Await.result(messageReceived, akkaDuration);
 		} catch (Exception e) {
@@ -299,7 +299,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(hasBeenStopped()) {
 			throw new RuntimeException("The FlinkYarnCluster has already been stopped");
 		}
-		Future<Object> clusterStatusOption = ask(applicationClient, Messages.LocalGetYarnClusterStatus$.MODULE$, akkaTimeout);
+		Future<Object> clusterStatusOption = ask(applicationClient, YarnMessages.getLocalGetyarnClusterStatus(), akkaTimeout);
 		Object clusterStatus;
 		try {
 			clusterStatus = Await.result(clusterStatusOption, akkaDuration);
@@ -376,7 +376,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			Object result = null;
 			try {
 				Future<Object> response = Patterns.ask(applicationClient,
-						Messages.getLocalGetYarnMessage(), new Timeout(akkaDuration));
+						YarnMessages.getLocalGetYarnMessage(), new Timeout(akkaDuration));
 
 				result = Await.result(response, akkaDuration);
 			} catch(Exception ioe) {
@@ -395,8 +395,8 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 				} else {
 					Object obj = messageOption.get();
 
-					if(obj instanceof Messages.YarnMessage) {
-						Messages.YarnMessage msg = (Messages.YarnMessage) obj;
+					if(obj instanceof YarnMessages.YarnMessage) {
+						YarnMessages.YarnMessage msg = (YarnMessages.YarnMessage) obj;
 						ret.add("[" + msg.date() + "] " + msg.message());
 					} else {
 						LOG.warn("LocalGetYarnMessage returned unexpected type: " + messageOption);
@@ -442,7 +442,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 						finalStatus = FinalApplicationStatus.SUCCEEDED;
 					}
 					Future<Object> response = Patterns.ask(applicationClient,
-							new Messages.LocalStopYarnSession(finalStatus,
+							new YarnMessages.LocalStopYarnSession(finalStatus,
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
 

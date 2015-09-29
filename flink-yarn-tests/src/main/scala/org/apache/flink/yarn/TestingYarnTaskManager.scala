@@ -23,13 +23,24 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
-import org.apache.flink.yarn.YarnMessages.StopYarnSession
+import org.apache.flink.runtime.taskmanager.TaskManagerConfiguration
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
 
-/** An extension of the TaskManager that listens for additional YARN related
-  * messages.
+/** [[YarnTaskManager]] implementation which mixes in the [[TestingTaskManagerLike]] mixin.
+  *
+  * This actor class is used for testing purposes on Yarn. Here we use an explicit class definition
+  * instead of an anonymous class with the respective mixin to obtain a more readable logger name.
+  *
+  * @param config Configuration object for the actor
+  * @param connectionInfo Connection information of this actor
+  * @param memoryManager MemoryManager which is responsibel for Flink's managed memory allocation
+  * @param ioManager IOManager responsible for I/O
+  * @param network NetworkEnvironment for this actor
+  * @param numberOfSlots Number of slots for this TaskManager
+  * @param leaderRetrievalService [[LeaderRetrievalService]] to retrieve the current leading
+  *                              JobManager
   */
-class YarnTaskManager(
+class TestingYarnTaskManager(
     config: TaskManagerConfiguration,
     connectionInfo: InstanceConnectionInfo,
     memoryManager: MemoryManager,
@@ -37,23 +48,12 @@ class YarnTaskManager(
     network: NetworkEnvironment,
     numberOfSlots: Int,
     leaderRetrievalService: LeaderRetrievalService)
-  extends TaskManager(
+  extends YarnTaskManager(
     config,
     connectionInfo,
     memoryManager,
     ioManager,
     network,
     numberOfSlots,
-    leaderRetrievalService) {
-
-  override def handleMessage: Receive = {
-    handleYarnMessages orElse super.handleMessage
-  }
-
-  def handleYarnMessages: Receive = {
-    case StopYarnSession(status, diagnostics) =>
-      log.info(s"Stopping YARN TaskManager with final application status $status " +
-        s"and diagnostics: $diagnostics")
-      context.system.shutdown()
-  }
-}
+    leaderRetrievalService)
+  with TestingTaskManagerLike {}

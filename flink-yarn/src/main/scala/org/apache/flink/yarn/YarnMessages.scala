@@ -27,7 +27,7 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
-object Messages {
+object YarnMessages {
 
   case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
@@ -42,15 +42,34 @@ object Messages {
 
   case class StartYarnSession(config: Configuration, webServerPort: Int)
 
+  /** Triggers the registration of the ApplicationClient to the YarnJobManager
+    *
+    * @param jobManagerAkkaURL JobManager's Akka URL
+    * @param currentTimeout Timeout for next [[TriggerApplicationClientRegistration]] message
+    * @param deadline Deadline for registration process to finish
+    */
   case class TriggerApplicationClientRegistration(
       jobManagerAkkaURL: String,
-      timeout: FiniteDuration,
+      currentTimeout: FiniteDuration,
       deadline: Option[Deadline]) extends RequiresLeaderSessionID
 
+  /** Registration message sent from the [[ApplicationClient]] to the [[YarnJobManager]]. A
+    * succesful registration is acknowledged with a [[AcknowledgeApplicationClientRegistration]]
+    * message.
+    */
   case object RegisterApplicationClient extends RequiresLeaderSessionID
 
+  /** Response to a [[RegisterApplicationClient]] message which led to a successful registration
+    * of the [[ApplicationClient]]
+    */
   case object AcknowledgeApplicationClientRegistration extends RequiresLeaderSessionID
 
+  /** Notification message that a new leader has been found. This message is sent from the
+    * [[org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService]]
+    *
+    * @param jobManagerAkkaURL New leader's Akka URL
+    * @param leaderSessionID New leader's session ID
+    */
   case class JobManagerLeaderAddress(jobManagerAkkaURL: String, leaderSessionID: UUID)
 
   case object HeartbeatWithYarn
@@ -67,5 +86,9 @@ object Messages {
 
   def getLocalGetYarnMessage(): AnyRef = {
     LocalGetYarnMessage
+  }
+
+  def getLocalGetyarnClusterStatus(): AnyRef = {
+    LocalGetYarnClusterStatus
   }
 }

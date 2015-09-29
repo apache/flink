@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.yarn;
 
+import java.io.IOException;
+
 /**
- * Default implementation of {@link FlinkYarnClientBase} which starts an {@link ApplicationMaster}.
+ * Yarn TaskManager runner which starts a {@link TestingYarnTaskManager}.
  */
-public class FlinkYarnClient extends FlinkYarnClientBase {
-	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return ApplicationMaster.class;
+public class TestingYarnTaskManagerRunner {
+	public static void main(String[] args) throws IOException {
+		YarnTaskManagerRunner.runYarnTaskManager(args, TestingYarnTaskManager.class);
 	}
 }

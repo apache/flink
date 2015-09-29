@@ -19,7 +19,6 @@
 package org.apache.flink.configuration;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -508,14 +507,6 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		
 		synchronized (this.confData) {
 			return this.confData.get(key);
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	public void writeYaml(Writer writer) throws IOException {
-		for(Map.Entry<String, Object> entry :this.confData.entrySet()) {
-			writer.write(entry.getKey() + ": " + entry.getValue());
 		}
 	}
 	

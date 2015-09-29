@@ -77,7 +77,7 @@ under the License.
 		<!-- The shading artifact module name can be used as a module name. it does not get a scala version suffix -->
 		<shading-artifact-module.name>error</shading-artifact-module.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
-		<hadoop-two.version>2.4.1</hadoop-two.version>
+		<hadoop-two.version>2.3.0</hadoop-two.version>
 		<!-- Need to use a user property here because the surefire/failsafe
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
