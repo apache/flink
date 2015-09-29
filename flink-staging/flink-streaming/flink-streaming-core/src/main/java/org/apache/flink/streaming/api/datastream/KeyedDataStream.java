@@ -23,8 +23,14 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.windowpolicy.WindowPolicy;
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.time.EventTime;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -92,34 +98,50 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Windows this data stream to a KeyedWindowDataStream, which evaluates windows over a key
-	 * grouped stream. The window is defined by a single policy.
+	 * Windows this {@code KeyedDataStream} into tumbling time windows.
+	 *
 	 * <p>
-	 * For time windows, these single-policy windows result in tumbling time windows.
-	 *     
-	 * @param policy The policy that defines the window.
-	 * @return The windows data stream. 
+	 * This is a shortcut for either {@code .window(TumblingTimeWindows.of(size))} or
+	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
+	 * set using
+	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
+	 *
+	 * @param size The size of the window.
 	 */
-	public KeyedWindowDataStream<T, KEY> window(WindowPolicy policy) {
-		return new KeyedWindowDataStream<T, KEY>(this, policy);
+	public KeyedWindowDataStream<T, KEY, TimeWindow> timeWindow(AbstractTime size) {
+		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
+
+		if (actualSize instanceof EventTime) {
+			return window(TumblingTimeWindows.of(actualSize.toMilliseconds()));
+		} else {
+			return window(TumblingProcessingTimeWindows.of(actualSize.toMilliseconds()));
+		}
 	}
 
 	/**
-	 * Windows this data stream to a KeyedWindowDataStream, which evaluates windows over a key
-	 * grouped stream. The window is defined by a window policy, plus a slide policy.
+	 * Windows this {@code KeyedDataStream} into sliding time windows.
+	 *
 	 * <p>
-	 * For time windows, these slide policy windows result in sliding time windows.
-	 * 
-	 * @param window The policy that defines the window.
-	 * @param slide The additional policy defining the slide of the window. 
-	 * @return The windows data stream.
+	 * This is a shortcut for either {@code .window(SlidingTimeWindows.of(size, slide))} or
+	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time characteristic
+	 * set using
+	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
+	 *
+	 * @param size The size of the window.
 	 */
-	public KeyedWindowDataStream<T, KEY> window(WindowPolicy window, WindowPolicy slide) {
-		return new KeyedWindowDataStream<T, KEY>(this, window, slide);
+	public KeyedWindowDataStream<T, KEY, TimeWindow> timeWindow(AbstractTime size, AbstractTime slide) {
+		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
+		AbstractTime actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
+
+		if (actualSize instanceof EventTime) {
+			return window(SlidingTimeWindows.of(actualSize.toMilliseconds(), actualSlide.toMilliseconds()));
+		} else {
+			return window(SlidingProcessingTimeWindows.of(actualSize.toMilliseconds(), actualSlide.toMilliseconds()));
+		}
 	}
 
 	/**
-	 * Windows this data stream to a {@code KeyedTriggerWindowDataStream}, which evaluates windows
+	 * Windows this data stream to a {@code KeyedWindowDataStream}, which evaluates windows
 	 * over a key grouped stream. Elements are put into windows by a {@link WindowAssigner}. The
 	 * grouping of elements is done both by key and by window.
 	 *
@@ -131,7 +153,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
 	 */
-	public <W extends Window> KeyedTriggerWindowDataStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
-		return new KeyedTriggerWindowDataStream<T, KEY, W>(this, assigner);
+	public <W extends Window> KeyedWindowDataStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
+		return new KeyedWindowDataStream<>(this, assigner);
 	}
 }
