@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -32,7 +33,7 @@ import org.apache.flink.configuration.Configuration;
  * <p>Many programs executed via the remote environment depend on additional classes. Such classes
  * may be the classes of functions (transformation, aggregation, ...) or libraries. Those classes
  * must be attached to the remote environment as JAR files, to allow the environment to ship the
- * classes into the cluster for the distributed execution.</p>
+ * classes into the cluster for the distributed execution.
  */
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
@@ -45,11 +46,11 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	/** The jar files that need to be attached to each job */
 	private final String[] jarFiles;
 
-	/** The remote executor lazily created upon first use */
-	private PlanExecutor executor;
-	
+	/** The configuration used by the client that connects to the cluster */
 	private Configuration clientConfiguration;
 	
+	/** The remote executor lazily created upon first use */
+	private PlanExecutor executor;
 	
 	/** Optional shutdown hook, used in session mode to eagerly terminate the last session */
 	private Thread shutdownHook;
@@ -58,7 +59,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
 	 * given host name and port.
 	 * 
-	 * <p>Each program execution will have all the given JAR files in its classpath.</p>
+	 * <p>Each program execution will have all the given JAR files in its classpath.
 	 * 
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
 	 * @param port The port of the master (JobManager), where the program should be executed. 
@@ -67,6 +68,28 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 *                 provided in the JAR files.
 	 */	
 	public RemoteEnvironment(String host, int port, String... jarFiles) {
+		this(host, port, null, jarFiles);
+	}
+
+	/**
+	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
+	 * given host name and port.
+	 * 
+	 * <p>Each program execution will have all the given JAR files in its classpath.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param clientConfig The configuration used by the client that connects to the cluster.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 */
+	public RemoteEnvironment(String host, int port, Configuration clientConfig, String... jarFiles) {
+		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+			throw new InvalidProgramException(
+					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
+							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
+		}
 		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
 		}
@@ -77,6 +100,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		this.host = host;
 		this.port = port;
 		this.jarFiles = jarFiles;
+		this.clientConfiguration = clientConfig == null ? new Configuration() : clientConfig;
 	}
 
 	// ------------------------------------------------------------------------
@@ -168,10 +192,6 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public String toString() {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
 				(getParallelism() == -1 ? "default" : getParallelism()) + ") : " + getIdString();
-	}
-	
-	public void setClientConfiguration(Configuration clientConfiguration) {
-		this.clientConfiguration = clientConfiguration;
 	}
 	
 	// ------------------------------------------------------------------------

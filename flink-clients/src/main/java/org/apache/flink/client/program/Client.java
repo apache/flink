@@ -283,14 +283,13 @@ public class Client {
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
 			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, true);
-			ContextEnvironment.enableLocalExecution(false);
 
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
 			}
 			finally {
-				ContextEnvironment.enableLocalExecution(true);
+				ContextEnvironment.unsetContext();
 			}
 
 			return JobExecutionResult.fromJobSubmissionResult(new JobSubmissionResult(lastJobID));
@@ -310,14 +309,13 @@ public class Client {
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
 			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, false);
-			ContextEnvironment.enableLocalExecution(false);
 
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
 			}
 			finally {
-				ContextEnvironment.enableLocalExecution(true);
+				ContextEnvironment.unsetContext();
 			}
 
 			return new JobSubmissionResult(lastJobID);

@@ -103,9 +103,6 @@ public abstract class ExecutionEnvironment {
 	/** The default parallelism used by local environments */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 	
-	/** flag to disable local executor when using the ContextEnvironment */
-	private static boolean allowLocalExecution = true;
-	
 	// --------------------------------------------------------------------------------------------
 
 	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
@@ -1127,9 +1124,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalEnvironment createLocalEnvironment(Configuration customConfiguration) {
-		LocalEnvironment lee = new LocalEnvironment();
-		lee.setConfiguration(customConfiguration);
-		return lee;
+		return new LocalEnvironment(customConfiguration);
 	}
 	
 	/**
@@ -1159,16 +1154,15 @@ public abstract class ExecutionEnvironment {
 	 *
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
 	 * @param port The port of the master (JobManager), where the program should be executed.
-	 * @param clientConfiguration Pass a custom configuration to the Client.
+	 * @param clientConfiguration Configuration used by the client that connects to the cluster.
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
 	 * @return A remote environment that executes the program on a cluster.
 	 */
-	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, Configuration clientConfiguration, String... jarFiles) {
-		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles);
-		rec.setClientConfiguration(clientConfiguration);
-		return rec;
+	public static ExecutionEnvironment createRemoteEnvironment(
+			String host, int port, Configuration clientConfiguration, String... jarFiles) {
+		return new RemoteEnvironment(host, port, clientConfiguration, jarFiles);
 	}
 
 	/**
@@ -1201,23 +1195,40 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//  Methods to control the context and local environments for execution from packaged programs
+	//  Methods to control the context environment and creation of explicit environments other
+	//  than the context environment
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Sets a context environment factory, that creates the context environment for running programs
+	 * with pre-configured environments. Examples are running programs from the command line, and
+	 * running programs in the Scala shell.
+	 * 
+	 * <p>When the context environment factors is set, no other environments can be explicitly used.
+	 * 
+	 * @param ctx The context environment factory.
+	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
-		contextEnvironmentFactory = ctx;
-	}
-	
-	protected static boolean isContextEnvironmentSet() {
-		return contextEnvironmentFactory != null;
-	}
-	
-	protected static void enableLocalExecution(boolean enabled) {
-		allowLocalExecution = enabled;
-	}
-	
-	public static boolean localExecutionIsAllowed() {
-		return allowLocalExecution;
+		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
 	}
 
+	/**
+	 * Un-sets the context environment factory. After this method is called, the call to
+	 * {@link #getExecutionEnvironment()} will again return a default local execution environment, and
+	 * it is possible to explicitly instantiate the LocalEnvironment and the RemoteEnvironment.
+	 */
+	protected static void resetContextEnvironment() {
+		contextEnvironmentFactory = null;
+	}
+
+	/**
+	 * Checks whether it is currently permitted to explicitly instantiate a LocalEnvironment
+	 * or a RemoteEnvironment.
+	 * 
+	 * @return True, if it is possible to explicitly instantiate a LocalEnvironment or a
+	 *         RemoteEnvironment, false otherwise.
+	 */
+	public static boolean areExplicitEnvironmentsAllowed() {
+		return contextEnvironmentFactory == null;
+	}
 }

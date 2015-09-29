@@ -29,17 +29,17 @@ import org.apache.flink.configuration.Configuration;
  * An {@link ExecutionEnvironment} that runs the program locally, multi-threaded, in the JVM where the
  * environment is instantiated.
  * 
- * <p>When this environment is instantiated, it uses a default parallelism of {@code 1}. Teh default
- * parallelism can be set via {@link #setParallelism(int)}.</p>
+ * <p>When this environment is instantiated, it uses a default parallelism of {@code 1}. The default
+ * parallelism can be set via {@link #setParallelism(int)}.
  * 
  * <p>Local environments can also be instantiated through {@link ExecutionEnvironment#createLocalEnvironment()}
  * and {@link ExecutionEnvironment#createLocalEnvironment(int)}. The former version will pick a
- * default parallelism equal to the number of hardware contexts in the local machine.</p>
+ * default parallelism equal to the number of hardware contexts in the local machine.
  */
 public class LocalEnvironment extends ExecutionEnvironment {
 	
 	/** The user-defined configuration for the local execution */
-	private Configuration configuration;
+	private final Configuration configuration;
 
 	/** Create lazily upon first use */
 	private PlanExecutor executor;
@@ -53,20 +53,21 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	 * Creates a new local environment.
 	 */
 	public LocalEnvironment() {
-		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
-			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
-		}
-		this.configuration = new Configuration();
+		this(new Configuration());
 	}
 
 	/**
-	 * Sets a configuration used to configure the local Flink executor.
-	 * If {@code null} is passed, then the default configuration will be used.
+	 * Creates a new local environment that configures its local executor with the given configuration.
 	 * 
-	 * @param customConfiguration The configuration to be used for the local execution.
+	 * @param config The configuration used to configure the local executor.
 	 */
-	public void setConfiguration(Configuration customConfiguration) {
-		this.configuration = customConfiguration != null ? customConfiguration : new Configuration();
+	public LocalEnvironment(Configuration config) {
+		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+			throw new InvalidProgramException(
+					"The LocalEnvironment cannot be instantiated when running in a pre-defined context " +
+							"(such as Command Line Client, Scala Shell, or TestEnvironment)");
+		}
+		this.configuration = config == null ? new Configuration() : config;
 	}
 	
 	// --------------------------------------------------------------------------------------------

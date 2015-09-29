@@ -259,7 +259,6 @@ public class PackagedProgram {
 			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 			env.setAsContext();
 			try {
-				ContextEnvironment.enableLocalExecution(false);
 				invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
@@ -276,7 +275,7 @@ public class PackagedProgram {
 				}
 			}
 			finally {
-				ContextEnvironment.enableLocalExecution(true);
+				env.unsetAsContext();
 			}
 			
 			if (env.previewPlan != null) {
@@ -292,12 +291,8 @@ public class PackagedProgram {
 
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		StringWriter string = new StringWriter(1024);
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(string);
+		try (PrintWriter pw = new PrintWriter(string)) {
 			jsonGen.dumpPactPlanAsJSON(previewPlan, pw);
-		} finally {
-			pw.close();
 		}
 		return string.toString();
 
@@ -455,9 +450,9 @@ public class PackagedProgram {
 	}
 
 	private static String getEntryPointClassNameFromJar(File jarFile) throws ProgramInvocationException {
-		JarFile jar = null;
-		Manifest manifest = null;
-		String className = null;
+		JarFile jar;
+		Manifest manifest;
+		String className;
 
 		// Open jar file
 		try {

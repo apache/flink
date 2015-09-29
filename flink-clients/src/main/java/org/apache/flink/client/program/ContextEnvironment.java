@@ -115,12 +115,17 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		initializeContextEnvironment(factory);
 	}
 	
-	protected static void enableLocalExecution(boolean enabled) {
-		ExecutionEnvironment.enableLocalExecution(enabled);
+	static void unsetContext() {
+		resetContextEnvironment();
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * The factory that instantiates the environment to be used when running jobs that are
+	 * submitted through a pre-configured client connection.
+	 * This happens for example when a job is submitted from the command line.
+	 */
 	public static class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		
 		private final Client client;

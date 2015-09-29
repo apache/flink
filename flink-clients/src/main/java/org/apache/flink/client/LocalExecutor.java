@@ -20,7 +20,6 @@ package org.apache.flink.client;
 
 import java.util.List;
 
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -31,7 +30,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -63,7 +61,7 @@ public class LocalExecutor extends PlanExecutor {
 	private LocalFlinkMiniCluster flink;
 
 	/** Custom user configuration for the execution */
-	private Configuration configuration;
+	private final Configuration configuration;
 
 	/** Config value for how many slots to provide in the local cluster */
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
@@ -78,11 +76,6 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	public LocalExecutor(Configuration conf) {
-		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
-			throw new InvalidProgramException(
-					"The LocalEnvironment cannot be used when submitting a program through a client.");
-		}
-
 		this.configuration = conf != null ? conf : new Configuration();
 	}
 

@@ -66,8 +66,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	}
 
 	public FlinkPlan getOptimizedPlan(PackagedProgram prog) throws ProgramInvocationException {
-		setAsContext();
-
+		
 		// temporarily write syserr and sysout to a byte array.
 		PrintStream originalOut = System.out;
 		PrintStream originalErr = System.err;
@@ -75,8 +74,9 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		System.setOut(new PrintStream(baos));
 		ByteArrayOutputStream baes = new ByteArrayOutputStream();
 		System.setErr(new PrintStream(baes));
+
+		setAsContext();
 		try {
-			ContextEnvironment.enableLocalExecution(false);
 			prog.invokeInteractiveModeForExecution();
 		}
 		catch (ProgramInvocationException e) {
@@ -91,7 +91,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			}
 		}
 		finally {
-			ContextEnvironment.enableLocalExecution(true);
+			unsetAsContext();
 			System.setOut(originalOut);
 			System.setErr(originalErr);
 			System.err.println(baes);
@@ -114,6 +114,10 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 			}
 		};
 		initializeContextEnvironment(factory);
+	}
+	
+	private void unsetAsContext() {
+		resetContextEnvironment();
 	}
 
 	// ------------------------------------------------------------------------
