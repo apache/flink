@@ -27,6 +27,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.junit.Assert;
@@ -46,7 +47,7 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 	}
 	
 	public RecordAPITestBase(Configuration config) {
-		super(config);
+		super(config, StreamingMode.BATCH_ONLY);
 		setTaskManagerNumSlots(parallelism);
 	}
 	
@@ -67,10 +68,11 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 	
 	protected JobGraph getJobGraph() throws Exception {
 		Plan p = getTestJob();
-		p.setExecutionConfig(new ExecutionConfig());
 		if (p == null) {
-			Assert.fail("Error: Cannot obtain Pact plan. Did the test forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
+			Assert.fail("Error: Cannot obtain plan. Did the test forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}
+
+		p.setExecutionConfig(new ExecutionConfig());
 		
 		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(p);

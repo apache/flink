@@ -22,6 +22,7 @@ import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExamp
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
+	
 	protected String textPath;
 	protected String resultPath;
 
@@ -40,6 +41,5 @@ public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		TopSpeedWindowing.main(new String[]{textPath, resultPath});
-
 	}
 }

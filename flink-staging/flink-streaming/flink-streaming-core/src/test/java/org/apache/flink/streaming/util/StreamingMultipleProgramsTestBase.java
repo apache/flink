@@ -35,23 +35,22 @@ import org.junit.BeforeClass;
  * one or more regular test methods and retrieve the StreamExecutionEnvironment from
  * the context:
  *
- * <pre>{@code
- *
- *   @Test
+ * <pre>
+ *   {@literal @}Test
  *   public void someTest() {
  *       StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  *       // test code
  *       env.execute();
  *   }
  *
- *   @Test
+ *   {@literal @}Test
  *   public void anotherTest() {
  *       StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
  *       // test code
  *       env.execute();
  *   }
  *
- * }</pre>
+ * </pre>
  */
 public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
 
@@ -61,32 +60,22 @@ public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
 
 	protected static final int DEFAULT_PARALLELISM = 4;
 
-	protected static ForkableFlinkMiniCluster cluster = null;
+	protected static ForkableFlinkMiniCluster cluster;
 	
-	// ------------------------------------------------------------------------
-	
-	public StreamingMultipleProgramsTestBase() {
-		TestStreamEnvironment clusterEnv = new TestStreamEnvironment(cluster, DEFAULT_PARALLELISM);
-		clusterEnv.setAsContext();
-	}
 
 	// ------------------------------------------------------------------------
 	//  Cluster setup & teardown
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(
-			1,
-			DEFAULT_PARALLELISM,
-			StreamingMode.STREAMING,
-			false,
-			false,
-			true);
+	public static void setup() throws Exception {
+		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, StreamingMode.STREAMING, false, false, true);
+		TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
 	}
 
 	@AfterClass
 	public static void teardown() throws Exception {
+		TestStreamEnvironment.unsetAsContext();
 		stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
 	}
 }

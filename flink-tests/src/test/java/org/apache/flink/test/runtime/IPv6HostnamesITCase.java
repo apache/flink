@@ -58,7 +58,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 
 		final Inet6Address ipv6address = getLocalIPv6Address();
 		if (ipv6address == null) {
-			System.err.println("--- Cannot find a non-loopback local IPv6 address, skipping IPv6HostnamesITCase");
+			System.err.println("--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
 			return;
 		}
 

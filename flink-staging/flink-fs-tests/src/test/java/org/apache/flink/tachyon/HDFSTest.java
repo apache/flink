@@ -99,14 +99,21 @@ public class HDFSTest {
 		try {
 			FileSystem fs = file.getFileSystem();
 			Assert.assertTrue("Must be HadoopFileSystem", fs instanceof HadoopFileSystem);
-			new DopOneTestEnvironment();
+			
+			DopOneTestEnvironment.setAsContext();
 			try {
 				WordCount.main(new String[]{file.toString(), result.toString()});
-			} catch(Throwable t) {
+			}
+			catch(Throwable t) {
 				t.printStackTrace();
 				Assert.fail("Test failed with " + t.getMessage());
 			}
+			finally {
+				DopOneTestEnvironment.unsetAsContext();
+			}
+			
 			Assert.assertTrue("No result file present", hdfs.exists(result));
+			
 			// validate output:
 			org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(result);
 			StringWriter writer = new StringWriter();
@@ -159,16 +166,23 @@ public class HDFSTest {
 	}
 
 	// package visible
-	static final class DopOneTestEnvironment extends LocalEnvironment {
-		static {
+	static abstract class DopOneTestEnvironment extends ExecutionEnvironment {
+		
+		public static void setAsContext() {
+			final LocalEnvironment le = new LocalEnvironment();
+			le.setParallelism(1);
+
 			initializeContextEnvironment(new ExecutionEnvironmentFactory() {
+
 				@Override
 				public ExecutionEnvironment createExecutionEnvironment() {
-					LocalEnvironment le = new LocalEnvironment();
-					le.setParallelism(1);
 					return le;
 				}
 			});
+		}
+		
+		public static void unsetAsContext() {
+			resetContextEnvironment();
 		}
 	}
 }

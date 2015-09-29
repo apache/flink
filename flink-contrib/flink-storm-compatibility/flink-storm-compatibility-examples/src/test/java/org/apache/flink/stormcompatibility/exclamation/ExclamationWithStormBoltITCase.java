@@ -18,12 +18,12 @@
 
 package org.apache.flink.stormcompatibility.exclamation;
 
+import org.apache.flink.stormcompatibility.api.StormTestBase;
 import org.apache.flink.stormcompatibility.excamation.ExclamationWithStormBolt;
 import org.apache.flink.stormcompatibility.exclamation.util.ExclamationData;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class ExclamationWithStormBoltITCase extends StreamingProgramTestBase {
+public class ExclamationWithStormBoltITCase extends StormTestBase {
 
 	protected String textPath;
 	protected String resultPath;

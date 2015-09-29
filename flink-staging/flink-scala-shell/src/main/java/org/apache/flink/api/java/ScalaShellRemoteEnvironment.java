@@ -85,7 +85,11 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		return executor.executePlan(p);
 	}
 
-	public void setAsContext() {
+	public static void disableAllContextAndOtherEnvironments() {
+		
+		// we create a context environment that prevents the instantiation of further
+		// context environments. at the same time, setting the context environment prevents manual
+		// creation of local and remote environments
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
@@ -94,5 +98,9 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 			}
 		};
 		initializeContextEnvironment(factory);
+	}
+	
+	public static void resetContextEnvironments() {
+		ExecutionEnvironment.resetContextEnvironment();
 	}
 }

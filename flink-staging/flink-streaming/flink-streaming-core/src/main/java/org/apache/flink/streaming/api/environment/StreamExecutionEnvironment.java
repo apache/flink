@@ -80,26 +80,46 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@link org.apache.flink.api.java.ExecutionEnvironment} for streaming jobs. An instance of it is
+ * An ExecutionEnvironment for streaming jobs. An instance of it is
  * necessary to construct streaming topologies.
+ */
+/**
+ * The StreamExecutionEnvironment is the context in which a streaming program is executed. A
+ * {@link LocalStreamEnvironment} will cause execution in the current JVM, a
+ * {@link RemoteStreamEnvironment} will cause execution on a remote setup.
+ * 
+ * <p>The environment provides methods to control the job execution (such as setting the parallelism
+ * or the fault tolerance/checkpointing parameters) and to interact with the outside world (data access).
+ *
+ * @see org.apache.flink.streaming.api.environment.LocalStreamEnvironment
+ * @see org.apache.flink.streaming.api.environment.RemoteStreamEnvironment
  */
 public abstract class StreamExecutionEnvironment {
 
+	/** The default name to use for a streaming job if no other name has been specified */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
-
-	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 	
 	/** The time characteristic that is used if none other is set */
-	private static TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
+	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
+
+	/** The default buffer timeout (max delay of records in the network stack) */
+	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
+
+	/** The environment of the context (local by default, cluster if invoked through command line) */
+	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
+
+	/** The default parallelism used when creating a local environment */
+	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 	
 	// ------------------------------------------------------------------------
-	
-	private long bufferTimeout = 100;
 
+	/** The execution configuration for this environment */
 	private final ExecutionConfig config = new ExecutionConfig();
-
+	
 	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
-
+	
+	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
+	
 	protected boolean isChainingEnabled = true;
 
 	protected long checkpointInterval = -1; // disabled
@@ -113,9 +133,7 @@ public abstract class StreamExecutionEnvironment {
 	/** The time characteristic used by the data streams */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	/** The environment of the context (local by default, cluster if invoked through command line) */
-	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
-
+	
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -1157,143 +1175,6 @@ public abstract class StreamExecutionEnvironment {
 		return new DataStreamSource<OUT>(this, typeInfo, sourceOperator, isParallel, sourceName);
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Instantiation of Execution Contexts
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates an execution environment that represents the context in which the
-	 * program is currently executed. If the program is invoked standalone, this
-	 * method returns a local execution environment, as returned by
-	 * {@link #createLocalEnvironment()}.
-	 *
-	 * @return The execution environment of the context in which the program is
-	 * executed.
-	 */
-	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		if (contextEnvironmentFactory != null) {
-			return contextEnvironmentFactory.createExecutionEnvironment();
-		}
-
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		if (env instanceof ContextEnvironment) {
-			ContextEnvironment ctx = (ContextEnvironment) env;
-			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
-					ctx.getParallelism(), ctx.isWait());
-		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
-			return new StreamPlanEnvironment(env);
-		} else {
-			return createLocalEnvironment();
-		}
-	}
-
-	private static StreamExecutionEnvironment createContextEnvironment(Client client,
-			List<File> jars, int parallelism, boolean wait) {
-		return new StreamContextEnvironment(client, jars, parallelism, wait);
-	}
-
-	/**
-	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
-	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. The default parallelism of the local
-	 * environment is the number of hardware contexts (CPU cores / threads),
-	 * unless it was specified differently by {@link #setParallelism(int)}.
-	 *
-	 * @return A local execution environment.
-	 */
-	public static LocalStreamEnvironment createLocalEnvironment() {
-		return createLocalEnvironment(defaultLocalParallelism);
-	}
-
-	/**
-	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
-	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. It will use the parallelism specified in the
-	 * parameter.
-	 *
-	 * @param parallelism
-	 * 		The parallelism for the local environment.
-	 * @return A local execution environment with the specified parallelism.
-	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
-		LocalStreamEnvironment env = new LocalStreamEnvironment();
-		env.setParallelism(parallelism);
-		return env;
-	}
-
-	/**
-	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
-	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. It will use the parallelism specified in the
-	 * parameter.
-	 *
-	 * @param parallelism
-	 * 		The parallelism for the local environment.
-	 * 	@param configuration
-	 * 		Pass a custom configuration into the cluster
-	 * @return A local execution environment with the specified parallelism.
-	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
-		LocalStreamEnvironment currentEnvironment = new LocalStreamEnvironment(configuration);
-		currentEnvironment.setParallelism(parallelism);
-		return (LocalStreamEnvironment) currentEnvironment;
-	}
-
-	// TODO:fix cluster default parallelism
-
-	/**
-	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
-	 * (parts of) the program to a cluster for execution. Note that all file
-	 * paths used in the program must be accessible from the cluster. The
-	 * execution will use no parallelism, unless the parallelism is set
-	 * explicitly via {@link #setParallelism}.
-	 *
-	 * @param host
-	 * 		The host name or address of the master (JobManager), where the
-	 * 		program should be executed.
-	 * @param port
-	 * 		The port of the master (JobManager), where the program should
-	 * 		be executed.
-	 * @param jarFiles
-	 * 		The JAR files with code that needs to be shipped to the
-	 * 		cluster. If the program uses user-defined functions,
-	 * 		user-defined input formats, or any libraries, those must be
-	 * 		provided in the JAR files.
-	 * @return A remote environment that executes the program on a cluster.
-	 */
-	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
-			String... jarFiles) {
-		return new RemoteStreamEnvironment(host, port, jarFiles);
-	}
-
-	/**
-	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
-	 * (parts of) the program to a cluster for execution. Note that all file
-	 * paths used in the program must be accessible from the cluster. The
-	 * execution will use the specified parallelism.
-	 *
-	 * @param host
-	 * 		The host name or address of the master (JobManager), where the
-	 * 		program should be executed.
-	 * @param port
-	 * 		The port of the master (JobManager), where the program should
-	 * 		be executed.
-	 * @param parallelism
-	 * 		The parallelism to use during the execution.
-	 * @param jarFiles
-	 * 		The JAR files with code that needs to be shipped to the
-	 * 		cluster. If the program uses user-defined functions,
-	 * 		user-defined input formats, or any libraries, those must be
-	 * 		provided in the JAR files.
-	 * @return A remote environment that executes the program on a cluster.
-	 */
-	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
-			int parallelism, String... jarFiles) {
-		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
-		env.setParallelism(parallelism);
-		return env;
-	}
-
 	/**
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
@@ -1305,7 +1186,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
-	public abstract JobExecutionResult execute() throws Exception;
+	public JobExecutionResult execute() throws Exception {
+		return execute(DEFAULT_JOB_NAME);
+	}
 
 	/**
 	 * Triggers the program execution. The environment will execute all parts of
@@ -1370,15 +1253,187 @@ public abstract class StreamExecutionEnvironment {
 	 * this method.
 	 */
 	public void addOperator(StreamTransformation<?> transformation) {
-		Preconditions.checkNotNull(transformation, "Sinks must not be null.");
+		Preconditions.checkNotNull(transformation, "transformation must not be null.");
 		this.transformations.add(transformation);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Factory methods for ExecutionEnvironments
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates an execution environment that represents the context in which the
+	 * program is currently executed. If the program is invoked standalone, this
+	 * method returns a local execution environment, as returned by
+	 * {@link #createLocalEnvironment()}.
+	 *
+	 * @return The execution environment of the context in which the program is
+	 * executed.
+	 */
+	public static StreamExecutionEnvironment getExecutionEnvironment() {
+		if (contextEnvironmentFactory != null) {
+			return contextEnvironmentFactory.createExecutionEnvironment();
+		}
+
+		// because the streaming project depends on "flink-clients" (and not the other way around)
+		// we currently need to intercept the data set environment and create a dependent stream env.
+		// this should be fixed once we rework the project dependencies
+		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		if (env instanceof ContextEnvironment) {
+			ContextEnvironment ctx = (ContextEnvironment) env;
+			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
+					ctx.getParallelism(), ctx.isWait());
+		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
+			return new StreamPlanEnvironment(env);
+		} else {
+			return createLocalEnvironment();
+		}
+	}
+
+	private static StreamExecutionEnvironment createContextEnvironment(
+			Client client, List<File> jars, int parallelism, boolean wait)
+	{
+		return new StreamContextEnvironment(client, jars, parallelism, wait);
+	}
+
+	/**
+	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
+	 * will run the program in a multi-threaded fashion in the same JVM as the
+	 * environment was created in. The default parallelism of the local
+	 * environment is the number of hardware contexts (CPU cores / threads),
+	 * unless it was specified differently by {@link #setParallelism(int)}.
+	 *
+	 * @return A local execution environment.
+	 */
+	public static LocalStreamEnvironment createLocalEnvironment() {
+		return createLocalEnvironment(defaultLocalParallelism);
+	}
+
+	/**
+	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
+	 * will run the program in a multi-threaded fashion in the same JVM as the
+	 * environment was created in. It will use the parallelism specified in the
+	 * parameter.
+	 *
+	 * @param parallelism
+	 * 		The parallelism for the local environment.
+	 * @return A local execution environment with the specified parallelism.
+	 */
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
+		env.setParallelism(parallelism);
+		return env;
+	}
+
+	/**
+	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
+	 * will run the program in a multi-threaded fashion in the same JVM as the
+	 * environment was created in. It will use the parallelism specified in the
+	 * parameter.
+	 *
+	 * @param parallelism
+	 * 		The parallelism for the local environment.
+	 * 	@param configuration
+	 * 		Pass a custom configuration into the cluster
+	 * @return A local execution environment with the specified parallelism.
+	 */
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism, Configuration configuration) {
+		LocalStreamEnvironment currentEnvironment = new LocalStreamEnvironment(configuration);
+		currentEnvironment.setParallelism(parallelism);
+		return currentEnvironment;
+	}
+
+	/**
+	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
+	 * (parts of) the program to a cluster for execution. Note that all file
+	 * paths used in the program must be accessible from the cluster. The
+	 * execution will use no parallelism, unless the parallelism is set
+	 * explicitly via {@link #setParallelism}.
+	 *
+	 * @param host
+	 * 		The host name or address of the master (JobManager), where the
+	 * 		program should be executed.
+	 * @param port
+	 * 		The port of the master (JobManager), where the program should
+	 * 		be executed.
+	 * @param jarFiles
+	 * 		The JAR files with code that needs to be shipped to the
+	 * 		cluster. If the program uses user-defined functions,
+	 * 		user-defined input formats, or any libraries, those must be
+	 * 		provided in the JAR files.
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static StreamExecutionEnvironment createRemoteEnvironment(
+			String host, int port, String... jarFiles) {
+		return new RemoteStreamEnvironment(host, port, jarFiles);
+	}
+
+	/**
+	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
+	 * (parts of) the program to a cluster for execution. Note that all file
+	 * paths used in the program must be accessible from the cluster. The
+	 * execution will use the specified parallelism.
+	 *
+	 * @param host
+	 * 		The host name or address of the master (JobManager), where the
+	 * 		program should be executed.
+	 * @param port
+	 * 		The port of the master (JobManager), where the program should
+	 * 		be executed.
+	 * @param parallelism
+	 * 		The parallelism to use during the execution.
+	 * @param jarFiles
+	 * 		The JAR files with code that needs to be shipped to the
+	 * 		cluster. If the program uses user-defined functions,
+	 * 		user-defined input formats, or any libraries, those must be
+	 * 		provided in the JAR files.
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static StreamExecutionEnvironment createRemoteEnvironment(
+			String host, int port, int parallelism, String... jarFiles)
+	{
+		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
+		env.setParallelism(parallelism);
+		return env;
+	}
+
+	/**
+	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
+	 * (parts of) the program to a cluster for execution. Note that all file
+	 * paths used in the program must be accessible from the cluster. The
+	 * execution will use the specified parallelism.
+	 *
+	 * @param host
+	 * 		The host name or address of the master (JobManager), where the
+	 * 		program should be executed.
+	 * @param port
+	 * 		The port of the master (JobManager), where the program should
+	 * 		be executed.
+	 * @param clientConfig
+	 * 		The configuration used by the client that connects to the remote cluster.
+	 * @param jarFiles
+	 * 		The JAR files with code that needs to be shipped to the
+	 * 		cluster. If the program uses user-defined functions,
+	 * 		user-defined input formats, or any libraries, those must be
+	 * 		provided in the JAR files.
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static StreamExecutionEnvironment createRemoteEnvironment(
+			String host, int port, Configuration clientConfig, String... jarFiles)
+	{
+		return new RemoteStreamEnvironment(host, port, clientConfig, jarFiles);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Methods to control the context and local environments for execution from packaged programs
 	// --------------------------------------------------------------------------------------------
 
 	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = ctx;
+	}
+	
+	protected static void resetContextEnvironment() {
+		contextEnvironmentFactory = null;
 	}
 }

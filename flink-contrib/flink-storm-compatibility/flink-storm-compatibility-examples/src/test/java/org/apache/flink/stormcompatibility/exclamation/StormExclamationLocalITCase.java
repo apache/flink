@@ -18,21 +18,18 @@
 
 package org.apache.flink.stormcompatibility.exclamation;
 
-import org.apache.flink.stormcompatibility.api.FlinkLocalCluster;
-import org.apache.flink.stormcompatibility.api.FlinkTestCluster;
+import org.apache.flink.stormcompatibility.api.StormTestBase;
 import org.apache.flink.stormcompatibility.excamation.StormExclamationLocal;
 import org.apache.flink.stormcompatibility.exclamation.util.ExclamationData;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class StormExclamationLocalITCase extends StreamingProgramTestBase {
+public class StormExclamationLocalITCase extends StormTestBase {
 
 	protected String textPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		FlinkLocalCluster.initialize(new FlinkTestCluster());
 		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
 		this.resultPath = this.getTempDirPath("result");
 	}

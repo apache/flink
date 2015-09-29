@@ -25,14 +25,39 @@ import backtype.storm.generated.RebalanceOptions;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.generated.SubmitOptions;
 import backtype.storm.generated.TopologyInfo;
-import org.apache.flink.streaming.util.ClusterUtil;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * {@link FlinkLocalCluster} mimics a Storm {@link LocalCluster}.
  */
 public class FlinkLocalCluster {
+
+	/** The log used by this mini cluster */
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkLocalCluster.class);
+	
+	/** The flink mini cluster on which to execute the programs */
+	private final FlinkMiniCluster flink;
+
+	
+	public FlinkLocalCluster() {
+		this.flink = new LocalFlinkMiniCluster(new Configuration(), true, StreamingMode.STREAMING);
+		this.flink.start();
+	}
+
+	public FlinkLocalCluster(FlinkMiniCluster flink) {
+		this.flink = Objects.requireNonNull(flink);
+	}
 
 	public void submitTopology(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology)
 			throws Exception {
@@ -41,7 +66,10 @@ public class FlinkLocalCluster {
 
 	public void submitTopologyWithOpts(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology,
 			final SubmitOptions submitOpts) throws Exception {
-		ClusterUtil.startOnMiniCluster(topology.getStreamGraph().getJobGraph(topologyName), topology.getNumberOfTasks());
+		
+		LOG.info("Running Storm topology on FlinkLocalCluster");
+		JobGraph jobGraph = topology.getStreamGraph().getJobGraph(topologyName);
+		flink.submitJobDetached(jobGraph);
 	}
 
 	public void killTopology(final String topologyName) {
@@ -60,7 +88,9 @@ public class FlinkLocalCluster {
 	public void rebalance(final String name, final RebalanceOptions options) {
 	}
 
-	public void shutdown() {}
+	public void shutdown() {
+		flink.stop();
+	}
 
 	public String getTopologyConf(final String id) {
 		return null;
@@ -82,31 +112,57 @@ public class FlinkLocalCluster {
 		return null;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Access to default local cluster
+	// ------------------------------------------------------------------------
+	
 	// A different {@link FlinkLocalCluster} to be used for execution of ITCases
-	private static FlinkLocalCluster currentCluster = null;
+	private static LocalClusterFactory currentFactory = new DefaultLocalClusterFactory();
 
 	/**
-	 * Returns a {@link FlinkLocalCluster} that should be used for execution. If no cluster was set by {@link
-	 * #initialize(FlinkLocalCluster)} in advance, a new {@link FlinkLocalCluster} is returned.
+	 * Returns a {@link FlinkLocalCluster} that should be used for execution. If no cluster was set by
+	 * {@link #initialize(LocalClusterFactory)} in advance, a new {@link FlinkLocalCluster} is returned.
 	 *
 	 * @return a {@link FlinkLocalCluster} to be used for execution
 	 */
 	public static FlinkLocalCluster getLocalCluster() {
-		if (currentCluster == null) {
-			currentCluster = new FlinkLocalCluster();
-		}
-
-		return currentCluster;
+		return currentFactory.createLocalCluster();
 	}
 
 	/**
-	 * Sets a different {@link FlinkLocalCluster} to be used for execution.
+	 * Sets a different factory for FlinkLocalClusters to be used for execution.
 	 *
-	 * @param cluster
-	 * 		the {@link FlinkLocalCluster} to be used for execution
+	 * @param clusterFactory
+	 * 		The LocalClusterFactory to create the local clusters for execution.
 	 */
-	public static void initialize(final FlinkLocalCluster cluster) {
-		currentCluster = cluster;
+	public static void initialize(LocalClusterFactory clusterFactory) {
+		currentFactory = Objects.requireNonNull(clusterFactory);
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Cluster factory
+	// ------------------------------------------------------------------------
+
+	/**
+	 * A factory that creates local clusters.
+	 */
+	public static interface LocalClusterFactory {
+
+		/**
+		 * Creates a local flink cluster.
+		 * @return A local flink cluster.
+		 */
+		FlinkLocalCluster createLocalCluster();
 	}
 
+	/**
+	 * A factory that instantiates a FlinkLocalCluster.
+	 */
+	public static class DefaultLocalClusterFactory implements LocalClusterFactory {
+		
+		@Override
+		public FlinkLocalCluster createLocalCluster() {
+			return new FlinkLocalCluster();
+		}
+	}
 }

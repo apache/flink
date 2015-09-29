@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -41,6 +43,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private final String host;
 	private final int port;
 	private final List<File> jarFiles;
+	
+	/** The configuration used to parametrize the client that connects to the remote cluster */
+	private final Configuration config;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -59,17 +64,46 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            provided in the JAR files.
 	 */
 	public RemoteStreamEnvironment(String host, int port, String... jarFiles) {
+		this(host, port, null, jarFiles);
+	}
+
+	/**
+	 * Creates a new RemoteStreamEnvironment that points to the master
+	 * (JobManager) described by the given host name and port.
+	 *
+	 * @param host
+	 *            The host name or address of the master (JobManager), where the
+	 *            program should be executed.
+	 * @param port
+	 *            The port of the master (JobManager), where the program should
+	 *            be executed.
+	 * @param config
+	 *            The configuration used to parametrize the client that connects to the
+	 *            remote cluster.
+	 * @param jarFiles
+	 *            The JAR files with code that needs to be shipped to the
+	 *            cluster. If the program uses user-defined functions,
+	 *            user-defined input formats, or any libraries, those must be
+	 *            provided in the JAR files.
+	 */
+	public RemoteStreamEnvironment(String host, int port, Configuration config, String... jarFiles) {
+		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
+			throw new InvalidProgramException(
+					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
+							"or running in a TestEnvironment context.");
+		}
+		
 		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
 		}
-
 		if (port < 1 || port >= 0xffff) {
 			throw new IllegalArgumentException("Port out of range");
 		}
 
 		this.host = host;
 		this.port = port;
-		this.jarFiles = new ArrayList<File>();
+		this.config = config == null ? new Configuration() : config;
+		this.jarFiles = new ArrayList<File>(jarFiles.length);
 		for (String jarFile : jarFiles) {
 			File file = new File(jarFile);
 			try {
@@ -80,13 +114,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			}
 			this.jarFiles.add(file);
 		}
-	}
-
-	@Override
-	public JobExecutionResult execute() throws ProgramInvocationException {
-		JobGraph jobGraph = getStreamGraph().getJobGraph();
-		transformations.clear();
-		return executeRemotely(jobGraph);
 	}
 
 	@Override
@@ -112,9 +139,12 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			jobGraph.addJar(new Path(file.getAbsolutePath()));
 		}
 
-		Configuration configuration = jobGraph.getJobConfiguration();
 		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, getClass().getClassLoader());
-
+		
+		Configuration configuration = new Configuration();
+		configuration.addAll(jobGraph.getJobConfiguration());
+		configuration.addAll(this.config);
+		
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 

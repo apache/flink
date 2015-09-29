@@ -112,6 +112,8 @@ abstract class FlinkMiniCluster(
   var taskManagerActors: Option[Seq[ActorRef]] = None
 
   protected var leaderRetrievalService: Option[LeaderRetrievalService] = None
+  
+  private var isRunning = false
 
   // --------------------------------------------------------------------------
   //                           Abstract Methods
@@ -271,6 +273,8 @@ abstract class FlinkMiniCluster(
     if(waitForTaskManagerRegistration) {
       waitForTaskManagersToBeRegistered()
     }
+
+    isRunning = true
   }
 
   def startWebServer(
@@ -314,6 +318,7 @@ abstract class FlinkMiniCluster(
     awaitTermination()
 
     leaderRetrievalService.foreach(_.stop())
+    isRunning = false
   }
 
   protected def shutdown(): Unit = {
@@ -354,6 +359,8 @@ abstract class FlinkMiniCluster(
       _ foreach(_.awaitTermination())
     }
   }
+  
+  def running = isRunning
 
   // --------------------------------------------------------------------------
   //                          Utility Methods

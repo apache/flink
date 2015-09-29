@@ -16,52 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util;
+package org.apache.flink.stormcompatibility.api;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-public abstract class StreamingProgramTestBase extends AbstractTestBase {
-
-	protected static final int DEFAULT_PARALLELISM = 4;
-
-	private int parallelism;
+/**
+ * Base class for Storm tests.
+ */
+public abstract class StormTestBase extends AbstractTestBase {
 	
+	public static final int DEFAULT_PARALLELISM = 4;
 	
-	public StreamingProgramTestBase() {
-		super(new Configuration(), StreamingMode.STREAMING);
-		setParallelism(DEFAULT_PARALLELISM);
-	}
-
-
-	public void setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-		setTaskManagerNumSlots(parallelism);
+	public StormTestBase() {
+		this(new Configuration());
 	}
 	
-	public int getParallelism() {
-		return parallelism;
+	public StormTestBase(Configuration config) {
+		super(config, StreamingMode.STREAMING);
+		setTaskManagerNumSlots(DEFAULT_PARALLELISM);
 	}
-	
 
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 	//  Methods to create the test program and for pre- and post- test work
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
 	protected abstract void testProgram() throws Exception;
 
 	protected void preSubmit() throws Exception {}
-	
+
 	protected void postSubmit() throws Exception {}
-	
-	// --------------------------------------------------------------------------------------------
+
+	// ------------------------------------------------------------------------
 	//  Test entry point
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
 
 	@Test
 	public void testJob() throws Exception {
@@ -79,7 +73,15 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 			// prepare the test environment
 			startCluster();
 
-			TestStreamEnvironment.setAsContext(this.executor, getParallelism());
+			// we need to initialize the stream test environment, and the storm local cluster
+			TestStreamEnvironment.setAsContext(this.executor, DEFAULT_PARALLELISM);
+			
+			FlinkLocalCluster.initialize(new FlinkLocalCluster.LocalClusterFactory() {
+				@Override
+				public FlinkLocalCluster createLocalCluster() {
+					return new FlinkLocalCluster(executor);
+				}
+			});
 
 			// call the test program
 			try {
@@ -89,9 +91,6 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 				System.err.println(e.getMessage());
 				e.printStackTrace();
 				fail("Error while calling the test program: " + e.getMessage());
-			}
-			finally {
-				TestStreamEnvironment.unsetAsContext();
 			}
 
 			// post-submit
@@ -105,6 +104,13 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 			}
 		}
 		finally {
+			// reset the FlinkLocalCluster to its default behavior
+			FlinkLocalCluster.initialize(new FlinkLocalCluster.DefaultLocalClusterFactory());
+			
+			// reset the StreamExecutionEnvironment to its default behavior
+			TestStreamEnvironment.unsetAsContext();
+			
+			// clean up all resources
 			stopCluster();
 		}
 	}

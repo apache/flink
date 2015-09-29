@@ -53,8 +53,15 @@ class FlinkILoop(
   }
   // remote environment
   private val remoteEnv: ScalaShellRemoteEnvironment = {
+    // allow creation of environments
+    ScalaShellRemoteEnvironment.resetContextEnvironments()
+    
+    // create our environment that submits against the cluster (local or remote)
     val remoteEnv = new ScalaShellRemoteEnvironment(host, port, this)
-    remoteEnv.setAsContext()
+    
+    // prevent further instantiation of environments
+    ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()
+    
     remoteEnv
   }
 

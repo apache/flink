@@ -18,10 +18,10 @@
 
 package org.apache.flink.stormcompatibility.wordcount;
 
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.stormcompatibility.api.StormTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class SpoutSourceWordCountITCase extends StreamingProgramTestBase {
+public class SpoutSourceWordCountITCase extends StormTestBase {
 
 	protected String textPath;
 	protected String resultPath;

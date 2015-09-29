@@ -78,10 +78,6 @@ public class TestBaseUtils extends TestLogger {
 
 	protected static final long TASK_MANAGER_MEMORY_SIZE = 80;
 
-	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
-
-	protected static final int DEFAULT_NUM_TASK_MANAGERS = 1;
-
 	protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
 
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
@@ -118,7 +114,7 @@ public class TestBaseUtils extends TestLogger {
 		
 		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
 
-		if(startZooKeeper) {
+		if (startZooKeeper) {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
 			config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
 		}
@@ -159,7 +155,8 @@ public class TestBaseUtils extends TestLogger {
 		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
-			{
+			
+			if (executor.running()) {
 				List<ActorRef> tms = executor.getTaskManagersAsJava();
 				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<Future<Object>>();
 				List<Future<Object>> numActiveConnectionsResponseFutures = new ArrayList<Future<Object>>();
