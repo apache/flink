@@ -331,13 +331,13 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 {% highlight scala %}
 def getExecutionEnvironment
 
-def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors()))
+def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors())
 def createLocalEnvironment(customConfiguration: Configuration)
 
 def createCollectionsEnvironment
 
-def createRemoteEnvironment(host: String, port: String, jarFiles: String*)
-def createRemoteEnvironment(host: String, port: String, parallelism: Int, jarFiles: String*)
+def createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
+def createRemoteEnvironment(host: String, port: Int, parallelism: Int, jarFiles: String*)
 {% endhighlight %}
 
 Typically, you only need to use `getExecutionEnvironment()`, since this
