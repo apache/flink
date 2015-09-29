@@ -62,7 +62,11 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
 
       // TypeHints are only needed for Java API, Scala API doesn't need them
-      "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.returns"
+      "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.returns",
+
+      // Deactivated until Scala API has new windowing API
+      "org.apache.flink.streaming.api.datastream.DataStream.timeWindowAll",
+      "org.apache.flink.streaming.api.datastream.DataStream.windowAll"
     )
     val excludedPatterns = Seq(
       // We don't have project on tuples in the Scala API
