@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Object, W> {
@@ -57,6 +58,11 @@ public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Obj
 	@Override
 	public String toString() {
 		return "ContinuousProcessingTimeTrigger(" + granularity + ")";
+	}
+
+	@VisibleForTesting
+	public long getGranularity() {
+		return granularity;
 	}
 
 	public static <W extends Window> ContinuousWatermarkTrigger<W> of(long granularity) {

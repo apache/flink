@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigger<Object, W> {
@@ -66,6 +67,11 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	@Override
 	public Trigger<Object, W> duplicate() {
 		return new ContinuousProcessingTimeTrigger<>(granularity);
+	}
+
+	@VisibleForTesting
+	public long getGranularity() {
+		return granularity;
 	}
 
 	@Override
