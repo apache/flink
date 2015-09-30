@@ -101,7 +101,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testClientStartup() {
 		LOG.info("Starting testClientStartup()");
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), /* "-t", flinkLibFolder.getAbsolutePath(), */
 						"-n", "1",
 						"-jm", "768",
 						"-tm", "1024",

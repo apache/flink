@@ -98,9 +98,17 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected static MiniYARNCluster yarnCluster = null;
 
+	/**
+	 * Uberjar (fat jar) file of Flink
+	 */
 	protected static File flinkUberjar;
 
 	protected static final Configuration yarnConfiguration;
+
+	/**
+	 * lib/ folder of the flink distribution.
+	 */
+	protected static File flinkLibFolder;
 
 	static {
 		yarnConfiguration = new YarnConfiguration();
@@ -329,6 +337,10 @@ public abstract class YarnTestBase extends TestLogger {
 		flinkUberjar = findFile(uberjarStartLoc, new RootDirFilenameFilter());
 		Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
+		flinkLibFolder = flinkUberjar.getParentFile(); // the uberjar is located in lib/
+		Assert.assertNotNull("Flink flinkLibFolder not found", flinkLibFolder);
+		Assert.assertTrue("lib folder not found", flinkLibFolder.exists());
+		Assert.assertTrue("lib folder not found", flinkLibFolder.isDirectory());
 
 		if (!flinkUberjar.exists()) {
 			Assert.fail("Unable to locate yarn-uberjar.jar");
