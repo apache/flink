@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.util.NetUtils;
+
 import org.junit.Assert;
 
 import java.io.PrintWriter;

@@ -28,10 +28,9 @@ import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
-import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
-import org.apache.flink.runtime.webmonitor.WebMonitor
 
 import scala.concurrent.{Await, Future}
 

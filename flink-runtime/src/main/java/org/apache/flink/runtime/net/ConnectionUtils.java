@@ -23,7 +23,6 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.Enumeration;
@@ -41,9 +40,9 @@ import scala.concurrent.duration.FiniteDuration;
  * Utilities to determine the network interface and address that should be used to bind the
  * TaskManager communication to.
  */
-public class NetUtils {
+public class ConnectionUtils {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ConnectionUtils.class);
 
 	private static final long MIN_SLEEP_TIME = 50;
 	private static final long MAX_SLEEP_TIME = 20000;
@@ -282,8 +281,7 @@ public class NetUtils {
 			LOG.debug("Trying to connect to (" + toSocket + ") from local address " + fromAddress
 					+ " with timeout " + timeout);
 		}
-		Socket socket = new Socket();
-		try {
+		try (Socket socket = new Socket()) {
 			// port 0 = let the OS choose the port
 			SocketAddress bindP = new InetSocketAddress(fromAddress, 0);
 			// machine
@@ -300,43 +298,6 @@ public class NetUtils {
 			}
 			return false;
 		}
-		finally {
-			socket.close();
-		}
-	}
-
-	/**
-	 * Find a non-occupied port.
-	 *
-	 * @return A non-occupied port.
-	 */
-	public static int getAvailablePort() {
-		for (int i = 0; i < 50; i++) {
-			ServerSocket serverSocket = null;
-			try {
-				serverSocket = new ServerSocket(0);
-				int port = serverSocket.getLocalPort();
-				if (port != 0) {
-					return port;
-				}
-			}
-			catch (IOException e) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Unable to allocate port " + e.getMessage(), e);
-				}
-			}
-			finally {
-				if (serverSocket != null) {
-					try {
-						serverSocket.close();
-					} catch (Throwable t) {
-						// ignored
-					}
-				}
-			}
-		}
-
-		throw new RuntimeException("Could not find a free permitted port on the machine.");
 	}
 
 	public static class LeaderConnectingAddressListener implements LeaderRetrievalListener {
@@ -408,7 +369,7 @@ public class NetUtils {
 						}
 
 						do {
-							InetAddress address = NetUtils.findAddressUsingStrategy(strategy, targetAddress, logging);
+							InetAddress address = ConnectionUtils.findAddressUsingStrategy(strategy, targetAddress, logging);
 							if (address != null) {
 								return address;
 							}

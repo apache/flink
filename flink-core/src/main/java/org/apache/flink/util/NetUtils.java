@@ -18,7 +18,9 @@
 package org.apache.flink.util;
 
 
+import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.ServerSocket;
 import java.net.URL;
 
 public class NetUtils {
@@ -64,5 +66,24 @@ public class NetUtils {
 		} catch (MalformedURLException e) {
 			throw new IllegalArgumentException("The given host:port ('"+hostPort+"') is invalid", e);
 		}
+	}
+
+	/**
+	 * Find a non-occupied port.
+	 *
+	 * @return A non-occupied port.
+	 */
+	public static int getAvailablePort() {
+		for (int i = 0; i < 50; i++) {
+			try (ServerSocket serverSocket = new ServerSocket(0)) {
+				int port = serverSocket.getLocalPort();
+				if (port != 0) {
+					return port;
+				}
+			}
+			catch (IOException ignored) {}
+		}
+
+		throw new RuntimeException("Could not find a free permitted port on the machine.");
 	}
 }
