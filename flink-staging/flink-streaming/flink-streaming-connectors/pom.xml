@@ -41,6 +41,7 @@ under the License.
 		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
+		<module>flink-connector-nifi</module>
 	</modules>
 
 	<!-- See main pom.xml for explanation of profiles -->
