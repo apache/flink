@@ -152,7 +152,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 		private final PlanExecutor executor;
 
-		private volatile boolean running = true;
 		private volatile boolean triggered = false;
 
 		ShutdownThread(PlanExecutor executor) {
@@ -166,7 +165,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		@Override
 		public void run() {
 			synchronized (monitor) {
-				while (running && !triggered) {
+				while (!triggered) {
 					try {
 						monitor.wait();
 					}
@@ -176,14 +175,12 @@ public class LocalEnvironment extends ExecutionEnvironment {
 				}
 			}
 
-			if (running && triggered) {
-				try {
-					executor.stop();
-				}
-				catch (Throwable t) {
-					System.err.println("Cluster reaper caught exception during shutdown");
-					t.printStackTrace();
-				}
+			try {
+				executor.stop();
+			}
+			catch (Throwable t) {
+				System.err.println("Cluster reaper caught exception during shutdown");
+				t.printStackTrace();
 			}
 		}
 
@@ -194,12 +191,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 			}
 		}
 
-		void cancel() {
-			running = false;
-			synchronized (monitor) {
-				monitor.notifyAll();
-			}
-		}
 	}
 
 	/**
@@ -218,9 +209,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		@Override
 		protected void finalize() throws Throwable {
 			super.finalize();
-
 			shutdownThread.trigger();
-			shutdownThread.cancel();
 		}
 	}
 }
