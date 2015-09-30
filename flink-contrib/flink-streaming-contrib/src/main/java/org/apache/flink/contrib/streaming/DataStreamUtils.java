@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.net.ConnectionUtils;
 
 public final class DataStreamUtils {
 
@@ -46,7 +46,7 @@ public final class DataStreamUtils {
 			String host = ((RemoteStreamEnvironment)env).getHost();
 			int port = ((RemoteStreamEnvironment)env).getPort();
 			try {
-				clientAddress = NetUtils.findConnectingAddress(new InetSocketAddress(host, port), 2000, 400);
+				clientAddress = ConnectionUtils.findConnectingAddress(new InetSocketAddress(host, port), 2000, 400);
 			} catch (IOException e) {
 				throw new RuntimeException("IOException while trying to connect to the master", e);
 			}

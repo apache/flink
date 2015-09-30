@@ -60,7 +60,7 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages._
-import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -1425,8 +1425,9 @@ object TaskManager {
     LOG.info(s"Starting TaskManager in streaming mode $streamingMode")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
-
-    LOG.info(s"Starting TaskManager actor system at $taskManagerHostname:$actorSystemPort")
+    
+    LOG.info("Starting TaskManager actor system at " + 
+      NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort))
 
     val taskManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(
@@ -1443,7 +1444,7 @@ object TaskManager {
         if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            val address = taskManagerHostname + ":" + actorSystemPort
+            val address = NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort)
             throw new IOException("Unable to bind TaskManager actor system to address " +
               address + " - " + cause.getMessage(), t)
           }

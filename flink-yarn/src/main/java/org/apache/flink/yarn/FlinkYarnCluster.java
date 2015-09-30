@@ -28,7 +28,7 @@ import akka.util.Timeout;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.hadoop.conf.Configuration;
@@ -143,7 +143,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		LOG.info("Start actor system.");
 		// find name of own public interface, able to connect to the JM
 		// try to find address for 2 seconds. log after 400 ms.
-		InetAddress ownHostname = NetUtils.findConnectingAddress(jobManagerAddress, 2000, 400);
+		InetAddress ownHostname = ConnectionUtils.findConnectingAddress(jobManagerAddress, 2000, 400);
 		actorSystem = AkkaUtils.createActorSystem(flinkConfig,
 				new Some(new Tuple2<String, Integer>(ownHostname.getCanonicalHostName(), 0)));
 
