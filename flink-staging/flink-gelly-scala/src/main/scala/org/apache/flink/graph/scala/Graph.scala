@@ -126,6 +126,133 @@ object Graph {
     wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleEdges, mapper, env.getJavaEnv))
   }
 
+  /**
+  * Creates a Graph with from a CSV file of vertices and a CSV file of edges
+  * 
+  * @param The Execution Environment.
+  * @param pathEdges The file path containing the edges.
+  * @param readVertices Defines whether the vertices have associated values.
+  * If set to false, the vertex input is ignored and vertices are created from the edges file.
+  * @param pathVertices The file path containing the vertices.
+  * @param hasEdgeValues Defines whether the edges have associated values. True by default.
+  * @param lineDelimiterVertices The string that separates lines in the vertices file.
+  * It defaults to newline.
+  * @param fieldDelimiterVertices The string that separates vertex Ids from vertex values
+  * in the vertices file.
+  * @param quoteCharacterVertices The character to use for quoted String parsing
+  * in the vertices file. Disabled by default.
+  * @param ignoreFirstLineVertices Whether the first line in the vertices file should be ignored.
+  * @param ignoreCommentsVertices Lines that start with the given String in the vertices file
+  * are ignored, disabled by default.
+  * @param lenientVertices Whether the parser should silently ignore malformed lines in the
+  * vertices file.
+  * @param includedFieldsVertices The fields in the vertices file that should be read.
+  * By default all fields are read.
+  * @param lineDelimiterEdges The string that separates lines in the edges file.
+  * It defaults to newline.
+  * @param fieldDelimiterEdges The string that separates fields in the edges file.
+  * @param quoteCharacterEdges The character to use for quoted String parsing
+  * in the edges file. Disabled by default.
+  * @param ignoreFirstLineEdges Whether the first line in the vertices file should be ignored.
+  * @param ignoreCommentsEdges Lines that start with the given String in the edges file
+  * are ignored, disabled by default.
+  * @param lenientEdges Whether the parser should silently ignore malformed lines in the
+  * edges file.
+  * @param includedFieldsEdges The fields in the edges file that should be read.
+  * By default all fields are read.
+  * @param mapper If no vertex values are provided, this mapper can be used to initialize them.
+  * 
+  */
+  // scalastyle:off
+  // This method exceeds the max allowed number of parameters -->  
+  def fromCsvReader[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
+    EV: TypeInformation : ClassTag](
+      env: ExecutionEnvironment,
+      pathEdges: String,
+      readVertices: Boolean,
+      pathVertices: String = null,
+      hasEdgeValues: Boolean = true,
+      lineDelimiterVertices: String = "\n",
+      fieldDelimiterVertices: String = ",",
+      quoteCharacterVertices: Character = null,
+      ignoreFirstLineVertices: Boolean = false,
+      ignoreCommentsVertices: String = null,
+      lenientVertices: Boolean = false,
+      includedFieldsVertices: Array[Int] = null,
+      lineDelimiterEdges: String = "\n",
+      fieldDelimiterEdges: String = ",",
+      quoteCharacterEdges: Character = null,
+      ignoreFirstLineEdges: Boolean = false,
+      ignoreCommentsEdges: String = null,
+      lenientEdges: Boolean = false,
+      includedFieldsEdges: Array[Int] = null,
+      mapper: MapFunction[K, VV] = null) = {
+
+    // with vertex and edge values
+    if (readVertices && hasEdgeValues) {
+      if (pathVertices.equals(null)) {
+        throw new IllegalArgumentException(
+            "The vertices file path must be specified when readVertices is true.")
+      } else {
+        val vertices = env.readCsvFile[(K, VV)](pathVertices, lineDelimiterVertices,
+            fieldDelimiterVertices, quoteCharacterVertices, ignoreFirstLineVertices,
+            ignoreCommentsVertices, lenientVertices, includedFieldsVertices)
+
+        val edges = env.readCsvFile[(K, K, EV)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
+            quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges, lenientEdges,
+            includedFieldsEdges)
+     
+        fromTupleDataSet[K, VV, EV](vertices, edges, env) 
+      }
+    }
+    // with vertex value and no edge value
+    else if (readVertices && (!hasEdgeValues)) {
+       if (pathVertices.equals(null)) {
+        throw new IllegalArgumentException(
+            "The vertices file path must be specified when readVertices is true.")
+      } else {
+        val vertices = env.readCsvFile[(K, VV)](pathVertices, lineDelimiterVertices,
+            fieldDelimiterVertices, quoteCharacterVertices, ignoreFirstLineVertices,
+            ignoreCommentsVertices, lenientVertices, includedFieldsVertices)
+
+        val edges = env.readCsvFile[(K, K)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
+            quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges, lenientEdges,
+            includedFieldsEdges).map(edge => (edge._1, edge._2, NullValue.getInstance))
+
+        fromTupleDataSet[K, VV, NullValue](vertices, edges, env)
+      }
+    }
+    // with edge value and no vertex value
+    else if ((!readVertices) && hasEdgeValues) {
+      val edges = env.readCsvFile[(K, K, EV)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
+        quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges, lenientEdges,
+        includedFieldsEdges)
+
+      // initializer provided
+      if (mapper != null) {
+        fromTupleDataSet[K, VV, EV](edges, env, mapper)
+      }
+      else {
+        fromTupleDataSet[K, EV](edges, env) 
+      }
+    }
+    // with no edge value and no vertex value
+    else {
+      val edges = env.readCsvFile[(K, K)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
+      quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges,
+      lenientEdges, includedFieldsEdges).map(edge => (edge._1, edge._2, NullValue.getInstance))
+
+      // no initializer provided
+      if (mapper != null) {
+        fromTupleDataSet[K, VV, NullValue](edges, env, mapper)
+      }
+      else {
+        fromTupleDataSet[K, NullValue](edges, env) 
+      }
+    }
+  }
+// scalastyle:on
+
 }
 
 /**

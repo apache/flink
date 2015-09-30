@@ -178,7 +178,7 @@ Graph<String, Long, Double> graph = Graph.fromCsvReader("path/to/vertex/input", 
 					.types(String.class, Long.class, Double.class);
 
 
-// create a Graph with no Vertex or Edge values
+// create a Graph with neither Vertex nor Edge values
 Graph<Long, NullValue, NullValue> simpleGraph = Graph.fromCsvReader("path/to/edge/input", env).keyType(Long.class);
 {% endhighlight %}
 </div>
@@ -192,6 +192,28 @@ val vertexTuples = env.readCsvFile[String, Long]("path/to/vertex/input")
 val edgeTuples = env.readCsvFile[String, String, Double]("path/to/edge/input")
 
 val graph = Graph.fromTupleDataSet(vertexTuples, edgeTuples, env)
+{% endhighlight %}
+
+* from a CSV file of Edge data and an optional CSV file of Vertex data.
+In this case, Gelly will convert each row from the Edge CSV file to an `Edge`, where the first field will be the source ID, the second field will be the target ID and the third field (if present) will be the edge value. If the edges have no associated value, set the `hasEdgeValues` parameter to `false`. The parameter `readVertices` defines whether vertex data are provided. If `readVertices` is set to `true`, then `pathVertices` must be specified. In this case, each row from the Vertex CSV file will be converted to a `Vertex`, where the first field will be the vertex ID and the second field will be the vertex value. If `readVertices` is set to false, then Vertex data will be ignored and vertices will be automatically created from the edges input.
+
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+// create a Graph with String Vertex IDs, Long Vertex values and Double Edge values
+val graph = Graph.fromCsvReader[String, Long, Double](
+		readVertices = true,
+		pathVertices = "path/to/vertex/input",
+		pathEdges = "path/to/edge/input",
+		env = env)
+
+
+// create a Graph with neither Vertex nor Edge values
+val simpleGraph = Graph.fromCsvReader[Long, NullValue, NullVale](
+		readVertices = false,
+		pathEdges = "path/to/edge/input",
+		hasEdgeValues = false,
+		env = env)
 {% endhighlight %}
 </div>
 </div>

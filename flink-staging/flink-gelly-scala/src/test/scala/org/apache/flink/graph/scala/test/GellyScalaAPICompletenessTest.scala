@@ -32,9 +32,7 @@ class GellyScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
   override def isExcludedByName(method: Method): Boolean = {
     val name = method.getDeclaringClass.getName + "." + method.getName
-    val excludedNames = Seq("org.apache.flink.graph.Graph.getContext",
-        // NOTE: until fromCsvReader() is added to to the Scala API Graph
-        "org.apache.flink.graph.Graph.fromCsvReader")
+    val excludedNames = Seq("org.apache.flink.graph.Graph.getContext")
     excludedNames.contains(name)
   }
 
