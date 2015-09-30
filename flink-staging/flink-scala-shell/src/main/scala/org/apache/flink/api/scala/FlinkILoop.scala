@@ -20,10 +20,10 @@ package org.apache.flink.api.scala
 
 import java.io.{BufferedReader, File, FileOutputStream}
 
-import scala.tools.nsc.interpreter._
-
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment}
 import org.apache.flink.util.AbstractID
+
+import scala.tools.nsc.interpreter._
 
 
 class FlinkILoop(
