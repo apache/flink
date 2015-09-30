@@ -16,35 +16,39 @@
 */
 package org.apache.flink.streaming.connectors.nifi;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.nifi.remote.client.SiteToSiteClient;
 import org.apache.nifi.remote.client.SiteToSiteClientConfig;
 
-import java.util.HashMap;
+import java.nio.charset.Charset;
 
 /**
- * An example topology that sends data to a NiFi input port named "Data from Flink".
+ * An example topology that pulls data from a NiFi output port named "Data for Flink".
  */
-public class NiFiSinkTopology {
+public class NiFiSourceTopologyExample {
 
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		SiteToSiteClientConfig clientConfig = new SiteToSiteClient.Builder()
 				.url("http://localhost:8080/nifi")
-				.portName("Data from Flink")
+				.portName("Data for Flink")
 				.buildConfig();
 
-		DataStreamSink<String> dataStream = env.fromElements("one", "two", "three", "four", "five", "q")
-				.addSink(new NiFiSink<>(clientConfig, new NiFiDataPacketBuilder<String>() {
-					@Override
-					public NiFiDataPacket createNiFiDataPacket(String s, RuntimeContext ctx) {
-						return new StandardNiFiDataPacket(s.getBytes(), new HashMap<String,String>());
-					}
-				}));
+		SourceFunction<NiFiDataPacket> nifiSource = new NiFiSource(clientConfig);
+		DataStream<NiFiDataPacket> streamSource = env.addSource(nifiSource); //.setParallelism(2);
 
+		DataStream<String> dataStream = streamSource.map(new MapFunction<NiFiDataPacket, String>() {
+			@Override
+			public String map(NiFiDataPacket value) throws Exception {
+				return new String(value.getContent(), Charset.defaultCharset());
+			}
+		});
+
+		dataStream.print();
 		env.execute();
 	}
 

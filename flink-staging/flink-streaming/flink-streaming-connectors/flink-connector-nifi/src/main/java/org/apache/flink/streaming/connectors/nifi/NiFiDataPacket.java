@@ -27,13 +27,13 @@ import java.util.Map;
 public interface NiFiDataPacket {
 
 	/**
-     * @return the contents of a NiFi FlowFile
-     */
+	 * @return the contents of a NiFi FlowFile
+	 */
 	byte[] getContent();
 
 	/**
-     * @return a Map of attributes that are associated with the NiFi FlowFile
-     */
+	 * @return a Map of attributes that are associated with the NiFi FlowFile
+	 */
 	Map<String, String> getAttributes();
 
 }
