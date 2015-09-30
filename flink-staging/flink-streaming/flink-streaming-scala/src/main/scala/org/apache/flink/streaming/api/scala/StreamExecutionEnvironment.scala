@@ -51,26 +51,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
    * [[DataStream#setParallelism(int)]].
-   * @deprecated Please use [[setParallelism]]
-   */
-  @deprecated
-  def setDegreeOfParallelism(degreeOfParallelism: Int): Unit = {
-    javaEnv.setParallelism(degreeOfParallelism)
-  }
-
-  /**
-   * Returns the default parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataStream#setParallelism(int)]]
-   * @deprecated Please use [[getParallelism]]
-   */
-  @deprecated
-  def getDegreeOfParallelism = javaEnv.getParallelism
-
-  /**
-   * Sets the parallelism for operations executed through this environment.
-   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
-   * with x parallel instances. This value can be overridden by specific operations using
-   * [[DataStream#setParallelism(int)]].
    */
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)

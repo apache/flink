@@ -34,15 +34,6 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 		return this.lastJobExecutionResult;
 	}
 
-	/**
-	 * @deprecated Please use {@link #getParallelism}
-	 */
-	@Override
-	@Deprecated
-	public int getDegreeOfParallelism() {
-		return getParallelism();
-	}
-
 	@Override
 	public int getParallelism() {
 		return 1; // always serial
