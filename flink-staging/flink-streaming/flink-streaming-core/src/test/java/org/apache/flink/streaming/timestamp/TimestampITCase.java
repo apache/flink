@@ -22,8 +22,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskmanager.MultiShotLatch;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -35,6 +39,7 @@ import org.apache.flink.streaming.util.NoOpSink;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -53,7 +58,18 @@ public class TimestampITCase {
 	private static final int NUM_TASK_SLOTS = 3;
 	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
+	// this is used in some tests to synchronize
+	static MultiShotLatch latch;
+
+
 	private static ForkableFlinkMiniCluster cluster;
+
+	@Before
+	public void setupLatch() {
+		// ensure that we get a fresh latch for each test
+		latch = new MultiShotLatch();
+	}
+
 
 	@BeforeClass
 	public static void startCluster() {
@@ -196,7 +212,9 @@ public class TimestampITCase {
 				"localhost", cluster.getLeaderRPCPort());
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
-		Assert.assertEquals("Timestamps are not disabled by default.", false, env.getConfig().areTimestampsEnabled());
+		Assert.assertEquals("Timestamps are not disabled by default.",
+				false,
+				env.getConfig().areTimestampsEnabled());
 		env.getConfig().disableTimestamps();
 
 
@@ -211,6 +229,134 @@ public class TimestampITCase {
 
 
 		env.execute();
+	}
+
+	/**
+	 * This thests whether timestamps are properly extracted in the timestamp
+	 * extractor and whether watermarks are also correctly forwared from this with the auto watermark
+	 * interval.
+	 */
+	@Test
+	public void testTimestampExtractorWithAutoInterval() throws Exception {
+		final int NUM_ELEMENTS = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		env.setParallelism(1);
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().enableTimestamps();
+		env.getConfig().setAutoWatermarkInterval(10);
+
+
+		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+				int index = 0;
+				while (index < NUM_ELEMENTS) {
+					ctx.collect(index);
+					latch.await();
+					index++;
+				}
+			}
+
+			@Override
+			public void cancel() {
+
+			}
+		});
+
+		DataStream<Integer> extractOp = source1.extractTimestamp(
+				new AscendingTimestampExtractor<Integer>() {
+					@Override
+					public long extractAscendingTimestamp(Integer element, long currentTimestamp) {
+						return element;
+					}
+				});
+
+		extractOp
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Timestamp Check",
+						BasicTypeInfo.INT_TYPE_INFO,
+						new TimestampCheckingOperator());
+
+		// verify that extractor picks up source parallelism
+		Assert.assertEquals(extractOp.getTransformation().getParallelism(), source1.getTransformation().getParallelism());
+
+		env.execute();
+
+		// verify that we get NUM_ELEMENTS watermarks
+		for (int j = 0; j < NUM_ELEMENTS; j++) {
+			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j - 1))) {
+				Assert.fail("Wrong watermark.");
+			}
+		}
+		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
+			Assert.fail("Wrong watermark.");
+		}
+	}
+
+	/**
+	 * This thests whether timestamps are properly extracted in the timestamp
+	 * extractor and whether watermark are correctly forwarded from the custom watermark emit
+	 * function.
+	 */
+	@Test
+	public void testTimestampExtractorWithCustomWatermarkEmit() throws Exception {
+		final int NUM_ELEMENTS = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		env.setParallelism(1);
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().enableTimestamps();
+
+
+		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+				int index = 0;
+				while (index < NUM_ELEMENTS) {
+					ctx.collect(index);
+					latch.await();
+					index++;
+				}
+			}
+
+			@Override
+			public void cancel() {
+
+			}
+		});
+
+		source1.extractTimestamp(new TimestampExtractor<Integer>() {
+			@Override
+			public long extractTimestamp(Integer element, long currentTimestamp) {
+				return element;
+			}
+
+			@Override
+			public long emitWatermark(Integer element, long currentTimestamp) {
+				return element - 1;
+			}
+
+			@Override
+			public long getCurrentWatermark() {
+				return Long.MIN_VALUE;
+			}
+		})
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
+
+
+		env.execute();
+
+		// verify that we get NUM_ELEMENTS watermarks
+		for (int j = 0; j < NUM_ELEMENTS; j++) {
+			if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j - 1))) {
+				Assert.fail("Wrong watermark.");
+			}
+		}
+		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
+			Assert.fail("Wrong watermark.");
+		}
 	}
 
 	/**
@@ -289,6 +435,8 @@ public class TimestampITCase {
 		@Override
 		public void processWatermark(Watermark mark) throws Exception {
 			watermarks.add(mark);
+			latch.trigger();
+			output.emitWatermark(mark);
 		}
 
 		@Override

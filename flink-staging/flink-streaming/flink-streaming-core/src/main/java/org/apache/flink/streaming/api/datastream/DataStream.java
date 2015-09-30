@@ -47,6 +47,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator;
 import org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.FileSinkFunctionByMillis;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -76,6 +77,7 @@ import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.time.EventTime;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -879,6 +881,30 @@ public class DataStream<T> {
 	 */
 	public <W extends Window> NonParallelWindowDataStream<T, W> windowAll(WindowAssigner<? super T, W> assigner) {
 		return new NonParallelWindowDataStream<>(this, assigner);
+	}
+
+	/**
+	 * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
+	 * The internal timestamps are, for example, used to to event-time window operations.
+	 *
+	 * <p>
+	 * If you know that the timestamps are strictly increasing you can use an
+	 * {@link org.apache.flink.streaming.api.functions.AscendingTimestampExtractor}. Otherwise,
+	 * you should provide a {@link TimestampExtractor} that also implements
+	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
+	 *
+	 * @see org.apache.flink.streaming.api.watermark.Watermark
+	 *
+	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
+	 */
+	public SingleOutputStreamOperator<T, ?> extractTimestamp(TimestampExtractor<T> extractor) {
+		// match parallelism to input, otherwise dop=1 sources could lead to some strange
+		// behaviour: the watermark will creep along very slowly because the elements
+		// from the source go to each extraction operator round robin.
+		int inputParallelism = getTransformation().getParallelism();
+		ExtractTimestampsOperator<T> operator = new ExtractTimestampsOperator<>(clean(extractor));
+		return transform("ExtractTimestamps", getTransformation().getOutputType(), operator)
+				.setParallelism(inputParallelism);
 	}
 
 	/**

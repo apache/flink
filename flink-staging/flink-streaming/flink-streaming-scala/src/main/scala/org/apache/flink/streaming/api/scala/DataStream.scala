@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, TimestampExtractor}
+
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -29,14 +31,13 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator, KeyedDataStream}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{RichMapFunction, RichFlatMapFunction, RichFilterFunction}
-import org.apache.flink.streaming.api.datastream.KeyedDataStream
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 
 class DataStream[T](javaStream: JavaStream[T]) {
@@ -633,6 +634,42 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */  
   def every(windowingHelper: WindowingHelper[_]): WindowedDataStream[T] = 
     javaStream.every(windowingHelper)
+
+  /**
+   * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
+   * The internal timestamps are, for example, used to to event-time window operations.
+   *
+   * If you know that the timestamps are strictly increasing you can use an
+   * [[org.apache.flink.streaming.api.functions.AscendingTimestampExtractor]]. Otherwise,
+   * you should provide a [[TimestampExtractor]] that also implements
+   * [[TimestampExtractor#getCurrentWatermark]] to keep track of watermarks.
+   *
+   * @see org.apache.flink.streaming.api.watermark.Watermark
+   */
+  def extractTimestamp(extractor: TimestampExtractor[T]): DataStream[T] = {
+    javaStream.extractTimestamp(clean(extractor))
+  }
+
+  /**
+   * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
+   * The internal timestamps are, for example, used to to event-time window operations.
+   *
+   * If you know that the timestamps are strictly increasing you can use an
+   * [[org.apache.flink.streaming.api.functions.AscendingTimestampExtractor]]. Otherwise,
+   * you should provide a [[TimestampExtractor]] that also implements
+   * [[TimestampExtractor#getCurrentWatermark]] to keep track of watermarks.
+   *
+   * @see org.apache.flink.streaming.api.watermark.Watermark
+   */
+  def extractAscendingTimestamp(extractor: T => Long): DataStream[T] = {
+    val cleanExtractor = clean(extractor)
+    val extractorFunction = new AscendingTimestampExtractor[T] {
+      def extractAscendingTimestamp(element: T, currentTimestamp: Long): Long = {
+        cleanExtractor(element)
+      }
+    }
+    javaStream.extractTimestamp(extractorFunction)
+  }
 
   /**
    *
