@@ -45,7 +45,7 @@ public abstract class TezProgramTestBase extends AbstractTestBase {
     }
 
 
-    public void setDegreeOfParallelism(int degreeOfParallelism) {
+    public void setParallelism(int degreeOfParallelism) {
         this.degreeOfParallelism = degreeOfParallelism;
     }
 

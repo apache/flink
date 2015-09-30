@@ -42,7 +42,7 @@ public class YarnJob {
 		
 		// To use Tez YARN execution, use
 		final RemoteTezEnvironment env = RemoteTezEnvironment.create();
-		env.setDegreeOfParallelism(8);
+		env.setParallelism(8);
 
 		/**
 		 * Here, you can start creating your execution plan for Flink.
