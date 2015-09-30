@@ -555,9 +555,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			});
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
-			// TM was started with 1024 but we cut off 50% (NOT THE DEFAULT VALUE) and then divide
-			// between heap and off-heap memory (see {@link ApplicationMasterActor}).
-			String expected = "Starting TM with command=$JAVA_HOME/bin/java -Xms359m -Xmx359m -XX:MaxDirectMemorySize=65m";
+			// TM was started with 1024 but we cut off 50% (NOT THE DEFAULT VALUE)
+			String expected = "Starting TM with command=$JAVA_HOME/bin/java -Xms424m -Xmx424m";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '"+jobmanagerLog+"'",
 					content.contains(expected));
 			expected = " (2/2) (attempt #0) to ";

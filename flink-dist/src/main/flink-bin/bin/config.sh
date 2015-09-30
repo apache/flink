@@ -91,11 +91,6 @@ KEY_JOBM_MEM_SIZE="jobmanager.heap.mb"
 KEY_TASKM_MEM_SIZE="taskmanager.heap.mb"
 KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
-KEY_TASKM_MEM_NETWORK_BUFFERS="taskmanager.network.numberOfBuffers"
-# BEGIN:deprecated
-KEY_TASKM_MEM_NETWORK_BUFFER_SIZE="taskmanager.network.bufferSizeInBytes"
-# END:deprecated
-KEY_TASKM_MEM_SEGMENT_SIZE="taskmanager.memory.segment-size"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 
 KEY_ENV_PID_DIR="env.pid.dir"
@@ -198,22 +193,12 @@ fi
 
 # Define FLINK_TM_MEM_MANAGED_FRACTION if it is not already set
 if [ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]; then
-    FLINK_TM_MEM_MANAGED_FRACTION=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_FRACTION} 0 "${YAML_CONF}")
-fi
-
-# Define FLINK_TM_MEM_NETWORK_SIZE if it is not already set
-if [ -z "${FLINK_TM_MEM_NETWORK_SIZE}" ]; then
-    BUFFER_SIZE=$(readFromConfig ${KEY_TASKM_MEM_SEGMENT_SIZE} "0" "${YAML_CONF}")
-    if [ "${BUFFER_SIZE}" -eq "0" ]; then
-        BUFFER_SIZE=$(readFromConfig ${KEY_TASKM_MEM_NETWORK_BUFFER_SIZE} "$((32 * 1024))" "${YAML_CONF}")
-    fi
-    NUM_BUFFERS=$(readFromConfig ${KEY_TASKM_MEM_NETWORK_BUFFERS} "2048" "${YAML_CONF}")
-    FLINK_TM_MEM_NETWORK_SIZE=$((((NUM_BUFFERS * BUFFER_SIZE) >> 20) + 1))
+    FLINK_TM_MEM_MANAGED_FRACTION=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_FRACTION} 0.7 "${YAML_CONF}")
 fi
 
 # Define FLINK_TM_OFFHEAP if it is not already set
 if [ -z "${FLINK_TM_OFFHEAP}" ]; then
-    FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} 0 "${YAML_CONF}")
+    FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} "false" "${YAML_CONF}")
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
