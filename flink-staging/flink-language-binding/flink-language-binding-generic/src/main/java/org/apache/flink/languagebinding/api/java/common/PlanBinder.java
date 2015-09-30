@@ -84,7 +84,7 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
 					Integer dop = (Integer) value.getField(1);
-					env.setDegreeOfParallelism(dop);
+					env.setParallelism(dop);
 					break;
 				case MODE:
 					FLINK_HDFS_PATH = (Boolean) value.getField(1) ? "file:/tmp/flink" : "hdfs:/tmp/flink";
@@ -98,8 +98,8 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 					break;
 			}
 		}
-		if (env.getDegreeOfParallelism() < 0) {
-			env.setDegreeOfParallelism(1);
+		if (env.getParallelism() < 0) {
+			env.setParallelism(1);
 		}
 	}
 

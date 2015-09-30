@@ -128,14 +128,6 @@ public class SpargelIteration {
 		return this.iteration;
 	}
 
-	/**
-	 * @deprecated Please use {@link #setParallelism}
-	 */
-	@Deprecated
-	public void setDegreeOfParallelism(int parallelism) {
-		setParallelism(parallelism);
-	}
-
 	public void setParallelism(int parallelism) {
 		this.iteration.setParallelism(parallelism);
 	}

@@ -206,44 +206,9 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @return The parallelism used by operations, unless they override that value. This method
 	 *         returns {@code -1}, if the environment's default parallelism should be used.
-	 * @deprecated Please use {@link #getParallelism}
-	 */
-	@Deprecated
-	public int getDegreeOfParallelism() {
-		return getParallelism();
-	}
-
-	/**
-	 * Gets the parallelism with which operation are executed by default. Operations can
-	 * individually override this value to use a specific parallelism.
-	 *
-	 * Other operations may need to run with a different parallelism - for example calling
-	 * a reduce operation over the entire data set will involve an operation that runs
-	 * with a parallelism of one (the final reduce to the single result value).
-	 *
-	 * @return The parallelism used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environment's default parallelism should be used.
 	 */
 	public int getParallelism() {
 		return parallelism;
-	}
-
-	/**
-	 * Sets the parallelism for operations executed through this environment.
-	 * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run with
-	 * x parallel instances.
-	 * <p>
-	 * This method overrides the default parallelism for this environment.
-	 * The local execution environment uses by default a value equal to the number of hardware
-	 * contexts (CPU cores / threads). When executing the program via the command line client
-	 * from a JAR file, the default parallelism is the one configured for that setup.
-	 *
-	 * @param parallelism The parallelism to use
-	 * @deprecated Please use {@link #setParallelism}
-	 */
-	@Deprecated
-	public ExecutionConfig setDegreeOfParallelism(int parallelism) {
-		return setParallelism(parallelism);
 	}
 
 	/**

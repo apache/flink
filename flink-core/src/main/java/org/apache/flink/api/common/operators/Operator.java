@@ -163,19 +163,6 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 * Gets the parallelism for this contract instance. The parallelism denotes
 	 * how many parallel instances of the user function will be spawned during the execution. If this
 	 * value is <code>-1</code>, then the system will decide the number of parallel instances by itself.
-	 * 
-	 * @return The parallelism.
-	 * @deprecated Please use {@link #getParallelism}
-	 */
-	@Deprecated
-	public int getDegreeOfParallelism() {
-		return getParallelism();
-	}
-
-	/**
-	 * Gets the parallelism for this contract instance. The parallelism denotes
-	 * how many parallel instances of the user function will be spawned during the execution. If this
-	 * value is <code>-1</code>, then the system will decide the number of parallel instances by itself.
 	 *
 	 * @return The parallelism.
 	 */
@@ -183,18 +170,6 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		return this.parallelism;
 	}
 
-	/**
-	 * Sets the parallelism for this contract instance. The parallelism denotes
-	 * how many parallel instances of the user function will be spawned during the execution. Set this
-	 * value to <code>-1</code> to let the system decide on its own.
-	 * 
-	 * @param parallelism The number of parallel instances to spawn. -1, if unspecified.
-	 * @deprecated Please use {@link #setParallelism}
-	 */
-	@Deprecated
-	public void setDegreeOfParallelism(int parallelism) {
-		setParallelism(parallelism);
-	}
 	/**
 	 * Sets the parallelism for this contract instance. The parallelism denotes
 	 * how many parallel instances of the user function will be spawned during the execution. Set this

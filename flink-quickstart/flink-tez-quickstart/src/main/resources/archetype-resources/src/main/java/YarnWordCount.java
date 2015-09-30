@@ -51,7 +51,7 @@ public class YarnWordCount {
 		
 		// set up the execution environment
 		final RemoteTezEnvironment env = RemoteTezEnvironment.create();
-		env.setDegreeOfParallelism(parallelism);
+		env.setParallelism(parallelism);
 
 		// get input data
 		DataSet<String> text = env.readTextFile(textPath);
