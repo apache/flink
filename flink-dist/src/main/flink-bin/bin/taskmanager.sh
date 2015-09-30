@@ -59,9 +59,8 @@ if [[ $STARTSTOP == "start" ]]; then
     if [ "${FLINK_TM_HEAP}" -gt "0" ]; then
 
         TM_HEAP_SIZE=${FLINK_TM_HEAP}
-        TM_OFFHEAP_SIZE=0
-        # some space for Netty initialization
-        NETTY_BUFFERS=1
+        # This is an upper bound, much less direct memory will be used
+        TM_MAX_OFFHEAP_SIZE=${FLINK_TM_HEAP}
 
         if [[ "${STREAMINGMODE}" == "batch" ]] && useOffHeapMemory; then
             if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
@@ -70,7 +69,6 @@ if [[ $STARTSTOP == "start" ]]; then
                     echo "[ERROR] Configured TaskManager memory size ('${KEY_TASKM_MEM_SIZE}') must be larger than the managed memory size ('${KEY_TASKM_MEM_MANAGED_SIZE}')."
                     exit 1
                 fi
-                TM_OFFHEAP_SIZE=${FLINK_TM_MEM_MANAGED_SIZE}
                 TM_HEAP_SIZE=$((FLINK_TM_HEAP - FLINK_TM_MEM_MANAGED_SIZE))
             else
                 # We calculate the memory using a fraction of the total memory
@@ -79,13 +77,12 @@ if [[ $STARTSTOP == "start" ]]; then
                     exit 1
                 fi
                 # recalculate the JVM heap memory by taking the off-heap ratio into account
-                TM_OFFHEAP_SIZE=`printf '%.0f\n' $(bc -l <<< "${FLINK_TM_HEAP} * ${FLINK_TM_MEM_MANAGED_FRACTION}")`
-                TM_HEAP_SIZE=$((FLINK_TM_HEAP - TM_OFFHEAP_SIZE))
+                OFFHEAP_MANAGED_MEMORY_SIZE=`printf '%.0f\n' $(bc -l <<< "${FLINK_TM_HEAP} * ${FLINK_TM_MEM_MANAGED_FRACTION}")`
+                TM_HEAP_SIZE=$((FLINK_TM_HEAP - OFFHEAP_MANAGED_MEMORY_SIZE))
             fi
         fi
 
-        TM_HEAP_SIZE=$((TM_HEAP_SIZE - FLINK_TM_MEM_NETWORK_SIZE - NETTY_BUFFERS))
-        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=$((TM_OFFHEAP_SIZE + FLINK_TM_MEM_NETWORK_SIZE + NETTY_BUFFERS))M"
+        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}M"
 
     fi
 

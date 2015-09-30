@@ -562,11 +562,11 @@ trait ApplicationMasterActor extends FlinkActor {
     log.info("Create container launch context.")
     val ctx = Records.newRecord(classOf[ContainerLaunchContext])
 
-    val (heapLimit, offHeapLimit) = calculateMemoryLimits(memoryLimit, streamingMode)
+    val heapLimit = calculateMemoryLimits(memoryLimit, streamingMode)
 
     val javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
     val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xms${heapLimit}m " +
-      s"-Xmx${heapLimit}m -XX:MaxDirectMemorySize=${offHeapLimit}m $javaOpts")
+      s"-Xmx${heapLimit}m -XX:MaxDirectMemorySize=${memoryLimit}m $javaOpts")
 
     if (hasLogback || hasLog4j) {
       tmCommand ++=
@@ -621,28 +621,12 @@ trait ApplicationMasterActor extends FlinkActor {
   }
 
   /**
-   * Calculate the correct JVM heap and off-heap memory limits.
+   * Calculate the correct JVM heap memory limit.
    * @param memoryLimit The maximum memory in megabytes.
    * @param streamingMode True if this is a streaming cluster.
    * @return A Tuple2 containing the heap and the offHeap limit in megabytes.
    */
-  private def calculateMemoryLimits(memoryLimit: Long, streamingMode: Boolean): (Long, Long) = {
-
-    // The new config entry overrides the old one
-    val networkBufferSizeOld = flinkConfiguration.getLong(
-      ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE)
-
-    val networkBufferSize = flinkConfiguration.getLong(
-      ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-      networkBufferSizeOld)
-
-    val numNetworkBuffers = flinkConfiguration.getLong(
-      ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
-
-    // direct memory for Netty's off-heap buffers
-    val networkMemory = ((numNetworkBuffers * networkBufferSize) >> 20) + 1
+  private def calculateMemoryLimits(memoryLimit: Long, streamingMode: Boolean): Long = {
 
     val useOffHeap = flinkConfiguration.getBoolean(
       ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false)
@@ -650,17 +634,19 @@ trait ApplicationMasterActor extends FlinkActor {
     if (useOffHeap && !streamingMode){
       val fixedOffHeapSize = flinkConfiguration.getLong(
         ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L)
+
       if (fixedOffHeapSize > 0) {
-        (memoryLimit - fixedOffHeapSize - networkMemory, fixedOffHeapSize + networkMemory)
+        memoryLimit - fixedOffHeapSize
       } else {
         val fraction = flinkConfiguration.getFloat(
           ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
           ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
         val offHeapSize = (fraction * memoryLimit).toLong
-        (memoryLimit - offHeapSize - networkMemory, offHeapSize + networkMemory)
+        memoryLimit - offHeapSize
       }
+
     } else {
-      (memoryLimit - networkMemory, networkMemory)
+      memoryLimit
     }
   }
 }
