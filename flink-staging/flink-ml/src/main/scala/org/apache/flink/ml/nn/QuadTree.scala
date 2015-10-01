@@ -97,12 +97,12 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       var minDist = 0.0
       for (i <- 0 to obj.size - 1) {
         if (obj(i) < c(i) - L(i) / 2) {
-          minDist += math.pow(math.abs(obj(i) - c(i) + L(i) / 2), 2)
+          minDist += math.pow(obj(i) - c(i) + L(i) / 2, 2)
         } else if (obj(i) > c(i) + L(i) / 2) {
-          minDist += math.pow(math.abs(obj(i) - c(i) - L(i) / 2), 2)
+          minDist += math.pow(obj(i) - c(i) - L(i) / 2, 2)
         }
       }
-      math.sqrt(minDist)
+      return minDist
     }
 
     def whichChild(obj:DenseVector):Int = {
@@ -129,7 +129,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
 
     /**  Partitioning of box into equal area/volume sub-boxes
-      * TO-DO:  refactor to remove use of .map, probably not needed.
      *
      * @param cPart
      * @param L
@@ -214,7 +213,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     *
     * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
     * max distance D_s to obj.  D_s is then used during the kNN query to find all points
-    * within a radius D_s of obj using searchNeighbors.  To the the "near" neighbors, a min-heap is used
+    * within a radius D_s of obj using searchNeighbors.  To find the "near" neighbors, a min-heap is used
     * defined on the leaf nodes of the quadtree.  The priority of a leaf node is an appropriate notion
     * of the distance between the test point and the node, which is defined by minDist(obj),
    *

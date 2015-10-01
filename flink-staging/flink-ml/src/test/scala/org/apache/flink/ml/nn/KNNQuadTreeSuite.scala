@@ -19,14 +19,10 @@
 package org.apache.flink.ml.nn
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.classification.Classification
 import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
-
-//import scala.util.Random
-import org.apache.flink.api.scala.DataSetUtils._
 
 class KNNQuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "The KNN Join Implementation"
