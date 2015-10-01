@@ -391,7 +391,7 @@ class JobManager(
 
                     jobInfo.client ! decorateMessage(JobResultSuccess(result))
                   } catch {
-                    case e: IOException =>
+                    case e: Exception =>
                       log.error(s"Cannot fetch final accumulators for job $jobID", e)
                       val exception = new JobExecutionException(jobID,
                         "Failed to retrieve accumulator results.", e)
