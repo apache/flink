@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.EvictingWindowBuffer;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuffer;
@@ -44,7 +44,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			KeySelector<IN, K> keySelector,
 			WindowBufferFactory<? super IN, ? extends EvictingWindowBuffer<IN>> windowBufferFactory,
-			KeyedWindowFunction<IN, OUT, K, W> windowFunction,
+			WindowFunction<IN, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor) {
 		super(windowAssigner, keySelector, windowBufferFactory, windowFunction, trigger);
@@ -87,7 +87,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		windowBuffer.removeElements(toEvict);
 
-		userFunction.evaluate(key,
+		userFunction.apply(key,
 				window,
 				bufferAndTrigger.f0.getUnpackedElements(),
 				timestampedCollector);

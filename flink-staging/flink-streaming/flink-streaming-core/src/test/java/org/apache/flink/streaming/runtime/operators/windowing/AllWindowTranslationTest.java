@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
@@ -41,10 +41,10 @@ import org.junit.Test;
 
 /**
  * These tests verify that the api calls on
- * {@link org.apache.flink.streaming.api.datastream.KeyedWindowDataStream} instantiate
+ * {@link org.apache.flink.streaming.api.datastream.AllWindowedStream} instantiate
  * the correct window operator.
  */
-public class NonParallelWindowDataStreamTranslationTest extends StreamingMultipleProgramsTestBase {
+public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 	/**
 	 * These tests ensure that the fast aligned time windows operator is used if the
@@ -71,11 +71,11 @@ public class NonParallelWindowDataStreamTranslationTest extends StreamingMultipl
 
 		DataStream<Tuple2<String, Integer>> window2 = source
 				.windowAll(SlidingProcessingTimeWindows.of(1000, 100))
-				.mapWindow(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
+				.apply(new AllWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void evaluate(
+					public void apply(
 							TimeWindow window,
 							Iterable<Tuple2<String, Integer>> values,
 							Collector<Tuple2<String, Integer>> out) throws Exception {
@@ -113,11 +113,11 @@ public class NonParallelWindowDataStreamTranslationTest extends StreamingMultipl
 		DataStream<Tuple2<String, Integer>> window2 = source
 				.windowAll(TumblingProcessingTimeWindows.of(1000))
 				.trigger(CountTrigger.of(100))
-				.mapWindow(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
+				.apply(new AllWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void evaluate(
+					public void apply(
 							TimeWindow window,
 							Iterable<Tuple2<String, Integer>> values,
 							Collector<Tuple2<String, Integer>> out) throws Exception {
@@ -161,11 +161,11 @@ public class NonParallelWindowDataStreamTranslationTest extends StreamingMultipl
 				.windowAll(TumblingProcessingTimeWindows.of(1000))
 				.trigger(CountTrigger.of(100))
 				.evictor(TimeEvictor.of(100))
-				.mapWindow(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
+				.apply(new AllWindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public void evaluate(
+					public void apply(
 							TimeWindow window,
 							Iterable<Tuple2<String, Integer>> values,
 							Collector<Tuple2<String, Integer>> out) throws Exception {

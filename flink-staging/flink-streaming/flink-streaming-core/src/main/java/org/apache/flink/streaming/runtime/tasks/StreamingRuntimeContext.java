@@ -157,7 +157,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 				return new PartitionedStreamOperatorState(provider, statePartitioner, getUserCodeClassLoader());
 			} else {
 				throw new RuntimeException(
-						"Partitioned state can only be used with KeyedDataStreams.");
+						"Partitioned state can only be used with KeyedStreams.");
 			}
 		} else {
 			return new StreamOperatorState(provider);

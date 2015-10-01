@@ -24,12 +24,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-public class ReduceKeyedWindowFunction<K, W extends Window, T> extends RichKeyedWindowFunction<T, T, K, W> {
+public class ReduceAllWindowFunction<W extends Window, T> extends RichAllWindowFunction<T, T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final ReduceFunction<T> reduceFunction;
 
-	public ReduceKeyedWindowFunction(ReduceFunction<T> reduceFunction) {
+	public ReduceAllWindowFunction(ReduceFunction<T> reduceFunction) {
 		this.reduceFunction = reduceFunction;
 	}
 
@@ -52,7 +52,7 @@ public class ReduceKeyedWindowFunction<K, W extends Window, T> extends RichKeyed
 	}
 
 	@Override
-	public void evaluate(K k, W window, Iterable<T> values, Collector<T> out) throws Exception {
+	public void apply(W window, Iterable<T> values, Collector<T> out) throws Exception {
 		T result = null;
 
 		for (T v: values) {

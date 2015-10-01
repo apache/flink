@@ -39,6 +39,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{RichMapFunction, RichFlatMapFunction, RichFilterFunction}
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
+import org.apache.flink.streaming.api.datastream.{KeyedStream => JavaKeyedStream}
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -246,7 +247,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(firstField: String, otherFields: String*): GroupedDataStream[T, JavaTuple] = 
+  def groupBy(firstField: String, otherFields: String*): GroupedDataStream[T, JavaTuple] =
    javaStream.groupBy(firstField +: otherFields.toArray: _*)   
   
   /**
@@ -601,7 +602,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   private[flink] def isStatePartitioned: Boolean = {
-    javaStream.isInstanceOf[KeyedDataStream[_, _]]
+    javaStream.isInstanceOf[JavaKeyedStream[_, _]]
   }
 
   /**

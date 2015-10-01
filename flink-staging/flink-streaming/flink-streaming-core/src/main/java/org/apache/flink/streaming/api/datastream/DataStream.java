@@ -233,15 +233,15 @@ public class DataStream<T> {
 
 	/**
 	 * 
-	 * It creates a new {@link KeyedDataStream} that uses the provided key for partitioning
+	 * It creates a new {@link KeyedStream} that uses the provided key for partitioning
 	 * its operator states. 
 	 *
 	 * @param key
 	 *            The KeySelector to be used for extracting the key for partitioning
-	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
-	public <K> KeyedDataStream<T, K> keyBy(KeySelector<T, K> key){
-		return new KeyedDataStream<T, K>(this, clean(key));
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key){
+		return new KeyedStream<T, K>(this, clean(key));
 	}
 
 	/**
@@ -250,9 +250,9 @@ public class DataStream<T> {
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
 	 *            will be grouped.
-	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
-	public KeyedDataStream<T, Tuple> keyBy(int... fields) {
+	public KeyedStream<T, Tuple> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return keyBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
 		} else {
@@ -269,14 +269,14 @@ public class DataStream<T> {
 	 * @param fields
 	 *            One or more field expressions on which the state of the {@link DataStream} operators will be
 	 *            partitioned.
-	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 **/
-	public KeyedDataStream<T, Tuple> keyBy(String... fields) {
+	public KeyedStream<T, Tuple> keyBy(String... fields) {
 		return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
 	}
 
-	private KeyedDataStream<T, Tuple> keyBy(Keys<T> keys) {
-		return new KeyedDataStream<T, Tuple>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
+	private KeyedStream<T, Tuple> keyBy(Keys<T> keys) {
+		return new KeyedStream<T, Tuple>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
 				getType(), getExecutionConfig())));
 	}
 	
@@ -288,7 +288,7 @@ public class DataStream<T> {
 	 * @param fields
 	 *            The position of the fields on which the states of the {@link DataStream}
 	 *            will be partitioned.
-	 * @return The {@link DataStream} with partitioned state (i.e. KeyedDataStream)
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public GroupedDataStream<T, Tuple> groupBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
@@ -816,7 +816,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Windows this {@code KeyedDataStream} into tumbling time windows.
+	 * Windows this {@code DataStream} into tumbling time windows.
 	 *
 	 * <p>
 	 * This is a shortcut for either {@code .window(TumblingTimeWindows.of(size))} or
@@ -826,7 +826,7 @@ public class DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public NonParallelWindowDataStream<T, TimeWindow> timeWindowAll(AbstractTime size) {
+	public AllWindowedStream<T, TimeWindow> timeWindowAll(AbstractTime size) {
 		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
 		if (actualSize instanceof EventTime) {
@@ -837,7 +837,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Windows this {@code KeyedDataStream} into sliding time windows.
+	 * Windows this {@code DataStream} into sliding time windows.
 	 *
 	 * <p>
 	 * This is a shortcut for either {@code .window(SlidingTimeWindows.of(size, slide))} or
@@ -847,7 +847,7 @@ public class DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public NonParallelWindowDataStream<T, TimeWindow> timeWindowAll(AbstractTime size, AbstractTime slide) {
+	public AllWindowedStream<T, TimeWindow> timeWindowAll(AbstractTime size, AbstractTime slide) {
 		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 		AbstractTime actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
@@ -879,8 +879,8 @@ public class DataStream<T> {
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
 	 */
-	public <W extends Window> NonParallelWindowDataStream<T, W> windowAll(WindowAssigner<? super T, W> assigner) {
-		return new NonParallelWindowDataStream<>(this, assigner);
+	public <W extends Window> AllWindowedStream<T, W> windowAll(WindowAssigner<? super T, W> assigner) {
+		return new AllWindowedStream<>(this, assigner);
 	}
 
 	/**
