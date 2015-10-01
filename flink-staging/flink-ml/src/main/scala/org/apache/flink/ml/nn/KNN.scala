@@ -128,6 +128,7 @@ object KNN {
   /** [[FitOperation]] which trains a KNN based on the given training data set.
     * @tparam T Subtype of [[org.apache.flink.ml.math.Vector]]
     */
+
   implicit def fitKNN[T <: Vector : TypeInformation] = new FitOperation[KNN, T] {
     override def fit(
         instance: KNN,
@@ -150,6 +151,7 @@ object KNN {
     * @tparam T Subtype of [[Vector]]
     * @return The given testing data set with k-nearest neighbors
     */
+
   implicit def predictValues[T <: Vector : ClassTag : TypeInformation] = {
     new PredictDataSetOperation[KNN, T, (Vector, Array[Vector])] {
       override def predictDataSet(

@@ -97,15 +97,14 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
     /**
      * Test ability to get all objects in minimal bounding box + objects in siblings' block method
      *  In this case, drawing a picture of the QuadTree shows that
-     *  (-0.2, 0.31), (-0.21, 0.29), (-0.21, 0.289), (-0.1, 0.289)
+     *  (-0.2, 0.31), (-0.21, 0.29), (-0.21, 0.289)
      *  are objects near (-0.2001, 0.31001)
      */
 
     val siblingsObjectsComputed = myTree.searchNeighborsSiblingQueue(DenseVector(-0.2001, 0.31001))
     val isSiblingsInSearch = siblingsObjectsComputed.contains(DenseVector(-0.2, 0.31)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.29)) &&
-      siblingsObjectsComputed.contains(DenseVector(-0.21, 0.289)) &&
-      siblingsObjectsComputed.contains( DenseVector(-0.1, 0.289))
+      siblingsObjectsComputed.contains(DenseVector(-0.21, 0.289))
 
     computedCentersLength should be(knownCentersLengths)
     isNeighborInSearch should be(true)
