@@ -178,6 +178,9 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> DataStream<R> mapWindow(KeyedWindowFunction<T, R, K, W> function) {
+		// clean the closure
+		function = input.getExecutionEnvironment().clean(function);
+		
 		TypeInformation<T> inType = input.getType();
 		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
 				function, KeyedWindowFunction.class, true, true, inType, null, false);
