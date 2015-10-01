@@ -265,10 +265,10 @@ If no vertex input is provided during Graph creation, Gelly will automatically p
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 // initialize the vertex value to be equal to the vertex ID
-val graph = Graph.fromCollection(edgeList, env,
+val graph = Graph.fromCollection(edgeList,
     new MapFunction[Long, Long] {
        def map(id: Long): Long = id
-    })
+    }, env)
 {% endhighlight %}
 </div>
 </div>
