@@ -275,7 +275,7 @@ public class Client {
 	//  Program submission / execution
 	// ------------------------------------------------------------------------
 
-	public JobExecutionResult runBlocking(PackagedProgram prog, int parallelism) throws ProgramInvocationException {
+	public JobSubmissionResult runBlocking(PackagedProgram prog, int parallelism) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 			return runBlocking(prog.getPlanWithJars(), parallelism);
@@ -292,7 +292,7 @@ public class Client {
 				ContextEnvironment.unsetContext();
 			}
 
-			return JobExecutionResult.fromJobSubmissionResult(new JobSubmissionResult(lastJobID));
+			return new JobSubmissionResult(lastJobID);
 		}
 		else {
 			throw new RuntimeException();

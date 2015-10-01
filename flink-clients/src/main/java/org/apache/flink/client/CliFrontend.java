@@ -39,12 +39,12 @@ import java.util.Properties;
 import akka.actor.ActorSystem;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.InfoOptions;
@@ -638,6 +638,8 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
+		LOG.info("Starting execution of program");
+
 		JobSubmissionResult result;
 		try {
 			result = client.runDetached(program, parallelism);
@@ -662,7 +664,7 @@ public class CliFrontend {
 	protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
 		LOG.info("Starting execution of program");
 
-		JobExecutionResult result;
+		JobSubmissionResult result;
 		try {
 			client.setPrintStatusDuringExecution(true);
 			result = client.runBlocking(program, parallelism);
@@ -676,13 +678,14 @@ public class CliFrontend {
 
 		LOG.info("Program execution finished");
 
-		if (!webFrontend) {
-			System.out.println("Job with JobID " + result.getJobID() + " has finished.");
-			System.out.println("Job Runtime: " + result.getNetRuntime() + " ms");
-			Map<String, Object> accumulatorsResult = result.getAllAccumulatorResults();
+		if (result instanceof JobExecutionResult && !webFrontend) {
+			JobExecutionResult execResult = (JobExecutionResult) result;
+			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
+			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
+			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
 			if (accumulatorsResult.size() > 0) {
-				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+					System.out.println("Accumulator Results: ");
+					System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
 			}
 		}
 
