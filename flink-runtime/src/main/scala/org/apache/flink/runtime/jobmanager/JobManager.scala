@@ -382,27 +382,23 @@ class JobManager(
             if (jobInfo.client != ActorRef.noSender) {
               newJobStatus match {
                 case JobStatus.FINISHED =>
-                  val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
-                    executionGraph.getAccumulatorsSerialized()
+                  try {
+                    val accumulatorResults = executionGraph.getAccumulatorsSerialized()
+                    val result = new SerializedJobExecutionResult(
+                      jobID,
+                      jobInfo.duration,
+                      accumulatorResults)
+
+                    jobInfo.client ! decorateMessage(JobResultSuccess(result))
                   } catch {
                     case e: Exception =>
                       log.error(s"Cannot fetch final accumulators for job $jobID", e)
-
                       val exception = new JobExecutionException(jobID,
                         "Failed to retrieve accumulator results.", e)
 
                       jobInfo.client ! decorateMessage(JobResultFailure(
                         new SerializedThrowable(exception)))
-
-                      Collections.emptyMap()
                   }
-
-                  val result = new SerializedJobExecutionResult(
-                    jobID,
-                    jobInfo.duration,
-                    accumulatorResults)
-                  jobInfo.client ! decorateMessage(JobResultSuccess(result))
-
                 case JobStatus.CANCELED =>
                   // the error may be packed as a serialized throwable
                   val unpackedError = SerializedThrowable.get(
