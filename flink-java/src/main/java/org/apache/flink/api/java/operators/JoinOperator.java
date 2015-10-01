@@ -337,8 +337,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 					builder = builder
 							.withUdf(new TupleUnwrappingJoiner<>(function))
-							.withUnwrappingLeftInput(input1, selectorKeys1, getInput1Type())
-							.withUnwrappingRightInput(input2, selectorKeys2, getInput2Type());
+							.withWrappedInput1(input1, selectorKeys1, getInput1Type())
+							.withWrappedInput2(input2, selectorKeys2, getInput2Type());
 				} else if (keys2 instanceof Keys.SelectorFunctionKeys) {
 					// The right side of the join needs the tuple wrapping/unwrapping
 
@@ -348,7 +348,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					builder = builder
 							.withUdf(new TupleRightUnwrappingJoiner<>(function))
 							.withInput1(input1, getInput1Type(), keys1)
-							.withUnwrappingRightInput(input2, selectorKeys2, getInput2Type());
+							.withWrappedInput2(input2, selectorKeys2, getInput2Type());
 				} else {
 					// The left side of the join needs the tuple wrapping/unwrapping
 
@@ -357,7 +357,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 					builder = builder
 							.withUdf(new TupleLeftUnwrappingJoiner<>(function))
-							.withUnwrappingLeftInput(input1, selectorKeys1, getInput1Type())
+							.withWrappedInput1(input1, selectorKeys1, getInput1Type())
 							.withInput2(input2, getInput2Type(), keys2);
 				}
 			} else if (keys1 instanceof Keys.ExpressionKeys && keys2 instanceof Keys.ExpressionKeys) {
@@ -381,15 +381,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			private final JoinType joinType;
 
 			private int parallelism;
-			private FlatJoinFunction udf;
+			private FlatJoinFunction<?, ?, OUT> udf;
 			private TypeInformation<OUT> resultType;
 
 			private Operator input1;
-			private TypeInformation input1Type;
+			private TypeInformation<?> input1Type;
 			private Keys<?> keys1;
 
 			private Operator input2;
-			private TypeInformation input2Type;
+			private TypeInformation<?> input2Type;
 			private Keys<?> keys2;
 
 			private Partitioner<?> partitioner;
@@ -400,11 +400,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				this.joinType = joinType;
 			}
 
-			public JoinOperatorBaseBuilder<OUT> with() {
-				return this;
-			}
-
-			public <I1, K> JoinOperatorBaseBuilder<OUT> withUnwrappingLeftInput(
+			public <I1, K> JoinOperatorBaseBuilder<OUT> withWrappedInput1(
 					Operator<I1> input1,
 					Keys.SelectorFunctionKeys<I1, ?> rawKeys1,
 					TypeInformation<I1> inputType1) {
@@ -416,7 +412,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				return this.withInput1(keyMapper1, typeInfoWithKey1, rawKeys1);
 			}
 
-			public <I2, K> JoinOperatorBaseBuilder<OUT> withUnwrappingRightInput(
+			public <I2, K> JoinOperatorBaseBuilder<OUT> withWrappedInput2(
 					Operator<I2> input2,
 					Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 					TypeInformation<I2> inputType2) {
@@ -477,7 +473,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			public AbstractJoinOperatorBase<?, ?, OUT, ?> build() {
 				AbstractJoinOperatorBase<?, ?, OUT, ?> operator;
 				if (joinType.isOuter()) {
-					operator = new OuterJoinOperatorBase(
+					operator = new OuterJoinOperatorBase<>(
 							udf,
 							new BinaryOperatorInformation(input1Type, input2Type, resultType),
 							this.keys1.computeLogicalKeyPositions(),
