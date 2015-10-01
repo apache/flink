@@ -66,10 +66,10 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	protected boolean isPartitioned = false;
 
 	protected DiscretizedStream(SingleOutputStreamOperator<StreamWindow<OUT>, ?> discretizedStream,
-			KeySelector<OUT, ?> groupByKey, WindowTransformation tranformation,
+			KeySelector<OUT, ?> keyByKey, WindowTransformation tranformation,
 			boolean isPartitioned) {
 		super();
-		this.groupByKey = groupByKey;
+		this.keyByKey = keyByKey;
 		this.discretizedStream = discretizedStream;
 		this.transformation = tranformation;
 		this.isPartitioned = isPartitioned;
@@ -151,8 +151,8 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 				: new ParallelMerge<OUT>(reduceFunction);
 
 		return reduced.discretizedStream
-				.groupBy(new WindowKey<OUT>())
-				.connect(numOfParts.groupBy(0))
+				.keyBy(new WindowKey<OUT>())
+				.connect(numOfParts.keyBy(0))
 				.transform(
 						"CoFlatMap",
 						reduced.discretizedStream.getType(),
@@ -218,9 +218,9 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 		if (isGrouped()) {
 			DiscretizedStream<OUT> out = transform(transformation, "Window partitioner", getType(),
-					new WindowPartitioner<OUT>(groupByKey)).setParallelism(parallelism);
+					new WindowPartitioner<OUT>(keyByKey)).setParallelism(parallelism);
 
-			out.groupByKey = null;
+			out.keyByKey = null;
 			out.isPartitioned = true;
 
 			return out;
@@ -247,7 +247,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		// Only merge partitioned streams
 		if (isPartitioned) {
 			return wrap(
-					discretizedStream.groupBy(new WindowKey<OUT>()).transform("Window Merger",
+					discretizedStream.keyBy(new WindowKey<OUT>()).transform("Window Merger",
 							type, new WindowMerger<OUT>()).setParallelism(discretizedStream.getParallelism()), false);
 		} else {
 			return this;
@@ -258,14 +258,14 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	@SuppressWarnings("unchecked")
 	private <R> DiscretizedStream<R> wrap(SingleOutputStreamOperator<StreamWindow<R>, ?> stream,
 			boolean isPartitioned) {
-		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.groupByKey,
+		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.keyByKey,
 				transformation, isPartitioned);
 	}
 
 	@SuppressWarnings("unchecked")
 	private <R> DiscretizedStream<R> wrap(SingleOutputStreamOperator<StreamWindow<R>, ?> stream,
 			WindowTransformation transformation) {
-		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.groupByKey,
+		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.keyByKey,
 				transformation, isPartitioned);
 	}
 
@@ -329,7 +329,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	}
 
 	protected DiscretizedStream<OUT> copy() {
-		return new DiscretizedStream<OUT>(discretizedStream, groupByKey, transformation, isPartitioned);
+		return new DiscretizedStream<OUT>(discretizedStream, keyByKey, transformation, isPartitioned);
 	}
 
 	@Override

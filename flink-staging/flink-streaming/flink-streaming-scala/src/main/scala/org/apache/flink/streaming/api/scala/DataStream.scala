@@ -209,58 +209,31 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def connect[T2](dataStream: DataStream[T2]): ConnectedStreams[T, T2] =
     javaStream.connect(dataStream.getJavaStream)
-
-
-
-  /**
-   * Partitions the operator states of the DataStream by the given key positions 
-   * (for tuple/array types).
-   */
-  def keyBy(fields: Int*): DataStream[T] = javaStream.keyBy(fields: _*)
-
-  /**
-   *
-   * Partitions the operator states of the DataStream by the given field expressions.
-   */
-  def keyBy(firstField: String, otherFields: String*): DataStream[T] =
-    javaStream.keyBy(firstField +: otherFields.toArray: _*)
-
-
-  /**
-   * Partitions the operator states of the DataStream by the given K key. 
-   */
-  def keyBy[K: TypeInformation](fun: T => K): DataStream[T] = {
-    val cleanFun = clean(fun)
-    val keyExtractor = new KeySelector[T, K] {
-      def getKey(in: T) = cleanFun(in)
-    }
-    javaStream.keyBy(keyExtractor)
-  }
   
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(fields: Int*): GroupedDataStream[T, JavaTuple] = javaStream.groupBy(fields: _*)
+  def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = javaStream.keyBy(fields: _*)
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy(firstField: String, otherFields: String*): GroupedDataStream[T, JavaTuple] =
-   javaStream.groupBy(firstField +: otherFields.toArray: _*)   
+  def keyBy(firstField: String, otherFields: String*): KeyedStream[T, JavaTuple] =
+   javaStream.keyBy(firstField +: otherFields.toArray: _*)   
   
   /**
    * Groups the elements of a DataStream by the given K key to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
-  def groupBy[K: TypeInformation](fun: T => K): GroupedDataStream[T, K] = {
+  def keyBy[K: TypeInformation](fun: T => K): KeyedStream[T, K] = {
 
     val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = cleanFun(in)
     }
-    javaStream.groupBy(keyExtractor)
+    javaStream.keyBy(keyExtractor)
   }
 
   /**

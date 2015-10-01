@@ -59,7 +59,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 		DataStream<Integer> stream2 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
 
 		stream1.union(stream2)
-				.groupBy(new IdentityKeySelector<Integer>())
+				.keyBy(new IdentityKeySelector<Integer>())
 				.map(new OnceFailingPartitionedSum(NUM_STRINGS))
 				.keyBy(0)
 				.addSink(new CounterSink());

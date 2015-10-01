@@ -80,7 +80,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * DataStream.window(...) operator on an already grouped data stream.
    *
    */
-  def groupBy(fields: Int*): WindowedDataStream[T] = javaStream.groupBy(fields: _*)
+  def keyBy(fields: Int*): WindowedDataStream[T] = javaStream.keyBy(fields: _*)
 
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -91,8 +91,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * DataStream.window(...) operator on an already grouped data stream.
    *
    */
-  def groupBy(firstField: String, otherFields: String*): WindowedDataStream[T] =
-   javaStream.groupBy(firstField +: otherFields.toArray: _*)   
+  def keyBy(firstField: String, otherFields: String*): WindowedDataStream[T] =
+   javaStream.keyBy(firstField +: otherFields.toArray: _*)
     
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -103,13 +103,13 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * DataStream.window(...) operator on an already grouped data stream.
    *
    */
-  def groupBy[K: TypeInformation](fun: T => K): WindowedDataStream[T] = {
+  def keyBy[K: TypeInformation](fun: T => K): WindowedDataStream[T] = {
 
     val cleanFun = clean(fun)
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = cleanFun(in)
     }
-    javaStream.groupBy(keyExtractor)
+    javaStream.keyBy(keyExtractor)
   }
   
   /**

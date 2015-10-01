@@ -179,7 +179,7 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 			public void flatMap(Integer value, Collector<String> out) throws Exception {
 				out.collect("x " + value);
 			}
-		}).groupBy(new KeySelector<String, Integer>() {
+		}).keyBy(new KeySelector<String, Integer>() {
 
 			private static final long serialVersionUID = 1L;
 
@@ -197,7 +197,7 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 			public Long map(Integer value) throws Exception {
 				return Long.valueOf(value + 1);
 			}
-		}).groupBy(new KeySelector<Long, Long>() {
+		}).keyBy(new KeySelector<Long, Long>() {
 
 			private static final long serialVersionUID = 1L;
 

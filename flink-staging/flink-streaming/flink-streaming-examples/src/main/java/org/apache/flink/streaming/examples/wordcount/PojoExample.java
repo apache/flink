@@ -63,7 +63,7 @@ public class PojoExample {
 		// split up the lines into Word objects
 		text.flatMap(new Tokenizer())
 		// group by the field word and sum up the frequency
-				.groupBy("word").sum("frequency");
+				.keyBy("word").sum("frequency");
 
 		if (fileOutput) {
 			counts.writeAsText(outputPath);

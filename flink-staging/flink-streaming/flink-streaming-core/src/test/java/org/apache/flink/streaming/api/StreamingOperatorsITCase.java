@@ -78,7 +78,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		DataStream<Tuple2<Integer, Integer>> sourceStream = env.addSource(new TupleSource(numElements, numKeys));
 
 		SplitDataStream<Tuple2<Integer, Integer>> splittedResult = sourceStream
-			.groupBy(0)
+			.keyBy(0)
 			.fold(0, new FoldFunction<Tuple2<Integer, Integer>, Integer>() {
 				@Override
 				public Integer fold(Integer accumulator, Tuple2<Integer, Integer> value) throws Exception {
@@ -146,7 +146,7 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		DataStream<Tuple2<Integer, NonSerializable>> input = env.addSource(new NonSerializableTupleSource(numElements));
 
 		input
-			.groupBy(0)
+			.keyBy(0)
 			.fold(
 				new NonSerializable(42),
 				new FoldFunction<Tuple2<Integer, NonSerializable>, NonSerializable>() {

@@ -194,7 +194,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
 
 		sourceStream21
-				.groupBy(2, 2)
+				.keyBy(2, 2)
 				.window(Time.of(10, new MyTimestamp(), 0))
 				.every(Time.of(4, new MyTimestamp(), 0))
 				.maxBy(3)
@@ -260,7 +260,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				return new Tuple2<Long, Integer>(value, 1);
 			}
 		})
-				.groupBy(0)
+				.keyBy(0)
 				.window(Count.of(10000)).sum(1).flatten()
 				.filter(new FilterFunction<Tuple2<Long, Integer>>() {
 

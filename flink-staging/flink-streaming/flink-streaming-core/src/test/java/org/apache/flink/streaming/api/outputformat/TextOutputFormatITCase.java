@@ -40,7 +40,7 @@ public class TextOutputFormatITCase extends StreamingProgramTestBase {
 
 		DataStream<Tuple2<String, Integer>> counts = text
 				.flatMap(new CsvOutputFormatITCase.Tokenizer())
-				.groupBy(0).sum(1);
+				.keyBy(0).sum(1);
 
 		counts.writeAsText(resultPath);
 

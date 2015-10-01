@@ -69,7 +69,7 @@ public class ParallelMergeITCase extends StreamingProgramTestBase {
 		DataStream<Tuple2<String, Integer>> counts =
 				text.flatMap(new Tokenizer())
 						.window(Time.of(1000, TimeUnit.MILLISECONDS))
-						.groupBy(0)
+						.keyBy(0)
 						.sum(1)
 						.flatten();
 

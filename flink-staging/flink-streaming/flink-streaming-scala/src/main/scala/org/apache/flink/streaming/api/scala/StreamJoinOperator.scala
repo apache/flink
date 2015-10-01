@@ -151,7 +151,7 @@ object StreamJoinOperator {
     private def createJoinOperator(): JavaStream[(I1, I2)] = {
 
 //      val returnType = createTuple2TypeInformation[I1, I2](op.input1.getType, op.input2.getType)
-//      op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
+//      op.input1.keyBy(keys1).connect(op.input2.keyBy(keys2))
 //        .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
 //          returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
       null
@@ -172,7 +172,7 @@ object StreamJoinOperator {
 
       val cleanFun = clean(getJoinWindowFunction(jp, fun))
 
-//      op.input1.groupBy(jp.keys1).connect(op.input2.groupBy(jp.keys2))
+//      op.input1.keyBy(jp.keys1).connect(op.input2.keyBy(jp.keys2))
 //        .addGeneralWindowCombine[R](
 //          cleanFun,
 //          implicitly[TypeInformation[R]],

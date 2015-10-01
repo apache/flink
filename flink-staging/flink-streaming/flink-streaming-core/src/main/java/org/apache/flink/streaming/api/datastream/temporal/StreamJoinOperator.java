@@ -211,8 +211,8 @@ public class StreamJoinOperator<I1, I2> extends
 //					op.input1.getType(), op.input2.getType());
 
 //			return new JoinedStream<I1, I2, Tuple2<I1, I2>>(this, op.input1
-//					.groupBy(keys1)
-//					.connect(op.input2.groupBy(keys2))
+//					.keyBy(keys1)
+//					.connect(op.input2.keyBy(keys2))
 //					.addGeneralWindowCombine(joinWindowFunction, outType, op.windowSize,
 //							op.slideInterval, op.timeStamp1, op.timeStamp2));
 			return null;
@@ -244,8 +244,8 @@ public class StreamJoinOperator<I1, I2> extends
 
 //				return new JoinedStream<I1, I2, OUT>(
 //						predicate, predicate.op.input1
-//						.groupBy(predicate.keys1)
-//						.connect(predicate.op.input2.groupBy(predicate.keys2))
+//						.keyBy(predicate.keys1)
+//						.connect(predicate.op.input2.keyBy(predicate.keys2))
 //						.addGeneralWindowCombine(joinWindowFunction, outType, predicate.op.windowSize,
 //								predicate.op.slideInterval, predicate.op.timeStamp1, predicate.op.timeStamp2));
 				return null;

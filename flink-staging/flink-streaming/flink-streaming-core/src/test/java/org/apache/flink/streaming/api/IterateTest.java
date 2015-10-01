@@ -401,7 +401,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 				.withFeedbackType("String");
 
 		try {
-			coIt.groupBy(1, 2);
+			coIt.keyBy(1, 2);
 			fail();
 		} catch (InvalidProgramException e) {
 			// this is expected
@@ -476,7 +476,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Integer> source = env.fromElements(1, 2, 3)
 				.map(NoOpIntMap).name("ParallelizeMap");
 
-		IterativeDataStream<Integer> it = source.groupBy(key).iterate(3000);
+		IterativeDataStream<Integer> it = source.keyBy(key).iterate(3000);
 
 		DataStream<Integer> head = it.flatMap(new RichFlatMapFunction<Integer, Integer>() {
 
@@ -502,7 +502,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		it.closeWith(head.groupBy(key).union(head.map(NoOpIntMap).groupBy(key))).addSink(new ReceiveCheckNoOpSink<Integer>());
+		it.closeWith(head.keyBy(key).union(head.map(NoOpIntMap).keyBy(key))).addSink(new ReceiveCheckNoOpSink<Integer>());
 
 		env.execute();
 	}

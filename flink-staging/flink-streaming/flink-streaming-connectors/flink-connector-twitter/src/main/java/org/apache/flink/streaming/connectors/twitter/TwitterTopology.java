@@ -82,7 +82,7 @@ public class TwitterTopology {
 						return new Tuple2<String, Integer>(value, 1);
 					}
 				})
-				.groupBy(0)
+				.keyBy(0)
 				.sum(1);
 
 		dataStream.print();

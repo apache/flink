@@ -60,7 +60,7 @@ public class TopSpeedWindowing {
 		} else {
 			carData = env.addSource(CarSource.create(numOfCars));
 		}
-		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData.groupBy(0)
+		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData.keyBy(0)
 				.window(Time.of(evictionSec * 1000, new CarTimestamp()))
 				.every(Delta.of(triggerMeters,
 						new DeltaFunction<Tuple4<Integer, Integer, Double, Long>>() {

@@ -89,7 +89,7 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 				.startNewChain()
 
 				// -------------- fourth vertex - reducer and the sink ----------------
-				.groupBy(0)
+				.keyBy(0)
 				.reduce(new OnceFailingReducer(NUM_LONGS))
 				.addSink(new SinkFunction<Tuple1<Long>>() {
 					@Override
