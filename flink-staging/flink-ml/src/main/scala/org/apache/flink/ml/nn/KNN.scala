@@ -185,32 +185,18 @@ object KNN {
                   val b1 = BigDecimal(math.pow(4, training.values.head.size)) * BigDecimal(testing.values.length) * BigDecimal(math.log(training.values.length))
                   val b2 = BigDecimal(testing.values.length) * BigDecimal(training.values.length)
 
-                  var BruteOrQuad =  b1 < b2
-                  //BruteOrQuad = true
-                  var Br = b1 - b2
+                  val BruteOrQuad = b1 < b2 &&
+                    ( metric.isInstanceOf[EuclideanDistanceMetric] || metric.isInstanceOf[SquaredEuclideanDistanceMetric])
+
+                  //println("BruteOrQuad =  " + BruteOrQuad)
+                  //var Br = b1 - b2
+                  //println("Br =   " + Br)
 
                   if (!BruteOrQuad) {
                     for (v <- training.values) {
                       trainingFiltered = trainingFiltered :+ v.asInstanceOf[DenseVector]
-                      //println("v     " + v)
                     }
                   }
-
-                  /*
-                  println(" testing.values.length         " + testing.values.length )
-                  println(" training.values.length           " + training.values.length )
-                  println("training.values.head.size            " + training.values.head.size)
-                  println("diff =  " + Br)
-                  BruteOrQuad = true
-
-                  if(BruteOrQuad){
-                    println("using QuadTree! ")
-                    //println("dimension =  " + training.values.head.size)
-                  } else{
-                    println("using Brute Force!")
-                    //println("dimension =  " + training.values.head.size)
-                  }
-                  */
 
                     for (i <- 0 to training.values.head.size - 1) {
                       val minTrain = training.values.map(x => x(i)).min - 0.01
@@ -224,7 +210,7 @@ object KNN {
 
                     }
 
-                  var trainingQuadTree = new QuadTree(MinVec, MaxVec)
+                  var trainingQuadTree = new QuadTree(MinVec, MaxVec,metric)
 
                   if (trainingQuadTree.maxPerBox < k) {
                       trainingQuadTree.maxPerBox = k
@@ -244,11 +230,10 @@ object KNN {
 
                         /// do KNN query on siblingObjects and get max distance of kNN
                         val knnSiblings = siblingObjects.map(
-                          v => SquaredEuclideanDistanceMetric().distance(a._2, v)
+                          v => metric.distance(a._2, v)
                         ).sortWith(_ < _).take(k)
 
                         val rad = knnSiblings.last
-                        //println("trainingFiltered =  " + trainingFiltered)
 
                         trainingFiltered = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], math.sqrt(rad))
 

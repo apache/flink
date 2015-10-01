@@ -20,7 +20,7 @@
 package org.apache.flink.ml.nn.util
 
 import org.apache.flink.ml.math.DenseVector
-import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
+import org.apache.flink.ml.metrics.distances.DistanceMetric
 
 import scala.collection.mutable.ListBuffer
 
@@ -36,7 +36,7 @@ import scala.collection.mutable.ListBuffer
  */
 
 
-class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
+class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:DistanceMetric){
   var maxPerBox = 20
 
   class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]) {
@@ -303,7 +303,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   }
 
    def distance(a:DenseVector,b:DenseVector):Double = {
-    val diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
-    math.sqrt(diffSQ)
+   // val diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
+   // math.sqrt(diffSQ)
+     distMetric.distance(a,b)
   }
 }

@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
 import org.apache.flink.ml.nn.util.QuadTree
 import org.apache.flink.test.util.FlinkTestBase
 import org.apache.flink.ml.math.DenseVector
@@ -38,7 +39,7 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
     val minVec = ListBuffer(-1.0, -0.5)
     val maxVec = ListBuffer(1.0, 0.5)
 
-    val myTree = new QuadTree(minVec, maxVec)
+    val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric())
     myTree.maxPerBox = 3
 
     /**
