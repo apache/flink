@@ -33,7 +33,7 @@ class KNNBenchmark extends FlatSpec {
 
     //// Generate trainingSet
     val r = scala.util.Random
-    val nFill = 20000
+    var nFill = 160
 
   val rSeq = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian))
   /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
@@ -50,15 +50,6 @@ class KNNBenchmark extends FlatSpec {
     val rSeqTest2D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian))
     val testingSet2D = env.fromCollection(rSeqTest2D)
 
-  val rSeq3D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian))
-
-  /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
-  val trainingSet3D = env.fromCollection(rSeq3D)
-
-  val rSeqTest3D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian))
-  val testingSet3D = env.fromCollection(rSeqTest3D)
-
-
   val rSeq4D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian, r.nextGaussian))
 
   /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
@@ -67,7 +58,33 @@ class KNNBenchmark extends FlatSpec {
   val rSeqTest4D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian, r.nextGaussian))
   val testingSet4D = env.fromCollection(rSeqTest4D)
 
-  /////////////////////////////////////////2d
+  nFill = 160000
+
+  /////////////////////////////////////////6d
+  val rSeq6D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian,r.nextGaussian, r.nextGaussian,
+    r.nextGaussian, r.nextGaussian))
+
+  /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
+  val trainingSet6D = env.fromCollection(rSeq6D)
+
+  val rSeqTest6D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian,r.nextGaussian, r.nextGaussian,
+    r.nextGaussian))
+
+  val testingSet6D = env.fromCollection(rSeqTest6D)
+
+
+  /////////////////////////////////////////7d
+  val rSeq7D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian,r.nextGaussian, r.nextGaussian,
+    r.nextGaussian, r.nextGaussian, r.nextGaussian))
+
+  /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
+  val trainingSet7D = env.fromCollection(rSeq7D)
+
+  val rSeqTest7D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian,r.nextGaussian, r.nextGaussian,
+    r.nextGaussian, r.nextGaussian))
+
+  val testingSet7D = env.fromCollection(rSeqTest7D)
+
 
   var t0 = System.nanoTime()
   //// ACTUAL CALL TO kNN
@@ -86,7 +103,7 @@ class KNNBenchmark extends FlatSpec {
 
 
   /////////////////////////////////////////2d
-
+/*
   var t02D = System.nanoTime()
   //// ACTUAL CALL TO kNN
   ///FIRST SET UP PARAMETERS
@@ -101,24 +118,6 @@ class KNNBenchmark extends FlatSpec {
   val result2D = knn2D.predict(testingSet2D).collect()
 
   var tf2D = System.nanoTime()
-
-
-
-  //////////////////////////////////////////3d
-  var t03D = System.nanoTime()
-  //// ACTUAL CALL TO kNN
-  ///FIRST SET UP PARAMETERS
-  val knn3D = KNN()
-    .setK(3)
-    .setBlocks(4)
-    .setDistanceMetric(SquaredEuclideanDistanceMetric())
-
-  // ACTUAL kNN COMPUTATION
-  // run knn join
-  knn3D.fit(trainingSet3D)
-  val result3D = knn3D.predict(testingSet3D).collect()
-
-  var tf3D = System.nanoTime()
 
 
 
@@ -137,11 +136,46 @@ class KNNBenchmark extends FlatSpec {
   val result4D = knn4D.predict(testingSet4D).collect()
 
   var tf4D = System.nanoTime()
+*/
 
-  println("Elapsed time first 2D =       : " + (tf - t0)/1000000000 + "s")
-  println("Elapsed time 2D =       : " + (tf2D - t02D)/1000000000 + "s")
-  println("Elapsed time 3D =       : " + (tf3D - t03D)/1000000000 + "s")
-  println("Elapsed time 4D =       : " + (tf4D - t04D)/1000000000 + "s")
+  //////////////////////////////////////////6d
+  var t06D = System.nanoTime()
+  //// ACTUAL CALL TO kNN
+  ///FIRST SET UP PARAMETERS
+  val knn6D = KNN()
+    .setK(3)
+    .setBlocks(4)
+    .setDistanceMetric(SquaredEuclideanDistanceMetric())
+
+  // ACTUAL kNN COMPUTATION
+  // run knn join
+  knn6D.fit(trainingSet6D)
+  val result6D = knn6D.predict(testingSet6D).collect()
+  var tf6D = System.nanoTime()
+
+/*
+  //////////////////////////////////////////7d
+  var t07D = System.nanoTime()
+  //// ACTUAL CALL TO kNN
+  ///FIRST SET UP PARAMETERS
+  val knn7D = KNN()
+    .setK(3)
+    .setBlocks(4)
+    .setDistanceMetric(SquaredEuclideanDistanceMetric())
+
+  // ACTUAL kNN COMPUTATION
+  // run knn join
+  knn7D.fit(trainingSet7D)
+  val result7D = knn7D.predict(testingSet7D).collect()
+
+  var tf7D = System.nanoTime()
+*/
+  //println("Elapsed time first 2D =       : " + (tf - t0)/1000000000 + "s")
+  //println("Elapsed time 2D =       : " + (tf2D - t02D)/1000000000 + "s")
+  //println("Elapsed time 4D =       : " + (tf4D - t04D)/1000000000 + "s")
+  println("Elapsed time 6D =       : " + (tf6D - t06D)/1000000000 + "s")
+
+  //println("Elapsed time 7D =       : " + (tf7D - t07D)/1000000000 + "s")
 
   println("")
 }

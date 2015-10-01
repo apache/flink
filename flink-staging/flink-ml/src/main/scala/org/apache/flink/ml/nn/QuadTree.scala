@@ -35,8 +35,6 @@ import scala.collection.mutable.ListBuffer
  * @param maxVec
  */
 
-//////////// CHANGE OR ADD CONSTRUCTOR OF THE CLASS TO ALLOW WHOLE SET TO BE INPUT AND CREATE BOUNDING
-/////////// BOX AUTOMATICALLY.............................
 
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   var maxPerBox = 20
@@ -105,21 +103,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
         }
       }
       math.sqrt(minDist)
-    }
-
-
-    def getClosestChild(obj:DenseVector): Node = {
-      var bestMinDist = this.children.head.minDist(obj)
-      var index = 0
-      var count = 0
-      for (child <- this.children){
-          if(child.minDist(obj) < bestMinDist){
-            bestMinDist = child.minDist(obj)
-            index = count
-            count += 1
-          }
-      }
-      this.children(index)
     }
 
     def whichChild(obj:DenseVector):Int = {
@@ -234,10 +217,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
     * max distance D_s to obj.  D_s is then used during the kNN query to find all points
     * within a radius D_s of obj using searchNeighbors
    *
-   * @param obj
-   * @return
    */
-
 
   private def subOne(tuple: (Double,Node)) = tuple._1
 

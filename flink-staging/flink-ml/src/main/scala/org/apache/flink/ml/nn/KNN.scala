@@ -178,79 +178,88 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
-                  //// automated max/min values to get bounding box (add/subtract 0.01 to
-                  // avoid error when detecting points near the boundary)
+                  var MinVec = new ListBuffer[Double]
+                  var MaxVec = new ListBuffer[Double]
+                  var bFiltVect = new ListBuffer[DenseVector]
 
+                  val b1 = BigDecimal(math.pow(4, training.values.head.size)) * BigDecimal(testing.values.length) * BigDecimal(math.log(training.values.length))
+                  val b2 = BigDecimal(testing.values.length) * BigDecimal(training.values.length)
 
-                  var MinVec =  new ListBuffer[Double]
-                  var MaxVec =  new ListBuffer[Double]
-                  for ( i <- 0 to training.values.head.size - 1){
-                    val minTrain = training.values.map(x => x(i)).min - 0.01
-                    val minTest = testing.values.map(x => x._2(i)).min - 0.01
+                  var BruteOrQuad =  b1 < b2
+                  var Br = b1 - b2
 
-                    val maxTrain = training.values.map(x => x(i)).max + 0.01
-                    val maxTest = testing.values.map(x => x._2(i)).max + 0.01
+                  /*
+                  println(" testing.values.length         " + testing.values.length )
+                  println(" training.values.length           " + training.values.length )
+                  println("training.values.head.size            " + training.values.head.size)
+                  println("diff =  " + Br)
+                  BruteOrQuad = true
 
-                    MinVec = MinVec :+ Array(minTrain, minTest).min
-                    MaxVec = MaxVec :+ Array(maxTrain, maxTest).max
-
-                    //MinVec = MinVec :+ minTrain
-                    //MaxVec = MaxVec :+ maxTrain
-
+                  if(BruteOrQuad){
+                    println("using QuadTree! ")
+                    //println("dimension =  " + training.values.head.size)
+                  } else{
+                    println("using Brute Force!")
+                    //println("dimension =  " + training.values.head.size)
                   }
+                  */
+
+                    for (i <- 0 to training.values.head.size - 1) {
+                      val minTrain = training.values.map(x => x(i)).min - 0.01
+                      val minTest = testing.values.map(x => x._2(i)).min - 0.01
+
+                      val maxTrain = training.values.map(x => x(i)).max + 0.01
+                      val maxTest = testing.values.map(x => x._2(i)).max + 0.01
+
+                      MinVec = MinVec :+ Array(minTrain, minTest).min
+                      MaxVec = MaxVec :+ Array(maxTrain, maxTest).max
+
+                    }
 
                   var trainingQuadTree = new QuadTree(MinVec, MaxVec)
-                  if (trainingQuadTree.maxPerBox < k){
-                    trainingQuadTree.maxPerBox = k
-                  }
 
-                  for (v <- training.values){
-                    trainingQuadTree.insert(v.asInstanceOf[DenseVector])
-                  }
-
-                  for (a <- testing.values) {
-                    //println("a =   " + a )
-
-                    /////  Find siblings' objects and do kNN there
-                    //var siblingObjects = trainingQuadTree.searchNeighborsSibling(a._2.asInstanceOf[DenseVector])
-                    var siblingObjects = trainingQuadTree.searchNeighborsSiblingQueue(a._2.asInstanceOf[DenseVector])
-
-                    //println("siblingsObjects =   " + siblingObjects)
-                          /// do KNN query on siblingObjects and get max distance of kNN
-                    val knnSiblings = siblingObjects.map (
-                            v => SquaredEuclideanDistanceMetric().distance(a._2, v)
-                    ).sortWith(_<_).take(k)
-
-                    if(siblingObjects.isEmpty) {
-                      println("siblingsObjects =   " + siblingObjects)
-                      println("a =  " + a)
-
+                  if (trainingQuadTree.maxPerBox < k) {
+                      trainingQuadTree.maxPerBox = k
                     }
 
-                    var rad = knnSiblings.last
+                    if (BruteOrQuad){
+                      for (v <- training.values) {
+                        trainingQuadTree.insert(v.asInstanceOf[DenseVector])
+                      }
+                  }
 
-                    //// NOW ONLY WANT TO SCAN THROUGH OTHER NEARBY, BUT NON-SIBLING POINTS
-                    //// EVENTUALLY SHOULD REFINE searchNeighbors TO NOT KEEP ANY SIBLINGS
-                    //// CURRENTLY PICKING UP SIBLINGS TOO !!
-                    val bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector],math.sqrt(rad))
-                    //println("bFiltVect =   " + bFiltVect)
+                    for (a <- testing.values) {
 
-                     for (b <- bFiltVect){
+                      if (BruteOrQuad) {
+                        /////  Find siblings' objects and do kNN there
+                        val siblingObjects = trainingQuadTree.searchNeighborsSiblingQueue(a._2.asInstanceOf[DenseVector])
 
+                        /// do KNN query on siblingObjects and get max distance of kNN
+                        val knnSiblings = siblingObjects.map(
+                          v => SquaredEuclideanDistanceMetric().distance(a._2, v)
+                        ).sortWith(_ < _).take(k)
 
-                    // for (a <- testing.values) {
-                    //for (b <- training.values){
-                      // (training vector, input vector, input key, distance)
-                      queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
-                      if (queue.size > k) {
-                        queue.dequeue()
+                        val rad = knnSiblings.last
+
+                        var bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], math.sqrt(rad))
+                      }
+                      else {
+                        for (v <- training.values){
+                          bFiltVect :+ v
+                        }
+                      }
+
+                      for (b <- bFiltVect) {
+                        // (training vector, input vector, input key, distance)
+                        queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
+                        if (queue.size > k) {
+                          queue.dequeue()
+                        }
+                      }
+                      for (v <- queue) {
+                        out.collect(v)
                       }
                     }
-
-                    for (v <- queue) {
-                      out.collect(v)
-                    }
-                  }
                 }
               }
             }
@@ -275,6 +284,7 @@ object KNN {
             result
           case None => throw new RuntimeException("The KNN model has not been trained." +
               "Call first fit before calling the predict operation.")
+
         }
       }
     }
