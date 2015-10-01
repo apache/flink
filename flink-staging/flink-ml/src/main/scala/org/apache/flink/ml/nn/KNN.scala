@@ -180,13 +180,21 @@ object KNN {
 
                   var MinVec = new ListBuffer[Double]
                   var MaxVec = new ListBuffer[Double]
-                  var bFiltVect = new ListBuffer[DenseVector]
+                  var trainingFiltered = new ListBuffer[DenseVector]
 
                   val b1 = BigDecimal(math.pow(4, training.values.head.size)) * BigDecimal(testing.values.length) * BigDecimal(math.log(training.values.length))
                   val b2 = BigDecimal(testing.values.length) * BigDecimal(training.values.length)
 
                   var BruteOrQuad =  b1 < b2
+                  //BruteOrQuad = false
                   var Br = b1 - b2
+
+                  if (!BruteOrQuad) {
+                    for (v <- training.values) {
+                      trainingFiltered = trainingFiltered :+ v.asInstanceOf[DenseVector]
+                      //println("v     " + v)
+                    }
+                  }
 
                   /*
                   println(" testing.values.length         " + testing.values.length )
@@ -241,15 +249,12 @@ object KNN {
 
                         val rad = knnSiblings.last
 
-                        var bFiltVect = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], math.sqrt(rad))
-                      }
-                      else {
-                        for (v <- training.values){
-                          bFiltVect :+ v
-                        }
-                      }
+                        trainingFiltered = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], math.sqrt(rad))
 
-                      for (b <- bFiltVect) {
+                      }
+ //                     else {
+
+                      for (b <- trainingFiltered) {
                         // (training vector, input vector, input key, distance)
                         queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
                         if (queue.size > k) {
