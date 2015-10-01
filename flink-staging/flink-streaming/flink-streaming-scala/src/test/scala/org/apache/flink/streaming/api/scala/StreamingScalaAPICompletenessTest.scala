@@ -44,12 +44,21 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.DataStream.getTransformation",
       "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.copy",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.getFirstInput",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.getSecondInput",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType1",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType2",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.addGeneralWindowCombine",
       "org.apache.flink.streaming.api.datastream.ConnectedStreams.transform",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getType",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getExecutionConfig",
+
+      "org.apache.flink.streaming.api.datastream.WindowedStream.getExecutionEnvironment",
+      "org.apache.flink.streaming.api.datastream.AllWindowedStream.getExecutionEnvironment",
+
+      "org.apache.flink.streaming.api.datastream.KeyedStream.transform",
+      "org.apache.flink.streaming.api.datastream.KeyedStream.getKeySelector",
 
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isChainingEnabled",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
@@ -112,6 +121,21 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "SplitDataStream", "SplitDataStream",
       classOf[org.apache.flink.streaming.api.datastream.SplitDataStream[_]],
       classOf[SplitDataStream[_]])
+
+    checkMethods(
+      "WindowedStream", "WindowedStream",
+      classOf[org.apache.flink.streaming.api.datastream.WindowedStream[_, _, _]],
+      classOf[WindowedStream[_, _, _]])
+
+    checkMethods(
+      "AllWindowedStream", "AllWindowedStream",
+      classOf[org.apache.flink.streaming.api.datastream.AllWindowedStream[_, _]],
+      classOf[AllWindowedStream[_, _]])
+
+    checkMethods(
+      "KeyedStream", "KeyedStream",
+      classOf[org.apache.flink.streaming.api.datastream.KeyedStream[_, _]],
+      classOf[KeyedStream[_, _]])
 
     checkMethods(
       "StreamJoinOperator", "StreamJoinOperator",

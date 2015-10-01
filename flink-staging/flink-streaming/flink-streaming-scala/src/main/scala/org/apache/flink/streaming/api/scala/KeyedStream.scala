@@ -18,11 +18,14 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream, DataStream => JavaStream }
+import org.apache.flink.streaming.api.datastream.{KeyedStream => KeyedJavaStream, DataStream => JavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
+import org.apache.flink.streaming.api.windowing.assigners._
+import org.apache.flink.streaming.api.windowing.time.{ProcessingTime, EventTime, AbstractTime}
+import org.apache.flink.streaming.api.windowing.windows.{Window, TimeWindow}
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.FoldFunction
@@ -30,7 +33,91 @@ import org.apache.flink.api.common.functions.ReduceFunction
 
 
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
- 
+
+  // ------------------------------------------------------------------------
+  //  Windowing
+  // ------------------------------------------------------------------------
+
+  /**
+   * Windows this [[KeyedStream]] into tumbling time windows.
+   *
+   * <p>
+   * This is a shortcut for either `.window(TumblingTimeWindows.of(size))` or
+   * `.window(TumblingProcessingTimeWindows.of(size))` depending on the time characteristic
+   * set using
+   * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
+   *
+   * @param size The size of the window.
+   */
+  def timeWindow(size: AbstractTime): WindowedStream[T, K, TimeWindow] = {
+    val env = new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
+    val actualSize = size.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
+
+    actualSize match {
+      case t: EventTime =>
+        val assigner = TumblingTimeWindows.of(actualSize.toMilliseconds)
+          .asInstanceOf[WindowAssigner[T, TimeWindow]]
+        window(assigner)
+      case t: ProcessingTime =>
+        val assigner = TumblingProcessingTimeWindows.of(actualSize.toMilliseconds)
+          .asInstanceOf[WindowAssigner[T, TimeWindow]]
+        window(assigner)
+      case _ => throw new RuntimeException("Invalid time: " + actualSize)
+    }
+  }
+
+  /**
+   * Windows this [[KeyedStream]] into sliding time windows.
+   *
+   * <p>
+   * This is a shortcut for either `.window(SlidingTimeWindows.of(size))` or
+   * `.window(SlidingProcessingTimeWindows.of(size))` depending on the time characteristic
+   * set using
+   * [[StreamExecutionEnvironment.setStreamTimeCharacteristic()]]
+   *
+   * @param size The size of the window.
+   */
+  def timeWindow(size: AbstractTime, slide: AbstractTime): WindowedStream[T, K, TimeWindow] = {
+    val env = new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
+    val actualSize = size.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
+    val actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
+
+    actualSize match {
+      case t: EventTime =>
+        val assigner = SlidingTimeWindows.of(
+          actualSize.toMilliseconds,
+          actualSlide.toMilliseconds).asInstanceOf[WindowAssigner[T, TimeWindow]]
+        window(assigner)
+      case t: ProcessingTime =>
+        val assigner = SlidingProcessingTimeWindows.of(
+          actualSize.toMilliseconds,
+          actualSlide.toMilliseconds).asInstanceOf[WindowAssigner[T, TimeWindow]]
+        window(assigner)
+      case _ => throw new RuntimeException("Invalid time: " + actualSize)
+    }
+  }
+
+  /**
+   * Windows this data stream to a [[WindowedStream]], which evaluates windows
+   * over a key grouped stream. Elements are put into windows by a [[WindowAssigner]]. The
+   * grouping of elements is done both by key and by window.
+   *
+   * <p>
+   * A [[org.apache.flink.streaming.api.windowing.triggers.Trigger]] can be defined to specify
+   * when windows are evaluated. However, `WindowAssigner` have a default `Trigger`
+   * that is used if a `Trigger` is not specified.
+   *
+   * @param assigner The `WindowAssigner` that assigns elements to windows.
+   * @return The trigger windows data stream.
+   */
+  def window[W <: Window](assigner: WindowAssigner[_ >: T, W]): WindowedStream[T, K, W] = {
+    new WindowedStream(new WindowedJavaStream[T, K, W](javaStream, assigner))
+  }
+
+  // ------------------------------------------------------------------------
+  //  Non-Windowed aggregation operations
+  // ------------------------------------------------------------------------
+
   /**
    * Creates a new [[DataStream]] by reducing the elements of this DataStream
    * using an associative reduce function. An independent aggregate is kept per key.
