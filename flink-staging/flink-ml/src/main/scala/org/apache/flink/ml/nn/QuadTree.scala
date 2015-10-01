@@ -224,20 +224,24 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
   def searchNeighborsSiblingQueue(obj:DenseVector):ListBuffer[DenseVector] = {
     val nodeBuff = new ListBuffer[Node]
     var ret = new ListBuffer[DenseVector]
-    searchRecurSiblingQueue(obj, root, nodeBuff)
-    var NodeQueue = new scala.collection.mutable.PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
-    for (n <- nodeBuff){
-      NodeQueue += ( (-n.minDist(obj),n) )  /// Queues are max, so take negative minDist
-    }
-    var count = 0
-    while(count < maxPerBox){
-      val dq = NodeQueue.dequeue()
-      if (dq._2.objects.nonEmpty){
-        ret ++= dq._2.objects
-        count += dq._2.objects.length
+    if (root.children == null) {
+      root.objects
+    } else {
+      searchRecurSiblingQueue(obj, root, nodeBuff)
+      var NodeQueue = new scala.collection.mutable.PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
+      for (n <- nodeBuff) {
+        NodeQueue += ((-n.minDist(obj), n)) /// Queues are max, so take negative minDist
       }
+      var count = 0
+      while (count < maxPerBox) {
+        val dq = NodeQueue.dequeue()
+        if (dq._2.objects.nonEmpty) {
+          ret ++= dq._2.objects
+          count += dq._2.objects.length
+        }
+      }
+      ret
     }
-    ret
 }
 
   private def searchRecurSiblingQueue(obj:DenseVector,n:Node, nodeBuff:ListBuffer[Node]) {
@@ -250,9 +254,9 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double]){
           }
         }
         else {
-          for(child <- n.children) {
+          //for(child <- n.children) {
             searchRecurSiblingQueue(obj, child, nodeBuff)
-          }
+          //}
         }
       }
     }

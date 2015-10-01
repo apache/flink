@@ -186,7 +186,7 @@ object KNN {
                   val b2 = BigDecimal(testing.values.length) * BigDecimal(training.values.length)
 
                   var BruteOrQuad =  b1 < b2
-                  //BruteOrQuad = false
+                  //BruteOrQuad = true
                   var Br = b1 - b2
 
                   if (!BruteOrQuad) {
@@ -248,11 +248,11 @@ object KNN {
                         ).sortWith(_ < _).take(k)
 
                         val rad = knnSiblings.last
+                        //println("trainingFiltered =  " + trainingFiltered)
 
                         trainingFiltered = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], math.sqrt(rad))
 
                       }
- //                     else {
 
                       for (b <- trainingFiltered) {
                         // (training vector, input vector, input key, distance)

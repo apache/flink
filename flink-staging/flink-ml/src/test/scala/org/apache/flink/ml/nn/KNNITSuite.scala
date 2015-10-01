@@ -25,14 +25,9 @@ import org.apache.flink.ml.metrics.distances.SquaredEuclideanDistanceMetric
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.util.Random
-import org.apache.flink.api.scala.DataSetUtils._
-
 class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
   behavior of "The KNN Join Implementation"
 
-
-  /*
   it should "throw an exception when the given K is not valid" in {
     intercept[IllegalArgumentException] {
       KNN().setK(0)
@@ -44,64 +39,30 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
       KNN().setBlocks(0)
     }
   }
-*/
-
 
   it should "calculate kNN join correctly" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    println("howdy!")
     // prepare data
+    val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
+    val testingSet = env.fromElements(DenseVector(0.0, 0.0))
 
-    // FROM http://massapi.com/method/org/apache/flink/api/java/ExecutionEnvironment.fromCollection-8.html
-    // env.fromCollection "Creates a DataSet from the given non-empty collection"
-
-    //val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
-    //trainingSet.print
-
-    //// Generate alternate trainingSet
-    val r = scala.util.Random
-    val rSeq = Seq.fill(10000)(DenseVector(r.nextFloat, r.nextFloat)) //// form DataSet out of DenseVector
-    /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
-   // val trainingSet= env.fromCollection(Seq.fill(100)(DenseVector(r.nextFloat, r.nextFloat)))
-     val trainingSet= env.fromCollection(rSeq)
-
-    trainingSet.print
-
-    val testingSet = env.fromElements(DenseVector(0.0, 0.0)) /// single point, but generally DataSet[DenseVector]
-    testingSet.print
-
-    //// BELOW SEEMS TO RUN kNN FOR A SINGLE POINT TO COMPARE WITH OUTPUT OF knn
     // calculate answer
-   /*
     val answer = Classification.trainingData.map {
       v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
     }.sortBy(_._2).take(3).map(_._1).toArray
-   */
 
-    val answer = rSeq.map {
-      v => (v, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v))
-    }.sortBy(_._2).take(3).map(_._1).toArray
-
-    println("answer = :")
-    println("answer(0) =   " + answer(0) + "    answer(1) =   " + answer(1) + "    answer(2) =   " + answer(2))
-    //// ACTUAL CALL TO kNN
-    ///FIRST SET UP PARAMETERS
     val knn = KNN()
-        .setK(3)
-        .setBlocks(10)
-        .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setK(3)
+      .setBlocks(10)
+      .setDistanceMetric(SquaredEuclideanDistanceMetric())
 
-    // ACTUAL kNN COMPUTATION
     // run knn join
     knn.fit(trainingSet)
     val result = knn.predict(testingSet).collect()
 
-
-    //// TEST AGAINST `val answer = ...` STEP
     result.size should be(1)
     result.head._1 should be(DenseVector(0.0, 0.0))
     result.head._2 should be(answer)
-
   }
 }

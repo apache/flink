@@ -55,8 +55,8 @@ class LabeledVectorTest extends FlatSpec with Matchers with FlinkTestBase {
     //// Generate alternate trainingSet
     val r = scala.util.Random
     val rSeq = Seq.fill(10000)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian))
-//    val trainingSet= env.fromCollection(rSeq)
-//    val testingSet = env.fromElements(DenseVector(0.0, 0.0, 0.0)) /// single point
+   // val trainingSet= env.fromCollection(rSeq)
+   // val testingSet = env.fromElements(DenseVector(0.0, 0.0, 0.0)) /// single point
 
     println("trainingSet =     " + trainingSet)
     println("testingSet =      " + testingSet)
@@ -64,12 +64,15 @@ class LabeledVectorTest extends FlatSpec with Matchers with FlinkTestBase {
     //// BELOW SEEMS TO RUN kNN FOR A SINGLE POINT TO COMPARE WITH OUTPUT OF knn
     // calculate answer
 
+
     val answer = Classification.trainingData.map {
       v => (v.vector, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0), v.vector))
     }.sortBy(_._2).take(3).map(_._1).toArray
     println("answer.head =      " + answer.head )
 
-/*
+
+    /*
+
         val answer = rSeq.map {
           v => (v, SquaredEuclideanDistanceMetric().distance(DenseVector(0.0, 0.0, 0.0), v))
         }.sortBy(_._2).take(3).map(_._1).toArray
