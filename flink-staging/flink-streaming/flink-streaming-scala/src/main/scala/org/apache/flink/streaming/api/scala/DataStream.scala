@@ -19,6 +19,10 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, TimestampExtractor}
+import org.apache.flink.streaming.api.windowing.assigners._
+import org.apache.flink.streaming.api.windowing.time.{ProcessingTime, EventTime, AbstractTime}
+import org.apache.flink.streaming.api.windowing.windows.{Window, TimeWindow}
+import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -31,7 +35,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator, KeyedDataStream}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, DataStreamSink, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
@@ -610,6 +614,82 @@ class DataStream[T](javaStream: JavaStream[T]) {
     javaStream.every(windowingHelper)
 
   /**
+   * Windows this DataStream into tumbling time windows.
+   *
+   * This is a shortcut for either `.window(TumblingTimeWindows.of(size))` or
+   * `.window(TumblingProcessingTimeWindows.of(size))` depending on the time characteristic
+   * set using
+   * [[StreamExecutionEnvironment.setStreamTimeCharacteristic]].
+   *
+   * @param size The size of the window.
+   */
+  def timeWindowAll(size: AbstractTime): AllWindowedStream[T, TimeWindow] = {
+    val env = new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
+    val actualSize = size.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
+
+    actualSize match {
+      case t: EventTime =>
+        val assigner = TumblingTimeWindows.of(actualSize.toMilliseconds)
+          .asInstanceOf[WindowAssigner[T, TimeWindow]]
+        windowAll(assigner)
+      case t: ProcessingTime =>
+        val assigner = TumblingProcessingTimeWindows.of(actualSize.toMilliseconds)
+          .asInstanceOf[WindowAssigner[T, TimeWindow]]
+        windowAll(assigner)
+      case _ => throw new RuntimeException("Invalid time: " + actualSize)
+    }
+  }
+
+  /**
+   * Windows this DataStream into sliding time windows.
+   *
+   * This is a shortcut for either `.window(SlidingTimeWindows.of(size, slide))` or
+   * `.window(SlidingProcessingTimeWindows.of(size, slide))` depending on the time characteristic
+   * set using
+   * [[StreamExecutionEnvironment.setStreamTimeCharacteristic]].
+   *
+   * @param size The size of the window.
+   */
+  def timeWindowAll(size: AbstractTime, slide: AbstractTime): AllWindowedStream[T, TimeWindow] = {
+    val env = new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
+    val actualSize = size.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
+    val actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
+
+    actualSize match {
+      case t: EventTime =>
+        val assigner = SlidingTimeWindows.of(
+          actualSize.toMilliseconds,
+          actualSlide.toMilliseconds).asInstanceOf[WindowAssigner[T, TimeWindow]]
+        windowAll(assigner)
+      case t: ProcessingTime =>
+        val assigner = SlidingProcessingTimeWindows.of(
+          actualSize.toMilliseconds,
+          actualSlide.toMilliseconds).asInstanceOf[WindowAssigner[T, TimeWindow]]
+        windowAll(assigner)
+      case _ => throw new RuntimeException("Invalid time: " + actualSize)
+    }
+  }
+
+  /**
+   * Windows this data stream to a [[AllWindowedStream]], which evaluates windows
+   * over a key grouped stream. Elements are put into windows by a [[WindowAssigner]]. The grouping
+   * of elements is done both by key and by window.
+   *
+   * A [[org.apache.flink.streaming.api.windowing.triggers.Trigger]] can be defined to specify
+   * when windows are evaluated. However, `WindowAssigner` have a default `Trigger`
+   * that is used if a `Trigger` is not specified.
+   *
+   * Note: This operation can be inherently non-parallel since all elements have to pass through
+   * the same operator instance. (Only for special cases, such as aligned time windows is
+   * it possible to perform this operation in parallel).
+   *
+   * @param assigner The `WindowAssigner` that assigns elements to windows.
+   * @return The trigger windows data stream.
+   */
+  def windowAll[W <: Window](assigner: WindowAssigner[_ >: T, W]): AllWindowedStream[T, W] = {
+    new AllWindowedStream[T, W](new JavaAllWindowedStream[T, W](javaStream, assigner))
+  }
+  /**
    * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
    * The internal timestamps are, for example, used to to event-time window operations.
    *
@@ -780,7 +860,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
-   * is not disabled in the {@link org.apache.flink.api.common.ExecutionConfig}
+   * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
    */
   private[flink] def clean[F <: AnyRef](f: F): F = {
     new StreamExecutionEnvironment(javaStream.getExecutionEnvironment).scalaClean(f)
