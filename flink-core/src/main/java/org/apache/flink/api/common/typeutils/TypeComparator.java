@@ -288,14 +288,20 @@ public abstract class TypeComparator<T> implements Serializable {
 
 	/**
 	 * Extracts the key fields from a record. This is for use by the PairComparator to provide
-	 * interoperability between different record types.
+	 * interoperability between different record types. Note, that at least one key should be extracted.
+	 * @param record The record that contains the key(s)
+	 * @param target The array to write the key(s) into.
+	 * @param index The offset of the target array to start writing into.
 	 * @return the number of keys added to target.
 	 */
 	public abstract int extractKeys(Object record, Object[] target, int index);
 
 	/**
-	 * Get the field comparators. This is used together with {@link #extractKeys(Object, Object[], int)} to provide
-	 * interoperability between different record types.
+	 * Get the field comparators. This is used together with {@link #extractKeys(Object, Object[], int)}
+	 * to provide interoperability between different record types. Note, that this should return at
+	 * least one Comparator and that the number of Comparators must match the number of extracted
+	 * keys.
+	 * @return An Array of Comparators for the extracted keys.
 	 */
 	@SuppressWarnings("rawtypes")
 	public abstract TypeComparator[] getFlatComparators();
