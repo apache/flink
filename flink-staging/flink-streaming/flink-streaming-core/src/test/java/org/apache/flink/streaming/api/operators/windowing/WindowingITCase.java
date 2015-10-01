@@ -107,15 +107,15 @@ public class WindowingITCase extends StreamingMultipleProgramsTestBase {
 		source.window(Time.of(3, ts, 1)).every(Time.of(2, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new TestSink1());
 
-		source.window(Time.of(4, ts, 1)).groupBy(new ModKey(2))
+		source.window(Time.of(4, ts, 1)).keyBy(new ModKey(2))
 				.mapWindow(new IdentityWindowMap())
 				.flatten()
 				.addSink(new TestSink2()).name("TESTSIUNK2");
 
-		source.groupBy(key).window(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
+		source.keyBy(key).window(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new TestSink4());
 
-		source.groupBy(new ModKey(3)).window(Count.of(2)).groupBy(new ModKey(2))
+		source.keyBy(new ModKey(3)).window(Count.of(2)).keyBy(new ModKey(2))
 				.mapWindow(new IdentityWindowMap())
 				.flatten()
 				.addSink(new TestSink5());
@@ -123,14 +123,14 @@ public class WindowingITCase extends StreamingMultipleProgramsTestBase {
 		source.window(Time.of(2, ts)).every(Time.of(3, ts)).min(0).getDiscretizedStream()
 				.addSink(new TestSink3());
 
-		source.groupBy(key).window(Time.of(4, ts, 1)).max(0).getDiscretizedStream()
+		source.keyBy(key).window(Time.of(4, ts, 1)).max(0).getDiscretizedStream()
 				.addSink(new TestSink6());
 
 		source.window(Time.of(5, ts, 1)).mapWindow(new IdentityWindowMap())
 				.flatten()
 				.addSink(new TestSink7());
 
-		source.window(Time.of(5, ts, 1)).every(Time.of(4, ts, 1)).groupBy(new ModKey(2)).sum(0)
+		source.window(Time.of(5, ts, 1)).every(Time.of(4, ts, 1)).keyBy(new ModKey(2)).sum(0)
 				.getDiscretizedStream()
 				.addSink(new TestSink8());
 
@@ -152,7 +152,7 @@ public class WindowingITCase extends StreamingMultipleProgramsTestBase {
 
 		source.every(Count.of(4)).sum(0).getDiscretizedStream().addSink(new TestSink11());
 
-		source.window(FullStream.window()).every(Count.of(4)).groupBy(key).sum(0)
+		source.window(FullStream.window()).every(Count.of(4)).keyBy(key).sum(0)
 				.getDiscretizedStream()
 				.addSink(new TestSink12());
 
@@ -197,7 +197,7 @@ public class WindowingITCase extends StreamingMultipleProgramsTestBase {
 
 		source2.window(Time.of(2, ts, 1)).sum(0).getDiscretizedStream().addSink(new TestSink9());
 
-		source3.window(Time.of(5, ts, 1)).groupBy(new ModKey(2)).sum(0).getDiscretizedStream()
+		source3.window(Time.of(5, ts, 1)).keyBy(new ModKey(2)).sum(0).getDiscretizedStream()
 				.addSink(new TestSink10());
 
 		source

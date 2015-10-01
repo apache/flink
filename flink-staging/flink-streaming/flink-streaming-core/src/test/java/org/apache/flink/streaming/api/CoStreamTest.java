@@ -59,7 +59,7 @@ public class CoStreamTest extends StreamingMultipleProgramsTestBase {
 			public boolean filter(Integer value) throws Exception {
 				return true;
 			}
-		}).groupBy(new KeySelector<Integer, Integer>() {
+		}).keyBy(new KeySelector<Integer, Integer>() {
 
 			private static final long serialVersionUID = 1L;
 
@@ -88,7 +88,7 @@ public class CoStreamTest extends StreamingMultipleProgramsTestBase {
 					public boolean filter(Tuple2<Integer, Integer> value) throws Exception {
 						return true;
 					}
-				}).disableChaining().groupBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
+				}).disableChaining().keyBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 
 					private static final long serialVersionUID = 1L;
 

@@ -56,7 +56,7 @@ object TopSpeedWindowing {
 
     val cars = setCarsInput(env)
 
-    val topSeed = cars.groupBy("carId")
+    val topSeed = cars.keyBy("carId")
       .window(Time.of(evictionSec * 1000, (car : CarEvent) => car.time))
       .every(Delta.of[CarEvent](triggerMeters,
           (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))

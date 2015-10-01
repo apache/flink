@@ -96,7 +96,7 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
-	 * GroupBy operation for connected data stream. Groups the elements of
+	 * KeyBy operation for connected data stream. Assigns keys to the elements of
 	 * input1 and input2 according to keyPosition1 and keyPosition2.
 	 *
 	 * @param keyPosition1
@@ -107,13 +107,13 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            second input stream.
 	 * @return The grouped {@link ConnectedStreams}
 	 */
-	public ConnectedStreams<IN1, IN2> groupBy(int keyPosition1, int keyPosition2) {
-		return new ConnectedStreams<>(this.environment, inputStream1.groupBy(keyPosition1),
-				inputStream2.groupBy(keyPosition2));
+	public ConnectedStreams<IN1, IN2> keyBy(int keyPosition1, int keyPosition2) {
+		return new ConnectedStreams<>(this.environment, inputStream1.keyBy(keyPosition1),
+				inputStream2.keyBy(keyPosition2));
 	}
 
 	/**
-	 * GroupBy operation for connected data stream. Groups the elements of
+	 * KeyBy operation for connected data stream. Assigns keys to the elements of
 	 * input1 and input2 according to keyPositions1 and keyPositions2.
 	 *
 	 * @param keyPositions1
@@ -122,13 +122,13 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            The fields used to group the second input stream.
 	 * @return The grouped {@link ConnectedStreams}
 	 */
-	public ConnectedStreams<IN1, IN2> groupBy(int[] keyPositions1, int[] keyPositions2) {
-		return new ConnectedStreams<>(environment, inputStream1.groupBy(keyPositions1),
-				inputStream2.groupBy(keyPositions2));
+	public ConnectedStreams<IN1, IN2> keyBy(int[] keyPositions1, int[] keyPositions2) {
+		return new ConnectedStreams<>(environment, inputStream1.keyBy(keyPositions1),
+				inputStream2.keyBy(keyPositions2));
 	}
 
 	/**
-	 * GroupBy operation for connected data stream using key expressions. Groups
+	 * KeyBy operation for connected data stream using key expressions. Assigns keys to
 	 * the elements of input1 and input2 according to field1 and field2. A field
 	 * expression is either the name of a public field or a getter method with
 	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
@@ -140,13 +140,13 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            The grouping expression for the second input
 	 * @return The grouped {@link ConnectedStreams}
 	 */
-	public ConnectedStreams<IN1, IN2> groupBy(String field1, String field2) {
-		return new ConnectedStreams<>(environment, inputStream1.groupBy(field1),
-				inputStream2.groupBy(field2));
+	public ConnectedStreams<IN1, IN2> keyBy(String field1, String field2) {
+		return new ConnectedStreams<>(environment, inputStream1.keyBy(field1),
+				inputStream2.keyBy(field2));
 	}
 
 	/**
-	 * GroupBy operation for connected data stream using key expressions. Groups
+	 * KeyBy operation for connected data stream using key expressions.
 	 * the elements of input1 and input2 according to fields1 and fields2. A
 	 * field expression is either the name of a public field or a getter method
 	 * with parentheses of the {@link DataStream}S underlying type. A dot can be
@@ -159,13 +159,13 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            The grouping expressions for the second input
 	 * @return The grouped {@link ConnectedStreams}
 	 */
-	public ConnectedStreams<IN1, IN2> groupBy(String[] fields1, String[] fields2) {
-		return new ConnectedStreams<>(environment, inputStream1.groupBy(fields1),
-				inputStream2.groupBy(fields2));
+	public ConnectedStreams<IN1, IN2> keyBy(String[] fields1, String[] fields2) {
+		return new ConnectedStreams<>(environment, inputStream1.keyBy(fields1),
+				inputStream2.keyBy(fields2));
 	}
 
 	/**
-	 * GroupBy operation for connected data stream. Groups the elements of
+	 * KeyBy operation for connected data stream. Assigns keys to the elements of
 	 * input1 and input2 using keySelector1 and keySelector2.
 	 *
 	 * @param keySelector1
@@ -174,9 +174,9 @@ public class ConnectedStreams<IN1, IN2> {
 	 *            The {@link KeySelector} used for grouping the second input
 	 * @return The partitioned {@link ConnectedStreams}
 	 */
-	public ConnectedStreams<IN1, IN2> groupBy(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
-		return new ConnectedStreams<>(environment, inputStream1.groupBy(keySelector1),
-				inputStream2.groupBy(keySelector2));
+	public ConnectedStreams<IN1, IN2> keyBy(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
+		return new ConnectedStreams<>(environment, inputStream1.keyBy(keySelector1),
+				inputStream2.keyBy(keySelector2));
 	}
 
 	/**

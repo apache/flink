@@ -79,7 +79,7 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
     })
 
     val splittedResult = sourceStream
-      .groupBy(0)
+      .keyBy(0)
       .fold(0, new FoldFunction[(Int, Int), Int] {
         override def fold(accumulator: Int, value: (Int, Int)): Int = {
           accumulator + value._2

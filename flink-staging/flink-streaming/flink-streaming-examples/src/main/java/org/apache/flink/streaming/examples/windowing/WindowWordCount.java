@@ -72,7 +72,7 @@ public class WindowWordCount {
 				// create windows of windowSize records slided every slideSize records
 				.window(Count.of(windowSize)).every(Count.of(slideSize))
 				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0).sum(1)
+				.keyBy(0).sum(1)
 				// flatten the windows to a single stream
 				.flatten();
 

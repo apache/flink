@@ -88,7 +88,7 @@ public class CoStreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 				.map(new StatefulCounterFunction())
 
 				// -------------- fourth vertex - reducer (failing) and the sink ----------------
-				.groupBy("prefix")
+				.keyBy("prefix")
 				.reduce(new OnceFailingReducer(NUM_STRINGS))
 				.addSink(new SinkFunction<PrefixCount>() {
 

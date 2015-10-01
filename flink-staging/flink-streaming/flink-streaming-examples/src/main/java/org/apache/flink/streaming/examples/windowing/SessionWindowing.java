@@ -76,7 +76,7 @@ public class SessionWindowing {
 				});
 
 		// We create sessions for each id with max timeout of 3 time units
-		DataStream<Tuple3<String, Long, Integer>> aggregated = source.groupBy(0)
+		DataStream<Tuple3<String, Long, Integer>> aggregated = source.keyBy(0)
 				.window(new SessionTriggerPolicy(3L),
 						new TumblingEvictionPolicy<Tuple3<String, Long, Integer>>()).sum(2)
 				.flatten();

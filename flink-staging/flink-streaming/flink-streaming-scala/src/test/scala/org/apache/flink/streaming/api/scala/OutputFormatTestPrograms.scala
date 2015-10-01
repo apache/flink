@@ -36,7 +36,7 @@ object OutputFormatTestPrograms {
     val text = env.fromElements(input)
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
-      .groupBy(0)
+      .keyBy(0)
       .sum(1)
 
     counts.writeAsText(outputPath)
@@ -51,7 +51,7 @@ object OutputFormatTestPrograms {
     val text = env.fromElements(input)
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
-      .groupBy(0)
+      .keyBy(0)
       .sum(1)
 
     counts.writeAsCsv(outputPath)
@@ -66,7 +66,7 @@ object OutputFormatTestPrograms {
     val text = env.fromElements(input)
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
-      .groupBy(0)
+      .keyBy(0)
       .sum(1)
       .map(tuple => tuple.toString() + "\n")
 

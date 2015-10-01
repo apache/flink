@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.streaming.api.datastream.{ GroupedDataStream => GroupedJavaStream, DataStream => JavaStream }
+import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream, DataStream => JavaStream }
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
@@ -29,8 +29,7 @@ import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.common.functions.ReduceFunction
 
 
-class GroupedDataStream[T, K](javaStream: GroupedJavaStream[T, K]) 
-  extends DataStream[T](javaStream) {
+class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
  
   /**
    * Creates a new [[DataStream]] by reducing the elements of this DataStream

@@ -38,7 +38,7 @@ public class SocketOutputFormatITCase extends SocketOutputTestBase {
 
 		DataStream<String> counts =
 				text.flatMap(new CsvOutputFormatITCase.Tokenizer())
-						.groupBy(0).sum(1).map(new MapFunction<Tuple2<String, Integer>, String>() {
+						.keyBy(0).sum(1).map(new MapFunction<Tuple2<String, Integer>, String>() {
 					@Override
 					public String map(Tuple2<String, Integer> value) throws Exception {
 						return value.toString() + "\n";

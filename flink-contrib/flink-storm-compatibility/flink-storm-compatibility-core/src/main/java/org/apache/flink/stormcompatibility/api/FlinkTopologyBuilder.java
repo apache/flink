@@ -195,12 +195,12 @@ public class FlinkTopologyBuilder {
 								if (fields.size() > 0) {
 									FlinkOutputFieldsDeclarer prodDeclarer = this.declarers.get(producerId);
 									if (producer.size() == 1) {
-										inputStream = inputStream.groupBy(prodDeclarer
+										inputStream = inputStream.keyBy(prodDeclarer
 												.getGroupingFieldIndexes(inputStreamId,
 														grouping.get_fields()));
 									} else {
 										inputStream = inputStream
-												.groupBy(new SplitStreamTypeKeySelector(
+												.keyBy(new SplitStreamTypeKeySelector(
 														prodDeclarer.getGroupingFieldIndexes(
 																inputStreamId,
 																grouping.get_fields())));

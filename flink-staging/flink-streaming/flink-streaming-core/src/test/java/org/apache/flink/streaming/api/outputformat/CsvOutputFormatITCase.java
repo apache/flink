@@ -42,7 +42,7 @@ public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 
 		DataStream<Tuple2<String, Integer>> counts = text
 				.flatMap(new Tokenizer())
-				.groupBy(0).sum(1);
+				.keyBy(0).sum(1);
 
 		counts.writeAsCsv(resultPath);
 

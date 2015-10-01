@@ -57,7 +57,7 @@ object SocketTextStreamWordCount {
     val text = env.socketTextStream(hostName, port)
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
-      .groupBy(0)
+      .keyBy(0)
       .sum(1)
 
     if (fileOutput) {

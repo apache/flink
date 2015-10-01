@@ -278,68 +278,6 @@ public class DataStream<T> {
 		return new KeyedStream<T, Tuple>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
 				getType(), getExecutionConfig())));
 	}
-	
-	/**
-	 * Partitions the operator state of a {@link DataStream} by the given key positions. 
-	 * Mind that keyBy does not affect the partitioning of the {@link DataStream}
-	 * but only the way explicit state is partitioned among parallel instances.
-	 * 
-	 * @param fields
-	 *            The position of the fields on which the states of the {@link DataStream}
-	 *            will be partitioned.
-	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
-	 */
-	public GroupedDataStream<T, Tuple> groupBy(int... fields) {
-		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return groupBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
-		} else {
-			return groupBy(new Keys.ExpressionKeys<T>(fields, getType()));
-		}
-	}
-
-	/**
-	 * Groups a {@link DataStream} using field expressions. A field expression
-	 * is either the name of a public field or a getter method with parentheses
-	 * of the {@link DataStream}S underlying type. A dot can be used to drill
-	 * down into objects, as in {@code "field1.getInnerField2()" }. This method
-	 * returns an {@link GroupedDataStream}.
-	 *
-	 * <p>
-	 * This operator also affects the
-	 * partitioning of the stream, by forcing values with the same key to go to
-	 * the same processing instance.
-	 * 
-	 * @param fields
-	 *            One or more field expressions on which the DataStream will be
-	 *            grouped.
-	 * @return The grouped {@link DataStream}
-	 **/
-	public GroupedDataStream<T, Tuple> groupBy(String... fields) {
-		return groupBy(new Keys.ExpressionKeys<T>(fields, getType()));
-	}
-
-	/**
-	 * Groups the elements of a {@link DataStream} by the key extracted by the
-	 * {@link KeySelector} to be used with grouped operators like
-	 * {@link GroupedDataStream#reduce(org.apache.flink.api.common.functions.ReduceFunction)}.
-	 *
-	 * <p/>
-	 * This operator also affects the partitioning of the stream, by forcing
-	 * values with the same key to go to the same processing instance.
-	 * 
-	 * @param keySelector
-	 *            The {@link KeySelector} that will be used to extract keys for
-	 *            the values
-	 * @return The grouped {@link DataStream}
-	 */
-	public <K> GroupedDataStream<T, K> groupBy(KeySelector<T, K> keySelector) {
-		return new GroupedDataStream<T, K>(this, clean(keySelector));
-	}
-
-	private GroupedDataStream<T, Tuple> groupBy(Keys<T> keys) {
-		return new GroupedDataStream<T, Tuple>(this, 
-				clean(KeySelectorUtil.getSelectorForKeys(keys, getType(), getExecutionConfig())));
-	}
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is

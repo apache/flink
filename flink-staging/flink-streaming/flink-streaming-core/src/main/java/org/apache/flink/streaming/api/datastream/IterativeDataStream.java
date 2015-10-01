@@ -188,20 +188,17 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 				"Cannot change the input partitioning of an iteration head directly. Apply the partitioning on the input and feedback streams instead.");
 		
 		@Override
-		public ConnectedStreams<I, F> groupBy(int keyPosition1, int keyPosition2) {throw groupingException;}
-		
+		public ConnectedStreams<I, F> keyBy(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
+
 		@Override
-		public ConnectedStreams<I, F> groupBy(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
-		
+		public ConnectedStreams<I, F> keyBy(String field1, String field2) {throw groupingException;}
+
 		@Override
-		public ConnectedStreams<I, F> groupBy(String field1, String field2) {throw groupingException;}
-		
+		public ConnectedStreams<I, F> keyBy(String[] fields1, String[] fields2) {throw groupingException;}
+
 		@Override
-		public ConnectedStreams<I, F> groupBy(String[] fields1, String[] fields2) {throw groupingException;}
-		
-		@Override
-		public ConnectedStreams<I, F> groupBy(KeySelector<I, ?> keySelector1,KeySelector<F, ?> keySelector2) {throw groupingException;}
-		
+		public ConnectedStreams<I, F> keyBy(KeySelector<I, ?> keySelector1,KeySelector<F, ?> keySelector2) {throw groupingException;}
+
 		@Override
 		public ConnectedStreams<I, F> partitionByHash(int keyPosition1, int keyPosition2) {throw groupingException;}
 		

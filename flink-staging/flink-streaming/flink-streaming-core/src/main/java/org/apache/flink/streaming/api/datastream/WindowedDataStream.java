@@ -89,7 +89,7 @@ public class WindowedDataStream<T> {
 	protected boolean isLocal = false;
 
 	protected KeySelector<T, ?> discretizerKey;
-	protected KeySelector<T, ?> groupByKey;
+	protected KeySelector<T, ?> keyByKey;
 
 	protected WindowingHelper<T> triggerHelper;
 	protected WindowingHelper<T> evictionHelper;
@@ -101,8 +101,8 @@ public class WindowedDataStream<T> {
 		this.dataStream = dataStream;
 		this.triggerHelper = policyHelper;
 
-		if (dataStream instanceof GroupedDataStream) {
-			this.discretizerKey = ((GroupedDataStream<T, ?>) dataStream).keySelector;
+		if (dataStream instanceof KeyedStream) {
+			this.discretizerKey = ((KeyedStream<T, ?>) dataStream).keySelector;
 		}
 	}
 
@@ -113,15 +113,15 @@ public class WindowedDataStream<T> {
 		this.userTrigger = trigger;
 		this.userEvicter = evicter;
 
-		if (dataStream instanceof GroupedDataStream) {
-			this.discretizerKey = ((GroupedDataStream<T, ?>) dataStream).keySelector;
+		if (dataStream instanceof KeyedStream) {
+			this.discretizerKey = ((KeyedStream<T, ?>) dataStream).keySelector;
 		}
 	}
 
 	protected WindowedDataStream(WindowedDataStream<T> windowedDataStream) {
 		this.dataStream = windowedDataStream.dataStream;
 		this.discretizerKey = windowedDataStream.discretizerKey;
-		this.groupByKey = windowedDataStream.groupByKey;
+		this.keyByKey = windowedDataStream.keyByKey;
 		this.triggerHelper = windowedDataStream.triggerHelper;
 		this.evictionHelper = windowedDataStream.evictionHelper;
 		this.userTrigger = windowedDataStream.userTrigger;
@@ -170,11 +170,11 @@ public class WindowedDataStream<T> {
 	 *            The position of the fields to group by.
 	 * @return The grouped {@link WindowedDataStream}
 	 */
-	public WindowedDataStream<T> groupBy(int... fields) {
+	public WindowedDataStream<T> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return groupBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
+			return keyBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
 		} else {
-			return groupBy(new Keys.ExpressionKeys<T>(fields, getType()));
+			return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
 		}
 	}
 
@@ -194,8 +194,8 @@ public class WindowedDataStream<T> {
 	 *            The fields to group by
 	 * @return The grouped {@link WindowedDataStream}
 	 */
-	public WindowedDataStream<T> groupBy(String... fields) {
-		return groupBy(new Keys.ExpressionKeys<T>(fields, getType()));
+	public WindowedDataStream<T> keyBy(String... fields) {
+		return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
 	}
 
 	/**
@@ -210,14 +210,14 @@ public class WindowedDataStream<T> {
 	 *            The keySelector used to extract the key for grouping.
 	 * @return The grouped {@link WindowedDataStream}
 	 */
-	public WindowedDataStream<T> groupBy(KeySelector<T, ?> keySelector) {
+	public WindowedDataStream<T> keyBy(KeySelector<T, ?> keySelector) {
 		WindowedDataStream<T> ret = this.copy();
-		ret.groupByKey = keySelector;
+		ret.keyByKey = keySelector;
 		return ret;
 	}
 
-	private WindowedDataStream<T> groupBy(Keys<T> keys) {
-		return groupBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
+	private WindowedDataStream<T> keyBy(Keys<T> keys) {
+		return keyBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
 				getExecutionConfig())));
 	}
 
@@ -398,7 +398,7 @@ public class WindowedDataStream<T> {
 				.setParallelism(parallelism)
 				.transform(windowBuffer.getClass().getSimpleName(),
 						new StreamWindowTypeInfo<T>(getType()), bufferOperator)
-				.setParallelism(parallelism), groupByKey, transformation, false);
+				.setParallelism(parallelism), keyByKey, transformation, false);
 
 	}
 
@@ -442,8 +442,8 @@ public class WindowedDataStream<T> {
 		// If there is a groupby for the reduce operation we apply it before the
 		// discretizers, because we will forward everything afterwards to
 		// exploit task chaining
-		if (groupByKey != null) {
-			dataStream = dataStream.groupBy(groupByKey);
+		if (keyByKey != null) {
+			dataStream = dataStream.keyBy(keyByKey);
 		}
 
 		// We discretize the stream and call the timeReduce function of the
@@ -502,28 +502,28 @@ public class WindowedDataStream<T> {
 		if (transformation == WindowTransformation.REDUCEWINDOW) {
 			if (WindowUtils.isTumblingPolicy(trigger, eviction)) {
 				if (eviction instanceof KeepAllEvictionPolicy) {
-					if (groupByKey == null) {
+					if (keyByKey == null) {
 						return new TumblingPreReducer<T>(
 								(ReduceFunction<T>) transformation.getUDF(), getType()
 										.createSerializer(getExecutionConfig())).noEvict();
 					} else {
 						return new TumblingGroupedPreReducer<T>(
-								(ReduceFunction<T>) transformation.getUDF(), groupByKey,
+								(ReduceFunction<T>) transformation.getUDF(), keyByKey,
 								getType().createSerializer(getExecutionConfig())).noEvict();
 					}
 				} else {
-					if (groupByKey == null) {
+					if (keyByKey == null) {
 						return new TumblingPreReducer<T>(
 								(ReduceFunction<T>) transformation.getUDF(), getType()
 										.createSerializer(getExecutionConfig()));
 					} else {
 						return new TumblingGroupedPreReducer<T>(
-								(ReduceFunction<T>) transformation.getUDF(), groupByKey,
+								(ReduceFunction<T>) transformation.getUDF(), keyByKey,
 								getType().createSerializer(getExecutionConfig()));
 					}
 				}
 			} else if (WindowUtils.isSlidingCountPolicy(trigger, eviction)) {
-				if (groupByKey == null) {
+				if (keyByKey == null) {
 					return new SlidingCountPreReducer<T>(
 							clean((ReduceFunction<T>) transformation.getUDF()), dataStream
 									.getType().createSerializer(getExecutionConfig()),
@@ -532,13 +532,13 @@ public class WindowedDataStream<T> {
 				} else {
 					return new SlidingCountGroupedPreReducer<T>(
 							clean((ReduceFunction<T>) transformation.getUDF()), dataStream
-									.getType().createSerializer(getExecutionConfig()), groupByKey,
+									.getType().createSerializer(getExecutionConfig()), keyByKey,
 							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
 							((CountTriggerPolicy<?>) trigger).getStart());
 				}
 
 			} else if (WindowUtils.isSlidingTimePolicy(trigger, eviction)) {
-				if (groupByKey == null) {
+				if (keyByKey == null) {
 					return new SlidingTimePreReducer<T>(
 							(ReduceFunction<T>) transformation.getUDF(), dataStream.getType()
 									.createSerializer(getExecutionConfig()),
@@ -547,25 +547,25 @@ public class WindowedDataStream<T> {
 				} else {
 					return new SlidingTimeGroupedPreReducer<T>(
 							(ReduceFunction<T>) transformation.getUDF(), dataStream.getType()
-									.createSerializer(getExecutionConfig()), groupByKey,
+									.createSerializer(getExecutionConfig()), keyByKey,
 							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
 							WindowUtils.getTimeStampWrapper(trigger));
 				}
 
 			} else if (WindowUtils.isJumpingCountPolicy(trigger, eviction)) {
-				if (groupByKey == null) {
+				if (keyByKey == null) {
 					return new JumpingCountPreReducer<T>(
 							(ReduceFunction<T>) transformation.getUDF(), getType()
 									.createSerializer(getExecutionConfig()),
 							WindowUtils.getSlideSize(trigger) - WindowUtils.getWindowSize(eviction));
 				} else {
 					return new JumpingCountGroupedPreReducer<T>(
-							(ReduceFunction<T>) transformation.getUDF(), groupByKey, getType()
+							(ReduceFunction<T>) transformation.getUDF(), keyByKey, getType()
 									.createSerializer(getExecutionConfig()),
 							WindowUtils.getSlideSize(trigger) - WindowUtils.getWindowSize(eviction));
 				}
 			} else if (WindowUtils.isJumpingTimePolicy(trigger, eviction)) {
-				if (groupByKey == null) {
+				if (keyByKey == null) {
 					return new JumpingTimePreReducer<T>(
 							(ReduceFunction<T>) transformation.getUDF(), getType()
 									.createSerializer(getExecutionConfig()),
@@ -573,7 +573,7 @@ public class WindowedDataStream<T> {
 							WindowUtils.getTimeStampWrapper(trigger));
 				} else {
 					return new JumpingTimeGroupedPreReducer<T>(
-							(ReduceFunction<T>) transformation.getUDF(), groupByKey, getType()
+							(ReduceFunction<T>) transformation.getUDF(), keyByKey, getType()
 									.createSerializer(getExecutionConfig()),
 							WindowUtils.getSlideSize(trigger), WindowUtils.getWindowSize(eviction),
 							WindowUtils.getTimeStampWrapper(trigger));
@@ -845,7 +845,7 @@ public class WindowedDataStream<T> {
 	}
 
 	protected boolean isGrouped() {
-		return groupByKey != null;
+		return keyByKey != null;
 	}
 
 	/**

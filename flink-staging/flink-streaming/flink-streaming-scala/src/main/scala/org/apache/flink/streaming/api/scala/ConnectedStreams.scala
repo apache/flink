@@ -169,8 +169,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * second input stream.
    * @return @return The transformed { @link ConnectedStreams}
    */
-  def groupBy(keyPosition1: Int, keyPosition2: Int): ConnectedStreams[IN1, IN2] = {
-    javaStream.groupBy(keyPosition1, keyPosition2)
+  def keyBy(keyPosition1: Int, keyPosition2: Int): ConnectedStreams[IN1, IN2] = {
+    javaStream.keyBy(keyPosition1, keyPosition2)
   }
 
   /**
@@ -185,9 +185,9 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The fields used to group the second input stream.
    * @return @return The transformed { @link ConnectedStreams}
    */
-  def groupBy(keyPositions1: Array[Int], keyPositions2: Array[Int]): 
+  def keyBy(keyPositions1: Array[Int], keyPositions2: Array[Int]):
   ConnectedStreams[IN1, IN2] = {
-    javaStream.groupBy(keyPositions1, keyPositions2)
+    javaStream.keyBy(keyPositions1, keyPositions2)
   }
 
   /**
@@ -203,8 +203,8 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The grouping expression for the second input
    * @return The grouped { @link ConnectedStreams}
    */
-  def groupBy(field1: String, field2: String): ConnectedStreams[IN1, IN2] = {
-    javaStream.groupBy(field1, field2)
+  def keyBy(field1: String, field2: String): ConnectedStreams[IN1, IN2] = {
+    javaStream.keyBy(field1, field2)
   }
 
   /**
@@ -221,9 +221,9 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The grouping expressions for the second input
    * @return The grouped { @link ConnectedStreams}
    */
-  def groupBy(fields1: Array[String], fields2: Array[String]): 
+  def keyBy(fields1: Array[String], fields2: Array[String]):
   ConnectedStreams[IN1, IN2] = {
-    javaStream.groupBy(fields1, fields2)
+    javaStream.keyBy(fields1, fields2)
   }
 
   /**
@@ -238,7 +238,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The function used for grouping the second input
    * @return The grouped { @link ConnectedStreams}
    */
-  def groupBy[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
+  def keyBy[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
   ConnectedStreams[IN1, IN2] = {
 
     val cleanFun1 = clean(fun1)
@@ -250,7 +250,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       def getKey(in: IN2) = cleanFun2(in)
     }
 
-    javaStream.groupBy(keyExtractor1, keyExtractor2)
+    javaStream.keyBy(keyExtractor1, keyExtractor2)
   }
 
   /**
