@@ -43,11 +43,11 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.datastream.DataStream.transform",
       "org.apache.flink.streaming.api.datastream.DataStream.getTransformation",
       "org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator.copy",
-      "org.apache.flink.streaming.api.datastream.ConnectedDataStream.getExecutionEnvironment",
-      "org.apache.flink.streaming.api.datastream.ConnectedDataStream.getType1",
-      "org.apache.flink.streaming.api.datastream.ConnectedDataStream.getType2",
-      "org.apache.flink.streaming.api.datastream.ConnectedDataStream.addGeneralWindowCombine",
-      "org.apache.flink.streaming.api.datastream.ConnectedDataStream.transform",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.getExecutionEnvironment",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType1",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.getType2",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.addGeneralWindowCombine",
+      "org.apache.flink.streaming.api.datastream.ConnectedStreams.transform",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getType",
       "org.apache.flink.streaming.api.datastream.WindowedDataStream.getExecutionConfig",
 
@@ -104,19 +104,14 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       classOf[DataStream[_]])
 
     checkMethods(
-      "ConnectedDataStream", "ConnectedDataStream",
-      classOf[org.apache.flink.streaming.api.datastream.ConnectedDataStream[_,_]],
-      classOf[ConnectedDataStream[_,_]])
+      "ConnectedStreams", "ConnectedStreams",
+      classOf[org.apache.flink.streaming.api.datastream.ConnectedStreams[_,_]],
+      classOf[ConnectedStreams[_,_]])
 
     checkMethods(
       "SplitDataStream", "SplitDataStream",
       classOf[org.apache.flink.streaming.api.datastream.SplitDataStream[_]],
       classOf[SplitDataStream[_]])
-
-    checkMethods(
-      "StreamCrossOperator", "StreamCrossOperator",
-      classOf[org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator[_,_]],
-      classOf[StreamCrossOperator[_,_]])
 
     checkMethods(
       "StreamJoinOperator", "StreamJoinOperator",

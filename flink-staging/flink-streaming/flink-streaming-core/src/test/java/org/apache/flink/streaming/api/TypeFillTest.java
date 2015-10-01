@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -30,8 +29,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
-import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
@@ -72,12 +69,6 @@ public class TypeFillTest extends StreamingMultipleProgramsTestBase {
 			fail();
 		} catch (Exception e) {
 		}
-		try {
-			source.connect(source).windowReduce(new TestCoWindow<Long, Long, String>(), 10, 100)
-					.print();
-			fail();
-		} catch (Exception e) {
-		}
 
 		env.addSource(new TestSource<Integer>()).returns("Integer");
 		source.map(new TestMap<Long, Long>()).returns(Long.class).print();
@@ -86,9 +77,6 @@ public class TypeFillTest extends StreamingMultipleProgramsTestBase {
 		source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>())
 				.returns(BasicTypeInfo.INT_TYPE_INFO).print();
 		
-		source.connect(source).windowReduce(new TestCoWindow<Long, Long, String>(), 10, 100)
-				.returns("String").print();
-
 		assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
 				source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
 
@@ -161,38 +149,4 @@ public class TypeFillTest extends StreamingMultipleProgramsTestBase {
 		}
 
 	}
-
-	private class TestCoReduce<IN1, IN2, OUT> implements CoReduceFunction<IN1, IN2, OUT> {
-
-		@Override
-		public IN1 reduce1(IN1 value1, IN1 value2) {
-			return null;
-		}
-
-		@Override
-		public IN2 reduce2(IN2 value1, IN2 value2) {
-			return null;
-		}
-
-		@Override
-		public OUT map1(IN1 value) {
-			return null;
-		}
-
-		@Override
-		public OUT map2(IN2 value) {
-			return null;
-		}
-
-	}
-
-	private class TestCoWindow<IN1, IN2, OUT> implements CoWindowFunction<IN1, IN2, OUT> {
-
-		@Override
-		public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out)
-				throws Exception {
-		}
-
-	}
-
 }

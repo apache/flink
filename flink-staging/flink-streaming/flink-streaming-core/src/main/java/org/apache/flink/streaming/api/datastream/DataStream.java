@@ -44,7 +44,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator;
 import org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
@@ -218,17 +217,17 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Creates a new {@link ConnectedDataStream} by connecting
+	 * Creates a new {@link ConnectedStreams} by connecting
 	 * {@link DataStream} outputs of (possible) different types with each other.
 	 * The DataStreams connected using this operator can be used with
 	 * CoFunctions to apply joint transformations.
 	 * 
 	 * @param dataStream
 	 *            The DataStream with which this stream will be connected.
-	 * @return The {@link ConnectedDataStream}.
+	 * @return The {@link ConnectedStreams}.
 	 */
-	public <R> ConnectedDataStream<T, R> connect(DataStream<R> dataStream) {
-		return new ConnectedDataStream<T, R>(environment, this, dataStream);
+	public <R> ConnectedStreams<T, R> connect(DataStream<R> dataStream) {
+		return new ConnectedStreams<T, R>(environment, this, dataStream);
 	}
 
 	/**
@@ -536,7 +535,7 @@ public class DataStream<T> {
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. The user can also use different feedback type than the
 	 * input of the iteration and treat the input and feedback streams as a
-	 * {@link ConnectedDataStream} be calling
+	 * {@link ConnectedStreams} be calling
 	 * {@link IterativeDataStream#withFeedbackType(TypeInformation)}
 	 * <p>
 	 * A common usage pattern for streaming iterations is to use output
@@ -567,7 +566,7 @@ public class DataStream<T> {
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. The user can also use different feedback type than the
 	 * input of the iteration and treat the input and feedback streams as a
-	 * {@link ConnectedDataStream} be calling
+	 * {@link ConnectedStreams} be calling
 	 * {@link IterativeDataStream#withFeedbackType(TypeInformation)}
 	 * <p>
 	 * A common usage pattern for streaming iterations is to use output
@@ -678,32 +677,6 @@ public class DataStream<T> {
 	 */
 	public <R extends Tuple> SingleOutputStreamOperator<R, ?> project(int... fieldIndexes) {
 		return new StreamProjection<T>(this, fieldIndexes).projectTupleX();
-	}
-
-
-	/**
-	 * Initiates a temporal Cross transformation.<br/>
-	 * A Cross transformation combines the elements of two {@link DataStream}s
-	 * into one DataStream over a specified time window. It builds all pair
-	 * combinations of elements of both DataStreams, i.e., it builds a Cartesian
-	 * product.
-	 * 
-	 * <p>
-	 * This method returns a {@link StreamCrossOperator} on which the
-	 * {@link StreamCrossOperator#onWindow} should be called to define the
-	 * window.
-	 * <p>
-	 * Call {@link StreamCrossOperator.CrossWindow#with(org.apache.flink.api.common.functions.CrossFunction)}
-	 * to define a custom cross function.
-	 * 
-	 * @param dataStreamToCross
-	 *            The other DataStream with which this DataStream is crossed.
-	 * @return A {@link StreamCrossOperator} to continue the definition of the
-	 *         cross transformation.
-	 * 
-	 */
-	public <IN2> StreamCrossOperator<T, IN2> cross(DataStream<IN2> dataStreamToCross) {
-		return new StreamCrossOperator<T, IN2>(this, dataStreamToCross);
 	}
 
 	/**

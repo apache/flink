@@ -81,56 +81,56 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	/**
 	 * Changes the feedback type of the iteration and allows the user to apply
 	 * co-transformations on the input and feedback stream, as in a
-	 * {@link ConnectedDataStream}.
+	 * {@link ConnectedStreams}.
 	 *
 	 * <p>
 	 * For type safety the user needs to define the feedback type
 	 * 
 	 * @param feedbackTypeString
 	 *            String describing the type information of the feedback stream.
-	 * @return A {@link ConnectedIterativeDataStream}.
+	 * @return A {@link ConnectedIterativeDataStreams}.
 	 */
-	public <F> ConnectedIterativeDataStream<T, F> withFeedbackType(String feedbackTypeString) {
+	public <F> ConnectedIterativeDataStreams<T, F> withFeedbackType(String feedbackTypeString) {
 		return withFeedbackType(TypeInfoParser.<F> parse(feedbackTypeString));
 	}
 
 	/**
 	 * Changes the feedback type of the iteration and allows the user to apply
 	 * co-transformations on the input and feedback stream, as in a
-	 * {@link ConnectedDataStream}.
+	 * {@link ConnectedStreams}.
 	 *
 	 * <p>
 	 * For type safety the user needs to define the feedback type
 	 * 
 	 * @param feedbackTypeClass
 	 *            Class of the elements in the feedback stream.
-	 * @return A {@link ConnectedIterativeDataStream}.
+	 * @return A {@link ConnectedIterativeDataStreams}.
 	 */
-	public <F> ConnectedIterativeDataStream<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
+	public <F> ConnectedIterativeDataStreams<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
 		return withFeedbackType(TypeExtractor.getForClass(feedbackTypeClass));
 	}
 
 	/**
 	 * Changes the feedback type of the iteration and allows the user to apply
 	 * co-transformations on the input and feedback stream, as in a
-	 * {@link ConnectedDataStream}.
+	 * {@link ConnectedStreams}.
 	 *
 	 * <p>
 	 * For type safety the user needs to define the feedback type
 	 * 
 	 * @param feedbackType
 	 *            The type information of the feedback stream.
-	 * @return A {@link ConnectedIterativeDataStream}.
+	 * @return A {@link ConnectedIterativeDataStreams}.
 	 */
-	public <F> ConnectedIterativeDataStream<T, F> withFeedbackType(TypeInformation<F> feedbackType) {
-		return new ConnectedIterativeDataStream<T, F>(originalInput, feedbackType, maxWaitTime);
+	public <F> ConnectedIterativeDataStreams<T, F> withFeedbackType(TypeInformation<F> feedbackType) {
+		return new ConnectedIterativeDataStreams<T, F>(originalInput, feedbackType, maxWaitTime);
 	}
 	
 	/**
-	 * The {@link ConnectedIterativeDataStream} represent a start of an
+	 * The {@link ConnectedIterativeDataStreams} represent a start of an
 	 * iterative part of a streaming program, where the original input of the
 	 * iteration and the feedback of the iteration are connected as in a
-	 * {@link ConnectedDataStream}.
+	 * {@link ConnectedStreams}.
 	 *
 	 * <p>
 	 * The user can distinguish between the two inputs using co-transformation,
@@ -142,24 +142,26 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 * @param <F>
 	 *            Type of the feedback of the iteration
 	 */
-	public static class ConnectedIterativeDataStream<I, F> extends ConnectedDataStream<I, F>{
+	public static class ConnectedIterativeDataStreams<I, F> extends ConnectedStreams<I, F> {
 
 		private CoFeedbackTransformation<F> coFeedbackTransformation;
 
-		public ConnectedIterativeDataStream(DataStream<I> input, TypeInformation<F> feedbackType, long waitTime) {
+		public ConnectedIterativeDataStreams(DataStream<I> input,
+				TypeInformation<F> feedbackType,
+				long waitTime) {
 			super(input.getExecutionEnvironment(),
 					input,
 					new DataStream<F>(input.getExecutionEnvironment(),
 							new CoFeedbackTransformation<F>(input.getParallelism(),
 									feedbackType,
 									waitTime)));
-			this.coFeedbackTransformation = (CoFeedbackTransformation<F>) getSecond().getTransformation();
+			this.coFeedbackTransformation = (CoFeedbackTransformation<F>) getSecondInput().getTransformation();
 		}
 
 		/**
 		 * Closes the iteration. This method defines the end of the iterative
 		 * program part that will be fed back to the start of the iteration as
-		 * the second input in the {@link ConnectedDataStream}.
+		 * the second input in the {@link ConnectedStreams}.
 		 * 
 		 * @param feedbackStream
 		 *            {@link DataStream} that will be used as second input to
@@ -186,34 +188,34 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 				"Cannot change the input partitioning of an iteration head directly. Apply the partitioning on the input and feedback streams instead.");
 		
 		@Override
-		public ConnectedDataStream<I, F> groupBy(int keyPosition1, int keyPosition2) {throw groupingException;}
+		public ConnectedStreams<I, F> groupBy(int keyPosition1, int keyPosition2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> groupBy(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
+		public ConnectedStreams<I, F> groupBy(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> groupBy(String field1, String field2) {throw groupingException;}
+		public ConnectedStreams<I, F> groupBy(String field1, String field2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> groupBy(String[] fields1, String[] fields2) {throw groupingException;}
+		public ConnectedStreams<I, F> groupBy(String[] fields1, String[] fields2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> groupBy(KeySelector<I, ?> keySelector1,KeySelector<F, ?> keySelector2) {throw groupingException;}
+		public ConnectedStreams<I, F> groupBy(KeySelector<I, ?> keySelector1,KeySelector<F, ?> keySelector2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> partitionByHash(int keyPosition1, int keyPosition2) {throw groupingException;}
+		public ConnectedStreams<I, F> partitionByHash(int keyPosition1, int keyPosition2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> partitionByHash(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
+		public ConnectedStreams<I, F> partitionByHash(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> partitionByHash(String field1, String field2) {throw groupingException;}
+		public ConnectedStreams<I, F> partitionByHash(String field1, String field2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> partitionByHash(String[] fields1, String[] fields2) {throw groupingException;}
+		public ConnectedStreams<I, F> partitionByHash(String[] fields1, String[] fields2) {throw groupingException;}
 		
 		@Override
-		public ConnectedDataStream<I, F> partitionByHash(KeySelector<I, ?> keySelector1, KeySelector<F, ?> keySelector2) {throw groupingException;}
+		public ConnectedStreams<I, F> partitionByHash(KeySelector<I, ?> keySelector1, KeySelector<F, ?> keySelector2) {throw groupingException;}
 		
 	}
 }

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.datastream.ConnectedDataStream;
+import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -220,7 +220,7 @@ public class StreamGraphGeneratorTest extends StreamingMultipleProgramsTestBase 
 		DataStream<Integer> source1 = env.fromElements(1, 10);
 		DataStream<Integer> source2 = env.fromElements(2, 11);
 
-		ConnectedDataStream<Integer, Integer> connectedSource = source1.connect(source2);
+		ConnectedStreams<Integer, Integer> connectedSource = source1.connect(source2);
 
 		OutputTypeConfigurableOperationWithTwoInputs outputTypeConfigurableOperation = new OutputTypeConfigurableOperationWithTwoInputs();
 
