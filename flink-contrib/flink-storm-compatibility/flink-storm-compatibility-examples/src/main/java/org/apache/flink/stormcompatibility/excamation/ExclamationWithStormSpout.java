@@ -23,6 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.stormcompatibility.util.FiniteStormFileSpout;
 import org.apache.flink.stormcompatibility.util.FiniteStormInMemorySpout;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.stormcompatibility.wrappers.FiniteStormSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -125,11 +126,16 @@ public class ExclamationWithStormSpout {
 
 	private static DataStream<String> getTextDataStream(final StreamExecutionEnvironment env) {
 		if (fileOutput) {
-			// read the text file from given input path
 			final String[] tokens = textPath.split(":");
-			final String localFile = tokens[tokens.length - 1];
+			final String inputFile = tokens[tokens.length - 1];
+
+			// set Storm configuration
+			StormConfig config = new StormConfig();
+			config.put(FiniteStormFileSpout.INPUT_FILE_PATH, inputFile);
+			env.getConfig().setGlobalJobParameters(config);
+
 			return env.addSource(
-					new FiniteStormSpoutWrapper<String>(new FiniteStormFileSpout(localFile),
+					new FiniteStormSpoutWrapper<String>(new FiniteStormFileSpout(),
 							new String[] { Utils.DEFAULT_STREAM_ID }),
 							TypeExtractor.getForClass(String.class)).setParallelism(1);
 		}
@@ -137,7 +143,7 @@ public class ExclamationWithStormSpout {
 		return env.addSource(
 				new FiniteStormSpoutWrapper<String>(new FiniteStormInMemorySpout(
 						WordCountData.WORDS), new String[] { Utils.DEFAULT_STREAM_ID }),
-				TypeExtractor.getForClass(String.class)).setParallelism(1);
+						TypeExtractor.getForClass(String.class)).setParallelism(1);
 
 	}
 

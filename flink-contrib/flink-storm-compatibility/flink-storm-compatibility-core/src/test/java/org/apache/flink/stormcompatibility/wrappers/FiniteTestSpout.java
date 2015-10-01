@@ -38,8 +38,7 @@ class FiniteTestSpout implements IRichSpout {
 
 	@SuppressWarnings("rawtypes")
 	@Override
-	public void open(final Map conf, final TopologyContext context,
-			@SuppressWarnings("hiding") final SpoutOutputCollector collector) {
+	public void open(final Map conf, final TopologyContext context, final SpoutOutputCollector collector) {
 		this.collector = collector;
 	}
 

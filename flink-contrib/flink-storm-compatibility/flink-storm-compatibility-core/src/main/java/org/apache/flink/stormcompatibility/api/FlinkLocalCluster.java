@@ -31,6 +31,7 @@ import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,11 +46,11 @@ public class FlinkLocalCluster {
 
 	/** The log used by this mini cluster */
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkLocalCluster.class);
-	
+
 	/** The flink mini cluster on which to execute the programs */
 	private final FlinkMiniCluster flink;
 
-	
+
 	public FlinkLocalCluster() {
 		this.flink = new LocalFlinkMiniCluster(new Configuration(), true, StreamingMode.STREAMING);
 		this.flink.start();
@@ -59,17 +60,22 @@ public class FlinkLocalCluster {
 		this.flink = Objects.requireNonNull(flink);
 	}
 
-	public void submitTopology(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology)
+	@SuppressWarnings("rawtypes")
+	public void submitTopology(final String topologyName, final Map conf, final FlinkTopology topology)
 			throws Exception {
 		this.submitTopologyWithOpts(topologyName, conf, topology, null);
 	}
 
-	public void submitTopologyWithOpts(final String topologyName, final Map<?, ?> conf, final FlinkTopology topology,
-			final SubmitOptions submitOpts) throws Exception {
-		
+	@SuppressWarnings("rawtypes")
+	public void submitTopologyWithOpts(final String topologyName, final Map conf, final FlinkTopology topology, final SubmitOptions submitOpts) throws Exception {
 		LOG.info("Running Storm topology on FlinkLocalCluster");
+
+		if(conf != null) {
+			topology.getConfig().setGlobalJobParameters(new StormConfig(conf));
+		}
+
 		JobGraph jobGraph = topology.getStreamGraph().getJobGraph(topologyName);
-		flink.submitJobDetached(jobGraph);
+		this.flink.submitJobDetached(jobGraph);
 	}
 
 	public void killTopology(final String topologyName) {
@@ -115,7 +121,7 @@ public class FlinkLocalCluster {
 	// ------------------------------------------------------------------------
 	//  Access to default local cluster
 	// ------------------------------------------------------------------------
-	
+
 	// A different {@link FlinkLocalCluster} to be used for execution of ITCases
 	private static LocalClusterFactory currentFactory = new DefaultLocalClusterFactory();
 
@@ -138,7 +144,7 @@ public class FlinkLocalCluster {
 	public static void initialize(LocalClusterFactory clusterFactory) {
 		currentFactory = Objects.requireNonNull(clusterFactory);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Cluster factory
 	// ------------------------------------------------------------------------
@@ -159,7 +165,7 @@ public class FlinkLocalCluster {
 	 * A factory that instantiates a FlinkLocalCluster.
 	 */
 	public static class DefaultLocalClusterFactory implements LocalClusterFactory {
-		
+
 		@Override
 		public FlinkLocalCluster createLocalCluster() {
 			return new FlinkLocalCluster();

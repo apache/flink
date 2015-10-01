@@ -32,6 +32,7 @@ import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
 import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 
 import scala.Some;
 import scala.concurrent.Await;
@@ -66,7 +68,6 @@ import java.util.Map;
 public class FlinkClient {
 
 	/** The client's configuration */
-	@SuppressWarnings("unused")
 	private final Map<?,?> conf;
 	/** The jobmanager's host name */
 	private final String jobManagerHost;
@@ -161,7 +162,7 @@ public class FlinkClient {
 	 */
 	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final FlinkTopology
 			topology)
-			throws AlreadyAliveException, InvalidTopologyException {
+					throws AlreadyAliveException, InvalidTopologyException {
 
 		if (this.getTopologyJobId(name) != null) {
 			throw new AlreadyAliveException();
@@ -174,11 +175,15 @@ public class FlinkClient {
 			throw new RuntimeException("Problem with jar file " + uploadedJarFile.getAbsolutePath(), e);
 		}
 
+		/* set storm configuration */
+		if (this.conf != null) {
+			topology.getConfig().setGlobalJobParameters(new StormConfig(this.conf));
+		}
+
 		final JobGraph jobGraph = topology.getStreamGraph().getJobGraph(name);
 		jobGraph.addJar(new Path(uploadedJarFile.getAbsolutePath()));
 
 		final Configuration configuration = jobGraph.getJobConfiguration();
-
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 

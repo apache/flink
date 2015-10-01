@@ -24,11 +24,13 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
 
+import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.stormcompatibility.util.SplitStreamType;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -205,7 +207,18 @@ public class StormBoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> imple
 					this.numberOfAttributes, flinkCollector));
 		}
 
-		this.bolt.prepare(null, topologyContext, stormCollector);
+		GlobalJobParameters config = super.executionConfig.getGlobalJobParameters();
+		StormConfig stormConfig = new StormConfig();
+
+		if (config != null) {
+			if (config instanceof StormConfig) {
+				stormConfig = (StormConfig) config;
+			} else {
+				stormConfig.putAll(config.toMap());
+			}
+		}
+
+		this.bolt.prepare(stormConfig, topologyContext, stormCollector);
 	}
 
 	@Override

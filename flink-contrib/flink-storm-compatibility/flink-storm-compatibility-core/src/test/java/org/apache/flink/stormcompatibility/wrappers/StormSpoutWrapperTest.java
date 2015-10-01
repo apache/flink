@@ -17,9 +17,16 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
+import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
+import org.apache.flink.stormcompatibility.util.StormConfig;
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.junit.Assert;
 import org.junit.Test;
@@ -28,21 +35,64 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.LinkedList;
+import java.util.Map;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StormWrapperSetupHelper.class)
 public class StormSpoutWrapperTest extends AbstractTest {
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void testRunPrepare() throws Exception {
+		final StormConfig stormConfig = new StormConfig();
+		final Configuration flinkConfig = new Configuration();
+
+		final ExecutionConfig taskConfig = mock(ExecutionConfig.class);
+		when(taskConfig.getGlobalJobParameters()).thenReturn(null).thenReturn(stormConfig)
+				.thenReturn(flinkConfig);
+
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
+
+		final IRichSpout spout = mock(IRichSpout.class);
+		final StormSpoutWrapper spoutWrapper = new StormSpoutWrapper(spout);
+		spoutWrapper.setRuntimeContext(taskContext);
+		spoutWrapper.isRunning = false;
+
+		// test without configuration
+		spoutWrapper.run(mock(SourceContext.class));
+		verify(spout).open(any(Map.class), any(TopologyContext.class),
+				any(SpoutOutputCollector.class));
+
+		// test with StormConfig
+		spoutWrapper.run(mock(SourceContext.class));
+		verify(spout).open(same(stormConfig), any(TopologyContext.class),
+				any(SpoutOutputCollector.class));
+
+		// test with Configuration
+		spoutWrapper.run(mock(SourceContext.class));
+		verify(spout, times(3)).open(eq(flinkConfig.toMap()), any(TopologyContext.class),
+				any(SpoutOutputCollector.class));
+	}
+
 	@Test
 	public void testRunExecuteCancelInfinite() throws Exception {
 		final int numberOfCalls = 5 + this.r.nextInt(5);
 
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormSpoutWrapper<Tuple1<Integer>>(spout);
-		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		spoutWrapper.setRuntimeContext(taskContext);
 
 		spoutWrapper.cancel();
 		final TestContext collector = new TestContext();

@@ -17,9 +17,12 @@
 
 package org.apache.flink.stormcompatibility.excamation;
 
+import backtype.storm.Config;
 import backtype.storm.utils.Utils;
+
 import org.apache.flink.stormcompatibility.api.FlinkLocalCluster;
 import org.apache.flink.stormcompatibility.api.FlinkTopologyBuilder;
+import org.apache.flink.stormcompatibility.excamation.stormoperators.ExclamationBolt;
 
 /**
  * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text
@@ -61,8 +64,10 @@ public class StormExclamationLocal {
 		final FlinkTopologyBuilder builder = ExclamationTopology.buildTopology();
 
 		// execute program locally
+		Config conf = new Config();
+		conf.put(ExclamationBolt.EXCLAMATION_COUNT, ExclamationTopology.getExclamation());
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, builder.createTopology());
+		cluster.submitTopology(topologyId, conf, builder.createTopology());
 
 		Utils.sleep(10 * 1000);
 	}

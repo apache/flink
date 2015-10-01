@@ -25,11 +25,13 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.apache.flink.stormcompatibility.util.SplitStreamType;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
@@ -44,7 +46,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.HashSet;
 import java.util.Map;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({StreamRecordSerializer.class, StormWrapperSetupHelper.class})
@@ -105,7 +114,7 @@ public class StormBoltWrapperTest extends AbstractTest {
 			flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
 		}
 
-		String[] schema;
+		final String[] schema;
 		if (numberOfAttributes == -1) {
 			schema = new String[1];
 		} else {
@@ -123,6 +132,7 @@ public class StormBoltWrapperTest extends AbstractTest {
 		}
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
 
 		final IRichBolt bolt = mock(IRichBolt.class);
 
@@ -132,7 +142,7 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, (Fields) null);
 		wrapper.setup(mock(Output.class), taskContext);
-		wrapper.open(new Configuration());
+		wrapper.open(null);
 
 		wrapper.processElement(record);
 		if (numberOfAttributes == -1) {
@@ -152,10 +162,12 @@ public class StormBoltWrapperTest extends AbstractTest {
 		when(record.getValue()).thenReturn(2).thenReturn(3);
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
-		Output output = mock(Output.class);
+		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
 
-		TestBolt bolt = new TestBolt();
-		HashSet<String> raw = new HashSet<String>();
+		final Output output = mock(Output.class);
+
+		final TestBolt bolt = new TestBolt();
+		final HashSet<String> raw = new HashSet<String>();
 		if (rawOutType1) {
 			raw.add("stream1");
 		}
@@ -165,9 +177,9 @@ public class StormBoltWrapperTest extends AbstractTest {
 
 		final StormBoltWrapper wrapper = new StormBoltWrapper(bolt, (Fields) null, raw);
 		wrapper.setup(output, taskContext);
-		wrapper.open(new Configuration());
+		wrapper.open(null);
 
-		SplitStreamType splitRecord = new SplitStreamType<Integer>();
+		final SplitStreamType splitRecord = new SplitStreamType<Integer>();
 		if (rawOutType1) {
 			splitRecord.streamId = "stream1";
 			splitRecord.value = 2;
@@ -192,30 +204,70 @@ public class StormBoltWrapperTest extends AbstractTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testOpen() throws Exception {
-		final IRichBolt bolt = mock(IRichBolt.class);
+		final StormConfig stormConfig = new StormConfig();
+		final Configuration flinkConfig = new Configuration();
+
+		final ExecutionConfig taskConfig = mock(ExecutionConfig.class);
+		when(taskConfig.getGlobalJobParameters()).thenReturn(null).thenReturn(stormConfig)
+		.thenReturn(flinkConfig);
+
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
 
 		final StormOutputFieldsDeclarer declarer = new StormOutputFieldsDeclarer();
 		declarer.declare(new Fields("dummy"));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
+		final IRichBolt bolt = mock(IRichBolt.class);
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
-		wrapper.setup(mock(Output.class), mock(StreamingRuntimeContext.class));
+		wrapper.setup(mock(Output.class), taskContext);
 
-		wrapper.open(mock(Configuration.class));
-
+		// test without configuration
+		wrapper.open(null);
 		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), any(OutputCollector.class));
+
+		// test with StormConfig
+		wrapper.open(null);
+		verify(bolt).prepare(same(stormConfig), any(TopologyContext.class),
+				any(OutputCollector.class));
+
+		// test with Configuration
+		wrapper.open(null);
+		verify(bolt, times(3)).prepare(eq(flinkConfig.toMap()), any(TopologyContext.class),
+				any(OutputCollector.class));
 	}
 
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testOpenSink() throws Exception {
+		final StormConfig stormConfig = new StormConfig();
+		final Configuration flinkConfig = new Configuration();
+
+		final ExecutionConfig taskConfig = mock(ExecutionConfig.class);
+		when(taskConfig.getGlobalJobParameters()).thenReturn(null).thenReturn(stormConfig)
+		.thenReturn(flinkConfig);
+
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
+
 		final IRichBolt bolt = mock(IRichBolt.class);
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
-		wrapper.setup(mock(Output.class), mock(StreamingRuntimeContext.class));
+		wrapper.setup(mock(Output.class), taskContext);
 
-		wrapper.open(mock(Configuration.class));
+		// test without configuration
+		wrapper.open(null);
+		verify(bolt).prepare(any(Map.class), any(TopologyContext.class),
+				isNull(OutputCollector.class));
 
-		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), isNull(OutputCollector.class));
+		// test with StormConfig
+		wrapper.open(null);
+		verify(bolt).prepare(same(stormConfig), any(TopologyContext.class),
+				isNull(OutputCollector.class));
+
+		// test with Configuration
+		wrapper.open(null);
+		verify(bolt, times(3)).prepare(eq(flinkConfig.toMap()), any(TopologyContext.class),
+				isNull(OutputCollector.class));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -230,12 +282,11 @@ public class StormBoltWrapperTest extends AbstractTest {
 		final StormBoltWrapper<Object, Object> wrapper = new StormBoltWrapper<Object, Object>(bolt);
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
-		// when(taskContext.getOutputCollector()).thenReturn(mock(Collector.class));
 		wrapper.setup(mock(Output.class), taskContext);
 
 		wrapper.close();
 		wrapper.dispose();
-		
+
 		verify(bolt).cleanup();
 	}
 

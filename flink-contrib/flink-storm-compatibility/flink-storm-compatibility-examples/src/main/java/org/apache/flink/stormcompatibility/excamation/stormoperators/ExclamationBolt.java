@@ -29,12 +29,29 @@ import backtype.storm.tuple.Values;
 import java.util.Map;
 
 public class ExclamationBolt implements IRichBolt {
-	OutputCollector _collector;
+	private final static long serialVersionUID = -6364882114201311380L;
+
+	public final static String EXCLAMATION_COUNT = "exclamation.count";
+
+	private OutputCollector collector;
+	private String exclamation;
 
 	@SuppressWarnings("rawtypes")
 	@Override
 	public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
-		_collector = collector;
+		this.collector = collector;
+
+		Object count = conf.get(EXCLAMATION_COUNT);
+		if (count != null) {
+			int exclamationNum = (Integer) count;
+			StringBuilder builder = new StringBuilder();
+			for (int index = 0; index < exclamationNum; ++index) {
+				builder.append('!');
+			}
+			this.exclamation = builder.toString();
+		} else {
+			this.exclamation = "!";
+		}
 	}
 
 	@Override
@@ -43,7 +60,7 @@ public class ExclamationBolt implements IRichBolt {
 
 	@Override
 	public void execute(Tuple tuple) {
-		_collector.emit(tuple, new Values(tuple.getString(0) + "!!!"));
+		collector.emit(tuple, new Values(tuple.getString(0) + this.exclamation));
 	}
 
 	@Override

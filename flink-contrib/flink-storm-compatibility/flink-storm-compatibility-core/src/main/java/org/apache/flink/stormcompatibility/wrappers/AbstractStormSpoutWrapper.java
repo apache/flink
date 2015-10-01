@@ -23,9 +23,11 @@ import java.util.HashMap;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IRichSpout;
 
+import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
+import org.apache.flink.stormcompatibility.util.StormConfig;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
@@ -99,7 +101,19 @@ public abstract class AbstractStormSpoutWrapper<OUT> extends RichParallelSourceF
 	@Override
 	public final void run(final SourceContext<OUT> ctx) throws Exception {
 		this.collector = new StormSpoutCollector<OUT>(this.numberOfAttributes, ctx);
-		this.spout.open(null,
+
+		GlobalJobParameters config = super.getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
+		StormConfig stormConfig = new StormConfig();
+
+		if (config != null) {
+			if (config instanceof StormConfig) {
+				stormConfig = (StormConfig) config;
+			} else {
+				stormConfig.putAll(config.toMap());
+			}
+		}
+
+		this.spout.open(stormConfig,
 				StormWrapperSetupHelper
 				.convertToTopologyContext((StreamingRuntimeContext) super.getRuntimeContext(), true),
 				new SpoutOutputCollector(this.collector));

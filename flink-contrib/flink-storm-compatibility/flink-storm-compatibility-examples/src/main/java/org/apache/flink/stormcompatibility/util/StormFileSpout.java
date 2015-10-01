@@ -33,8 +33,12 @@ import java.util.Map;
 public class StormFileSpout extends AbstractStormSpout {
 	private static final long serialVersionUID = -6996907090003590436L;
 
-	protected final String path;
+	public final static String INPUT_FILE_PATH = "input.path";
+
+	protected String path = null;
 	protected BufferedReader reader;
+
+	public StormFileSpout() {}
 
 	public StormFileSpout(final String path) {
 		this.path = path;
@@ -44,6 +48,12 @@ public class StormFileSpout extends AbstractStormSpout {
 	@Override
 	public void open(final Map conf, final TopologyContext context, final SpoutOutputCollector collector) {
 		super.open(conf, context, collector);
+
+		Object configuredPath = conf.get(INPUT_FILE_PATH);
+		if(configuredPath != null) {
+			this.path = (String)configuredPath;
+		}
+
 		try {
 			this.reader = new BufferedReader(new FileReader(this.path));
 		} catch (final FileNotFoundException e) {

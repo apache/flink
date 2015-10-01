@@ -17,6 +17,7 @@
 
 package org.apache.flink.stormcompatibility.wrappers;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.junit.Test;
@@ -37,14 +38,14 @@ public class FiniteStormSpoutWrapperTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void runAndExecuteTest1() throws Exception {
-
-		FiniteStormSpout stormSpout =
-				mock(FiniteStormSpout.class);
+		final FiniteStormSpout stormSpout = mock(FiniteStormSpout.class);
 		when(stormSpout.reachedEnd()).thenReturn(false, false, false, true, false, false, true);
 
-		FiniteStormSpoutWrapper<?> wrapper =
-				new FiniteStormSpoutWrapper<Object>(stormSpout);
-		wrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
+		final FiniteStormSpoutWrapper<?> wrapper = new FiniteStormSpoutWrapper<Object>(stormSpout);
+		wrapper.setRuntimeContext(taskContext);
 
 		wrapper.run(mock(SourceContext.class));
 		verify(stormSpout, times(3)).nextTuple();
@@ -53,14 +54,14 @@ public class FiniteStormSpoutWrapperTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void runAndExecuteTest2() throws Exception {
-
-		FiniteStormSpout stormSpout =
-				mock(FiniteStormSpout.class);
+		final FiniteStormSpout stormSpout = mock(FiniteStormSpout.class);
 		when(stormSpout.reachedEnd()).thenReturn(true, false, true, false, true, false, true);
 
-		FiniteStormSpoutWrapper<?> wrapper =
-				new FiniteStormSpoutWrapper<Object>(stormSpout);
-		wrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
+		final FiniteStormSpoutWrapper<?> wrapper = new FiniteStormSpoutWrapper<Object>(stormSpout);
+		wrapper.setRuntimeContext(taskContext);
 
 		wrapper.run(mock(SourceContext.class));
 		verify(stormSpout, never()).nextTuple();

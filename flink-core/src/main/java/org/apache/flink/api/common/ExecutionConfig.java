@@ -647,7 +647,7 @@ public class ExecutionConfig implements Serializable {
 	 * Abstract class for a custom user configuration object registered at the execution config.
 	 *
 	 * This user config is accessible at runtime through
-	 * getRuntimeContext().getExecutionConfig().getUserConfig()
+	 * getRuntimeContext().getExecutionConfig().GlobalJobParameters()
 	 */
 	public static class GlobalJobParameters implements Serializable {
 		private static final long serialVersionUID = 1L;

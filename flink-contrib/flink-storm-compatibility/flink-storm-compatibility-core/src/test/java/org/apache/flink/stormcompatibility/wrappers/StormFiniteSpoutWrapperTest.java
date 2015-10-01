@@ -20,6 +20,7 @@ package org.apache.flink.stormcompatibility.wrappers;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.stormcompatibility.util.AbstractTest;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -36,6 +37,7 @@ import java.util.LinkedList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StormWrapperSetupHelper.class)
@@ -48,10 +50,13 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 		declarer.declare(new Fields("dummy"));
 		PowerMockito.whenNew(StormOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
 		final IRichSpout spout = mock(IRichSpout.class);
 		final int numberOfCalls = this.r.nextInt(50);
 		final StormFiniteSpoutWrapper<?> spoutWrapper = new StormFiniteSpoutWrapper<Object>(spout, numberOfCalls);
-		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		spoutWrapper.setRuntimeContext(taskContext);
 
 		spoutWrapper.run(mock(SourceContext.class));
 		verify(spout, times(numberOfCalls)).nextTuple();
@@ -66,10 +71,13 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 			expectedResult.add(new Tuple1<Integer>(new Integer(i)));
 		}
 
+		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormFiniteSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormFiniteSpoutWrapper<Tuple1<Integer>>(
 				spout);
-		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		spoutWrapper.setRuntimeContext(taskContext);
 
 		final TestContext collector = new TestContext();
 		spoutWrapper.run(collector);
@@ -84,27 +92,19 @@ public class StormFiniteSpoutWrapperTest extends AbstractTest {
 		final LinkedList<Tuple1<Integer>> expectedResult = new LinkedList<Tuple1<Integer>>();
 		expectedResult.add(new Tuple1<Integer>(new Integer(numberOfCalls - 1)));
 
+		StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
+		when(taskContext.getExecutionConfig()).thenReturn(new ExecutionConfig());
+
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);
 		final StormFiniteSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormFiniteSpoutWrapper<Tuple1<Integer>>(
 				spout);
-		spoutWrapper.setRuntimeContext(mock(StreamingRuntimeContext.class));
+		spoutWrapper.setRuntimeContext(taskContext);
 
 		spoutWrapper.cancel();
 		final TestContext collector = new TestContext();
 		spoutWrapper.run(collector);
 
 		Assert.assertEquals(expectedResult, collector.result);
-	}
-
-	@Test
-	public void testClose() throws Exception {
-		final IRichSpout spout = mock(IRichSpout.class);
-		final StormFiniteSpoutWrapper<Tuple1<Integer>> spoutWrapper = new StormFiniteSpoutWrapper<Tuple1<Integer>>(
-				spout);
-
-		spoutWrapper.close();
-
-		verify(spout).close();
 	}
 
 }

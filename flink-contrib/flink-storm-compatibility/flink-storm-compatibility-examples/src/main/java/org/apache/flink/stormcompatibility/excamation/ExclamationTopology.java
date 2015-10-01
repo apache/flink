@@ -93,19 +93,25 @@ public class ExclamationTopology {
 	private static boolean fileInputOutput = false;
 	private static String textPath;
 	private static String outputPath;
+	private static int exclamationNum = 3;
+
+	static int getExclamation() {
+		return exclamationNum;
+	}
 
 	static boolean parseParameters(final String[] args) {
 
 		if (args.length > 0) {
 			// parse input arguments
 			fileInputOutput = true;
-			if (args.length == 2) {
+			if (args.length == 3) {
 				textPath = args[0];
 				outputPath = args[1];
+				exclamationNum = Integer.parseInt(args[2]);
 			} else {
 				System.err.println(
 						"Usage: StormExclamation[Local|RemoteByClient|RemoteBySubmitter] <text " +
-								"path> <result path>");
+						"path> <result path>  <number of exclamation marks>");
 				return false;
 			}
 		} else {
@@ -113,7 +119,7 @@ public class ExclamationTopology {
 			System.out.println("  Provide parameters to read input data from a file");
 			System.out.println(
 					"  Usage: StormExclamation[Local|RemoteByClient|RemoteBySubmitter] <text path>" +
-							" <result path>");
+					" <result path> <number of exclamation marks>");
 		}
 
 		return true;
