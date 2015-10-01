@@ -34,7 +34,7 @@ import org.apache.flink.types.NullValue;
  * This example shows how to use Gelly's library methods.
  * You can find all available library methods in {@link org.apache.flink.graph.library}. 
  * 
- * In particular, this example uses the {@link org.apache.flink.graph.library.ConnectedComponentsAlgorithm}
+ * In particular, this example uses the {@link org.apache.flink.graph.library.GSAConnectedComponents}
  * library method to compute the connected components of the input graph.
  *
  * The input file is a plain text file and must be formatted as follows:

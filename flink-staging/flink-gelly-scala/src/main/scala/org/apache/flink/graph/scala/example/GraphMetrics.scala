@@ -106,21 +106,20 @@ object GraphMetrics {
   private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge[Long, NullValue]] = {
     if (fileOutput) {
       env.readCsvFile[(Long, Long)](
-          edgesPath,
-          fieldDelimiter = "\t").map(
-          in => new Edge[Long, NullValue](in._1, in._2, NullValue.getInstance()))
-    }
-    else {
+        edgesPath,
+        fieldDelimiter = "\t").map(
+        in => new Edge[Long, NullValue](in._1, in._2, NullValue.getInstance()))
+    } else {
       env.generateSequence(1, numVertices).flatMap[Edge[Long, NullValue]](
-         (key: Long, out: Collector[Edge[Long, NullValue]]) => {
-         val numOutEdges: Int = (Math.random() * (numVertices / 2)).toInt
+        (key: Long, out: Collector[Edge[Long, NullValue]]) => {
+          val numOutEdges: Int = (Math.random() * (numVertices / 2)).toInt
           for ( i <- 0 to numOutEdges ) {
             var target: Long = ((Math.random() * numVertices) + 1).toLong
-              new Edge[Long, NullValue](key, target, NullValue.getInstance())
+            new Edge[Long, NullValue](key, target, NullValue.getInstance())
           }
-        })
-      }
+      })
     }
+  }
 
   private var fileOutput: Boolean = false
   private var edgesPath: String = null
