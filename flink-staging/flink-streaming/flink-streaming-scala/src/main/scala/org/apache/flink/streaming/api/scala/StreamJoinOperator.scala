@@ -26,7 +26,6 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.Keys
 import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.JoinWindowFunction
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
 
 import scala.Array.canBuildFrom
@@ -151,10 +150,11 @@ object StreamJoinOperator {
 
     private def createJoinOperator(): JavaStream[(I1, I2)] = {
 
-      val returnType = createTuple2TypeInformation[I1, I2](op.input1.getType, op.input2.getType)
-      op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
-        .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
-          returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
+//      val returnType = createTuple2TypeInformation[I1, I2](op.input1.getType, op.input2.getType)
+//      op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
+//        .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
+//          returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
+      null
     }
   }
 
@@ -172,14 +172,15 @@ object StreamJoinOperator {
 
       val cleanFun = clean(getJoinWindowFunction(jp, fun))
 
-      op.input1.groupBy(jp.keys1).connect(op.input2.groupBy(jp.keys2))
-        .addGeneralWindowCombine[R](
-          cleanFun,
-          implicitly[TypeInformation[R]],
-          op.windowSize,
-          op.slideInterval,
-          op.timeStamp1,
-          op.timeStamp2)
+//      op.input1.groupBy(jp.keys1).connect(op.input2.groupBy(jp.keys2))
+//        .addGeneralWindowCombine[R](
+//          cleanFun,
+//          implicitly[TypeInformation[R]],
+//          op.windowSize,
+//          op.slideInterval,
+//          op.timeStamp1,
+//          op.timeStamp2)
+      null
     }
   }
 
@@ -195,7 +196,8 @@ object StreamJoinOperator {
       }
     }
 
-    new JoinWindowFunction[I1, I2, R](jp.keys1, jp.keys2, joinFun)
+//    new JoinWindowFunction[I1, I2, R](jp.keys1, jp.keys2, joinFun)
+    null
   }
 
 }

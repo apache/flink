@@ -29,7 +29,7 @@
 //		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 //
 //		@SuppressWarnings("unused")
-//		DataStream<String> dataStream1 = env.addSource(
+//		DataStream<String> inputStream1 = env.addSource(
 //				new FlumeSource<String>("localhost", 41414, new SimpleStringSchema())).addSink(
 //				new FlumeSink<String>("localhost", 42424, new StringToByteSerializer()));
 //

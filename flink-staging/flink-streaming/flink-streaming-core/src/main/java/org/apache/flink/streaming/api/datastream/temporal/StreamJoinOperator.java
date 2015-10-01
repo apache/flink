@@ -26,11 +26,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.co.JoinWindowFunction;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 public class StreamJoinOperator<I1, I2> extends
@@ -204,19 +202,20 @@ public class StreamJoinOperator<I1, I2> extends
 
 		private JoinedStream<I1, I2, Tuple2<I1, I2>> createJoinOperator() {
 
-			JoinFunction<I1, I2, Tuple2<I1, I2>> joinFunction = new DefaultJoinFunction<I1, I2>();
+//			JoinFunction<I1, I2, Tuple2<I1, I2>> joinFunction = new DefaultJoinFunction<I1, I2>();
+//
+//			JoinWindowFunction<I1, I2, Tuple2<I1, I2>> joinWindowFunction = getJoinWindowFunction(
+//					joinFunction, this);
+//
+//			TypeInformation<Tuple2<I1, I2>> outType = new TupleTypeInfo<Tuple2<I1, I2>>(
+//					op.input1.getType(), op.input2.getType());
 
-			JoinWindowFunction<I1, I2, Tuple2<I1, I2>> joinWindowFunction = getJoinWindowFunction(
-					joinFunction, this);
-
-			TypeInformation<Tuple2<I1, I2>> outType = new TupleTypeInfo<Tuple2<I1, I2>>(
-					op.input1.getType(), op.input2.getType());
-
-			return new JoinedStream<I1, I2, Tuple2<I1, I2>>(this, op.input1
-					.groupBy(keys1)
-					.connect(op.input2.groupBy(keys2))
-					.addGeneralWindowCombine(joinWindowFunction, outType, op.windowSize,
-							op.slideInterval, op.timeStamp1, op.timeStamp2));
+//			return new JoinedStream<I1, I2, Tuple2<I1, I2>>(this, op.input1
+//					.groupBy(keys1)
+//					.connect(op.input2.groupBy(keys2))
+//					.addGeneralWindowCombine(joinWindowFunction, outType, op.windowSize,
+//							op.slideInterval, op.timeStamp1, op.timeStamp2));
+			return null;
 		}
 
 		public static class JoinedStream<I1, I2, R> extends
@@ -240,15 +239,16 @@ public class StreamJoinOperator<I1, I2> extends
 				TypeInformation<OUT> outType = TypeExtractor.getJoinReturnTypes(joinFunction,
 						predicate.op.input1.getType(), predicate.op.input2.getType());
 
-				JoinWindowFunction<I1, I2, OUT> joinWindowFunction = getJoinWindowFunction(joinFunction, predicate);
+//				JoinWindowFunction<I1, I2, OUT> joinWindowFunction = getJoinWindowFunction(joinFunction, predicate);
+//
 
-
-				return new JoinedStream<I1, I2, OUT>(
-						predicate, predicate.op.input1
-						.groupBy(predicate.keys1)
-						.connect(predicate.op.input2.groupBy(predicate.keys2))
-						.addGeneralWindowCombine(joinWindowFunction, outType, predicate.op.windowSize,
-								predicate.op.slideInterval, predicate.op.timeStamp1, predicate.op.timeStamp2));
+//				return new JoinedStream<I1, I2, OUT>(
+//						predicate, predicate.op.input1
+//						.groupBy(predicate.keys1)
+//						.connect(predicate.op.input2.groupBy(predicate.keys2))
+//						.addGeneralWindowCombine(joinWindowFunction, outType, predicate.op.windowSize,
+//								predicate.op.slideInterval, predicate.op.timeStamp1, predicate.op.timeStamp2));
+				return null;
 			}
 		}
 	}
@@ -267,8 +267,8 @@ public class StreamJoinOperator<I1, I2> extends
 		}
 	}
 
-	private static <I1, I2, OUT> JoinWindowFunction<I1, I2, OUT> getJoinWindowFunction(
-			JoinFunction<I1, I2, OUT> joinFunction, JoinPredicate<I1, I2> predicate) {
-		return new JoinWindowFunction<I1, I2, OUT>(predicate.keys1, predicate.keys2, joinFunction);
-	}
+//	private static <I1, I2, OUT> JoinWindowFunction<I1, I2, OUT> getJoinWindowFunction(
+//			JoinFunction<I1, I2, OUT> joinFunction, JoinPredicate<I1, I2> predicate) {
+//		return new JoinWindowFunction<I1, I2, OUT>(predicate.keys1, predicate.keys2, joinFunction);
+//	}
 }

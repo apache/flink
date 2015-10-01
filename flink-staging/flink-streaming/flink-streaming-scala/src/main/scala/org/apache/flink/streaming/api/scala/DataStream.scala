@@ -203,11 +203,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
     javaStream.union(dataStreams.map(_.getJavaStream): _*)
 
   /**
-   * Creates a new ConnectedDataStream by connecting
+   * Creates a new ConnectedStreams by connecting
    * DataStream outputs of different type with each other. The
    * DataStreams connected using this operators can be used with CoFunctions.
    */
-  def connect[T2](dataStream: DataStream[T2]): ConnectedDataStream[T, T2] = 
+  def connect[T2](dataStream: DataStream[T2]): ConnectedStreams[T, T2] =
     javaStream.connect(dataStream.getJavaStream)
 
 
@@ -408,7 +408,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * stream of the iterative part.
    * 
    * The input stream of the iterate operator and the feedback stream will be treated
-   * as a ConnectedDataStream where the the input is connected with the feedback stream.
+   * as a ConnectedStreams where the the input is connected with the feedback stream.
    * 
    * This allows the user to distinguish standard input from feedback inputs.
    * 
@@ -420,7 +420,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * to 0 then the iteration sources will indefinitely, so the job must be killed to stop.
    *
    */
-  def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedDataStream[T, F] => 
+  def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedStreams[T, F] =>
     (DataStream[F], DataStream[R]), maxWaitTimeMillis:Long): DataStream[R] = {
     val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
     val connectedIterativeStream = javaStream.iterate(maxWaitTimeMillis).
@@ -710,21 +710,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def join[R](stream: DataStream[R]): StreamJoinOperator[T, R] =
     new StreamJoinOperator[T, R](javaStream, stream.getJavaStream)
-
-  /**
-   * Initiates a temporal cross transformation that builds all pair
-   * combinations of elements of both DataStreams, i.e., it builds a Cartesian
-   * product.
-   *
-   * This method returns a StreamJoinOperator on which the
-   * .onWindow(..) should be called to define the
-   * window, and then the .where(..) and .equalTo(..) methods can be used to defin
-   * the join keys.</p> The user can also use the apply method of the returned JoinedStream
-   * to use custom join function.
-   *
-   */
-  def cross[R](stream: DataStream[R]): StreamCrossOperator[T, R] =
-    new StreamCrossOperator[T, R](javaStream, stream.getJavaStream)
 
   /**
    * Writes a DataStream to the standard output stream (stdout). For each

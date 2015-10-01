@@ -115,23 +115,6 @@ public class WindowCrossJoinTest extends StreamingMultipleProgramsTestBase {
 				.map(new ResultMap())
 				.addSink(joinResultSink);
 
-		inStream1
-				.cross(inStream2)
-				.onWindow(1000, new MyTimestamp<Tuple2<Integer, String>>(),
-						new MyTimestamp<Tuple1<Integer>>(), 100)
-				.with(new CrossFunction<Tuple2<Integer, String>, Tuple1<Integer>, Tuple2<Tuple2<Integer, String>, Tuple1<Integer>>>() {
-
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Tuple2<Tuple2<Integer, String>, Tuple1<Integer>> cross(
-							Tuple2<Integer, String> val1, Tuple1<Integer> val2) throws Exception {
-						return new Tuple2<Tuple2<Integer, String>, Tuple1<Integer>>(val1, val2);
-					}
-				})
-				.map(new ResultMap())
-				.addSink(crossResultSink);
-
 		env.execute();
 
 		assertEquals(new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>(joinExpectedResults),

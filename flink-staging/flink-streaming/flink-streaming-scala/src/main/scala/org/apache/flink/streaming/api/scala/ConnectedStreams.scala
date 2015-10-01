@@ -18,20 +18,22 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.util
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.streaming.api.datastream.{ConnectedDataStream => JavaCStream, DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction}
+import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
+import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction}
 import org.apache.flink.util.Collector
-import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
+/**
+ * [[ConnectedStreams]] represents two connected streams of (possible) different data types. It
+ * can be used to apply transformations such as [[CoMapFunction]] on two
+ * [[DataStream]]s.
+ */
+class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
   /**
-   * Applies a CoMap transformation on a {@link ConnectedDataStream} and maps
+   * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
    * the output to a common type. The transformation calls a
    * @param fun1 for each element of the first input and
    * @param fun2 for each element of the second input. Each
@@ -57,7 +59,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-   * Applies a CoMap transformation on a {@link ConnectedDataStream} and maps
+   * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
    * the output to a common type. The transformation calls a
    * {@link CoMapFunction#map1} for each element of the first input and
    * {@link CoMapFunction#map2} for each element of the second input. Each
@@ -81,7 +83,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-   * Applies a CoFlatMap transformation on a {@link ConnectedDataStream} and
+   * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
    * maps the output to a common type. The transformation calls a
    * {@link CoFlatMapFunction#flatMap1} for each element of the first input
    * and {@link CoFlatMapFunction#flatMap2} for each element of the second
@@ -106,7 +108,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-   * Applies a CoFlatMap transformation on a {@link ConnectedDataStream} and
+   * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
    * maps the output to a common type. The transformation calls a
    * @param fun1 for each element of the first input
    * and @param fun2 for each element of the second
@@ -130,7 +132,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   }
 
   /**
-   * Applies a CoFlatMap transformation on a {@link ConnectedDataStream} and
+   * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
    * maps the output to a common type. The transformation calls a
    * @param fun1 for each element of the first input
    * and @param fun2 for each element of the second
@@ -157,7 +159,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * GroupBy operation for connected data stream. Groups the elements of
    * input1 and input2 according to keyPosition1 and keyPosition2. Used for
    * applying function on grouped data streams for example
-   * {@link ConnectedDataStream#reduce}
+   * {@link ConnectedStreams#reduce}
    *
    * @param keyPosition1
    * The field used to compute the hashcode of the elements in the
@@ -165,9 +167,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @param keyPosition2
    * The field used to compute the hashcode of the elements in the
    * second input stream.
-   * @return @return The transformed { @link ConnectedDataStream}
+   * @return @return The transformed { @link ConnectedStreams}
    */
-  def groupBy(keyPosition1: Int, keyPosition2: Int): ConnectedDataStream[IN1, IN2] = {
+  def groupBy(keyPosition1: Int, keyPosition2: Int): ConnectedStreams[IN1, IN2] = {
     javaStream.groupBy(keyPosition1, keyPosition2)
   }
 
@@ -175,16 +177,16 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * GroupBy operation for connected data stream. Groups the elements of
    * input1 and input2 according to keyPositions1 and keyPositions2. Used for
    * applying function on grouped data streams for example
-   * {@link ConnectedDataStream#reduce}
+   * {@link ConnectedStreams#reduce}
    *
    * @param keyPositions1
    * The fields used to group the first input stream.
    * @param keyPositions2
    * The fields used to group the second input stream.
-   * @return @return The transformed { @link ConnectedDataStream}
+   * @return @return The transformed { @link ConnectedStreams}
    */
   def groupBy(keyPositions1: Array[Int], keyPositions2: Array[Int]): 
-  ConnectedDataStream[IN1, IN2] = {
+  ConnectedStreams[IN1, IN2] = {
     javaStream.groupBy(keyPositions1, keyPositions2)
   }
 
@@ -199,9 +201,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The grouping expression for the first input
    * @param field2
    * The grouping expression for the second input
-   * @return The grouped { @link ConnectedDataStream}
+   * @return The grouped { @link ConnectedStreams}
    */
-  def groupBy(field1: String, field2: String): ConnectedDataStream[IN1, IN2] = {
+  def groupBy(field1: String, field2: String): ConnectedStreams[IN1, IN2] = {
     javaStream.groupBy(field1, field2)
   }
 
@@ -217,10 +219,10 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The grouping expressions for the first input
    * @param fields2
    * The grouping expressions for the second input
-   * @return The grouped { @link ConnectedDataStream}
+   * @return The grouped { @link ConnectedStreams}
    */
   def groupBy(fields1: Array[String], fields2: Array[String]): 
-  ConnectedDataStream[IN1, IN2] = {
+  ConnectedStreams[IN1, IN2] = {
     javaStream.groupBy(fields1, fields2)
   }
 
@@ -228,16 +230,16 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * GroupBy operation for connected data stream. Groups the elements of
    * input1 and input2 using fun1 and fun2. Used for applying
    * function on grouped data streams for example
-   * {@link ConnectedDataStream#reduce}
+   * {@link ConnectedStreams#reduce}
    *
    * @param fun1
    * The function used for grouping the first input
    * @param fun2
    * The function used for grouping the second input
-   * @return The grouped { @link ConnectedDataStream}
+   * @return The grouped { @link ConnectedStreams}
    */
   def groupBy[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
-  ConnectedDataStream[IN1, IN2] = {
+  ConnectedStreams[IN1, IN2] = {
 
     val cleanFun1 = clean(fun1)
     val cleanFun2 = clean(fun2)
@@ -261,9 +263,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @param keyPosition2
    * The field used to compute the hashcode of the elements in the
    * second input stream.
-   * @return The transformed { @link ConnectedDataStream}
+   * @return The transformed { @link ConnectedStreams}
    */
-  def partitionByHash(keyPosition1: Int, keyPosition2: Int): ConnectedDataStream[IN1, IN2] = {
+  def partitionByHash(keyPosition1: Int, keyPosition2: Int): ConnectedStreams[IN1, IN2] = {
     javaStream.partitionByHash(keyPosition1, keyPosition2)
   }
 
@@ -275,10 +277,10 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The fields used to partition the first input stream.
    * @param keyPositions2
    * The fields used to partition the second input stream.
-   * @return The transformed { @link ConnectedDataStream}
+   * @return The transformed { @link ConnectedStreams}
    */
   def partitionByHash(keyPositions1: Array[Int], keyPositions2: Array[Int]):
-  ConnectedDataStream[IN1, IN2] = {
+  ConnectedStreams[IN1, IN2] = {
     javaStream.partitionByHash(keyPositions1, keyPositions2)
   }
 
@@ -293,9 +295,9 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The partitioning expression for the first input
    * @param field2
    * The partitioning expression for the second input
-   * @return The grouped { @link ConnectedDataStream}
+   * @return The grouped { @link ConnectedStreams}
    */
-  def partitionByHash(field1: String, field2: String): ConnectedDataStream[IN1, IN2] = {
+  def partitionByHash(field1: String, field2: String): ConnectedStreams[IN1, IN2] = {
     javaStream.partitionByHash(field1, field2)
   }
 
@@ -307,10 +309,10 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The partitioning expressions for the first input
    * @param fields2
    * The partitioning expressions for the second input
-   * @return The partitioned { @link ConnectedDataStream}
+   * @return The partitioned { @link ConnectedStreams}
    */
   def partitionByHash(fields1: Array[String], fields2: Array[String]):
-  ConnectedDataStream[IN1, IN2] = {
+  ConnectedStreams[IN1, IN2] = {
     javaStream.partitionByHash(fields1, fields2)
   }
 
@@ -322,10 +324,10 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * The function used for partitioning the first input
    * @param fun2
    * The function used for partitioning the second input
-   * @return The partitioned { @link ConnectedDataStream}
+   * @return The partitioned { @link ConnectedStreams}
    */
   def partitionByHash[K: TypeInformation, L: TypeInformation](fun1: IN1 => K, fun2: IN2 => L):
-  ConnectedDataStream[IN1, IN2] = {
+  ConnectedStreams[IN1, IN2] = {
 
     val cleanFun1 = clean(fun1)
     val cleanFun2 = clean(fun2)
@@ -338,165 +340,6 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     javaStream.partitionByHash(keyExtractor1, keyExtractor2)
-  }
-
-  /**
-   * Applies a reduce transformation on a {@link ConnectedDataStream} and maps
-   * the outputs to a common type. If the {@link ConnectedDataStream} is
-   * batched or windowed then the reduce transformation is applied on every
-   * sliding batch/window of the data stream. If the connected data stream is
-   * grouped then the reducer is applied on every group of elements sharing
-   * the same key. This type of reduce is much faster than reduceGroup since
-   * the reduce function can be applied incrementally.
-   *
-   * @param coReducer
-   * The { @link CoReduceFunction} that will be called for every
-   *             element of the inputs.
-   * @return The transformed { @link DataStream}.
-   */
-  def reduce[R: TypeInformation: ClassTag](coReducer: CoReduceFunction[IN1, IN2, R]): 
-  DataStream[R] = {
-    if (coReducer == null) {
-      throw new NullPointerException("Reduce function must not be null.")
-    }
-    
-    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
-    javaStream.reduce(coReducer).returns(outType).asInstanceOf[JavaStream[R]]
-  }
-
-  /**
-   * Applies a reduce transformation on a {@link ConnectedDataStream} and maps
-   * the outputs to a common type. If the {@link ConnectedDataStream} is
-   * batched or windowed then the reduce transformation is applied on every
-   * sliding batch/window of the data stream. If the connected data stream is
-   * grouped then the reducer is applied on every group of elements sharing
-   * the same key. This type of reduce is much faster than reduceGroup since
-   * the reduce function can be applied incrementally.
-   *
-   * @return The transformed { @link DataStream}.
-   */
-  def reduce[R: TypeInformation: ClassTag](reducer1: (IN1, IN1) => IN1,
-      reducer2: (IN2, IN2) => IN2,mapper1: IN1 => R, mapper2: IN2 => R): DataStream[R] = {
-    if (mapper1 == null || mapper2 == null) {
-      throw new NullPointerException("Map functions must not be null.")
-    }
-    if (reducer1 == null || reducer2 == null) {
-      throw new NullPointerException("Reduce functions must not be null.")
-    }
-
-    val cleanReducer1 = clean(reducer1)
-    val cleanReducer2 = clean(reducer2)
-    val cleanMapper1 = clean(mapper1)
-    val cleanMapper2 = clean(mapper2)
-
-    val reducer = new CoReduceFunction[IN1, IN2, R] {
-      def reduce1(value1: IN1, value2: IN1): IN1 = cleanReducer1(value1, value2)
-      def reduce2(value1: IN2, value2: IN2): IN2 = cleanReducer2(value1, value2)
-      def map1(value: IN1): R = cleanMapper1(value)
-      def map2(value: IN2): R = cleanMapper2(value)
-    }
-    reduce(reducer)
-  }
-
-  /**
-   * Applies a CoWindow transformation on the connected DataStreams. The
-   * transformation calls the {@link CoWindowFunction#coWindow} method for for
-   * time aligned windows of the two data streams. System time is used as
-   * default to compute windows.
-   *
-   * @param coWindowFunction
-   * The { @link CoWindowFunction} that will be applied for the time
-   *             windows.
-   * @param windowSize
-   * Size of the windows that will be aligned for both streams in
-   * milliseconds.
-   * @param slideInterval
-   * After every function call the windows will be slid by this
-   * interval.
-   *
-   * @return The transformed { @link DataStream}.
-   */
-  def windowReduce[R: TypeInformation: ClassTag](coWindowFunction: 
-      CoWindowFunction[IN1, IN2, R], windowSize: Long, slideInterval: Long):
-      DataStream[R] = {
-    if (coWindowFunction == null) {
-      throw new NullPointerException("CoWindow function must no be null")
-    }
-    
-    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
-    
-    javaStream.windowReduce(coWindowFunction, windowSize, slideInterval).
-    returns(outType).asInstanceOf[JavaStream[R]]
-  }
-
-  /**
-   * Applies a CoWindow transformation on the connected DataStreams. The
-   * transformation calls the {@link CoWindowFunction#coWindow} method for for
-   * time aligned windows of the two data streams. System time is used as
-   * default to compute windows.
-   *
-   * @param coWindower
-   * The coWindowing function to be applied for the time windows.
-   * @param windowSize
-   * Size of the windows that will be aligned for both streams in
-   * milliseconds.
-   * @param slideInterval
-   * After every function call the windows will be slid by this
-   * interval.
-   *
-   * @return The transformed { @link DataStream}.
-   */
-  def windowReduce[R: TypeInformation: ClassTag](coWindower: (Seq[IN1], Seq[IN2], 
-      Collector[R]) => Unit, windowSize: Long, slideInterval: Long):
-      DataStream[R] = {
-    if (coWindower == null) {
-      throw new NullPointerException("CoWindow function must no be null")
-    }
-
-    val cleanCoWindower = clean(coWindower)
-
-    val coWindowFun = new CoWindowFunction[IN1, IN2, R] {
-      def coWindow(first: util.List[IN1], second: util.List[IN2], 
-          out: Collector[R]): Unit = cleanCoWindower(first.asScala, second.asScala, out)
-    }
-
-    windowReduce(coWindowFun, windowSize, slideInterval)
-  }
-
-  /**
-   * Returns the first {@link DataStream}.
-   *
-   * @return The first DataStream.
-   */
-  def getFirst(): DataStream[IN1] = {
-    javaStream.getFirst
-  }
-
-  /**
-   * Returns the second {@link DataStream}.
-   *
-   * @return The second DataStream.
-   */
-  def getSecond(): DataStream[IN2] = {
-    javaStream.getSecond
-  }
-
-  /**
-   * Gets the type of the first input
-   *
-   * @return The type of the first input
-   */
-  def getInputType1(): TypeInformation[IN1] = {
-    javaStream.getType1
-  }
-
-  /**
-   * Gets the type of the second input
-   *
-   * @return The type of the second input
-   */
-  def getInputType2(): TypeInformation[IN2] = {
-    javaStream.getType2
   }
 
   /**
