@@ -23,55 +23,44 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.ReduceKeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
-import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.EvictingNonKeyedWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.NonKeyedWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
 
 /**
- * A {@code KeyedWindowDataStream} represents a data stream where elements are grouped by
- * key, and for each key, the stream of elements is split into windows based on a
+ * A {@code AllWindowedStream} represents a data stream where the stream of
+ * elements is split into windows based on a
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. Window emission
  * is triggered based on a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
  *
  * <p>
- * The windows are conceptually evaluated for each key individually, meaning windows can trigger at
- * different points for each key.
- *
- * <p>
- * If an {@link Evictor} is specified it will be used to evict elements from the window after
+ * If an {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} is specified it will be
+ * used to evict elements from the window after
  * evaluation was triggered by the {@code Trigger} but before the actual evaluation of the window.
  * When using an evictor window performance will degrade significantly, since
  * pre-aggregation of window results cannot be used.
  *
  * <p>
- * Note that the {@code KeyedWindowDataStream} is purely and API construct, during runtime
- * the {@code KeyedWindowDataStream} will be collapsed together with the
- * {@code KeyedDataStream} and the operation over the window into one single operation.
- * 
+ * Note that the {@code AllWindowedStream} is purely and API construct, during runtime
+ * the {@code AllWindowedStream} will be collapsed together with the
+ * operation over the window into one single operation.
+ *
  * @param <T> The type of elements in the stream.
- * @param <K> The type of the key by which elements are grouped.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns the elements to.
  */
-public class KeyedWindowDataStream<T, K, W extends Window> {
+public class AllWindowedStream<T, W extends Window> {
 
-	/** The keyed data stream that is windowed by this stream */
-	private final KeyedDataStream<T, K> input;
+	/** The data stream that is windowed by this stream */
+	private final DataStream<T> input;
 
 	/** The window assigner */
 	private final WindowAssigner<? super T, W> windowAssigner;
@@ -83,7 +72,7 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 	private Evictor<? super T, ? super W> evictor;
 
 
-	public KeyedWindowDataStream(KeyedDataStream<T, K> input,
+	public AllWindowedStream(DataStream<T> input,
 			WindowAssigner<? super T, W> windowAssigner) {
 		this.input = input;
 		this.windowAssigner = windowAssigner;
@@ -93,7 +82,7 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 	/**
 	 * Sets the {@code Trigger} that should be used to trigger window emission.
 	 */
-	public KeyedWindowDataStream<T, K, W> trigger(Trigger<? super T, ? super W> trigger) {
+	public AllWindowedStream<T, W> trigger(Trigger<? super T, ? super W> trigger) {
 		this.trigger = trigger;
 		return this;
 	}
@@ -105,7 +94,7 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 	 * Note: When using an evictor window performance will degrade significantly, since
 	 * pre-aggregation of window results cannot be used.
 	 */
-	public KeyedWindowDataStream<T, K, W> evictor(Evictor<? super T, ? super W> evictor) {
+	public AllWindowedStream<T, W> evictor(Evictor<? super T, ? super W> evictor) {
 		this.evictor = evictor;
 		return this;
 	}
@@ -139,16 +128,14 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 			return result;
 		}
 
-		String opName = "TriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
-		KeySelector<T, K> keySel = input.getKeySelector();
+		String opName = "NonParallelTriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
 
 		OneInputStreamOperator<T, T> operator;
 
 		if (evictor != null) {
-			operator = new EvictingWindowOperator<>(windowAssigner,
-					keySel,
+			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					new HeapWindowBuffer.Factory<T>(),
-					new ReduceKeyedWindowFunction<K, W, T>(function),
+					new ReduceAllWindowFunction<W, T>(function),
 					trigger,
 					evictor);
 
@@ -157,14 +144,13 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 			@SuppressWarnings("unchecked")
 			ReduceFunction<T> functionCopy = (ReduceFunction<T>) SerializationUtils.clone(function);
 
-			operator = new WindowOperator<>(windowAssigner,
-					keySel,
+			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					new PreAggregatingHeapWindowBuffer.Factory<>(functionCopy),
-					new ReduceKeyedWindowFunction<K, W, T>(function),
+					new ReduceAllWindowFunction<W, T>(function),
 					trigger);
 		}
 
-		return input.transform(opName, input.getType(), operator);
+		return input.transform(opName, input.getType(), operator).setParallelism(1);
 	}
 
 	/**
@@ -178,14 +164,26 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> DataStream<R> mapWindow(KeyedWindowFunction<T, R, K, W> function) {
-		// clean the closure
-		function = input.getExecutionEnvironment().clean(function);
-		
+	public <R> DataStream<R> apply(AllWindowFunction<T, R, W> function) {
 		TypeInformation<T> inType = input.getType();
 		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				function, KeyedWindowFunction.class, true, true, inType, null, false);
+				function, AllWindowFunction.class, true, true, inType, null, false);
 
+		return apply(function, resultType);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each evaluation
+	 * of the window for each key individually. The output of the window function is interpreted
+	 * as a regular non-windowed stream.
+	 * <p>
+	 * Not that this function requires that all data in the windows is buffered until the window
+	 * is evaluated, as the function provides no means of pre-aggregation.
+	 *
+	 * @param function The window function.
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> DataStream<R> apply(AllWindowFunction<T, R, W> function, TypeInformation<R> resultType) {
 		String callLocation = Utils.getCallLocationName();
 		String udfName = "MapWindow at " + callLocation;
 
@@ -196,92 +194,38 @@ public class KeyedWindowDataStream<T, K, W extends Window> {
 
 
 		String opName = "TriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
-		KeySelector<T, K> keySel = input.getKeySelector();
 
 		OneInputStreamOperator<T, R> operator;
 
 		if (evictor != null) {
-			operator = new EvictingWindowOperator<>(windowAssigner,
-					keySel,
+			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					new HeapWindowBuffer.Factory<T>(),
 					function,
 					trigger,
 					evictor);
 
 		} else {
-			operator = new WindowOperator<>(windowAssigner,
-					keySel,
+			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					new HeapWindowBuffer.Factory<T>(),
 					function,
 					trigger);
 		}
 
-
-
-		return input.transform(opName, resultType, operator);
+		return input.transform(opName, resultType, operator).setParallelism(1);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
+
 	private <R> DataStream<R> createFastTimeOperatorIfValid(
 			Function function,
 			TypeInformation<R> resultType,
 			String functionName) {
 
-		if (windowAssigner instanceof SlidingProcessingTimeWindows && trigger instanceof ProcessingTimeTrigger && evictor == null) {
-			SlidingProcessingTimeWindows timeWindows = (SlidingProcessingTimeWindows) windowAssigner;
-			final long windowLength = timeWindows.getSize();
-			final long windowSlide = timeWindows.getSlide();
-
-			String opName = "Fast " + timeWindows + " of " + functionName;
-
-			if (function instanceof ReduceFunction) {
-				@SuppressWarnings("unchecked")
-				ReduceFunction<T> reducer = (ReduceFunction<T>) function;
-
-				@SuppressWarnings("unchecked")
-				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
-						new AggregatingProcessingTimeWindowOperator<>(
-								reducer, input.getKeySelector(), windowLength, windowSlide);
-				return input.transform(opName, resultType, op);
-			}
-			else if (function instanceof KeyedWindowFunction) {
-				@SuppressWarnings("unchecked")
-				KeyedWindowFunction<T, R, K, TimeWindow> wf = (KeyedWindowFunction<T, R, K, TimeWindow>) function;
-
-				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
-						wf, input.getKeySelector(), windowLength, windowSlide);
-				return input.transform(opName, resultType, op);
-			}
-		} else if (windowAssigner instanceof TumblingProcessingTimeWindows && trigger instanceof ProcessingTimeTrigger && evictor == null) {
-			TumblingProcessingTimeWindows timeWindows = (TumblingProcessingTimeWindows) windowAssigner;
-			final long windowLength = timeWindows.getSize();
-			final long windowSlide = timeWindows.getSize();
-
-			String opName = "Fast " + timeWindows + " of " + functionName;
-
-			if (function instanceof ReduceFunction) {
-				@SuppressWarnings("unchecked")
-				ReduceFunction<T> reducer = (ReduceFunction<T>) function;
-
-				@SuppressWarnings("unchecked")
-				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
-						new AggregatingProcessingTimeWindowOperator<>(
-								reducer, input.getKeySelector(), windowLength, windowSlide);
-				return input.transform(opName, resultType, op);
-			}
-			else if (function instanceof KeyedWindowFunction) {
-				@SuppressWarnings("unchecked")
-				KeyedWindowFunction<T, R, K, TimeWindow> wf = (KeyedWindowFunction<T, R, K, TimeWindow>) function;
-
-				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
-						wf, input.getKeySelector(), windowLength, windowSlide);
-				return input.transform(opName, resultType, op);
-			}
-		}
-
+		// TODO: add once non-parallel fast aligned time windows operator is ready
 		return null;
 	}
+
 }

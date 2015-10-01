@@ -36,20 +36,21 @@ import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
- * A KeyedDataStream represents a {@link DataStream} on which operator state is
- * partitioned by key using a provided {@link KeySelector}. Typical operations supported by a {@link DataStream}
- * are also possible on a KeyedDataStream, with the exception of partitioning methods such as shuffle, forward and groupBy.
+ * A {@code KeyedStream} represents a {@link DataStream} on which operator state is
+ * partitioned by key using a provided {@link KeySelector}. Typical operations supported by a
+ * {@code DataStream} are also possible on a {@code KeyedStream}, with the exception of
+ * partitioning methods such as shuffle, forward and groupBy.
  * 
  * 
  * @param <T> The type of the elements in the Keyed Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
  */
-public class KeyedDataStream<T, KEY> extends DataStream<T> {
+public class KeyedStream<T, KEY> extends DataStream<T> {
 	
 	protected final KeySelector<T, KEY> keySelector;
 
 	/**
-	 * Creates a new {@link KeyedDataStream} using the given {@link KeySelector}
+	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
 	 * to partition operator state by key.
 	 * 
 	 * @param dataStream
@@ -57,7 +58,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	 * @param keySelector
 	 *            Function for determining state partitions
 	 */
-	public KeyedDataStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
+	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
 		super(dataStream.getExecutionEnvironment(), new PartitionTransformation<T>(dataStream.getTransformation(), new HashPartitioner<T>(keySelector)));
 		this.keySelector = keySelector;
 	}
@@ -70,7 +71,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	
 	@Override
 	protected DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
-		throw new UnsupportedOperationException("Cannot override partitioning for KeyedDataStream.");
+		throw new UnsupportedOperationException("Cannot override partitioning for KeyedStream.");
 	}
 
 	
@@ -98,7 +99,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Windows this {@code KeyedDataStream} into tumbling time windows.
+	 * Windows this {@code KeyedStream} into tumbling time windows.
 	 *
 	 * <p>
 	 * This is a shortcut for either {@code .window(TumblingTimeWindows.of(size))} or
@@ -108,7 +109,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public KeyedWindowDataStream<T, KEY, TimeWindow> timeWindow(AbstractTime size) {
+	public WindowedStream<T, KEY, TimeWindow> timeWindow(AbstractTime size) {
 		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
 		if (actualSize instanceof EventTime) {
@@ -119,7 +120,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Windows this {@code KeyedDataStream} into sliding time windows.
+	 * Windows this {@code KeyedStream} into sliding time windows.
 	 *
 	 * <p>
 	 * This is a shortcut for either {@code .window(SlidingTimeWindows.of(size, slide))} or
@@ -129,7 +130,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public KeyedWindowDataStream<T, KEY, TimeWindow> timeWindow(AbstractTime size, AbstractTime slide) {
+	public WindowedStream<T, KEY, TimeWindow> timeWindow(AbstractTime size, AbstractTime slide) {
 		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 		AbstractTime actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
@@ -141,7 +142,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Windows this data stream to a {@code KeyedWindowDataStream}, which evaluates windows
+	 * Windows this data stream to a {@code WindowedStream}, which evaluates windows
 	 * over a key grouped stream. Elements are put into windows by a {@link WindowAssigner}. The
 	 * grouping of elements is done both by key and by window.
 	 *
@@ -153,7 +154,7 @@ public class KeyedDataStream<T, KEY> extends DataStream<T> {
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
 	 */
-	public <W extends Window> KeyedWindowDataStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
-		return new KeyedWindowDataStream<>(this, assigner);
+	public <W extends Window> WindowedStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
+		return new WindowedStream<>(this, assigner);
 	}
 }

@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
  * @param <T> The type of the elements in the Grouped Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
  */
-public class GroupedDataStream<T, KEY> extends KeyedDataStream<T, KEY> {
+public class GroupedDataStream<T, KEY> extends KeyedStream<T, KEY> {
 
 	/**
 	 * Creates a new {@link GroupedDataStream}, group inclusion is determined using

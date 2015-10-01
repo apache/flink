@@ -27,7 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.windowing.KeyedWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class WindowOperator<K, IN, OUT, W extends Window>
-		extends AbstractUdfStreamOperator<OUT, KeyedWindowFunction<IN, OUT, K, W>>
+		extends AbstractUdfStreamOperator<OUT, WindowFunction<IN, OUT, K, W>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
@@ -75,7 +75,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	public WindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			KeySelector<IN, K> keySelector,
 			WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory,
-			KeyedWindowFunction<IN, OUT, K, W> windowFunction,
+			WindowFunction<IN, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger) {
 
 		super(windowFunction);
@@ -181,7 +181,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		}
 
 
-		userFunction.evaluate(key,
+		userFunction.apply(key,
 				window,
 				bufferAndTrigger.f0.getUnpackedElements(),
 				timestampedCollector);

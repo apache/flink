@@ -25,19 +25,23 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 
 /**
- * Base interface for functions that are evaluated over non-keyed windows.
+ * Base interface for functions that are evaluated over keyed (grouped) windows.
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
+ * @param <KEY> The type of the key.
  */
-public interface WindowFunction<IN, OUT,  W extends Window> extends Function, Serializable {
+public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function, Serializable {
 
 	/**
-	 * 
-	 * @param values
-	 * @param out
+	 * Evaluates the window and outputs none or several elements.
+	 *
+	 * @param key The key for which this window is evaluated.
+	 * @param window The window that is being evaluated.
+	 * @param values The elements in the window being evaluated.
+	 * @param out A collector for emitting elements.
 	 * 
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery. 
 	 */
-	void evaluate(W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
+	void apply(KEY key, W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
 }
