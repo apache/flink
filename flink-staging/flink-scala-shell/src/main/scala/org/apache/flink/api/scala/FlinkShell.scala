@@ -18,11 +18,10 @@
 
 package org.apache.flink.api.scala
 
-
-import scala.tools.nsc.Settings
-
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
+
+import scala.tools.nsc.Settings
 
 
 object FlinkShell {
