@@ -28,7 +28,6 @@ import org.apache.nifi.stream.io.StreamUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,12 +41,31 @@ public class NiFiSource extends RichParallelSourceFunction<NiFiDataPacket> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NiFiSource.class);
 
+	private static final long DEFAULT_WAIT_TIME_MS = 1000;
+
+	private long waitTimeMs;
 	private SiteToSiteClient client;
 	private SiteToSiteClientConfig clientConfig;
 	private transient volatile boolean running;
 
+	/**
+	 * Constructs a new NiFiSource using the given client config and the default wait time of 1000 ms.
+	 *
+	 * @param clientConfig the configuration for building a NiFi SiteToSiteClient
+	 */
 	public NiFiSource(SiteToSiteClientConfig clientConfig) {
+		this(clientConfig, DEFAULT_WAIT_TIME_MS);
+	}
+
+	/**
+	 * Constructs a new NiFiSource using the given client config and wait time.
+	 *
+	 * @param clientConfig the configuration for building a NiFi SiteToSiteClient
+	 * @param waitTimeMs the amount of time to wait (in milliseconds) if no data is available to pull from NiFi
+	 */
+	public NiFiSource(SiteToSiteClientConfig clientConfig, long waitTimeMs) {
 		this.clientConfig = clientConfig;
+		this.waitTimeMs = waitTimeMs;
 	}
 
 	@Override
@@ -59,45 +77,58 @@ public class NiFiSource extends RichParallelSourceFunction<NiFiDataPacket> {
 
 	@Override
 	public void run(SourceContext<NiFiDataPacket> ctx) throws Exception {
-		while (running) {
-			final Transaction transaction = client.createTransaction(TransferDirection.RECEIVE);
+		try {
+			while (running) {
+				final Transaction transaction = client.createTransaction(TransferDirection.RECEIVE);
+				if (transaction == null) {
+					LOG.warn("A transaction could not be created, waiting and will try again...");
+					try {
+						Thread.sleep(waitTimeMs);
+					} catch (InterruptedException e) {
 
-			DataPacket dataPacket = transaction.receive();
-			if (dataPacket == null) {
-				transaction.confirm();
-				transaction.complete();
-
-				// no data available. Wait a bit and try again
-				try {
-					Thread.sleep(1000L);
-				} catch (InterruptedException e) {
-
+					}
+					continue;
 				}
-				continue;
+
+				DataPacket dataPacket = transaction.receive();
+				if (dataPacket == null) {
+					transaction.confirm();
+					transaction.complete();
+
+					LOG.debug("No data available to pull, waiting and will try again...");
+					try {
+						Thread.sleep(waitTimeMs);
+					} catch (InterruptedException e) {
+
+					}
+					continue;
+				}
+
+				final List<NiFiDataPacket> niFiDataPackets = new ArrayList<>();
+				do {
+					// Read the data into a byte array and wrap it along with the attributes
+					// into a NiFiDataPacket.
+					final InputStream inStream = dataPacket.getData();
+					final byte[] data = new byte[(int) dataPacket.getSize()];
+					StreamUtils.fillBuffer(inStream, data);
+
+					final Map<String, String> attributes = dataPacket.getAttributes();
+
+					niFiDataPackets.add(new StandardNiFiDataPacket(data, attributes));
+					dataPacket = transaction.receive();
+				} while (dataPacket != null);
+
+				// Confirm transaction to verify the data
+				transaction.confirm();
+
+				for (NiFiDataPacket dp : niFiDataPackets) {
+					ctx.collect(dp);
+				}
+
+				transaction.complete();
 			}
-
-			final List<NiFiDataPacket> niFiDataPackets = new ArrayList<>();
-			do {
-				// Read the data into a byte array and wrap it along with the attributes
-				// into a NiFiDataPacket.
-				final InputStream inStream = dataPacket.getData();
-				final byte[] data = new byte[(int) dataPacket.getSize()];
-				StreamUtils.fillBuffer(inStream, data);
-
-				final Map<String, String> attributes = dataPacket.getAttributes();
-
-				niFiDataPackets.add(new StandardNiFiDataPacket(data, attributes));
-				dataPacket = transaction.receive();
-			} while (dataPacket != null);
-
-			// Confirm transaction to verify the data
-			transaction.confirm();
-
-			for (NiFiDataPacket dp : niFiDataPackets) {
-				ctx.collect(dp);
-			}
-
-			transaction.complete();
+		} finally {
+			ctx.close();
 		}
 	}
 
@@ -109,11 +140,7 @@ public class NiFiSource extends RichParallelSourceFunction<NiFiDataPacket> {
 	@Override
 	public void close() throws Exception {
 		super.close();
-		try {
-			client.close();
-		} catch (final IOException ioe) {
-			LOG.error("Unable to close SiteToSiteClient: " + ioe.getMessage());
-		}
+		client.close();
 	}
 
 }

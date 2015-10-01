@@ -23,10 +23,6 @@ import org.apache.nifi.remote.Transaction;
 import org.apache.nifi.remote.TransferDirection;
 import org.apache.nifi.remote.client.SiteToSiteClient;
 import org.apache.nifi.remote.client.SiteToSiteClientConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * A sink that delivers data to Apache NiFi using the NiFi Site-to-Site client. The sink requires
@@ -34,12 +30,16 @@ import java.io.IOException;
  */
 public class NiFiSink<T> extends RichSinkFunction<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(NiFiSink.class);
-
 	private SiteToSiteClient client;
 	private SiteToSiteClientConfig clientConfig;
 	private NiFiDataPacketBuilder<T> builder;
 
+	/**
+	 * Construct a new NiFiSink with the given client config and NiFiDataPacketBuilder.
+	 *
+	 * @param clientConfig the configuration for building a NiFi SiteToSiteClient
+	 * @param builder a builder to produce NiFiDataPackets from incoming data
+	 */
 	public NiFiSink(SiteToSiteClientConfig clientConfig, NiFiDataPacketBuilder<T> builder) {
 		this.clientConfig = clientConfig;
 		this.builder = builder;
@@ -56,6 +56,10 @@ public class NiFiSink<T> extends RichSinkFunction<T> {
 		final NiFiDataPacket niFiDataPacket = builder.createNiFiDataPacket(value, getRuntimeContext());
 
 		final Transaction transaction = client.createTransaction(TransferDirection.SEND);
+		if (transaction == null) {
+			throw new IllegalStateException("Unable to create a NiFi Transaction to send data");
+		}
+
 		transaction.send(niFiDataPacket.getContent(), niFiDataPacket.getAttributes());
 		transaction.confirm();
 		transaction.complete();
@@ -64,11 +68,7 @@ public class NiFiSink<T> extends RichSinkFunction<T> {
 	@Override
 	public void close() throws Exception {
 		super.close();
-		try {
-			client.close();
-		} catch (final IOException ioe) {
-			LOG.error("Unable to close SiteToSiteClient: " + ioe.getMessage());
-		}
+		client.close();
 	}
 
 }
