@@ -29,7 +29,7 @@ import scala.collection.mutable.ListBuffer
  * The skeleton of the data structure was initially based off of the 2D Quadtree found here:
  * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
  *
- * Additional methods were added to the class both for efficient KNN queries and generalizing to n-dim.
+ * Many additional methods were added to the class both for efficient KNN queries and generalizing to n-dim.
  *
  * @param minVec
  * @param maxVec
@@ -210,12 +210,13 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
   }
 
-  /** REWORDFollowing 3 routines are used to find all objects in minimal bounding box and
-    * also all objects in the siblings' minimal bounding box.
+  /** Following methods are used to zoom in on a region near a test point for a fast KNN query.
     *
     * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
     * max distance D_s to obj.  D_s is then used during the kNN query to find all points
-    * within a radius D_s of obj using searchNeighbors
+    * within a radius D_s of obj using searchNeighbors.  To the the "near" neighbors, a min-heap is used
+    * defined on the leaf nodes of the quadtree.  The priority of a leaf node is an appropriate notion
+    * of the distance between the test point and the node, which is defined by minDist(obj),
    *
    */
 
@@ -254,9 +255,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
           }
         }
         else {
-          //for(child <- n.children) {
             searchRecurSiblingQueue(obj, child, nodeBuff)
-          //}
         }
       }
     }
@@ -267,7 +266,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       nodeBuff += n
     } else{
       for (c <- n.children) {
-
           MinNodes(c, nodeBuff)
         }
     }
@@ -279,7 +277,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
     *
     * original version only looks in minimal box; for the KNN Query, we look at
-    * all nearby boxes.  Moreover, there is no filtering by radius
+    * all nearby boxes. The radius is determined from searchNeighborsSiblingQueue
+    * by defining a min-heap on the leaf nodes
    *
    * @param obj
    * @param radius
@@ -303,8 +302,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
   }
 
    def distance(a:DenseVector,b:DenseVector):Double = {
-   // val diffSQ = SquaredEuclideanDistanceMetric().distance(a,b)
-   // math.sqrt(diffSQ)
      distMetric.distance(a,b)
   }
 }

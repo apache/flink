@@ -185,12 +185,10 @@ object KNN {
                   val b1 = BigDecimal(math.pow(4, training.values.head.size)) * BigDecimal(testing.values.length) * BigDecimal(math.log(training.values.length))
                   val b2 = BigDecimal(testing.values.length) * BigDecimal(training.values.length)
 
+
+                  // use a quadtree if (4^dim)Ntest*log(Ntrain) < Ntest*Ntrain, and distance is Euclidean
                   val BruteOrQuad = b1 < b2 &&
                     ( metric.isInstanceOf[EuclideanDistanceMetric] || metric.isInstanceOf[SquaredEuclideanDistanceMetric])
-
-                  //println("BruteOrQuad =  " + BruteOrQuad)
-                  //var Br = b1 - b2
-                  //println("Br =   " + Br)
 
                   if (!BruteOrQuad) {
                     for (v <- training.values) {
@@ -198,6 +196,7 @@ object KNN {
                     }
                   }
 
+                  // define a bounding box for the quadtree
                     for (i <- 0 to training.values.head.size - 1) {
                       val minTrain = training.values.map(x => x(i)).min - 0.01
                       val minTest = testing.values.map(x => x._2(i)).min - 0.01
@@ -228,14 +227,14 @@ object KNN {
                         /////  Find siblings' objects and do kNN there
                         val siblingObjects = trainingQuadTree.searchNeighborsSiblingQueue(a._2.asInstanceOf[DenseVector])
 
-                        /// do KNN query on siblingObjects and get max distance of kNN
+                        // do KNN query on siblingObjects and get max distance of kNN
+                        // then rad is good choice for a neighborhood to do a local kNN search
                         val knnSiblings = siblingObjects.map(
                           v => metric.distance(a._2, v)
                         ).sortWith(_ < _).take(k)
 
                         val rad = knnSiblings.last
-
-                        trainingFiltered = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], math.sqrt(rad))
+                        trainingFiltered = trainingQuadTree.searchNeighbors(a._2.asInstanceOf[DenseVector], rad)
 
                       }
 

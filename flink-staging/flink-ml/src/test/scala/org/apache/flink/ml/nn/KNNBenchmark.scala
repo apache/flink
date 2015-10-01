@@ -33,7 +33,7 @@ class KNNBenchmark extends FlatSpec {
 
     //// Generate trainingSet
     val r = scala.util.Random
-    var nFill = 160
+    var nFill = 1600
 
   val rSeq = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian))
   /// GENERATE RANDOM SET OF POINTS IN [0,1]x[0,1]
@@ -58,7 +58,7 @@ class KNNBenchmark extends FlatSpec {
   val rSeqTest4D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian, r.nextGaussian, r.nextGaussian))
   val testingSet4D = env.fromCollection(rSeqTest4D)
 
-  nFill = 160000
+  nFill = 16000
 
   /////////////////////////////////////////6d
   val rSeq6D = Seq.fill(nFill)(DenseVector(r.nextGaussian, r.nextGaussian,r.nextGaussian, r.nextGaussian,
