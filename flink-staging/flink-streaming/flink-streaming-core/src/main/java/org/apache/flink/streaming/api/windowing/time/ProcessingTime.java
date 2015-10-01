@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.windowing.windowpolicy;
+package org.apache.flink.streaming.api.windowing.time;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -28,9 +28,7 @@ import java.util.concurrent.TimeUnit;
  * {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} for a definition
  * of processing time.
  */
-public final class ProcessingTime extends AbstractTimePolicy {
-
-	private static final long serialVersionUID = 7546166721132583007L;
+public final class ProcessingTime extends AbstractTime {
 
 	/** Instantiation only via factory method */
 	private ProcessingTime(long size, TimeUnit unit) {

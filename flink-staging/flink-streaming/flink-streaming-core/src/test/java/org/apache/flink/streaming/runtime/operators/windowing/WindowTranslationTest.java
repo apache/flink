@@ -41,10 +41,10 @@ import org.junit.Test;
 
 /**
  * These tests verify that the api calls on
- * {@link org.apache.flink.streaming.api.datastream.KeyedTriggerWindowDataStream} instantiate
+ * {@link org.apache.flink.streaming.api.datastream.KeyedWindowDataStream} instantiate
  * the correct window operator.
  */
-public class TriggerWindowTranslationTest extends StreamingMultipleProgramsTestBase {
+public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 	/**
 	 * These tests ensure that the fast aligned time windows operator is used if the
