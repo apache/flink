@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.MathUtils;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -33,7 +33,8 @@ import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 
-public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> extends AbstractStreamOperator<OUT> 
+public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, F extends Function> 
+		extends AbstractUdfStreamOperator<OUT, F> 
 		implements OneInputStreamOperator<IN, OUT>, Triggerable {
 	
 	private static final long serialVersionUID = 3245500864882459867L;
@@ -60,11 +61,13 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 	private transient long nextSlideTime;
 	
 	protected AbstractAlignedProcessingTimeWindowOperator(
-			Function function,
+			F function,
 			KeySelector<IN, KEY> keySelector,
 			long windowLength,
 			long windowSlide)
 	{
+		super(function);
+		
 		if (function == null || keySelector == null) {
 			throw new NullPointerException();
 		}
@@ -103,6 +106,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		
 		out = new TimestampedCollector<>(output);
 		
 		// create the panes that gather the elements per slide
@@ -119,6 +124,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 
 	@Override
 	public void close() throws Exception {
+		super.close();
+		
 		final long finalWindowTimestamp = nextEvaluationTime;
 
 		// early stop the triggering thread, so it does not attempt to return any more data
@@ -130,12 +137,17 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT> 
 
 	@Override
 	public void dispose() {
+		super.dispose();
+		
 		// acquire the lock during shutdown, to prevent trigger calls at the same time
 		// fail-safe stop of the triggering thread (in case of an error)
 		stopTriggers();
 
-		// release the panes
-		panes.dispose();
+		// release the panes. panes may still be null if dispose is called
+		// after open() failed
+		if (panes != null) {
+			panes.dispose();
+		}
 	}
 	
 	private void stopTriggers() {

@@ -24,7 +24,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 /**
- * Base class for operators that do not contain a user-defined function.
+ * Base class for all stream operators.
+ * 
+ * Operators that contain a user function should extend the class 
+ * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class).
  * 
  * @param <OUT> The output type of the operator
  */

@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -41,29 +42,45 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This is used as the base class for operators that have a user-defined
- * function.
+ * function. This class handles the opening and closing of the user-defined functions,
+ * as part of the operator life cycle.
  * 
  * @param <OUT>
  *            The output type of the operator
  * @param <F>
  *            The type of the user function
  */
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serializable> 
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function> 
 		extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractUdfStreamOperator.class);
 	
-
+	
+	/** the user function */
 	protected final F userFunction;
 	
+	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
 	private boolean functionsClosed = false;
 
+	
 	public AbstractUdfStreamOperator(F userFunction) {
-		this.userFunction = userFunction;
+		this.userFunction = Objects.requireNonNull(userFunction);
 	}
 
+	/**
+	 * Gets the user function executed in this operator.
+	 * @return The user function of this operator.
+	 */
+	public F getUserFunction() {
+		return userFunction;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  operator life cycle
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public final void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext) {
 		super.setup(output, runtimeContext);
@@ -97,6 +114,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  checkpointing and recovery
+	// ------------------------------------------------------------------------
+	
 	@Override
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> snapshots) throws Exception {
@@ -169,9 +190,5 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function & Serial
 				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
 			}
 		}
-	}
-
-	public F getUserFunction() {
-		return userFunction;
 	}
 }

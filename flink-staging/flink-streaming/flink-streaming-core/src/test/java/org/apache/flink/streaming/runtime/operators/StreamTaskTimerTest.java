@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -25,8 +26,10 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -38,7 +41,8 @@ import static org.junit.Assert.*;
  * Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ResultPartitionWriter.class})
+@PrepareForTest(ResultPartitionWriter.class)
+@SuppressWarnings("serial")
 public class StreamTaskTimerTest {
 
 	@Test
@@ -47,7 +51,8 @@ public class StreamTaskTimerTest {
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		StreamMap<String, String> mapOperator = new StreamMap<>(null);
+		
+		StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
 		streamConfig.setStreamOperator(mapOperator);
 
 		testHarness.invoke();
@@ -77,12 +82,11 @@ public class StreamTaskTimerTest {
 	@Test
 	public void checkScheduledTimestampe() {
 		try {
-
 			final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
 			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
-			StreamMap<String, String> mapOperator = new StreamMap<>(null);
+			StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
 			streamConfig.setStreamOperator(mapOperator);
 
 			testHarness.invoke();
@@ -161,5 +165,12 @@ public class StreamTaskTimerTest {
 				errorRef.compareAndSet(null, t);
 			}
 		}
+	}
+	
+	// ------------------------------------------------------------------------
+	
+	public static class DummyMapFunction<T> implements MapFunction<T, T> {
+		@Override
+		public T map(T value) { return value; }
 	}
 }

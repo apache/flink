@@ -42,7 +42,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -51,7 +50,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "SynchronizationOnLocalVariableOrMethodParameter"})
 public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
@@ -113,7 +112,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 	@Test
 	public void testWindowSizeAndSlide() {
 		try {
-			AbstractAlignedProcessingTimeWindowOperator<String, String, String> op;
+			AggregatingProcessingTimeWindowOperator<String, String> op;
 			
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 5000, 1000);
 			assertEquals(5000, op.getWindowSize());
@@ -153,8 +152,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			final StreamingRuntimeContext mockContext = mock(StreamingRuntimeContext.class);
 			when(mockContext.getTaskName()).thenReturn("Test task name");
-			
-			AbstractAlignedProcessingTimeWindowOperator<String, String, String> op;
+
+			AggregatingProcessingTimeWindowOperator<String, String> op;
 
 			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 5000, 1000);
 			op.setup(mockOut, mockContext);
@@ -244,9 +243,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			when(mockContext.getTaskName()).thenReturn("Test task name");
 
 			final Object lock = new Object();
-			doAnswer(new Answer() {
+			doAnswer(new Answer<Void>() {
 				@Override
-				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
 					final Long timestamp = (Long) invocationOnMock.getArguments()[0];
 					final Triggerable target = (Triggerable) invocationOnMock.getArguments()[1];
 					timerService.schedule(
@@ -380,9 +379,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			when(mockContext.getTaskName()).thenReturn("Test task name");
 
 			final Object lock = new Object();
-			doAnswer(new Answer() {
+			doAnswer(new Answer<Void>() {
 				@Override
-				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
 					final Long timestamp = (Long) invocationOnMock.getArguments()[0];
 					final Triggerable target = (Triggerable) invocationOnMock.getArguments()[1];
 					timerService.schedule(

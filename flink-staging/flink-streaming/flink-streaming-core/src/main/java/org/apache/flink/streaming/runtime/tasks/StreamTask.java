@@ -86,6 +86,9 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>> {
 
+	/** The thread group that holds all trigger timer threads */
+	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
+	
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
 	/**
@@ -103,9 +106,6 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 	protected StreamConfig configuration;
 
 	protected ClassLoader userClassLoader;
-
-	/** The thread group that holds all trigger timer threads */
-	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
 
 	/** The executor service that */
 	private ScheduledExecutorService timerService;
