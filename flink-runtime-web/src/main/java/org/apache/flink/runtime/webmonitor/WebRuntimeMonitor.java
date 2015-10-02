@@ -32,9 +32,8 @@ import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
 
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
@@ -65,6 +64,8 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -114,27 +115,26 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
 
-		// figure out where our static contents is
-		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
-		final String configuredWebRoot = cfg.getWebRoot();
-
-		final File webRootDir;
-		if (configuredWebRoot != null) {
-			webRootDir = new File(configuredWebRoot);
-		}
-		else if (flinkRoot != null) {
-			webRootDir = new File(flinkRoot, STATIC_CONTENTS_PATH);
-		}
-		else {
-			throw new IllegalConfigurationException("The given configuration provides neither the web-document root ("
-					+ WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY + "), not the Flink installation root ("
-					+ ConfigConstants.FLINK_BASE_DIR_PATH_KEY + ").");
-		}
-
-		// validate that the doc root is a valid directory
-		if (!(webRootDir.exists() && webRootDir.isDirectory() && webRootDir.canRead())) {
-			throw new IllegalConfigurationException("The path to the static contents (" +
-					webRootDir.getAbsolutePath() + ") is not a readable directory.");
+		// create an empty directory in temp for the web server
+		Path staticContentPath = Files.createTempDirectory("flink-runtime-web-files-");
+		final File webRootDir = staticContentPath.toFile();
+		LOG.info("Using directory {} for the web interface files", webRootDir);
+		// add shutdown hook for deleting the directory
+		try {
+			Runtime.getRuntime().addShutdownHook(new Thread() {
+				@Override
+				public void run() {
+					try {
+						LOG.info("Removing web root dir {}", webRootDir);
+						FileUtils.deleteDirectory(webRootDir);
+					} catch (Throwable t) {
+						LOG.warn("Error while deleting web root dir {}", webRootDir, t);
+					}
+				}
+			});
+		} catch(Throwable t) {
+			// these errors usually happen when the shutdown is already in progress
+			LOG.warn("Error while adding shutdown hook", t);
 		}
 
 		// port configuration

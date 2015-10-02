@@ -51,7 +51,7 @@ public class WebRuntimeMonitorITCase {
 
 	private final static FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
-	private final String MAIN_RESOURCES_PATH = getClass().getResource("/../classes/web").getPath();
+	private final String MAIN_RESOURCES_PATH = getClass().getResource("/web").getPath();
 
 	/**
 	 * Tests operation of the monitor in standalone operation.
@@ -72,7 +72,6 @@ public class WebRuntimeMonitorITCase {
 			ActorRef jmActor = flink.jobManagerActors().get().head();
 
 			Configuration monitorConfig = new Configuration();
-			monitorConfig.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
 			monitorConfig.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
 
 			// Needs to match the leader address from the leader retrieval service
@@ -128,7 +127,6 @@ public class WebRuntimeMonitorITCase {
 
 		try (TestingServer zooKeeper = new TestingServer()) {
 			final Configuration config = new Configuration();
-			config.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
 			config.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");

@@ -31,9 +31,6 @@ public class WebMonitorConfig {
 	/** The port for the runtime monitor web-frontend server. */
 	public static final String JOB_MANAGER_WEB_PORT_KEY = ConfigConstants.JOB_MANAGER_WEB_PORT_KEY;
 
-	/** The directory where the web server's static contents is stored */
-	public static final String JOB_MANAGER_WEB_DOC_ROOT_KEY = ConfigConstants.JOB_MANAGER_WEB_DOC_ROOT_KEY;
-
 	/** The initial refresh interval for the web dashboard */
 	public static final String JOB_MANAGER_WEB_REFRESH_INTERVAL_KEY = "jobmanager.web.refresh-interval";
 	
@@ -68,11 +65,7 @@ public class WebMonitorConfig {
 	public int getWebFrontendPort() {
 		return config.getInteger(JOB_MANAGER_WEB_PORT_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 	}
-	
-	public String getWebRoot() {
-		return config.getString(JOB_MANAGER_WEB_DOC_ROOT_KEY, null);
-	}
-	
+
 	public long getRefreshInterval() {
 		return config.getLong(JOB_MANAGER_WEB_REFRESH_INTERVAL_KEY, DEFAULT_JOB_MANAGER_WEB_REFRESH_INTERVAL);
 	}

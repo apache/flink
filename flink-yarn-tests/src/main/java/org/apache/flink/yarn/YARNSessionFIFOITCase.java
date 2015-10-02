@@ -147,6 +147,30 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			ApplicationReport app = apps.get(0);
 			Assert.assertEquals("MyCustomName", app.getName());
 			ApplicationId id = app.getApplicationId();
+
+			// check whether we can access some JSON from the new web interface (activated by default)
+			String url = app.getTrackingUrl();
+			if(!url.endsWith("/")) {
+				url += "/";
+			}
+			if(!url.startsWith("http://")) {
+				url = "http://" + url;
+			}
+			LOG.info("Got application URL from YARN {}", url);
+
+			// it seems that the number of task managers is not available immediately.
+			// wait until it is "1"
+			// if not, the test will fail with a timeout
+			int taskManagerCount = 0;
+			while(taskManagerCount == 0) {
+				sleep(500);
+				String config = TestBaseUtils.getFromHTTP(url + "overview");
+				JSONObject parsed = new JSONObject(config);
+				taskManagerCount = Integer.valueOf(parsed.getString("taskmanagers"));
+				LOG.info("trying to get the number of task managers from the job manager interface. Last value returned {}", taskManagerCount);
+			}
+
+			// kill the application (its detached)
 			yc.killApplication(id);
 
 			while(yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0) {
@@ -154,7 +178,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 		} catch(Throwable t) {
 			LOG.warn("Killing failed", t);
-			Assert.fail();
+			Assert.fail(t.getMessage());
 		}
 
 		LOG.info("Finished testDetachedMode()");
@@ -170,9 +194,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-n", "1",
 				"-jm", "768",
 				"-tm", "1024",
-				"-nm", "customName",
-				"-Dfancy-configuration-value=veryFancy",
-				"-Dyarn.maximum-failed-containers=3"},
+				"-nm", "customName", // test setting a custom application name
+				"-Dfancy-configuration-value=veryFancy", // custom configuration value
+				"-Dyarn.maximum-failed-containers=3",
+				"-Djobmanager.new-web-frontend=false" // use old web interface
+				},
 				"Number of connected TaskManagers changed to 1. Slots available: 1",
 				RunTypes.YARN_SESSION);
 
@@ -196,6 +222,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 			LOG.info("Got application URL from YARN {}", url);
 
+			/**
+			 * Tests for the old jobmanager web interface
+			 */
 			// get number of TaskManagers:
 			Assert.assertEquals("{\"taskmanagers\": 1, \"slots\": 1}", TestBaseUtils.getFromHTTP(url + "jobsInfo?get=taskmanagers"));
 
@@ -224,6 +253,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			// test logfile access
 			String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
 			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
+
 		} catch(Throwable e) {
 			LOG.warn("Error while running test",e);
 			Assert.fail(e.getMessage());

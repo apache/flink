@@ -1281,7 +1281,7 @@ object JobManager {
         configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
 
         // start the job manager web frontend
-        if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
+        if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true)) {
           val leaderRetrievalService = LeaderRetrievalUtils
             .createLeaderRetrievalService(configuration)
 

@@ -129,7 +129,7 @@ object ApplicationMaster {
             webserver = if(
               config.getBoolean(
                 ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
-                false)) {
+                true)) {
 
               JobManager.startWebRuntimeMonitor(config, leaderRetrievalService, actorSystem)
             } else {
