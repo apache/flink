@@ -25,14 +25,14 @@ import org.apache.flink.api.common.functions.Function;
  * A driver implements the actual code to perform a batch operation, like <i>map()</i>,
  * <i>reduce()</i>, <i>join()</i>, or <i>coGroup()</i>.
  *
- * @see PactTaskContext
+ * @see TaskContext
  * 
  * @param <S> The type of stub driven by this driver.
  * @param <OT> The data type of the records produced by this driver.
  */
-public interface PactDriver<S extends Function, OT> {
+public interface Driver<S extends Function, OT> {
 	
-	void setup(PactTaskContext<S, OT> context);
+	void setup(TaskContext<S, OT> context);
 	
 	/**
 	 * Gets the number of inputs that the task has.

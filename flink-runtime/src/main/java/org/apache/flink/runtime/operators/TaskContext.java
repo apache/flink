@@ -38,9 +38,9 @@ import org.apache.flink.util.MutableObjectIterator;
  * @param <S> The UDF type.
  * @param <OT> The produced data type.
  *
- * @see PactDriver
+ * @see Driver
  */
-public interface PactTaskContext<S, OT> {
+public interface TaskContext<S, OT> {
 	
 	TaskConfig getTaskConfig();
 	

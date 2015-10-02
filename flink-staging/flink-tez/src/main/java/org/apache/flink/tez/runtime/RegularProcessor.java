@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.operators.PactDriver;
+import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.tez.util.EncodingUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -93,8 +93,8 @@ public class RegularProcessor<S extends Function, OT> extends AbstractLogicalIOP
 
 		this.inputs = inputs;
 		this.outputs = outputs;
-		final Class<? extends PactDriver<S, OT>> driverClass = this.task.getTaskConfig().getDriver();
-		PactDriver<S,OT> driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
+		final Class<? extends Driver<S, OT>> driverClass = this.task.getTaskConfig().getDriver();
+		Driver<S,OT> driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 		this.numInputs = driver.getNumberOfInputs();
 		this.numOutputs = outputs.size();
 

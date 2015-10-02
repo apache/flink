@@ -36,7 +36,7 @@ import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.RegularTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
 
@@ -204,7 +204,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	}
 
 	private String formatLogString(String message) {
-		return RegularPactTask.constructLogString(message, getEnvironment().getTaskName(), this);
+		return RegularTask.constructLogString(message, getEnvironment().getTaskName(), this);
 	}
 	
 	// --------------------------------------------------------------------------------------------

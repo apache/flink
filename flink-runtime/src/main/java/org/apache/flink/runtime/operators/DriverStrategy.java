@@ -115,7 +115,7 @@ public enum DriverStrategy {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final Class<? extends PactDriver<?, ?>> driverClass;
+	private final Class<? extends Driver<?, ?>> driverClass;
 	
 	private final Class<? extends ChainedDriver<?, ?>> pushChainDriver;
 	
@@ -129,11 +129,11 @@ public enum DriverStrategy {
 
 	@SuppressWarnings("unchecked")
 	private DriverStrategy(
-			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
+			@SuppressWarnings("rawtypes") Class<? extends Driver> driverClass,
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
 			DamBehavior dam, int numComparator)
 	{
-		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
+		this.driverClass = (Class<? extends Driver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 1;
 		this.dam1 = dam;
@@ -143,11 +143,11 @@ public enum DriverStrategy {
 	
 	@SuppressWarnings("unchecked")
 	private DriverStrategy(
-			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
+			@SuppressWarnings("rawtypes") Class<? extends Driver> driverClass,
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
 			DamBehavior firstDam, DamBehavior secondDam, int numComparator)
 	{
-		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
+		this.driverClass = (Class<? extends Driver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 2;
 		this.dam1 = firstDam;
@@ -157,7 +157,7 @@ public enum DriverStrategy {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public Class<? extends PactDriver<?, ?>> getDriverClass() {
+	public Class<? extends Driver<?, ?>> getDriverClass() {
 		return this.driverClass;
 	}
 	

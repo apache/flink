@@ -257,7 +257,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				}
 			}
 
-			RegularPactTask.clearReaders(new MutableReader[]{inputReader});
+			RegularTask.clearReaders(new MutableReader[]{inputReader});
 		}
 
 		if (!this.taskCanceled) {
@@ -385,7 +385,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message) {
-		return RegularPactTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
+		return RegularTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext() {

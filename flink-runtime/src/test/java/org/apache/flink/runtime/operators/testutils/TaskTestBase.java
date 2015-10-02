@@ -30,7 +30,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.PactDriver;
+import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
@@ -89,7 +89,7 @@ public abstract class TaskTestBase extends TestLogger {
 	}
 
 	public void registerTask(AbstractInvokable task, 
-								@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver,
+								@SuppressWarnings("rawtypes") Class<? extends Driver> driver,
 								Class<? extends RichFunction> stubClass) {
 		
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());

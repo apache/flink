@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -38,9 +39,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.PactDriver;
-import org.apache.flink.runtime.operators.PactTaskContext;
-import org.apache.flink.runtime.operators.ResettablePactDriver;
+import org.apache.flink.runtime.operators.TaskContext;
+import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
@@ -51,7 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class DriverTestBase<S extends Function> extends TestLogger implements PactTaskContext<S, Record> {
+public class DriverTestBase<S extends Function> extends TestLogger implements TaskContext<S, Record> {
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	
@@ -83,7 +83,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	
 	private S stub;
 	
-	private PactDriver<S, Record> driver;
+	private Driver<S, Record> driver;
 	
 	private volatile boolean running = true;
 
@@ -168,12 +168,12 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	}
 
 	@SuppressWarnings("rawtypes")
-	public void testDriver(PactDriver driver, Class stubClass) throws Exception {
+	public void testDriver(Driver driver, Class stubClass) throws Exception {
 		testDriverInternal(driver, stubClass);
 	}
 
 	@SuppressWarnings({"unchecked","rawtypes"})
-	public void testDriverInternal(PactDriver driver, Class stubClass) throws Exception {
+	public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
 		this.driver = driver;
 		driver.setup(this);
@@ -226,8 +226,8 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 			}
 
 			// if resettable driver invoke tear down
-			if (this.driver instanceof ResettablePactDriver) {
-				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+			if (this.driver instanceof ResettableDriver) {
+				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 				try {
 					resDriver.teardown();
 				} catch (Throwable t) {
@@ -247,7 +247,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Pa
 	}
 
 	@SuppressWarnings({"unchecked","rawtypes"})
-	public void testResettableDriver(ResettablePactDriver driver, Class stubClass, int iterations) throws Exception {
+	public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations) throws Exception {
 
 		driver.setup(this);
 		

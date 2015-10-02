@@ -38,11 +38,11 @@ import org.slf4j.LoggerFactory;
  *
  * @see FlatJoinFunction
  */
-public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
+public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractOuterJoinDriver.class);
 	
-	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
+	protected TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	protected volatile JoinTaskIterator<IT1, IT2, OT> outerJoinIterator; // the iterator that does the actual outer join
 	protected volatile boolean running;
@@ -50,7 +50,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements PactDrive
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void setup(PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
+	public void setup(TaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

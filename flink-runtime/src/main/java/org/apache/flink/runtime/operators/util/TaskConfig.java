@@ -48,7 +48,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.PactDriver;
+import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.Value;
@@ -307,11 +307,11 @@ public class TaskConfig implements Serializable {
 	//                                      Driver
 	// --------------------------------------------------------------------------------------------
 	
-	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver) {
+	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends Driver> driver) {
 		this.config.setString(DRIVER_CLASS, driver.getName());
 	}
 	
-	public <S extends Function, OT> Class<? extends PactDriver<S, OT>> getDriver() {
+	public <S extends Function, OT> Class<? extends Driver<S, OT>> getDriver() {
 		final String className = this.config.getString(DRIVER_CLASS, null);
 		if (className == null) {
 			throw new CorruptConfigurationException("The pact driver class is missing.");
@@ -319,7 +319,7 @@ public class TaskConfig implements Serializable {
 		
 		try {
 			@SuppressWarnings("unchecked")
-			final Class<PactDriver<S, OT>> pdClazz = (Class<PactDriver<S, OT>>) (Class<?>) PactDriver.class;
+			final Class<Driver<S, OT>> pdClazz = (Class<Driver<S, OT>>) (Class<?>) Driver.class;
 			return Class.forName(className).asSubclass(pdClazz);
 		} catch (ClassNotFoundException cnfex) {
 			throw new CorruptConfigurationException("The given driver class cannot be found.");

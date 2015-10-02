@@ -40,11 +40,11 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction<IT, OT>, OT> {
+public class GroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT, OT>, OT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceDriver.class);
 
-	private PactTaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
+	private TaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
 	
 	private MutableObjectIterator<IT> input;
 
@@ -59,7 +59,7 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GroupReduceFunction<IT, OT>, OT> context) {
+	public void setup(TaskContext<GroupReduceFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

@@ -36,9 +36,9 @@ import org.apache.flink.util.MutableObjectIterator;
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
-public class MapDriver<IT, OT> implements PactDriver<MapFunction<IT, OT>, OT> {
+public class MapDriver<IT, OT> implements Driver<MapFunction<IT, OT>, OT> {
 	
-	private PactTaskContext<MapFunction<IT, OT>, OT> taskContext;
+	private TaskContext<MapFunction<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
 
@@ -46,7 +46,7 @@ public class MapDriver<IT, OT> implements PactDriver<MapFunction<IT, OT>, OT> {
 	
 	
 	@Override
-	public void setup(PactTaskContext<MapFunction<IT, OT>, OT> context) {
+	public void setup(TaskContext<MapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 

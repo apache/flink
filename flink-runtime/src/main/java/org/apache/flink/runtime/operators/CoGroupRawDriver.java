@@ -26,17 +26,17 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CoGroupRawDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
+public class CoGroupRawDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, IT2, OT>, OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CoGroupRawDriver.class);
 
-	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
+	private TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 
 	private SimpleIterable<IT1> coGroupIterator1;
 	private SimpleIterable<IT2> coGroupIterator2;
 
 	@Override
-	public void setup(PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
+	public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 	}
 
