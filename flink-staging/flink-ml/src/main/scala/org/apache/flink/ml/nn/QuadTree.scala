@@ -43,7 +43,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
 
     var objects = new ListBuffer[DenseVector]
 
-    /** for testing purposes only
+    /** for testing purposes only; used in QuadTreeSuite.scala
       *
       * @return
       */
@@ -128,7 +128,11 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       children = Childrennodes.clone()
     }
 
-    /**  Partitioning of box into equal area/volume sub-boxes
+    /**
+      * Recursive function that partitions a n-dim box by taking the (n-1) dimensional
+      * plane through the center of the box keeping the n-th coordinate fixed,
+      *  then shifting it in the n-th direction up and down
+      * and recursively applying partitionBox to the two shifted (n-1) dimensional planes.
      *
      * @param cPart
      * @param L
@@ -163,7 +167,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
   val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),(maxVec, minVec).zipped.map(_ - _),null)
 
     /**
-     *   primitive printing of tree for testing/debugging
+     *   simple printing of tree for testing/debugging
      */
 
   def printTree(){
@@ -197,14 +201,14 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       }
 
       else{
-        n.makeChildren()
+        n.makeChildren()  ///make children nodes, then place objects into children nodes and clear node.objects
         for (o <- n.objects){
           insertRecur(o, n.children(n.whichChild(o)))
         }
         n.objects.clear()
         insertRecur(obj, n.children(n.whichChild(obj)))
       }
-    } else{ /// move down to children
+    } else{
       insertRecur(obj, n.children(n.whichChild(obj)))
     }
   }
@@ -213,7 +217,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     *
     * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
     * max distance D_s to obj.  D_s is then used during the kNN query to find all points
-    * within a radius D_s of obj using searchNeighbors.  To find the "near" neighbors, a min-heap is used
+    * within a radius D_s of obj using searchNeighbors.  To find the "near" neighbors, a min-heap is
     * defined on the leaf nodes of the quadtree.  The priority of a leaf node is an appropriate notion
     * of the distance between the test point and the node, which is defined by minDist(obj),
    *
@@ -224,10 +228,10 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
   def searchNeighborsSiblingQueue(obj:DenseVector):ListBuffer[DenseVector] = {
     val nodeBuff = new ListBuffer[Node]
     var ret = new ListBuffer[DenseVector]
-    if (root.children == null) {
+    if (root.children == null) {   // edge case when the main box has not been partitioned at all
       root.objects
     } else {
-      searchRecurSiblingQueue(obj, root, nodeBuff)
+      searchRecurSiblingQueue(obj, root, nodeBuff) //// MAYBE DO NOT NEED nodeBuff?
       var NodeQueue = new scala.collection.mutable.PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
       for (n <- nodeBuff) {
         NodeQueue += ((-n.minDist(obj), n)) /// Queues are max, so take negative minDist
