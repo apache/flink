@@ -576,5 +576,21 @@ class TypeInformationGenTest {
     Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("_2"))
 
   }
+
+  /**
+   * Tests the "implicit val scalaNothingTypeInfo" in
+   * flink-scala/src/main/scala/org/apache/flink/api/scala/package.scala
+   * This does not compile without that line.
+   */
+  @Test
+  def testNothingTypeInfoIsAvailableImplicitly() : Unit = {
+    def g() = {
+
+      def f[O: TypeInformation](x: O): Unit = {}
+
+      f(???) // O will be Nothing
+    }
+    // (Do not call g, because it throws NotImplementedError. This is a compile time test.)
+  }
 }
 
