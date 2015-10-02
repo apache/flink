@@ -60,7 +60,6 @@ public class OuterJoinNode extends TwoInputNode {
 		switch (joinHint) {
 			case OPTIMIZER_CHOOSES:
 				list.add(getSortMergeDescriptor(type, true));
-				list.add(getSortMergeDescriptor(type, false));
 				break;
 			case REPARTITION_SORT_MERGE:
 				list.add(getSortMergeDescriptor(type, false));
@@ -109,21 +108,13 @@ public class OuterJoinNode extends TwoInputNode {
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		OuterJoinType type = getOperator().getOuterJoinType();
-
 		long card1 = getFirstPredecessorNode().getEstimatedNumRecords();
 		long card2 = getSecondPredecessorNode().getEstimatedNumRecords();
 
 		if (card1 < 0 || card2 < 0) {
 			this.estimatedNumRecords = -1;
 		} else {
-			if (type == OuterJoinType.LEFT) {
-				this.estimatedNumRecords = card1;
-			} else if (type == OuterJoinType.RIGHT) {
-				this.estimatedNumRecords = card2;
-			} else if (type == OuterJoinType.FULL) {
-				this.estimatedNumRecords = Math.max(card1, card2);
-			}
+			this.estimatedNumRecords = Math.max(card1, card2);
 		}
 
 		if (this.estimatedNumRecords >= 0) {
