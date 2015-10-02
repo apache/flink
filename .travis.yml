@@ -17,13 +17,13 @@ matrix:
     - jdk: "openjdk7" # this uploads the Hadoop 1 build to Maven and S3
       env: PROFILE="-Dhadoop.profile=1"
     - jdk: "oraclejdk7" # this uploads the Hadoop 2 build to Maven and S3
-      env: PROFILE="-Dhadoop.version=2.3.0 -P!include-yarn-tests"
+      env: PROFILE="-Dhadoop.version=2.3.0"
     - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.0 -Dscala-2.11"
+      env: PROFILE="-Dhadoop.version=2.4.0 -Dscala-2.11 -Pinclude-yarn-tests"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.5.0 -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.5.0 -Dmaven.javadoc.skip=true -Pinclude-yarn-tests"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests -Dmaven.javadoc.skip=true"
 
 
 git:
