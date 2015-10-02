@@ -666,7 +666,6 @@ public class CliFrontend {
 
 		JobSubmissionResult result;
 		try {
-			client.setPrintStatusDuringExecution(true);
 			result = client.runBlocking(program, parallelism);
 		}
 		catch (ProgramInvocationException e) {

@@ -51,9 +51,8 @@ public class CliFrontendParser {
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 					"specified in the configuration.");
 
-	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "Whether sysout" +
-			" " +
-			"logging is required or not");
+	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
+			"supress logging output to standard out.");
 
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
