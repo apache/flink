@@ -32,7 +32,7 @@ import org.apache.flink.util.Collector;
 import java.util.Map;
 
 /**
- * The interface to be implemented by drivers that do not run in an own pact task context, but are chained to other
+ * The interface to be implemented by drivers that do not run in an own task context, but are chained to other
  * tasks.
  */
 public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
