@@ -62,6 +62,10 @@ The command line can be used to
 
             ./bin/flink run -q ./examples/WordCount.jar
 
+-   Run example program in detached mode
+
+            ./bin/flink run -d ./examples/WordCount.jar
+
 -   Run example program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:6123 \
@@ -128,14 +132,16 @@ Action "run" compiles and runs a program.
                                       program. Optional flag to override the
                                       default value specified in the
                                       configuration.
-     -q --sysoutLogging               Specfying this flag will disable log messages
+     -q --sysoutLogging               Specifying this flag will disable log messages
                                       being reported on the console. All messages
                                       however will still be logged by SLF4J loggers,
                                       regardless of this setting.
+     -d --detached                    Specifying this option will run the job in
+                                      detached mode.
 
   Additional arguments if -m yarn-cluster is set:
      -yD <arg>                            Dynamic properties
-     -yd,--yarndetached                   Start detached
+     -yd,--yarndetached                   Start detached [consider using -d flag above]
      -yj,--yarnjar <arg>                  Path to Flink jar file
      -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
                                           MB]
