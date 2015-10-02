@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class WindowCrossJoinTest extends StreamingMultipleProgramsTestBase {
@@ -50,6 +51,11 @@ public class WindowCrossJoinTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
+	/**
+	 * TODO: enable once new join operator is ready
+	 * @throws Exception
+	 */
+	@Ignore
 	@Test
 	public void test() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
