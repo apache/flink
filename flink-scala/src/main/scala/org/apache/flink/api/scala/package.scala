@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
-import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo, TypeUtils}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo, TypeUtils, ScalaNothingTypeInfo}
 
 import _root_.scala.reflect.ClassTag
 import language.experimental.macros
@@ -43,6 +43,11 @@ package object scala {
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
   implicit def createTypeInformation[T]: TypeInformation[T] = macro TypeUtils.createTypeInfo[T]
+
+  // createTypeInformation does not fire for Nothing in some situations, which is probably
+  // a compiler bug. The following line is a workaround for this.
+  // (See TypeInformationGenTest.testNothingTypeInfoIsAvailableImplicitly)
+  implicit val scalaNothingTypeInfo: TypeInformation[Nothing] = new ScalaNothingTypeInfo()
 
   // We need to wrap Java DataSet because we need the scala operations
   private[flink] def wrap[R: ClassTag](set: JavaDataSet[R]) = new DataSet[R](set)
