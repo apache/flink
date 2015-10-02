@@ -413,12 +413,6 @@ under the License.
 		<!-- Profile to deactivate the YARN tests -->
 		<profile>
 			<id>include-yarn-tests</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
 			<modules>
 				<module>flink-yarn-tests</module>
 			</modules>
