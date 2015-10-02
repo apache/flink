@@ -60,6 +60,9 @@ public class CliFrontendParser {
 	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
 			"supress logging output to standard out.");
 
+	static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
+			"the job in detached mode");
+
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
@@ -94,6 +97,7 @@ public class CliFrontendParser {
 		PARALLELISM_OPTION.setArgName("parallelism");
 
 		LOGGING_OPTION.setRequired(false);
+		DETACHED_OPTION.setRequired(false);
 
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
@@ -123,6 +127,7 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
+		options.addOption(DETACHED_OPTION);
 
 		// also add the YARN options so that the parser can parse them
 		yarnSessionCLi.getYARNSessionCLIOptions(options);
@@ -134,6 +139,7 @@ public class CliFrontendParser {
 		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
+		options.addOption(DETACHED_OPTION);
 		return options;
 	}
 
