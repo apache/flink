@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils._
-import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo, ScalaNothingTypeInfo}
+import org.apache.flink.api.scala.typeutils._
 import org.apache.flink.types.Value
 import org.apache.hadoop.io.Writable
 
@@ -59,8 +59,10 @@ private[flink] trait TypeInformationGen[C <: Context] {
     case p : PrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
     case p : BoxedPrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
 
-    case n: NothingDesciptor =>
+    case n: NothingDescriptor =>
       reify { new ScalaNothingTypeInfo().asInstanceOf[TypeInformation[T]] }
+
+    case u: UnitDescriptor => reify { new UnitTypeInfo().asInstanceOf[TypeInformation[T]] }
 
     case e: EitherDescriptor => mkEitherTypeInfo(e)
 
