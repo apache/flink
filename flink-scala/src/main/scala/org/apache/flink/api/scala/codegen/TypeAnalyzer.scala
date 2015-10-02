@@ -56,7 +56,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case ArrayType(elemTpe) => analyzeArray(id, tpe, elemTpe)
 
-          case NothingType() => NothingDesciptor(id, tpe)
+          case NothingType() => NothingDescriptor(id, tpe)
+
+          case UnitType() => UnitDescriptor(id, tpe)
 
           case EitherType(leftTpe, rightTpe) => analyzeEither(id, tpe, leftTpe, rightTpe)
 
@@ -337,6 +339,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
     private object NothingType {
       def unapply(tpe: Type): Boolean = tpe =:= typeOf[Nothing]
+    }
+
+    private object UnitType {
+      def unapply(tpe: Type): Boolean = tpe =:= typeOf[Unit]
     }
 
     private object EitherType {
