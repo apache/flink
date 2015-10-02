@@ -119,7 +119,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 */
 	public List<TypeInformation<?>> getGenericParameters() {
 		// Return an empty list as the default implementation
-		return new LinkedList<TypeInformation<?>>();
+		return new LinkedList<>();
 	}
 
 	/**
