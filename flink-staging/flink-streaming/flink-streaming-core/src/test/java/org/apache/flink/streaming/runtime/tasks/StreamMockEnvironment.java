@@ -228,12 +228,12 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public String getTaskName() {
-		return null;
+		return "";
 	}
 
 	@Override
 	public String getTaskNameWithSubtasks() {
-		return null;
+		return "";
 	}
 
 	@Override

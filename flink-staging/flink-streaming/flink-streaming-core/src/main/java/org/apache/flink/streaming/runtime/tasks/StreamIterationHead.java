@@ -23,10 +23,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +63,13 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 			@SuppressWarnings("unchecked")
 			Collection<RecordWriterOutput<OUT>> outputs = 
 					(Collection<RecordWriterOutput<OUT>>) (Collection<?>) outputHandler.getOutputs();
+
+			// If timestamps are enabled we make sure to remove cyclic watermark dependencies
+			if (getExecutionConfig().areTimestampsEnabled()) {
+				for (RecordWriterOutput<OUT> output : outputs) {
+					output.emitWatermark(new Watermark(Long.MAX_VALUE));
+				}
+			}
 
 			while (running) {
 				StreamRecord<OUT> nextRecord = shouldWait ?

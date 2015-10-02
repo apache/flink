@@ -79,7 +79,7 @@ public class StreamInputProcessor<IN> {
 
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
+	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(InputGate[] inputGates, TypeSerializer<IN> inputSerializer,
 								EventListener<CheckpointBarrier> checkpointListener,
 								CheckpointingMode checkpointMode,
@@ -125,7 +125,6 @@ public class StreamInputProcessor<IN> {
 		lastEmittedWatermark = Long.MIN_VALUE;
 	}
 
-	@SuppressWarnings("unchecked")
 	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator, Object lock) throws Exception {
 		if (isFinished) {
 			return false;
