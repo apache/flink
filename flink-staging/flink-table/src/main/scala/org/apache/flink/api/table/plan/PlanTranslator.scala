@@ -110,7 +110,8 @@ abstract class PlanTranslator {
     }
 
     val clazz = repr.getType().getTypeClass
-    if (clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) {
+    if ((clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers))
+        || clazz.getCanonicalName() == null) {
       throw new ExpressionException("Cannot create Table from DataSet or DataStream of type " +
         clazz.getName + ". Only top-level classes or static members classes " +
         " are supported.")
