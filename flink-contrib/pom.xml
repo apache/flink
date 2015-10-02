@@ -32,7 +32,8 @@ under the License.
 	</parent>
 
 	<modules>
-		<module>flink-storm-compatibility</module>
+		<module>flink-storm</module>
+		<module>flink-storm-examples</module>
 		<module>flink-streaming-contrib</module>
 		<module>flink-tweet-inputformat</module>
 		<module>flink-operator-stats</module>
