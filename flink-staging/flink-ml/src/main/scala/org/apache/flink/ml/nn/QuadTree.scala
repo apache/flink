@@ -23,6 +23,7 @@ import org.apache.flink.ml.math.DenseVector
 import org.apache.flink.ml.metrics.distances.DistanceMetric
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.PriorityQueue
 
 /**
  * n-dimensional QuadTree data structure; partitions spatial data for faster queries (e.g. KNN query)
@@ -226,16 +227,13 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
   private def subOne(tuple: (Double,Node)) = tuple._1
 
   def searchNeighborsSiblingQueue(obj:DenseVector):ListBuffer[DenseVector] = {
-    val nodeBuff = new ListBuffer[Node]
     var ret = new ListBuffer[DenseVector]
     if (root.children == null) {   // edge case when the main box has not been partitioned at all
       root.objects
     } else {
-      searchRecurSiblingQueue(obj, root, nodeBuff) //// MAYBE DO NOT NEED nodeBuff?
-      var NodeQueue = new scala.collection.mutable.PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
-      for (n <- nodeBuff) {
-        NodeQueue += ((-n.minDist(obj), n)) /// Queues are max, so take negative minDist
-      }
+      var NodeQueue = new PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
+      searchRecurSiblingQueue(obj, root, NodeQueue)
+
       var count = 0
       while (count < maxPerBox) {
         val dq = NodeQueue.dequeue()
@@ -248,28 +246,28 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
 }
 
-  private def searchRecurSiblingQueue(obj:DenseVector,n:Node, nodeBuff:ListBuffer[Node]) {
+  private def searchRecurSiblingQueue(obj:DenseVector,n:Node, NodeQueue:PriorityQueue[(Double, Node)]) {
     if(n.children != null) {
       for(child <- n.children; if child.contains(obj)) {
         if (child.children == null) {
           for (c <- n.children) {
             ////// Go down to minimal bounding box
-            MinNodes(c,nodeBuff)
+            MinNodes(obj,c,NodeQueue)
           }
         }
         else {
-            searchRecurSiblingQueue(obj, child, nodeBuff)
+            searchRecurSiblingQueue(obj, child, NodeQueue)
         }
       }
     }
   }
 
-  private def MinNodes(n:Node, nodeBuff:ListBuffer[Node]) {
+  private def MinNodes(obj:DenseVector,n:Node, NodeQueue:PriorityQueue[(Double, Node)]) {
     if (n.children == null){
-      nodeBuff += n
+      NodeQueue += ((-n.minDist(obj), n))
     } else{
       for (c <- n.children) {
-          MinNodes(c, nodeBuff)
+          MinNodes(obj,c, NodeQueue)
         }
     }
   }
