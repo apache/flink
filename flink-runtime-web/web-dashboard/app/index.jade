@@ -53,7 +53,7 @@ html(lang='en')
               | Running Jobs
           li
             a(ui-sref="completed-jobs" ui-sref-active='active')
-              i.fa.fa-server.fa-fw
+              i.fa.fa-check-circle.fa-fw
               | 
               | Completed Jobs
           li
@@ -61,6 +61,11 @@ html(lang='en')
               i.fa.fa-sitemap.fa-fw
               | 
               | Task Managers
+          li
+            a(ui-sref="jobmanager.config" ui-sref-active='active')
+              i.fa.fa-server.fa-fw
+              | 
+              | Job Manager
 
     #content(ng-class="{ 'sidebar-visible': sidebarVisible }")
       div(ui-view='main')
