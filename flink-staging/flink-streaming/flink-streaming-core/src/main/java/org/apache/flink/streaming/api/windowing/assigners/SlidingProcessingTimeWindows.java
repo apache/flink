@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.assigners;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -86,7 +87,7 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 	 * @param slide The slide interval of the generated windows.
 	 * @return The time policy.
 	 */
-	public static SlidingProcessingTimeWindows of(long size, long slide) {
-		return new SlidingProcessingTimeWindows(size, slide);
+	public static SlidingProcessingTimeWindows of(AbstractTime size, AbstractTime slide) {
+		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
 	}
 }

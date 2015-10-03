@@ -741,9 +741,9 @@ public class DataStream<T> {
 		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
 		if (actualSize instanceof EventTime) {
-			return windowAll(TumblingTimeWindows.of(actualSize.toMilliseconds()));
+			return windowAll(TumblingTimeWindows.of(actualSize));
 		} else {
-			return windowAll(TumblingProcessingTimeWindows.of(actualSize.toMilliseconds()));
+			return windowAll(TumblingProcessingTimeWindows.of(actualSize));
 		}
 	}
 
@@ -763,11 +763,9 @@ public class DataStream<T> {
 		AbstractTime actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
 		if (actualSize instanceof EventTime) {
-			return windowAll(SlidingTimeWindows.of(actualSize.toMilliseconds(),
-					actualSlide.toMilliseconds()));
+			return windowAll(SlidingTimeWindows.of(size, slide));
 		} else {
-			return windowAll(SlidingProcessingTimeWindows.of(actualSize.toMilliseconds(),
-					actualSlide.toMilliseconds()));
+			return windowAll(SlidingProcessingTimeWindows.of(actualSize, actualSlide));
 		}
 	}
 

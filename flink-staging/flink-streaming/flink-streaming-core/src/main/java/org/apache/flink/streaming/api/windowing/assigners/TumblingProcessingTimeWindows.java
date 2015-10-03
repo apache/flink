@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -61,7 +62,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @param size The size of the generated windows.
 	 * @return The time policy.
 	 */
-	public static TumblingProcessingTimeWindows of(long size) {
-		return new TumblingProcessingTimeWindows(size);
+	public static TumblingProcessingTimeWindows of(AbstractTime size) {
+		return new TumblingProcessingTimeWindows(size.toMilliseconds());
 	}
 }

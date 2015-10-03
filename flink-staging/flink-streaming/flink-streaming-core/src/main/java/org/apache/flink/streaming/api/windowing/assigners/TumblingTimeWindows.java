@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.WatermarkTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -60,8 +61,8 @@ public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	 * @param size The size of the generated windows.
 	 * @return The time policy.
 	 */
-	public static TumblingTimeWindows of(long size) {
-		return new TumblingTimeWindows(size);
+	public static TumblingTimeWindows of(AbstractTime size) {
+		return new TumblingTimeWindows(size.toMilliseconds());
 	}
 
 }
