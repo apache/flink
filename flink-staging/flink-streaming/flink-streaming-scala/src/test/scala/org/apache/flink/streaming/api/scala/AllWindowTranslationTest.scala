@@ -19,13 +19,15 @@
 package org.apache.flink.streaming.api.scala
 
 
+import java.util.concurrent.TimeUnit
+
 import org.apache.flink.api.common.functions.RichReduceFunction
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners.{TumblingProcessingTimeWindows, SlidingProcessingTimeWindows}
 import org.apache.flink.streaming.api.windowing.evictors.{CountEvictor, TimeEvictor}
-import org.apache.flink.streaming.api.windowing.triggers.{ProcessingTimeTrigger, WatermarkTrigger, CountTrigger}
+import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.streaming.api.windowing.triggers.{ProcessingTimeTrigger, CountTrigger}
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.{HeapWindowBuffer, PreAggregatingHeapWindowBuffer}
 import org.apache.flink.streaming.runtime.operators.windowing._
@@ -53,7 +55,9 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val reducer = new DummyReducer
 
     val window1 = source
-      .windowAll(SlidingProcessingTimeWindows.of(1000, 100))
+      .windowAll(SlidingProcessingTimeWindows.of(
+        Time.of(1, TimeUnit.SECONDS),
+        Time.of(100, TimeUnit.MILLISECONDS)))
       .reduceWindow(reducer)
 
     val transform1 = window1.getJavaStream.getTransformation
@@ -65,10 +69,11 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
     val window2 = source
       .keyBy(0)
-      .window(SlidingProcessingTimeWindows.of(1000, 100))
-      .apply(new WindowFunction[(String, Int), (String, Int), Tuple, TimeWindow]() {
+      .windowAll(SlidingProcessingTimeWindows.of(
+        Time.of(1, TimeUnit.SECONDS),
+        Time.of(100, TimeUnit.MILLISECONDS)))
+      .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
       def apply(
-                    tuple: Tuple,
                     window: TimeWindow,
                     values: java.lang.Iterable[(String, Int)],
                     out: Collector[(String, Int)]) { }
@@ -91,7 +96,9 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val reducer = new DummyReducer
 
     val window1 = source
-      .windowAll(SlidingProcessingTimeWindows.of(1000, 100))
+      .windowAll(SlidingProcessingTimeWindows.of(
+        Time.of(1, TimeUnit.SECONDS),
+        Time.of(100, TimeUnit.MILLISECONDS)))
       .trigger(CountTrigger.of(100))
       .reduceWindow(reducer)
 
@@ -109,7 +116,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 
     val window2 = source
-      .windowAll(TumblingProcessingTimeWindows.of(1000))
+      .windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
       .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {
       def apply(
@@ -139,8 +146,10 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
     val reducer = new DummyReducer
 
     val window1 = source
-      .windowAll(SlidingProcessingTimeWindows.of(1000, 100))
-      .evictor(TimeEvictor.of(1000))
+      .windowAll(SlidingProcessingTimeWindows.of(
+        Time.of(1, TimeUnit.SECONDS),
+        Time.of(100, TimeUnit.MILLISECONDS)))
+      .evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)))
       .reduceWindow(reducer)
 
     val transform1 = window1.getJavaStream.getTransformation
@@ -157,7 +166,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
 
 
     val window2 = source
-      .windowAll(TumblingProcessingTimeWindows.of(1000))
+      .windowAll(TumblingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
       .trigger(CountTrigger.of(100))
       .evictor(CountEvictor.of(1000))
       .apply(new AllWindowFunction[(String, Int), (String, Int), TimeWindow]() {

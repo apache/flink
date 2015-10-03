@@ -18,32 +18,33 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
-	private long granularity;
+	private long interval;
 
 	private long nextFireTimestamp = 0;
 
-	private ContinuousProcessingTimeTrigger(long granularity) {
-		this.granularity = granularity;
+	private ContinuousProcessingTimeTrigger(long interval) {
+		this.interval = interval;
 	}
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) {
 		long currentTime = System.currentTimeMillis();
 		if (nextFireTimestamp == 0) {
-			long start = currentTime - (currentTime % granularity);
-			nextFireTimestamp = start + granularity;
+			long start = currentTime - (currentTime % interval);
+			nextFireTimestamp = start + interval;
 
 			ctx.registerProcessingTimeTimer(nextFireTimestamp);
 			return TriggerResult.CONTINUE;
 		}
 		if (currentTime > nextFireTimestamp) {
-			long start = currentTime - (currentTime % granularity);
-			nextFireTimestamp = start + granularity;
+			long start = currentTime - (currentTime % interval);
+			nextFireTimestamp = start + interval;
 
 			ctx.registerProcessingTimeTimer(nextFireTimestamp);
 
@@ -57,8 +58,8 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 		// only fire if an element didn't already fire
 		long currentTime = System.currentTimeMillis();
 		if (currentTime > nextFireTimestamp) {
-			long start = currentTime - (currentTime % granularity);
-			nextFireTimestamp = start + granularity;
+			long start = currentTime - (currentTime % interval);
+			nextFireTimestamp = start + interval;
 			return TriggerResult.FIRE;
 		}
 		return TriggerResult.CONTINUE;
@@ -66,20 +67,20 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 
 	@Override
 	public Trigger<Object, W> duplicate() {
-		return new ContinuousProcessingTimeTrigger<>(granularity);
+		return new ContinuousProcessingTimeTrigger<>(interval);
 	}
 
 	@VisibleForTesting
-	public long getGranularity() {
-		return granularity;
+	public long getInterval() {
+		return interval;
 	}
 
 	@Override
 	public String toString() {
-		return "ContinuousProcessingTimeTrigger(" + granularity + ")";
+		return "ContinuousProcessingTimeTrigger(" + interval + ")";
 	}
 
-	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(long granularity) {
-		return new ContinuousProcessingTimeTrigger<>(granularity);
+	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(AbstractTime interval) {
+		return new ContinuousProcessingTimeTrigger<>(interval.toMilliseconds());
 	}
 }

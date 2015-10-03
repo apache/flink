@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.WatermarkTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -75,7 +76,7 @@ public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	 * @param slide The slide interval of the generated windows.
 	 * @return The time policy.
 	 */
-	public static SlidingTimeWindows of(long size, long slide) {
-		return new SlidingTimeWindows(size, slide);
+	public static SlidingTimeWindows of(AbstractTime size, AbstractTime slide) {
+		return new SlidingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
 	}
 }

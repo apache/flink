@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousWatermarkTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -49,6 +50,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RunWith(Parameterized.class)
@@ -69,11 +71,11 @@ public class NonKeyedWindowOperatorTest {
 	public void testSlidingEventTimeWindows() throws Exception {
 		closeCalled.set(0);
 
-		final int WINDOW_SIZE = 3000;
-		final int WINDOW_SLIDE = 1000;
+		final int WINDOW_SIZE = 3;
+		final int WINDOW_SLIDE = 1;
 
 		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new NonKeyedWindowOperator<>(
-				SlidingTimeWindows.of(WINDOW_SIZE, WINDOW_SLIDE),
+				SlidingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS), Time.of(WINDOW_SLIDE, TimeUnit.SECONDS)),
 				windowBufferFactory,
 				new ReduceAllWindowFunction<TimeWindow, Tuple2<String, Integer>>(new SumReducer()),
 				WatermarkTrigger.create());
@@ -150,10 +152,10 @@ public class NonKeyedWindowOperatorTest {
 	public void testTumblingEventTimeWindows() throws Exception {
 		closeCalled.set(0);
 
-		final int WINDOW_SIZE = 3000;
+		final int WINDOW_SIZE = 3;
 
 		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new NonKeyedWindowOperator<>(
-				TumblingTimeWindows.of(WINDOW_SIZE),
+				TumblingTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)),
 				windowBufferFactory,
 				new ReduceAllWindowFunction<TimeWindow, Tuple2<String, Integer>>(new SumReducer()),
 				WatermarkTrigger.create());
@@ -228,13 +230,13 @@ public class NonKeyedWindowOperatorTest {
 	public void testContinuousWatermarkTrigger() throws Exception {
 		closeCalled.set(0);
 
-		final int WINDOW_SIZE = 3000;
+		final int WINDOW_SIZE = 3;
 
 		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new NonKeyedWindowOperator<>(
 				GlobalWindows.create(),
 				windowBufferFactory,
 				new ReduceAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer()),
-				ContinuousWatermarkTrigger.of(WINDOW_SIZE));
+				ContinuousWatermarkTrigger.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)));
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
 
@@ -419,15 +421,6 @@ public class NonKeyedWindowOperatorTest {
 					return sr0.getValue().f1 - sr1.getValue().f1;
 				}
 			}
-		}
-	}
-
-	private static class TupleKeySelector implements KeySelector<Tuple2<String, Integer>, String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public String getKey(Tuple2<String, Integer> value) throws Exception {
-			return value.f0;
 		}
 	}
 }

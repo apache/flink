@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.evictors;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -54,7 +55,7 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 		return windowSize;
 	}
 
-	public static <W extends Window> TimeEvictor<W> of(long windowSize) {
-		return new TimeEvictor<>(windowSize);
+	public static <W extends Window> TimeEvictor<W> of(AbstractTime windowSize) {
+		return new TimeEvictor<>(windowSize.toMilliseconds());
 	}
 }

@@ -125,9 +125,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		AbstractTime actualSize = size.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
 		if (actualSize instanceof EventTime) {
-			return window(TumblingTimeWindows.of(actualSize.toMilliseconds()));
+			return window(TumblingTimeWindows.of(actualSize));
 		} else {
-			return window(TumblingProcessingTimeWindows.of(actualSize.toMilliseconds()));
+			return window(TumblingProcessingTimeWindows.of(actualSize));
 		}
 	}
 
@@ -147,9 +147,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		AbstractTime actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(environment.getStreamTimeCharacteristic());
 
 		if (actualSize instanceof EventTime) {
-			return window(SlidingTimeWindows.of(actualSize.toMilliseconds(), actualSlide.toMilliseconds()));
+			return window(SlidingTimeWindows.of(actualSize, actualSlide));
 		} else {
-			return window(SlidingProcessingTimeWindows.of(actualSize.toMilliseconds(), actualSlide.toMilliseconds()));
+			return window(SlidingProcessingTimeWindows.of(actualSize, actualSlide));
 		}
 	}
 

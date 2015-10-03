@@ -18,24 +18,25 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
-	private long granularity;
+	private long interval;
 
 	private boolean first = true;
 
-	private ContinuousWatermarkTrigger(long granularity) {
-		this.granularity = granularity;
+	private ContinuousWatermarkTrigger(long interval) {
+		this.interval = interval;
 	}
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) {
 		if (first) {
-			long start = timestamp - (timestamp % granularity);
-			long nextFireTimestamp = start + granularity;
+			long start = timestamp - (timestamp % interval);
+			long nextFireTimestamp = start + interval;
 
 			ctx.registerWatermarkTimer(nextFireTimestamp);
 			first = false;
@@ -46,26 +47,26 @@ public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Obj
 
 	@Override
 	public TriggerResult onTime(long time, TriggerContext ctx) {
-		ctx.registerWatermarkTimer(time + granularity);
+		ctx.registerWatermarkTimer(time + interval);
 		return TriggerResult.FIRE;
 	}
 
 	@Override
 	public Trigger<Object, W> duplicate() {
-		return new ContinuousWatermarkTrigger<>(granularity);
+		return new ContinuousWatermarkTrigger<>(interval);
 	}
 
 	@Override
 	public String toString() {
-		return "ContinuousProcessingTimeTrigger(" + granularity + ")";
+		return "ContinuousProcessingTimeTrigger(" + interval + ")";
 	}
 
 	@VisibleForTesting
-	public long getGranularity() {
-		return granularity;
+	public long getInterval() {
+		return interval;
 	}
 
-	public static <W extends Window> ContinuousWatermarkTrigger<W> of(long granularity) {
-		return new ContinuousWatermarkTrigger<>(granularity);
+	public static <W extends Window> ContinuousWatermarkTrigger<W> of(AbstractTime interval) {
+		return new ContinuousWatermarkTrigger<>(interval.toMilliseconds());
 	}
 }

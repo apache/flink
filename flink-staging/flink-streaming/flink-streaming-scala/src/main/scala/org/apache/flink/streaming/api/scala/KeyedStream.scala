@@ -55,11 +55,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     actualSize match {
       case t: EventTime =>
-        val assigner = TumblingTimeWindows.of(actualSize.toMilliseconds)
+        val assigner = TumblingTimeWindows.of(actualSize)
           .asInstanceOf[WindowAssigner[T, TimeWindow]]
         window(assigner)
       case t: ProcessingTime =>
-        val assigner = TumblingProcessingTimeWindows.of(actualSize.toMilliseconds)
+        val assigner = TumblingProcessingTimeWindows.of(actualSize)
           .asInstanceOf[WindowAssigner[T, TimeWindow]]
         window(assigner)
       case _ => throw new RuntimeException("Invalid time: " + actualSize)
@@ -85,13 +85,13 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     actualSize match {
       case t: EventTime =>
         val assigner = SlidingTimeWindows.of(
-          actualSize.toMilliseconds,
-          actualSlide.toMilliseconds).asInstanceOf[WindowAssigner[T, TimeWindow]]
+          actualSize,
+          actualSlide).asInstanceOf[WindowAssigner[T, TimeWindow]]
         window(assigner)
       case t: ProcessingTime =>
         val assigner = SlidingProcessingTimeWindows.of(
-          actualSize.toMilliseconds,
-          actualSlide.toMilliseconds).asInstanceOf[WindowAssigner[T, TimeWindow]]
+          actualSize,
+          actualSlide).asInstanceOf[WindowAssigner[T, TimeWindow]]
         window(assigner)
       case _ => throw new RuntimeException("Invalid time: " + actualSize)
     }
