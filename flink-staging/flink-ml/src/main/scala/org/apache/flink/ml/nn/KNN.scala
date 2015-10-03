@@ -28,7 +28,6 @@ import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric, Di
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.util.Collector
 
-
 import org.apache.flink.ml.nn.util.QuadTree
 import scala.collection.mutable.ListBuffer
 import org.apache.flink.ml.math.DenseVector
@@ -226,11 +225,11 @@ object KNN {
                     for (a <- testing.values) {
 
                       if (BruteOrQuad) {
-                        /////  Find siblings' objects and do kNN there
+                        /////  Find siblings' objects and do local kNN there
                         val siblingObjects = trainingQuadTree.searchNeighborsSiblingQueue(a._2.asInstanceOf[DenseVector])
 
                         // do KNN query on siblingObjects and get max distance of kNN
-                        // then rad is good choice for a neighborhood to do a local kNN search
+                        // then rad is good choice for a neighborhood to do a refined local kNN search
                         val knnSiblings = siblingObjects.map(
                           v => metric.distance(a._2, v)
                         ).sortWith(_ < _).take(k)

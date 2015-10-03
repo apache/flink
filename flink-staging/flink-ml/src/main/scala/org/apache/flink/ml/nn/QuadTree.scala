@@ -146,7 +146,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       if (L.length == 1){
 
         var cPartDown = cPart.clone()
-        //// need to map all centers and shift
+        //// shift center up and down
         val cPartUp = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
         cPartDown = cPartDown.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 
@@ -154,8 +154,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       }
 
       var cPartDown = cPart.clone()
-      //// need to map all centers and shift
-      //val cPartUp = ListBuffer(cPart.head.patch(dim-1, Seq(cPart.head(dim - 1) + L(dim-1)/4), 1)) // more verbose..
+      //// shift center up and down
       val cPartUp = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
       cPartDown = cPartDown.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
 

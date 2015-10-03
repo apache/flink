@@ -51,8 +51,11 @@ class KNNQuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     // prepare data
 
-    // From original KNN test -- parameters in original test will call flag to use brute-force method
     /*
+    // From original KNN test of Chiwan Park -- parameters in original test will use the brute-force method
+    // becuase of the low number of test/training points. There is a flag that decides whether to
+    // use brute-force or QuadTree
+
      val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
      val testingSet = env.fromElements(DenseVector(0.0, 0.0)) /// single point
 
