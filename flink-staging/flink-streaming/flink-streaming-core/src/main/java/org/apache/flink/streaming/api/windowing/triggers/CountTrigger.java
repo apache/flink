@@ -19,6 +19,11 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+/**
+ * A {@link Trigger} that fires once the count of elements in a pane reaches the given count.
+ *
+ * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+ */
 public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -55,6 +60,12 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 		return "CountTrigger(" +  maxCount + ")";
 	}
 
+	/**
+	 * Creates a trigger that fires once the number of elements in a pane reaches the given count.
+	 *
+	 * @param maxCount The count of elements at which to fire.
+	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+	 */
 	public static <W extends Window> CountTrigger<W> of(long maxCount) {
 		return new CountTrigger<>(maxCount);
 	}

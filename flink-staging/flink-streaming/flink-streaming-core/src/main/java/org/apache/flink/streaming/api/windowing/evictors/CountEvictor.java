@@ -20,6 +20,11 @@ package org.apache.flink.streaming.api.windowing.evictors;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * An {@link Evictor} that keeps only a certain amount of elements.
+ *
+ * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
+ */
 public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -38,6 +43,11 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 		}
 	}
 
+	/**
+	 * Creates a {@code CountEvictor} that keeps the given number of elements.
+	 *
+	 * @param maxCount The number of elements to keep in the pane.
+	 */
 	public static <W extends Window> CountEvictor<W> of(long maxCount) {
 		return new CountEvictor<>(maxCount);
 	}

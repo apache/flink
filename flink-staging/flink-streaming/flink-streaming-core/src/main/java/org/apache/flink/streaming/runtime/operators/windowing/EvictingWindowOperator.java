@@ -33,6 +33,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+/**
+ * A {@link WindowOperator} that also allows an {@link Evictor} to be used.
+ *
+ * <p>
+ * The {@code Evictor} is used to evict elements from panes before processing a window and after
+ * a {@link Trigger} has fired.
+ *
+ * @param <K> The type of key returned by the {@code KeySelector}.
+ * @param <IN> The type of the incoming elements.
+ * @param <OUT> The type of elements emitted by the {@code WindowFunction}.
+ * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
+ */
 public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends WindowOperator<K, IN, OUT, W> {
 
 	private static final long serialVersionUID = 1L;

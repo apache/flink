@@ -21,6 +21,14 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+/**
+ * A {@link Trigger} that continuously fires based on a given time interval. This fires based
+ * on {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks}.
+ *
+ * @see org.apache.flink.streaming.api.watermark.Watermark
+ *
+ * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+ */
 public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -66,6 +74,12 @@ public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Obj
 		return interval;
 	}
 
+	/**
+	 * Creates a trigger that continuously fires based on the given interval.
+	 *
+	 * @param interval The time interval at which to fire.
+	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+	 */
 	public static <W extends Window> ContinuousWatermarkTrigger<W> of(AbstractTime interval) {
 		return new ContinuousWatermarkTrigger<>(interval.toMilliseconds());
 	}

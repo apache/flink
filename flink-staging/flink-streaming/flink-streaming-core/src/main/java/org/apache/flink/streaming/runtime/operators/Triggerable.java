@@ -19,14 +19,13 @@
 package org.apache.flink.streaming.runtime.operators;
 
 /**
- * This interface must be implemented by objects that are triggered by a
- * {@link TriggerTimer}.
+ * This interface must be implemented by objects that are triggered by the timer service available
+ * to stream operators in {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment}.
  */
 public interface Triggerable {
 
 	/**
-	 * This method is invoked by the {@link TriggerTimer}
-	 * and given the timestamp for which the trigger was scheduled.
+	 * This method is invoked with the timestamp for which the trigger was scheduled.
 	 * <p>
 	 * If the triggering is delayed for whatever reason (trigger timer was blocked, JVM stalled due
 	 * to a garbage collection), the timestamp supplied to this function will still be the original

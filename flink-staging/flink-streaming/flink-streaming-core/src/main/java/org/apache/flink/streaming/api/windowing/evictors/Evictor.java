@@ -21,8 +21,31 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import scala.Serializable;
 
+/**
+ * An {@code Evictor} can remove elements from a pane before it is being processed and after
+ * window evaluation was triggered by a
+ * {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
+ *
+ * <p>
+ * A pane is the bucket of elements that have the same key (assigned by the
+ * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
+ * be in multiple panes of it was assigned to multiple windows by the
+ * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
+ * have their own instance of the {@code Evictor}.
+ *
+ * @param <T> The type of elements that this {@code Evictor} can evict.
+ * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
+ */
 public interface Evictor<T, W extends Window> extends Serializable {
 
-	public abstract int evict(Iterable<StreamRecord<T>> elements, int size, W window);
+	/**
+	 * Computes how many elements should be removed from the pane. The result specifies how
+	 * many elements should be removed from the beginning.
+	 *
+	 * @param elements The elements currently in the pane.
+	 * @param size The current number of elements in the pane.
+	 * @param window The {@link Window}
+	 */
+	int evict(Iterable<StreamRecord<T>> elements, int size, W window);
 }
 

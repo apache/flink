@@ -18,17 +18,47 @@
 package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
 
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.Serializable;
 
+/**
+ * A {@code WindowBuffer} is used by
+ * {@link org.apache.flink.streaming.runtime.operators.windowing.WindowOperator} to store
+ * the elements of one pane.
+ *
+ * <p>
+ * A pane is the bucket of elements that have the same key (assigned by the
+ * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
+ * be in multiple panes of it was assigned to multiple windows by the
+ * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
+ * have their own instance of the {@code Evictor}.
+ *
+ * @param <T> The type of elements that this {@code WindowBuffer} can store.
+ */
 public interface WindowBuffer<T> extends Serializable {
 
-	public void storeElement(StreamRecord<T> element) throws Exception;
+	/**
+	 * Adds the element to the buffer.
+	 *
+	 * @param element The element to add.
+	 */
+	void storeElement(StreamRecord<T> element) throws Exception;
 
-	public Iterable<StreamRecord<T>> getElements();
+	/**
+	 * Returns all elements that are currently in the buffer.
+	 */
+	Iterable<StreamRecord<T>> getElements();
 
-	public Iterable<T> getUnpackedElements();
+	/**
+	 * Returns all elements that are currently in the buffer. This will unwrap the contained
+	 * elements from their {@link StreamRecord}.
+	 */
+	Iterable<T> getUnpackedElements();
 
-	public int size();
+	/**
+	 * Returns the number of elements that are currently in the buffer.
+	 */
+	int size();
 }

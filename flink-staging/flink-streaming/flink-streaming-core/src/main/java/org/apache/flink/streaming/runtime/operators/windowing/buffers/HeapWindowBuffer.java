@@ -25,6 +25,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayDeque;
 
+/**
+ * An {@link EvictingWindowBuffer} that stores elements on the Java Heap.
+ *
+ * @param <T> The type of elements that this {@code WindowBuffer} can store.
+ */
 public class HeapWindowBuffer<T> implements EvictingWindowBuffer<T> {
 	private static final long serialVersionUID = 1L;
 
@@ -40,12 +45,11 @@ public class HeapWindowBuffer<T> implements EvictingWindowBuffer<T> {
 	}
 
 	@Override
-	public boolean removeElements(int count) {
+	public void removeElements(int count) {
 		// TODO determine if this can be done in a better way
 		for (int i = 0; i < count; i++) {
 			elements.removeFirst();
 		}
-		return false;
 	}
 
 	@Override

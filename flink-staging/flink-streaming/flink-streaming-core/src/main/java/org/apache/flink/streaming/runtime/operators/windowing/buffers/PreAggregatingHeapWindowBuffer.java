@@ -25,6 +25,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collections;
 
+/**
+ * An {@link WindowBuffer} that stores elements on the Java Heap. This buffer uses a
+ * {@link ReduceFunction} to pre-aggregate elements that are added to the buffer.
+ *
+ * @param <T> The type of elements that this {@code WindowBuffer} can store.
+ */
+
 public class PreAggregatingHeapWindowBuffer<T> implements WindowBuffer<T> {
 	private static final long serialVersionUID = 1L;
 
@@ -85,7 +92,7 @@ public class PreAggregatingHeapWindowBuffer<T> implements WindowBuffer<T> {
 
 		@Override
 		public PreAggregatingHeapWindowBuffer<T> create() {
-			return new PreAggregatingHeapWindowBuffer<T>(reduceFunction);
+			return new PreAggregatingHeapWindowBuffer<>(reduceFunction);
 		}
 	}
 }

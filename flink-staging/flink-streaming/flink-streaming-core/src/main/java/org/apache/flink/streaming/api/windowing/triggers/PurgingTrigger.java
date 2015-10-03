@@ -20,6 +20,16 @@ package org.apache.flink.streaming.api.windowing.triggers;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+/**
+ * A trigger that can turn any {@link Trigger} into a purging {@code Trigger}.
+ *
+ * <p>
+ * When the nested trigger fires, this will return a {@code FIRE_AND_PURGE}
+ * {@link org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerResult}
+ *
+ * @param <T> The type of elements on which this trigger can operate.
+ * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+ */
 public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -65,6 +75,11 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 		return "PurgingTrigger(" + nestedTrigger.toString() + ")";
 	}
 
+	/**
+	 * Creates a new purging trigger from the given {@code Trigger}.
+	 *
+	 * @param nestedTrigger The trigger that is wrapped by this purging trigger
+	 */
 	public static <T, W extends Window> PurgingTrigger<T, W> of(Trigger<T, W> nestedTrigger) {
 		return new PurgingTrigger<>(nestedTrigger);
 	}

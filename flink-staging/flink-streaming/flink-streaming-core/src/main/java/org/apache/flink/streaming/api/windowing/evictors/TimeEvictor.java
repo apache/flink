@@ -22,6 +22,12 @@ import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * An {@link Evictor} that keeps elements for a certain amount of time. Elements older
+ * than {@code current_time - keep_time} are evicted.
+ *
+ * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
+ */
 public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -55,6 +61,11 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 		return windowSize;
 	}
 
+	/**
+	 * Creates a {@code TimeEvictor} that keeps the given number of elements.
+	 *
+	 * @param windowSize The amount of time for which to keep elements.
+	 */
 	public static <W extends Window> TimeEvictor<W> of(AbstractTime windowSize) {
 		return new TimeEvictor<>(windowSize.toMilliseconds());
 	}
