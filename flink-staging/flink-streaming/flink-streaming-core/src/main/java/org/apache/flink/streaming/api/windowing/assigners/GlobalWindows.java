@@ -23,6 +23,14 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * A {@link WindowAssigner} that assigns all elements to the same global window.
+ *
+ * <p>
+ * Use this if you want to use a {@link Trigger} and
+ * {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} to to flexible, policy based
+ * windows.
+ */
 public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	private static final long serialVersionUID = 1L;
 

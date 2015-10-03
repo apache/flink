@@ -33,6 +33,13 @@ import java.util.Map;
 import java.util.Set;
 
 
+/**
+ * An operator that can sort a stream based on timestamps. Arriving elements will be put into
+ * buckets based on their timestamp. Sorting and emission of sorted elements happens once
+ * the watermark passes the end of a bucket.
+ *
+ * @param <T> The type of the elements on which this operator works.
+ */
 public class BucketStreamSortOperator<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
 	private static final long serialVersionUID = 1L;
 
@@ -40,8 +47,13 @@ public class BucketStreamSortOperator<T> extends AbstractStreamOperator<T> imple
 
 	private transient Map<Long, List<StreamRecord<T>>> buckets;
 
-	public BucketStreamSortOperator(long granularity) {
-		this.granularity = granularity;
+	/**
+	 * Creates a new sorting operator that creates buckets with the given interval.
+	 *
+	 * @param interval The size (in time) of one bucket.
+	 */
+	public BucketStreamSortOperator(long interval) {
+		this.granularity = interval;
 	}
 
 	@Override

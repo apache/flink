@@ -46,6 +46,32 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
+ * {@link Trigger}.
+ *
+ * <p>
+ * When an element arrives it gets assigned a key using a {@link KeySelector} and it get's
+ * assigned to zero or more windows using a {@link WindowAssigner}. Based on this the element
+ * is put into panes. A pane is the bucket of elements that have the same key and same
+ * {@code Window}. An element can be in multiple panes of it was assigned to multiple windows by the
+ * {@code WindowAssigner}.
+ *
+ * <p>
+ * Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
+ * the contents of the pane should be processed to emit results. When a trigger fires,
+ * the given {@link WindowFunction} is invoked to produce the results that are emitted for
+ * the pane to which the {@code Trigger} belongs.
+ *
+ * <p>
+ * This operator also needs a {@link WindowBufferFactory} to create a buffer for storing the
+ * elements of each pane.
+ *
+ * @param <K> The type of key returned by the {@code KeySelector}.
+ * @param <IN> The type of the incoming elements.
+ * @param <OUT> The type of elements emitted by the {@code WindowFunction}.
+ * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
+ */
 public class WindowOperator<K, IN, OUT, W extends Window>
 		extends AbstractUdfStreamOperator<OUT, WindowFunction<IN, OUT, K, W>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
@@ -54,24 +80,47 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 	private static final Logger LOG = LoggerFactory.getLogger(WindowOperator.class);
 
-
 	private final WindowAssigner<? super IN, W> windowAssigner;
+
 	private final KeySelector<IN, K> keySelector;
 
 	private final Trigger<? super IN, ? super W> triggerTemplate;
+
 	private final WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory;
 
+	/**
+	 * The windows (panes) that are currently in-flight. Each pane has a {@code WindowBuffer}
+	 * and a {@code TriggerContext} that stores the {@code Trigger} for that pane.
+	 */
 	protected transient Map<K, Map<W, Tuple2<WindowBuffer<IN>, TriggerContext>>> windows;
 
+	/**
+	 * Processing time timers that are currently in-flight.
+	 */
 	private transient Map<Long, Set<TriggerContext>> processingTimeTimers;
+
+	/**
+	 * Current waiting watermark callbacks.
+	 */
 	private transient Map<Long, Set<TriggerContext>> watermarkTimers;
 
+	/**
+	 * This is given to the {@code WindowFunction} for emitting elements with a given timestamp.
+	 */
 	protected transient TimestampedCollector<OUT> timestampedCollector;
 
+	/**
+	 * If this is true. The current processing time is set as the timestamp of incoming elements.
+	 * This for use with a {@link org.apache.flink.streaming.api.windowing.evictors.TimeEvictor}
+	 * if eviction should happen based on processing time.
+	 */
 	private boolean setProcessingTime = false;
 
 	private TypeSerializer<IN> inputSerializer;
 
+	/**
+	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
+	 */
 	public WindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			KeySelector<IN, K> keySelector,
 			WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory,
@@ -245,6 +294,10 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		}
 	}
 
+	/**
+	 * A context object that is given to {@code Trigger} functions to allow them to register
+	 * timer/watermark callbacks.
+	 */
 	protected class TriggerContext implements Trigger.TriggerContext {
 		Trigger<? super IN, ? super W> trigger;
 		K key;
@@ -311,10 +364,5 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	@VisibleForTesting
 	public WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> getWindowBufferFactory() {
 		return windowBufferFactory;
-	}
-
-	@VisibleForTesting
-	public boolean isSetProcessingTime() {
-		return setProcessingTime;
 	}
 }

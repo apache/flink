@@ -17,6 +17,19 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
+/**
+ * A {@code WindowBuffer} that can also evict elements from the buffer. The order in which
+ * the elements are added is preserved. Elements can only be evicted started from the beginning of
+ * the buffer.
+ *
+ * @param <T> The type of elements that this {@code WindowBuffer} can store.
+ */
+
 public interface EvictingWindowBuffer<T> extends WindowBuffer<T> {
-	public boolean removeElements(int count);
+
+	/**
+	 * Removes the given number of elements, starting from the beginning.
+	 * @param count The number of elements to remove.
+	 */
+	void removeElements(int count);
 }

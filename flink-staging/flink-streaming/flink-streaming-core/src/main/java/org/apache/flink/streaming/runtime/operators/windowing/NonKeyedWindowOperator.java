@@ -45,6 +45,15 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Window operator for non-keyed windows.
+ *
+ * @see org.apache.flink.streaming.runtime.operators.windowing.WindowOperator
+ *
+ * @param <IN> The type of the incoming elements.
+ * @param <OUT> The type of elements emitted by the {@code WindowFunction}.
+ * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
+ */
 public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<IN, OUT, W>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {

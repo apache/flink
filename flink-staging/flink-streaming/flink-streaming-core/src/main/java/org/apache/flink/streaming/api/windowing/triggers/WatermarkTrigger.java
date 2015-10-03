@@ -19,6 +19,12 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+/**
+ * A {@link Trigger} that fires once the watermark passes the end of the window
+ * to which a pane belongs.
+ *
+ * @see org.apache.flink.streaming.api.watermark.Watermark
+ */
 public class WatermarkTrigger implements Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
@@ -50,6 +56,9 @@ public class WatermarkTrigger implements Trigger<Object, TimeWindow> {
 		return "WatermarkTrigger()";
 	}
 
+	/**
+	 * Creates trigger that fires once the watermark passes the end of the window.
+	 */
 	public static WatermarkTrigger create() {
 		return new WatermarkTrigger();
 	}

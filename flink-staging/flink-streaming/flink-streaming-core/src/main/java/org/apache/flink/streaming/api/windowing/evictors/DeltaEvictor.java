@@ -22,6 +22,16 @@ import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * An {@link Evictor} that keeps elements based on a {@link DeltaFunction} and a threshold.
+ *
+ * <p>
+ * Eviction starts from the first element of the buffer and removes all elements from the buffer
+ * which have a higher delta then the threshold. As soon as there is an element with a lower delta,
+ * the eviction stops.
+ *
+ * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.
+ */
 public class DeltaEvictor<T, W extends Window> implements Evictor<T, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -52,6 +62,12 @@ public class DeltaEvictor<T, W extends Window> implements Evictor<T, W> {
 		return "DeltaEvictor(" +  deltaFunction + ", " + threshold + ")";
 	}
 
+	/**
+	 * Creates a {@code DeltaEvictor} from the given threshold and {@code DeltaFunction}.
+	 *
+	 * @param threshold The threshold
+	 * @param deltaFunction The {@code DeltaFunction}
+	 */
 	public static <T, W extends Window> DeltaEvictor<T, W> of(double threshold, DeltaFunction<T> deltaFunction) {
 		return new DeltaEvictor<>(threshold, deltaFunction);
 	}

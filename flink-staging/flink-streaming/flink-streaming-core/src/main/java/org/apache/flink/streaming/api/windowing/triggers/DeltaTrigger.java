@@ -20,6 +20,16 @@ package org.apache.flink.streaming.api.windowing.triggers;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+/**
+ * A {@link Trigger} that fires based on a {@link DeltaFunction} and a threshold.
+ *
+ * <p>
+ * This trigger calculates a delta between the data point which triggered last
+ * and the currently arrived data point. It triggers if the delta is higher than
+ * a specified threshold.
+ *
+ * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+ */
 public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -60,6 +70,16 @@ public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 		return "DeltaTrigger(" +  deltaFunction + ", " + threshold + ")";
 	}
 
+	/**
+	 * Creates a delta trigger from the given threshold and {@code DeltaFunction}.
+	 *
+	 * @param threshold The threshold at which to trigger.
+	 * @param deltaFunction The delta function to use
+	 *
+	 * @param <T> The type of elements on which this trigger can operate.
+	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+	 * @return
+	 */
 	public static <T, W extends Window> DeltaTrigger<T, W> of(double threshold, DeltaFunction<T> deltaFunction) {
 		return new DeltaTrigger<>(threshold, deltaFunction);
 	}

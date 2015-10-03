@@ -21,6 +21,12 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+/**
+ * A {@link Trigger} that continuously fires based on a given time interval. The time is the current
+ * system time.
+ *
+ * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+ */
 public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
@@ -80,6 +86,12 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 		return "ContinuousProcessingTimeTrigger(" + interval + ")";
 	}
 
+	/**
+	 * Creates a trigger that continuously fires based on the given interval.
+	 *
+	 * @param interval The time interval at which to fire.
+	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+	 */
 	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(AbstractTime interval) {
 		return new ContinuousProcessingTimeTrigger<>(interval.toMilliseconds());
 	}
