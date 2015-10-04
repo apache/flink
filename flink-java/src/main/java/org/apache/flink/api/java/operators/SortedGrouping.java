@@ -167,7 +167,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Applies a CombineFunction on a grouped {@link DataSet}.
+	 * Applies a GroupCombineFunction on a grouped {@link DataSet}.
 	 * A CombineFunction is similar to a GroupReduceFunction but does not perform a full data exchange. Instead, the
 	 * CombineFunction calls the combine method once per partition for combining a group of results. This
 	 * operator is suitable for combining values into an intermediate format before doing a proper groupReduce where
@@ -175,12 +175,12 @@ public class SortedGrouping<T> extends Grouping<T> {
 	 * a combiner by implementing the RichGroupReduce function. The combine method of the RichGroupReduce function
 	 * demands input and output type to be the same. The CombineFunction, on the other side, can have an arbitrary
 	 * output type.
-	 * @param combiner The CombineFunction that is applied on the DataSet.
+	 * @param combiner The GroupCombineFunction that is applied on the DataSet.
 	 * @return A GroupCombineOperator which represents the combined DataSet.
 	 */
 	public <R> GroupCombineOperator<T, R> combineGroup(GroupCombineFunction<T, R> combiner) {
 		if (combiner == null) {
-			throw new NullPointerException("GroupReduce function must not be null.");
+			throw new NullPointerException("GroupCombine function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, this.getDataSet().getType());
 
@@ -191,7 +191,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 	/**
 	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br/>
 	 * @param n The desired number of elements for each group.
-	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
+	 * @return A GroupReduceOperator that represents the DataSet containing the elements.
 	*/
 	public GroupReduceOperator<T, T> first(int n) {
 		if(n < 1) {

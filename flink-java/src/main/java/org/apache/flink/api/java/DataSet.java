@@ -467,7 +467,7 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Applies a CombineFunction on a non-grouped {@link DataSet}.
+	 * Applies a GroupCombineFunction on a non-grouped {@link DataSet}.
 	 * A CombineFunction is similar to a GroupReduceFunction but does not perform a full data exchange. Instead, the
 	 * CombineFunction calls the combine method once per partition for combining a group of results. This
 	 * operator is suitable for combining values into an intermediate format before doing a proper groupReduce where
@@ -475,12 +475,12 @@ public abstract class DataSet<T> {
 	 * a combiner by implementing the RichGroupReduce function. The combine method of the RichGroupReduce function
 	 * demands input and output type to be the same. The CombineFunction, on the other side, can have an arbitrary
 	 * output type.
-	 * @param combiner The CombineFunction that is applied on the DataSet.
+	 * @param combiner The GroupCombineFunction that is applied on the DataSet.
 	 * @return A GroupCombineOperator which represents the combined DataSet.
 	 */
 	public <R> GroupCombineOperator<T, R> combineGroup(GroupCombineFunction<T, R> combiner) {
 		if (combiner == null) {
-			throw new NullPointerException("GroupReduce function must not be null.");
+			throw new NullPointerException("GroupCombine function must not be null.");
 		}
 
 		String callLocation = Utils.getCallLocationName();
