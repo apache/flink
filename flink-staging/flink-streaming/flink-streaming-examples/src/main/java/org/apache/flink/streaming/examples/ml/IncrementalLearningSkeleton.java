@@ -17,32 +17,35 @@
 
 package org.apache.flink.streaming.examples.ml;
 
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.WindowMapFunction;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.helper.Time;
-import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Skeleton for incremental machine learning algorithm consisting of a
  * pre-computed model, which gets updated for the new inputs and new input data
  * for which the job provides predictions.
- * <p/>
+ *
  * <p>
  * This may serve as a base of a number of algorithms, e.g. updating an
  * incremental Alternating Least Squares model while also providing the
  * predictions.
- * </p>
- * <p/>
+ *
  * <p/>
  * This example shows how to use:
  * <ul>
- * <li>Connected streams
- * <li>CoFunctions
- * <li>Tuple data types
+ *   <li>Connected streams
+ *   <li>CoFunctions
+ *   <li>Tuple data types
  * </ul>
  */
 public class IncrementalLearningSkeleton {
@@ -61,12 +64,16 @@ public class IncrementalLearningSkeleton {
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
 		trainingData = env.addSource(new FiniteTrainingDataSource());
 		newData = env.addSource(new FiniteNewDataSource());
 
 		// build new model on every second of new data
-		DataStream<Double[]> model = trainingData.window(Time.of(5000, new LinearTimestamp()))
-				.mapWindow(new PartialModelBuilder()).flatten();
+		DataStream<Double[]> model = trainingData
+				.extractTimestamp(new LinearTimestamp())
+				.timeWindowAll(Time.of(5000, TimeUnit.MILLISECONDS))
+				.apply(new PartialModelBuilder());
 
 		// use partial model for newData
 		DataStream<Integer> prediction = newData.connect(model).map(new Predictor());
@@ -140,21 +147,32 @@ public class IncrementalLearningSkeleton {
 		}
 	}
 
-	public static class LinearTimestamp implements Timestamp<Integer> {
+	public static class LinearTimestamp implements TimestampExtractor<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private long counter = 0L;
 
 		@Override
-		public long getTimestamp(Integer value) {
+		public long extractTimestamp(Integer element, long currentTimestamp) {
 			return counter += 10L;
 		}
+
+		@Override
+		public long emitWatermark(Integer element, long currentTimestamp) {
+			return counter - 1;
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return Long.MIN_VALUE;
+		}
+
 	}
 
 	/**
 	 * Builds up-to-date partial models on new training data.
 	 */
-	public static class PartialModelBuilder implements WindowMapFunction<Integer, Double[]> {
+	public static class PartialModelBuilder implements AllWindowFunction<Integer, Double[], TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
 		protected Double[] buildPartialModel(Iterable<Integer> values) {
@@ -162,7 +180,7 @@ public class IncrementalLearningSkeleton {
 		}
 
 		@Override
-		public void mapWindow(Iterable<Integer> values, Collector<Double[]> out) throws Exception {
+		public void apply(TimeWindow window, Iterable<Integer> values, Collector<Double[]> out) throws Exception {
 			out.collect(buildPartialModel(values));
 		}
 	}

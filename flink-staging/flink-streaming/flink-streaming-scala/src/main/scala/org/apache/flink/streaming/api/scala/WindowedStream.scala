@@ -27,8 +27,11 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
+import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
+
+import scala.collection.JavaConverters._
 
 /**
  * A [[WindowedStream]] represents a data stream where elements are grouped by
@@ -178,6 +181,28 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    */
   def apply[R: TypeInformation: ClassTag](function: WindowFunction[T, R, K, W]): DataStream[R] = {
     javaStream.apply(clean(function), implicitly[TypeInformation[R]])
+  }
+
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Not that this function requires that all data in the windows is buffered until the window
+   * is evaluated, as the function provides no means of pre-aggregation.
+   *
+   * @param function The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def apply[R: TypeInformation: ClassTag](
+      function: (K, W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+    val cleanedFunction = clean(function)
+    val applyFunction = new WindowFunction[T, R, K, W] {
+      def apply(key: K, window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
+        cleanedFunction(key, window, elements.asScala, out)
+      }
+    }
+    javaStream.apply(applyFunction, implicitly[TypeInformation[R]])
   }
 
   // ------------------------------------------------------------------------

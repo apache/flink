@@ -18,11 +18,14 @@
 package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
-import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
+import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,37 +40,36 @@ public class SessionWindowing {
 		}
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(2);
 
-		final List<Tuple3<String, Long, Integer>> input = new ArrayList<Tuple3<String, Long, Integer>>();
+		final List<Tuple3<String, Long, Integer>> input = new ArrayList<>();
 
-		input.add(new Tuple3<String, Long, Integer>("a", 1L, 1));
-		input.add(new Tuple3<String, Long, Integer>("b", 1L, 1));
-		input.add(new Tuple3<String, Long, Integer>("b", 3L, 1));
-		input.add(new Tuple3<String, Long, Integer>("b", 5L, 1));
-		input.add(new Tuple3<String, Long, Integer>("c", 6L, 1));
+		input.add(new Tuple3<>("a", 1L, 1));
+		input.add(new Tuple3<>("b", 1L, 1));
+		input.add(new Tuple3<>("b", 3L, 1));
+		input.add(new Tuple3<>("b", 5L, 1));
+		input.add(new Tuple3<>("c", 6L, 1));
 		// We expect to detect the session "a" earlier than this point (the old
 		// functionality can only detect here when the next starts)
-		input.add(new Tuple3<String, Long, Integer>("a", 10L, 1));
+		input.add(new Tuple3<>("a", 10L, 1));
 		// We expect to detect session "b" and "c" at this point as well
-		input.add(new Tuple3<String, Long, Integer>("c", 11L, 1));
+		input.add(new Tuple3<>("c", 11L, 1));
 
 		DataStream<Tuple3<String, Long, Integer>> source = env
-				.addSource(new SourceFunction<Tuple3<String, Long, Integer>>() {
+				.addSource(new EventTimeSourceFunction<Tuple3<String,Long,Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
 					public void run(SourceContext<Tuple3<String, Long, Integer>> ctx) throws Exception {
 						for (Tuple3<String, Long, Integer> value : input) {
-							// We sleep three seconds between every output so we
-							// can see whether we properly detect sessions
-							// before the next start for a specific id
-							ctx.collect(value);
+							ctx.collectWithTimestamp(value, value.f1);
+							ctx.emitWatermark(new Watermark(value.f1 - 1));
 							if (!fileOutput) {
 								System.out.println("Collected: " + value);
-								Thread.sleep(3000);
 							}
 						}
+						ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
 					}
 
 					@Override
@@ -76,10 +78,11 @@ public class SessionWindowing {
 				});
 
 		// We create sessions for each id with max timeout of 3 time units
-		DataStream<Tuple3<String, Long, Integer>> aggregated = source.keyBy(0)
-				.window(new SessionTriggerPolicy(3L),
-						new TumblingEvictionPolicy<Tuple3<String, Long, Integer>>()).sum(2)
-				.flatten();
+		DataStream<Tuple3<String, Long, Integer>> aggregated = source
+				.keyBy(0)
+				.window(GlobalWindows.create())
+				.trigger(new SessionTrigger(3L))
+				.sum(2);
 
 		if (fileOutput) {
 			aggregated.writeAsText(outputPath);
@@ -90,55 +93,46 @@ public class SessionWindowing {
 		env.execute();
 	}
 
-	private static class SessionTriggerPolicy implements
-			CentralActiveTrigger<Tuple3<String, Long, Integer>> {
+	private static class SessionTrigger implements Trigger<Tuple3<String, Long, Integer>, GlobalWindow> {
 
 		private static final long serialVersionUID = 1L;
 
 		private volatile Long lastSeenEvent = 1L;
 		private Long sessionTimeout;
 
-		public SessionTriggerPolicy(Long sessionTimeout) {
+		public SessionTrigger(Long sessionTimeout) {
 			this.sessionTimeout = sessionTimeout;
 
 		}
 
 		@Override
-		public boolean notifyTrigger(Tuple3<String, Long, Integer> datapoint) {
-
-			Long eventTimestamp = datapoint.f1;
-			Long timeSinceLastEvent = eventTimestamp - lastSeenEvent;
+		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) {
+			Long timeSinceLastEvent = timestamp - lastSeenEvent;
 
 			// Update the last seen event time
-			lastSeenEvent = eventTimestamp;
+			lastSeenEvent = timestamp;
+
+			ctx.registerWatermarkTimer(lastSeenEvent + sessionTimeout);
 
 			if (timeSinceLastEvent > sessionTimeout) {
-				return true;
+				return TriggerResult.FIRE_AND_PURGE;
 			} else {
-				return false;
+				return TriggerResult.CONTINUE;
 			}
 		}
 
 		@Override
-		public Object[] notifyOnLastGlobalElement(Tuple3<String, Long, Integer> datapoint) {
-			Long eventTimestamp = datapoint.f1;
-			Long timeSinceLastEvent = eventTimestamp - lastSeenEvent;
-
-			// Here we dont update the last seen event time because this data
-			// belongs to a different group
-
-			if (timeSinceLastEvent > sessionTimeout) {
-				return new Object[]{datapoint};
-			} else {
-				return null;
+		public TriggerResult onTime(long time, TriggerContext ctx) {
+			if (time - lastSeenEvent >= sessionTimeout) {
+				return TriggerResult.FIRE_AND_PURGE;
 			}
+			return TriggerResult.CONTINUE;
 		}
 
 		@Override
-		public SessionTriggerPolicy clone() {
-			return new SessionTriggerPolicy(sessionTimeout);
+		public SessionTrigger duplicate() {
+			return new SessionTrigger(sessionTimeout);
 		}
-
 	}
 
 	// *************************************************************************

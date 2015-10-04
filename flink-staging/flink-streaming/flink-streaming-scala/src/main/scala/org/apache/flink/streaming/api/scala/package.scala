@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTuple2TypeInformation => apiTupleCreator}
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
 import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedStreams => ConnectedJavaStreams }
 import org.apache.flink.streaming.api.datastream.{ KeyedStream => KeyedJavaStream }
@@ -40,9 +39,6 @@ package object scala {
     
   implicit def javaToScalaGroupedStream[R, K](javaStream: KeyedJavaStream[R, K]):
   KeyedStream[R, K] = new KeyedStream[R, K](javaStream)
-
-  implicit def javaToScalaWindowedStream[R](javaWStream: JavaWStream[R]): WindowedDataStream[R] =
-    new WindowedDataStream[R](javaWStream)
 
   implicit def javaToScalaSplitStream[R](javaStream: SplitJavaStream[R]): SplitStream[R] =
     new SplitStream[R](javaStream)
@@ -75,7 +71,6 @@ package object scala {
 
   def createTuple2TypeInformation[T1, T2](
       t1: TypeInformation[T1],
-      t2: TypeInformation[T2])
-    : TypeInformation[(T1, T2)] =
+      t2: TypeInformation[T2]) : TypeInformation[(T1, T2)] =
     apiTupleCreator[T1, T2](t1, t2)
 }

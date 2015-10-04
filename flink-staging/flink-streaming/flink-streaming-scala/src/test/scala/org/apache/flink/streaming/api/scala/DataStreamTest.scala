@@ -19,14 +19,15 @@
 package org.apache.flink.streaming.api.scala
 
 import java.lang
-import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction,
-  Partitioner, FoldFunction, Function}
+import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner, FoldFunction, Function}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
-import org.apache.flink.streaming.api.windowing.helper.Count
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
+import org.apache.flink.streaming.api.windowing.triggers.{PurgingTrigger, CountTrigger}
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.Collector
@@ -56,21 +57,24 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert("testReduce" == dataStream2.getName)
 
     val connected = dataStream1.connect(dataStream2)
-      .flatMap(
-    { (in, out: Collector[Long]) => }, { (in, out: Collector[Long]) => }
-    ).name("testCoFlatMap")
+      .flatMap({ (in, out: Collector[(Long, Long)]) => }, { (in, out: Collector[(Long, Long)]) => })
+      .name("testCoFlatMap")
+
     assert("testCoFlatMap" == connected.getName)
 
-    val func: ((Long, Long) => Long) =
-      (x: Long, y: Long) => 0L
+    val func: (((Long, Long), (Long, Long)) => (Long, Long)) =
+      (x: (Long, Long), y: (Long, Long)) => (0L, 0L)
 
-    val windowed = connected.window(Count.of(10))
-      .foldWindow(0L, func)
+    val windowed = connected
+      .windowAll(GlobalWindows.create())
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
+      .fold((0L, 0L), func)
 
     windowed.name("testWindowFold")
+
     assert("testWindowFold" == windowed.getName)
 
-    windowed.flatten().print()
+    windowed.print()
 
     val plan = env.getExecutionPlan
 
@@ -239,11 +243,12 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.createLocalEnvironment(10)
 
     val src = env.fromElements(new Tuple2[Long, Long](0L, 0L))
-    val map = src.map(x => 0L)
-    val windowed: DataStream[Long] = map
-      .window(Count.of(10))
-      .foldWindow(0L, (x: Long, y: Long) => 0L)
-      .flatten
+    val map = src.map(x => (0L, 0L))
+    val windowed: DataStream[(Long, Long)] = map
+      .windowAll(GlobalWindows.create())
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
+      .fold((0L, 0L), (x: (Long, Long), y: (Long, Long)) => (0L, 0L))
+
     windowed.print()
     val sink = map.addSink(x => {})
 
@@ -294,15 +299,17 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val map: DataStream[(Integer, String)] = src1.map(x => null)
     assert(classOf[scala.Tuple2[Integer, String]] == map.getType.getTypeClass)
 
-    val window: WindowedDataStream[String] = map
-      .window(Count.of(5))
-      .mapWindow((x: Iterable[(Integer, String)], y: Collector[String]) => {})
+    val window: DataStream[String] = map
+      .windowAll(GlobalWindows.create())
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
+      .apply((w: GlobalWindow, x: Iterable[(Integer, String)], y: Collector[String]) => {})
+
     assert(TypeExtractor.getForClass(classOf[String]) == window.getType)
 
     val flatten: DataStream[Int] = window
-      .foldWindow(0,
-        (accumulator: Int, value: String) => 0
-      ).flatten
+      .windowAll(GlobalWindows.create())
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
+      .fold(0, (accumulator: Int, value: String) => 0)
     assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType)
 
     // TODO check for custom case class

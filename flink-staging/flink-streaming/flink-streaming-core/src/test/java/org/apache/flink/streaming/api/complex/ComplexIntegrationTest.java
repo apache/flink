@@ -33,15 +33,18 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.WindowMapFunction;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
-import org.apache.flink.streaming.api.windowing.helper.Count;
-import org.apache.flink.streaming.api.windowing.helper.Delta;
-import org.apache.flink.streaming.api.windowing.helper.Time;
-import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.After;
@@ -59,6 +62,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("serial")
 public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
@@ -117,8 +121,8 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		IterativeStream<Tuple2<Long, Tuple2<String, Long>>> it = sourceStream1.map(new MapFunction<Tuple2<Long, Tuple2<String, Long>>,Tuple2<Long, Tuple2<String, Long>>>(){
 
-					Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(
-							0L, new Tuple2<String, Long>("", 0L));
+					Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<>(
+							0L, new Tuple2<>("", 0L));
 
 					@Override
 					public Tuple2<Long, Tuple2<String, Long>> map(
@@ -167,38 +171,38 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				"peach-d\n" + "peach-d\n";
 
 		List<Tuple5<Integer, String, Character, Double, Boolean>> input = Arrays.asList(
-				new Tuple5<Integer, String, Character, Double, Boolean>(1, "apple", 'j', 0.1, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(1, "peach", 'b', 0.8, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(1, "orange", 'c', 0.7, true),
-				new Tuple5<Integer, String, Character, Double, Boolean>(2, "apple", 'd', 0.5, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(2, "peach", 'j', 0.6, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(3, "orange", 'b', 0.2, true),
-				new Tuple5<Integer, String, Character, Double, Boolean>(6, "apple", 'c', 0.1, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(7, "peach", 'd', 0.4, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(8, "orange", 'j', 0.2, true),
-				new Tuple5<Integer, String, Character, Double, Boolean>(10, "apple", 'b', 0.1, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(10, "peach", 'c', 0.5, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(11, "orange", 'd', 0.3, true),
-				new Tuple5<Integer, String, Character, Double, Boolean>(11, "apple", 'j', 0.3, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(12, "peach", 'b', 0.9, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(13, "orange", 'c', 0.7, true),
-				new Tuple5<Integer, String, Character, Double, Boolean>(15, "apple", 'd', 0.2, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(16, "peach", 'j', 0.8, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(16, "orange", 'b', 0.8, true),
-				new Tuple5<Integer, String, Character, Double, Boolean>(16, "apple", 'c', 0.1, false),
-				new Tuple5<Integer, String, Character, Double, Boolean>(17, "peach", 'd', 1.0, true));
+				new Tuple5<>(1, "apple", 'j', 0.1, false),
+				new Tuple5<>(1, "peach", 'b', 0.8, false),
+				new Tuple5<>(1, "orange", 'c', 0.7, true),
+				new Tuple5<>(2, "apple", 'd', 0.5, false),
+				new Tuple5<>(2, "peach", 'j', 0.6, false),
+				new Tuple5<>(3, "orange", 'b', 0.2, true),
+				new Tuple5<>(6, "apple", 'c', 0.1, false),
+				new Tuple5<>(7, "peach", 'd', 0.4, false),
+				new Tuple5<>(8, "orange", 'j', 0.2, true),
+				new Tuple5<>(10, "apple", 'b', 0.1, false),
+				new Tuple5<>(10, "peach", 'c', 0.5, false),
+				new Tuple5<>(11, "orange", 'd', 0.3, true),
+				new Tuple5<>(11, "apple", 'j', 0.3, false),
+				new Tuple5<>(12, "peach", 'b', 0.9, false),
+				new Tuple5<>(13, "orange", 'c', 0.7, true),
+				new Tuple5<>(15, "apple", 'd', 0.2, false),
+				new Tuple5<>(16, "peach", 'j', 0.8, false),
+				new Tuple5<>(16, "orange", 'b', 0.8, true),
+				new Tuple5<>(16, "apple", 'c', 0.1, false),
+				new Tuple5<>(17, "peach", 'd', 1.0, true));
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableTimestamps();
 
 		SingleOutputStreamOperator<Tuple5<Integer, String, Character, Double, Boolean>, DataStreamSource<Tuple5<Integer, String, Character, Double, Boolean>>> sourceStream21 = env.fromCollection(input);
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
 
 		sourceStream21
+				.extractTimestamp(new MyTimestampExtractor())
 				.keyBy(2, 2)
-				.window(Time.of(10, new MyTimestamp(), 0))
-				.every(Time.of(4, new MyTimestamp(), 0))
+				.timeWindow(Time.of(10, TimeUnit.MILLISECONDS), Time.of(4, TimeUnit.MILLISECONDS))
 				.maxBy(3)
-				.flatten()
 				.map(new MyMapFunction2())
 				.flatMap(new MyFlatMapFunction())
 				.connect(sourceStream22)
@@ -244,11 +248,13 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Long> sourceStream32 = env.generateSequence(10001, 20000);
 
 		sourceStream31.filter(new PrimeFilterFunction())
-				.window(Count.of(100))
-				.max(0).flatten()
+				.windowAll(GlobalWindows.create())
+				.trigger(PurgingTrigger.of(CountTrigger.of(100)))
+				.max(0)
 				.union(sourceStream32.filter(new PrimeFilterFunction())
-						.window(Count.of(100))
-						.max(0).flatten())
+						.windowAll(GlobalWindows.create())
+						.trigger(PurgingTrigger.of(CountTrigger.of(100)))
+						.max(0))
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		sourceStream31.flatMap(new DivisorsFlatMapFunction())
@@ -257,11 +263,13 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 			@Override
 			public Tuple2<Long, Integer> map(Long value) throws Exception {
-				return new Tuple2<Long, Integer>(value, 1);
+				return new Tuple2<>(value, 1);
 			}
 		})
 				.keyBy(0)
-				.window(Count.of(10000)).sum(1).flatten()
+				.window(GlobalWindows.create())
+				.trigger(PurgingTrigger.of(CountTrigger.of(10_000)))
+				.sum(1)
 				.filter(new FilterFunction<Tuple2<Long, Integer>>() {
 
 					@Override
@@ -275,6 +283,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
+	@Ignore
 	public void complexIntegrationTest4() throws Exception {
 		//Testing mapping and delta-policy windowing with custom class
 
@@ -290,13 +299,14 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				"((499,587),90)\n" + "((516,606),93)\n" + "((517,609),94)\n" + "((534,628),97)\n" + "((535,631),98)";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
 		env.addSource(new RectangleSource())
 				.global()
 				.map(new RectangleMapFunction())
-				.window(Delta.of(0.0, new MyDelta(), new Tuple2<Rectangle, Integer>(new Rectangle(100, 100), 0)))
-				.mapWindow(new MyWindowMapFunction())
-				.flatten()
+				.windowAll(GlobalWindows.create())
+				.trigger(PurgingTrigger.of(DeltaTrigger.of(0.0, new MyDelta())))
+				.apply(new MyWindowMapFunction())
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
@@ -361,6 +371,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 
 	@Test
+	@Ignore
 	public void complexIntegrationTest6() throws Exception {
 		//Testing java collections and date-time types
 
@@ -376,88 +387,89 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		SimpleDateFormat ft = new SimpleDateFormat("dd-MM-yyyy");
 
-		ArrayList<Tuple2<Date, HashMap<Character, Integer>>> sales = new ArrayList<Tuple2<Date, HashMap<Character,
-				Integer>>>();
-		HashMap<Character, Integer> sale1 = new HashMap<Character, Integer>();
+		ArrayList<Tuple2<Date, HashMap<Character, Integer>>> sales = new ArrayList<>();
+		HashMap<Character, Integer> sale1 = new HashMap<>();
 		sale1.put('a', 2);
 		sale1.put('c', 2);
 		sale1.put('d', 1);
 		sale1.put('f', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("03-06-2014"), sale1));
+		sales.add(new Tuple2<>(ft.parse("03-06-2014"), sale1));
 
-		HashMap<Character, Integer> sale2 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale2 = new HashMap<>();
 		sale2.put('a', 1);
 		sale2.put('b', 2);
 		sale2.put('d', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("10-06-2014"), sale2));
+		sales.add(new Tuple2<>(ft.parse("10-06-2014"), sale2));
 
-		HashMap<Character, Integer> sale3 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale3 = new HashMap<>();
 		sale3.put('a', 3);
 		sale3.put('b', 1);
 		sale3.put('c', 2);
 		sale3.put('f', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("29-06-2014"), sale3));
+		sales.add(new Tuple2<>(ft.parse("29-06-2014"), sale3));
 
-		HashMap<Character, Integer> sale4 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale4 = new HashMap<>();
 		sale4.put('a', 1);
 		sale4.put('d', 1);
 		sale4.put('e', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("15-07-2014"), sale4));
+		sales.add(new Tuple2<>(ft.parse("15-07-2014"), sale4));
 
-		HashMap<Character, Integer> sale5 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale5 = new HashMap<>();
 		sale5.put('b', 2);
 		sale5.put('c', 3);
 		sale5.put('f', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("24-07-2014"), sale5));
+		sales.add(new Tuple2<>(ft.parse("24-07-2014"), sale5));
 
-		HashMap<Character, Integer> sale6 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale6 = new HashMap<>();
 		sale6.put('a', 4);
 		sale6.put('b', 2);
 		sale6.put('c', 2);
 		sale6.put('e', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("17-08-2014"), sale6));
+		sales.add(new Tuple2<>(ft.parse("17-08-2014"), sale6));
 
-		HashMap<Character, Integer> sale7 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale7 = new HashMap<>();
 		sale7.put('a', 2);
 		sale7.put('b', 2);
 		sale7.put('c', 3);
 		sale7.put('d', 1);
 		sale7.put('e', 1);
 		sale7.put('f', 2);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("27-08-2014"), sale7));
+		sales.add(new Tuple2<>(ft.parse("27-08-2014"), sale7));
 
-		HashMap<Character, Integer> sale8 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale8 = new HashMap<>();
 		sale8.put('a', 3);
 		sale8.put('b', 1);
 		sale8.put('c', 3);
 		sale8.put('d', 2);
 		sale8.put('f', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("16-09-2014"), sale8));
+		sales.add(new Tuple2<>(ft.parse("16-09-2014"), sale8));
 
-		HashMap<Character, Integer> sale9 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale9 = new HashMap<>();
 		sale9.put('a', 1);
 		sale9.put('b', 3);
 		sale9.put('c', 4);
 		sale9.put('d', 1);
 		sale9.put('e', 1);
 		sale9.put('f', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("25-09-2014"), sale9));
+		sales.add(new Tuple2<>(ft.parse("25-09-2014"), sale9));
 
-		HashMap<Character, Integer> sale10 = new HashMap<Character, Integer>();
+		HashMap<Character, Integer> sale10 = new HashMap<>();
 		sale10.put('a', 3);
 		sale10.put('b', 2);
 		sale10.put('c', 3);
 		sale10.put('d', 2);
 		sale10.put('e', 1);
 		sale10.put('f', 1);
-		sales.add(new Tuple2<Date, HashMap<Character, Integer>>(ft.parse("01-10-2014"), sale10));
+		sales.add(new Tuple2<>(ft.parse("01-10-2014"), sale10));
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableTimestamps();
 
 		DataStream<Tuple2<Date, HashMap<Character, Integer>>> sourceStream6 = env.fromCollection(sales);
-		sourceStream6.window(Time.of(1, new Timestamp6()))
-				.reduceWindow(new SalesReduceFunction())
-				.flatten()
+		sourceStream6
+				.extractTimestamp(new Timestamp6())
+				.timeWindowAll(Time.of(1, TimeUnit.MILLISECONDS))
+				.reduce(new SalesReduceFunction())
 				.flatMap(new FlatMapFunction6())
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
@@ -478,7 +490,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		@Override
 		public Tuple4<Integer, String, Double, Boolean> map(Tuple5<Integer, String, Character, Double,
 				Boolean> value) throws Exception {
-			return new Tuple4<Integer, String, Double, Boolean>(value.f0, value.f1 + "-" + value.f2,
+			return new Tuple4<>(value.f0, value.f1 + "-" + value.f2,
 					value.f3, value.f4);
 		}
 
@@ -509,7 +521,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		@Override
 		public void run(SourceContext<Tuple2<Long, Tuple2<String, Long>>> ctx) throws Exception {
 			for (int i = 0; i < 20; i++) {
-				Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(1L, new Tuple2<String, Long>("a", 1L));
+				Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<>(1L, new Tuple2<>("a", 1L));
 				ctx.collect(result);
 			}
 		}
@@ -526,16 +538,27 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Long, Tuple2<String, Long>> map(Tuple2<Long, Tuple2<String, Long>> value) throws Exception {
-			return new Tuple2<Long, Tuple2<String, Long>>(value.f0 + 1, value.f1);
+			return new Tuple2<>(value.f0 + 1, value.f1);
 		}
 	}
 
-	private static class MyTimestamp implements Timestamp<Tuple5<Integer, String, Character, Double, Boolean>> {
+	private static class MyTimestampExtractor implements TimestampExtractor<Tuple5<Integer, String, Character, Double, Boolean>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public long getTimestamp(Tuple5<Integer, String, Character, Double, Boolean> value) {
+		public long extractTimestamp(Tuple5<Integer, String, Character, Double, Boolean> value, long currentTimestamp) {
 			return (long) value.f0;
+		}
+
+		@Override
+		public long emitWatermark(Tuple5<Integer, String, Character, Double, Boolean> value,
+				long currentTimestamp) {
+			return (long) value.f0 - 1;
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return Long.MIN_VALUE;
 		}
 	}
 
@@ -573,7 +596,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public Iterable<String> select(Tuple2<Long, Tuple2<String, Long>> value) {
-			List<String> output = new ArrayList<String>();
+			List<String> output = new ArrayList<>();
 			if (value.f0 == 10) {
 				output.add("iterate");
 				output.add("firstOutput");
@@ -627,6 +650,8 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void run(SourceContext<Rectangle> ctx) throws Exception {
+			// emit once as the initializer of the delta trigger
+			ctx.collect(rectangle);
 			for (int i = 0; i < 100; i++) {
 				ctx.collect(rectangle);
 				rectangle = rectangle.next();
@@ -644,16 +669,15 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Rectangle, Integer> map(Rectangle value) throws Exception {
-			return new Tuple2<Rectangle, Integer>(value, counter++);
+			return new Tuple2<>(value, counter++);
 		}
 	}
 
-	private static class MyWindowMapFunction implements WindowMapFunction<Tuple2<Rectangle, Integer>,
-			Tuple2<Rectangle, Integer>> {
+	private static class MyWindowMapFunction implements AllWindowFunction<Tuple2<Rectangle, Integer>, Tuple2<Rectangle, Integer>, GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void mapWindow(Iterable<Tuple2<Rectangle, Integer>> values, Collector<Tuple2<Rectangle,
+		public void apply(GlobalWindow window, Iterable<Tuple2<Rectangle, Integer>> values, Collector<Tuple2<Rectangle,
 				Integer>> out) throws Exception {
 			out.collect(values.iterator().next());
 		}
@@ -670,13 +694,27 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class Timestamp6 implements Timestamp<Tuple2<Date, HashMap<Character, Integer>>> {
+	private static class Timestamp6 implements TimestampExtractor<Tuple2<Date, HashMap<Character, Integer>>> {
 
 		@Override
-		public long getTimestamp(Tuple2<Date, HashMap<Character, Integer>> value) {
+		public long extractTimestamp(Tuple2<Date, HashMap<Character, Integer>> value,
+				long currentTimestamp) {
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(value.f0);
 			return 12 * (cal.get(Calendar.YEAR)) + cal.get(Calendar.MONTH);
+		}
+
+		@Override
+		public long emitWatermark(Tuple2<Date, HashMap<Character, Integer>> value,
+				long currentTimestamp) {
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(value.f0);
+			return 12 * (cal.get(Calendar.YEAR)) + cal.get(Calendar.MONTH) - 1;
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return 0;
 		}
 	}
 
@@ -697,7 +735,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				}
 				map1.put(key, volume1 + volume2);
 			}
-			return new Tuple2<Date, HashMap<Character, Integer>>(value2.f0, map1);
+			return new Tuple2<>(value2.f0, map1);
 		}
 	}
 
@@ -710,9 +748,9 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(value.f0);
 			for (Character key : value.f1.keySet()) {
-				out.collect(new Tuple2<Integer, Tuple2<Character, Integer>>(cal.get(Calendar.MONTH)
+				out.collect(new Tuple2<>(cal.get(Calendar.MONTH)
 						+ 1,
-						new Tuple2<Character, Integer>(key, value.f1.get(key))));
+						new Tuple2<>(key, value.f1.get(key))));
 			}
 		}
 	}
@@ -722,7 +760,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		@Override
 		public ArrayList<Character> map(Tuple2<Date, HashMap<Character, Integer>> value)
 				throws Exception {
-			ArrayList<Character> list = new ArrayList<Character>();
+			ArrayList<Character> list = new ArrayList<>();
 			for (Character ch : value.f1.keySet()) {
 				for (int i = 0; i < value.f1.get(ch); i++) {
 					list.add(ch);

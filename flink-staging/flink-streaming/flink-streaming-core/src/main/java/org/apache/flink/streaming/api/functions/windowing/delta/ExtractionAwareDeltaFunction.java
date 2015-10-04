@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta;
 
-import org.apache.flink.streaming.api.windowing.extractor.Extractor;
+import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extractor;
 
 /**
  * Extend this abstract class to implement a delta function which is aware of

@@ -15,18 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.ml.util;
+package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-public class IncrementalLearningSkeletonData {
+import java.io.Serializable;
 
-	public static final String RESULTS = "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" +
-			"1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "0\n" + "0\n" +
-			"0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" +
-			"0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" +
-			"0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" +
-			"0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" + "0\n" +
-			"0\n" + "0\n" + "0\n" + "0\n";
+/**
+ * Extractors allow to extract/convert one type to another. They are mostly used
+ * to extract some fields out of a more complex structure (Tuple/Array) to run
+ * further calculation on the extraction result.
+ * 
+ * @param <FROM>
+ *            The input data type.
+ * @param <TO>
+ *            The output data type.
+ */
+public interface Extractor<FROM, TO> extends Serializable {
 
-	private IncrementalLearningSkeletonData() {
-	}
+	/**
+	 * Extracts/Converts the given input to an object of the output type
+	 * 
+	 * @param in
+	 *            the input data
+	 * @return the extracted/converted data
+	 */
+	public TO extract(FROM in);
+
 }

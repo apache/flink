@@ -19,8 +19,15 @@
 package org.apache.flink.streaming.scala.examples.windowing
 
 
+import java.util.concurrent.TimeUnit
+
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.scala.windowing.{Delta, Time}
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
+import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger
 
 import scala.Stream._
 import scala.math._
@@ -53,16 +60,23 @@ object TopSpeedWindowing {
     }
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setParallelism(1)
 
     val cars = setCarsInput(env)
 
-    val topSeed = cars.keyBy("carId")
-      .window(Time.of(evictionSec * 1000, (car : CarEvent) => car.time))
-      .every(Delta.of[CarEvent](triggerMeters,
-          (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
-      .local    
+    val topSeed = cars
+      .extractAscendingTimestamp( _.time )
+      .keyBy("carId")
+      .window(GlobalWindows.create)
+      .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
+      .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {
+        def getDelta(oldSp: CarEvent, newSp: CarEvent): Double = newSp.distance - oldSp.distance
+      }))
+//      .window(Time.of(evictionSec * 1000, (car : CarEvent) => car.time))
+//      .every(Delta.of[CarEvent](triggerMeters,
+//          (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
       .maxBy("speed")
-      .flatten()
 
     if (fileOutput) {
       topSeed.writeAsText(outputPath)

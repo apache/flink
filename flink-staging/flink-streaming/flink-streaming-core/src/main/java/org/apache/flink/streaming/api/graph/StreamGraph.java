@@ -575,8 +575,6 @@ public class StreamGraph extends StreamingPlan {
 
 		setJobName(jobGraphName);
 
-		WindowingOptimizer.optimizeGraph(this);
-
 		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
 
 		return jobgraphGenerator.createJobGraph(jobGraphName);
@@ -584,8 +582,6 @@ public class StreamGraph extends StreamingPlan {
 
 	@Override
 	public String getStreamingPlanAsJSON() {
-
-		WindowingOptimizer.optimizeGraph(this);
 
 		try {
 			return new JSONGenerator(this).getJSON();

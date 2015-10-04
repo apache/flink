@@ -19,16 +19,20 @@ package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
-import org.apache.flink.streaming.api.windowing.helper.Delta;
-import org.apache.flink.streaming.api.windowing.helper.Time;
-import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.DeltaTrigger;
 
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An example of grouped stream windowing where different eviction and trigger
@@ -52,20 +56,25 @@ public class TopSpeedWindowing {
 		}
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		@SuppressWarnings({"rawtypes", "serial"})
 		DataStream<Tuple4<Integer, Integer, Double, Long>> carData;
+
 		if (fileInput) {
 			carData = env.readTextFile(inputPath).map(new ParseCarData());
 		} else {
 			carData = env.addSource(CarSource.create(numOfCars));
 		}
-		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData.keyBy(0)
-				.window(Time.of(evictionSec * 1000, new CarTimestamp()))
-				.every(Delta.of(triggerMeters,
+
+		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData
+				.extractTimestamp(new CarTimestamp())
+				.keyBy(0)
+				.window(GlobalWindows.create())
+				.evictor(TimeEvictor.of(Time.of(evictionSec, TimeUnit.SECONDS)))
+				.trigger(DeltaTrigger.of(triggerMeters,
 						new DeltaFunction<Tuple4<Integer, Integer, Double, Long>>() {
 							private static final long serialVersionUID = 1L;
-
 
 							@Override
 							public double getDelta(
@@ -73,8 +82,11 @@ public class TopSpeedWindowing {
 									Tuple4<Integer, Integer, Double, Long> newDataPoint) {
 								return newDataPoint.f2 - oldDataPoint.f2;
 							}
-						}, new Tuple4<Integer, Integer, Double, Long>(0, 0, 0d, 0l))).local().maxBy(1).flatten();
+						}))
+				.maxBy(1);
+
 		if (fileOutput) {
+			topSpeeds.print();
 			topSpeeds.writeAsText(outputPath);
 		} else {
 			topSpeeds.print();
@@ -143,17 +155,28 @@ public class TopSpeedWindowing {
 		public Tuple4<Integer, Integer, Double, Long> map(String record) {
 			String rawData = record.substring(1, record.length() - 1);
 			String[] data = rawData.split(",");
-			return new Tuple4<Integer, Integer, Double, Long>(Integer.valueOf(data[0]),
-					Integer.valueOf(data[1]), Double.valueOf(data[2]), Long.valueOf(data[3]));
+			return new Tuple4<>(Integer.valueOf(data[0]), Integer.valueOf(data[1]), Double.valueOf(data[2]), Long.valueOf(data[3]));
 		}
 	}
 
-	private static class CarTimestamp implements Timestamp<Tuple4<Integer, Integer, Double, Long>> {
+	private static class CarTimestamp implements TimestampExtractor<Tuple4<Integer, Integer, Double, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public long getTimestamp(Tuple4<Integer, Integer, Double, Long> value) {
-			return value.f3;
+		public long extractTimestamp(Tuple4<Integer, Integer, Double, Long> element,
+				long currentTimestamp) {
+			return element.f3;
+		}
+
+		@Override
+		public long emitWatermark(Tuple4<Integer, Integer, Double, Long> element,
+				long currentTimestamp) {
+			return element.f3 - 1;
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return Long.MIN_VALUE;
 		}
 	}
 

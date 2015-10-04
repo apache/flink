@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.evictors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -40,7 +41,7 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	@Override
 	public int evict(Iterable<StreamRecord<Object>> elements, int size, W window) {
 		int toEvict = 0;
-		long currentTime = System.currentTimeMillis();
+		long currentTime = Iterables.getLast(elements).getTimestamp();
 		long evictCutoff = currentTime - windowSize;
 		for (StreamRecord<Object> record: elements) {
 			if (record.getTimestamp() > evictCutoff) {

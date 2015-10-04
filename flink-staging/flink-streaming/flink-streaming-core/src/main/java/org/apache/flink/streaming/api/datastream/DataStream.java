@@ -62,13 +62,6 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.helper.Count;
-import org.apache.flink.streaming.api.windowing.helper.Delta;
-import org.apache.flink.streaming.api.windowing.helper.FullStream;
-import org.apache.flink.streaming.api.windowing.helper.Time;
-import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
-import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -627,88 +620,6 @@ public class DataStream<T> {
 	 */
 	public <T2> JoinedStreams.Unspecified<T, T2> join(DataStream<T2> otherStream) {
 		return JoinedStreams.createJoin(this, otherStream);
-	}
-
-	/**
-	 * Create a {@link WindowedDataStream} that can be used to apply
-	 * transformation like {@link WindowedDataStream#reduceWindow},
-	 * {@link WindowedDataStream#mapWindow} or aggregations on preset
-	 * chunks(windows) of the data stream. To define windows a
-	 * {@link WindowingHelper} such as {@link Time}, {@link Count},
-	 * {@link Delta} and {@link FullStream} can be used.
-	 *
-	 * <p>
-	 * When applied to a grouped data stream, the windows (evictions) and slide sizes
-	 * (triggers) will be computed on a per group basis.
-	 *
-	 * <p>
-	 * For more advanced control over the trigger and eviction policies please refer to
-	 * {@link #window(TriggerPolicy, EvictionPolicy)}
-	 *
-	 * <p>
-	 * For example, to create a sum every 5 seconds in a tumbling fashion:
-	 *
-	 * <pre>
-	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).sum(field)}
-	 * </pre>
-	 *
-	 * <p>
-	 * To create sliding windows use the
-	 * {@link WindowedDataStream#every(WindowingHelper)}, for example with 3 second slides:</br>
-	 *
-	 * <pre>
-	 * 
-	 * {@code
-	 * ds.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(3, TimeUnit.SECONDS)).sum(field)
-	 * }
-	 *
-	 * </pre>
-	 * 
-	 * @param policyHelper
-	 *            Any {@link WindowingHelper} such as {@link Time},
-	 *            {@link Count}, {@link Delta} {@link FullStream} to define the
-	 *            window size.
-	 *
-	 * @return A {@link WindowedDataStream} providing further operations.
-	 */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public WindowedDataStream<T> window(WindowingHelper policyHelper) {
-		policyHelper.setExecutionConfig(getExecutionConfig());
-		return new WindowedDataStream<T>(this, policyHelper);
-	}
-
-	/**
-	 * Create a {@link WindowedDataStream} using the given {@link TriggerPolicy}
-	 * and {@link EvictionPolicy}. Windowing can be used to apply transformation
-	 * like {@link WindowedDataStream#reduceWindow},
-	 * {@link WindowedDataStream#mapWindow} or aggregations on preset
-	 * chunks(windows) of the data stream.
-	 *
-	 * <p>
-	 * For most common use-cases please refer to {@link #window(WindowingHelper)}
-	 * 
-	 * @param trigger
-	 *            The {@link TriggerPolicy} that will determine how often the
-	 *            user function is called on the window.
-	 * @param eviction
-	 *            The {@link EvictionPolicy} that will determine the number of
-	 *            elements in each time window.
-	 * @return A {@link WindowedDataStream} providing further operations.
-	 */
-	public WindowedDataStream<T> window(TriggerPolicy<T> trigger, EvictionPolicy<T> eviction) {
-		return new WindowedDataStream<T>(this, trigger, eviction);
-	}
-
-	/**
-	 * Create a {@link WindowedDataStream} on the full stream history, to
-	 * produce periodic aggregates.
-	 * 
-	 * @return A {@link WindowedDataStream} providing further operations.
-	 */
-	@SuppressWarnings("rawtypes")
-	public WindowedDataStream<T> every(WindowingHelper policyHelper) {
-		policyHelper.setExecutionConfig(getExecutionConfig());
-		return window(FullStream.window()).every(policyHelper);
 	}
 
 	/**

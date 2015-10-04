@@ -32,8 +32,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, TimestampExtractor}
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
-import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
-import org.apache.flink.streaming.api.windowing.policy.{EvictionPolicy, TriggerPolicy}
 import org.apache.flink.streaming.api.windowing.time.AbstractTime
 import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
@@ -105,8 +103,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def name(name: String) : DataStream[T] = javaStream match {
     case stream : SingleOutputStreamOperator[T,_] => stream.name(name)
-    case _ => throw new
-        UnsupportedOperationException("Only supported for operators.")
+    case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
   
@@ -581,37 +578,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
   private[flink] def isStatePartitioned: Boolean = {
     javaStream.isInstanceOf[JavaKeyedStream[_, _]]
   }
-
-  /**
-   * Create a WindowedDataStream that can be used to apply
-   * transformation like .reduceWindow(...) or aggregations on
-   * preset chunks(windows) of the data stream. To define the windows a
-   * WindowingHelper such as Time, Count and
-   * Delta can be used.</br></br> When applied to a grouped data
-   * stream, the windows (evictions) and slide sizes (triggers) will be
-   * computed on a per group basis. </br></br> For more advanced control over
-   * the trigger and eviction policies please use to
-   * window(List(triggers), List(evicters))
-   */
-  def window(windowingHelper: WindowingHelper[_]): WindowedDataStream[T] =
-    javaStream.window(windowingHelper)
-
-  /**
-   * Create a WindowedDataStream using the given Trigger and Eviction policies.
-   * Windowing can be used to apply transformation like .reduceWindow(...) or 
-   * aggregations on preset chunks(windows) of the data stream.</br></br>For most common
-   * use-cases please refer to window(WindowingHelper[_])
-   *
-   */
-  def window(trigger: TriggerPolicy[T], eviction: EvictionPolicy[T]):
-    WindowedDataStream[T] = javaStream.window(trigger, eviction)
-    
-  /**
-   * Create a WindowedDataStream based on the full stream history to perform periodic
-   * aggregations.
-   */  
-  def every(windowingHelper: WindowingHelper[_]): WindowedDataStream[T] = 
-    javaStream.every(windowingHelper)
 
   /**
    * Windows this DataStream into tumbling time windows.

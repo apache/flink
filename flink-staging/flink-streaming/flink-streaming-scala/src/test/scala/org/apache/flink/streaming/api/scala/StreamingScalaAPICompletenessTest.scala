@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 import java.lang.reflect.Method
 
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, JoinedStreams}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 
 import scala.language.existentials
 
@@ -149,10 +149,5 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "CoGroupedStreams.WithWindow", "CoGroupedStreams.WithWindow",
       classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_,_,_,_]],
       classOf[CoGroupedStreams.WithWindow[_,_,_,_]])
-
-    checkMethods(
-      "WindowedDataStream", "WindowedDataStream",
-      classOf[org.apache.flink.streaming.api.datastream.WindowedDataStream[_]],
-      classOf[WindowedDataStream[_]])
   }
 }
