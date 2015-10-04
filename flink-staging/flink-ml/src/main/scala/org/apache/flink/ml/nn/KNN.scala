@@ -196,15 +196,11 @@ object KNN {
                   var MaxVec = new ListBuffer[Double]
                   var trainingFiltered = new ListBuffer[Vector]
 
-                  val b1 = BigDecimal(math.pow(4, training.values.head.size)) *
-                    BigDecimal(testing.values.length) *
-                    BigDecimal(math.log(training.values.length))
-                  val b2 = BigDecimal(testing.values.length) *
-                    BigDecimal(training.values.length)
-
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
                   // < Ntest*Ntrain, and distance is Euclidean
-                  val useQuadTree = resultParameters.get(useQuadTreeParam).getOrElse(b1 < b2 &&
+                  val useQuadTree = resultParameters.get(useQuadTreeParam).getOrElse(
+                    training.values.head.size + math.log(math.log(training.values.length)/
+                      math.log(4.0)) < math.log(training.values.length)/math.log(4.0) &&
                     (metric.isInstanceOf[EuclideanDistanceMetric] ||
                       metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
@@ -214,7 +210,6 @@ object KNN {
                         v.asInstanceOf[Vector]
                     }
                   }
-
                     // define a bounding box for the quadtree
                   for (i <- 0 to training.values.head.size - 1) {
                     val minTrain = training.values.map(x => x(i)).min - 0.01
