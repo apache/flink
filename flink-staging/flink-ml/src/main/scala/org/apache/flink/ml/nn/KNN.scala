@@ -106,6 +106,9 @@ class KNN extends Predictor[KNN] {
     this
   }
 
+  /**
+   * Sets the Boolean variable that decides whether to use the QuadTree or not
+    */
   def setUseQuadTree(useQuadTree: Boolean): KNN = {
     parameters.add(useQuadTreeParam, useQuadTree)
     this
