@@ -31,7 +31,6 @@ import org.apache.flink.util.Collector
 
 import org.apache.flink.ml.nn.util.QuadTree
 import scala.collection.mutable.ListBuffer
-import org.apache.flink.ml.math.DenseVector
 
 
 import scala.collection.mutable
