@@ -536,6 +536,11 @@ class JobManager(
         )
       )
 
+    case RequestTaskManagerInstance(instanceID) =>
+      sender ! decorateMessage(
+        TaskManagerInstance(Option(instanceManager.getRegisteredInstanceById(instanceID)))
+      )
+
     case Heartbeat(instanceID, metricsReport, accumulators) =>
       log.debug(s"Received hearbeat message from $instanceID.")
 

@@ -304,6 +304,19 @@ object JobManagerMessages {
   }
 
   /**
+   * Requests the [[Instance]] object of the task manager with the given instance ID
+   *
+   * @param instanceID Instance ID of the task manager
+   */
+  case class RequestTaskManagerInstance(instanceID: InstanceID)
+
+  /**
+   * Returns the [[Instance]] object of the requested task manager. This is in response to
+   * [[RequestTaskManagerInstance]]
+   */
+  case class TaskManagerInstance(instance: Option[Instance])
+
+  /**
    * Requests stack trace messages of the task manager
    *
    * @param instanceID Instance ID of the task manager

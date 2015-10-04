@@ -424,6 +424,11 @@ pre.exception {
 .navbar-secondary-additional .navbar-title {
   padding: 12px 20px 13px 20px;
 }
+livechart {
+  width: 30%;
+  height: 30%;
+  text-align: center;
+}
 .canvas-wrapper {
   border: 1px solid #ddd;
   position: relative;
@@ -576,4 +581,13 @@ svg.graph .node-label {
   .table td.td-long {
     width: 30%;
   }
+}
+#total-mem {
+  background-color: #7cb5ec;
+}
+#heap-mem {
+  background-color: #434348;
+}
+#non-heap-mem {
+  background-color: #90ed7d;
 }

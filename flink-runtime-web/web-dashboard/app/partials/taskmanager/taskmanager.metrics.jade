@@ -1,0 +1,137 @@
+//
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+ 
+      http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+table.table(ng-if="metrics.id")
+  thead
+    tr
+      th CPU Usage
+      th Memory - Used
+
+  tbody
+    tr
+      td
+        livechart(data="metrics" key="cpuLoad")
+      td
+        livechart(data="metrics" key="used")
+        .row.text-center
+          span
+            i.fa.fa-square-o.fa-lg(id="total-mem")
+            | &nbsp;Total Memory&nbsp;
+          span
+            i.fa.fa-square-o.fa-lg(id="heap-mem")
+            | &nbsp;Heap Memory&nbsp;
+          span
+            i.fa.fa-square-o.fa-lg(id="non-heap-mem")
+            | &nbsp;Non-heap Memory&nbsp;
+
+table.table.table-properties(ng-if="metrics.id")
+  thead
+    tr
+      th Memory type / State
+      th Memory - Committed
+      th Memory - Initial
+      th Memory - Maximum
+  tbody
+    tr
+      td Heap
+      td(table-property value="metrics.metrics.gauges['memory.heap.committed'].value | bytes:MB")
+      td(table-property value="metrics.metrics.gauges['memory.heap.init'].value | bytes:MB")
+      td(table-property value="metrics.metrics.gauges['memory.heap.max'].value | bytes:MB")
+    tr
+      td Non-Heap
+      td(table-property value="metrics.metrics.gauges['memory.non-heap.committed'].value | bytes:MB")
+      td(table-property value="metrics.metrics.gauges['memory.non-heap.init'].value | bytes:MB")
+      td(table-property value="metrics.metrics.gauges['memory.non-heap.max'].value | bytes:MB")
+    tr
+      td Total
+      td(table-property value="metrics.metrics.gauges['memory.total.committed'].value | bytes:MB")
+      td(table-property value="metrics.metrics.gauges['memory.total.init'].value | bytes:MB")
+      td(table-property value="metrics.metrics.gauges['memory.total.max'].value | bytes:MB")
+
+table.table(ng-if="metrics.id")
+  thead
+    tr
+      th Data Port
+      th All Slots
+      th Free Slots
+      th CPU Cores
+      th Physical Memory
+      th Free Memory
+      th Flink Managed Memory
+
+  tbody
+    tr
+      td {{ metrics.dataPort }}
+      td {{ metrics.slotsNumber }}
+      td {{ metrics.freeSlots }}
+      td {{ metrics.cpuCores }}
+      td {{ metrics.physicalMemory | bytes:MB }}
+      td {{ metrics.freeMemory | bytes:MB }}
+      td {{ metrics.managedMemory | bytes:MB }}
+
+
+.row(ng-if="metrics.id")
+  .col-md-6
+    table.table.table-properties
+      thead
+        tr
+          th(colspan="2")
+            | Memory - Pools
+
+      tbody
+        tr
+          td Code Cache
+          td(table-property value="metrics.metrics.gauges['memory.pools.Code-Cache.usage'].value | number:2")
+        tr
+          td Compressed Class Space
+          td(table-property value="metrics.metrics.gauges['memory.pools.Compressed-Class-Space.usage'].value | number:2")
+        tr
+          td Metaspace
+          td(table-property value="metrics.metrics.gauges['memory.pools.Metaspace.usage'].value | number:2")
+        tr
+          td PS Eden Space
+          td(table-property value="metrics.metrics.gauges['memory.pools.PS-Eden-Space.usage'].value | number:2")
+        tr
+          td PS Old Gen
+          td(table-property value="metrics.metrics.gauges['memory.pools.PS-Old-Gen.usage'].value | number:2")
+        tr
+          td PS Survivor Space
+          td(table-property value="metrics.metrics.gauges['memory.pools.PS-Survivor-Space.usage'].value | number:2")
+  .col-md-6
+    table.table.table-properties
+      thead
+        tr
+          th(colspan="2")
+            | Garbage Collection
+
+      tbody
+        tr
+          td PS-MarkSweep Count
+          td(table-property value="metrics.metrics.gauges['gc.PS-MarkSweep.count'].value")
+
+        tr
+          td PS-MarkSweep Time (ms)
+          td(table-property value="metrics.metrics.gauges['gc.PS-MarkSweep.time'].value")
+
+        tr
+          td PS-Scavenge Count
+          td(table-property value="metrics.metrics.gauges['gc.PS-Scavenge.count'].value")
+
+        tr
+          td PS-Scavenge Time (ms)
+          td(table-property value="manager.metrics.gauges['gc.PS-Scavenge.time'].value")
+

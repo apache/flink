@@ -44,6 +44,86 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       JobsService.listJobs()
     , flinkConfig["refresh-interval"]
 
+  Highcharts.setOptions({
+    global: {
+      useUTC: false
+    }
+  })
+
+  #
+  # Grid-light theme for Highcharts JS
+  # @author Torstein Honsi
+  #
+  # Taken from https://github.com/highslide-software/highcharts.com
+  #
+
+
+  Highcharts.createElement('link', {
+  	href: '//fonts.googleapis.com/css?family=Dosis:400,600',
+  	rel: 'stylesheet',
+  	type: 'text/css'
+  }, null, document.getElementsByTagName('head')[0]);
+
+  Highcharts.theme = {
+  	colors: ["#7cb5ec", "#f7a35c", "#90ee7e", "#7798BF", "#aaeeee", "#ff0066", "#eeaaee",
+  		"#55BF3B", "#DF5353", "#7798BF", "#aaeeee"],
+  	chart: {
+  		backgroundColor: null,
+  		style: {
+  			fontFamily: "Dosis, sans-serif"
+  		}
+  	},
+  	title: {
+  		style: {
+  			fontSize: '16px',
+  			fontWeight: 'bold',
+  			textTransform: 'uppercase'
+  		}
+  	},
+  	tooltip: {
+  		borderWidth: 0,
+  		backgroundColor: 'rgba(219,219,216,0.8)',
+  		shadow: false
+  	},
+  	legend: {
+  		itemStyle: {
+  			fontWeight: 'bold',
+  			fontSize: '13px'
+  		}
+  	},
+  	xAxis: {
+  		gridLineWidth: 1,
+  		labels: {
+  			style: {
+  				fontSize: '12px'
+  			}
+  		}
+  	},
+  	yAxis: {
+  		minorTickInterval: 'auto',
+  		title: {
+  			style: {
+  				textTransform: 'uppercase'
+  			}
+  		},
+  		labels: {
+  			style: {
+  				fontSize: '12px'
+  			}
+  		}
+  	},
+  	plotOptions: {
+  		candlestick: {
+  			lineColor: '#404048'
+  		}
+  	},
+
+  	background2: '#F0F0EA'
+
+  };
+
+  Highcharts.setOptions(Highcharts.theme);
+
 
 # --------------------------------------
 
@@ -143,12 +223,37 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       details:
         templateUrl: "partials/jobs/job.config.html"
 
-  .state "taskmanagers",
+  .state "all-manager",
     url: "/taskmanagers"
     views:
       main:
-        templateUrl: "partials/taskmanagers/index.html"
-        controller: 'TaskManagersController'
+        templateUrl: "partials/taskmanager/index.html"
+        controller: 'AllTaskManagersController'
+
+  .state "single-manager",
+      url: "/taskmanager/{taskmanagerid}"
+      views:
+        main:
+          templateUrl: "partials/taskmanager/taskmanager.html"
+          controller: 'SingleTaskManagerController'
+
+  .state "single-manager.metrics",
+    url: "/metrics"
+    views:
+      details:
+        templateUrl: "partials/taskmanager/taskmanager.metrics.html"
+
+  .state "single-manager.log",
+    url: "/logfile"
+    views:
+      details:
+        templateUrl: "partials/taskmanager/taskmanager.logfile.html"
+
+  .state "single-manager.stdout",
+    url: "/stdout"
+    views:
+      details:
+        templateUrl: "partials/taskmanager/taskmanager.stdout.html"
 
   .state "jobmanager",
       url: "/jobmanager"
@@ -176,3 +281,4 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobmanager/logfile.html"
 
   $urlRouterProvider.otherwise "/overview"
+
