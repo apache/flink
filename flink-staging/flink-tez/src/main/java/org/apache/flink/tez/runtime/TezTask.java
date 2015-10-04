@@ -402,7 +402,7 @@ public class TezTask<S extends Function,OT>  implements TaskContext<S, OT> {
 						localStub = initStub(userCodeFunctionType);
 					} catch (Exception e) {
 						throw new RuntimeException("Initializing the user code and the configuration failed" +
-								(e.getMessage() == null ? "." : ": ") + e.getMessage(), e);
+								(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 					}
 
 					if (!(localStub instanceof GroupCombineFunction)) {
