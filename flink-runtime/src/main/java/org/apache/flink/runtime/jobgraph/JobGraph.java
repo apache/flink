@@ -79,6 +79,8 @@ public class JobGraph implements Serializable {
 	
 	/** The number of times that failed tasks should be re-executed */
 	private int numExecutionRetries;
+	
+	private long executionRetryDelay;
 
 	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
 	 * job manager after it has been executed. */
@@ -210,6 +212,31 @@ public class JobGraph implements Serializable {
 	 */
 	public int getNumberOfExecutionRetries() {
 		return numExecutionRetries;
+	}
+	
+	/**
+	 * Gets the delay of time the system will try to re-execute failed tasks. A value of
+	 * {@code -1} indicates the system default value (as defined in the configuration)
+	 * should be used.
+	 * @return The delay of time in milliseconds the system will try to re-execute failed tasks.
+	 */
+	public long getExecutionRetryDelay() {
+		return executionRetryDelay;
+	}
+	
+	/**
+	 * Sets the delay that failed tasks are re-executed. A value of zero
+	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
+	 * default value (as defined in the configuration) should be used.
+	 * 
+	 * @param executionRetryDelay The delay of time the system will wait to re-execute failed tasks.
+	 */
+	public void setExecutionRetryDelay(long executionRetryDelay){
+		if (executionRetryDelay < -1) {
+			throw new IllegalArgumentException(
+					"The delay between reties must be non-negative, or -1 (use system default)");
+		}
+		this.executionRetryDelay = executionRetryDelay;
 	}
 
 	/**
