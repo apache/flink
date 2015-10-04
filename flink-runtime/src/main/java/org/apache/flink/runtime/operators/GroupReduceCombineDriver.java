@@ -50,7 +50,7 @@ import java.util.List;
  * to have the same input and output type to be able to reduce the elements after the combine from 
  * {@code IN} to {@code OUT}.
  *
- * <p>The CombineTask uses a combining iterator over its input. The output of the iterator is emitted.</p>
+ * <p>The GroupReduceCombineDriver uses a combining iterator over its input. The output of the iterator is emitted.</p>
  * 
  * @param <IN> The data type consumed by the combiner.
  * @param <OUT> The data type produced by the combiner.

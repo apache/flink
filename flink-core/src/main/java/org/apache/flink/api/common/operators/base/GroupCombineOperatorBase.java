@@ -43,7 +43,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Base operator for the combineGroup transformation. It receives the UDF GroupCombineOperator as an input.
+ * Base operator for the combineGroup transformation. It receives the UDF GroupCombineFunction as an input.
  * This class is later processed by the compiler to generate the plan.
  * @see org.apache.flink.api.common.functions.CombineFunction
  */

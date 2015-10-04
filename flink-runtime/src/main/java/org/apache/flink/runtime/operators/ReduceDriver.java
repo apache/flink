@@ -30,12 +30,12 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * Reduce task which is executed by a Task Manager. The task has a
+ * Reduce driver which is executed by a Task Manager. The task has a
  * single input and one or multiple outputs. It is provided with a ReduceFunction
  * implementation.
  * <p>
- * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
- * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
+ * The ReduceDriver creates an iterator over all records from its input. The iterator returns all records grouped by their
+ * key. The elements are handed pairwise to the <code>reduce()</code> method of the ReduceFunction.
  * 
  * @see org.apache.flink.api.common.functions.ReduceFunction
  */
