@@ -34,6 +34,7 @@ import java.util.Objects;
  *     <li>The default parallelism of the program, i.e., how many parallel tasks to use for
  *         all functions that do not define a specific value directly.</li>
  *     <li>The number of retries in the case of failed executions.</li>
+ *     <li>The delay between delay between execution retries.</li>
  *     <li>The {@link ExecutionMode} of the program: Batch or Pipelined.
  *         The default execution mode is {@link ExecutionMode#PIPELINED}</li>
  *     <li>Enabling or disabling the "closure cleaner". The closure cleaner pre-processes
@@ -92,6 +93,8 @@ public class ExecutionConfig implements Serializable {
 	private long autoWatermarkInterval = 0;
 
 	private boolean timestampsEnabled = false;
+	
+	private long executionRetryDelay = -1;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
@@ -242,6 +245,13 @@ public class ExecutionConfig implements Serializable {
 	public int getNumberOfExecutionRetries() {
 		return numberOfExecutionRetries;
 	}
+	
+	/**
+	 * @return The delay between retires.
+	 */
+	public long getExecutionRetryDelay() {
+		return executionRetryDelay;
+	}
 
 	/**
 	 * Sets the number of times that failed tasks are re-executed. A value of zero
@@ -258,7 +268,20 @@ public class ExecutionConfig implements Serializable {
 		this.numberOfExecutionRetries = numberOfExecutionRetries;
 		return this;
 	}
-
+	
+	/**
+	 * Sets the delay between executions. A value of {@code -1} indicates that the default value 
+	 * should be used.
+	 * @param executionRetryDelay The number of milliseconds the system will wait to retry.
+	 */
+	public ExecutionConfig setExecutionRetryDelay(long executionRetryDelay) {
+		if (executionRetryDelay < -1 ) {
+			throw new IllegalArgumentException(
+					"The delay between reties must be non-negative, or -1 (use system default)");
+		}
+		this.executionRetryDelay = executionRetryDelay;
+		return this;
+	}
 	/**
 	 * Sets the execution mode to execute the program. The execution mode defines whether
 	 * data exchanges are performed in a batch or on a pipelined manner.

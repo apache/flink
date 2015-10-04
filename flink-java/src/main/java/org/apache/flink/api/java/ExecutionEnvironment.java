@@ -199,6 +199,31 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	/**
+	 * Sets the delay that failed tasks are re-executed in milliseconds. A value of
+	 * zero effectively disables fault tolerance. A value of {@code -1}
+	 * indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 *
+	 * @param executionRetryDelay
+	 * 		The delay of time the system will wait to re-execute failed
+	 * 		tasks.
+	 */
+	public void setExecutionRetryDelay(long executionRetryDelay) {
+		config.setExecutionRetryDelay(executionRetryDelay);
+	}
+	
+	/**
+	 * Gets the delay time in milliseconds the system will wait to re-execute failed tasks.
+	 * A value of {@code -1} indicates that the system default value (as defined
+	 * in the configuration) should be used.
+	 *
+	 * @return The delay time the system will wait to re-execute failed tasks.
+	 */
+	public long getExecutionRetryDelay() {
+		return config.getExecutionRetryDelay();
+	}
+	
+	/**
 	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
 	 * 
 	 * @return The execution result from the latest job execution.

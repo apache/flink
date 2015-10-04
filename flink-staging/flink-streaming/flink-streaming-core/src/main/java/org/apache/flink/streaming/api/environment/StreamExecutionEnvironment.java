@@ -414,6 +414,30 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the delay that failed tasks are re-executed. A value of
+	 * zero effectively disables fault tolerance. A value of {@code -1}
+	 * indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 *
+	 * @param executionRetryDelay
+	 * 		The delay of time the system will wait to re-execute failed
+	 * 		tasks.
+	 */
+	public void setExecutionRetryDelay(long executionRetryDelay){
+		config.setExecutionRetryDelay(executionRetryDelay);
+	}
+	
+	/**
+	 * Gets the delay time in milliseconds the system will wait to re-execute failed tasks.
+	 * A value of {@code -1} indicates that the system default value (as defined
+	 * in the configuration) should be used.
+	 *
+	 * @return The delay time the system will wait to re-execute failed tasks.
+	 */
+	public long getExecutionRetryDelay(){
+		return config.getExecutionRetryDelay();
+	}
+	/**
 	 * Sets the default parallelism that will be used for the local execution
 	 * environment created by {@link #createLocalEnvironment()}.
 	 *
