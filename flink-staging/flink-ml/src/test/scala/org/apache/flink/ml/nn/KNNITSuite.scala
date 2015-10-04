@@ -56,6 +56,7 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
       .setK(3)
       .setBlocks(10)
       .setDistanceMetric(SquaredEuclideanDistanceMetric())
+      .setUseQuadTree(true)
 
     // run knn join
     knn.fit(trainingSet)

@@ -19,30 +19,31 @@
 
 package org.apache.flink.ml.nn.util
 
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math.Vector
 import org.apache.flink.ml.metrics.distances.DistanceMetric
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.PriorityQueue
 
 /**
- * n-dimensional QuadTree data structure; partitions spatial data for faster queries (e.g. KNN query)
- * The skeleton of the data structure was initially based off of the 2D Quadtree found here:
+ * n-dimensional QuadTree data structure; partitions
+ * spatial data for faster queries (e.g. KNN query)
+ * The skeleton of the data structure was initially
+ * based off of the 2D Quadtree found here:
  * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
  *
- * Many additional methods were added to the class both for efficient KNN queries and generalizing to n-dim.
+ * Many additional methods were added to the class both for
+ * efficient KNN queries and generalizing to n-dim.
  *
  * @param minVec
  * @param maxVec
  */
-
-
 class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:DistanceMetric){
   var maxPerBox = 20
 
   class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]) {
 
-    var objects = new ListBuffer[DenseVector]
+    var objects = new ListBuffer[Vector]
 
     /** for testing purposes only; used in QuadTreeSuite.scala
       *
@@ -52,7 +53,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       (c, L)
     }
 
-    def contains(obj: DenseVector): Boolean = {
+    def contains(obj: Vector): Boolean = {
       overlap(obj, 0.0)
     }
 
@@ -62,8 +63,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       * @param radius
       * @return
       */
-
-    def overlap(obj: DenseVector, radius: Double): Boolean = {
+    def overlap(obj: Vector, radius: Double): Boolean = {
       var count = 0
       for (i <- 0 to obj.size - 1) {
         if (obj(i) - radius < c(i) + L(i) / 2 && obj(i) + radius > c(i) - L(i) / 2) {
@@ -86,7 +86,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       * @param radius
       * @return
       */
-    def isNear(obj: DenseVector, radius: Double): Boolean = {
+    def isNear(obj: Vector, radius: Double): Boolean = {
       if (minDist(obj) < radius) {
         true
       } else {
@@ -94,7 +94,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       }
     }
 
-    def minDist(obj: DenseVector): Double = {
+    def minDist(obj: Vector): Double = {
       var minDist = 0.0
       for (i <- 0 to obj.size - 1) {
         if (obj(i) < c(i) - L(i) / 2) {
@@ -106,7 +106,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       return minDist
     }
 
-    def whichChild(obj:DenseVector):Int = {
+    def whichChild(obj:Vector):Int = {
 
       var count = 0
       for (i <- 0 to obj.size - 1){
@@ -140,8 +140,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
      * @param dim
      * @return
      */
-
-    def partitionBox(cPart:ListBuffer[ListBuffer[Double]],L:ListBuffer[Double], dim:Int):ListBuffer[ListBuffer[Double]]=
+    def partitionBox(cPart:ListBuffer[ListBuffer[Double]],L:ListBuffer[Double], dim:Int):
+    ListBuffer[ListBuffer[Double]]=
     {
       if (L.length == 1){
 
@@ -164,12 +164,12 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
   }
 
-  val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),(maxVec, minVec).zipped.map(_ - _),null)
+  val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),
+    (maxVec, minVec).zipped.map(_ - _),null)
 
     /**
      *   simple printing of tree for testing/debugging
      */
-
   def printTree(){
     printTreeRecur(root)
   }
@@ -188,12 +188,11 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
    * Recursively adds an object to the tree
    * @param obj
    */
-
-  def insert(obj:DenseVector){
+  def insert(obj:Vector){
     insertRecur(obj,root)
   }
 
-  private def insertRecur(obj:DenseVector,n:Node) {
+  private def insertRecur(obj:Vector,n:Node) {
     if(n.children==null) {
       if(n.objects.length < maxPerBox )
       {
@@ -201,7 +200,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       }
 
       else{
-        n.makeChildren()  ///make children nodes, then place objects into children nodes and clear node.objects
+        n.makeChildren()  ///make children nodes; place objects into them and clear node.objects
         for (o <- n.objects){
           insertRecur(o, n.children(n.whichChild(o)))
         }
@@ -215,18 +214,18 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
 
   /** Following methods are used to zoom in on a region near a test point for a fast KNN query.
     *
-    * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from which one computes the
-    * max distance D_s to obj.  D_s is then used during the kNN query to find all points
-    * within a radius D_s of obj using searchNeighbors.  To find the "near" neighbors, a min-heap is
-    * defined on the leaf nodes of the quadtree.  The priority of a leaf node is an appropriate notion
-    * of the distance between the test point and the node, which is defined by minDist(obj),
+    * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from
+    * which one computes the max distance D_s to obj.  D_s is then used during the
+    * kNN query to find all points within a radius D_s of obj using searchNeighbors.
+    * To find the "near" neighbors, a min-heap is defined on the leaf nodes of the quadtree.
+    * The priority of a leaf node is an appropriate notion of the distance between the test
+    * point and the node, which is defined by minDist(obj),
    *
    */
-
   private def subOne(tuple: (Double,Node)) = tuple._1
 
-  def searchNeighborsSiblingQueue(obj:DenseVector):ListBuffer[DenseVector] = {
-    var ret = new ListBuffer[DenseVector]
+  def searchNeighborsSiblingQueue(obj:Vector):ListBuffer[Vector] = {
+    var ret = new ListBuffer[Vector]
     if (root.children == null) {   // edge case when the main box has not been partitioned at all
       root.objects
     } else {
@@ -245,7 +244,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
 }
 
-  private def searchRecurSiblingQueue(obj:DenseVector,n:Node, NodeQueue:PriorityQueue[(Double, Node)]) {
+  private def searchRecurSiblingQueue(obj:Vector,n:Node,
+                                      NodeQueue:PriorityQueue[(Double, Node)]) {
     if(n.children != null) {
       for(child <- n.children; if child.contains(obj)) {
         if (child.children == null) {
@@ -261,7 +261,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
   }
 
-  private def MinNodes(obj:DenseVector,n:Node, NodeQueue:PriorityQueue[(Double, Node)]) {
+  private def MinNodes(obj:Vector,n:Node, NodeQueue:PriorityQueue[(Double, Node)]) {
     if (n.children == null){
       NodeQueue += ((-n.minDist(obj), n))
     } else{
@@ -270,7 +270,6 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
         }
     }
   }
-
 
   /** Finds all objects within a neigiborhood of obj of a specified radius
     * scope is modified from original 2D version in:
@@ -284,14 +283,13 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
    * @param radius
    * @return
    */
-
-  def searchNeighbors(obj:DenseVector,radius:Double):ListBuffer[DenseVector] = {
-    var ret = new ListBuffer[DenseVector]
+  def searchNeighbors(obj:Vector,radius:Double):ListBuffer[Vector] = {
+    var ret = new ListBuffer[Vector]
     searchRecur(obj,radius,root,ret)
     ret
   }
 
-  private def searchRecur(obj:DenseVector,radius:Double,n:Node,ret:ListBuffer[DenseVector]) {
+  private def searchRecur(obj:Vector,radius:Double,n:Node,ret:ListBuffer[Vector]) {
     if(n.children==null) {
       ret ++= n.objects
     } else {
@@ -301,7 +299,7 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     }
   }
 
-   def distance(a:DenseVector,b:DenseVector):Double = {
+   def distance(a:Vector,b:Vector):Double = {
      distMetric.distance(a,b)
   }
 }
