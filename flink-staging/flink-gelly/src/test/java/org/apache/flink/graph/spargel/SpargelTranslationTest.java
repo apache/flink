@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.spargel.java;
+package org.apache.flink.graph.spargel;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -26,12 +26,18 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DeltaIterationResultSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.TwoInputUdfOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
+import org.apache.flink.types.NullValue;
 
 @SuppressWarnings("serial")
 public class SpargelTranslationTest {
@@ -57,29 +63,36 @@ public class SpargelTranslationTest {
 			DataSet<Long> bcMessaging = env.fromElements(1L);
 			DataSet<Long> bcUpdate = env.fromElements(1L);
 			
-			DataSet<Tuple2<String, Double>> result;
+			DataSet<Vertex<String, Double>> result;
 			
 			// ------------ construct the test program ------------------
 			{
 				
-				@SuppressWarnings("unchecked")
 				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<String, Double>("abc", 3.44));
-	
-				@SuppressWarnings("unchecked")
+
 				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<String, String>("a", "c"));
-				
-				
-				VertexCentricIteration<String, Double, Long, ?> vertexIteration = 
-						VertexCentricIteration.withPlainEdges(edges, new UpdateFunction(), new MessageFunctionNoEdgeValue(), NUM_ITERATIONS);
-				vertexIteration.addBroadcastSetForMessagingFunction(BC_SET_MESSAGES_NAME, bcMessaging);
-				vertexIteration.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcUpdate);
-				
-				vertexIteration.setName(ITERATION_NAME);
-				vertexIteration.setParallelism(ITERATION_parallelism);
-				
-				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
-				
-				result = initialVertices.runOperation(vertexIteration);
+
+				Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
+						edges.map(new MapFunction<Tuple2<String,String>, Tuple3<String, String, NullValue>>() {
+
+							public Tuple3<String, String, NullValue> map(
+									Tuple2<String, String> edge) {
+								return new Tuple3<String, String, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+							}
+						}), env);
+
+				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+
+				parameters.addBroadcastSetForMessagingFunction(BC_SET_MESSAGES_NAME, bcMessaging);
+				parameters.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcUpdate);
+				parameters.setName(ITERATION_NAME);
+				parameters.setParallelism(ITERATION_parallelism);
+				parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
+
+				result = graph.runVertexCentricIteration(new UpdateFunction(), new MessageFunctionNoEdgeValue(),
+						NUM_ITERATIONS, parameters).getVertices();
+
+				result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
 			}
 			
 			
@@ -136,29 +149,36 @@ public class SpargelTranslationTest {
 			
 			DataSet<Long> bcVar = env.fromElements(1L);
 			
-			DataSet<Tuple2<String, Double>> result;
+			DataSet<Vertex<String, Double>> result;
 			
 			// ------------ construct the test program ------------------
 			{
-				
-				@SuppressWarnings("unchecked")
+
 				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<String, Double>("abc", 3.44));
-	
-				@SuppressWarnings("unchecked")
+
 				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<String, String>("a", "c"));
+
+				Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
+						edges.map(new MapFunction<Tuple2<String,String>, Tuple3<String, String, NullValue>>() {
+
+							public Tuple3<String, String, NullValue> map(
+									Tuple2<String, String> edge) {
+								return new Tuple3<String, String, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+							}
+						}), env);
+
+				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+
+				parameters.addBroadcastSetForMessagingFunction(BC_SET_MESSAGES_NAME, bcVar);
+				parameters.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcVar);
+				parameters.setName(ITERATION_NAME);
+				parameters.setParallelism(ITERATION_parallelism);
+				parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
-				
-				VertexCentricIteration<String, Double, Long, ?> vertexIteration = 
-						VertexCentricIteration.withPlainEdges(edges, new UpdateFunction(), new MessageFunctionNoEdgeValue(), NUM_ITERATIONS);
-				vertexIteration.addBroadcastSetForMessagingFunction(BC_SET_MESSAGES_NAME, bcVar);
-				vertexIteration.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcVar);
-				
-				vertexIteration.setName(ITERATION_NAME);
-				vertexIteration.setParallelism(ITERATION_parallelism);
-				
-				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
-				
-				result = initialVertices.runOperation(vertexIteration);
+				result = graph.runVertexCentricIteration(new UpdateFunction(), new MessageFunctionNoEdgeValue(),
+						NUM_ITERATIONS, parameters).getVertices();
+
+				result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
 			}
 			
 			
@@ -200,12 +220,12 @@ public class SpargelTranslationTest {
 	public static class UpdateFunction extends VertexUpdateFunction<String, Double, Long> {
 
 		@Override
-		public void updateVertex(String vertexKey, Double vertexValue, MessageIterator<Long> inMessages) {}
+		public void updateVertex(Vertex<String, Double> vertex, MessageIterator<Long> inMessages) {}
 	}
 	
-	public static class MessageFunctionNoEdgeValue extends MessagingFunction<String, Double, Long, Object> {
+	public static class MessageFunctionNoEdgeValue extends MessagingFunction<String, Double, Long, NullValue> {
 
 		@Override
-		public void sendMessages(String vertexKey, Double vertexValue) {}
+		public void sendMessages(Vertex<String, Double> vertex) {}
 	}
 }
