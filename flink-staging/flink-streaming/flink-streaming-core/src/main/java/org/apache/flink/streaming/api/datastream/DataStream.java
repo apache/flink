@@ -467,14 +467,14 @@ public class DataStream<T> {
 	/**
 	 * Initiates an iterative part of the program that feeds back data streams.
 	 * The iterative part needs to be closed by calling
-	 * {@link IterativeDataStream#closeWith(DataStream)}. The transformation of
-	 * this IterativeDataStream will be the iteration head. The data stream
-	 * given to the {@link IterativeDataStream#closeWith(DataStream)} method is
+	 * {@link IterativeStream#closeWith(DataStream)}. The transformation of
+	 * this IterativeStream will be the iteration head. The data stream
+	 * given to the {@link IterativeStream#closeWith(DataStream)} method is
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. The user can also use different feedback type than the
 	 * input of the iteration and treat the input and feedback streams as a
 	 * {@link ConnectedStreams} be calling
-	 * {@link IterativeDataStream#withFeedbackType(TypeInformation)}
+	 * {@link IterativeStream#withFeedbackType(TypeInformation)}
 	 * <p>
 	 * A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
@@ -482,7 +482,7 @@ public class DataStream<T> {
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
-	 * {@link IterativeDataStream#closeWith(DataStream)} call.
+	 * {@link IterativeStream#closeWith(DataStream)} call.
 	 * <p>
 	 * By default a DataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
@@ -491,21 +491,21 @@ public class DataStream<T> {
 	 * 
 	 * @return The iterative data stream created.
 	 */
-	public IterativeDataStream<T> iterate() {
-		return new IterativeDataStream<T>(this, 0);
+	public IterativeStream<T> iterate() {
+		return new IterativeStream<T>(this, 0);
 	}
 
 	/**
 	 * Initiates an iterative part of the program that feeds back data streams.
 	 * The iterative part needs to be closed by calling
-	 * {@link IterativeDataStream#closeWith(DataStream)}. The transformation of
-	 * this IterativeDataStream will be the iteration head. The data stream
-	 * given to the {@link IterativeDataStream#closeWith(DataStream)} method is
+	 * {@link IterativeStream#closeWith(DataStream)}. The transformation of
+	 * this IterativeStream will be the iteration head. The data stream
+	 * given to the {@link IterativeStream#closeWith(DataStream)} method is
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. The user can also use different feedback type than the
 	 * input of the iteration and treat the input and feedback streams as a
 	 * {@link ConnectedStreams} be calling
-	 * {@link IterativeDataStream#withFeedbackType(TypeInformation)}
+	 * {@link IterativeStream#withFeedbackType(TypeInformation)}
 	 * <p>
 	 * A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
@@ -513,7 +513,7 @@ public class DataStream<T> {
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
-	 * {@link IterativeDataStream#closeWith(DataStream)} call.
+	 * {@link IterativeStream#closeWith(DataStream)} call.
 	 * <p>
 	 * By default a DataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
@@ -526,8 +526,8 @@ public class DataStream<T> {
 	 * 
 	 * @return The iterative data stream created.
 	 */
-	public IterativeDataStream<T> iterate(long maxWaitTimeMillis) {
-		return new IterativeDataStream<T>(this, maxWaitTimeMillis);
+	public IterativeStream<T> iterate(long maxWaitTimeMillis) {
+		return new IterativeStream<T>(this, maxWaitTimeMillis);
 	}
 
 	/**
