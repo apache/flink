@@ -27,10 +27,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.URI;
 import java.security.MessageDigest;
 
 import com.google.common.io.Files;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +43,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSAB
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_ID_SCOPE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.NAME_ADDRESSABLE;
 import static org.apache.flink.runtime.blob.BlobUtils.closeSilently;
+import static org.apache.flink.runtime.blob.BlobUtils.copyFromRecoveryPath;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
@@ -168,6 +173,8 @@ class BlobServerConnection extends Thread {
 
 		File blobFile;
 		try {
+			String recoveryPath = null;
+
 			final int contentAddressable = inputStream.read();
 
 			if (contentAddressable < 0) {
@@ -181,10 +188,20 @@ class BlobServerConnection extends Thread {
 				JobID jobID = JobID.fromByteArray(jidBytes);
 				String key = readKey(buf, inputStream);
 				blobFile = this.blobServer.getStorageLocation(jobID, key);
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					recoveryPath = BlobUtils.getRecoveryPath(
+							blobServer.getRecoveryBasePath(), jobID, key);
+				}
 			}
 			else if (contentAddressable == CONTENT_ADDRESSABLE) {
 				final BlobKey key = BlobKey.readFromInputStream(inputStream);
 				blobFile = blobServer.getStorageLocation(key);
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					recoveryPath = BlobUtils.getRecoveryPath(
+							blobServer.getRecoveryBasePath(), key);
+				}
 			}
 			else {
 				throw new IOException("Unknown type of BLOB addressing.");
@@ -192,8 +209,16 @@ class BlobServerConnection extends Thread {
 
 			// Check if BLOB exists
 			if (!blobFile.exists()) {
-				throw new IOException("Cannot find required BLOB at " + blobFile.getAbsolutePath());
+				if (blobServer.getRecoveryMode() == RecoveryMode.STANDALONE) {
+					throw new IOException("Cannot find required BLOB at " + blobFile.getAbsolutePath());
+				}
+				else {
+					LOG.info("Copying BLOB from file state backend at {} to {}.",
+							recoveryPath, blobFile);
+					copyFromRecoveryPath(recoveryPath, blobFile);
+				}
 			}
+
 			if (blobFile.length() > Integer.MAX_VALUE) {
 				throw new IOException("BLOB size exceeds the maximum size (2 GB).");
 			}
@@ -314,6 +339,14 @@ class BlobServerConnection extends Thread {
 				File storageFile = this.blobServer.getStorageLocation(jobID, key);
 				Files.move(incomingFile, storageFile);
 				incomingFile = null;
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					String recoveryPath = BlobUtils.getRecoveryPath(
+							blobServer.getRecoveryBasePath(), jobID, key);
+
+					copyToRecoveryPath(storageFile, recoveryPath);
+				}
+
 				outputStream.write(RETURN_OKAY);
 			}
 			else {
@@ -321,6 +354,13 @@ class BlobServerConnection extends Thread {
 				File storageFile = blobServer.getStorageLocation(blobKey);
 				Files.move(incomingFile, storageFile);
 				incomingFile = null;
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					String recoveryPath = BlobUtils.getRecoveryPath(
+							blobServer.getRecoveryBasePath(), blobKey);
+
+					copyToRecoveryPath(storageFile, recoveryPath);
+				}
 
 				// Return computed key to client for validation
 				outputStream.write(RETURN_OKAY);
@@ -368,6 +408,8 @@ class BlobServerConnection extends Thread {
 	private void delete(InputStream inputStream, OutputStream outputStream, byte[] buf) throws IOException {
 
 		try {
+			String recoveryPath = null;
+
 			int type = inputStream.read();
 			if (type < 0) {
 				throw new EOFException("Premature end of DELETE request");
@@ -378,6 +420,10 @@ class BlobServerConnection extends Thread {
 				File blobFile = this.blobServer.getStorageLocation(key);
 				if (blobFile.exists() && !blobFile.delete()) {
 					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
+				}
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					recoveryPath = BlobUtils.getRecoveryPath(blobServer.getRecoveryBasePath(), key);
 				}
 			}
 			else if (type == NAME_ADDRESSABLE) {
@@ -391,6 +437,11 @@ class BlobServerConnection extends Thread {
 				if (blobFile.exists() && !blobFile.delete()) {
 					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
 				}
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					recoveryPath = BlobUtils.getRecoveryPath(
+							blobServer.getRecoveryBasePath(), jobID, key);
+				}
 			}
 			else if (type == JOB_ID_SCOPE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -398,9 +449,19 @@ class BlobServerConnection extends Thread {
 				JobID jobID = JobID.fromByteArray(jidBytes);
 
 				blobServer.deleteJobDirectory(jobID);
+
+				if (blobServer.getRecoveryMode() != RecoveryMode.STANDALONE) {
+					recoveryPath = BlobUtils.getRecoveryPath(
+							blobServer.getRecoveryBasePath(), jobID);
+				}
 			}
 			else {
 				throw new IOException("Unrecognized addressing type: " + type);
+			}
+
+			if (recoveryPath != null) {
+				LOG.info("Deleting recovery BLOB at '{}'", recoveryPath);
+				FileSystem.get(new URI(recoveryPath)).delete(new Path(recoveryPath), true);
 			}
 
 			outputStream.write(RETURN_OKAY);
@@ -455,5 +516,18 @@ class BlobServerConnection extends Thread {
 		out.write(RETURN_ERROR);
 		writeLength(bytes.length, out);
 		out.write(bytes);
+	}
+
+	/**
+	 * Copies a local file to the recovery path (configured via the state backend).
+	 */
+	private static void copyToRecoveryPath(File storageFile, String recoveryPath) throws Exception {
+		LOG.info("Copying BLOB from {} to {} for recovery.", storageFile, recoveryPath);
+
+		try (OutputStream os = FileSystem.get(new URI(recoveryPath))
+				.create(new Path(recoveryPath), true)) {
+
+			Files.copy(storageFile, os);
+		}
 	}
 }
