@@ -30,13 +30,15 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.streaming.api.state.KVMapCheckpointer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
 public class StreamGroupedFold<IN, OUT> extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
+
 		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -50,13 +52,18 @@ public class StreamGroupedFold<IN, OUT> extends AbstractUdfStreamOperator<OUT, F
 	private TypeSerializer<OUT> outTypeSerializer;
 	private transient OUT initialValue;
 
-	public StreamGroupedFold(
-			FoldFunction<IN, OUT> folder,
-			KeySelector<IN, ?> keySelector,
-			OUT initialValue) {
+	// Store the typeinfo, create serializer during runtime
+	private TypeInformation<Object> keyTypeInformation;
+
+	@SuppressWarnings("unchecked")
+	public StreamGroupedFold(FoldFunction<IN, OUT> folder, KeySelector<IN, ?> keySelector,
+								OUT initialValue, TypeInformation<IN> inTypeInformation) {
 		super(folder);
 		this.keySelector = keySelector;
 		this.initialValue = initialValue;
+		keyTypeInformation = (TypeInformation<Object>) TypeExtractor
+				.getKeySelectorTypes(keySelector, inTypeInformation);
+
 	}
 
 	@Override
@@ -75,7 +82,9 @@ public class StreamGroupedFold<IN, OUT> extends AbstractUdfStreamOperator<OUT, F
 		initialValue = outTypeSerializer.deserialize(in);
 
 		values = runtimeContext.getOperatorState("flink_internal_fold_values",
-				new HashMap<Object, OUT>(), false);
+				new HashMap<Object, OUT>(), false,
+				new KVMapCheckpointer<>(keyTypeInformation.createSerializer(executionConfig),
+						outTypeSerializer));
 	}
 
 	@Override

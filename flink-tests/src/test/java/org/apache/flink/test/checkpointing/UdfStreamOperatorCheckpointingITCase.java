@@ -19,22 +19,20 @@
 package org.apache.flink.test.checkpointing;
 
 import com.google.common.collect.EvictingQueue;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.api.datastream.GroupedDataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
-import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
 import java.util.Queue;
@@ -47,7 +45,7 @@ import java.util.Random;
  *
  * <p>
  * The topology currently tests the proper behaviour of the {@link StreamGroupedReduce}
- * operator.
+ * and the {@link StreamGroupedFold} operators.
  */
 @SuppressWarnings("serial")
 public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTestBase {
@@ -63,8 +61,8 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 	public void testProgram(StreamExecutionEnvironment env) {
 
 		// base stream
-		GroupedDataStream<Tuple2<Integer, Long>> stream = env.addSource(new StatefulMultipleSequence())
-				.groupBy(0);
+		KeyedStream<Tuple2<Integer, Long>, Tuple> stream = env.addSource(new StatefulMultipleSequence())
+				.keyBy(0);
 
 
 		stream
@@ -72,7 +70,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 				.min(1)
 				// failure generation
 				.map(new OnceFailingIdentityMapFunction(NUM_INPUT))
-				.groupBy(0)
+				.keyBy(0)
 				.addSink(new MinEvictingQueueSink());
 
 		stream
@@ -84,7 +82,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 						return Tuple2.of(value1.f0, value1.f1 + value2.f1);
 					}
 				})
-				.groupBy(0)
+				.keyBy(0)
 				.addSink(new SumEvictingQueueSink());
 
 		stream
@@ -96,7 +94,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 						return Tuple2.of(value.f0, accumulator.f1 + value.f1);
 					}
 				})
-				.groupBy(0)
+				.keyBy(0)
 				.addSink(new FoldEvictingQueueSink());
 	}
 

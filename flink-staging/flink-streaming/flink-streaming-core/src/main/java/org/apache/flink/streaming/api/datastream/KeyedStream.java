@@ -186,7 +186,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<T, ?> reduce(ReduceFunction<T> reducer) {
-		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<>(clean(reducer), keySelector));
+		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<T>(
+				clean(reducer), keySelector, getType()));
 	}
 
 	/**
@@ -208,7 +209,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				Utils.getCallLocationName(), true);
 
 		return transform("Keyed Fold", outType, new StreamGroupedFold<>(clean(folder),
-				keySelector, initialValue));
+				keySelector, initialValue, getType()));
 	}
 
 	/**
@@ -443,7 +444,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T, ?> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<>(clean(aggregate), keySelector);
+		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(clean(aggregate), keySelector, getType());
 		return transform("Keyed Aggregation", getType(), operator);
 	}
 }

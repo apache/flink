@@ -56,8 +56,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	private static final long serialVersionUID = 1L;
 	
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractUdfStreamOperator.class);
-	
-	
+
 	/** the user function */
 	protected final F userFunction;
 	

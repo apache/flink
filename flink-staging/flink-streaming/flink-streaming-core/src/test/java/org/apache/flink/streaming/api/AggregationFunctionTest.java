@@ -92,15 +92,15 @@ public class AggregationFunctionTest {
 				1, typeInfo, AggregationType.MAX, config);
 
 		List<Tuple2<Integer, Integer>> groupedSumList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(sumFunction, keySelector),
+				new StreamGroupedReduce<>(sumFunction, keySelector, typeInfo),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMinList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minFunction, keySelector),
+				new StreamGroupedReduce<>(minFunction, keySelector, typeInfo),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMaxList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxFunction, keySelector),
+				new StreamGroupedReduce<>(maxFunction, keySelector, typeInfo),
 				getInputList());
 
 		assertEquals(expectedGroupSumList, groupedSumList);
@@ -156,13 +156,13 @@ public class AggregationFunctionTest {
 				false, config);
 
 		List<MyPojo> groupedSumList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(sumFunction, keySelector),
+				new StreamGroupedReduce<>(sumFunction, keySelector, typeInfo),
 				getInputPojoList());
 		List<MyPojo> groupedMinList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minFunction, keySelector),
+				new StreamGroupedReduce<>(minFunction, keySelector, typeInfo),
 				getInputPojoList());
 		List<MyPojo> groupedMaxList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxFunction, keySelector),
+				new StreamGroupedReduce<>(maxFunction, keySelector, typeInfo),
 				getInputPojoList());
 
 		assertEquals(expectedGroupSumList, groupedSumList);
@@ -216,16 +216,16 @@ public class AggregationFunctionTest {
 				new ComparableAggregator<>(1, typeInfo, AggregationType.MINBY, false, config);
 
 		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector),
+				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector, typeInfo),
 				getInputByList()));
 		assertEquals(maxByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionLast, keySelector),
+				new StreamGroupedReduce<>(maxByFunctionLast, keySelector, typeInfo),
 				getInputByList()));
 		assertEquals(minByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionLast, keySelector),
+				new StreamGroupedReduce<>(minByFunctionLast, keySelector, typeInfo),
 				getInputByList()));
 		assertEquals(minByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionFirst, keySelector),
+				new StreamGroupedReduce<>(minByFunctionFirst, keySelector, typeInfo),
 				getInputByList()));
 	}
 
@@ -274,16 +274,16 @@ public class AggregationFunctionTest {
 				new ComparableAggregator<>("f1", typeInfo, AggregationType.MINBY, false, config);
 
 		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector),
+				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector, typeInfo),
 				getInputByPojoList()));
 		assertEquals(maxByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionLast, keySelector),
+				new StreamGroupedReduce<>(maxByFunctionLast, keySelector, typeInfo),
 				getInputByPojoList()));
 		assertEquals(minByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionLast, keySelector),
+				new StreamGroupedReduce<>(minByFunctionLast, keySelector, typeInfo),
 				getInputByPojoList()));
 		assertEquals(minByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionFirst, keySelector),
+				new StreamGroupedReduce<>(minByFunctionFirst, keySelector, typeInfo),
 				getInputByPojoList()));
 	}
 

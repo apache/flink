@@ -56,12 +56,14 @@ public class StreamGroupedFoldTest {
 
 	}
 
+	private TypeInformation<Integer> inType = TypeExtractor.getForClass(Integer.class);
+	private TypeInformation<String> outType = TypeExtractor.getForClass(String.class);
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testGroupedFold() throws Exception {
-		TypeInformation<String> outType = TypeExtractor.getForObject("A string");
 
-		StreamGroupedFold<Integer, String> operator = new StreamGroupedFold<Integer, String>(
+		StreamGroupedFold<Integer, String> operator = new StreamGroupedFold<>(
 				new MyFolder(), new KeySelector<Integer, String>() {
 
 			private static final long serialVersionUID = 1L;
@@ -70,55 +72,55 @@ public class StreamGroupedFoldTest {
 			public String getKey(Integer value) throws Exception {
 				return value.toString();
 			}
-		}, "100");
+		}, "100", inType);
 
 		operator.setOutputType(outType, new ExecutionConfig());
 
-		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<Integer, String>(operator);
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
 		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
 		testHarness.processWatermark(new Watermark(initialTime + 2));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 3));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 4));
-		testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 5));
+		testHarness.processElement(new StreamRecord<>(2, initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(2, initialTime + 4));
+		testHarness.processElement(new StreamRecord<>(3, initialTime + 5));
 
-		expectedOutput.add(new StreamRecord<String>("1001", initialTime + 1));
-		expectedOutput.add(new StreamRecord<String>("10011", initialTime + 2));
+		expectedOutput.add(new StreamRecord<>("1001", initialTime + 1));
+		expectedOutput.add(new StreamRecord<>("10011", initialTime + 2));
 		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<String>("1002", initialTime + 3));
-		expectedOutput.add(new StreamRecord<String>("10022", initialTime + 4));
-		expectedOutput.add(new StreamRecord<String>("1003", initialTime + 5));
+		expectedOutput.add(new StreamRecord<>("1002", initialTime + 3));
+		expectedOutput.add(new StreamRecord<>("10022", initialTime + 4));
+		expectedOutput.add(new StreamRecord<>("1003", initialTime + 5));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
 	public void testOpenClose() throws Exception {
-		StreamGroupedFold<Integer, String> operator = new StreamGroupedFold<Integer, String>(new TestOpenCloseFoldFunction(), new KeySelector<Integer, Integer>() {
+		StreamGroupedFold<Integer, String> operator = new StreamGroupedFold<>(new TestOpenCloseFoldFunction(), new KeySelector<Integer, Integer>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
 			public Integer getKey(Integer value) throws Exception {
 				return value;
 			}
-		}, "init");
+		}, "init", inType);
 
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
-		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<Integer, String>(operator);
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
 		long initialTime = 0L;
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime));
+		testHarness.processElement(new StreamRecord<>(1, initialTime));
+		testHarness.processElement(new StreamRecord<>(2, initialTime));
 
 		testHarness.close();
 

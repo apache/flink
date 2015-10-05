@@ -22,7 +22,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -43,71 +45,47 @@ import org.junit.Test;
 
 public class StreamGroupedReduceTest {
 
-	private static class MyReducer implements ReduceFunction<Integer> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Integer reduce(Integer value1, Integer value2) throws Exception {
-			return value1 + value2;
-		}
-
-	}
-
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testGroupedReduce() throws Exception {
-		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<Integer>(new MyReducer(), new KeySelector<Integer, Integer>() {
-			private static final long serialVersionUID = 1L;
+		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), new IntegerKeySelector(), typeInfo);
 
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		});
-
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
 		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
 		testHarness.processWatermark(new Watermark(initialTime + 2));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 3));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 4));
-		testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 5));
+		testHarness.processElement(new StreamRecord<>(2, initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(2, initialTime + 4));
+		testHarness.processElement(new StreamRecord<>(3, initialTime + 5));
 
-		expectedOutput.add(new StreamRecord<Integer>(1, initialTime + 1));
-		expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
+		expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
+		expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
 		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 3));
-		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 4));
-		expectedOutput.add(new StreamRecord<Integer>(3, initialTime + 5));
+		expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
+		expectedOutput.add(new StreamRecord<>(4, initialTime + 4));
+		expectedOutput.add(new StreamRecord<>(3, initialTime + 5));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
 	public void testOpenClose() throws Exception {
-		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<Integer>(new TestOpenCloseReduceFunction(), new KeySelector<Integer, Integer>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		});
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+		StreamGroupedReduce<Integer> operator =
+				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), new IntegerKeySelector(), typeInfo);
+		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
 		long initialTime = 0L;
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime));
+		testHarness.processElement(new StreamRecord<>(1, initialTime));
+		testHarness.processElement(new StreamRecord<>(2, initialTime));
 
 		testHarness.close();
 
@@ -149,4 +127,28 @@ public class StreamGroupedReduceTest {
 			return in1 + in2;
 		}
 	}
+
+	// Utilities
+
+	private static class MyReducer implements ReduceFunction<Integer> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Integer reduce(Integer value1, Integer value2) throws Exception {
+			return value1 + value2;
+		}
+
+	}
+
+	private static class IntegerKeySelector implements KeySelector<Integer, Integer> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Integer getKey(Integer value) throws Exception {
+			return value;
+		}
+	}
+
+	private static TypeInformation<Integer> typeInfo = TypeExtractor.getForClass(Integer.class);
 }

@@ -58,7 +58,7 @@ public interface StateCheckpointer<S, C extends Serializable> {
 	 * 
 	 * @return A snapshot of the operator state.
 	 */
-	public C snapshotState(S state, long checkpointId, long checkpointTimestamp);
+	C snapshotState(S state, long checkpointId, long checkpointTimestamp);
 
 	/**
 	 * Restores the operator states from a given snapshot. The restores state
@@ -69,5 +69,5 @@ public interface StateCheckpointer<S, C extends Serializable> {
 	 *            The state snapshot that needs to be restored.
 	 * @return The state corresponding to the snapshot.
 	 */
-	public S restoreState(C stateSnapshot);
+	S restoreState(C stateSnapshot);
 }

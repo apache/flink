@@ -273,7 +273,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
           javaStream.getExecutionConfig)
     }
 
-    val invokable =  new StreamGroupedReduce[T](reducer,javaStream.getKeySelector())
+    val invokable =  new StreamGroupedReduce[T](reducer,javaStream.getKeySelector(),getType())
      
     new DataStream[T](javaStream.transform("aggregation", javaStream.getType(),invokable))
       .asInstanceOf[DataStream[T]]
