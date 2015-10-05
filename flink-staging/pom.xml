@@ -37,7 +37,6 @@ under the License.
 	<modules>
 		<module>flink-avro</module>
 		<module>flink-jdbc</module>
-		<module>flink-spargel</module>
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-streaming</module>
 		<module>flink-hbase</module>

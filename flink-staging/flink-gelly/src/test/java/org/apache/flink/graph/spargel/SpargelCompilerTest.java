@@ -17,13 +17,14 @@
  */
 
 
-package org.apache.flink.spargel.java;
+package org.apache.flink.graph.spargel;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,6 +32,9 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
@@ -38,13 +42,16 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.CCMessager;
-import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.CCUpdater;
-import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.IdAssigner;
+import org.apache.flink.types.NullValue;
+import org.apache.flink.graph.library.ConnectedComponents;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 
 
 public class SpargelCompilerTest extends CompilerTestBase {
 
+	private static final long serialVersionUID = 1L;
+
+	@SuppressWarnings("serial")
 	@Test
 	public void testSpargelCompiler() {
 		try {
@@ -52,15 +59,27 @@ public class SpargelCompilerTest extends CompilerTestBase {
 			env.setParallelism(DEFAULT_PARALLELISM);
 			// compose test program
 			{
-				DataSet<Long> vertexIds = env.generateSequence(1, 2);
+
+				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
+						new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L))
+						.map(new Tuple2ToVertexMap<Long, Long>());
+
+				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<Long, Long>(1L, 2L))
+					.map(new MapFunction<Tuple2<Long,Long>, Edge<Long, NullValue>>() {
+
+						public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
+							return new Edge<Long, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+						}
+				});
+
+				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 				
-				@SuppressWarnings("unchecked")
-				DataSet<Tuple2<Long, Long>> edges = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
+				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+						new ConnectedComponents.CCUpdater<Long>(),
+						new ConnectedComponents.CCMessenger<Long>(), 100)
+						.getVertices();
 				
-				DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
-				DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100));
-				
-				result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
 			}
 			
 			Plan p = env.createProgramPlan("Spargel Connected Components");
@@ -110,6 +129,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 		}
 	}
 	
+	@SuppressWarnings("serial")
 	@Test
 	public void testSpargelCompilerWithBroadcastVariable() {
 		try {
@@ -121,21 +141,32 @@ public class SpargelCompilerTest extends CompilerTestBase {
 			// compose test program
 			{
 				DataSet<Long> bcVar = env.fromElements(1L);
-				
-				DataSet<Long> vertexIds = env.generateSequence(1, 2);
-				
-				@SuppressWarnings("unchecked")
-				DataSet<Tuple2<Long, Long>> edges = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
-				
-				DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
-				
-				VertexCentricIteration<Long, Long, Long, ?> vcIter = VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100);
-				vcIter.addBroadcastSetForMessagingFunction(BC_VAR_NAME, bcVar);
-				vcIter.addBroadcastSetForUpdateFunction(BC_VAR_NAME, bcVar);
-				
-				DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(vcIter);
-				
-				result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+
+				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
+						new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L))
+						.map(new Tuple2ToVertexMap<Long, Long>());
+
+				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<Long, Long>(1L, 2L))
+						.map(new MapFunction<Tuple2<Long,Long>, Edge<Long, NullValue>>() {
+
+							public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
+								return new Edge<Long, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+							}
+					});
+
+				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
+
+				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+				parameters.addBroadcastSetForMessagingFunction(BC_VAR_NAME, bcVar);
+				parameters.addBroadcastSetForUpdateFunction(BC_VAR_NAME, bcVar);
+
+				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+						new ConnectedComponents.CCUpdater<Long>(),
+						new ConnectedComponents.CCMessenger<Long>(), 100)
+						.getVertices();
+					
+				result.output(new DiscardingOutputFormat<Vertex<Long, Long>>());
+
 			}
 			
 			Plan p = env.createProgramPlan("Spargel Connected Components");
