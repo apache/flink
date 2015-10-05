@@ -71,6 +71,12 @@ if [[ $STARTSTOP == "start" ]]; then
                 fi
                 TM_HEAP_SIZE=$((FLINK_TM_HEAP - FLINK_TM_MEM_MANAGED_SIZE))
             else
+                # Bash only performs integer arithmetic so floating point computation is performed using bc
+                command -v bc >/dev/null 2>&1
+                if [[ $? -ne 0 ]]; then
+                    echo "[ERROR] Program 'bc' not found. Please install bc or define '${KEY_TASKM_MEM_MANAGED_SIZE}' instead of '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                    exit 1
+                fi
                 # We calculate the memory using a fraction of the total memory
                 if [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} >= 1.0"` != "0" ]] || [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} <= 0.0"` != "0" ]]; then
                     echo "[ERROR] Configured TaskManager managed memory fraction is not a valid value. Please set '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
