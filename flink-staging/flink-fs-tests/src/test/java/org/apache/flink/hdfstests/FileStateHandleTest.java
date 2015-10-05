@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tachyon;
+package org.apache.flink.hdfstests;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
