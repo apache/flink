@@ -131,6 +131,11 @@ abstract class IterativeSolver() extends Solver {
     parameters.add(ConvergenceThreshold, convergenceThreshold)
     this
   }
+
+  def setOptimizationMethod(optimizationMethod: Int): this.type = {
+    parameters.add(OptimizationMethod, optimizationMethod)
+    this
+  }
 }
 
 object IterativeSolver {
@@ -148,5 +153,9 @@ object IterativeSolver {
 
   case object ConvergenceThreshold extends Parameter[Double] {
     val defaultValue = None
+  }
+
+  case object OptimizationMethod extends Parameter[Int] {
+    val defaultValue = Some(0)
   }
 }
