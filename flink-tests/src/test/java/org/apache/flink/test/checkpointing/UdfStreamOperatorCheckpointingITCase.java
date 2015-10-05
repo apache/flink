@@ -22,10 +22,10 @@ import com.google.common.collect.EvictingQueue;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -142,32 +142,36 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 	 * Produces a sequence multiple times for each parallelism instance of downstream operators,
 	 * augmented by the designated parallel subtaskId. The source is not parallel to ensure order.
 	 */
-	private static class StatefulMultipleSequence extends RichSourceFunction<Tuple2<Integer, Long>>{
+	private static class StatefulMultipleSequence extends RichSourceFunction<Tuple2<Integer, Long>>
+			implements Checkpointed<Long> {
 
-		private transient OperatorState<Long> count;
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			count = getRuntimeContext().getOperatorState("count", 0L, false);
-		}
+		private long count;
 
 		@Override
 		public void run(SourceContext<Tuple2<Integer, Long>> ctx) throws Exception {
 			Object lock = ctx.getCheckpointLock();
 
-			while (count.value() < NUM_INPUT){
+			while (count < NUM_INPUT){
 				synchronized (lock){
 					for (int i = 0; i < PARALLELISM; i++) {
-						ctx.collect(Tuple2.of(i, count.value() + 1));
+						ctx.collect(Tuple2.of(i, count + 1));
 					}
-					count.update(count.value() + 1);
+					count++;
 				}
 			}
 		}
 
 		@Override
-		public void cancel() {
+		public void cancel() {}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return count;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			count = state;
 		}
 	}
 
@@ -175,14 +179,15 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 	 * Mapper that causes one failure between seeing 40% to 70% of the records.
 	 */
 	private static class OnceFailingIdentityMapFunction
-			extends RichMapFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>> {
+			extends RichMapFunction<Tuple2<Integer, Long>, Tuple2<Integer, Long>> 
+			implements Checkpointed<Long> {
 
 		private static volatile boolean hasFailed = false;
 
 		private final long numElements;
 
 		private long failurePos;
-		private OperatorState<Long> count;
+		private long count;
 
 		public OnceFailingIdentityMapFunction(long numElements) {
 			this.numElements = numElements;
@@ -194,19 +199,28 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 			long failurePosMax = (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
-			count = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
 		public Tuple2<Integer, Long> map(Tuple2<Integer, Long> value) throws Exception {
-			if (!hasFailed && count.value() >= failurePos) {
+			if (!hasFailed && count >= failurePos) {
 				hasFailed = true;
 				throw new Exception("Test Failure");
 			}
-			count.update(count.value() + 1);
+			count++;
 			return value;
 		}
 
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return count;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			count = state;
+		}
 	}
 
 	/**

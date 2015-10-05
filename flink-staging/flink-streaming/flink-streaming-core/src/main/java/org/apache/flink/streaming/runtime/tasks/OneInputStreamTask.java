@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 
@@ -32,6 +33,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	public void init() throws Exception {
+		StreamConfig configuration = getConfiguration();
+		
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		int numberOfInputs = configuration.getNumberOfInputs();
 
@@ -52,10 +55,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	protected void run() throws Exception {
-		while (running && inputProcessor.processInput(streamOperator, lock)) {
-			if (timerException != null) {
-				throw timerException;
-			}
+		// cache some references on the stack, to make the code more JIT friendly
+		final OneInputStreamOperator<IN, OUT> operator = this.headOperator;
+		final StreamInputProcessor<IN> inputProcessor = this.inputProcessor;
+		final Object lock = getCheckpointLock();
+		
+		while (running && inputProcessor.processInput(operator, lock)) {
+			checkTimerException();
 		}
 	}
 

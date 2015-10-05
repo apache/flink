@@ -28,9 +28,8 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
@@ -63,69 +62,71 @@ public class MockRuntimeContext implements RuntimeContext {
 
 	@Override
 	public ExecutionConfig getExecutionConfig() {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {}
+	public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
+		throw new UnsupportedOperationException();
+	}
 
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public IntCounter getIntCounter(String name) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public LongCounter getLongCounter(String name) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public DoubleCounter getDoubleCounter(String name) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public Histogram getHistogram(String name) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public <RT> List<RT> getBroadcastVariable(String name) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public DistributedCache getDistributedCache() {
-		return null;
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException {
-		return null;
+	public <S> OperatorState<S> getKeyValueState(Class<S> stateType, S defaultState) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState, boolean partitioned) throws IOException {
-		return null;
+	public <S> OperatorState<S> getKeyValueState(TypeInformation<S> stateType, S defaultState) {
+		throw new UnsupportedOperationException();
 	}
 }

@@ -18,20 +18,11 @@
 
 package org.apache.flink.streaming.api.state;
 
-import java.io.Serializable;
+import org.apache.flink.runtime.state.StateHandle;
 
-import org.apache.flink.api.common.state.StateCheckpointer;
+import java.io.InputStream;
 
-public class BasicCheckpointer implements StateCheckpointer<Serializable, Serializable> {
-
-	@Override
-	public Serializable snapshotState(Serializable state, long checkpointId, long checkpointTimestamp) {
-		return state;
-	}
-
-	@Override
-	public Serializable restoreState(Serializable stateSnapshot) {
-		return stateSnapshot;
-	}
-
-}
+/**
+ * A state handle that produces an input stream when resolved.
+ */
+public interface StreamStateHandle extends StateHandle<InputStream> {}

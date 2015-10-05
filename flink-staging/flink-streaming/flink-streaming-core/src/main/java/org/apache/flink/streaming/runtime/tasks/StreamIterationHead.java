@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -41,7 +40,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	@Override
 	protected void run() throws Exception {
 		
-		final String iterationId = configuration.getIterationId();
+		final String iterationId = getConfiguration().getIterationId();
 		if (iterationId == null || iterationId.length() == 0) {
 			throw new Exception("Missing iteration ID in the task configuration");
 		}
@@ -49,7 +48,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		final String brokerID = createBrokerIdString(getEnvironment().getJobID(), iterationId ,
 				getEnvironment().getIndexInSubtaskGroup());
 		
-		final long iterationWaitTime = configuration.getIterationWaitTime();
+		final long iterationWaitTime = getConfiguration().getIterationWaitTime();
 		final boolean shouldWait = iterationWaitTime > 0;
 
 		final BlockingQueue<StreamRecord<OUT>> dataChannel = new ArrayBlockingQueue<StreamRecord<OUT>>(1);
@@ -61,8 +60,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		// do the work 
 		try {
 			@SuppressWarnings("unchecked")
-			Collection<RecordWriterOutput<OUT>> outputs = 
-					(Collection<RecordWriterOutput<OUT>>) (Collection<?>) outputHandler.getOutputs();
+			RecordWriterOutput<OUT>[] outputs = (RecordWriterOutput<OUT>[]) getStreamOutputs();
 
 			// If timestamps are enabled we make sure to remove cyclic watermark dependencies
 			if (getExecutionConfig().areTimestampsEnabled()) {

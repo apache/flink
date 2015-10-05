@@ -63,6 +63,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	
 	protected final KeySelector<T, KEY> keySelector;
 
+	protected final TypeInformation<KEY> keyType;
+	
 	/**
 	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
 	 * to partition operator state by key.
@@ -73,8 +75,23 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            Function for determining state partitions
 	 */
 	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector) {
-		super(dataStream.getExecutionEnvironment(), new PartitionTransformation<>(dataStream.getTransformation(), new HashPartitioner<>(keySelector)));
+		this(dataStream, keySelector, TypeExtractor.getKeySelectorTypes(keySelector, dataStream.getType()));
+	}
+
+	/**
+	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
+	 * to partition operator state by key.
+	 *
+	 * @param dataStream
+	 *            Base stream of data
+	 * @param keySelector
+	 *            Function for determining state partitions
+	 */
+	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector, TypeInformation<KEY> keyType) {
+		super(dataStream.getExecutionEnvironment(), new PartitionTransformation<>(
+				dataStream.getTransformation(), new HashPartitioner<>(keySelector)));
 		this.keySelector = keySelector;
+		this.keyType = keyType;
 	}
 
 	
@@ -95,7 +112,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,operator);
 
-		((OneInputTransformation<T, R>) returnStream.getTransformation()).setStateKeySelector(keySelector);
+		// inject the key selector and key type
+		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
+		transform.setStateKeySelector(keySelector);
+		transform.setStateKeyType(keyType);
+		
 		return returnStream;
 	}
 
@@ -105,6 +126,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
 		DataStreamSink<T> result = super.addSink(sinkFunction);
 		result.getTransformation().setStateKeySelector(keySelector);
+		result.getTransformation().setStateKeyType(keyType);
 		return result;
 	}
 	
@@ -197,7 +219,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T, ?> reduce(ReduceFunction<T> reducer) {
 		return transform("Keyed Reduce", getType(), new StreamGroupedReduce<T>(
-				clean(reducer), keySelector, getType()));
+				clean(reducer), getType().createSerializer(getExecutionConfig())));
 	}
 
 	/**
@@ -215,11 +237,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<T, R> folder) {
 
-		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
-				Utils.getCallLocationName(), true);
+		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(
+				clean(folder), getType(), Utils.getCallLocationName(), true);
 
-		return transform("Keyed Fold", outType, new StreamGroupedFold<>(clean(folder),
-				keySelector, initialValue, getType()));
+		return transform("Keyed Fold", outType, new StreamGroupedFold<>(clean(folder), initialValue));
 	}
 
 	/**
@@ -454,7 +475,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	protected SingleOutputStreamOperator<T, ?> aggregate(AggregationFunction<T> aggregate) {
-		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(clean(aggregate), keySelector, getType());
+		StreamGroupedReduce<T> operator = new StreamGroupedReduce<T>(
+				clean(aggregate), getType().createSerializer(getExecutionConfig()));
 		return transform("Keyed Aggregation", getType(), operator);
 	}
 }

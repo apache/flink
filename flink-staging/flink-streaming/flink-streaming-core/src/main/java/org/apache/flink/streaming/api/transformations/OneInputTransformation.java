@@ -20,8 +20,8 @@ package org.apache.flink.streaming.api.transformations;
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 
 import java.util.Collection;
 import java.util.List;
@@ -38,9 +38,11 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 
 	private final StreamTransformation<IN> input;
 
-	private KeySelector<IN, ?> stateKeySelector;
-
 	private final OneInputStreamOperator<IN, OUT> operator;
+
+	private KeySelector<IN, ?> stateKeySelector;
+	
+	private TypeInformation<?> stateKeyType;
 
 	/**
 	 * Creates a new {@code OneInputTransformation} from the given input and operator.
@@ -102,6 +104,14 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 		return stateKeySelector;
 	}
 
+	public void setStateKeyType(TypeInformation<?> stateKeyType) {
+		this.stateKeyType = stateKeyType;
+	}
+
+	public TypeInformation<?> getStateKeyType() {
+		return stateKeyType;
+	}
+
 	@Override
 	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
 		List<StreamTransformation<?>> result = Lists.newArrayList();
@@ -111,7 +121,7 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	}
 
 	@Override
-	public final void setChainingStrategy(StreamOperator.ChainingStrategy strategy) {
+	public final void setChainingStrategy(ChainingStrategy strategy) {
 		operator.setChainingStrategy(strategy);
 	}
 }

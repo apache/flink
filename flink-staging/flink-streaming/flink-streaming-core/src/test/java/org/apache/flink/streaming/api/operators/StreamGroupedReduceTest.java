@@ -17,14 +17,14 @@
 
 package org.apache.flink.streaming.api.operators;
 
-
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -46,9 +46,11 @@ import org.junit.Test;
 public class StreamGroupedReduceTest {
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testGroupedReduce() throws Exception {
-		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), new IntegerKeySelector(), typeInfo);
+
+		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
+		
+		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), IntSerializer.INSTANCE);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
@@ -76,8 +78,11 @@ public class StreamGroupedReduceTest {
 
 	@Test
 	public void testOpenClose() throws Exception {
+
+		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
+		
 		StreamGroupedReduce<Integer> operator =
-				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), new IntegerKeySelector(), typeInfo);
+				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
 		long initialTime = 0L;
@@ -150,5 +155,5 @@ public class StreamGroupedReduceTest {
 		}
 	}
 
-	private static TypeInformation<Integer> typeInfo = TypeExtractor.getForClass(Integer.class);
+	private static TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
 }

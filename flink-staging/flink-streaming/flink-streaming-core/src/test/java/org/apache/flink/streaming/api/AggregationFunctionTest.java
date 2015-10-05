@@ -74,8 +74,7 @@ public class AggregationFunctionTest {
 		}
 
 		// some necessary boiler plate
-		TypeInformation<Tuple2<Integer, Integer>> typeInfo = TypeExtractor
-				.getForObject(new Tuple2<>(0, 0));
+		TypeInformation<Tuple2<Integer, Integer>> typeInfo = TypeExtractor.getForObject(new Tuple2<>(0, 0));
 
 		ExecutionConfig config = new ExecutionConfig();
 
@@ -92,15 +91,15 @@ public class AggregationFunctionTest {
 				1, typeInfo, AggregationType.MAX, config);
 
 		List<Tuple2<Integer, Integer>> groupedSumList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(sumFunction, keySelector, typeInfo),
+				new StreamGroupedReduce<>(sumFunction, typeInfo.createSerializer(config)),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMinList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minFunction, keySelector, typeInfo),
+				new StreamGroupedReduce<>(minFunction, typeInfo.createSerializer(config)),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMaxList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxFunction, keySelector, typeInfo),
+				new StreamGroupedReduce<>(maxFunction, typeInfo.createSerializer(config)),
 				getInputList());
 
 		assertEquals(expectedGroupSumList, groupedSumList);
@@ -156,13 +155,13 @@ public class AggregationFunctionTest {
 				false, config);
 
 		List<MyPojo> groupedSumList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(sumFunction, keySelector, typeInfo),
+				new StreamGroupedReduce<>(sumFunction, typeInfo.createSerializer(config)),
 				getInputPojoList());
 		List<MyPojo> groupedMinList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minFunction, keySelector, typeInfo),
+				new StreamGroupedReduce<>(minFunction, typeInfo.createSerializer(config)),
 				getInputPojoList());
 		List<MyPojo> groupedMaxList = MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxFunction, keySelector, typeInfo),
+				new StreamGroupedReduce<>(maxFunction, typeInfo.createSerializer(config)),
 				getInputPojoList());
 
 		assertEquals(expectedGroupSumList, groupedSumList);
@@ -216,16 +215,16 @@ public class AggregationFunctionTest {
 				new ComparableAggregator<>(1, typeInfo, AggregationType.MINBY, false, config);
 
 		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector, typeInfo),
+				new StreamGroupedReduce<>(maxByFunctionFirst, typeInfo.createSerializer(config)),
 				getInputByList()));
 		assertEquals(maxByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionLast, keySelector, typeInfo),
+				new StreamGroupedReduce<>(maxByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByList()));
 		assertEquals(minByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionLast, keySelector, typeInfo),
+				new StreamGroupedReduce<>(minByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByList()));
 		assertEquals(minByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionFirst, keySelector, typeInfo),
+				new StreamGroupedReduce<>(minByFunctionFirst, typeInfo.createSerializer(config)),
 				getInputByList()));
 	}
 
@@ -274,16 +273,16 @@ public class AggregationFunctionTest {
 				new ComparableAggregator<>("f1", typeInfo, AggregationType.MINBY, false, config);
 
 		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionFirst, keySelector, typeInfo),
+				new StreamGroupedReduce<>(maxByFunctionFirst, typeInfo.createSerializer(config)),
 				getInputByPojoList()));
 		assertEquals(maxByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(maxByFunctionLast, keySelector, typeInfo),
+				new StreamGroupedReduce<>(maxByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByPojoList()));
 		assertEquals(minByLastExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionLast, keySelector, typeInfo),
+				new StreamGroupedReduce<>(minByFunctionLast, typeInfo.createSerializer(config)),
 				getInputByPojoList()));
 		assertEquals(minByFirstExpected, MockContext.createAndExecute(
-				new StreamGroupedReduce<>(minByFunctionFirst, keySelector, typeInfo),
+				new StreamGroupedReduce<>(minByFunctionFirst, typeInfo.createSerializer(config)),
 				getInputByPojoList()));
 	}
 

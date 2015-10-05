@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 
@@ -76,7 +76,7 @@ public class DataStreamSink<T> {
 	 * @return The sink with chaining disabled
 	 */
 	public DataStreamSink<T> disableChaining() {
-		this.transformation.setChainingStrategy(AbstractStreamOperator.ChainingStrategy.NEVER);
+		this.transformation.setChainingStrategy(ChainingStrategy.NEVER);
 		return this;
 	}
 }

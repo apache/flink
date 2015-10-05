@@ -39,9 +39,7 @@ import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
-import org.apache.flink.storm.wrappers.SetupOutputFieldsDeclarer;
-import org.apache.flink.storm.wrappers.WrapperSetupHelper;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -181,9 +179,9 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		builder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
 		builder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		builder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-				.fieldsGrouping("bolt1", TestDummyBolt.groupingStreamId, new Fields("id"))
+				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-				.fieldsGrouping("bolt2", TestDummyBolt.groupingStreamId, new Fields("id"))
+				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
 		int counter = 0;
@@ -207,9 +205,9 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		flinkBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
 		flinkBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		flinkBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-				.fieldsGrouping("bolt1", TestDummyBolt.groupingStreamId, new Fields("id"))
+				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-				.fieldsGrouping("bolt2", TestDummyBolt.groupingStreamId, new Fields("id"))
+				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
 		flinkBuilder.createTopology();

@@ -265,28 +265,33 @@ public class StateCheckpoinedITCase extends StreamFaultToleranceTestBase {
 		}
 	}
 	
-	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> {
+	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> 
+		implements Checkpointed<Long> {
 
 		static final long[] counts = new long[PARALLELISM];
 		
-		private OperatorState<Long> count;
+		private long count;
 
 		@Override
 		public PrefixCount map(PrefixCount value) throws Exception {
-			count.update(count.value() + 1);
+			count++;
 			return value;
 		}
 
 		@Override
-		public void open(Configuration conf) throws IOException {
-			count = getRuntimeContext().getOperatorState("count", 0L, false);
+		public void close() throws IOException {
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
 		}
 
 		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return count;
 		}
-		
+
+		@Override
+		public void restoreState(Long state) {
+			count = state;
+		}
 	}
 	
 	private static class OnceFailingAggregator extends RichFlatMapFunction<PrefixCount, PrefixCount> 

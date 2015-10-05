@@ -18,18 +18,19 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.streaming.api.datastream.{KeyedStream => KeyedJavaStream, DataStream => JavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.aggregation.SumAggregator
-import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
+import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
+import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.AbstractTime
-import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, Window, TimeWindow}
+import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
+import org.apache.flink.util.Collector
+
 import scala.reflect.ClassTag
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.functions.FoldFunction
-import org.apache.flink.api.common.functions.ReduceFunction
 
 
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
@@ -262,10 +263,99 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
           javaStream.getExecutionConfig)
     }
 
-    val invokable =  new StreamGroupedReduce[T](reducer,javaStream.getKeySelector(),getType())
+    val invokable =  new StreamGroupedReduce[T](reducer,
+      getType().createSerializer(getExecutionConfig))
      
     new DataStream[T](javaStream.transform("aggregation", javaStream.getType(),invokable))
       .asInstanceOf[DataStream[T]]
+  }
+
+  // ------------------------------------------------------------------------
+  //  functions with state
+  // ------------------------------------------------------------------------
+  
+  /**
+   * Creates a new DataStream that contains only the elements satisfying the given stateful filter 
+   * predicate. To use state partitioning, a key must be defined using .keyBy(..), in which case
+   * an independent state will be kept per key.
+   *
+   * Note that the user state object needs to be serializable.
+   */
+  def filterWithState[S : TypeInformation](
+        fun: (T, Option[S]) => (Boolean, Option[S])): DataStream[T] = {
+    if (fun == null) {
+      throw new NullPointerException("Filter function must not be null.")
+    }
+
+    val cleanFun = clean(fun)
+    val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+
+    val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
+
+      override val stateType: TypeInformation[S] = stateTypeInfo
+
+      override def filter(in: T): Boolean = {
+        applyWithState(in, cleanFun)
+      }
+    }
+
+    filter(filterFun)
+  }
+
+  /**
+   * Creates a new DataStream by applying the given stateful function to every element of this 
+   * DataStream. To use state partitioning, a key must be defined using .keyBy(..), in which 
+   * case an independent state will be kept per key.
+   *
+   * Note that the user state object needs to be serializable.
+   */
+  def mapWithState[R: TypeInformation: ClassTag, S: TypeInformation](
+        fun: (T, Option[S]) => (R, Option[S])): DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Map function must not be null.")
+    }
+
+    val cleanFun = clean(fun)
+    val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    
+    val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
+
+      override val stateType: TypeInformation[S] = stateTypeInfo
+      
+      override def map(in: T): R = {
+        applyWithState(in, cleanFun)
+      }
+    }
+
+    map(mapper)
+  }
+  
+  /**
+   * Creates a new DataStream by applying the given stateful function to every element and 
+   * flattening the results. To use state partitioning, a key must be defined using .keyBy(..), 
+   * in which case an independent state will be kept per key.
+   *
+   * Note that the user state object needs to be serializable.
+   */
+  def flatMapWithState[R: TypeInformation: ClassTag, S: TypeInformation](
+        fun: (T, Option[S]) => (TraversableOnce[R], Option[S])): DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Flatmap function must not be null.")
+    }
+
+    val cleanFun = clean(fun)
+    val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    
+    val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T,TraversableOnce[R],S]{
+
+      override val stateType: TypeInformation[S] = stateTypeInfo
+      
+      override def flatMap(in: T, out: Collector[R]): Unit = {
+        applyWithState(in, cleanFun) foreach out.collect
+      }
+    }
+
+    flatMap(flatMapper)
   }
   
 }

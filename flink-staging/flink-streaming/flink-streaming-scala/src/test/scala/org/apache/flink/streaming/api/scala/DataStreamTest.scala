@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import java.lang
-import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner, FoldFunction, Function}
+import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
@@ -28,12 +28,13 @@ import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, Stre
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{PurgingTrigger, CountTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.Collector
+
 import org.junit.Assert.fail
 import org.junit.Test
-import org.apache.flink.streaming.api.scala.function.StatefulFunction
 
 class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
@@ -239,7 +240,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
    * Tests whether parallelism gets set.
    */
   @Test
-  def testParallelism {
+  def testParallelism() {
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.createLocalEnvironment(10)
 
     val src = env.fromElements(new Tuple2[Long, Long](0L, 0L))
@@ -259,7 +260,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
     try {
       src.setParallelism(3)
-      fail
+      fail()
     }
     catch {
       case success: IllegalArgumentException => {
@@ -290,14 +291,14 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testTypeInfo {
+  def testTypeInfo() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val src1: DataStream[Long] = env.generateSequence(0, 0)
     assert(TypeExtractor.getForClass(classOf[Long]) == src1.getType)
 
     val map: DataStream[(Integer, String)] = src1.map(x => null)
-    assert(classOf[scala.Tuple2[Integer, String]] == map.getType.getTypeClass)
+    assert(classOf[scala.Tuple2[Integer, String]] == map.getType().getTypeClass)
 
     val window: DataStream[String] = map
       .windowAll(GlobalWindows.create())
@@ -310,12 +311,12 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
       .fold(0, (accumulator: Int, value: String) => 0)
-    assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType)
+    assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType())
 
     // TODO check for custom case class
   }
 
-  @Test def operatorTest {
+  @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val src = env.generateSequence(0, 0)
@@ -327,20 +328,14 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val map = src.map(mapFunction)
     assert(mapFunction == getFunctionForDataStream(map))
     assert(getFunctionForDataStream(map.map(x => 0)).isInstanceOf[MapFunction[_, _]])
-
-    val statefulMap1 = src.mapWithState((in, state: Option[Long]) => (in, None))
-    assert(getFunctionForDataStream(statefulMap1).isInstanceOf[MapFunction[_,_]])
-    assert(!getFunctionForDataStream(statefulMap1).
-        asInstanceOf[StatefulFunction[_,_,_]].partitioned)
     
-    val statefulMap2 = src.keyBy(x=>x).mapWithState(
-        (in, state: Option[Long]) => (in, None))
-    assert(getFunctionForDataStream(statefulMap2).
-        asInstanceOf[StatefulFunction[_,_,_]].partitioned)
+    val statefulMap2 = src.keyBy(x => x).mapWithState(
+        (in, state: Option[Long]) => (in, None.asInstanceOf[Option[Long]]))
     
     val flatMapFunction = new FlatMapFunction[Long, Int] {
       override def flatMap(value: Long, out: Collector[Int]): Unit = {}
     }
+    
     val flatMap = src.flatMap(flatMapFunction)
     assert(flatMapFunction == getFunctionForDataStream(flatMap))
     assert(
@@ -348,15 +343,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
         .flatMap((x: Int, out: Collector[Int]) => {}))
         .isInstanceOf[FlatMapFunction[_, _]])
 
-    val statefulfMap1 = src.flatMapWithState((in, state: Option[Long]) => (List(in), None))
-    assert(getFunctionForDataStream(statefulfMap1).isInstanceOf[FlatMapFunction[_, _]])
-    assert(!getFunctionForDataStream(statefulfMap1).
-        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
-
-    val statefulfMap2 = src.keyBy(x=>x).flatMapWithState(
-        (in, state: Option[Long]) => (List(in), None))
-    assert(getFunctionForDataStream(statefulfMap2).
-        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
+    val statefulfMap2 = src.keyBy(x => x).flatMapWithState(
+        (in, state: Option[Long]) => (List(in), None.asInstanceOf[Option[Long]]))
    
     val filterFunction = new FilterFunction[Int] {
       override def filter(value: Int): Boolean = false
@@ -369,15 +357,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
         .filter((x: Int) => true))
         .isInstanceOf[FilterFunction[_]])
 
-    val statefulFilter1 = src.filterWithState((in, state: Option[Long]) => (true, None))
-    assert(getFunctionForDataStream(statefulFilter1).isInstanceOf[FilterFunction[_]])
-    assert(!getFunctionForDataStream(statefulFilter1).
-        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
-
-    val statefulFilter2 = src.keyBy(x=>x).filterWithState(
+    val statefulFilter2 = src.keyBy( x => x).filterWithState[Long](
         (in, state: Option[Long]) => (false, None))
-    assert(getFunctionForDataStream(statefulFilter2).
-        asInstanceOf[StatefulFunction[_, _, _]].partitioned)
    
     try {
       env.getStreamGraph.getStreamEdge(map.getId, unionFilter.getId)
@@ -412,7 +393,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(2 == moreOutputSelectors.size)
 
     val select = split.select("a")
-    val sink = select.print
+    val sink = select.print()
     val splitEdge =
       env.getStreamGraph.getStreamEdge(unionFilter.getId, sink.getTransformation.getId)
     assert("a" == splitEdge.getSelectedNames.get(0))
@@ -457,44 +438,44 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
-  def testChannelSelectors {
+  def testChannelSelectors() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val src = env.generateSequence(0, 0)
 
     val broadcast = src.broadcast
-    val broadcastSink = broadcast.print
+    val broadcastSink = broadcast.print()
     val broadcastPartitioner = env.getStreamGraph
       .getStreamEdge(src.getId, broadcastSink.getTransformation.getId).getPartitioner
     assert(broadcastPartitioner.isInstanceOf[BroadcastPartitioner[_]])
 
     val shuffle: DataStream[Long] = src.shuffle
-    val shuffleSink = shuffle.print
+    val shuffleSink = shuffle.print()
     val shufflePartitioner = env.getStreamGraph
       .getStreamEdge(src.getId, shuffleSink.getTransformation.getId).getPartitioner
     assert(shufflePartitioner.isInstanceOf[ShufflePartitioner[_]])
 
     val forward: DataStream[Long] = src.forward
-    val forwardSink = forward.print
+    val forwardSink = forward.print()
     val forwardPartitioner = env.getStreamGraph
       .getStreamEdge(src.getId, forwardSink.getTransformation.getId).getPartitioner
     assert(forwardPartitioner.isInstanceOf[ForwardPartitioner[_]])
 
     val rebalance: DataStream[Long] = src.rebalance
-    val rebalanceSink = rebalance.print
+    val rebalanceSink = rebalance.print()
     val rebalancePartitioner = env.getStreamGraph
       .getStreamEdge(src.getId, rebalanceSink.getTransformation.getId).getPartitioner
     assert(rebalancePartitioner.isInstanceOf[RebalancePartitioner[_]])
 
     val global: DataStream[Long] = src.global
-    val globalSink = global.print
+    val globalSink = global.print()
     val globalPartitioner = env.getStreamGraph
       .getStreamEdge(src.getId, globalSink.getTransformation.getId).getPartitioner
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
   }
 
   @Test
-  def testIterations {
+  def testIterations() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     // we need to rebalance before iteration
     val source = env.fromElements(1, 2, 3).map { t: Int => t }
@@ -512,10 +493,10 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
         val head = input.partitionByHash(1, 1).map(i => (i + 1).toString, s => s)
         (head.filter(_ == "2"), head.filter(_ != "2"))
       }, 1000).print()
-      fail
+      fail()
     } catch {
       case uoe: UnsupportedOperationException =>
-      case e: Exception => fail
+      case e: Exception => fail()
     }
 
     val sg = env.getStreamGraph
@@ -531,7 +512,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     dataStream.print()
     val operator = getOperatorForDataStream(dataStream)
       .asInstanceOf[AbstractUdfStreamOperator[_, _]]
-    return operator.getUserFunction.asInstanceOf[Function]
+    operator.getUserFunction.asInstanceOf[Function]
   }
 
   private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
@@ -542,15 +523,15 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
   }
 
   private def isPartitioned(edge: StreamEdge): Boolean = {
-    return edge.getPartitioner.isInstanceOf[HashPartitioner[_]]
+    edge.getPartitioner.isInstanceOf[HashPartitioner[_]]
   }
 
   private def isCustomPartitioned(edge: StreamEdge): Boolean = {
-    return edge.getPartitioner.isInstanceOf[CustomPartitionerWrapper[_, _]]
+    edge.getPartitioner.isInstanceOf[CustomPartitionerWrapper[_, _]]
   }
 
   private def createDownStreamId(dataStream: DataStream[_]): Integer = {
-    return dataStream.print.getTransformation.getId
+    dataStream.print().getTransformation.getId
   }
 
   private def createDownStreamId(dataStream: ConnectedStreams[_, _]): Integer = {

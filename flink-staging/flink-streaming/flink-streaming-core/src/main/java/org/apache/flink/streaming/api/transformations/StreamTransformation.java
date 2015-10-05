@@ -18,11 +18,12 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import java.util.Collection;
 
@@ -216,7 +217,7 @@ public abstract class StreamTransformation<T> {
 	/**
 	 * Sets the chaining strategy of this {@code StreamTransformation}.
 	 */
-	public abstract void setChainingStrategy(StreamOperator.ChainingStrategy strategy);
+	public abstract void setChainingStrategy(ChainingStrategy strategy);
 
 	/**
 	 * Set the buffer timeout of this {@code StreamTransformation}. The timeout is used when

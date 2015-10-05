@@ -35,7 +35,8 @@ import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.NoOpSink;
@@ -262,19 +263,13 @@ public class StreamGraphGeneratorTest extends StreamingMultipleProgramsTestBase 
 		}
 
 		@Override
-		public void processWatermark1(Watermark mark) throws Exception {
-
-		}
+		public void processWatermark1(Watermark mark) throws Exception {}
 
 		@Override
-		public void processWatermark2(Watermark mark) throws Exception {
-
-		}
+		public void processWatermark2(Watermark mark) throws Exception {}
 
 		@Override
-		public void setup(Output output, StreamingRuntimeContext runtimeContext) {
-
-		}
+		public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<Integer>> output) {}
 	}
 
 	private static class OutputTypeConfigurableOperationWithOneInput

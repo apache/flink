@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
 import java.util.Collection;
@@ -109,7 +109,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	}
 
 	@Override
-	public final void setChainingStrategy(StreamOperator.ChainingStrategy strategy) {
+	public final void setChainingStrategy(ChainingStrategy strategy) {
 		operator.setChainingStrategy(strategy);
 	}
 

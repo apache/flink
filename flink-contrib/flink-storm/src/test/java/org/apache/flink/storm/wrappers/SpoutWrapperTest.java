@@ -30,11 +30,8 @@ import org.apache.flink.storm.util.FiniteSpout;
 import org.apache.flink.storm.util.FiniteTestSpout;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.storm.util.TestDummySpout;
-import org.apache.flink.storm.wrappers.SetupOutputFieldsDeclarer;
-import org.apache.flink.storm.wrappers.SpoutWrapper;
-import org.apache.flink.storm.wrappers.WrapperSetupHelper;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,7 +69,6 @@ public class SpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(taskConfig);
-		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
 		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichSpout spout = mock(IRichSpout.class);
@@ -112,7 +108,6 @@ public class SpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
-		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
 		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichSpout spout = mock(IRichSpout.class);
@@ -136,7 +131,6 @@ public class SpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
-		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
 		when(taskContext.getTaskName()).thenReturn("name");
 
 		final FiniteTestSpout spout = new FiniteTestSpout(numberOfCalls);
@@ -158,7 +152,6 @@ public class SpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
-		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
 		when(taskContext.getTaskName()).thenReturn("name");
 
 		final SpoutWrapper<?> wrapper = new SpoutWrapper<Object>(stormSpout);
@@ -176,7 +169,6 @@ public class SpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
-		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
 		when(taskContext.getTaskName()).thenReturn("name");
 
 		final SpoutWrapper<?> wrapper = new SpoutWrapper<Object>(stormSpout);
@@ -192,7 +184,6 @@ public class SpoutWrapperTest extends AbstractTest {
 
 		final StreamingRuntimeContext taskContext = mock(StreamingRuntimeContext.class);
 		when(taskContext.getExecutionConfig()).thenReturn(mock(ExecutionConfig.class));
-		when(taskContext.getTaskStubParameters()).thenReturn(new Configuration());
 		when(taskContext.getTaskName()).thenReturn("name");
 
 		final IRichSpout spout = new FiniteTestSpout(numberOfCalls);

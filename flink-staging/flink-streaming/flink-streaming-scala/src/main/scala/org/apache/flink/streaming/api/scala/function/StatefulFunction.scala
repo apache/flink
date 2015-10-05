@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala.function
 
 import org.apache.flink.api.common.functions.RichFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.api.common.state.OperatorState
 
@@ -28,17 +29,20 @@ import org.apache.flink.api.common.state.OperatorState
  * call the applyWithState method in his own RichFunction implementation.
  */
 trait StatefulFunction[I, O, S] extends RichFunction {
-
-  var state: OperatorState[Option[S]] = _
-  val partitioned: Boolean
+  
+  var state: OperatorState[S] = _
+  val stateType: TypeInformation[S]
 
   def applyWithState(in: I, fun: (I, Option[S]) => (O, Option[S])): O = {
-    val (o, s) = fun(in, state.value)
-    state.update(s)
+    val (o, s: Option[S]) = fun(in, Option(state.value()))
+    s match {
+      case Some(v) => state.update(v)
+      case None => state.update(null.asInstanceOf[S])
+    }
     o
   }
 
   override def open(c: Configuration) = {
-    state = getRuntimeContext().getOperatorState("state", None, partitioned)
+    state = getRuntimeContext().getKeyValueState[S](stateType, null.asInstanceOf[S])
   }
 }

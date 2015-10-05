@@ -23,6 +23,7 @@ import java.io.File;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.Rule;
@@ -55,7 +56,8 @@ public class ClassLoaderITCase {
 
 			// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
-			config.setString(ConfigConstants.STATE_BACKEND_FS_DIR, "file://" + folder.newFolder().getAbsolutePath());
+			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
+					folder.newFolder().getAbsoluteFile().toURI().toString());
 
 			ForkableFlinkMiniCluster testCluster = new ForkableFlinkMiniCluster(config, false);
 

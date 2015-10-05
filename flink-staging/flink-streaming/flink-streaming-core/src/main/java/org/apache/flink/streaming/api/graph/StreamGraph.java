@@ -43,7 +43,6 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -51,6 +50,7 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.state.StateBackend;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -60,8 +60,11 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.sling.commons.json.JSONException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Class representing the streaming topology. It contains all the information
@@ -93,7 +96,7 @@ public class StreamGraph extends StreamingPlan {
 
 	protected Map<Integer, String> vertexIDtoBrokerID;
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
-	private StateHandleProvider<?> stateHandleProvider;
+	private StateBackend<?> stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
 	private boolean forceCheckpoint = false;
@@ -145,12 +148,12 @@ public class StreamGraph extends StreamingPlan {
 		this.forceCheckpoint = true;
 	}
 
-	public void setStateHandleProvider(StateHandleProvider<?> provider) {
-		this.stateHandleProvider = provider;
+	public void setStateBackend(StateBackend<?> backend) {
+		this.stateBackend = requireNonNull(backend);
 	}
 
-	public StateHandleProvider<?> getStateHandleProvider() {
-		return this.stateHandleProvider;
+	public StateBackend<?> getStateBackend() {
+		return this.stateBackend;
 	}
 
 	public long getCheckpointingInterval() {
@@ -392,8 +395,10 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void setKey(Integer vertexID, KeySelector<?, ?> key) {
-		getStreamNode(vertexID).setStatePartitioner(key);
+	public void setKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
+		StreamNode node = getStreamNode(vertexID);
+		node.setStatePartitioner(keySelector);
+		node.setStateKeySerializer(keySerializer);
 	}
 
 	public void setBufferTimeout(Integer vertexID, long bufferTimeout) {

@@ -55,6 +55,14 @@ public class SerializedValue<T> implements java.io.Serializable {
 		return serializedData == null ? null : (T) InstantiationUtil.deserializeObject(serializedData, loader);
 	}
 
+	/**
+	 * Gets the size of the serialized state.
+	 * @return The size of the serialized state.
+	 */
+	public int getSizeOfSerializedState() {
+		return serializedData.length;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 

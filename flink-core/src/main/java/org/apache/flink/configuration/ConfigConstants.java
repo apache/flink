@@ -415,11 +415,6 @@ public final class ConfigConstants {
 	 */
 	public static final String STATE_BACKEND = "state.backend";
 	
-	/**
-	 * Directory for saving streaming checkpoints
-	 */
-	public static final String STATE_BACKEND_FS_DIR = "state.backend.fs.checkpointdir";
-	
 	// ----------------------------- Miscellaneous ----------------------------
 	
 	/**

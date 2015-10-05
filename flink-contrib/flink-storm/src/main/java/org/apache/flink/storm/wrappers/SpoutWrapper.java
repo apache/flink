@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.storm.util.FiniteSpout;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import com.google.common.collect.Sets;
 

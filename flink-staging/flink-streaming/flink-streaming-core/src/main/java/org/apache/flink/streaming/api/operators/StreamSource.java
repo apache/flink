@@ -43,7 +43,8 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 	}
 
 	public void run(final Object lockingObject, final Output<StreamRecord<T>> collector) throws Exception {
-
+		final ExecutionConfig executionConfig = getExecutionConfig();
+		
 		if (userFunction instanceof EventTimeSourceFunction) {
 			ctx = new ManualWatermarkContext<T>(lockingObject, collector);
 		} else if (executionConfig.getAutoWatermarkInterval() > 0) {

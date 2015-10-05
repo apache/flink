@@ -45,8 +45,6 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.FileStateHandle;
-import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -65,6 +63,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.state.StateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
@@ -77,7 +76,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * An ExecutionEnvironment for streaming jobs. An instance of it is
@@ -127,8 +127,9 @@ public abstract class StreamExecutionEnvironment {
 	protected CheckpointingMode checkpointingMode;
 
 	protected boolean forceCheckpointing = false;
-
-	protected StateHandleProvider<?> stateHandleProvider;
+	
+	/** The state backend used for storing k/v state and state snapshots */
+	private StateBackend<?> defaultStateBackend;
 	
 	/** The time characteristic used by the data streams */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -155,8 +156,7 @@ public abstract class StreamExecutionEnvironment {
 	 * program via the command line client from a JAR file, the default degree
 	 * of parallelism is the one configured for that setup.
 	 *
-	 * @param parallelism
-	 * 		The parallelism
+	 * @param parallelism The parallelism
 	 */
 	public StreamExecutionEnvironment setParallelism(int parallelism) {
 		if (parallelism < 1) {
@@ -365,27 +365,40 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the {@link StateHandleProvider} used for storing operator state
-	 * checkpoints when checkpointing is enabled.
-	 * <p>
-	 * An example would be using a {@link FileStateHandle#createProvider(String)}
-	 * to use any Flink supported file system as a state backend
+	 * Sets the state backend that describes how to store and checkpoint operator state. It defines in
+	 * what form the key/value state ({@link org.apache.flink.api.common.state.OperatorState}, accessible
+	 * from operations on {@link org.apache.flink.streaming.api.datastream.KeyedStream}) is maintained
+	 * (heap, managed memory, externally), and where state snapshots/checkpoints are stored, both for
+	 * the key/value state, and for checkpointed functions (implementing the interface
+	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}).
+	 *
+	 * <p>The {@link org.apache.flink.streaming.api.state.memory.MemoryStateBackend} for example
+	 * maintains the state in heap memory, as objects. It is lightweight without extra dependencies,
+	 * but can checkpoint only small states (some counters).
 	 * 
+	 * <p>In contrast, the {@link org.apache.flink.streaming.api.state.filesystem.FsStateBackend}
+	 * stores checkpoints of the state (also maintained as heap objects) in files. When using a replicated
+	 * file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee that state is not lost upon
+	 * failures of individual nodes and that streaming program can be executed highly available and strongly
+	 * consistent (assuming that Flink is run in high-availability mode).
+	 *
+	 * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+	 * 
+	 * @see #getStateBackend()
 	 */
-	public StreamExecutionEnvironment setStateHandleProvider(StateHandleProvider<?> provider) {
-		this.stateHandleProvider = provider;
+	public StreamExecutionEnvironment setStateBackend(StateBackend<?> backend) {
+		this.defaultStateBackend = requireNonNull(backend);
 		return this;
 	}
 
 	/**
-	 * Returns the {@link org.apache.flink.runtime.state.StateHandle}
-	 *
-	 * @see #setStateHandleProvider(org.apache.flink.runtime.state.StateHandleProvider)
-	 *
-	 * @return The StateHandleProvider
+	 * Returns the state backend that defines how to store and checkpoint state.
+	 * @return The state backend that defines how to store and checkpoint state.
+	 * 
+	 * @see #setStateBackend(StateBackend)
 	 */
-	public StateHandleProvider<?> getStateHandleProvider() {
-		return stateHandleProvider;
+	public StateBackend<?> getStateBackend() {
+		return defaultStateBackend;
 	}
 
 	/**
@@ -395,8 +408,7 @@ public abstract class StreamExecutionEnvironment {
 	 * should be used.
 	 *
 	 * @param numberOfExecutionRetries
-	 * 		The number of times the system will try to re-execute failed
-	 * 		tasks.
+	 * 		The number of times the system will try to re-execute failed tasks.
 	 */
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
@@ -423,7 +435,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The delay of time the system will wait to re-execute failed
 	 * 		tasks.
 	 */
-	public void setExecutionRetryDelay(long executionRetryDelay){
+	public void setExecutionRetryDelay(long executionRetryDelay) {
 		config.setExecutionRetryDelay(executionRetryDelay);
 	}
 	
@@ -434,7 +446,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return The delay time the system will wait to re-execute failed tasks.
 	 */
-	public long getExecutionRetryDelay(){
+	public long getExecutionRetryDelay() {
 		return config.getExecutionRetryDelay();
 	}
 	/**
@@ -550,7 +562,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param characteristic The time characteristic.
 	 */
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
-		this.timeCharacteristic = Objects.requireNonNull(characteristic);
+		this.timeCharacteristic = requireNonNull(characteristic);
 		if (characteristic == TimeCharacteristic.ProcessingTime) {
 			getConfig().disableTimestamps();
 			getConfig().setAutoWatermarkInterval(0);

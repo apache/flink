@@ -17,8 +17,7 @@
  */
 package org.apache.flink.streaming.api.graph;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
@@ -36,8 +35,10 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -97,17 +98,19 @@ public class StreamGraphGenerator {
 	private StreamGraphGenerator(StreamExecutionEnvironment env) {
 		this.streamGraph = new StreamGraph(env);
 		this.streamGraph.setChaining(env.isChainingEnabled());
+		
 		if (env.getCheckpointInterval() > 0) {
 			this.streamGraph.setCheckpointingEnabled(true);
 			this.streamGraph.setCheckpointingInterval(env.getCheckpointInterval());
 			this.streamGraph.setCheckpointingMode(env.getCheckpointingMode());
 		}
-		this.streamGraph.setStateHandleProvider(env.getStateHandleProvider());
+		this.streamGraph.setStateBackend(env.getStateBackend());
 		if (env.isForceCheckpointing()) {
 			this.streamGraph.forceCheckpoint();
 		}
+		
 		this.env = env;
-		this.alreadyTransformed = Maps.newHashMap();
+		this.alreadyTransformed = new HashMap<>();
 	}
 
 	/**
@@ -202,7 +205,7 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformUnion(UnionTransformation<T> union) {
 		List<StreamTransformation<T>> inputs = union.getInputs();
-		List<Integer> resultIds = Lists.newArrayList();
+		List<Integer> resultIds = new ArrayList<>();
 
 		for (StreamTransformation<T> input: inputs) {
 			resultIds.addAll(transform(input));
@@ -220,7 +223,7 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformPartition(PartitionTransformation<T> partition) {
 		StreamTransformation<T> input = partition.getInput();
-		List<Integer> resultIds = Lists.newArrayList();
+		List<Integer> resultIds = new ArrayList<>();
 
 		Collection<Integer> transformedIds = transform(input);
 		for (Integer transformedId: transformedIds) {
@@ -273,7 +276,7 @@ public class StreamGraphGenerator {
 			return alreadyTransformed.get(select);
 		}
 
-		List<Integer> virtualResultIds = Lists.newArrayList();
+		List<Integer> virtualResultIds = new ArrayList<>();
 
 		for (int inputId : resultIds) {
 			int virtualId = StreamTransformation.getNewNodeId();
@@ -301,7 +304,7 @@ public class StreamGraphGenerator {
 		}
 
 		StreamTransformation<T> input = iterate.getInput();
-		List<Integer> resultIds = Lists.newArrayList();
+		List<Integer> resultIds = new ArrayList<>();
 
 		// first transform the input stream(s) and store the result IDs
 		resultIds.addAll(transform(input));
@@ -442,7 +445,8 @@ public class StreamGraphGenerator {
 
 
 		if (sink.getStateKeySelector() != null) {
-			streamGraph.setKey(sink.getId(), sink.getStateKeySelector());
+			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(env.getConfig());
+			streamGraph.setKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
 		}
 
 		return Collections.emptyList();
@@ -471,7 +475,11 @@ public class StreamGraphGenerator {
 				transform.getName());
 
 		if (transform.getStateKeySelector() != null) {
-			streamGraph.setKey(transform.getId(), transform.getStateKeySelector());
+			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(env.getConfig());
+			streamGraph.setKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
+		}
+		if (transform.getStateKeyType() != null) {
+			
 		}
 
 		streamGraph.setParallelism(transform.getId(), transform.getParallelism());

@@ -19,26 +19,17 @@
 package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.api.state.OperatorStateHandle;
-import org.apache.flink.streaming.api.state.PartitionedStreamOperatorState;
-import org.apache.flink.streaming.api.state.StreamOperatorState;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.streaming.api.state.StateBackend;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * This is used as the base class for operators that have a user-defined
@@ -50,22 +41,20 @@ import org.slf4j.LoggerFactory;
  * @param <F>
  *            The type of the user function
  */
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function> 
-		extends AbstractStreamOperator<OUT> implements StatefulStreamOperator<OUT> {
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractUdfStreamOperator.class);
-
+	
 	/** the user function */
 	protected final F userFunction;
 	
 	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
-	private boolean functionsClosed = false;
-
+	private transient boolean functionsClosed = false;
+	
 	
 	public AbstractUdfStreamOperator(F userFunction) {
-		this.userFunction = Objects.requireNonNull(userFunction);
+		this.userFunction = requireNonNull(userFunction);
 	}
 
 	/**
@@ -79,18 +68,13 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 	//  operator life cycle
 	// ------------------------------------------------------------------------
-	
-	@Override
-	public final void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext) {
-		super.setup(output, runtimeContext);
-		FunctionUtils.setFunctionRuntimeContext(userFunction, runtimeContext);
-	}
-
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		FunctionUtils.openFunction(userFunction, parameters);
+	public void open() throws Exception {
+		super.open();
+		
+		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
+		FunctionUtils.openFunction(userFunction, new Configuration());
 	}
 
 	@Override
@@ -118,76 +102,81 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 	
 	@Override
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public void restoreInitialState(Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> snapshots) throws Exception {
+	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+		StreamTaskState state = super.snapshotOperatorState(checkpointId, timestamp);
 
-		// Restore state using the Checkpointed interface
-		if (userFunction instanceof Checkpointed && snapshots.f0 != null) {
-			((Checkpointed) userFunction).restoreState(snapshots.f0.getState(runtimeContext.getUserCodeClassLoader()));
-		}
-		
-		if (snapshots.f1 != null) {
-			// We iterate over the states registered for this operator, initialize and restore it
-			for (Entry<String, OperatorStateHandle> snapshot : snapshots.f1.entrySet()) {
-				StreamOperatorState restoredOpState = runtimeContext.getState(snapshot.getKey(), snapshot.getValue().isPartitioned());
-				StateHandle<Serializable> checkpointHandle = snapshot.getValue();
-				restoredOpState.restoreState(checkpointHandle, runtimeContext.getUserCodeClassLoader());
-			}
-		}
-		
-	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public Tuple2<StateHandle<Serializable>, Map<String, OperatorStateHandle>> getStateSnapshotFromFunction(long checkpointId, long timestamp)
-			throws Exception {
-		// Get all the states for the operator
-		Map<String, StreamOperatorState<?, ?>> operatorStates = runtimeContext.getOperatorStates();
-		
-		Map<String, OperatorStateHandle> operatorStateSnapshots;
-		if (operatorStates.isEmpty()) {
-			// We return null to signal that there is nothing to checkpoint
-			operatorStateSnapshots = null;
-		} else {
-			// Checkpoint the states and store the handles in a map
-			Map<String, OperatorStateHandle> snapshots = new HashMap<String, OperatorStateHandle>();
-
-			for (Entry<String, StreamOperatorState<?, ?>> state : operatorStates.entrySet()) {
-				boolean isPartitioned = state.getValue() instanceof PartitionedStreamOperatorState;
-				snapshots.put(state.getKey(),
-						new OperatorStateHandle(state.getValue().snapshotState(checkpointId, timestamp),
-								isPartitioned));
-			}
-
-			operatorStateSnapshots = snapshots;
-		}
-		
-		StateHandle<Serializable> checkpointedSnapshot = null;
-		// if the UDF implements the Checkpointed interface we draw a snapshot
 		if (userFunction instanceof Checkpointed) {
-			StateHandleProvider<Serializable> provider = runtimeContext.getStateHandleProvider();
-			Serializable state = ((Checkpointed) userFunction).snapshotState(checkpointId, timestamp);
-			if (state != null) {
-				checkpointedSnapshot = provider.createStateHandle(state);
+			@SuppressWarnings("unchecked")
+			Checkpointed<Serializable> chkFunction = (Checkpointed<Serializable>) userFunction;
+			
+			Serializable udfState;
+			try {
+				udfState = chkFunction.snapshotState(checkpointId, timestamp);
+			} 
+			catch (Exception e) {
+				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
+			}
+			
+			if (udfState != null) {
+				try {
+					StateBackend<?> stateBackend = getStateBackend();
+					StateHandle<Serializable> handle = 
+							stateBackend.checkpointStateSerializable(udfState, checkpointId, timestamp);
+					state.setFunctionState(handle);
+				}
+				catch (Exception e) {
+					throw new Exception("Failed to add the state snapshot of the function to the checkpoint: "
+							+ e.getMessage(), e);
+				}
 			}
 		}
 		
-		// if we have either operator or checkpointed state we store it in a
-		// tuple2 otherwise return null
-		if (operatorStateSnapshots != null || checkpointedSnapshot != null) {
-			return Tuple2.of(checkpointedSnapshot, operatorStateSnapshots);
-		} else {
-			return null;
-		}
-
+		return state;
 	}
 
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		if (userFunction instanceof CheckpointNotifier) {
-			try {
-				((CheckpointNotifier) userFunction).notifyCheckpointComplete(checkpointId);
-			} catch (Exception e) {
-				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
+	@Override
+	public void restoreState(StreamTaskState state) throws Exception {
+		super.restoreState(state);
+		
+		StateHandle<Serializable> stateHandle =  state.getFunctionState();
+		
+		if (userFunction instanceof Checkpointed && stateHandle != null) {
+			@SuppressWarnings("unchecked")
+			Checkpointed<Serializable> chkFunction = (Checkpointed<Serializable>) userFunction;
+			
+			Serializable functionState = stateHandle.getState(getUserCodeClassloader());
+			if (functionState != null) {
+				try {
+					chkFunction.restoreState(functionState);
+				}
+				catch (Exception e) {
+					throw new Exception("Failed to restore state to function: " + e.getMessage(), e);
+				}
 			}
 		}
+	}
+
+	@Override
+	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
+		super.notifyOfCompletedCheckpoint(checkpointId);
+
+		if (userFunction instanceof CheckpointNotifier) {
+			((CheckpointNotifier) userFunction).notifyCheckpointComplete(checkpointId);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * 
+	 * Since the streaming API does not implement any parametrization of functions via a
+	 * configuration, the config returned here is actually empty.
+	 * 
+	 * @return The user function parameters (currently empty)
+	 */
+	public Configuration getUserFunctionParameters() {
+		return new Configuration();
 	}
 }
