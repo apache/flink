@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
@@ -28,7 +27,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -155,24 +153,6 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
-	@Test(expected = InvalidProgramException.class)
-	public void testDefaultJoin() throws Exception {
-		/*
-		 * Default Join on tuples
-		 */
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-		DataSet<Tuple2<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>>> joinDs =
-				ds1.fullOuterJoin(ds2)
-						.where(0)
-						.equalTo(2);
-
-		joinDs.collect();
-	}
-
 	@Test
 	public void testJoinWithBroadcastSet() throws Exception {
 		/*
@@ -236,63 +216,6 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	@Test
-	public void testProjectOnATuple1Input() throws Exception {
-		/*
-		 * Project join on a tuple input 1
-		 */
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-		DataSet<Tuple6<String, Long, String, Integer, Long, Long>> joinDs =
-				ds1.fullOuterJoin(ds2)
-						.where(1)
-						.equalTo(1)
-						.projectFirst(2, 1)
-						.projectSecond(3)
-						.projectFirst(0)
-						.projectSecond(4, 1);
-
-		List<Tuple6<String, Long, String, Integer, Long, Long>> result = joinDs.collect();
-
-		String expected = "Hi,1,Hallo,1,1,1\n" +
-				"Hello,2,Hallo Welt,2,2,2\n" +
-				"Hello world,2,Hallo Welt,3,2,2\n" +
-				"null,null,Hallo Welt wie,null,1,3\n";
-
-		compareResultAsTuples(result, expected);
-	}
-
-	@Test
-	public void testProjectJoinOnATuple2Input() throws Exception {
-		/*
-		 * Project join on a tuple input 2
-		 */
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
-		DataSet<Tuple6<String, String, Long, Long, Long, Integer>> joinDs =
-				ds1.fullOuterJoin(ds2)
-						.where(1)
-						.equalTo(1)
-						.projectSecond(3)
-						.projectFirst(2, 1)
-						.projectSecond(4, 1)
-						.projectFirst(0);
-
-		List<Tuple6<String, String, Long, Long, Long, Integer>> result = joinDs.collect();
-
-		String expected = "Hallo,Hi,1,1,1,1\n" +
-				"Hallo Welt,Hello,2,2,2,2\n" +
-				"Hallo Welt,Hello world,2,2,2,3\n" +
-				"Hallo Welt wie,null,null,1,3,null\n";
-
-		compareResultAsTuples(result, expected);
-	}
 
 	@Test
 	public void testJoinOnATupleInputWithKeyFieldSelectorAndACustomTypeInputWithKeyExtractor()
@@ -385,8 +308,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("nestedPojo.longNumber")
 						.equalTo("f6")
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction());
 
 		List<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>> result = joinDs.collect();
 
@@ -410,8 +332,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("nestedPojo.longNumber")
 						.equalTo(6) // <--- difference!
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>());
 
 		List<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>> result = joinDs.collect();
 
@@ -435,8 +356,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("nestedPojo.longNumber", "number", "str")
 						.equalTo("f6", "f0", "f1")
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>());
 
 		env.setParallelism(1);
 		List<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>> result = joinDs.collect();
@@ -461,8 +381,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("nestedPojo.longNumber", "number", "nestedTupleWithCustom.f0")
 						.equalTo("f6", "f0", "f2")
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>());
 
 		env.setParallelism(1);
 		List<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>> result = joinDs.collect();
@@ -487,8 +406,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("nestedTupleWithCustom.f0", "nestedTupleWithCustom.f1.myInt", "nestedTupleWithCustom.f1.myLong")
 						.equalTo("f2", "f3", "f4")
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>());
 
 		env.setParallelism(1);
 		List<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>> result = joinDs.collect();
@@ -513,8 +431,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where(0)
 						.equalTo("f0.f0", "f0.f1") // key is now Tuple2<Integer, Integer>
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<Tuple2<Integer, Integer>, String>>());
 
 		env.setParallelism(1);
 		List<Tuple2<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<Tuple2<Integer, Integer>, String>>> result = joinDs.collect();
@@ -540,8 +457,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("f0.f0")
 						.equalTo("f0.f0") // key is now Integer from Tuple2<Integer, Integer>
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<Tuple2<Integer, Integer>, String>>());
 
 		env.setParallelism(1);
 		List<Tuple2<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<Tuple2<Integer, Integer>, String>>> result = joinDs.collect();
@@ -566,8 +482,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("*")
 						.equalTo("*")
-						.projectFirst()
-						.projectSecond();
+						.with(new ProjectBothFunction<POJO, Tuple7<Long, Integer, Integer, Long, String, Integer, String>>());
 
 		env.setParallelism(1);
 		List<Tuple2<POJO, Tuple7<Long, Integer, Integer, Long, String, Integer, String>>> result = joinDs.collect();
@@ -590,8 +505,8 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				.fullOuterJoin(ds2)
 				.where(0)
 				.equalTo("*")
-				.projectFirst()
-				.projectSecond();
+				.with(new ProjectBothFunction<Tuple3<Integer, Long, String>, Integer>())
+				.returns("Tuple2<java.lang.Object,java.lang.Object>");
 
 		List<Tuple2<Tuple3<Integer, Long, String>, Integer>> result = joinDs.collect();
 
@@ -613,8 +528,9 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				.fullOuterJoin(ds2)
 				.where("*")
 				.equalTo(0)
-				.projectFirst()
-				.projectSecond();
+				.with(new ProjectBothFunction<Integer, Tuple3<Integer, Long, String>>())
+				.returns("Tuple2<java.lang.Object,java.lang.Object>");
+
 
 		List<Tuple2<Integer, Tuple3<Integer, Long, String>>> result = joinDs.collect();
 
@@ -674,6 +590,16 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 		public Tuple2<String, String> join(CustomType first, Tuple3<Integer, Long, String> second) {
 
 			return new Tuple2<>(first == null ? null : first.myString, second == null ? null : second.f2);
+		}
+	}
+
+	/**
+	 * Deliberately untyped join function, which emits a Tuple2 of the left and right side.
+	 */
+	public static class ProjectBothFunction<IN1, IN2> implements JoinFunction<IN1, IN2, Tuple2<IN1, IN2>> {
+		@Override
+		public Tuple2<IN1, IN2> join(IN1 first, IN2 second) throws Exception {
+			return new Tuple2<>(first, second);
 		}
 	}
 }

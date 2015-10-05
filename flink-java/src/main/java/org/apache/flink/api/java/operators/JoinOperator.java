@@ -22,7 +22,6 @@ import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -43,20 +42,19 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
+import org.apache.flink.api.java.operators.join.JoinType;
+import org.apache.flink.api.java.operators.join.JoinFunctionAssigner;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.TupleRightUnwrappingJoiner;
 import org.apache.flink.api.java.operators.translation.TupleLeftUnwrappingJoiner;
 import org.apache.flink.api.java.operators.translation.TupleUnwrappingJoiner;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
@@ -73,15 +71,6 @@ import org.apache.flink.api.java.tuple.*;
  * @see DataSet
  */
 public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, JoinOperator<I1, I2, OUT>> {
-
-	public static enum JoinType {
-
-		INNER, LEFT_OUTER, RIGHT_OUTER, FULL_OUTER;
-
-		public boolean isOuter() {
-			return this == LEFT_OUTER || this == RIGHT_OUTER || this == FULL_OUTER;
-		}
-	}
 
 	protected final Keys<I1> keys1;
 	protected final Keys<I2> keys2;
@@ -543,9 +532,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * @see Tuple2
 	 * @see DataSet
 	 */
-	public static final class DefaultJoin<I1, I2> extends EquiJoin<I1, I2, Tuple2<I1, I2>> {
+	public static final class DefaultJoin<I1, I2> extends EquiJoin<I1, I2, Tuple2<I1, I2>> implements JoinFunctionAssigner<I1, I2> {
 
-		protected DefaultJoin(DataSet<I1> input1, DataSet<I2> input2, 
+		public DefaultJoin(DataSet<I1> input1, DataSet<I2> input2,
 				Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, String joinLocationName, JoinType type)
 		{
 			super(input1, input2, keys1, keys2,
@@ -616,7 +605,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
-			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null, joinType);
+			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
 
 			return joinProjection.projectTupleX();
 		}
@@ -642,17 +631,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
-			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes, joinType);
+			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes);
 			
 			return joinProjection.projectTupleX();
-		}
-
-		@Override
-		protected AbstractJoinOperatorBase<?, ?, Tuple2<I1, I2>, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
-			if (joinType.isOuter()) {
-				throw new InvalidProgramException("Must specify a custom join function for outer join");
-			}
-			return super.translateToDataFlow(input1, input2);
 		}
 
 //		public JoinOperator<I1, I2, I1> leftSemiJoin() {
@@ -689,18 +670,18 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private JoinProjection<I1, I2> joinProj;
 		
 		protected ProjectJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType) {
-			super(input1, input2, keys1, keys2, 
-					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType),
-					returnType, hint, Utils.getCallLocationName(4), JoinType.INNER); // We need to use the 4th element in the stack because the call comes through .types().
+			super(input1, input2, keys1, keys2,
+					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer(input1.getExecutionEnvironment().getConfig()).createInstance()),
+					returnType, hint, Utils.getCallLocationName(4)); // We need to use the 4th element in the stack because the call comes through .types().
 
 			joinProj = null;
 		}
 		
 		protected ProjectJoin(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType, JoinProjection<I1, I2> joinProj) {
-			super(input1, input2, keys1, keys2, 
-					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, demoteToObject(returnType, joinProj.joinType)),
-					demoteToObject(returnType, joinProj.joinType), hint, Utils.getCallLocationName(4), joinProj.joinType);
-			
+			super(input1, input2, keys1, keys2,
+					new ProjectFlatJoinFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer(input1.getExecutionEnvironment().getConfig()).createInstance()),
+					returnType, hint, Utils.getCallLocationName(4));
+
 			this.joinProj = joinProj;
 		}
 
@@ -802,15 +783,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					getInput1Type(), getInput2Type());
 		}
 
-		private static <OUT extends Tuple> TupleTypeInfo<OUT> demoteToObject(TupleTypeInfo<OUT> returnType, JoinType type) {
-			if (type == JoinType.INNER) {
-				return returnType;
-			} else {
-				TypeInformation<?>[] objectTypes = new TypeInformation[returnType.getArity()];
-				Arrays.fill(objectTypes, new GenericTypeInfo<>(Object.class));
-				return new TupleTypeInfo<>(objectTypes);
-			}
-		}
 	}
 	
 //	@SuppressWarnings("unused")
@@ -872,194 +844,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //	}
 	
 	// --------------------------------------------------------------------------------------------
-	// Builder classes for incremental construction
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Intermediate step of a Join transformation. <br/>
-	 * To continue the Join transformation, select the join key of the first input {@link DataSet} by calling 
-	 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets#where(int...)} or
-	 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets#where(KeySelector)}.
-	 *
-	 * @param <I1> The type of the first input DataSet of the Join transformation.
-	 * @param <I2> The type of the second input DataSet of the Join transformation.
-	 */
-	public static final class JoinOperatorSets<I1, I2> {
-		
-		private final DataSet<I1> input1;
-		private final DataSet<I2> input2;
-		
-		private final JoinHint joinHint;
-		private final JoinType joinType;
-
-		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
-			this(input1, input2, InnerJoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES);
-		}
-		
-		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
-			this(input1, input2, hint, JoinType.INNER);
-		}
-
-		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint, JoinType type) {
-			if (input1 == null || input2 == null) {
-				throw new NullPointerException();
-			}
-			
-			this.input1 = input1;
-			this.input2 = input2;
-			this.joinHint = hint;
-			this.joinType = type;
-		}
-		
-		/**
-		 * Continues a Join transformation. <br/>
-		 * Defines the {@link Tuple} fields of the first join {@link DataSet} that should be used as join keys.<br/>
-		 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
-		 *
-		 * @param fields The indexes of the other Tuple fields of the first join DataSets that should be used as keys.
-		 * @return An incomplete Join transformation. 
-		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
-		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
-		 *           to continue the Join. 
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public JoinOperatorSetsPredicate where(int... fields) {
-			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
-		}
-
-		/**
-		 * Continues a Join transformation. <br/>
-		 * Defines the fields of the first join {@link DataSet} that should be used as grouping keys. Fields
-		 * are the names of member fields of the underlying type of the data set.
-		 *
-		 * @param fields The  fields of the first join DataSets that should be used as keys.
-		 * @return An incomplete Join transformation.
-		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
-		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
-		 *           to continue the Join.
-		 *
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public JoinOperatorSetsPredicate where(String... fields) {
-			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
-		}
-		
-		/**
-		 * Continues a Join transformation and defines a {@link KeySelector} function for the first join {@link DataSet}.</br>
-		 * The KeySelector function is called for each element of the first DataSet and extracts a single 
-		 * key value on which the DataSet is joined. </br>
-		 * 
-		 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is joined.
-		 * @return An incomplete Join transformation. 
-		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
-		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
-		 *           to continue the Join. 
-		 * 
-		 * @see KeySelector
-		 * @see DataSet
-		 */
-		public <K> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
-			TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
-			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keySelector, input1.getType(), keyType));
-		}
-		
-		// ----------------------------------------------------------------------------------------
-		
-		/**
-		 * Intermediate step of a Join transformation. <br/>
-		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling 
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}.
-		 *
-		 */
-		public class JoinOperatorSetsPredicate {
-			
-			private final Keys<I1> keys1;
-			
-			private JoinOperatorSetsPredicate(Keys<I1> keys1) {
-				if (keys1 == null) {
-					throw new NullPointerException();
-				}
-				
-				if (keys1.isEmpty()) {
-					throw new InvalidProgramException("The join keys must not be empty.");
-				}
-				
-				this.keys1 = keys1;
-			}
-			
-			/**
-			 * Continues a Join transformation and defines the {@link Tuple} fields of the second join 
-			 * {@link DataSet} that should be used as join keys.<br/>
-			 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
-			 * 
-			 * The resulting {@link org.apache.flink.api.java.operators.JoinOperator.DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with 
-			 * the element of the first input being the first field of the tuple and the element of the 
-			 * second input being the second field of the tuple. 
-			 *
-			 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
-			 * @return A DefaultJoin that represents the joined DataSet.
-			 */
-			public DefaultJoin<I1, I2> equalTo(int... fields) {
-				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
-			}
-
-			/**
-			 * Continues a Join transformation and defines the  fields of the second join
-			 * {@link DataSet} that should be used as join keys.<br/>
-			 *
-			 * The resulting {@link org.apache.flink.api.java.operators.JoinOperator.DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
-			 * the element of the first input being the first field of the tuple and the element of the
-			 * second input being the second field of the tuple.
-			 *
-			 * @param fields The fields of the second join DataSet that should be used as keys.
-			 * @return A DefaultJoin that represents the joined DataSet.
-			 */
-			public DefaultJoin<I1, I2> equalTo(String... fields) {
-				return createJoinOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
-			}
-
-			/**
-			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.</br>
-			 * The KeySelector function is called for each element of the second DataSet and extracts a single 
-			 * key value on which the DataSet is joined. </br>
-			 * 
-			 * The resulting {@link org.apache.flink.api.java.operators.JoinOperator.DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with 
-			 * the element of the first input being the first field of the tuple and the element of the 
-			 * second input being the second field of the tuple. 
-			 * 
-			 * @param keySelector The KeySelector function which extracts the key values from the second DataSet on which it is joined.
-			 * @return A DefaultJoin that represents the joined DataSet.
-			 */
-			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
-				TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-				return createJoinOperator(new Keys.SelectorFunctionKeys<I2, K>(keySelector, input2.getType(), keyType));
-			}
-			
-			protected DefaultJoin<I1, I2> createJoinOperator(Keys<I2> keys2) {
-				if (keys2 == null) {
-					throw new NullPointerException("The join keys may not be null.");
-				}
-				
-				if (keys2.isEmpty()) {
-					throw new InvalidProgramException("The join keys may not be empty.");
-				}
-				
-				try {
-					keys1.areCompatible(keys2);
-				} catch (IncompatibleKeysException e) {
-					throw new InvalidProgramException("The pair of join keys are not compatible with each other.",e);
-				}
-
-				return new DefaultJoin<>(input1, input2, keys1, keys2, joinHint, Utils.getCallLocationName(4), joinType);
-			}
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
 	//  default join functions
 	// --------------------------------------------------------------------------------------------
 
@@ -1084,9 +868,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		
 		private final int[] fields;
 		private final boolean[] isFromFirst;
-		private final TupleTypeInfo<R> outTupleInfo;
-
-		private transient R outTuple;
+		private final R outTuple;
 	
 		/**
 		 * Instantiates and configures a ProjectJoinFunction.
@@ -1095,22 +877,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @param fields List of indexes fields that should be copied to the output tuple. 
 		 * 					If the full input object should be copied (for example in case of a non-tuple input) the index should be -1. 
 		 * @param isFromFirst List of flags indicating whether the field should be copied from the first (true) or the second (false) input.
-		 * @param outTupleInfo Type information for the output tuple.
+		 * @param outTupleInstance An instance of an output tuple.
 		 */
-		private ProjectFlatJoinFunction(int[] fields, boolean[] isFromFirst, TupleTypeInfo<R> outTupleInfo) {
+		private ProjectFlatJoinFunction(int[] fields, boolean[] isFromFirst, R outTupleInstance) {
 			if(fields.length != isFromFirst.length) {
 				throw new IllegalArgumentException("Fields and isFromFirst arrays must have same length!"); 
 			}
 
 			this.fields = fields;
 			this.isFromFirst = isFromFirst;
-			this.outTupleInfo = outTupleInfo;
-		}
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			ExecutionConfig config = this.getRuntimeContext().getExecutionConfig();
-			this.outTuple = this.outTupleInfo.createSerializer(config).createInstance();
+			this.outTuple = outTupleInstance;
 		}
 
 		protected int[] getFields() {
@@ -1149,7 +925,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private final Keys<I1> keys1;
 		private final Keys<I2> keys2;
 		private final JoinHint hint;
-		private final JoinType joinType;
 
 		private int[] fieldIndexes;
 		private boolean[] isFieldInFirst;
@@ -1157,14 +932,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private final int numFieldsDs1;
 		private final int numFieldsDs2;
 		
-		public JoinProjection(DataSet<I1> ds1, DataSet<I2> ds2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint,
-				int[] firstFieldIndexes, int[] secondFieldIndexes, JoinType joinType) {
+		public JoinProjection(DataSet<I1> ds1, DataSet<I2> ds2, Keys<I1> keys1, Keys<I2> keys2, JoinHint hint, int[] firstFieldIndexes, int[] secondFieldIndexes) {
 			this.ds1 = ds1;
 			this.ds2 = ds2;
 			this.keys1 = keys1;
 			this.keys2 = keys2;
 			this.hint = hint;
-			this.joinType = joinType;
 
 			boolean isFirstTuple;
 			boolean isSecondTuple;

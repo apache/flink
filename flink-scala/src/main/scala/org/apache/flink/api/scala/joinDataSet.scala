@@ -24,8 +24,9 @@ import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Pa
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
-import org.apache.flink.api.java.operators.JoinOperator.{JoinType, EquiJoin}
+import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
