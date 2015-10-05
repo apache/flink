@@ -33,7 +33,7 @@ import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
 import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase;
@@ -162,8 +162,8 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		else if (c instanceof GroupReduceOperatorBase) {
 			n = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) c);
 		}
-		else if (c instanceof JoinOperatorBase) {
-			n = new JoinNode((JoinOperatorBase<?, ?, ?, ?>) c);
+		else if (c instanceof InnerJoinOperatorBase) {
+			n = new JoinNode((InnerJoinOperatorBase<?, ?, ?, ?>) c);
 		}
 		else if (c instanceof OuterJoinOperatorBase) {
 			n = new OuterJoinNode((OuterJoinOperatorBase<?, ?, ?, ?>) c);

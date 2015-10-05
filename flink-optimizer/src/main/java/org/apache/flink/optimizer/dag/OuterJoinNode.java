@@ -19,7 +19,7 @@
 package org.apache.flink.optimizer.dag;
 
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase.OuterJoinType;
 import org.apache.flink.optimizer.CompilerException;

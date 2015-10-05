@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Assert._

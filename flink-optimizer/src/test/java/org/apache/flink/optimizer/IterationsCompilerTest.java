@@ -20,7 +20,7 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.junit.Test;
@@ -266,7 +266,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Long>> result = iteration.closeWith(next, next);
 			
 			initialWorkset
-				.join(result, AbstractJoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
+				.join(result, JoinOperatorBase.JoinHint.REPARTITION_HASH_FIRST)
 				.where(0).equalTo(0)
 				.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>());
 			

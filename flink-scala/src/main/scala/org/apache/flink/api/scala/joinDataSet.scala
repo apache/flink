@@ -18,10 +18,10 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.operators.Operator
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase
+import org.apache.flink.api.common.operators.base.JoinOperatorBase
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
 import org.apache.flink.api.java.operators.JoinOperator.{JoinType, EquiJoin}
@@ -246,7 +246,7 @@ class UnfinishedJoinOperation[L, R](
       getCallLocationName(), joinType) {
 
       override protected def translateToDataFlow(input1: Operator[L], input2: Operator[R]):
-          AbstractJoinOperatorBase[_, _, (L, R), _] = {
+          JoinOperatorBase[_, _, (L, R), _] = {
         if (joinType.isOuter) {
           throw new InvalidProgramException("Must specify a custom join function for outer join")
         }

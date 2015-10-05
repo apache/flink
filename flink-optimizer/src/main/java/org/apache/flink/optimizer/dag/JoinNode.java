@@ -23,8 +23,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -47,7 +47,7 @@ public class JoinNode extends TwoInputNode {
 	 * 
 	 * @param joinOperatorBase The join operator object.
 	 */
-	public JoinNode(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
+	public JoinNode(InnerJoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
 		super(joinOperatorBase);
 		
 		this.dataProperties = getDataProperties(joinOperatorBase,
@@ -62,8 +62,8 @@ public class JoinNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public JoinOperatorBase<?, ?, ?, ?> getOperator() {
-		return (JoinOperatorBase<?, ?, ?, ?>) super.getOperator();
+	public InnerJoinOperatorBase<?, ?, ?, ?> getOperator() {
+		return (InnerJoinOperatorBase<?, ?, ?, ?>) super.getOperator();
 	}
 
 	@Override
@@ -111,7 +111,7 @@ public class JoinNode extends TwoInputNode {
 		}
 	}
 	
-	private List<OperatorDescriptorDual> getDataProperties(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint,
+	private List<OperatorDescriptorDual> getDataProperties(InnerJoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint,
 			Partitioner<?> customPartitioner)
 	{
 		// see if an internal hint dictates the strategy to use

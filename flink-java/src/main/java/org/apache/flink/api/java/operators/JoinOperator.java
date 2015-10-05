@@ -33,9 +33,9 @@ import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.common.operators.base.AbstractJoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -130,7 +130,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		this.keys1 = keys1;
 		this.keys2 = keys2;
-		this.joinHint = hint == null ? JoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES : hint;
+		this.joinHint = hint == null ? InnerJoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES : hint;
 		this.joinType = type;
 	}
 	
@@ -315,7 +315,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		@Override
-		protected AbstractJoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
+		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 			String name = getName() != null ? getName() : "Join at " + joinLocationName;
 
 			JoinOperatorBaseBuilder<OUT> builder = new JoinOperatorBaseBuilder<OUT>(name, joinType)
@@ -470,8 +470,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 
 			@SuppressWarnings("unchecked")
-			public AbstractJoinOperatorBase<?, ?, OUT, ?> build() {
-				AbstractJoinOperatorBase<?, ?, OUT, ?> operator;
+			public JoinOperatorBase<?, ?, OUT, ?> build() {
+				JoinOperatorBase<?, ?, OUT, ?> operator;
 				if (joinType.isOuter()) {
 					operator = new OuterJoinOperatorBase<>(
 							udf,
@@ -481,7 +481,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 							this.name,
 							getOuterJoinType());
 				} else {
-					operator = new JoinOperatorBase<>(
+					operator = new InnerJoinOperatorBase<>(
 							udf,
 							new BinaryOperatorInformation(input1Type, input2Type, resultType),
 							this.keys1.computeLogicalKeyPositions(),
@@ -893,7 +893,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		private final JoinType joinType;
 
 		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
-			this(input1, input2, JoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES);
+			this(input1, input2, InnerJoinOperatorBase.JoinHint.OPTIMIZER_CHOOSES);
 		}
 		
 		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
