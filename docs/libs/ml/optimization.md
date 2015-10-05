@@ -79,7 +79,7 @@ few large ones.
 The $L_1$ penalty can be used to drive a number of the solution coefficients to 0, thereby
 producing sparse solutions.
 The regularization constant $\lambda$ in $\eqref{eq:objectiveFunc}$ determines the amount of regularization applied to the model,
-and is usually determined through model cross-validation. 
+and is usually determined through model cross-validation.
 A good comparison of regularization types can be found in [this](http://www.robotics.stanford.edu/~ang/papers/icml04-l1l2.pdf) paper by Andrew Ng.
 Which regularization type is supported depends on the actually used optimization algorithm.
 
@@ -97,9 +97,7 @@ In mini-batch SGD we instead sample random subsets of the dataset, and compute t
 over each batch. At each iteration of the algorithm we update the weights once, based on
 the average of the gradients computed from each mini-batch.
 
-An important parameter is the learning rate $\eta$, or step size, which is currently determined as
-$\eta = \eta_0/\sqrt{j}$, where $\eta_0$ is the initial step size and $j$ is the iteration
-number. The setting of the initial step size can significantly affect the performance of the
+An important parameter is the learning rate $\eta$, or step size, which can be determined by one of five methods, listed below. The setting of the initial step size can significantly affect the performance of the
 algorithm. For some practical tips on tuning SGD see Leon Botou's
 "[Stochastic Gradient Descent Tricks](http://research.microsoft.com/pubs/192769/tricks-2012.pdf)".
 
@@ -159,7 +157,7 @@ The following list contains a mapping between the implementing classes and the r
         <td><strong>RegularizationConstant</strong></td>
         <td>
           <p>
-            The amount of regularization to apply. (Default value: <strong>0.0</strong>)
+            The amount of regularization to apply. (Default value: <strong>0.1</strong>)
           </p>
         </td>
       </tr>
@@ -192,9 +190,26 @@ The following list contains a mapping between the implementing classes and the r
           </p>
         </td>
       </tr>
+      <tr>
+        <td><strong>OptimizationMethod</strong></td>
+        <td>
+          <p>
+            (Default value: <strong>"default"</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Decay</strong></td>
+        <td>
+          <p>
+
+            (Default value: <strong>0.0</strong>)
+          </p>
+        </td>
+      </tr>
     </tbody>
   </table>
-  
+
 ### Loss Function
 
 The loss function which is minimized has to implement the `LossFunction` interface, which defines methods to compute the loss and the gradient of it.
@@ -202,12 +217,12 @@ Either one defines ones own `LossFunction` or one uses the `GenericLossFunction`
 An example can be seen here
 
 ```Scala
-val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction) 
+val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 ```
 
 The full list of supported outer loss functions can be found [here](#partial-loss-function-values).
 The full list of supported prediction functions can be found [here](#prediction-function-values).
-  
+
 #### Partial Loss Function Values ##
 
   <table class="table table-bordered">
@@ -259,6 +274,84 @@ The full list of supported prediction functions can be found [here](#prediction-
       </tbody>
     </table>
 
+#### Effective Learning Rate ##
+
+Where:
+
+- $j$ is the iteration number
+
+- $\eta_j$ is the step size on step $j$
+
+- $\eta_0$ is the initial step size
+
+- $\lambda$ is the regularization constant
+
+- $\tau$ is the decay constant, which causes the learning rate to be a decreasing function of $j$, that is to say as iterations increase, learning rate decreases. The exact rate of decay is function specific, see **Inverse Scaling** and **Wei Xu's Method** (which is an extension of the **Inverse Scaling** method).
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 20%">Function Name</th>
+        <th class="text-center">Description</th>
+        <th class="text-center">Function</th>
+        <th class="text-center">Called As</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Default</strong></td>
+        <td>
+          <p>
+            The function default method used for determining the step size. This is equivalent to the inverse scaling method for $\tau$ = 0.5.  This special case is kept as the default to maintain backwards compatibility.
+          </p>
+        </td>
+        <td class="text-center">$\eta_j = \eta_0/\sqrt{j}$</td>
+        <td class="text-center"><code>LearningRateMethod.Default</code></td>
+      </tr>
+      <tr>
+        <td><strong>Constant</strong></td>
+        <td>
+          <p> 
+            The step size is constant throughout the learning task.
+          </p>
+        </td>
+        <td class="text-center">$\eta_j = \eta_0$</td>
+        <td class="text-center"><code>LearningRateMethod.Constant</code></td>
+      </tr>
+      <tr>
+        <td><strong>Leon Bottou's Method</strong></td>
+        <td>
+          <p>
+            This is the <code>'optimal'</code> method of sklearn.  Chooses optimal initial $t_0 = \lambda \cdot eta_0$, based on Leon Bottou's <a href="http://leon.bottou.org/slides/largescale/lstut.pdf">Learning with Large Data Sets</a>
+          </p>
+        </td>
+        <td class="text-center">$\eta_j = 1 / (\lambda \cdot (\frac{1}{\lambda \cdot eta_0) } +j -1) $</td>
+        <td class="text-center"><code>LearningRateMethod.Bottou</code></td>
+      </tr>
+      <tr>
+        <td><strong>Inverse Scaling</strong></td>
+        <td>
+          <p>
+            A very common method for determining the step size.
+          </p>
+        </td>
+        <td class="text-center">$\eta_j = \lambda / j^{\tau}$</td>
+        <td class="text-center"><code>LearningRateMethod.InvScaling</code></td>
+      </tr>
+      <tr>
+        <td><strong>Wei Xu's Method</strong></td>
+        <td>
+          <p>
+            Method proposed by Wei Xu in <a href="http://arxiv.org/pdf/1107.2490.pdf">Towards Optimal One Pass Large Scale Learning with
+            Averaged Stochastic Gradient Descent</a>
+          </p>
+        </td>
+        <td class="text-center">$\eta_j = \lambda \cdot (1+ \lambda \cdot \eta_0 \cdot j)^{-\tau} $</td>
+        <td class="text-center"><code>LearningRateMethod.Xu</code></td>
+      </tr>
+    </tbody>
+  </table>
+
 ### Examples
 
 In the Flink implementation of SGD, given a set of examples in a `DataSet[LabeledVector]` and
@@ -279,6 +372,8 @@ val sgd = GradientDescentL1()
   .setRegularizationConstant(0.2)
   .setIterations(100)
   .setLearningRate(0.01)
+  .setOptimizationMethod("xu")
+  .setDecay(-0.75)
 
 
 // Obtain data
