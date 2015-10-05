@@ -45,7 +45,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
       .setIterations(2000)
       .setLossFunction(lossFunction)
       .setRegularizationConstant(0.3)
-
+      
     val inputDS: DataSet[LabeledVector] = env.fromCollection(regularizationData)
 
     val weightDS = sgd.optimize(inputDS, None)
@@ -240,6 +240,38 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     weight0NoConvergence should not be (weight0Early +- 0.1)
   }
 
+  it should "come up with similar parameter estimates with xu step-size strategy" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
+
+    val sgd = SimpleGradientDescent()
+      .setStepsize(1.0)
+      .setIterations(800)
+      .setLossFunction(lossFunction)
+      .setLearningRateMethod(LearningRateMethod.Xu)
+      .setDecay(-0.75)
+
+    val inputDS = env.fromCollection(data)
+    val weightDS = sgd.optimize(inputDS, None)
+
+    val weightList: Seq[WeightVector] = weightDS.collect()
+
+    weightList.size should equal(1)
+
+    val weightVector: WeightVector = weightList.head
+
+    val weights = weightVector.weights.asInstanceOf[DenseVector].data
+    val weight0 = weightVector.intercept
+
+    expectedWeights zip weights foreach {
+      case (expectedWeight, weight) =>
+        weight should be (expectedWeight +- 0.1)
+    }
+    weight0 should be (expectedWeight0 +- 0.1)
+  }
   // TODO: Need more corner cases, see sklearn tests for SGD linear model
 
 }

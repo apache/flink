@@ -22,7 +22,8 @@ package org.apache.flink.ml.optimization
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math._
-import org.apache.flink.ml.optimization.IterativeSolver.{ConvergenceThreshold, Iterations, LearningRate}
+import org.apache.flink.ml.optimization.IterativeSolver._
+import org.apache.flink.ml.optimization.LearningRateMethod.LearningRateMethodTrait
 import org.apache.flink.ml.optimization.Solver._
 import org.apache.flink.ml._
 
@@ -43,6 +44,10 @@ import org.apache.flink.ml._
   *                      [[IterativeSolver.ConvergenceThreshold]] when provided the algorithm will
   *                      stop the iterations if the relative change in the value of the objective
   *                      function between successive iterations is is smaller than this value.
+  *                      [[IterativeSolver.LearningRateMethodValue]] determines functional form of
+  *                      effective learning rate.
+  *                      [[IterativeSolver.Decay]] Used in some functional forms for determining
+  *                      effective learning rate.
   */
 abstract class GradientDescent extends IterativeSolver {
 
@@ -61,7 +66,8 @@ abstract class GradientDescent extends IterativeSolver {
     val lossFunction = parameters(LossFunction)
     val learningRate = parameters(LearningRate)
     val regularizationConstant = parameters(RegularizationConstant)
-
+    val learningRateMethod = parameters(LearningRateMethodValue)
+    val decay = parameters(Decay)
     // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
@@ -75,7 +81,9 @@ abstract class GradientDescent extends IterativeSolver {
           numberOfIterations,
           regularizationConstant,
           learningRate,
-          lossFunction)
+          lossFunction,
+          learningRateMethod,
+          decay)
       case Some(convergence) =>
         optimizeWithConvergenceCriterion(
           data,
@@ -84,7 +92,9 @@ abstract class GradientDescent extends IterativeSolver {
           regularizationConstant,
           learningRate,
           convergence,
-          lossFunction
+          lossFunction,
+          learningRateMethod,
+          decay
         )
     }
   }
@@ -96,7 +106,9 @@ abstract class GradientDescent extends IterativeSolver {
       regularizationConstant: Double,
       learningRate: Double,
       convergenceThreshold: Double,
-      lossFunction: LossFunction)
+      lossFunction: LossFunction,
+      learningRateMethod: LearningRateMethodTrait,
+      decay: Double)
     : DataSet[WeightVector] = {
     // We have to calculate for each weight vector the sum of squared residuals,
     // and then sum them and apply regularization
@@ -119,7 +131,9 @@ abstract class GradientDescent extends IterativeSolver {
           previousWeightsDS,
           lossFunction,
           regularizationConstant,
-          learningRate)
+          learningRate,
+          learningRateMethod,
+          decay)
 
         val currentLossSumDS = calculateLoss(dataPoints, currentWeightsDS, lossFunction)
 
@@ -148,11 +162,19 @@ abstract class GradientDescent extends IterativeSolver {
       numberOfIterations: Int,
       regularizationConstant: Double,
       learningRate: Double,
-      lossFunction: LossFunction)
+      lossFunction: LossFunction,
+      optimizationMethod: LearningRateMethodTrait,
+      decay: Double)
     : DataSet[WeightVector] = {
     initialWeightsDS.iterate(numberOfIterations) {
       weightVectorDS => {
-        SGDStep(data, weightVectorDS, lossFunction, regularizationConstant, learningRate)
+        SGDStep(data,
+                weightVectorDS,
+                lossFunction,
+                regularizationConstant,
+                learningRate,
+                optimizationMethod,
+                decay)
       }
     }
   }
@@ -168,7 +190,9 @@ abstract class GradientDescent extends IterativeSolver {
     currentWeights: DataSet[WeightVector],
     lossFunction: LossFunction,
     regularizationConstant: Double,
-    learningRate: Double)
+    learningRate: Double,
+    learningRateMethod: LearningRateMethodTrait,
+    decay: Double)
   : DataSet[WeightVector] = {
 
     data.mapWithBcVariable(currentWeights){
@@ -190,8 +214,11 @@ abstract class GradientDescent extends IterativeSolver {
         BLAS.scal(1.0/count, weights)
 
         val gradient = WeightVector(weights, intercept/count)
-
-        val effectiveLearningRate = learningRate/Math.sqrt(iteration)
+        val effectiveLearningRate = learningRateMethod.calculateLearningRate(
+          learningRate,
+          iteration,
+          regularizationConstant,
+          decay)
 
         val newWeights = takeStep(
           weightVector.weights,
