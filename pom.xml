@@ -582,6 +582,21 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+			<dependencies>
+				<dependency>
+					<!--
+					This is necessary for building the java docs using Java 8. Otherwise the javadoc
+					plugin will fail with "javadoc: error -
+						com.sun.tools.doclets.internal.toolkit.util.DocletAbortException:
+							com.sun.tools.javac.code.Symbol$CompletionFailure:
+								class file for akka.testkit.TestKit not found"
+					-->
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<version>${akka.version}</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
 		</profile>
 		
 		<profile>
