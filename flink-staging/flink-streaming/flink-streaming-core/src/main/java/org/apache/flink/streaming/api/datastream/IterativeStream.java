@@ -32,13 +32,13 @@ import java.util.Collection;
  * 
  * @param <T> Type of the elements in this Stream
  */
-public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, IterativeDataStream<T>> {
+public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeStream<T>> {
 
 	// We store these so that we can create a co-iteration if we need to
 	private DataStream<T> originalInput;
 	private long maxWaitTime;
 	
-	protected IterativeDataStream(DataStream<T> dataStream, long maxWaitTime) {
+	protected IterativeStream(DataStream<T> dataStream, long maxWaitTime) {
 		super(dataStream.getExecutionEnvironment(),
 				new FeedbackTransformation<T>(dataStream.getTransformation(), maxWaitTime));
 		this.originalInput = dataStream;
@@ -88,9 +88,9 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 * 
 	 * @param feedbackTypeString
 	 *            String describing the type information of the feedback stream.
-	 * @return A {@link ConnectedIterativeDataStreams}.
+	 * @return A {@link ConnectedIterativeStreams}.
 	 */
-	public <F> ConnectedIterativeDataStreams<T, F> withFeedbackType(String feedbackTypeString) {
+	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(String feedbackTypeString) {
 		return withFeedbackType(TypeInfoParser.<F> parse(feedbackTypeString));
 	}
 
@@ -104,9 +104,9 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 * 
 	 * @param feedbackTypeClass
 	 *            Class of the elements in the feedback stream.
-	 * @return A {@link ConnectedIterativeDataStreams}.
+	 * @return A {@link ConnectedIterativeStreams}.
 	 */
-	public <F> ConnectedIterativeDataStreams<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
+	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(Class<F> feedbackTypeClass) {
 		return withFeedbackType(TypeExtractor.getForClass(feedbackTypeClass));
 	}
 
@@ -120,14 +120,14 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 * 
 	 * @param feedbackType
 	 *            The type information of the feedback stream.
-	 * @return A {@link ConnectedIterativeDataStreams}.
+	 * @return A {@link ConnectedIterativeStreams}.
 	 */
-	public <F> ConnectedIterativeDataStreams<T, F> withFeedbackType(TypeInformation<F> feedbackType) {
-		return new ConnectedIterativeDataStreams<T, F>(originalInput, feedbackType, maxWaitTime);
+	public <F> ConnectedIterativeStreams<T, F> withFeedbackType(TypeInformation<F> feedbackType) {
+		return new ConnectedIterativeStreams<T, F>(originalInput, feedbackType, maxWaitTime);
 	}
 	
 	/**
-	 * The {@link ConnectedIterativeDataStreams} represent a start of an
+	 * The {@link ConnectedIterativeStreams} represent a start of an
 	 * iterative part of a streaming program, where the original input of the
 	 * iteration and the feedback of the iteration are connected as in a
 	 * {@link ConnectedStreams}.
@@ -142,11 +142,11 @@ public class IterativeDataStream<T> extends SingleOutputStreamOperator<T, Iterat
 	 * @param <F>
 	 *            Type of the feedback of the iteration
 	 */
-	public static class ConnectedIterativeDataStreams<I, F> extends ConnectedStreams<I, F> {
+	public static class ConnectedIterativeStreams<I, F> extends ConnectedStreams<I, F> {
 
 		private CoFeedbackTransformation<F> coFeedbackTransformation;
 
-		public ConnectedIterativeDataStreams(DataStream<I> input,
+		public ConnectedIterativeStreams(DataStream<I> input,
 				TypeInformation<F> feedbackType,
 				long waitTime) {
 			super(input.getExecutionEnvironment(),
