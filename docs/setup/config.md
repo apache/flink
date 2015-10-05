@@ -106,6 +106,44 @@ and replication factors. Flink will look for the "core-site.xml" and
 
 ## Advanced Options
 
+### Managed Memory
+
+By default, Flink allocates a fraction of 0.7 of the total memory configured via
+`taskmanager.heap.mb` for its managed memory. Managed memory helps Flink to run
+the operators efficiently. It prevents OutOfMemoryExceptions because Flink knows
+how much memory it can use to execute operations. If Flink runs out of managed
+memory, it utilizes disk space. Using managed memory, some operations can be
+performed directly on the raw data without having to deserialize the data to
+convert it into Java objects. All in all, managed memory improves the robustness
+and speed of the system.
+
+The default fraction for managed memory can be adjusted using the
+`taskmanager.memory.fraction` parameter. An absolute value may be set using
+`taskmanager.memory.size` (overrides the fraction parameter). If desired, the
+managed memory may be allocated outside the JVM heap. This may improve
+performance in setups with large memory sizes.
+
+- `taskmanager.memory.size`: The amount of memory (in megabytes) that the task
+manager reserves on the JVM's heap space for sorting, hash tables, and caching
+of intermediate results. If unspecified (-1), the memory manager will take a fixed
+ratio of the heap memory available to the JVM, as specified by
+`taskmanager.memory.fraction`. (DEFAULT: -1)
+
+- `taskmanager.memory.fraction`: The relative amount of memory that the task
+manager reserves for sorting, hash tables, and caching of intermediate results.
+For example, a value of 0.8 means that TaskManagers reserve 80% of the
+JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
+free for objects created by user-defined functions. (DEFAULT: 0.7)
+This parameter is only evaluated, if `taskmanager.memory.size` is not set.
+
+- `taskmanager.memory.off-heap`: If set to `true`, the task manager allocates
+memory which is used for sorting, hash tables, and caching of intermediate
+results outside of the JVM heap. For setups with larger quantities of memory,
+this can improve the efficiency of the operations performed on the memory
+(DEFAULT: false).
+
+### Other
+
 - `taskmanager.tmp.dirs`: The directory for temporary files, or a list of
 directories separated by the systems directory delimiter (for example ':'
 (colon) on Linux/Unix). If multiple directories are specified, then the temporary
@@ -134,19 +172,6 @@ network stack. This number determines how many streaming data exchange channels
 a TaskManager can have at the same time and how well buffered the channels are.
 If a job is rejected or you get a warning that the system has not enough buffers
 available, increase this value (DEFAULT: 2048).
-
-- `taskmanager.memory.size`: The amount of memory (in megabytes) that the task
-manager reserves on the JVM's heap space for sorting, hash tables, and caching
-of intermediate results. If unspecified (-1), the memory manager will take a fixed
-ratio of the heap memory available to the JVM, as specified by
-`taskmanager.memory.fraction`. (DEFAULT: -1)
-
-- `taskmanager.memory.fraction`: The relative amount of memory that the task
-manager reserves for sorting, hash tables, and caching of intermediate results.
-For example, a value of 0.8 means that TaskManagers reserve 80% of the
-JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
-free for objects created by user-defined functions. (DEFAULT: 0.7)
-This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 
 - `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts
 and Flink's YARN client.
