@@ -148,6 +148,12 @@ JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
 free for objects created by user-defined functions. (DEFAULT: 0.7)
 This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 
+- `taskmanager.memory.off-heap`: If set to `true`, the task manager allocates
+memory which is used for sorting, hash tables, and caching of intermediate
+results outside of the JVM heap. For setups with larger quantities of memory,
+this can improve the efficiency of the operations performed on the memory
+(DEFAULT: false).
+
 - `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts
 and Flink's YARN client.
 This can be used to set different garbage collectors or to include remote debuggers into 
