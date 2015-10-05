@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream.ConnectedIterativeStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
@@ -212,7 +212,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 		DataStreamSink<Integer> head3 = iter1.map(NoOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2).addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(NoOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
-		SplitDataStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
+		SplitStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
 				.map(NoOpIntMap).name("EvenOddSourceMap")
 				.split(new EvenOddOutputSelector());
 
@@ -295,7 +295,7 @@ public class IterateTest extends StreamingMultipleProgramsTestBase {
 				.addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(NoOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
-		SplitDataStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
+		SplitStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
 				.map(NoOpIntMap)
 				.name("split")
 				.split(new EvenOddOutputSelector());

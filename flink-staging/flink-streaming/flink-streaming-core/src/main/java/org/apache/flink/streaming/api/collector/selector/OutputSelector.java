@@ -20,12 +20,12 @@ package org.apache.flink.streaming.api.collector.selector;
 import java.io.Serializable;
 
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 
 /**
- * Interface for defining an OutputSelector for a {@link SplitDataStream} using
+ * Interface for defining an OutputSelector for a {@link SplitStream} using
  * the {@link SingleOutputStreamOperator#split} call. Every output object of a
- * {@link SplitDataStream} will run through this operator to select outputs.
+ * {@link SplitStream} will run through this operator to select outputs.
  * 
  * @param <OUT>
  *            Type parameter of the split values.

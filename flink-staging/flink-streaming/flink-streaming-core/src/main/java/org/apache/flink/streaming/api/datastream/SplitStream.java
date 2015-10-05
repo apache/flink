@@ -23,16 +23,16 @@ import org.apache.flink.streaming.api.transformations.SelectTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
 
 /**
- * The SplitDataStream represents an operator that has been split using an
+ * The SplitStream represents an operator that has been split using an
  * {@link OutputSelector}. Named outputs can be selected using the
  * {@link #select} function. To apply transformation on the whole output simply
- * call the transformation on the SplitDataStream
+ * call the transformation on the SplitStream
  *
  * @param <OUT> The type of the elements in the Stream
  */
-public class SplitDataStream<OUT> extends DataStream<OUT> {
+public class SplitStream<OUT> extends DataStream<OUT> {
 
-	protected SplitDataStream(DataStream<OUT> dataStream, OutputSelector<OUT> outputSelector) {
+	protected SplitStream(DataStream<OUT> dataStream, OutputSelector<OUT> outputSelector) {
 		super(dataStream.getExecutionEnvironment(), new SplitTransformation<OUT>(dataStream.getTransformation(), outputSelector));
 	}
 

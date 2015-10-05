@@ -1,4 +1,5 @@
 /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,7 +45,7 @@ import org.apache.flink.stormcompatibility.wrappers.StormSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -112,7 +113,7 @@ public class FlinkTopologyBuilder {
 			} else {
 				source = env.addSource(spoutWrapper, spoutId,
 						TypeExtractor.getForClass(SplitStreamType.class));
-				SplitDataStream splitSource = source.split(new FlinkStormStreamSelector());
+				SplitStream splitSource = source.split(new FlinkStormStreamSelector());
 
 				for (String streamId : sourceStreams.keySet()) {
 					outputStreams.put(streamId, splitSource.select(streamId));
@@ -246,7 +247,7 @@ public class FlinkTopologyBuilder {
 										new StormBoltWrapper(userBolt, this.outputStreams.get(
 												producerId).get(inputStreamId)));
 
-								SplitDataStream splitStreams = outputStream
+								SplitStream splitStreams = outputStream
 										.split(new FlinkStormStreamSelector());
 
 								HashMap<String, DataStream> op = new HashMap<String, DataStream>();
