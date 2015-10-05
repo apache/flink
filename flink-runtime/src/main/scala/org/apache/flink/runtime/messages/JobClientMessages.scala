@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.messages
 
+import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.runtime.util.SerializedThrowable
 
 /**
  * This object contains the [[org.apache.flink.runtime.client.JobClient]] specific messages
@@ -47,4 +47,12 @@ object JobClientMessages {
    * @param jobGraph The job to be executed.
    */
   case class SubmitJobDetached(jobGraph: JobGraph)
+
+  /**
+   * This message is sent to the JobClient (via ask) to update the job manager.
+   * A response is issued when the job execution has finished.
+   *
+   * @param actorGateway The new leading JobManager actor gateway
+   */
+  case class UpdateJobManagerGateway(actorGateway: ActorGateway)
 }

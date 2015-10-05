@@ -62,6 +62,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import akka.actor.ActorSystem;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
@@ -69,6 +70,9 @@ import akka.actor.ActorSystem;
 public class Client {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
+
+	/** The client configuration */
+	private final Configuration config;
 
 	/**
 	 * The configuration to use for the client (optimizer, timeouts, ...) and to connect to the
@@ -131,7 +135,7 @@ public class Client {
 	 * @throws java.net.UnknownHostException Thrown, if the JobManager's hostname could not be resolved.   
 	 */
 	public Client(Configuration config, int maxSlots) throws IOException {
-
+		this.config = checkNotNull(config, "Configuration");
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 		this.maxSlots = maxSlots;
 
@@ -147,7 +151,6 @@ public class Client {
 		boolean success = false;
 
 		try {
-
 			FiniteDuration lookupTimeout = AkkaUtils.getLookupTimeout(config);
 			this.timeout = AkkaUtils.getTimeout(config);
 
@@ -402,7 +405,8 @@ public class Client {
 		}
 		try {
 			this.lastJobID = jobGraph.getJobID();
-			return JobClient.submitJobAndWait(actorSystem, jobManagerGateway, jobGraph, timeout, printStatusDuringExecution, classLoader);
+			return JobClient.submitJobAndWait(actorSystem, config, jobManagerGateway, jobGraph,
+					timeout, printStatusDuringExecution, classLoader);
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
 		}

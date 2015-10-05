@@ -25,6 +25,7 @@ import akka.actor.Terminated;
 import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.messages.JobClientMessages;
@@ -38,16 +39,21 @@ import java.util.UUID;
  * is used to submit jobs to the JobManager and to request the port of the BlobManager.
  */
 public class JobClientActor extends FlinkUntypedActor {
-	
-	private final ActorRef jobManager;
+
 	private final Logger logger;
 	private final boolean sysoutUpdates;
 
+	/** Job manager actor */
+	private ActorRef jobManager;
+
 	/** leader session ID of the JobManager when this actor was created */
-	private final UUID leaderSessionID;
+	private UUID leaderSessionID;
 
 	/** Actor which submits a job to the JobManager via this actor */
 	private ActorRef submitter;
+
+	/** The last received message */
+	private Object lastMessage;
 
 	public JobClientActor(ActorRef jobManager, Logger logger, boolean sysoutUpdates,
 			UUID leaderSessionID) {
@@ -58,10 +64,10 @@ public class JobClientActor extends FlinkUntypedActor {
 		this.leaderSessionID = leaderSessionID;
 		this.sysoutUpdates = sysoutUpdates;
 	}
-	
+
 	@Override
 	protected void handleMessage(Object message) {
-		
+
 		// =========== State Change Messages ===============
 
 		if (message instanceof ExecutionGraphMessages.ExecutionStateChanged) {
@@ -142,9 +148,32 @@ public class JobClientActor extends FlinkUntypedActor {
 			if (jobManager.equals(target)) {
 				String msg = "Lost connection to JobManager " + jobManager.path();
 				logger.info(msg);
-				submitter.tell(decorateMessage(new Status.Failure(new Exception(msg))), getSelf());
+				submitter.tell(decorateMessage(new Status.Failure(new JobManagerLostException(msg))), getSelf());
 			} else {
 				logger.error("Received 'Terminated' for unknown actor " + target);
+			}
+		}
+
+		// =========== Recovery ===============
+
+		else if (message instanceof JobClientMessages.UpdateJobManagerGateway) {
+			JobClientMessages.UpdateJobManagerGateway msg = (JobClientMessages.UpdateJobManagerGateway) message;
+
+			ActorGateway jobManagerGateway = msg.actorGateway();
+
+			this.jobManager = jobManagerGateway.actor();
+			this.leaderSessionID = jobManagerGateway.leaderSessionID();
+			this.submitter = getSender();
+
+			// If the last message was a result message, make sure to notify the submitter
+			if (lastMessage instanceof JobManagerMessages.JobResultSuccess ||
+					lastMessage instanceof JobManagerMessages.JobResultFailure) {
+
+				submitter.tell(decorateMessage(lastMessage), getSelf());
+			}
+			else {
+				// Watch the new job manager
+				getContext().watch(jobManager);
 			}
 		}
 
@@ -153,6 +182,8 @@ public class JobClientActor extends FlinkUntypedActor {
 		else {
 			logger.error("JobClient received unknown message: " + message);
 		}
+
+		lastMessage = message;
 	}
 
 	@Override
