@@ -28,7 +28,7 @@ import org.apache.flink.stormcompatibility.util.SplitStreamType;
 import org.apache.flink.stormcompatibility.wrappers.StormBoltWrapper;
 import org.apache.flink.stormcompatibility.wrappers.StormSpoutWrapper;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
@@ -60,7 +60,7 @@ public class SpoutSplitExample {
 				new StormSpoutWrapper<SplitStreamType<Integer>>(new RandomSpout(true, 0),
 						rawOutputs), TypeExtractor.getForObject(new SplitStreamType<Integer>()));
 
-		SplitDataStream<SplitStreamType<Integer>> splitStream = numbers
+		SplitStream<SplitStreamType<Integer>> splitStream = numbers
 				.split(new FlinkStormStreamSelector<Integer>());
 
 		DataStream<SplitStreamType<Integer>> evenStream = splitStream.select(RandomSpout.EVEN_STREAM);

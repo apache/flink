@@ -18,13 +18,13 @@ package org.apache.flink.stormcompatibility.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 
 /**
  * Strips {@link SplitStreamType}{@code <T>} away, ie, extracts the wrapped record of type {@code T}. Can be used to get
  * a "clean" stream from a Spout/Bolt that declared multiple output streams (after the streams got separated using
  * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector) .split(...)} and
- * {@link SplitDataStream#select(String...) .select(...)}).
+ * {@link SplitStream#select(String...) .select(...)}).
  * 
  * @param <T>
  */

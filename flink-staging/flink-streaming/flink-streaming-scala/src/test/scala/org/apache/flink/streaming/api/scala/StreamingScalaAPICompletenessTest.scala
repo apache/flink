@@ -118,9 +118,9 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       classOf[ConnectedStreams[_,_]])
 
     checkMethods(
-      "SplitDataStream", "SplitDataStream",
-      classOf[org.apache.flink.streaming.api.datastream.SplitDataStream[_]],
-      classOf[SplitDataStream[_]])
+      "SplitStream", "SplitStream",
+      classOf[org.apache.flink.streaming.api.datastream.SplitStream[_]],
+      classOf[SplitStream[_]])
 
     checkMethods(
       "WindowedStream", "WindowedStream",

@@ -729,15 +729,15 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    * Operator used for directing tuples to specific named outputs using an
    * OutputSelector. Calling this method on an operator creates a new
-   * SplitDataStream.
+   * [[SplitStream]].
    */
-  def split(selector: OutputSelector[T]): SplitDataStream[T] = javaStream.split(selector)
+  def split(selector: OutputSelector[T]): SplitStream[T] = javaStream.split(selector)
 
   /**
-   * Creates a new SplitDataStream that contains only the elements satisfying the
+   * Creates a new [[SplitStream]] that contains only the elements satisfying the
    *  given output selector predicate.
    */
-  def split(fun: T => TraversableOnce[String]): SplitDataStream[T] = {
+  def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
     }

@@ -204,16 +204,16 @@ public class DataStream<T> {
 	/**
 	 * Operator used for directing tuples to specific named outputs using an
 	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
-	 * Calling this method on an operator creates a new {@link SplitDataStream}.
+	 * Calling this method on an operator creates a new {@link SplitStream}.
 	 * 
 	 * @param outputSelector
 	 *            The user defined
 	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
 	 *            for directing the tuples.
-	 * @return The {@link SplitDataStream}
+	 * @return The {@link SplitStream}
 	 */
-	public SplitDataStream<T> split(OutputSelector<T> outputSelector) {
-		return new SplitDataStream<T>(this, clean(outputSelector));
+	public SplitStream<T> split(OutputSelector<T> outputSelector) {
+		return new SplitStream<T>(this, clean(outputSelector));
 	}
 
 	/**
