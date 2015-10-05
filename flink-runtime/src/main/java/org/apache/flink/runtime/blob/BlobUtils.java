@@ -21,14 +21,19 @@ package org.apache.flink.runtime.blob;
 import com.google.common.io.BaseEncoding;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.util.IOUtils;
 import org.slf4j.Logger;
 
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -49,12 +54,12 @@ public class BlobUtils {
 	/**
 	 * The prefix of all BLOB files stored by the BLOB server.
 	 */
-	private static final String BLOB_FILE_PREFIX = "blob_";
+	static final String BLOB_FILE_PREFIX = "blob_";
 
 	/**
 	 * The prefix of all job-specific directories created by the BLOB server.
 	 */
-	private static final String JOB_DIR_PREFIX = "job_";
+	static final String JOB_DIR_PREFIX = "job_";
 
 	/**
 	 * The default character set to translate between characters and bytes.
@@ -103,7 +108,7 @@ public class BlobUtils {
 	static File getIncomingDirectory(File storageDir) {
 		final File incomingDir = new File(storageDir, "incoming");
 
-		if (!incomingDir.exists() && !incomingDir.mkdir()) {
+		if (!incomingDir.exists() && !incomingDir.mkdirs()) {
 			throw new RuntimeException("Cannot create directory for incoming files " + incomingDir.getAbsolutePath());
 		}
 
@@ -119,7 +124,7 @@ public class BlobUtils {
 	private static File getCacheDirectory(File storageDir) {
 		final File cacheDirectory = new File(storageDir, "cache");
 
-		if (!cacheDirectory.exists() && !cacheDirectory.mkdir()) {
+		if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
 			throw new RuntimeException("Could not create cache directory '" + cacheDirectory.getAbsolutePath() + "'.");
 		}
 
@@ -174,7 +179,7 @@ public class BlobUtils {
 	 *        the user's key for a BLOB
 	 * @return the internal name for the BLOB as used by the BLOB server
 	 */
-	private static String encodeKey(String key) {
+	static String encodeKey(String key) {
 		return BaseEncoding.base64().encode(key.getBytes(DEFAULT_CHARSET));
 	}
 
@@ -323,6 +328,66 @@ public class BlobUtils {
 					LOG.debug("Error while closing resource after BLOB transfer.", t);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Returns the path for the given blob key.
+	 *
+	 * <p>The returned path can be used with the state backend for recovery purposes.
+	 *
+	 * <p>This follows the same scheme as {@link #getStorageLocation(File, BlobKey)}.
+	 */
+	static String getRecoveryPath(String basePath, BlobKey blobKey) {
+		// format: $base/cache/blob_$key
+		return String.format("%s/cache/%s", basePath, BLOB_FILE_PREFIX + blobKey.toString());
+	}
+
+	/**
+	 * Returns the path for the given job ID and key.
+	 *
+	 * <p>The returned path can be used with the state backend for recovery purposes.
+	 *
+	 * <p>This follows the same scheme as {@link #getStorageLocation(File, JobID, String)}.
+	 */
+	static String getRecoveryPath(String basePath, JobID jobId, String key) {
+		// format: $base/job_$id/blob_$key
+		return String.format("%s/%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString(),
+				BLOB_FILE_PREFIX + encodeKey(key));
+	}
+
+	/**
+	 * Returns the path for the given job ID.
+	 *
+	 * <p>The returned path can be used with the state backend for recovery purposes.
+	 */
+	static String getRecoveryPath(String basePath, JobID jobId) {
+		return String.format("%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString());
+	}
+
+	/**
+	 * Copies the file from the recovery path to the local file.
+	 */
+	static void copyFromRecoveryPath(String recoveryPath, File localBlobFile) throws Exception {
+		if (recoveryPath == null) {
+			throw new IllegalStateException("Failed to determine recovery path.");
+		}
+
+		if (!localBlobFile.createNewFile()) {
+			throw new IllegalStateException("Failed to create new local file to copy to");
+		}
+
+		URI uri = new URI(recoveryPath);
+		Path path = new Path(recoveryPath);
+
+		if (FileSystem.get(uri).exists(path)) {
+			try (InputStream is = FileSystem.get(uri).open(path)) {
+				FileOutputStream fos = new FileOutputStream(localBlobFile);
+				IOUtils.copyBytes(is, fos); // closes the streams
+			}
+		}
+		else {
+			throw new IOException("Cannot find required BLOB at '" + recoveryPath + "' for recovery.");
 		}
 	}
 

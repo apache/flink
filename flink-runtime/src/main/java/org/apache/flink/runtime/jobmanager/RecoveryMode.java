@@ -24,11 +24,11 @@ import org.apache.flink.configuration.Configuration;
 /**
  * Recovery mode for Flink's cluster execution. Currently supported modes are:
  *
- *   - Standalone: No recovery from JobManager failures
- *   - ZooKeeper: JobManager high availability via ZooKeeper
- *     ZooKeeper is used to select a leader among a group of JobManager. This JobManager
- *     is responsible for the job execution. Upon failure of the leader a new leader is elected
- *     which will take over the responsibilities of the old leader
+ * - Standalone: No recovery from JobManager failures
+ * - ZooKeeper: JobManager high availability via ZooKeeper
+ * ZooKeeper is used to select a leader among a group of JobManager. This JobManager
+ * is responsible for the job execution. Upon failure of the leader a new leader is elected
+ * which will take over the responsibilities of the old leader
  */
 public enum RecoveryMode {
 	STANDALONE,
