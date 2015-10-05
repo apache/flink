@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 import java.util.Collection;
@@ -64,7 +64,7 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public final void setChainingStrategy(StreamOperator.ChainingStrategy strategy) {
+	public final void setChainingStrategy(ChainingStrategy strategy) {
 		operator.setChainingStrategy(strategy);
 	}
 }

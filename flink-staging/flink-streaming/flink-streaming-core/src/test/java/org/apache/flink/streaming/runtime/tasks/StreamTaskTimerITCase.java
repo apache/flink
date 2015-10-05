@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -59,7 +60,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-		source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator(StreamOperator.ChainingStrategy.ALWAYS));
+		source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator(ChainingStrategy.ALWAYS));
 
 		boolean testSuccess = false;
 		try {
@@ -95,7 +96,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<String> source = env.addSource(new InfiniteTestSource());
 
-		source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator(StreamOperator.ChainingStrategy.NEVER));
+		source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator(ChainingStrategy.NEVER));
 
 		boolean testSuccess = false;
 		try {
@@ -134,7 +135,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 		source.connect(source).transform(
 				"Custom Operator",
 				BasicTypeInfo.STRING_TYPE_INFO,
-				new TwoInputTimerOperator(StreamOperator.ChainingStrategy.NEVER));
+				new TwoInputTimerOperator(ChainingStrategy.NEVER));
 
 		boolean testSuccess = false;
 		try {
@@ -180,7 +181,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			if (first) {
-				getRuntimeContext().registerTimer(System.currentTimeMillis() + 100, this);
+				registerTimer(System.currentTimeMillis() + 100, this);
 				first = false;
 			}
 			numElements++;
@@ -197,7 +198,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			try {
 				numTimers++;
 				throwIfDone();
-				getRuntimeContext().registerTimer(System.currentTimeMillis() + 1, this);
+				registerTimer(System.currentTimeMillis() + 1, this);
 			} finally {
 				semaphore.release();
 			}
@@ -236,7 +237,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			if (first) {
-				getRuntimeContext().registerTimer(System.currentTimeMillis() + 100, this);
+				registerTimer(System.currentTimeMillis() + 100, this);
 				first = false;
 			}
 			numElements++;
@@ -251,7 +252,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			if (first) {
-				getRuntimeContext().registerTimer(System.currentTimeMillis() + 100, this);
+				registerTimer(System.currentTimeMillis() + 100, this);
 				first = false;
 			}
 			numElements++;
@@ -269,7 +270,7 @@ public class StreamTaskTimerITCase extends StreamingMultipleProgramsTestBase {
 			try {
 				numTimers++;
 				throwIfDone();
-				getRuntimeContext().registerTimer(System.currentTimeMillis() + 1, this);
+				registerTimer(System.currentTimeMillis() + 1, this);
 			} finally {
 				semaphore.release();
 			}

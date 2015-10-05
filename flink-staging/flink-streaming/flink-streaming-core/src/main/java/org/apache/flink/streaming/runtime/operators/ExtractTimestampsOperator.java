@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -46,11 +46,11 @@ public class ExtractTimestampsOperator<T>
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
+	public void open() throws Exception {
+		super.open();
+		watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 		if (watermarkInterval > 0) {
-			getRuntimeContext().registerTimer(System.currentTimeMillis() + watermarkInterval, this);
+			registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 		}
 
 		currentWatermark = Long.MIN_VALUE;
@@ -78,7 +78,7 @@ public class ExtractTimestampsOperator<T>
 	@Override
 	public void trigger(long timestamp) throws Exception {
 		// register next timer
-		getRuntimeContext().registerTimer(System.currentTimeMillis() + watermarkInterval, this);
+		registerTimer(System.currentTimeMillis() + watermarkInterval, this);
 		long lastWatermark = currentWatermark;
 		currentWatermark = userFunction.getCurrentWatermark();
 
@@ -90,6 +90,6 @@ public class ExtractTimestampsOperator<T>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		// ingore them, since we are basically a watermark source
+		// ignore them, since we are basically a watermark source
 	}
 }

@@ -17,24 +17,21 @@
  */
 package org.apache.flink.streaming.api.functions.source;
 
-
-import java.io.IOException;
-
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 
 /**
  * A stateful streaming source that emits each number from a given interval exactly once,
  * possibly in parallel.
  */
-public class StatefulSequenceSource extends RichParallelSourceFunction<Long> {
+public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements Checkpointed<Long> {
+	
 	private static final long serialVersionUID = 1L;
 
 	private final long start;
 	private final long end;
 
-	private OperatorState<Long> collected;
+	private long collected;
 
 	private volatile boolean isRunning = true;
 
@@ -62,25 +59,28 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> {
 				((end - start + 1) % stepSize > (congruence - start)) ?
 					((end - start + 1) / stepSize + 1) :
 					((end - start + 1) / stepSize);
-					
-		Long currentCollected = collected.value();
+		
 
-		while (isRunning && currentCollected < toCollect) {
+		while (isRunning && collected < toCollect) {
 			synchronized (checkpointLock) {
-				ctx.collect(currentCollected * stepSize + congruence);
-				collected.update(currentCollected + 1);
+				ctx.collect(collected * stepSize + congruence);
+				collected++;
 			}
-			currentCollected = collected.value();
 		}
-	}
-	
-	@Override
-	public void open(Configuration conf) throws IOException{
-		collected = getRuntimeContext().getOperatorState("collected", 0L, false);
 	}
 
 	@Override
 	public void cancel() {
 		isRunning = false;
+	}
+
+	@Override
+	public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+		return collected;
+	}
+
+	@Override
+	public void restoreState(Long state) {
+		collected = state;
 	}
 }

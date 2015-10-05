@@ -228,11 +228,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def keyBy[K: TypeInformation](fun: T => K): KeyedStream[T, K] = {
 
     val cleanFun = clean(fun)
+    val keyType: TypeInformation[K] = implicitly[TypeInformation[K]]
+    
     val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
-      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
+      override def getProducedType: TypeInformation[K] = keyType
     }
-    javaStream.keyBy(keyExtractor)
+    new JavaKeyedStream(javaStream, keyExtractor, keyType)
   }
 
   /**
@@ -431,32 +433,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
     javaStream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]]
   }
-
-  /**
-   * Creates a new DataStream by applying the given stateful function to every element of this 
-   * DataStream. To use state partitioning, a key must be defined using .keyBy(..), in which 
-   * case an independent state will be kept per key.
-   * 
-   * Note that the user state object needs to be serializable.
-   */
-  def mapWithState[R: TypeInformation: ClassTag, S](
-      fun: (T, Option[S]) => (R, Option[S])): DataStream[R] = {
-    if (fun == null) {
-      throw new NullPointerException("Map function must not be null.")
-    }
-
-    val cleanFun = clean(fun)
-    val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
-      override def map(in: T): R = {
-        applyWithState(in, cleanFun)
-      }
-
-      val partitioned = isStatePartitioned
-    }
-    
-    map(mapper)
-  }
-
+  
   /**
    * Creates a new DataStream by applying the given function to every element and flattening
    * the results.
@@ -501,32 +478,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new DataStream by applying the given stateful function to every element and 
-   * flattening the results. To use state partitioning, a key must be defined using .keyBy(..), 
-   * in which case an independent state will be kept per key.
-   * 
-   * Note that the user state object needs to be serializable.
-   */
-  def flatMapWithState[R: TypeInformation: ClassTag, S](
-      fun: (T, Option[S]) => (TraversableOnce[R], Option[S])):
-      DataStream[R] = {
-    if (fun == null) {
-      throw new NullPointerException("Flatmap function must not be null.")
-    }
-
-    val cleanFun = clean(fun)
-    val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T,TraversableOnce[R],S]{
-      override def flatMap(in: T, out: Collector[R]): Unit = {
-        applyWithState(in, cleanFun) foreach out.collect
-      }
-
-      val partitioned = isStatePartitioned
-    }
-
-    flatMap(flatMapper)
-  }
-
-  /**
    * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
    */
   def filter(filter: FilterFunction[T]): DataStream[T] = {
@@ -548,35 +499,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def filter(in: T) = cleanFun(in)
     }
     this.filter(filter)
-  }
-  
-  /**
-   * Creates a new DataStream that contains only the elements satisfying the given stateful filter 
-   * predicate. To use state partitioning, a key must be defined using .keyBy(..), in which case
-   * an independent state will be kept per key.
-   * 
-   * Note that the user state object needs to be serializable.
-   */
-  def filterWithState[S](
-      fun: (T, Option[S]) => (Boolean, Option[S])): DataStream[T] = {
-    if (fun == null) {
-      throw new NullPointerException("Filter function must not be null.")
-    }
-
-    val cleanFun = clean(fun)
-    val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
-      override def filter(in: T): Boolean = {
-        applyWithState(in, cleanFun)
-      }
-
-      val partitioned = isStatePartitioned
-    }
-    
-    filter(filterFun)
-  }
-
-  private[flink] def isStatePartitioned: Boolean = {
-    javaStream.isInstanceOf[JavaKeyedStream[_, _]]
   }
 
   /**

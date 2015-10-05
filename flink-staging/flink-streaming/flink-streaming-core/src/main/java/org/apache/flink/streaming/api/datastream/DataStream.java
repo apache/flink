@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -172,8 +172,9 @@ public class DataStream<T> {
 	 *            The DataStreams to union output with.
 	 * @return The {@link DataStream}.
 	 */
-	public DataStream<T> union(DataStream<T>... streams) {
-		List<StreamTransformation<T>> unionedTransforms = Lists.newArrayList();
+	@SafeVarargs
+	public final DataStream<T> union(DataStream<T>... streams) {
+		List<StreamTransformation<T>> unionedTransforms = new ArrayList<>();
 		unionedTransforms.add(this.transformation);
 
 		Collection<StreamTransformation<?>> thisPredecessors = this.getTransformation().getTransitivePredecessors();
@@ -185,6 +186,11 @@ public class DataStream<T> {
 								"This Stream: " + this.getTransformation() +
 								", other stream: " + newStream.getTransformation());
 			}
+			if (!getType().equals(newStream.getType())) {
+				throw new IllegalArgumentException("Cannot union streams of different types: "
+						+ getType() + " and " + newStream.getType());
+			}
+			
 			Collection<StreamTransformation<?>> predecessors = newStream.getTransformation().getTransitivePredecessors();
 
 			if (predecessors.contains(this.transformation) || thisPredecessors.contains(newStream.getTransformation())) {

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.util;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,26 +28,30 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+
+import static org.mockito.Mockito.*;
 
 public class SourceFunctionUtil<T> {
 
 	public static <T> List<T> runSourceFunction(SourceFunction<T> sourceFunction) throws Exception {
 		List<T> outputs = new ArrayList<T>();
+		
 		if (sourceFunction instanceof RichFunction) {
+
+			AbstractStreamOperator<?> operator = mock(AbstractStreamOperator.class);
+			when(operator.getExecutionConfig()).thenReturn(new ExecutionConfig());
+			
 			RuntimeContext runtimeContext =  new StreamingRuntimeContext(
+					operator,
 					new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-					new ExecutionConfig(), 
-					null, 
-					new LocalStateHandle.LocalStateHandleProvider<Serializable>(),
-					new HashMap<String, Accumulator<?, ?>>(),
-					null);
+					new HashMap<String, Accumulator<?, ?>>());
 			
 			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 

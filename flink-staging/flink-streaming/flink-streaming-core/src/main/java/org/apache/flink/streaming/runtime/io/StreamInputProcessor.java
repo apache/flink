@@ -42,7 +42,6 @@ import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordS
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
@@ -125,7 +124,8 @@ public class StreamInputProcessor<IN> {
 		lastEmittedWatermark = Long.MIN_VALUE;
 	}
 
-	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator, Object lock) throws Exception {
+	@SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
+	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator, final Object lock) throws Exception {
 		if (isFinished) {
 			return false;
 		}
@@ -161,11 +161,8 @@ public class StreamInputProcessor<IN> {
 					} else {
 						// now we can do the actual processing
 						StreamRecord<IN> record = recordOrWatermark.asRecord();
-						StreamingRuntimeContext ctx = streamOperator.getRuntimeContext();
 						synchronized (lock) {
-							if (ctx != null) {
-								ctx.setNextInput(record);
-							}
+							streamOperator.setKeyContextElement(record);
 							streamOperator.processElement(record);
 						}
 						return true;

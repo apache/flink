@@ -19,9 +19,10 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of
@@ -29,27 +30,25 @@ import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
  * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to create operators
  * that process elements.
  * 
- * <p>
- * The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
+ * <p> The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
  * offers default implementation for the lifecycle and properties methods.
  *
- * <p>
- * Methods of {@code StreamOperator} are guaranteed not to be called concurrently. Also, if using
+ * <p> Methods of {@code StreamOperator} are guaranteed not to be called concurrently. Also, if using
  * the timer service, timer callbacks are also guaranteed not to be called concurrently with
  * methods on {@code StreamOperator}.
  * 
  * @param <OUT> The output type of the operator
  */
 public interface StreamOperator<OUT> extends Serializable {
-
+	
 	// ------------------------------------------------------------------------
-	//  Life Cycle
+	//  life cycle
 	// ------------------------------------------------------------------------
 	
 	/**
 	 * Initializes the operator. Sets access to the context and the output.
 	 */
-	void setup(Output<StreamRecord<OUT>> output, StreamingRuntimeContext runtimeContext);
+	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
 
 	/**
 	 * This method is called immediately before any elements are processed, it should contain the
@@ -57,7 +56,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * 
 	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
 	 */
-	void open(Configuration config) throws Exception;
+	void open() throws Exception;
 
 	/**
 	 * This method is called after all records have been added to the operators via the methods
@@ -82,43 +81,66 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * that the operator has acquired.
 	 */
 	void dispose();
-	
 
 	// ------------------------------------------------------------------------
-	//  Context and chaining properties
+	//  state snapshots
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Called to draw a state snapshot from the operator. This method snapshots the operator state
+	 * (if the operator is stateful) and the key/value state (if it is being used and has been
+	 * initialized).
+	 *
+	 * @param checkpointId The ID of the checkpoint.
+	 * @param timestamp The timestamp of the checkpoint.
+	 *
+	 * @return The StreamTaskState object, possibly containing the snapshots for the
+	 *         operator and key/value state.
+	 *
+	 * @throws Exception Forwards exceptions that occur while drawing snapshots from the operator
+	 *                   and the key/value state.
+	 */
+	StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
 	
 	/**
-	 * Returns a context that allows the operator to query information about the execution and also
-	 * to interact with systems such as broadcast variables and managed state. This also allows
-	 * to register timers.
+	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
+	 * This method restores the operator state (if the operator is stateful) and the key/value state
+	 * (if it had been used and was initialized when the snapshot ocurred).
+	 *
+	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
+	 * and before {@link #open()}.
+	 *
+	 * @param state The state of operator that was snapshotted as part of checkpoint
+	 *              from which the execution is restored.
+	 *
+	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
+	 *                   properly react to failed state restore and fail the execution attempt.
 	 */
-	StreamingRuntimeContext getRuntimeContext();
+	void restoreState(StreamTaskState state) throws Exception;
 
+	/**
+	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.
+	 *
+	 * @param checkpointId The ID of the checkpoint that has been completed.
+	 *
+	 * @throws Exception Exceptions during checkpoint acknowledgement may be forwarded and will cause
+	 *                   the program to fail and enter recovery.
+	 */
+	void notifyOfCompletedCheckpoint(long checkpointId) throws Exception;
+
+	// ------------------------------------------------------------------------
+	//  miscellaneous
+	// ------------------------------------------------------------------------
+	
+	void setKeyContextElement(StreamRecord<?> record) throws Exception;
+	
 	/**
 	 * An operator can return true here to disable copying of its input elements. This overrides
 	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}
 	 */
 	boolean isInputCopyingDisabled();
-
-	void setChainingStrategy(ChainingStrategy strategy);
-
+	
 	ChainingStrategy getChainingStrategy();
 
-	/**
-	 * Defines the chaining scheme for the operator. By default <b>ALWAYS</b> is used,
-	 * which means operators will be eagerly chained whenever possible, for
-	 * maximal performance. It is generally a good practice to allow maximal
-	 * chaining and increase operator parallelism. </p> When the strategy is set
-	 * to <b>NEVER</b>, the operator will not be chained to the preceding or succeeding
-	 * operators.</p> <b>HEAD</b> strategy marks a start of a new chain, so that the
-	 * operator will not be chained to preceding operators, only succeding ones.
-	 *
-	 * <b>FORCE_ALWAYS</b> will enable chaining even if chaining is disabled on the execution
-	 * environment. This should only be used by system-level operators, not operators implemented
-	 * by users.
-	 */
-	public static enum ChainingStrategy {
-		FORCE_ALWAYS, ALWAYS, NEVER, HEAD
-	}
+	void setChainingStrategy(ChainingStrategy strategy);
 }

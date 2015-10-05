@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.functions.sink;
 import java.io.PrintStream;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 /**
  * Implementation of the SinkFunction writing every tuple to the standard

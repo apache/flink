@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -44,8 +43,8 @@ public class CoStreamFlatMap<IN1, IN2, OUT>
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+	public void open() throws Exception {
+		super.open();
 		collector = new TimestampedCollector<OUT>(output);
 	}
 

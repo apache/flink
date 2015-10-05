@@ -43,7 +43,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
@@ -211,13 +211,9 @@ public class StreamingJobGraphGenerator {
 			for (StreamEdge chainable : chainedOutputs) {
 				outputChainedNames.add(chainedNames.get(chainable.getTargetId()));
 			}
-			String returnOperatorName = operatorName + " -> ("
-					+ StringUtils.join(outputChainedNames, ", ") + ")";
-			return returnOperatorName;
+			return operatorName + " -> (" + StringUtils.join(outputChainedNames, ", ") + ")";
 		} else if (chainedOutputs.size() == 1) {
-			String returnOperatorName = operatorName + " -> "
-					+ chainedNames.get(chainedOutputs.get(0).getTargetId());
-			return returnOperatorName;
+			return operatorName + " -> " + chainedNames.get(chainedOutputs.get(0).getTargetId());
 		} else {
 			return operatorName;
 		}
@@ -249,9 +245,7 @@ public class StreamingJobGraphGenerator {
 		builtVertices.add(vertexID);
 		jobGraph.addVertex(jobVertex);
 
-		StreamConfig retConfig = new StreamConfig(jobVertex.getConfiguration());
-		retConfig.setOperatorName(chainedNames.get(vertexID));
-		return retConfig;
+		return new StreamConfig(jobVertex.getConfiguration());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -265,7 +259,7 @@ public class StreamingJobGraphGenerator {
 
 		config.setTypeSerializerIn1(vertex.getTypeSerializerIn1());
 		config.setTypeSerializerIn2(vertex.getTypeSerializerIn2());
-		config.setTypeSerializerOut1(vertex.getTypeSerializerOut());
+		config.setTypeSerializerOut(vertex.getTypeSerializerOut());
 
 		config.setStreamOperator(vertex.getOperator());
 		config.setOutputSelectorWrapper(vertex.getOutputSelectorWrapper());
@@ -277,13 +271,14 @@ public class StreamingJobGraphGenerator {
 		config.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
 		if (streamGraph.isCheckpointingEnabled()) {
 			config.setCheckpointMode(streamGraph.getCheckpointingMode());
-			config.setStateHandleProvider(streamGraph.getStateHandleProvider());
+			config.setStateBackend(streamGraph.getStateBackend());
 		} else {
 			// the at least once input handler is slightly cheaper (in the absence of checkpoints),
 			// so we use that one if checkpointing is not enabled
 			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
 		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
+		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
 		
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();

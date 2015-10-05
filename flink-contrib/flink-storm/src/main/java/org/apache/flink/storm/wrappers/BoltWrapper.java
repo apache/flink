@@ -29,7 +29,6 @@ import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.storm.util.SplitStreamType;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -62,11 +61,12 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	private final Fields inputSchema;
 	/** The original Storm topology. */
 	protected StormTopology stormTopology;
+	
 	/**
 	 *  We have to use this because Operators must output
 	 *  {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
 	 */
-	private TimestampedCollector<OUT> flinkCollector;
+	private transient TimestampedCollector<OUT> flinkCollector;
 
 	/**
 	 * Instantiates a new {@link BoltWrapper} that wraps the given Storm {@link IRichBolt bolt} such that it can be
@@ -206,8 +206,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	}
 
 	@Override
-	public void open(final Configuration parameters) throws Exception {
-		super.open(parameters);
+	public void open() throws Exception {
+		super.open();
 
 		this.flinkCollector = new TimestampedCollector<OUT>(output);
 		OutputCollector stormCollector = null;
@@ -217,7 +217,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 					this.numberOfAttributes, flinkCollector));
 		}
 
-		GlobalJobParameters config = super.executionConfig.getGlobalJobParameters();
+		GlobalJobParameters config = getExecutionConfig().getGlobalJobParameters();
 		StormConfig stormConfig = new StormConfig();
 
 		if (config != null) {
@@ -229,7 +229,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		}
 
 		final TopologyContext topologyContext = WrapperSetupHelper.createTopologyContext(
-				super.runtimeContext, this.bolt, this.stormTopology, stormConfig);
+				getRuntimeContext(), this.bolt, this.stormTopology, stormConfig);
 
 		this.bolt.prepare(stormConfig, topologyContext, stormCollector);
 	}

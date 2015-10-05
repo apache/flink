@@ -17,8 +17,9 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import java.util
+
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import java.util.HashSet
 
 /**
  * Test programs for stateful functions.
@@ -30,11 +31,13 @@ object StateTestPrograms {
     
     // test stateful map
     env.generateSequence(0, 10).setParallelism(1)
+      .keyBy(x => x)
       .mapWithState((in, count: Option[Long]) =>
         count match {
-          case Some(c) => ((in - c), Some(c + 1))
+          case Some(c) => (in - c, Some(c + 1))
           case None => (in, Some(1L))
         }).setParallelism(1)
+      
       .addSink(new RichSinkFunction[Long]() {
         var allZero = true
         override def invoke(in: Long) = {
@@ -46,13 +49,17 @@ object StateTestPrograms {
       })
 
     // test stateful flatmap
-    env.fromElements("Fir st-", "Hello world").flatMapWithState((w, s: Option[String]) =>
-      s match {
-        case Some(s) => (w.split(" ").toList.map(s + _), Some(w))
-        case None => (List(w), Some(w))
-      }).setParallelism(1)
+    env.fromElements("Fir st-", "Hello world")
+      .keyBy(x => x)
+      .flatMapWithState((w, s: Option[String]) =>
+        s match {
+          case Some(state) => (w.split(" ").toList.map(state + _), Some(w))
+          case None => (List(w), Some(w))
+        })
+      .setParallelism(1)
+      
       .addSink(new RichSinkFunction[String]() {
-        val received = new HashSet[String]()
+        val received = new util.HashSet[String]()
         override def invoke(in: String) = { received.add(in) }
         override def close() = {
           assert(received.size() == 3)

@@ -18,7 +18,8 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import java.util.Collection;
@@ -34,6 +35,7 @@ import java.util.List;
  * @param <T> The type of the elements that result from this {@code PartitionTransformation}
  */
 public class PartitionTransformation<T> extends StreamTransformation<T> {
+	
 	private final StreamTransformation<T> input;
 	private final StreamPartitioner<T> partitioner;
 
@@ -74,7 +76,7 @@ public class PartitionTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public final void setChainingStrategy(StreamOperator.ChainingStrategy strategy) {
+	public final void setChainingStrategy(ChainingStrategy strategy) {
 		throw new UnsupportedOperationException("Cannot set chaining strategy on Union Transformation.");
 	}
 }

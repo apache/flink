@@ -40,18 +40,5 @@ public class LocalStateHandle<T extends Serializable> implements StateHandle<T> 
 	}
 
 	@Override
-	public void discardState() throws Exception {
-	}
-
-	public static class LocalStateHandleProvider<R extends Serializable> implements
-			StateHandleProvider<R> {
-
-		private static final long serialVersionUID = 4665419208932921425L;
-
-		@Override
-		public LocalStateHandle<R> createStateHandle(R state) {
-			return new LocalStateHandle<R>(state);
-		}
-
-	}
+	public void discardState() {}
 }

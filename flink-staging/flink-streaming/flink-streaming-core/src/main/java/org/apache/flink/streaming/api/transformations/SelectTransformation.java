@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 import java.util.Collection;
 import java.util.List;
@@ -35,11 +35,12 @@ import java.util.List;
  * @param <T> The type of the elements that result from this {@code SelectTransformation}
  */
 public class SelectTransformation<T> extends StreamTransformation<T> {
+	
 	private final StreamTransformation<T> input;
-	private List<String> selectedNames;
+	private final List<String> selectedNames;
 
 	/**
-	 * Creates a new {@coe SelectionTransformation} from the given input that only selects
+	 * Creates a new {@code SelectionTransformation} from the given input that only selects
 	 * the streams with the selected names.
 	 *
 	 * @param input The input {@code StreamTransformation}
@@ -76,7 +77,7 @@ public class SelectTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public final void setChainingStrategy(StreamOperator.ChainingStrategy strategy) {
+	public final void setChainingStrategy(ChainingStrategy strategy) {
 		throw new UnsupportedOperationException("Cannot set chaining strategy on Select Transformation.");
 	}
 

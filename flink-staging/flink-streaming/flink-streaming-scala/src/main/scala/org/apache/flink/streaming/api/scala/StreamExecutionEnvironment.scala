@@ -19,13 +19,14 @@
 package org.apache.flink.streaming.api.scala
 
 import java.util.Objects
+import java.util.Objects._
 
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.runtime.state.StateHandleProvider
+import org.apache.flink.streaming.api.state.StateBackend
 import org.apache.flink.streaming.api.{TimeCharacteristic, CheckpointingMode}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
@@ -184,16 +185,38 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.enableCheckpointing()
     this
   }
+  
+  def getCheckpointingMode = javaEnv.getCheckpointingMode()
 
   /**
-   * Sets the given StateHandleProvider to be used for storing operator state
-   * checkpoints when checkpointing is enabled.
+   * Sets the state backend that describes how to store and checkpoint operator state.
+   * It defines in what form the key/value state, accessible from operations on
+   * [[KeyedStream]] is maintained (heap, managed memory, externally), and where state
+   * snapshots/checkpoints are stored, both for the key/value state, and for checkpointed
+   * functions (implementing the interface 
+   * [[org.apache.flink.streaming.api.checkpoint.Checkpointed]].
+   *
+   * <p>The [[org.apache.flink.streaming.api.state.memory.MemoryStateBackend]] for example
+   * maintains the state in heap memory, as objects. It is lightweight without extra 
+   * dependencies, but can checkpoint only small states (some counters).
+   *
+   * <p>In contrast, the [[org.apache.flink.streaming.api.state.filesystem.FsStateBackend]]
+   * stores checkpoints of the state (also maintained as heap objects) in files. When using
+   * a replicated file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee
+   * that state is not lost upon failures of individual nodes and that the entire streaming
+   * program can be executed highly available and strongly consistent (assuming that Flink
+   * is run in high-availability mode).
    */
-  def setStateHandleProvider(provider: StateHandleProvider[_]): StreamExecutionEnvironment = {
-    javaEnv.setStateHandleProvider(provider)
+  def setStateBackend(backend: StateBackend[_]): StreamExecutionEnvironment = {
+    javaEnv.setStateBackend(backend)
     this
   }
 
+  /**
+   * Returns the state backend that defines how to store and checkpoint state.
+   */
+  def getStateBackend: StateBackend[_] = javaEnv.getStateBackend()
+  
   /**
    * Sets the number of times that failed tasks are re-executed. A value of zero
    * effectively disables fault tolerance. A value of "-1" indicates that the system

@@ -142,7 +142,7 @@ public class StreamTaskTestHarness<OUT> {
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>()));
 		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
 		streamConfig.setNonChainedOutputs(outEdgesInOrder);
-		streamConfig.setTypeSerializerOut1(outputSerializer);
+		streamConfig.setTypeSerializerOut(outputSerializer);
 		streamConfig.setVertexID(0);
 
 	}
@@ -243,8 +243,8 @@ public class StreamTaskTestHarness<OUT> {
 		// first wait for all input queues to be empty
 		try {
 			Thread.sleep(1);
-		} catch (InterruptedException e) {
-		}
+		} catch (InterruptedException ignored) {}
+		
 		while (true) {
 			boolean allEmpty = true;
 			for (int i = 0; i < numInputGates; i++) {
@@ -254,8 +254,8 @@ public class StreamTaskTestHarness<OUT> {
 			}
 			try {
 				Thread.sleep(10);
-			} catch (InterruptedException e) {
-			}
+			} catch (InterruptedException ignored) {}
+			
 			if (allEmpty) {
 				break;
 			}
@@ -273,8 +273,7 @@ public class StreamTaskTestHarness<OUT> {
 
 			try {
 				Thread.sleep(1);
-			} catch (InterruptedException e) {
-			}
+			} catch (InterruptedException ignored) {}
 		}
 	}
 

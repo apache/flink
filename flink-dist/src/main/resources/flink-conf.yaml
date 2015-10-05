@@ -79,16 +79,17 @@ webclient.port: 8080
 # The backend that will be used to store operator state checkpoints if 
 # checkpointing is enabled. 
 #
-# Supported backends: jobmanager, filesystem
-
-state.backend: jobmanager
-
-
-# Directory for storing checkpoints in a flink supported filesystem
-# Note: State backend must be accessible from the JobManager, use file://
-# only for local setups. 
+# Supported backends: jobmanager, filesystem, <class-name-of-factory> 
 #
-# state.backend.fs.checkpointdir: hdfs://checkpoints
+#state.backend: filesystem
+
+
+# Directory for storing checkpoints in a Flink-supported filesystem
+# Note: State backend must be accessible from the JobManager and all TaskManagers.
+# Use "hdfs://" for HDFS setups, "file://" for UNIX/POSIX-compliant file systems,
+# (or any local file system under Windows), or "S3://" for S3 file system.
+#
+# state.backend.fs.checkpointdir: hdfs://namenode-host:port/flink-checkpoints
 
 
 #==============================================================================

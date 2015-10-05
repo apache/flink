@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.testutils;
 
 import static org.junit.Assert.fail;
@@ -37,8 +36,7 @@ import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
 /**
- * This class contains auxiliary methods for unit tests in the Nephele common module.
- * 
+ * This class contains reusable utility methods for unit tests.
  */
 public class CommonTestUtils {
 
@@ -127,9 +125,7 @@ public class CommonTestUtils {
 		T copy = null;
 		try {
 			copy = clazz.newInstance();
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
+		} catch (InstantiationException | IllegalAccessException e) {
 			fail(e.getMessage());
 		}
 
@@ -157,19 +153,14 @@ public class CommonTestUtils {
 		baos.close();
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		ObjectInputStream ois = new ObjectInputStream(bais);
 
-		T copy;
-		try {
-			copy = (T) ois.readObject();
+		try (ObjectInputStream ois = new ObjectInputStream(bais)) {
+			@SuppressWarnings("unchecked")
+			T copy = (T) ois.readObject();
+			return copy;
 		}
 		catch (ClassNotFoundException e) {
 			throw new IOException(e);
 		}
-
-		ois.close();
-		bais.close();
-
-		return copy;
 	}
 }

@@ -19,61 +19,43 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.state.KVMapCheckpointer;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import java.util.HashMap;
 
 public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, ReduceFunction<IN>>
 		implements OneInputStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
+	
+	private transient OperatorState<IN> values;
+	
+	private TypeSerializer<IN> serializer;
 
-	private KeySelector<IN, ?> keySelector;
-	private transient OperatorState<HashMap<Object, IN>> values;
-
-	// Store the typeinfo, create serializer during runtime
-	private TypeInformation<Object> keyTypeInformation;
-	private TypeInformation<IN> valueTypeInformation;
-
-	@SuppressWarnings("unchecked")
-	public StreamGroupedReduce(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector,
-								TypeInformation<IN> typeInformation) {
+	
+	public StreamGroupedReduce(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
 		super(reducer);
-		this.keySelector = keySelector;
-		valueTypeInformation = typeInformation;
-		keyTypeInformation = (TypeInformation<Object>) TypeExtractor
-				.getKeySelectorTypes(keySelector, typeInformation);
+		this.serializer = serializer;
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-
-		values = runtimeContext.getOperatorState("flink_internal_reduce_values",
-				new HashMap<Object, IN>(), false,
-				new KVMapCheckpointer<>(keyTypeInformation.createSerializer(executionConfig),
-						valueTypeInformation.createSerializer(executionConfig)));
+	public void open() throws Exception {
+		super.open();
+		values = createKeyValueState(serializer, null);
 	}
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		Object key = keySelector.getKey(element.getValue());
-
-		IN currentValue = values.value().get(key);
+		IN value = element.getValue();
+		IN currentValue = values.value();
+		
 		if (currentValue != null) {
-			// TODO: find a way to let operators copy elements (maybe)
-			IN reduced = userFunction.reduce(currentValue, element.getValue());
-			values.value().put(key, reduced);
+			IN reduced = userFunction.reduce(currentValue, value);
+			values.update(reduced);
 			output.collect(element.replace(reduced));
 		} else {
-			values.value().put(key, element.getValue());
-			output.collect(element.replace(element.getValue()));
+			values.update(value);
+			output.collect(element.replace(value));
 		}
 	}
 

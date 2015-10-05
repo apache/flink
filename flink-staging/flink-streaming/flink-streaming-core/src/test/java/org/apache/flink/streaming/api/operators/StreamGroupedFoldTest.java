@@ -43,6 +43,7 @@ import org.junit.Test;
  *     <li>Watermarks are correctly forwarded</li>
  * </ul>
  */
+@SuppressWarnings("serial")
 public class StreamGroupedFoldTest {
 
 	private static class MyFolder implements FoldFunction<Integer, String> {
@@ -60,20 +61,17 @@ public class StreamGroupedFoldTest {
 	private TypeInformation<String> outType = TypeExtractor.getForClass(String.class);
 
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testGroupedFold() throws Exception {
 
-		StreamGroupedFold<Integer, String> operator = new StreamGroupedFold<>(
-				new MyFolder(), new KeySelector<Integer, String>() {
-
-			private static final long serialVersionUID = 1L;
-
+		KeySelector<Integer, String> keySelector = new KeySelector<Integer, String>() {
+			
 			@Override
-			public String getKey(Integer value) throws Exception {
+			public String getKey(Integer value) {
 				return value.toString();
 			}
-		}, "100", inType);
-
+		};
+		
+		StreamGroupedFold<Integer, String, String> operator = new StreamGroupedFold<>(new MyFolder(), "100");
 		operator.setOutputType(outType, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
@@ -102,15 +100,15 @@ public class StreamGroupedFoldTest {
 
 	@Test
 	public void testOpenClose() throws Exception {
-		StreamGroupedFold<Integer, String> operator = new StreamGroupedFold<>(new TestOpenCloseFoldFunction(), new KeySelector<Integer, Integer>() {
-			private static final long serialVersionUID = 1L;
-
+		KeySelector<Integer, Integer> keySelector = new KeySelector<Integer, Integer>() {
 			@Override
-			public Integer getKey(Integer value) throws Exception {
+			public Integer getKey(Integer value) {
 				return value;
 			}
-		}, "init", inType);
-
+		};
+		
+		StreamGroupedFold<Integer, String, Integer> operator = new StreamGroupedFold<>(
+				new TestOpenCloseFoldFunction(), "init");
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);

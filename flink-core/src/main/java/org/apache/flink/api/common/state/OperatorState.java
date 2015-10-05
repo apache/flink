@@ -20,24 +20,17 @@ package org.apache.flink.api.common.state;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.configuration.Configuration;
-
 /**
- * Base interface for all streaming operator states. It can represent both
- * partitioned (when state partitioning is defined in the program) or
- * non-partitioned user states.
+ * This state interface abstracts persistent key/value state in streaming programs.
+ * The state is accessed and modified by user functions, and checkpointed consistently
+ * by the system as part of the distributed snapshots.
  * 
- * State can be accessed and manipulated using the {@link #value()} and
- * {@link #update(T)} methods. These calls are only safe in the
- * transformation call the operator represents, for instance inside
- * {@link MapFunction#map(Object)} and can lead tp unexpected behavior in the
- * {@link AbstractRichFunction#open(Configuration)} or
- * {@link AbstractRichFunction#close()} methods.
+ * <p>The state is only accessible by functions applied on a KeyedDataStream. The key is
+ * automatically supplied by the system, so the function always sees the value mapped to the
+ * key of the current element. That way, the system can handle stream and state partitioning
+ * consistently together.
  * 
- * @param <T>
- *            Type of the operator state
+ * @param <T> Type of the value in the operator state
  */
 public interface OperatorState<T> {
 

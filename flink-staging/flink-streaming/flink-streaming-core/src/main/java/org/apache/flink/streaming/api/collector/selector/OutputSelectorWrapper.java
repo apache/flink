@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector;
 
 public interface OutputSelectorWrapper<OUT> extends Serializable {
 
-	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge);
+	public void addCollector(Collector<StreamRecord<OUT>> output, StreamEdge edge);
 
 	public Iterable<Collector<StreamRecord<OUT>>> getSelectedOutputs(OUT record);
 

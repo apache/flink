@@ -34,7 +34,7 @@ public interface Output<T> extends Collector<T> {
 	 * operators.
 	 *
 	 * <p>A watermark specifies that no element with a timestamp older or equal to the watermark
-	 * timestamp will be emitted in the future.</p>
+	 * timestamp will be emitted in the future.
 	 */
 	void emitWatermark(Watermark mark);
 }

@@ -36,7 +36,7 @@ public interface RichFunction extends Function {
 	 * The configuration contains all parameters that were configured on the function in the program
 	 * composition.
 	 * 
-	 * <pre><blockquote>
+	 * <pre>{@code
 	 * public class MyMapper extends FilterFunction<String> {
 	 * 
 	 *     private String searchString;
@@ -49,7 +49,7 @@ public interface RichFunction extends Function {
 	 *         return value.equals(searchString);
 	 *     }
 	 * }
-	 * </blockquote></pre>
+	 * }</pre>
 	 * <p>
 	 * By default, this method does nothing.
 	 * 
@@ -64,7 +64,7 @@ public interface RichFunction extends Function {
 	void open(Configuration parameters) throws Exception;
 
 	/**
-	 * Teardown method for the user code. It is called after the last call to the main working methods
+	 * Tear-down method for the user code. It is called after the last call to the main working methods
 	 * (e.g. <i>map</i> or <i>join</i>). For functions that  are part of an iteration, this method will
 	 * be invoked after each iteration superstep.
 	 * <p>
@@ -76,16 +76,32 @@ public interface RichFunction extends Function {
 	 */
 	void close() throws Exception;
 	
+	// ------------------------------------------------------------------------
+	//  Runtime context
+	// ------------------------------------------------------------------------
 	
 	/**
-	 * Gets the context that contains information about the UDF's runtime.
+	 * Gets the context that contains information about the UDF's runtime, such as the 
+	 * parallelism of the function, the subtask index of the function, or the name of
+	 * the of the task that executes the function.
 	 * 
-	 * Context information are for example {@link org.apache.flink.api.common.accumulators.Accumulator}s
-	 * or the {@link org.apache.flink.api.common.cache.DistributedCache}.
+	 * <p>The RuntimeContext also gives access to the
+	 * {@link org.apache.flink.api.common.accumulators.Accumulator}s and the
+	 * {@link org.apache.flink.api.common.cache.DistributedCache}.
 	 * 
 	 * @return The UDF's runtime context.
 	 */
 	RuntimeContext getRuntimeContext();
+
+	/**
+	 * Gets a specialized version of the {@link RuntimeContext}, which has additional information
+	 * about the iteration in which the function is executed. This IterationRuntimeContext is only
+	 * available if the function is part of an iteration. Otherwise, this method throws an exception.
+	 * 
+	 * @return The IterationRuntimeContext.
+	 * @throws java.lang.IllegalStateException Thrown, if the function is not executed as part of an iteration.
+	 */
+	IterationRuntimeContext getIterationRuntimeContext();
 	
 	/**
 	 * Sets the function's runtime context. Called by the framework when creating a parallel instance of the function.
