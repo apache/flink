@@ -132,6 +132,9 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @return The data stream that is the result of applying the reduce function to the window. 
 	 */
 	public DataStream<T> reduceWindow(ReduceFunction<T> function) {
+		//clean the closure
+		function = input.getExecutionEnvironment().clean(function);
+
 		String callLocation = Utils.getCallLocationName();
 		String udfName = "Reduce at " + callLocation;
 

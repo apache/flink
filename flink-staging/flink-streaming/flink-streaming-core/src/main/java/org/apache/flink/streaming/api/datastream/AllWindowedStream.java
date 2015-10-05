@@ -121,6 +121,9 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the reduce function to the window. 
 	 */
 	public DataStream<T> reduceWindow(ReduceFunction<T> function) {
+		//clean the closure
+		function = input.getExecutionEnvironment().clean(function);
+
 		String callLocation = Utils.getCallLocationName();
 		String udfName = "Reduce at " + callLocation;
 
@@ -185,6 +188,9 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> DataStream<R> apply(AllWindowFunction<T, R, W> function, TypeInformation<R> resultType) {
+		//clean the closure
+		function = input.getExecutionEnvironment().clean(function);
+
 		String callLocation = Utils.getCallLocationName();
 		String udfName = "MapWindow at " + callLocation;
 
