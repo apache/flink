@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
@@ -230,8 +231,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def keyBy[K: TypeInformation](fun: T => K): KeyedStream[T, K] = {
 
     val cleanFun = clean(fun)
-    val keyExtractor = new KeySelector[T, K] {
+    val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
+      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
     }
     javaStream.keyBy(keyExtractor)
   }
@@ -256,8 +258,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def partitionByHash[K: TypeInformation](fun: T => K): DataStream[T] = {
 
     val cleanFun = clean(fun)
-    val keyExtractor = new KeySelector[T, K] {
+    val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
+      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
     }
     javaStream.partitionByHash(keyExtractor)
   }
@@ -293,8 +296,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], fun: T => K)
   : DataStream[T] = {
     val cleanFun = clean(fun)
-    val keyExtractor = new KeySelector[T, K] {
+    val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
+      override def getProducedType: TypeInformation[K] = implicitly[TypeInformation[K]]
     }
     javaStream.partitionCustom(partitioner, keyExtractor)
   }
