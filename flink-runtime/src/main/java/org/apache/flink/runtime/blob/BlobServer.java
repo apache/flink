@@ -18,6 +18,14 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -30,13 +38,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.api.common.JobID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * This class implements the BLOB server. The BLOB server is responsible for listening for incoming requests and
@@ -57,11 +59,11 @@ public class BlobServer extends Thread implements BlobService {
 	/** Indicates whether a shutdown of server component has been requested. */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/** Shutdown hook thread to ensure deletion of the storage directory. */
-	private final Thread shutdownHook;
-
 	/** Is the root directory for file storage */
 	private final File storageDir;
+
+	/** Blob store for recovery */
+	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
 	private final Set<BlobServerConnection> activeConnections = new HashSet<BlobServerConnection>();
@@ -70,17 +72,42 @@ public class BlobServer extends Thread implements BlobService {
 	private final int maxConnections;
 
 	/**
+	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
+	 * the configured recovery mode does not equal{@link RecoveryMode#STANDALONE})
+	 */
+	private final Thread shutdownHook;
+
+	/**
 	 * Instantiates a new BLOB server and binds it to a free network port.
-	 * 
+	 *
 	 * @throws IOException
 	 *         thrown if the BLOB server cannot bind to a free network port
 	 */
 	public BlobServer(Configuration config) throws IOException {
+		checkNotNull(config, "Configuration");
+
+		RecoveryMode recoveryMode = RecoveryMode.fromConfig(config);
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
+
+		// No recovery.
+		if (recoveryMode == RecoveryMode.STANDALONE) {
+			this.blobStore = new VoidBlobStore();
+		}
+		// Recovery. Check that everything has been setup correctly. This is not clean, but it's
+		// better to resolve this with some upcoming changes to the state backend setup.
+		else if (config.containsKey(ConfigConstants.STATE_BACKEND) &&
+				config.containsKey(ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH)) {
+
+			this.blobStore = new FileSystemBlobStore(config);
+		}
+		// Fallback.
+		else {
+			this.blobStore = new VoidBlobStore();
+		}
 
 		// configure the maximum number of concurrent connections
 		final int maxConnections = config.getInteger(
@@ -102,8 +129,13 @@ public class BlobServer extends Thread implements BlobService {
 			backlog = ConfigConstants.DEFAULT_BLOB_FETCH_BACKLOG;
 		}
 
-		// Add shutdown hook to delete storage directory
-		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+		if (recoveryMode == RecoveryMode.STANDALONE) {
+			// Add shutdown hook to delete storage directory
+			this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+		}
+		else {
+			this.shutdownHook = null;
+		}
 
 		// start the server
 		try {
@@ -132,42 +164,55 @@ public class BlobServer extends Thread implements BlobService {
 	 * Returns a file handle to the file associated with the given blob key on the blob
 	 * server.
 	 *
+	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
+	 *
 	 * @param key identifying the file
 	 * @return file handle to the file
 	 */
-	public File getStorageLocation(BlobKey key) {
+	File getStorageLocation(BlobKey key) {
 		return BlobUtils.getStorageLocation(storageDir, key);
 	}
 
 	/**
 	 * Returns a file handle to the file identified by the given jobID and key.
 	 *
+	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
+	 *
 	 * @param jobID to which the file is associated
 	 * @param key to identify the file within the job context
 	 * @return file handle to the file
 	 */
-	public File getStorageLocation(JobID jobID, String key) {
+	File getStorageLocation(JobID jobID, String key) {
 		return BlobUtils.getStorageLocation(storageDir, jobID, key);
 	}
 
 	/**
 	 * Method which deletes all files associated with the given jobID.
 	 *
+	 * <p><strong>This is only called from the {@link BlobServerConnection}</strong>
+	 *
 	 * @param jobID all files associated to this jobID will be deleted
 	 * @throws IOException
 	 */
-	public void deleteJobDirectory(JobID jobID) throws IOException {
+	void deleteJobDirectory(JobID jobID) throws IOException {
 		BlobUtils.deleteJobDirectory(storageDir, jobID);
 	}
 
 	/**
 	 * Returns a temporary file inside the BLOB server's incoming directory.
-	 * 
+	 *
 	 * @return a temporary file inside the BLOB server's incoming directory
 	 */
 	File createTemporaryFilename() {
 		return new File(BlobUtils.getIncomingDirectory(storageDir),
 				String.format("temp-%08d", tempFileCounter.getAndIncrement()));
+	}
+
+	/**
+	 * Returns the blob store.
+	 */
+	BlobStore getBlobStore() {
+		return blobStore;
 	}
 
 	@Override
@@ -245,6 +290,9 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.error("BLOB server failed to properly clean up its storage directory.");
 			}
 
+			// Clean up the recovery directory
+			blobStore.cleanUp();
+
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 			// shutdown hook itself
 			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
@@ -282,10 +330,25 @@ public class BlobServer extends Thread implements BlobService {
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
-		if (!localFile.exists()) {
-			throw new FileNotFoundException("File " + localFile.getCanonicalPath() + " does not exist.");
-		} else {
+		if (localFile.exists()) {
 			return localFile.toURI().toURL();
+		}
+		else {
+			try {
+				// Try the blob store
+				blobStore.get(requiredBlob, localFile);
+			}
+			catch (Exception e) {
+				throw new IOException("Failed to copy from blob store.", e);
+			}
+
+			if (localFile.exists()) {
+				return localFile.toURI().toURL();
+			}
+			else {
+				throw new FileNotFoundException("Local file " + localFile + " does not exist " +
+						"and failed to copy from blob store.");
+			}
 		}
 	}
 
@@ -305,6 +368,8 @@ public class BlobServer extends Thread implements BlobService {
 				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
 			}
 		}
+
+		blobStore.delete(key);
 	}
 
 	/**
