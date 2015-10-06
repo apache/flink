@@ -83,7 +83,7 @@ public class BlobServer extends Thread implements BlobService {
 
 	/**
 	 * Shutdown hook thread to ensure deletion of the storage directory (or <code>null</code> if
-	 * {@link RecoveryMode#STANDALONE})
+	 * the configured recovery mode does not equal{@link RecoveryMode#STANDALONE})
 	 */
 	private final Thread shutdownHook;
 
