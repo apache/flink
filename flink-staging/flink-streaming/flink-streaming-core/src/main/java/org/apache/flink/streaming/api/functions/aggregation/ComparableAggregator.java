@@ -33,8 +33,7 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 	private ComparableAggregator(int pos, AggregationType aggregationType, boolean first) {
 		super(pos);
 		this.comparator = Comparator.getForAggregation(aggregationType);
-		this.byAggregate = (aggregationType == AggregationType.MAXBY)
-				|| (aggregationType == AggregationType.MINBY);
+		this.byAggregate = (aggregationType == AggregationType.MAXBY) || (aggregationType == AggregationType.MINBY);
 		this.first = first;
 	}
 
@@ -61,7 +60,7 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public T reduce(T value1, T value2) throws Exception {
-		Comparable<Object> o1 = (Comparable<Object>)fieldAccessor.get(value1);
+		Comparable<Object> o1 = (Comparable<Object>) fieldAccessor.get(value1);
 		Object o2 = fieldAccessor.get(value2);
 
 		int c = comparator.isExtremal(o1, o2);
@@ -79,10 +78,10 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 			return value2;
 
 		} else {
-			if (c == 1) {
-				value2 = fieldAccessor.set(value2, o1);
+			if (c == 0) {
+				value1 = fieldAccessor.set(value1, o2);
 			}
-			return value2;
+			return value1;
 		}
 
 	}

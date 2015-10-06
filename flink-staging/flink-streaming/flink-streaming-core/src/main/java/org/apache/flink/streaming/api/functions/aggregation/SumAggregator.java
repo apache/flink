@@ -43,6 +43,6 @@ public class SumAggregator<T> extends AggregationFunction<T> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public T reduce(T value1, T value2) throws Exception {
-		return fieldAccessor.set(value2, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
+		return fieldAccessor.set(value1, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
 	}
 }
