@@ -17,21 +17,15 @@
  */
 package org.apache.flink.api.table.typeinfo
 
-import java.util
-
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.common.typeutils.base.BooleanSerializer
 import org.apache.flink.api.table.Row
-import org.apache.flink.core.memory.{DataInputView, DataOutputView}
-
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 
 /**
  * Serializer for [[Row]].
  */
 class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
   extends TypeSerializer[Row] {
-
-  private def getFieldSerializers = fieldSerializers
 
   override def isImmutableType: Boolean = false
 
@@ -79,17 +73,11 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
 
   override def serialize(value: Row, target: DataOutputView) {
     val len = fieldSerializers.length
-    var index = 0
-    while (index < len) {
-      val o: AnyRef = value.productElement(index).asInstanceOf[AnyRef]
-      if (o == null) {
-        target.writeBoolean(true)
-      } else {
-        target.writeBoolean(false)
-        val serializer = fieldSerializers(index)
-        serializer.serialize(value.productElement(index), target)
-      }
-      index += 1
+    var i = 0
+    while (i < len) {
+      val serializer = fieldSerializers(i)
+      serializer.serialize(value.productElement(i), target)
+      i += 1
     }
   }
 
@@ -100,17 +88,11 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
       throw new RuntimeException("Row arity of reuse and fields do not match.")
     }
 
-    var index = 0
-    while (index < len) {
-      val isNull: Boolean = source.readBoolean
-      if (isNull) {
-        reuse.setField(index, null)
-      } else {
-        val field = reuse.productElement(index).asInstanceOf[AnyRef]
-        val serializer: TypeSerializer[Any] = fieldSerializers(index)
-        reuse.setField(index, serializer.deserialize(field, source))
-      }
-      index += 1
+    var i = 0
+    while (i < len) {
+      val field = reuse.productElement(i).asInstanceOf[AnyRef]
+      reuse.setField(i, fieldSerializers(i).deserialize(field, source))
+      i += 1
     }
     reuse
   }
@@ -119,17 +101,10 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     val len = fieldSerializers.length
 
     val result = new Row(len)
-
-    var index = 0
-    while (index < len) {
-      val isNull: Boolean = source.readBoolean()
-      if (isNull) {
-        result.setField(index, null)
-      } else {
-        val serializer: TypeSerializer[Any] = fieldSerializers(index)
-        result.setField(index, serializer.deserialize(source))
-      }
-      index += 1
+    var i = 0
+    while (i < len) {
+      result.setField(i, fieldSerializers(i).deserialize(source))
+      i += 1
     }
     result
   }
@@ -138,11 +113,7 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     val len = fieldSerializers.length
     var i = 0
     while (i < len) {
-      val isNull = source.readBoolean()
-      target.writeBoolean(isNull)
-      if (!isNull) {
-        fieldSerializers(i).copy(source, target)
-      }
+      fieldSerializers(i).copy(source, target)
       i += 1
     }
   }
@@ -151,7 +122,7 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     any match {
       case otherRS: RowSerializer =>
         otherRS.canEqual(this) &&
-        fieldSerializers.sameElements(otherRS.fieldSerializers)
+          fieldSerializers.sameElements(otherRS.fieldSerializers)
       case _ => false
     }
   }
@@ -161,6 +132,6 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
   }
 
   override def hashCode(): Int = {
-    util.Arrays.hashCode(fieldSerializers.asInstanceOf[Array[AnyRef]])
+    java.util.Arrays.hashCode(fieldSerializers.asInstanceOf[Array[AnyRef]])
   }
 }
