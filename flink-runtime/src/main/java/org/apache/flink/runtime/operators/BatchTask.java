@@ -75,12 +75,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The base class for all tasks. Encapsulated common behavior and implements the main life-cycle
+ * The base class for all batch tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
+public class BatchTask<S extends Function, OT> extends AbstractInvokable implements TaskContext<S, OT> {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(RegularPactTask.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(BatchTask.class);
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -88,7 +88,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * The driver that invokes the user code (the stub implementation). The central driver in this task
 	 * (further drivers may be chained behind this driver).
 	 */
-	protected volatile PactDriver<S, OT> driver;
+	protected volatile Driver<S, OT> driver;
 
 	/**
 	 * The instantiated user code of this task's main operator (driver). May be null if the operator has no udf.
@@ -236,8 +236,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.config = new TaskConfig(taskConf);
 
 		// now get the operator class which drives the operation
-		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
-		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
+		final Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
+		this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
 		// initialize the readers.
 		// this does not yet trigger any stream consuming or processing.
@@ -471,7 +471,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 
 			// start all chained tasks
-			RegularPactTask.openChainedTasks(this.chainedTasks, this);
+			BatchTask.openChainedTasks(this.chainedTasks, this);
 
 			// open stub implementation
 			if (this.stub != null) {
@@ -497,7 +497,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			this.output.close();
 
 			// close all chained tasks letting them report failure
-			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
+			BatchTask.closeChainedTasks(this.chainedTasks, this);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -511,8 +511,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 			
 			// if resettable driver invoke teardown
-			if (this.driver instanceof ResettablePactDriver) {
-				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+			if (this.driver instanceof ResettableDriver) {
+				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 				try {
 					resDriver.teardown();
 				} catch (Throwable t) {
@@ -520,7 +520,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				}
 			}
 
-			RegularPactTask.cancelChainedTasks(this.chainedTasks);
+			BatchTask.cancelChainedTasks(this.chainedTasks);
 
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
@@ -530,7 +530,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 			else if (this.running) {
 				// throw only if task was not cancelled. in the case of canceling, exceptions are expected 
-				RegularPactTask.logAndThrowException(ex, this);
+				BatchTask.logAndThrowException(ex, this);
 			}
 		}
 		finally {
@@ -601,10 +601,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 
 	/**
-	 * Sets the last output {@link Collector} of the collector chain of this {@link RegularPactTask}.
+	 * Sets the last output {@link Collector} of the collector chain of this {@link BatchTask}.
 	 * <p>
 	 * In case of chained tasks, the output collector of the last {@link ChainedDriver} is set. Otherwise it is the
-	 * single collector of the {@link RegularPactTask}.
+	 * single collector of the {@link BatchTask}.
 	 *
 	 * @param newOutputCollector new output collector to set as last collector
 	 */

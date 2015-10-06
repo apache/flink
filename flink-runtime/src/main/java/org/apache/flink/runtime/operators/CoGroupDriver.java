@@ -43,12 +43,12 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @see org.apache.flink.api.common.functions.CoGroupFunction
  */
-public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
+public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(CoGroupDriver.class);
 	
 	
-	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
+	private TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;				// the iterator that does the actual cogroup
 	
@@ -60,7 +60,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<I
 
 
 	@Override
-	public void setup(PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
+	public void setup(TaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

@@ -33,12 +33,12 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.client.program.PackagedProgram;
 
 
-public class PactJobJSONServlet extends HttpServlet {
+public class JobJSONServlet extends HttpServlet {
 	
 	/** Serial UID for serialization interoperability. */
 	private static final long serialVersionUID = 558077298726449201L;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(PactJobJSONServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobJSONServlet.class);
 
 	// ------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ public class PactJobJSONServlet extends HttpServlet {
 
 	private final File jobStoreDirectory; // the directory in which the jobs are stored
 
-	public PactJobJSONServlet(File jobStoreDirectory) {
+	public JobJSONServlet(File jobStoreDirectory) {
 		this.jobStoreDirectory = jobStoreDirectory;
 	}
 

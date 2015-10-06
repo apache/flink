@@ -29,7 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
@@ -87,7 +87,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 		@SuppressWarnings("unchecked")
 		final GroupReduceFunction<IN, OUT> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GroupReduceFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, GroupReduceFunction.class);
 		this.reducer = combiner;
 		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
@@ -96,7 +96,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
-		RegularPactTask.openUserCode(this.reducer, stubConfig);
+		BatchTask.openUserCode(this.reducer, stubConfig);
 
 		// ----------------- Set up the sorter -------------------------
 
@@ -135,7 +135,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 
 		if (this.running) {
-			RegularPactTask.closeUserCode(this.reducer);
+			BatchTask.closeUserCode(this.reducer);
 		}
 	}
 

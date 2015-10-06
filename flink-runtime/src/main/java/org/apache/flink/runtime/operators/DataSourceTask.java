@@ -80,9 +80,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	public void registerInputOutput() {
 		initInputFormat();
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Start registering input and output"));
-		}
+		LOG.debug(getLogString("Start registering input and output"));
 
 		try {
 			initOutputs(getUserCodeClassLoader());
@@ -91,24 +89,18 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				ex.getMessage(), ex);
 		}
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Finished registering input and output"));
-		}
+		LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 
 	@Override
 	public void invoke() throws Exception {
 		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Starting data source operator"));
-		}
+		LOG.debug(getLogString("Starting data source operator"));
 
 		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){
 			((RichInputFormat) this.format).setRuntimeContext(createRuntimeContext());
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
-			}
+			LOG.debug(getLogString("Rich Source detected. Initializing runtime context."));
 		}
 
 		ExecutionConfig executionConfig;
@@ -123,23 +115,19 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				LOG.warn("ExecutionConfig from job configuration is null. Creating empty config");
 				executionConfig = new ExecutionConfig();
 			}
-		} catch (IOException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);
-		} catch (ClassNotFoundException e) {
+		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);
 		}
 
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("DataSourceTask object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
-		}
+		LOG.debug("DataSourceTask object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		
 		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
 		
 		try {
 			// start all chained tasks
-			RegularPactTask.openChainedTasks(this.chainedTasks, this);
+			BatchTask.openChainedTasks(this.chainedTasks, this);
 			
 			// get input splits to read
 			final Iterator<InputSplit> splitIterator = getInputSplits();
@@ -150,18 +138,14 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				// get start and end
 				final InputSplit split = splitIterator.next();
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug(getLogString("Opening input split " + split.toString()));
-				}
+				LOG.debug(getLogString("Opening input split " + split.toString()));
 				
 				final InputFormat<OT, InputSplit> format = this.format;
 			
 				// open input format
 				format.open(split);
 	
-				if (LOG.isDebugEnabled()) {
-					LOG.debug(getLogString("Starting to read input from split " + split.toString()));
-				}
+				LOG.debug(getLogString("Starting to read input from split " + split.toString()));
 				
 				try {
 					final Collector<OT> output = this.output;
@@ -201,7 +185,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			this.output.close();
 
 			// close all chained tasks letting them report failure
-			RegularPactTask.closeChainedTasks(this.chainedTasks, this);
+			BatchTask.closeChainedTasks(this.chainedTasks, this);
 
 		}
 		catch (Exception ex) {
@@ -210,7 +194,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				this.format.close();
 			} catch (Throwable ignored) {}
 
-			RegularPactTask.cancelChainedTasks(this.chainedTasks);
+			BatchTask.cancelChainedTasks(this.chainedTasks);
 
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
@@ -220,30 +204,24 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			}
 			else if (!this.taskCanceled) {
 				// drop exception, if the task was canceled
-				RegularPactTask.logAndThrowException(ex, this);
+				BatchTask.logAndThrowException(ex, this);
 			}
 		} finally {
-			RegularPactTask.clearWriters(eventualOutputs);
+			BatchTask.clearWriters(eventualOutputs);
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Finished data source operator"));
-			}
+			LOG.debug(getLogString("Finished data source operator"));
 		}
 		else {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Data source operator cancelled"));
-			}
+			LOG.debug(getLogString("Data source operator cancelled"));
 		}
 	}
 
 	@Override
 	public void cancel() throws Exception {
 		this.taskCanceled = true;
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Cancelling data source operator"));
-		}
+		LOG.debug(getLogString("Cancelling data source operator"));
 	}
 	
 	/**
@@ -303,7 +281,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
 		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
-		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
+		this.output = BatchTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
 				getExecutionConfig(), reporter, getEnvironment().getAccumulatorRegistry().getUserMap());
 	}
 
@@ -331,7 +309,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message, String taskName) {
-		return RegularPactTask.constructLogString(message, taskName, this);
+		return BatchTask.constructLogString(message, taskName, this);
 	}
 	
 	private Iterator<InputSplit> getInputSplits() {

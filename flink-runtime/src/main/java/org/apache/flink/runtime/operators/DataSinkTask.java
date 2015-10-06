@@ -84,9 +84,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
 	@Override
 	public void registerInputOutput() {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Start registering input and output"));
-		}
+
+		LOG.debug(getLogString("Start registering input and output"));
 
 		// initialize OutputFormat
 		initOutputFormat();
@@ -99,24 +98,18 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Finished registering input and output"));
-		}
+		LOG.debug(getLogString("Finished registering input and output"));
 	}
 
 
 	@Override
 	public void invoke() throws Exception
 	{
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Starting data sink operator"));
-		}
+		LOG.debug(getLogString("Starting data sink operator"));
 
 		if(RichOutputFormat.class.isAssignableFrom(this.format.getClass())){
 			((RichOutputFormat) this.format).setRuntimeContext(createRuntimeContext());
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
-			}
+			LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
 		}
 
 		ExecutionConfig executionConfig;
@@ -131,9 +124,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				LOG.warn("The execution config returned by the configuration was null");
 				executionConfig = new ExecutionConfig();
 			}
-		} catch (IOException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		} catch (ClassNotFoundException e) {
+		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
 		}
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
@@ -190,9 +181,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				return;
 			}
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Starting to produce output"));
-			}
+			LOG.debug(getLogString("Starting to produce output"));
 
 			// open
 			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getNumberOfSubtasks());
@@ -268,18 +257,14 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				}
 			}
 
-			RegularPactTask.clearReaders(new MutableReader[]{inputReader});
+			BatchTask.clearReaders(new MutableReader[]{inputReader});
 		}
 
 		if (!this.taskCanceled) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Finished data sink operator"));
-			}
+			LOG.debug(getLogString("Finished data sink operator"));
 		}
 		else {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(getLogString("Data sink operator cancelled"));
-			}
+			LOG.debug(getLogString("Data sink operator cancelled"));
 		}
 	}
 
@@ -304,9 +289,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			}
 		}
 		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(getLogString("Cancelling data sink operator"));
-		}
+		LOG.debug(getLogString("Cancelling data sink operator"));
 	}
 	
 	/**
@@ -402,7 +385,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message) {
-		return RegularPactTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
+		return BatchTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext() {

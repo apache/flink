@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.operators.Driver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
@@ -60,7 +61,7 @@ import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * The head is responsible for coordinating an iteration and can run a
- * {@link org.apache.flink.runtime.operators.PactDriver} inside. It will read
+ * {@link Driver} inside. It will read
  * the initial input and establish a {@link BlockingBackChannel} to the iteration's tail. After successfully processing
  * the input, it will send EndOfSuperstep events to its outputs. It must also be connected to a
  * synchronization task and after each superstep, it will wait
@@ -80,9 +81,9 @@ import org.apache.flink.util.MutableObjectIterator;
  *        The type of the feed-back data set (bulk partial solution / workset). For bulk iterations, {@code Y} is the
  *        same as {@code X}
  */
-public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
+public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIterativeTask<S, OT> {
 
-	private static final Logger log = LoggerFactory.getLogger(IterationHeadPactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationHeadTask.class);
 
 	private Collector<X> finalOutputCollector;
 
@@ -114,8 +115,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		AccumulatorRegistry.Reporter reporter = getEnvironment().getAccumulatorRegistry().getReadWriteReporter();
-		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
-			userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs(), reporter);
+		this.finalOutputCollector = BatchTask.getOutputCollector(this, finalOutConfig,
+				userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs(), reporter);
 
 		// sanity check the setup
 		final int writersIntoStepFunction = this.eventualOutputs.size();

@@ -43,7 +43,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
@@ -69,10 +69,10 @@ public class ExecutionGraphDeploymentTest {
 			v3.setParallelism(10);
 			v4.setParallelism(10);
 
-			v1.setInvokableClass(RegularPactTask.class);
-			v2.setInvokableClass(RegularPactTask.class);
-			v3.setInvokableClass(RegularPactTask.class);
-			v4.setInvokableClass(RegularPactTask.class);
+			v1.setInvokableClass(BatchTask.class);
+			v2.setInvokableClass(BatchTask.class);
+			v3.setInvokableClass(BatchTask.class);
+			v4.setInvokableClass(BatchTask.class);
 
 			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
@@ -111,7 +111,7 @@ public class ExecutionGraphDeploymentTest {
 			assertEquals(jid2, descr.getVertexID());
 			assertEquals(3, descr.getIndexInSubtaskGroup());
 			assertEquals(10, descr.getNumberOfSubtasks());
-			assertEquals(RegularPactTask.class.getName(), descr.getInvokableClassName());
+			assertEquals(BatchTask.class.getName(), descr.getInvokableClassName());
 			assertEquals("v2", descr.getTaskName());
 
 			List<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
@@ -276,8 +276,8 @@ public class ExecutionGraphDeploymentTest {
 		v1.setParallelism(dop1);
 		v2.setParallelism(dop2);
 
-		v1.setInvokableClass(RegularPactTask.class);
-		v2.setInvokableClass(RegularPactTask.class);
+		v1.setInvokableClass(BatchTask.class);
+		v2.setInvokableClass(BatchTask.class);
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(

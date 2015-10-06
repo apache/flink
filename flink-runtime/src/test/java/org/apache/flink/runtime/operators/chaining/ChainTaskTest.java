@@ -30,7 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.MapTaskTest.MockMapStub;
 import org.apache.flink.runtime.operators.ReduceTaskTest.MockReduceStub;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -102,8 +102,8 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				RegularPactTask<GenericCollectorMap<Record, Record>, Record> testTask = 
-											new RegularPactTask<GenericCollectorMap<Record, Record>, Record>();
+				BatchTask<GenericCollectorMap<Record, Record>, Record> testTask =
+											new BatchTask<GenericCollectorMap<Record, Record>, Record>();
 				registerTask(testTask, CollectorMapDriver.class, MockMapStub.class);
 				
 				try {
@@ -163,8 +163,8 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				final RegularPactTask<GenericCollectorMap<Record, Record>, Record> testTask = 
-											new RegularPactTask<GenericCollectorMap<Record, Record>, Record>();
+				final BatchTask<GenericCollectorMap<Record, Record>, Record> testTask =
+											new BatchTask<GenericCollectorMap<Record, Record>, Record>();
 				
 				super.registerTask(testTask, CollectorMapDriver.class, MockMapStub.class);
 	

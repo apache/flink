@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
+import org.apache.flink.runtime.iterative.task.IterationHeadTask;
+import org.apache.flink.runtime.iterative.task.IterationTailTask;
+
 /**
  * Broker to hand over {@link SolutionSetUpdateBarrier} from 
- * {@link org.apache.flink.runtime.iterative.task.IterationHeadPactTask} to
- * {@link org.apache.flink.runtime.iterative.task.IterationTailPactTask}.
+ * {@link IterationHeadTask} to
+ * {@link IterationTailTask}.
  */
 public class SolutionSetUpdateBarrierBroker extends Broker<SolutionSetUpdateBarrier> {
 

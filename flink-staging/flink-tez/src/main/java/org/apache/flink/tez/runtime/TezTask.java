@@ -36,8 +36,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.PactDriver;
-import org.apache.flink.runtime.operators.PactTaskContext;
+import org.apache.flink.runtime.operators.Driver;
+import org.apache.flink.runtime.operators.TaskContext;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
@@ -64,7 +64,7 @@ import java.util.Arrays;
 import java.util.List;
 
 
-public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
+public class TezTask<S extends Function,OT>  implements TaskContext<S, OT> {
 
 	protected static final Log LOG = LogFactory.getLog(TezTask.class);
 
@@ -74,7 +74,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 	 * The driver that invokes the user code (the stub implementation). The central driver in this task
 	 * (further drivers may be chained behind this driver).
 	 */
-	protected volatile PactDriver<S, OT> driver;
+	protected volatile Driver<S, OT> driver;
 
 	/**
 	 * The instantiated user code of this task's main operator (driver). May be null if the operator has no udf.
@@ -150,8 +150,8 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 
 	public TezTask(TezTaskConfig config, RuntimeUDFContext runtimeUdfContext, long availableMemory) {
 		this.config = config;
-		final Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
-		this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
+		final Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
+		this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 		
 		LOG.info("ClassLoader URLs: " + Arrays.toString(((URLClassLoader) this.userCodeClassLoader).getURLs()));
 		
@@ -244,7 +244,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 
 
 	// --------------------------------------------------------------------
-	// PactTaskContext interface
+	// TaskContext interface
 	// --------------------------------------------------------------------
 
 	@Override
@@ -356,7 +356,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 
 
 	// --------------------------------------------------------------------
-	// Adapted from RegularPactTask
+	// Adapted from BatchTask
 	// --------------------------------------------------------------------
 
 	private void initInputLocalStrategy(int inputNum) throws Exception {
@@ -402,7 +402,7 @@ public class TezTask<S extends Function,OT>  implements PactTaskContext<S, OT> {
 						localStub = initStub(userCodeFunctionType);
 					} catch (Exception e) {
 						throw new RuntimeException("Initializing the user code and the configuration failed" +
-								e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+								(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 					}
 
 					if (!(localStub instanceof GroupCombineFunction)) {

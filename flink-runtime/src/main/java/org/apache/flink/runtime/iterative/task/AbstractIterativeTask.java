@@ -21,6 +21,7 @@ package org.apache.flink.runtime.iterative.task;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -42,9 +43,8 @@ import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCri
 import org.apache.flink.runtime.iterative.io.SolutionSetObjectsUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.SolutionSetUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
-import org.apache.flink.runtime.operators.PactDriver;
-import org.apache.flink.runtime.operators.RegularPactTask;
-import org.apache.flink.runtime.operators.ResettablePactDriver;
+import org.apache.flink.runtime.operators.Driver;
+import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -61,10 +61,10 @@ import java.util.concurrent.Future;
 /**
  * The abstract base class for all tasks able to participate in an iteration.
  */
-public abstract class AbstractIterativePactTask<S extends Function, OT> extends RegularPactTask<S, OT>
+public abstract class AbstractIterativeTask<S extends Function, OT> extends BatchTask<S, OT>
 		implements Terminable
 {
-	private static final Logger log = LoggerFactory.getLogger(AbstractIterativePactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(AbstractIterativeTask.class);
 	
 	protected LongSumAggregator worksetAggregator;
 
@@ -94,8 +94,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		super.initialize();
 
 		// check if the driver is resettable
-		if (this.driver instanceof ResettablePactDriver) {
-			final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+		if (this.driver instanceof ResettableDriver) {
+			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 			// make sure that the according inputs are not reseted
 			for (int i = 0; i < resDriver.getNumberOfInputs(); i++) {
 				if (resDriver.isInputResettable(i)) {
@@ -125,9 +125,9 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	@Override
 	public void run() throws Exception {
 		if (inFirstIteration()) {
-			if (this.driver instanceof ResettablePactDriver) {
+			if (this.driver instanceof ResettableDriver) {
 				// initialize the repeatable driver
-				((ResettablePactDriver<?, ?>) this.driver).initialize();
+				((ResettableDriver<?, ?>) this.driver).initialize();
 			}
 		} else {
 			reinstantiateDriver();
@@ -156,8 +156,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			super.closeLocalStrategiesAndCaches();
 		}
 		finally {
-			if (this.driver instanceof ResettablePactDriver) {
-				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+			if (this.driver instanceof ResettableDriver) {
+				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 				try {
 					resDriver.teardown();
 				} catch (Throwable t) {
@@ -201,12 +201,12 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	}
 
 	private void reinstantiateDriver() throws Exception {
-		if (this.driver instanceof ResettablePactDriver) {
-			final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+		if (this.driver instanceof ResettableDriver) {
+			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 			resDriver.reset();
 		} else {
-			Class<? extends PactDriver<S, OT>> driverClass = this.config.getDriver();
-			this.driver = InstantiationUtil.instantiate(driverClass, PactDriver.class);
+			Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
+			this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
 			try {
 				this.driver.setup(this);
@@ -291,7 +291,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	/**
 	 * Creates a new {@link WorksetUpdateOutputCollector}.
 	 * <p>
-	 * This collector is used by {@link IterationIntermediatePactTask} or {@link IterationTailPactTask} to update the
+	 * This collector is used by {@link IterationIntermediateTask} or {@link IterationTailTask} to update the
 	 * workset.
 	 * <p>
 	 * If a non-null delegate is given, the new {@link Collector} will write to the solution set and also call
@@ -313,7 +313,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	/**
 	 * Creates a new solution set update output collector.
 	 * <p>
-	 * This collector is used by {@link IterationIntermediatePactTask} or {@link IterationTailPactTask} to update the
+	 * This collector is used by {@link IterationIntermediateTask} or {@link IterationTailTask} to update the
 	 * solution set of workset iterations. Depending on the task configuration, either a fast (non-probing)
 	 * {@link org.apache.flink.runtime.iterative.io.SolutionSetFastUpdateOutputCollector} or normal (re-probing)
 	 * {@link SolutionSetUpdateOutputCollector} is created.
@@ -369,7 +369,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 		@Override
 		public int getSuperstepNumber() {
-			return AbstractIterativePactTask.this.superstepNum;
+			return AbstractIterativeTask.this.superstepNum;
 		}
 
 		@Override
