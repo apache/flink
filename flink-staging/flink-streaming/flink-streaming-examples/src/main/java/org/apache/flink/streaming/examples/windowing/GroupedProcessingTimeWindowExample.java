@@ -79,7 +79,7 @@ public class GroupedProcessingTimeWindowExample {
 		stream
 			.keyBy(0)
 			.timeWindow(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
-			.reduceWindow(new SummingReducer())
+			.reduce(new SummingReducer())
 
 			// alternative: use a apply function which does not pre-aggregate
 //			.keyBy(new FirstFieldKeyExtractor<Tuple2<Long, Long>, Long>())
