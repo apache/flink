@@ -32,7 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.RegularTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
@@ -87,7 +87,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 		@SuppressWarnings("unchecked")
 		final GroupCombineFunction<IN, OUT> combiner =
-			RegularTask.instantiateUserCode(this.config, userCodeClassLoader, GroupCombineFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, GroupCombineFunction.class);
 		this.combiner = combiner;
 		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
@@ -96,7 +96,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
-		RegularTask.openUserCode(this.combiner, stubConfig);
+		BatchTask.openUserCode(this.combiner, stubConfig);
 
 		// ----------------- Set up the sorter -------------------------
 
@@ -134,7 +134,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 
 		if (this.running) {
-			RegularTask.closeUserCode(this.combiner);
+			BatchTask.closeUserCode(this.combiner);
 		}
 	}
 

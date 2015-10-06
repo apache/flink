@@ -52,7 +52,7 @@ import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
-import org.apache.flink.runtime.operators.RegularTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
@@ -115,7 +115,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		AccumulatorRegistry.Reporter reporter = getEnvironment().getAccumulatorRegistry().getReadWriteReporter();
-		this.finalOutputCollector = RegularTask.getOutputCollector(this, finalOutConfig,
+		this.finalOutputCollector = BatchTask.getOutputCollector(this, finalOutConfig,
 				userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs(), reporter);
 
 		// sanity check the setup

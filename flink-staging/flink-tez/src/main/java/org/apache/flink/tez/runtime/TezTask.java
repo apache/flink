@@ -356,7 +356,7 @@ public class TezTask<S extends Function,OT>  implements TaskContext<S, OT> {
 
 
 	// --------------------------------------------------------------------
-	// Adapted from RegularTask
+	// Adapted from BatchTask
 	// --------------------------------------------------------------------
 
 	private void initInputLocalStrategy(int inputNum) throws Exception {

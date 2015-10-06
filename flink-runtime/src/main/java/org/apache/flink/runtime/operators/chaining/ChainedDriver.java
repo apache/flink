@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.RegularTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
@@ -63,8 +63,8 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 		Environment env = parent.getEnvironment();
 
-		if (parent instanceof RegularTask) {
-			this.udfContext = ((RegularTask<?, ?>) parent).createRuntimeContext(taskName);
+		if (parent instanceof BatchTask) {
+			this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext(taskName);
 		} else {
 			this.udfContext = new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
 					env.getIndexInSubtaskGroup(), userCodeClassLoader, parent.getExecutionConfig(),

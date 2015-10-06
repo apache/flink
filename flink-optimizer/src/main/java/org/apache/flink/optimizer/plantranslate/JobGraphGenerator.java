@@ -66,6 +66,7 @@ import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.CoGroupDriver;
 import org.apache.flink.runtime.operators.CoGroupWithSolutionSetFirstDriver;
 import org.apache.flink.runtime.operators.CoGroupWithSolutionSetSecondDriver;
@@ -76,7 +77,6 @@ import org.apache.flink.runtime.operators.JoinDriver;
 import org.apache.flink.runtime.operators.JoinWithSolutionSetFirstDriver;
 import org.apache.flink.runtime.operators.JoinWithSolutionSetSecondDriver;
 import org.apache.flink.runtime.operators.NoOpDriver;
-import org.apache.flink.runtime.operators.RegularTask;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -829,7 +829,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			// create task vertex
 			vertex = new JobVertex(taskName);
-			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : RegularTask.class);
+			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 			
 			config = new TaskConfig(vertex.getConfiguration());
 			config.setDriver(ds.getDriverClass());
@@ -854,7 +854,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobVertex vertex = new JobVertex(taskName);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : RegularTask.class);
+		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 		
 		// set user code
 		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());

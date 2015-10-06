@@ -127,7 +127,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		
 		try {
 			// start all chained tasks
-			RegularTask.openChainedTasks(this.chainedTasks, this);
+			BatchTask.openChainedTasks(this.chainedTasks, this);
 			
 			// get input splits to read
 			final Iterator<InputSplit> splitIterator = getInputSplits();
@@ -185,7 +185,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			this.output.close();
 
 			// close all chained tasks letting them report failure
-			RegularTask.closeChainedTasks(this.chainedTasks, this);
+			BatchTask.closeChainedTasks(this.chainedTasks, this);
 
 		}
 		catch (Exception ex) {
@@ -194,7 +194,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				this.format.close();
 			} catch (Throwable ignored) {}
 
-			RegularTask.cancelChainedTasks(this.chainedTasks);
+			BatchTask.cancelChainedTasks(this.chainedTasks);
 
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
@@ -204,10 +204,10 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			}
 			else if (!this.taskCanceled) {
 				// drop exception, if the task was canceled
-				RegularTask.logAndThrowException(ex, this);
+				BatchTask.logAndThrowException(ex, this);
 			}
 		} finally {
-			RegularTask.clearWriters(eventualOutputs);
+			BatchTask.clearWriters(eventualOutputs);
 		}
 
 		if (!this.taskCanceled) {
@@ -281,7 +281,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
 		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
-		this.output = RegularTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
+		this.output = BatchTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
 				getExecutionConfig(), reporter, getEnvironment().getAccumulatorRegistry().getUserMap());
 	}
 
@@ -309,7 +309,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message, String taskName) {
-		return RegularTask.constructLogString(message, taskName, this);
+		return BatchTask.constructLogString(message, taskName, this);
 	}
 	
 	private Iterator<InputSplit> getInputSplits() {

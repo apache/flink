@@ -75,12 +75,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The base class for all tasks. Encapsulated common behavior and implements the main life-cycle
+ * The base class for all batch tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
-public class RegularTask<S extends Function, OT> extends AbstractInvokable implements TaskContext<S, OT> {
+public class BatchTask<S extends Function, OT> extends AbstractInvokable implements TaskContext<S, OT> {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(RegularTask.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(BatchTask.class);
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -471,7 +471,7 @@ public class RegularTask<S extends Function, OT> extends AbstractInvokable imple
 			}
 
 			// start all chained tasks
-			RegularTask.openChainedTasks(this.chainedTasks, this);
+			BatchTask.openChainedTasks(this.chainedTasks, this);
 
 			// open stub implementation
 			if (this.stub != null) {
@@ -497,7 +497,7 @@ public class RegularTask<S extends Function, OT> extends AbstractInvokable imple
 			this.output.close();
 
 			// close all chained tasks letting them report failure
-			RegularTask.closeChainedTasks(this.chainedTasks, this);
+			BatchTask.closeChainedTasks(this.chainedTasks, this);
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -520,7 +520,7 @@ public class RegularTask<S extends Function, OT> extends AbstractInvokable imple
 				}
 			}
 
-			RegularTask.cancelChainedTasks(this.chainedTasks);
+			BatchTask.cancelChainedTasks(this.chainedTasks);
 
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
@@ -530,7 +530,7 @@ public class RegularTask<S extends Function, OT> extends AbstractInvokable imple
 			}
 			else if (this.running) {
 				// throw only if task was not cancelled. in the case of canceling, exceptions are expected 
-				RegularTask.logAndThrowException(ex, this);
+				BatchTask.logAndThrowException(ex, this);
 			}
 		}
 		finally {
@@ -601,10 +601,10 @@ public class RegularTask<S extends Function, OT> extends AbstractInvokable imple
 	}
 
 	/**
-	 * Sets the last output {@link Collector} of the collector chain of this {@link RegularTask}.
+	 * Sets the last output {@link Collector} of the collector chain of this {@link BatchTask}.
 	 * <p>
 	 * In case of chained tasks, the output collector of the last {@link ChainedDriver} is set. Otherwise it is the
-	 * single collector of the {@link RegularTask}.
+	 * single collector of the {@link BatchTask}.
 	 *
 	 * @param newOutputCollector new output collector to set as last collector
 	 */

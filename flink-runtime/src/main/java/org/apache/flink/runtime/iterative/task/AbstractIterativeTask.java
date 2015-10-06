@@ -21,7 +21,7 @@ package org.apache.flink.runtime.iterative.task;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.operators.RegularTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -61,7 +61,7 @@ import java.util.concurrent.Future;
 /**
  * The abstract base class for all tasks able to participate in an iteration.
  */
-public abstract class AbstractIterativeTask<S extends Function, OT> extends RegularTask<S, OT>
+public abstract class AbstractIterativeTask<S extends Function, OT> extends BatchTask<S, OT>
 		implements Terminable
 {
 	private static final Logger log = LoggerFactory.getLogger(AbstractIterativeTask.class);
