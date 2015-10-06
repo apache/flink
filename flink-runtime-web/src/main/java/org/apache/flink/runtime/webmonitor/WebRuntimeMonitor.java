@@ -64,9 +64,9 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -105,7 +105,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final ServerBootstrap bootstrap;
 
+	private final File webRootDir;
+
 	private Channel serverChannel;
+
+	private AtomicBoolean isShutdown = new AtomicBoolean();
 
 	public WebRuntimeMonitor(
 			Configuration config,
@@ -116,22 +120,18 @@ public class WebRuntimeMonitor implements WebMonitor {
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
 
 		// create an empty directory in temp for the web server
-		Path staticContentPath = Files.createTempDirectory("flink-runtime-web-files-");
-		final File webRootDir = staticContentPath.toFile();
+		String fileName = String.format("flink-web-%s", UUID.randomUUID().toString());
+		webRootDir = new File(System.getProperty("java.io.tmpdir"), fileName);
 		LOG.info("Using directory {} for the web interface files", webRootDir);
 		// add shutdown hook for deleting the directory
 		try {
 			Runtime.getRuntime().addShutdownHook(new Thread() {
 				@Override
-				public void run() {
-					try {
-						LOG.info("Removing web root dir {}", webRootDir);
-						FileUtils.deleteDirectory(webRootDir);
-					} catch (Throwable t) {
-						LOG.warn("Error while deleting web root dir {}", webRootDir, t);
-					}
-				}
+				public void run() { shutdown(); }
 			});
+		} catch (IllegalStateException e) {
+			// race, JVM is in shutdown already, we can safely ignore this
+			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
 		} catch(Throwable t) {
 			// these errors usually happen when the shutdown is already in progress
 			LOG.warn("Error while adding shutdown hook", t);
@@ -244,6 +244,18 @@ public class WebRuntimeMonitor implements WebMonitor {
 					bootstrap.group().shutdownGracefully();
 				}
 			}
+		}
+	}
+
+	public void shutdown() {
+		if (!isShutdown.compareAndSet(false, true)) {
+			return;
+		}
+		try {
+			LOG.info("Removing web root dir {}", webRootDir);
+			FileUtils.deleteDirectory(webRootDir);
+		} catch (Throwable t) {
+			LOG.warn("Error while deleting web root dir {}", webRootDir, t);
 		}
 	}
 

@@ -166,7 +166,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
 			try(InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
 				if (resourceStream == null) {
-					logger.warn("Unable to load requested file {} from classloader", requestPath);
+					logger.debug("Unable to load requested file {} from classloader", requestPath);
 					sendError(ctx, NOT_FOUND);
 					return;
 				}
@@ -323,14 +323,5 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
 		String mimeFinal = mimeType != null ? mimeType : MimeTypes.getDefaultMimeType();
 		response.headers().set(CONTENT_TYPE, mimeFinal);
-	}
-
-	public static void main(String[] args) {
-		ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
-		InputStream resourceStream = cl.getResourceAsStream("web/index.html");
-		if(resourceStream == null) {
-			System.out.println("not found ");
-		}
-		System.out.println("Str ="+resourceStream);
 	}
 }
