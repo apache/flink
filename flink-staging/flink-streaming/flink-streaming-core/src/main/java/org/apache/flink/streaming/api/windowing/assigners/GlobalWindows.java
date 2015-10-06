@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 
@@ -42,7 +43,7 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	}
 
 	@Override
-	public Trigger<Object, GlobalWindow> getDefaultTrigger() {
+	public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
 		return null;
 	}
 

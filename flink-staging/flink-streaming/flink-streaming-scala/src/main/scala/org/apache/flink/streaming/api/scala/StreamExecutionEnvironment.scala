@@ -299,6 +299,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Sets the time characteristic for all streams create from this environment, e.g., processing
    * time, event time, or ingestion time.
    *
+   * If you set the characteristic to IngestionTime of EventTime this will set a default
+   * watermark update interval of 200 ms. If this is not applicable for your application
+   * you should change it using
+   * [[org.apache.flink.api.common.ExecutionConfig#setAutoWatermarkInterval(long)]]
+   *
    * @param characteristic The time characteristic.
    */
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {

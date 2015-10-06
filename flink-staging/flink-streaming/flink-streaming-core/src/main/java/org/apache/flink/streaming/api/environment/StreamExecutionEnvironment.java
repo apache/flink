@@ -541,11 +541,23 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Sets the time characteristic for all streams create from this environment, e.g., processing
 	 * time, event time, or ingestion time.
+	 *
+	 * <p>
+	 * If you set the characteristic to IngestionTime of EventTime this will set a default
+	 * watermark update interval of 200 ms. If this is not applicable for your application
+	 * you should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
 	 * 
 	 * @param characteristic The time characteristic.
 	 */
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
 		this.timeCharacteristic = Objects.requireNonNull(characteristic);
+		if (characteristic == TimeCharacteristic.ProcessingTime) {
+			getConfig().disableTimestamps();
+			getConfig().setAutoWatermarkInterval(0);
+		} else {
+			getConfig().enableTimestamps();
+			getConfig().setAutoWatermarkInterval(200);
+		}
 	}
 
 	/**
