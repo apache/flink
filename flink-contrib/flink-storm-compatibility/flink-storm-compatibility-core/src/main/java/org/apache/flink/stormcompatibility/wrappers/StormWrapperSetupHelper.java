@@ -104,7 +104,10 @@ class StormWrapperSetupHelper {
 			bolts.put(context.getTaskName(), new Bolt(null, common));
 		}
 
-		return new FlinkTopologyContext(new StormTopology(spoutSpecs, bolts, null), taskToComponents, taskId);
+		FlinkTopologyContext flinkContext = new FlinkTopologyContext(new StormTopology(spoutSpecs, bolts, null), taskToComponents, taskId);
+
+		flinkContext.setContext(context);
+		return flinkContext;
 	}
 
 }

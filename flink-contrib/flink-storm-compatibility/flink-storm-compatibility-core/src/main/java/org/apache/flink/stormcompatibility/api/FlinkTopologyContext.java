@@ -26,6 +26,9 @@ import backtype.storm.metric.api.IReducer;
 import backtype.storm.metric.api.ReducedMetric;
 import backtype.storm.state.ISubscribedState;
 import backtype.storm.task.TopologyContext;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.stormcompatibility.api.metrics.FlinkCountMetric;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 
 import java.util.Collection;
 import java.util.Map;
@@ -35,6 +38,8 @@ import java.util.Map;
  * a Storm topology is executed within Flink.
  */
 public class FlinkTopologyContext extends TopologyContext {
+
+	private StreamingRuntimeContext runtimeContext;
 
 	/**
 	 * Instantiates a new {@link FlinkTopologyContext} for a given Storm topology. The context object is instantiated
@@ -51,6 +56,10 @@ public class FlinkTopologyContext extends TopologyContext {
 			final Integer taskId) {
 		super(topology, null, taskToComponents, null, null, null, null, null, taskId, null, null, null, null, null,
 				null, null);
+	}
+
+	public void setContext(final StreamingRuntimeContext context) {
+		this.runtimeContext = context;
 	}
 
 	/**
@@ -120,7 +129,19 @@ public class FlinkTopologyContext extends TopologyContext {
 	@SuppressWarnings("unchecked")
 	@Override
 	public IMetric registerMetric(final String name, final IMetric metric, final int timeBucketSizeInSecs) {
-		throw new UnsupportedOperationException("Metrics are not supported by Flink");
+
+		// TODO: There is no use for timeBucketSizeInSecs yet.
+		if (metric instanceof FlinkCountMetric) {
+			LongCounter count = new LongCounter();
+			FlinkCountMetric flinkCount = (FlinkCountMetric)metric;
+			flinkCount.setCounter(count);
+
+			// register accumulator to RuntimeContext
+			this.runtimeContext.addAccumulator(name, count);
+			return metric;
+		} else{
+			throw new UnsupportedOperationException("Metrics are not supported by Flink");
+		}
 	}
 
 	/**
