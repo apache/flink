@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 import java.lang.reflect.Method
 
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, JoinedStreams}
 
 import scala.language.existentials
 
@@ -138,14 +138,14 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       classOf[KeyedStream[_, _]])
 
     checkMethods(
-      "StreamJoinOperator", "StreamJoinOperator",
-      classOf[org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator[_,_]],
-      classOf[StreamJoinOperator[_,_]])
+      "JoinedStreams.WithWindow", "JoinedStreams.WithWindow",
+      classOf[org.apache.flink.streaming.api.datastream.JoinedStreams.WithWindow[_,_,_,_]],
+      classOf[JoinedStreams.WithWindow[_,_,_,_]])
 
     checkMethods(
-      "TemporalOperator", "TemporalOperator",
-      classOf[org.apache.flink.streaming.api.datastream.temporal.TemporalOperator[_,_,_]],
-      classOf[TemporalOperator[_,_,_]])
+      "CoGroupedStreams.WithWindow", "CoGroupedStreams.WithWindow",
+      classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_,_,_,_]],
+      classOf[CoGroupedStreams.WithWindow[_,_,_,_]])
 
     checkMethods(
       "WindowedDataStream", "WindowedDataStream",

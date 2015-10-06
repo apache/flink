@@ -21,6 +21,8 @@ package org.apache.flink.streaming.scala.examples.join
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows
+import org.apache.flink.streaming.api.windowing.time.Time
 
 import scala.Stream._
 import scala.language.postfixOps
@@ -32,8 +34,8 @@ object WindowJoin {
   // PROGRAM
   // *************************************************************************
 
-  case class Grade(name: String, grade: Int)
-  case class Salary(name: String, salary: Int)
+  case class Grade(time: Long, name: String, grade: Int)
+  case class Salary(time: Long, name: String, salary: Int)
   case class Person(name: String, grade: Int, salary: Int)
 
   def main(args: Array[String]) {
@@ -43,6 +45,7 @@ object WindowJoin {
     }
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableTimestamps()
 
     //Create streams for grades and salaries by mapping the inputs to the corresponding objects
     val grades = setGradesInput(env)
@@ -50,11 +53,11 @@ object WindowJoin {
 
     //Join the two input streams by name on the last 2 seconds every second and create new
     //Person objects containing both grade and salary
-    val joined =
-      grades.join(salaries).onWindow(2, TimeUnit.SECONDS)
-                      .every(1, TimeUnit.SECONDS)
-                      .where("name")
-                      .equalTo("name") { (g, s) => Person(g.name, g.grade, s.salary) }
+    val joined = grades.join(salaries)
+        .where(_.name)
+        .equalTo(_.name)
+        .window(SlidingTimeWindows.of(Time.of(2, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
+        .apply { (g, s) => Person(g.name, g.grade, s.salary) }
 
     if (fileOutput) {
       joined.writeAsText(outputPath)
@@ -74,27 +77,27 @@ object WindowJoin {
   val salaryMax = 10000
   val sleepInterval = 100
   
-  def gradeStream(): Stream[(String, Int)] = {
-    def gradeMapper(names: Array[String])(x: Int): (String, Int) =
+  def gradeStream: Stream[(Long, String, Int)] = {
+    def gradeMapper(names: Array[String])(x: Int): (Long, String, Int) =
       {
         if (x % sleepInterval == 0) Thread.sleep(sleepInterval)
-        (names(Random.nextInt(names.length)), Random.nextInt(gradeCount))
+        (System.currentTimeMillis(),names(Random.nextInt(names.length)),Random.nextInt(gradeCount))
       }
     range(1, 100).map(gradeMapper(names))
   }
 
-  def salaryStream(): Stream[(String, Int)] = {
-    def salaryMapper(x: Int): (String, Int) =
+  def salaryStream: Stream[(Long, String, Int)] = {
+    def salaryMapper(x: Int): (Long, String, Int) =
       {
         if (x % sleepInterval == 0) Thread.sleep(sleepInterval)
-        (names(Random.nextInt(names.length)), Random.nextInt(salaryMax))
+        (System.currentTimeMillis(), names(Random.nextInt(names.length)), Random.nextInt(salaryMax))
       }
     range(1, 100).map(salaryMapper)
   }
 
-  def parseMap(line : String): (String, Int) = {
+  def parseMap(line : String): (Long, String, Int) = {
     val record = line.substring(1, line.length - 1).split(",")
-    (record(0), record(1).toInt)
+    (record(0).toLong, record(1), record(2).toInt)
   }
 
   // *************************************************************************
@@ -130,23 +133,23 @@ object WindowJoin {
       System.out.println("  Provide parameter to write to file.")
       System.out.println("  Usage: WindowJoin <result path>")
     }
-    return true
+    true
   }
 
   private def setGradesInput(env: StreamExecutionEnvironment) : DataStream[Grade] = {
     if (fileInput) {
-      env.readTextFile(gradesPath).map(parseMap(_)).map(x => Grade(x._1, x._2))
+      env.readTextFile(gradesPath).map(parseMap _ ).map(x => Grade(x._1, x._2, x._3))
     } else {
-      env.fromCollection(gradeStream).map(x => Grade(x._1, x._2))
+      env.fromCollection(gradeStream).map(x => Grade(x._1, x._2, x._3))
     }
   }
 
   private def setSalariesInput(env: StreamExecutionEnvironment) : DataStream[Salary] = {
     if (fileInput) {
-      env.readTextFile(salariesPath).map(parseMap(_)).map(x => Salary(x._1, x._2))
+      env.readTextFile(salariesPath).map(parseMap _).map(x => Salary(x._1, x._2, x._3))
     }
     else {
-      env.fromCollection(salaryStream).map(x => Salary(x._1, x._2))
+      env.fromCollection(salaryStream).map(x => Salary(x._1, x._2, x._3))
     }
   }
 }
