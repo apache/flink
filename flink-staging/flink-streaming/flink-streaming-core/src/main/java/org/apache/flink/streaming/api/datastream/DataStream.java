@@ -44,7 +44,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.FileSinkFunctionByMillis;
@@ -618,30 +617,19 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Initiates a temporal Join transformation. <br/>
-	 * A temporal Join transformation joins the elements of two
-	 * {@link DataStream}s on key equality over a specified time window.
-	 *
-	 * <p>
-	 * This method returns a {@link StreamJoinOperator} on which the
-	 * {@link StreamJoinOperator#onWindow(long, java.util.concurrent.TimeUnit)}
-	 * should be called to define the window, and then the
-	 * {@link StreamJoinOperator.JoinWindow#where(int...)} and
-	 * {@link StreamJoinOperator.JoinPredicate#equalTo(int...)} can be used to define
-	 * the join keys.
-	 * <p>
-	 * The user can also use the
-	 * {@link org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator.JoinPredicate.JoinedStream#with}
-	 * to apply a custom join function.
-	 * 
-	 * @param dataStreamToJoin
-	 *            The other DataStream with which this DataStream is joined.
-	 * @return A {@link StreamJoinOperator} to continue the definition of the
-	 *         Join transformation.
-	 * 
+	 * Creates a join operation. See {@link CoGroupedStreams} for an example of how the keys
+	 * and window can be specified.
 	 */
-	public <IN2> StreamJoinOperator<T, IN2> join(DataStream<IN2> dataStreamToJoin) {
-		return new StreamJoinOperator<T, IN2>(this, dataStreamToJoin);
+	public <T2> CoGroupedStreams.Unspecified<T, T2> coGroup(DataStream<T2> otherStream) {
+		return CoGroupedStreams.createCoGroup(this, otherStream);
+	}
+
+	/**
+	 * Creates a join operation. See {@link JoinedStreams} for an example of how the keys
+	 * and window can be specified.
+	 */
+	public <T2> JoinedStreams.Unspecified<T, T2> join(DataStream<T2> otherStream) {
+		return JoinedStreams.createJoin(this, otherStream);
 	}
 
 	/**

@@ -47,67 +47,6 @@ public class SelfConnectionTest extends StreamingMultipleProgramsTestBase {
 	private static List<String> expected;
 
 	/**
-	 * TODO: enable once new join operator is implemented
-	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Ignore
-	@Test
-	public void sameDataStreamTest() {
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(3);
-
-		TestListResultSink<String> resultSink = new TestListResultSink<String>();
-
-		Timestamp<Integer> timeStamp = new IntegerTimestamp();
-
-		KeySelector keySelector = new KeySelector<Integer, Integer>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		};
-
-		DataStream<Integer> src = env.fromElements(1, 3, 5);
-
-		@SuppressWarnings("unused")
-		DataStreamSink<Tuple2<Integer, Integer>> dataStream =
-				src.join(src).onWindow(50L, timeStamp, timeStamp).where(keySelector).equalTo(keySelector)
-						.map(new MapFunction<Tuple2<Integer, Integer>, String>() {
-
-							private static final long serialVersionUID = 1L;
-
-							@Override
-							public String map(Tuple2<Integer, Integer> value) throws Exception {
-								return value.toString();
-							}
-						})
-						.addSink(resultSink);
-
-
-		try {
-			env.execute();
-
-			expected = new ArrayList<String>();
-
-			expected.addAll(Arrays.asList("(1,1)", "(3,3)", "(5,5)"));
-
-			List<String> result = resultSink.getResult();
-
-			Collections.sort(expected);
-			Collections.sort(result);
-
-			assertEquals(expected, result);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail();
-		}
-	}
-
-	/**
 	 * We connect two different data streams in a chain to a CoMap.
 	 */
 	@Test
