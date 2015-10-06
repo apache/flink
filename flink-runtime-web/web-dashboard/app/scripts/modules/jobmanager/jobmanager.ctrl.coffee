@@ -23,3 +23,23 @@ angular.module('flinkApp')
     if !$scope.jobmanager?
       $scope.jobmanager = {}
     $scope.jobmanager['config'] = data
+
+.controller 'JobManagerLogsController', ($scope, JobManagerLogsService) ->
+  JobManagerLogsService.loadLogs().then (data) ->
+    if !$scope.jobmanager?
+      $scope.jobmanager = {}
+    $scope.jobmanager['log'] = data
+
+  $scope.reloadData = () ->
+    JobManagerLogsService.loadLogs().then (data) ->
+      $scope.jobmanager['log'] = data
+
+.controller 'JobManagerStdoutController', ($scope, JobManagerStdoutService) ->
+  JobManagerStdoutService.loadStdout().then (data) ->
+    if !$scope.jobmanager?
+      $scope.jobmanager = {}
+    $scope.jobmanager['stdout'] = data
+
+  $scope.reloadData = () ->
+    JobManagerStdoutService.loadStdout().then (data) ->
+      $scope.jobmanager['stdout'] = data

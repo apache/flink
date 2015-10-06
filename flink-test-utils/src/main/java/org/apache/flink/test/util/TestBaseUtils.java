@@ -58,6 +58,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -130,6 +131,8 @@ public class TestBaseUtils extends TestLogger {
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
 		Assert.assertTrue("Unable to delete temp file", logDir.delete());
 		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
+		Files.createFile(new File(logDir, "jobmanager.log").toPath());
+		Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);

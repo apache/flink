@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
-
+import com.google.common.io.PatternFilenameFilter;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -30,10 +30,11 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
-
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
@@ -63,8 +64,10 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -86,6 +89,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/** Logger for web frontend startup / shutdown messages */
 	private static final Logger LOG = LoggerFactory.getLogger(WebRuntimeMonitor.class);
+
+	/** Job manager's log file pattern */
+	public static final FilenameFilter LOG_FILE_PATTERN = new PatternFilenameFilter(".*jobmanager[^\\.]*\\.log");
+
+	/** Job manager's stdout file pattern */
+	public static final FilenameFilter STDOUT_FILE_PATTERN = new PatternFilenameFilter(".*jobmanager[^\\.]*\\.out");
 
 	// ------------------------------------------------------------------------
 
@@ -123,6 +132,39 @@ public class WebRuntimeMonitor implements WebMonitor {
 		String fileName = String.format("flink-web-%s", UUID.randomUUID().toString());
 		webRootDir = new File(System.getProperty("java.io.tmpdir"), fileName);
 		LOG.info("Using directory {} for the web interface files", webRootDir);
+		
+		// figure out where our logs are
+		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
+		final String defaultLogDirectory = flinkRoot + "/log";
+		final String logDirectories = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, defaultLogDirectory);
+
+		// find out which directory holds the path for log and stdout
+		final ArrayList<String> logPaths = new ArrayList<>();
+		final ArrayList<String> outPaths = new ArrayList<>();
+
+		// yarn allows for multiple log directories. Search in all.
+		for(String paths: logDirectories.split(",")) {
+			File dir = new File(paths);
+			if (dir.exists() && dir.isDirectory() && dir.canRead()) {
+				if (dir.listFiles(LOG_FILE_PATTERN).length == 1) {
+					logPaths.add(paths);
+				}
+				if (dir.listFiles(STDOUT_FILE_PATTERN).length == 1) {
+					outPaths.add(paths);
+				}
+			}
+		}
+
+		// we don't want any ambiguities. There must be only one log and out file.
+		if(logPaths.size() != 1 || outPaths.size() != 1) {
+			throw new IllegalConfigurationException("The path to the log and out files (" +
+					logDirectories  + ") is not valid.");
+		}
+
+		final File logDir = new File(logPaths.get(0));
+		final File outDir = new File(outPaths.get(0));
+		LOG.info("Serving job manager logs from {}", logDir.getAbsolutePath());
+		LOG.info("Serving job manager stdout from {}", outDir.getAbsolutePath());
 
 		// port configuration
 		this.configuredPort = cfg.getWebFrontendPort();
@@ -144,8 +186,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// the overview - how many task managers, slots, free slots, ...
 			.GET("/overview", handler(new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
-			// job manager configuration
+			// job manager configuration, log and stdout
 			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config)))
+			.GET("/jobmanager/log", new StaticFileServerHandler(logDir))
+			.GET("/jobmanager/stdout", new StaticFileServerHandler(outDir))
 
 			// overview over jobs
 			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true)))
