@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.windowing.assigners;
 
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import scala.Serializable;
+import java.io.Serializable;
 
 import java.util.Collection;
 

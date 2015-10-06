@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import scala.Serializable;
+import java.io.Serializable;
 
 /**
  * A {@code Trigger} determines when a pane of a window should be evaluated to emit the

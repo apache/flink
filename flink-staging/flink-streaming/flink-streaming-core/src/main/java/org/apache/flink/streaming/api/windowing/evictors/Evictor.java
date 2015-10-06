@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.windowing.evictors;
 
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import scala.Serializable;
+import java.io.Serializable;
 
 /**
  * An {@code Evictor} can remove elements from a pane before it is being processed and after
