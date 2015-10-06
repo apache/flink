@@ -126,9 +126,12 @@ class JobManager(
 
   /**
    * The port of the web monitor as configured. Make sure that it is actually configured before
-   * starting the JobManager.
+   * starting the JobManager. This tightly couples the web monitor with the job manager. It is a
+   * temporary workaround until all execution graph components are properly serializable and all
+   * web monitors can transparently interact with each job manager. Currently each web server has
+   * to run in the actor system of the associated job manager.
    */
-  val webMonitorPort : Integer = flinkConfiguration.getInteger(
+  val webMonitorPort : Int = flinkConfiguration.getInteger(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
   /**
@@ -1797,8 +1800,11 @@ object JobManager {
    * @param config The configuration for the runtime monitor.
    * @param leaderRetrievalService Leader retrieval service to get the leading JobManager
    */
-  def startWebRuntimeMonitor(config: Configuration, leaderRetrievalService: LeaderRetrievalService,
-    actorSystem: ActorSystem) : WebMonitor = {
+  def startWebRuntimeMonitor(
+      config: Configuration,
+      leaderRetrievalService: LeaderRetrievalService,
+      actorSystem: ActorSystem)
+    : WebMonitor = {
     // try to load and instantiate the class
     try {
       val classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor"
@@ -1806,7 +1812,8 @@ object JobManager {
         .asSubclass(classOf[WebMonitor])
 
       val ctor: Constructor[_ <: WebMonitor] = clazz.getConstructor(classOf[Configuration],
-        classOf[LeaderRetrievalService], classOf[ActorSystem])
+        classOf[LeaderRetrievalService],
+        classOf[ActorSystem])
       ctor.newInstance(config, leaderRetrievalService, actorSystem)
     }
     catch {
