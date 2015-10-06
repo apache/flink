@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobmanager.web.util.DefaultConfigKeyValues;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestStackTrace;
@@ -96,16 +98,73 @@ public class SetupInfoServlet extends HttpServlet {
 		List<String> list = new ArrayList<String>(keys);
 		Collections.sort(list);
 
+		Map<String, Object> defaultValues = DefaultConfigKeyValues.getDefaultConfig(configuration);
 		JSONObject obj = new JSONObject();
-		for (String k : list) {
-			try {
+		JSONObject userObj = new JSONObject();
+		JSONObject defaultObj = new JSONObject();
 
-				obj.put(k, configuration.getString(k, ""));
-			} catch (JSONException e) {
-				LOG.warn("Json object creation failed", e);
+		try {
+			for (String k : list) {
+				String userValue = configuration.getString(k, "");
+
+				if (DefaultConfigKeyValues.INT_FIELD_KEYS.contains(k)) {
+					int defaultValue = (Integer)defaultValues.get(k);
+					int acturalValue = configuration.getInteger(k, defaultValue);
+					if (Integer.toString(acturalValue).equals(userValue)) {
+						userObj.put(k, userValue);
+					} else {
+						defaultObj.put(k, defaultValue);
+					}
+				} else if (DefaultConfigKeyValues.BOOLEAN_FIELD_KEYS.contains(k)) {
+					boolean defaultValue = (Boolean)defaultValues.get(k);
+					boolean actualValue = configuration.getBoolean(k, defaultValue);
+					if (Boolean.toString(actualValue).equals(userValue)) {
+						userObj.put(k, userValue);
+					} else {
+						defaultObj.put(k, defaultValue);
+					}
+				} else if (DefaultConfigKeyValues.FLOAT_FIELD_KEYS.contains(k)) {
+					float defaultValue = (Float)defaultValues.get(k);
+					float actualValue = configuration.getFloat(k, defaultValue);
+					if (Float.toString(actualValue).equals(userValue)) {
+						userObj.put(k, userValue);
+					} else {
+						defaultObj.put(k, defaultValue);
+					}
+				} else if (DefaultConfigKeyValues.DOUBLE_FIELD_KEYS.contains(k)) {
+					double defaultValue = (Double)defaultValues.get(k);
+					double actualValue = configuration.getDouble(k, defaultValue);
+					if (Double.toString(actualValue).equals(userValue)) {
+						userObj.put(k, userValue);
+					} else {
+						defaultObj.put(k, defaultValue);
+					}
+				} else if (DefaultConfigKeyValues.LONG_FIELD_KEYS.contains(k)) {
+					long defaultValue = (Long)defaultValues.get(k);
+					long acturalValue = configuration.getLong(k, defaultValue);
+					if (Long.toString(acturalValue).equals(userValue)) {
+						userObj.put(k, userValue);
+					} else {
+						defaultObj.put(k, defaultValue);
+					}
+				} else {
+					userObj.put(k, configuration.getString(k, ""));
+				}
 			}
-		}
 
+			List<String> keyList = new ArrayList<String>();
+			keyList.addAll(defaultValues.keySet());
+			Collections.sort(keyList);
+			for (String k: keyList) {
+				if (!list.contains(k)) {
+					defaultObj.put(k, defaultValues.get(k));
+				}
+			}
+			obj.put("user", userObj);
+			obj.put("default", defaultObj);
+		} catch (JSONException e) {
+			LOG.warn("Json object creation failed", e);
+		}
 		PrintWriter w = resp.getWriter();
 		w.write(obj.toString());
 	}
