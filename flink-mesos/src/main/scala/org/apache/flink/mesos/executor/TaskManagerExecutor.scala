@@ -28,6 +28,10 @@ import org.apache.mesos.{Executor, ExecutorDriver, MesosExecutorDriver}
 import org.apache.mesos.Protos.Status
 import org.slf4j.{Logger, LoggerFactory}
 
+/**
+ * A simple executor for managing the lifecycle and configuration of the
+ * Apache Flink TaskManager process.
+ */
 class TaskManagerExecutor extends FlinkExecutor {
 
   def LOG: Logger = LoggerFactory.getLogger(classOf[TaskManagerExecutor])

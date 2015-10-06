@@ -27,6 +27,15 @@ import org.apache.mesos.{Executor, ExecutorDriver}
 
 import scala.util.{Failure, Success, Try}
 
+/**
+ * This trait captures the common functionality related to the configuration
+ * of any Tasks that are spawned by the Apache Flink Scheduler. For example:
+ * the current implementation of TaskManagerExecutor implements the `startTask`
+ * method to start the TaskManager process.
+ *
+ * Future use cases may mix in this trait to start other processes such as the
+ * JobManager or a standalone HttpServer
+ */
 trait FlinkExecutor extends Executor {
   // logger to use
   def LOG: org.slf4j.Logger
