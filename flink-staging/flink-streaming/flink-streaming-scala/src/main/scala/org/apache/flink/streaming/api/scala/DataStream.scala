@@ -751,18 +751,20 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Initiates a temporal Join transformation that joins the elements of two
-   * data streams on key equality over a specified time window.
-   *
-   * This method returns a StreamJoinOperator on which the
-   * .onWindow(..) should be called to define the
-   * window, and then the .where(..) and .equalTo(..) methods can be used to defin
-   * the join keys.</p> The user can also use the apply method of the returned JoinedStream
-   * to use custom join function.
-   *
+   * Creates a co-group operation. See [[CoGroupedStreams]] for an example of how the keys
+   * and window can be specified.
    */
-  def join[R](stream: DataStream[R]): StreamJoinOperator[T, R] =
-    new StreamJoinOperator[T, R](javaStream, stream.getJavaStream)
+  def coGroup[T2](otherStream: DataStream[T2]): CoGroupedStreams.Unspecified[T, T2] = {
+    CoGroupedStreams.createCoGroup(this, otherStream)
+  }
+
+  /**
+   * Creates a join operation. See [[JoinedStreams]] for an example of how the keys
+   * and window can be specified.
+   */
+  def join[T2](otherStream: DataStream[T2]): JoinedStreams.Unspecified[T, T2] = {
+    JoinedStreams.createJoin(this, otherStream)
+  }
 
   /**
    * Writes a DataStream to the standard output stream (stdout). For each

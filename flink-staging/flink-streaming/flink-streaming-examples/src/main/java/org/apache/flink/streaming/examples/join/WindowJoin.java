@@ -19,40 +19,42 @@ package org.apache.flink.streaming.examples.join;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Example illustrating join over sliding windows of streams in Flink.
- * <p/>
+ *
  * <p>
- * his example will join two streams with a sliding window. One which emits
- * grades and one which emits salaries of people.
- * </p>
- * <p/>
- * <p/>
+ * This example will join two streams with a sliding window. One which emits grades and one which
+ * emits salaries of people. The input format for both sources has an additional timestamp
+ * as field 0. This is used to to event-time windowing. Time timestamps must be
+ * monotonically increasing.
+ *
  * This example shows how to:
  * <ul>
- * <li>do windowed joins,
- * <li>use tuple data types,
- * <li>write a simple streaming program.
+ *   <li>do windowed joins,
+ *   <li>use tuple data types,
+ *   <li>write a simple streaming program.
+ * </ul>
  */
 public class WindowJoin {
 
 	// *************************************************************************
 	// PROGRAM
 	// *************************************************************************
-
-	private static DataStream<Tuple2<String, Integer>> grades;
-	private static DataStream<Tuple2<String, Integer>> salaries;
 
 	public static void main(String[] args) throws Exception {
 
@@ -62,18 +64,25 @@ public class WindowJoin {
 
 		// obtain execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableTimestamps();
 
 		// connect to the data sources for grades and salaries
-		setInputStreams(env);
+		Tuple2<DataStream<Tuple3<Long, String, Integer>>, DataStream<Tuple3<Long, String, Integer>>> input = getInputStreams(env);
+		DataStream<Tuple3<Long, String, Integer>> grades = input.f0;
+		DataStream<Tuple3<Long, String, Integer>> salaries = input.f1;
+
+		// extract the timestamps
+		grades = grades.extractTimestamp(new MyTimestampExtractor());
+		salaries = salaries.extractTimestamp(new MyTimestampExtractor());
 
 		// apply a temporal join over the two stream based on the names over one
 		// second windows
 		DataStream<Tuple3<String, Integer, Integer>> joinedStream = grades
 				.join(salaries)
-				.onWindow(1, new MyTimestamp(0), new MyTimestamp(0))
-				.where(0)
-				.equalTo(0)
-				.with(new MyJoinFunction());
+				.where(new NameKeySelector())
+				.equalTo(new NameKeySelector())
+				.window(TumblingTimeWindows.of(Time.of(5, TimeUnit.MILLISECONDS)))
+				.apply(new MyJoinFunction());
 
 		// emit result
 		if (fileOutput) {
@@ -98,24 +107,25 @@ public class WindowJoin {
 	/**
 	 * Continuously emit tuples with random names and integers (grades).
 	 */
-	public static class GradeSource implements SourceFunction<Tuple2<String, Integer>> {
+	public static class GradeSource implements SourceFunction<Tuple3<Long, String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		private Random rand;
-		private Tuple2<String, Integer> outTuple;
+		private Tuple3<Long, String, Integer> outTuple;
 		private volatile boolean isRunning = true;
 		private int counter;
 
 		public GradeSource() {
 			rand = new Random();
-			outTuple = new Tuple2<String, Integer>();
+			outTuple = new Tuple3<>();
 		}
 
 		@Override
-		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
+		public void run(SourceContext<Tuple3<Long, String, Integer>> ctx) throws Exception {
 			while (isRunning && counter < 100) {
-				outTuple.f0 = names[rand.nextInt(names.length)];
-				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
+				outTuple.f0 = System.currentTimeMillis();
+				outTuple.f1 = names[rand.nextInt(names.length)];
+				outTuple.f2 = rand.nextInt(GRADE_COUNT) + 1;
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
 				counter++;
 				ctx.collect(outTuple);
@@ -131,27 +141,28 @@ public class WindowJoin {
 	/**
 	 * Continuously emit tuples with random names and integers (salaries).
 	 */
-	public static class SalarySource extends RichSourceFunction<Tuple2<String, Integer>> {
+	public static class SalarySource extends RichSourceFunction<Tuple3<Long, String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		private transient Random rand;
-		private transient Tuple2<String, Integer> outTuple;
+		private transient Tuple3<Long, String, Integer> outTuple;
 		private volatile boolean isRunning;
 		private int counter;
 
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			rand = new Random();
-			outTuple = new Tuple2<String, Integer>();
+			outTuple = new Tuple3<Long, String, Integer>();
 			isRunning = true;
 		}
 
 
 		@Override
-		public void run(SourceContext<Tuple2<String, Integer>> ctx) throws Exception {
+		public void run(SourceContext<Tuple3<Long, String, Integer>> ctx) throws Exception {
 			while (isRunning && counter < 100) {
-				outTuple.f0 = names[rand.nextInt(names.length)];
-				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
+				outTuple.f0 = System.currentTimeMillis();
+				outTuple.f1 = names[rand.nextInt(names.length)];
+				outTuple.f2 = rand.nextInt(SALARY_MAX) + 1;
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
 				counter++;
 				ctx.collect(outTuple);
@@ -164,7 +175,7 @@ public class WindowJoin {
 		}
 	}
 
-	public static class MySourceMap extends RichMapFunction<String, Tuple2<String, Integer>> {
+	public static class MySourceMap extends RichMapFunction<String, Tuple3<Long, String, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -175,44 +186,55 @@ public class WindowJoin {
 		}
 
 		@Override
-		public Tuple2<String, Integer> map(String line) throws Exception {
+		public Tuple3<Long, String, Integer> map(String line) throws Exception {
 			record = line.substring(1, line.length() - 1).split(",");
-			return new Tuple2<String, Integer>(record[0], Integer.parseInt(record[1]));
+			return new Tuple3<>(Long.parseLong(record[0]), record[1], Integer.parseInt(record[2]));
 		}
 	}
 
 	public static class MyJoinFunction
 			implements
-			JoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> {
+			JoinFunction<Tuple3<Long, String, Integer>, Tuple3<Long, String, Integer>, Tuple3<String, Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
-		private Tuple3<String, Integer, Integer> joined = new Tuple3<String, Integer, Integer>();
+		private Tuple3<String, Integer, Integer> joined = new Tuple3<>();
 
 		@Override
-		public Tuple3<String, Integer, Integer> join(Tuple2<String, Integer> first,
-				Tuple2<String, Integer> second) throws Exception {
-			joined.f0 = first.f0;
-			joined.f1 = first.f1;
-			joined.f2 = second.f1;
+		public Tuple3<String, Integer, Integer> join(Tuple3<Long, String, Integer> first,
+				Tuple3<Long, String, Integer> second) throws Exception {
+			joined.f0 = first.f1;
+			joined.f1 = first.f2;
+			joined.f2 = second.f2;
 			return joined;
 		}
 	}
 
-	public static class MyTimestamp implements Timestamp<Tuple2<String, Integer>> {
-
+	private static class MyTimestampExtractor implements TimestampExtractor<Tuple3<Long, String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
-		private int counter;
-
-		public MyTimestamp(int starttime) {
-			this.counter = starttime;
+		@Override
+		public long extractTimestamp(Tuple3<Long, String, Integer> element, long currentTimestamp) {
+			return element.f0;
 		}
 
 		@Override
-		public long getTimestamp(Tuple2<String, Integer> value) {
-			counter += SLEEP_TIME;
-			return counter;
+		public long emitWatermark(Tuple3<Long, String, Integer> element, long currentTimestamp) {
+			return element.f0 - 1;
+		}
+
+		@Override
+		public long getCurrentWatermark() {
+			return Long.MIN_VALUE;
+		}
+	}
+
+	private static class NameKeySelector implements KeySelector<Tuple3<Long, String, Integer>, String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(Tuple3<Long, String, Integer> value) throws Exception {
+			return value.f1;
 		}
 	}
 
@@ -253,7 +275,12 @@ public class WindowJoin {
 		return true;
 	}
 
-	private static void setInputStreams(StreamExecutionEnvironment env) {
+	private static Tuple2<DataStream<Tuple3<Long, String, Integer>>, DataStream<Tuple3<Long, String, Integer>>> getInputStreams(
+			StreamExecutionEnvironment env) {
+
+		DataStream<Tuple3<Long, String, Integer>> grades;
+		DataStream<Tuple3<Long, String, Integer>> salaries;
+
 		if (fileInput) {
 			grades = env.readTextFile(gradesPath).map(new MySourceMap());
 			salaries = env.readTextFile(salariesPath).map(new MySourceMap());
@@ -261,5 +288,8 @@ public class WindowJoin {
 			grades = env.addSource(new GradeSource());
 			salaries = env.addSource(new SalarySource());
 		}
+
+		return Tuple2.of(grades, salaries);
 	}
+
 }
