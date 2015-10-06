@@ -80,7 +80,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		// add shell commands
 		alljars.add(jarUrl);
 		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, new Configuration(),
-				(URL[]) alljars.toArray(), null);
+				alljars.toArray(new URL[alljars.size()]), null);
 
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
