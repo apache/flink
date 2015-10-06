@@ -19,7 +19,6 @@ package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.operators.Operator
 import org.apache.flink.api.common.operators.base.JoinOperatorBase
-import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -64,7 +63,7 @@ class JoinDataSet[L, R](
     rightInput: DataSet[R],
     leftKeys: Keys[L],
     rightKeys: Keys[R])
-  extends DataSet(defaultJoin) {
+  extends DataSet(defaultJoin) with JoinFunctionAssigner[L, R] {
 
   private var customPartitioner : Partitioner[_] = _
   
@@ -213,9 +212,46 @@ class JoinDataSet[L, R](
   }
 }
 
+private[flink] abstract class UnfinishedJoinOperation[L, R, O <: JoinFunctionAssigner[L, R]](
+    leftSet: DataSet[L],
+    rightSet: DataSet[R],
+    val joinHint: JoinHint,
+    val joinType: JoinType)
+  extends UnfinishedKeyPairOperation[L, R, O](leftSet, rightSet) {
+
+  def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]): O
+
+  private[flink] def createDefaultJoin(leftKey: Keys[L], rightKey: Keys[R]) = {
+    val joiner = new FlatJoinFunction[L, R, (L, R)] {
+      def join(left: L, right: R, out: Collector[(L, R)]) = {
+        out.collect((left, right))
+      }
+    }
+    val returnType = createTuple2TypeInformation[L, R](leftInput.getType(), rightInput.getType())
+    val joinOperator = new EquiJoin[L, R, (L, R)](
+      leftSet.javaSet,
+      rightSet.javaSet,
+      leftKey,
+      rightKey,
+      joiner,
+      returnType,
+      joinHint,
+      getCallLocationName(),
+      joinType)
+
+    new JoinDataSet(joinOperator, leftSet, rightSet, leftKey, rightKey)
+  }
+
+  private[flink] def finish(leftKey: Keys[L], rightKey: Keys[R]) = {
+    createJoinFunctionAssigner(leftKey, rightKey)
+  }
+}
+
 /**
- * An unfinished join operation that results from [[DataSet.join()]] The keys for the left and right
- * side must be specified using first `where` and then `equalTo`. For example:
+ * An unfinished inner join operation that results from calling [[DataSet.join()]].
+ * The keys for the left and right side must be specified using first `where` and then `equalTo`.
+ *
+ * For example:
  *
  * {{{
  *   val left = ...
@@ -225,37 +261,77 @@ class JoinDataSet[L, R](
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.
  */
-class UnfinishedJoinOperation[L, R](
+class UnfinishedInnerJoinOperation[L, R](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
-    val joinHint: JoinHint,
-    val joinType: JoinType)
-  extends UnfinishedKeyPairOperation[L, R, JoinDataSet[L, R]](leftSet, rightSet) {
+    joinHint: JoinHint)
+  extends UnfinishedJoinOperation[L, R, JoinDataSet[L, R]](
+    leftSet, rightSet, joinHint, JoinType.INNER) {
 
-  def this(leftSet: DataSet[L], rightSet: DataSet[R], joinHint: JoinHint) =
-    this(leftSet, rightSet, joinHint, JoinType.INNER)
-
-  private[flink] def finish(leftKey: Keys[L], rightKey: Keys[R]) = {
-    val joiner = new FlatJoinFunction[L, R, (L, R)] {
-      def join(left: L, right: R, out: Collector[(L, R)]) = {
-        out.collect((left, right))
-      }
-    }
-    val returnType = createTuple2TypeInformation[L, R](leftInput.getType(), rightInput.getType())
-    val joinOperator = new EquiJoin[L, R, (L, R)](
-      leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint,
-      getCallLocationName(), joinType) {
-
-      override protected def translateToDataFlow(input1: Operator[L], input2: Operator[R]):
-          JoinOperatorBase[_, _, (L, R), _] = {
-        if (joinType.isOuter) {
-          throw new InvalidProgramException("Must specify a custom join function for outer join")
-        }
-        super.translateToDataFlow(input1, input2)
-      }
-    }
-
-    new JoinDataSet(joinOperator, leftSet, rightSet, leftKey, rightKey)
+  override def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]) = {
+    createDefaultJoin(leftKey, rightKey)
   }
+}
+
+/**
+ * An unfinished outer join operation that results from calling, e.g. [[DataSet.fullOuterJoin()]].
+ * The keys for the left and right side must be specified using first `where` and then `equalTo`.
+ *
+ * Note that a join function must always be specified explicitly when construction an outer join
+ * operator.
+ *
+ * For example:
+ *
+ * {{{
+ *   val left = ...
+ *   val right = ...
+ *   val joinResult = left.fullOuterJoin(right).where(...).equalTo(...) {
+ *     (first, second) => ...
+ *   }
+ * }}}
+ * @tparam L The type of the left input of the join.
+ * @tparam R The type of the right input of the join.
+ */
+class UnfinishedOuterJoinOperation[L, R](
+    leftSet: DataSet[L],
+    rightSet: DataSet[R],
+    joinHint: JoinHint,
+    joinType: JoinType)
+  extends UnfinishedJoinOperation[L, R, JoinFunctionAssigner[L, R]](
+    leftSet, rightSet, joinHint, joinType) {
+
+  override def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]):
+      JoinFunctionAssigner[L, R] = {
+    new DefaultJoinFunctionAssigner(createDefaultJoin(leftKey, rightKey))
+  }
+
+  private class DefaultJoinFunctionAssigner(val defaultJoin: JoinDataSet[L, R])
+    extends JoinFunctionAssigner[L, R] {
+
+    override def withPartitioner[K: TypeInformation](part: Partitioner[K]) =
+      defaultJoin.withPartitioner(part)
+
+    override def apply[O: TypeInformation : ClassTag](fun: (L, R) => O) =
+      defaultJoin.apply(fun)
+
+    override def apply[O: TypeInformation : ClassTag](fun: (L, R, Collector[O]) => Unit) =
+      defaultJoin.apply(fun)
+
+    override def apply[O: TypeInformation : ClassTag](fun: FlatJoinFunction[L, R, O]) =
+      defaultJoin.apply(fun)
+
+    override def apply[O: TypeInformation : ClassTag](fun: JoinFunction[L, R, O]) =
+      defaultJoin.apply(fun)
+  }
+
+}
+
+trait JoinFunctionAssigner[L, R] {
+
+  def withPartitioner[K : TypeInformation](part : Partitioner[K]) : JoinFunctionAssigner[L, R]
+  def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O]
+  def apply[O: TypeInformation: ClassTag](fun: (L, R, Collector[O]) => Unit): DataSet[O]
+  def apply[O: TypeInformation: ClassTag](fun: FlatJoinFunction[L, R, O]): DataSet[O]
+  def apply[O: TypeInformation: ClassTag](fun: JoinFunction[L, R, O]): DataSet[O]
 
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.RichJoinFunction
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat.{DEFAULT_FIELD_DELIMITER, DEFAULT_LINE_DELIMITER}
@@ -120,16 +119,6 @@ class OuterJoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     writeAsCsv(joinDs.map(mapToString))
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,null\n" + "null,Hallo Welt wie\n"
-  }
-
-  @Test(expected = classOf[InvalidProgramException])
-  @throws(classOf[Exception])
-  def testDefaultJoin {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env)
-    val joinDs = ds1.fullOuterJoin(ds2).where(0).equalTo(2)
-    joinDs.collect()
   }
 
   @Test

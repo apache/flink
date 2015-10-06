@@ -876,29 +876,29 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *     }
    * }}}
    */
-  def join[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES)
+  def join[O](other: DataSet[O]): UnfinishedInnerJoinOperation[T, O] =
+    new UnfinishedInnerJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES)
 
   /**
    * Special [[join]] operation for explicitly telling the system what join strategy to use. If
    * null is given as the join strategy, then the optimizer will pick the strategy.
    */
-  def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, strategy)
+  def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedInnerJoinOperation[T, O] =
+    new UnfinishedInnerJoinOperation(this, other, strategy)
   
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.
    */
-  def joinWithTiny[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_SECOND)
+  def joinWithTiny[O](other: DataSet[O]): UnfinishedInnerJoinOperation[T, O] =
+    new UnfinishedInnerJoinOperation(this, other, JoinHint.BROADCAST_HASH_SECOND)
 
   /**
    * Special [[join]] operation for explicitly telling the system that the left side is assumed
    * to be a lot smaller than the right side of the join.
    */
-  def joinWithHuge[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
+  def joinWithHuge[O](other: DataSet[O]): UnfinishedInnerJoinOperation[T, O] =
+    new UnfinishedInnerJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
 
   /**
    * Creates a new DataSet by performing a full outer join of `this` DataSet
@@ -924,15 +924,15 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *  }
    * }}}
    */
-  def fullOuterJoin[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.FULL_OUTER)
+  def fullOuterJoin[O](other: DataSet[O]): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.FULL_OUTER)
 
   /**
    * Special [[fullOuterJoin]] operation for explicitly telling the system what join strategy to
    * use. If null is given as the join strategy, then the optimizer will pick the strategy.
    */
-  def fullOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, strategy, JoinType.FULL_OUTER)
+  def fullOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.FULL_OUTER)
 
   /**
    * An outer join on the left side.
@@ -944,8 +944,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
    * @see #fullOuterJoin
    */
-  def leftOuterJoin[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.LEFT_OUTER)
+  def leftOuterJoin[O](other: DataSet[O]): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.LEFT_OUTER)
 
   /**
    * An outer join on the left side.
@@ -959,8 +959,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
    * @see #fullOuterJoin
    */
-  def leftOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, strategy, JoinType.LEFT_OUTER)
+  def leftOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.LEFT_OUTER)
 
   /**
    * An outer join on the right side.
@@ -972,8 +972,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
    * @see #fullOuterJoin
    */
-  def rightOuterJoin[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.RIGHT_OUTER)
+  def rightOuterJoin[O](other: DataSet[O]): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.RIGHT_OUTER)
 
   /**
    * An outer join on the right side.
@@ -987,8 +987,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
    * @see #fullOuterJoin
    */
-  def rightOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperation(this, other, strategy, JoinType.RIGHT_OUTER)
+  def rightOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.RIGHT_OUTER)
 
   // --------------------------------------------------------------------------------------------
   //  Co-Group
