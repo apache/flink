@@ -58,7 +58,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .windowAll(SlidingProcessingTimeWindows.of(
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
-      .reduceWindow(reducer)
+      .reduce(reducer)
 
     val transform1 = window1.getJavaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
@@ -100,7 +100,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
       .trigger(CountTrigger.of(100))
-      .reduceWindow(reducer)
+      .reduce(reducer)
 
     val transform1 = window1.getJavaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
@@ -150,7 +150,7 @@ class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase {
         Time.of(1, TimeUnit.SECONDS),
         Time.of(100, TimeUnit.MILLISECONDS)))
       .evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)))
-      .reduceWindow(reducer)
+      .reduce(reducer)
 
     val transform1 = window1.getJavaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
