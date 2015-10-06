@@ -20,11 +20,14 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.dispatch.Mapper;
+import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.ResponseWebMonitorPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -86,8 +89,19 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 	 * <p>This has to match the URL retrieved by the leader retrieval service. In tests setups you
 	 * have to make sure to use the correct type of URLs.
 	 */
-	public void setJobManagerAkkaUrl(String jobManagerAkkaUrl) {
-		this.jobManagerAkkaUrl = jobManagerAkkaUrl;
+	public void setJobManagerAkkaUrlAndRetrieveGateway(String jobManagerAkkaUrl) throws Exception {
+		this.jobManagerAkkaUrl = checkNotNull(jobManagerAkkaUrl, "JobManager Akka URL");
+
+		ActorRef jobManagerRef = AkkaUtils.getActorRef(
+				jobManagerAkkaUrl, actorSystem, lookupTimeout);
+		jobManagerGateway = new AkkaActorGateway(jobManagerRef, null);
+
+		Future<Object> archiveFuture = jobManagerGateway.ask(
+				JobManagerMessages.getRequestArchive(), timeout);
+
+		ActorRef archiveRef = ((JobManagerMessages.ResponseArchive)
+				Await.result(archiveFuture, timeout)).actor();
+		archiveGateway = new AkkaActorGateway(archiveRef, null);
 	}
 
 	/**
@@ -97,10 +111,22 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 	 * just work with any leader).
 	 */
 	public ActorGateway getJobManagerGateway() {
+		// Sanity check
+		if (jobManagerGateway == null) {
+			throw new IllegalStateException("Job manager gateway has not been retrieved yet. " +
+					"Did you call start?");
+		}
+
 		return jobManagerGateway;
 	}
 
 	public ActorGateway getArchiveGateway() {
+		// Sanity check
+		if (archiveGateway == null) {
+			throw new IllegalStateException("Archive gateway has not been retrieved yet. " +
+					"Did you call start?");
+		}
+
 		return archiveGateway;
 	}
 
@@ -113,21 +139,9 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 	}
 
 	@Override
-	public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
+	public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
 		if (leaderAddress != null && !leaderAddress.equals("")) {
 			try {
-				ActorRef jobManager = AkkaUtils.getActorRef(leaderAddress, actorSystem,
-						lookupTimeout);
-
-				jobManagerGateway = new AkkaActorGateway(jobManager, leaderSessionID);
-
-				Future<Object> archiveFuture = jobManagerGateway.ask(
-						JobManagerMessages.getRequestArchive(), timeout);
-
-				ActorRef archive = ((JobManagerMessages.ResponseArchive) Await.result(
-						archiveFuture, timeout)).actor();
-				archiveGateway = new AkkaActorGateway(archive, leaderSessionID);
-
 				if (jobManagerAkkaUrl == null) {
 					throw new IllegalStateException("Unspecified Akka URL for the job manager " +
 							"associated with this web monitor.");
@@ -135,9 +149,11 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 
 				boolean isLeader = jobManagerAkkaUrl.equals(leaderAddress);
 
+				redirectWebMonitorAddress = null;
+
+				// Our JobManager is leader and our work is done :)
 				if (isLeader) {
-					// Our JobManager is leader and our work is done :)
-					redirectWebMonitorAddress = null;
+					LOG.info("Retrieved leader notification. Associated local job manager {} is leader.", jobManagerAkkaUrl);
 				}
 				else {
 					// We need to redirect to the leader -.-
@@ -145,24 +161,56 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 					// This is necessary currently, because many execution graph structures are not
 					// serializable. The proper solution here is to have these serializable and
 					// transparently work with the leading job manager instead of redirecting.
-					Future<Object> portFuture = jobManagerGateway
-							.ask(JobManagerMessages.getRequestWebMonitorPort(), timeout);
+					LOG.info("Retrieved leader notification. Remote job  manager {} is leader.", leaderAddress);
 
-					JobManagerMessages.ResponseWebMonitorPort portResponse =
-							(JobManagerMessages.ResponseWebMonitorPort) Await.result(portFuture, timeout);
+					// Leader actor ref
+					Future<ActorRef> newLeaderFuture = AkkaUtils
+							.getActorRefFuture(leaderAddress, actorSystem, timeout);
 
-					int webMonitorPort = portResponse.port();
+					// Leader web monitor port request future
+					Future<Object> portFuture = newLeaderFuture.flatMap(
+							new Mapper<ActorRef, Future<Object>>() {
+								@Override
+								public Future<Object> apply(ActorRef jobManagerRef) {
+									ActorGateway newLeaderGateway = new AkkaActorGateway(
+											jobManagerRef, leaderSessionID);
 
-					if (webMonitorPort != 1) {
-						Matcher matcher = hostFromLeaderAddressPattern.matcher(leaderAddress);
-						if (matcher.matches()) {
-							redirectWebMonitorAddress = String.format("%s:%d",
-									matcher.group(1), webMonitorPort);
+									return newLeaderGateway.ask(JobManagerMessages
+											.getRequestWebMonitorPort(), timeout);
+								}
+							}, actorSystem.dispatcher());
+
+					// Set the redirect address
+					portFuture.onComplete(new OnComplete<Object>() {
+						@Override
+						public void onComplete(Throwable failure, Object success) throws Throwable {
+							if (failure == null) {
+								ResponseWebMonitorPort portResponse = (ResponseWebMonitorPort) success;
+								int webMonitorPort = portResponse.port();
+
+								LOG.info("Leading job manager web monitor port is {}.", webMonitorPort);
+
+								if (webMonitorPort != 1) {
+									Matcher matcher = hostFromLeaderAddressPattern.matcher(leaderAddress);
+									if (matcher.matches()) {
+										redirectWebMonitorAddress = String.format("%s:%d",
+												matcher.group(1), webMonitorPort);
+
+										LOG.info("New redirect address is {}.", redirectWebMonitorAddress);
+									}
+									else {
+										LOG.warn("Unexpected leader address pattern. Cannot extract host.");
+									}
+								}
+								else {
+									LOG.warn("Leading job manager has not web monitor port configured.");
+								}
+							}
+							else if (!actorSystem.isTerminated()) {
+								LOG.warn("Leading job manager port request future failed.", failure);
+							}
 						}
-						else {
-							LOG.warn("Unexpected leader address pattern. Cannot extract host.");
-						}
-					}
+					}, actorSystem.dispatcher());
 				}
 			}
 			catch (Exception e) {

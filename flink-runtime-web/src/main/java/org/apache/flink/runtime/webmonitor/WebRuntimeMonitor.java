@@ -153,39 +153,39 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		router = new Router()
 			// config how to interact with this web server
-			.GET("/config", handler(retriever, new DashboardConfigHandler(cfg.getRefreshInterval())))
+			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval()), retriever))
 
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(retriever, new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/overview", handler(new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT), retriever))
 
 			// job manager configuration
-			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config)))
+			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config), retriever))
 
 			// overview over jobs
-			.GET("/joboverview", handler(retriever, new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true)))
-			.GET("/joboverview/running", handler(retriever, new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false)))
-			.GET("/joboverview/completed", handler(retriever, new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true)))
+			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true), retriever))
+			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false), retriever))
+			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true), retriever))
 
-			.GET("/jobs", handler(retriever, new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT), retriever))
 
-			.GET("/jobs/:jobid", handler(retriever, new JobDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices", handler(retriever, new JobDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs), retriever))
 
-			.GET("/jobs/:jobid/vertices/:vertexid", handler(retriever, new JobVertexDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(retriever, new SubtasksTimesHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(retriever, new JobVertexAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs), retriever))
 
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(retriever, new SubtasksAllAccumulatorsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(retriever, new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(retriever, new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(retriever, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs), retriever))
 
-			.GET("/jobs/:jobid/plan", handler(retriever, new JobPlanHandler(currentGraphs)))
-			.GET("/jobs/:jobid/config", handler(retriever, new JobConfigHandler(currentGraphs)))
-			.GET("/jobs/:jobid/exceptions", handler(retriever, new JobExceptionsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/accumulators", handler(retriever, new JobAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs), retriever))
 
-			.GET("/taskmanagers", handler(retriever, new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/taskmanagers", handler(new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT), retriever))
 
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(retriever, webRootDir));
@@ -229,7 +229,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	public void start(String jobManagerAkkaUrl) throws Exception {
 		LOG.info("Starting with JobManager {} on port {}", jobManagerAkkaUrl, getServerPort());
 		synchronized (startupShutdownLock) {
-			retriever.setJobManagerAkkaUrl(jobManagerAkkaUrl);
+			retriever.setJobManagerAkkaUrlAndRetrieveGateway(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
 		}
 	}
@@ -271,8 +271,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 	// ------------------------------------------------------------------------
 
 	private static RuntimeMonitorHandler handler(
-			JobManagerArchiveRetriever retriever, RequestHandler handler) {
+			RequestHandler handler,
+			JobManagerArchiveRetriever retriever) {
 
-		return new RuntimeMonitorHandler(retriever, handler);
+		return new RuntimeMonitorHandler(handler, retriever);
 	}
 }

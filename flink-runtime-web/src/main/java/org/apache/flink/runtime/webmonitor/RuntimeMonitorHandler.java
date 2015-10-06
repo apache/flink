@@ -54,7 +54,7 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 	
 	private final String contentType;
 	
-	public RuntimeMonitorHandler(JobManagerArchiveRetriever retriever, RequestHandler handler) {
+	public RuntimeMonitorHandler(RequestHandler handler, JobManagerArchiveRetriever retriever) {
 		this.retriever = checkNotNull(retriever);
 		this.handler = checkNotNull(handler);
 		this.contentType = (handler instanceof RequestHandler.JsonResponse) ? "application/json" : "text/plain";
