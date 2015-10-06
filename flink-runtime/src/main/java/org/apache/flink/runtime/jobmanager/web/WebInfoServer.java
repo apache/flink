@@ -35,6 +35,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.eclipse.jetty.server.Connector;
@@ -108,7 +109,7 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
 			ActorSystem actorSystem)
-		throws IOException {
+			throws Exception {
 		if (config == null) {
 			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}
@@ -116,6 +117,11 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 		this.config = config;
 
 		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
+
+		// Sanity check for the time being
+		if (!(leaderRetrievalService instanceof StandaloneLeaderRetrievalService)) {
+			throw new IllegalArgumentException("WebInfoServer does not work with enabled recovery.");
+		}
 
 		// if port == 0, jetty will assign an available port.
 		int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
@@ -166,23 +172,16 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 		handlers = new HandlerCollection(true);
 		handlers.addHandler(resourceHandler);
 		server.setHandler(handlers);
-	}
 
-	/**
-	 * Starts the web frontend server.
-	 *
-	 * @throws Exception
-	 *         Thrown, if the start fails.
-	 */
-	public void start() throws Exception {
+		// Start the web server
 		server.start();
-		
+
 		final Connector[] connectors = server.getConnectors();
 		if (connectors != null && connectors.length > 0) {
 			Connector conn = connectors[0];
 
 			// we have to use getLocalPort() instead of getPort() http://stackoverflow.com/questions/8884865/how-to-discover-jetty-7-running-port
-			this.assignedPort = conn.getLocalPort(); 
+			this.assignedPort = conn.getLocalPort();
 			String host = conn.getHost();
 			if (host == null) { // as per method documentation
 				host = "0.0.0.0";
@@ -192,7 +191,15 @@ public class WebInfoServer implements WebMonitor, LeaderRetrievalListener {
 		else {
 			LOG.warn("Unable to determine local endpoint of web frontend server");
 		}
+	}
 
+	/**
+	 * Starts the leader retrieval service.
+	 *
+	 * @throws Exception
+	 *         Thrown, if the start fails.
+	 */
+	public void start(String jobManagerAkkaUrl) throws Exception {
 		leaderRetrievalService.start(this);
 	}
 

@@ -86,7 +86,7 @@ angular.module('flinkApp')
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get "/joboverview"
+    $http.get "joboverview"
     .success (data, status, headers, config) =>
       angular.forEach data, (list, listKey) =>
         switch listKey
@@ -110,12 +110,12 @@ angular.module('flinkApp')
     currentJob = null
     deferreds.job = $q.defer()
 
-    $http.get "/jobs/" + jobid
+    $http.get "jobs/" + jobid
     .success (data, status, headers, config) =>
       @setEndTimes(data.vertices)
       @processVertices(data)
 
-      $http.get "/jobs/" + jobid + "/config"
+      $http.get "jobs/" + jobid + "/config"
       .success (jobConfig) ->
         data = angular.extend(data, jobConfig)
 
@@ -157,7 +157,7 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       vertex = @seekVertex(vertexid)
 
-      $http.get "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
+      $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes"
       .success (data) =>
         # TODO: change to subtasktimes
         vertex.subtasks = data.subtasks
@@ -172,7 +172,7 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
 
-      $http.get "/jobs/" + currentJob.jid + "/vertices/" + vertexid
+      $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid
       .success (data) ->
         subtasks = data.subtasks
 
@@ -186,11 +186,11 @@ angular.module('flinkApp')
     deferreds.job.promise.then (data) =>
       # vertex = @seekVertex(vertexid)
 
-      $http.get "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
+      $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators"
       .success (data) ->
         accumulators = data['user-accumulators']
 
-        $http.get "/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
+        $http.get "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators"
         .success (data) ->
           subtaskAccumulators = data.subtasks
 
@@ -203,7 +203,7 @@ angular.module('flinkApp')
 
     deferreds.job.promise.then (data) =>
 
-      $http.get "/jobs/" + currentJob.jid + "/exceptions"
+      $http.get "jobs/" + currentJob.jid + "/exceptions"
       .success (exceptions) ->
         currentJob.exceptions = exceptions
 

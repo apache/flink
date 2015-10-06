@@ -63,6 +63,8 @@ public final class StandaloneUtils {
 			Configuration configuration,
 			String jobManagerName)
 		throws UnknownHostException {
+
+
 		Tuple2<String, Object> stringIntPair = TaskManager.getAndCheckJobManagerAddress(configuration);
 
 		String jobManagerHostname = stringIntPair._1();
