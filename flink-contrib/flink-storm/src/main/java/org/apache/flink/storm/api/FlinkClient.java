@@ -46,7 +46,6 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
 
@@ -211,31 +210,34 @@ public class FlinkClient {
 	public void killTopologyWithOpts(final String name, final KillOptions options) throws NotAliveException {
 		final JobID jobId = this.getTopologyJobId(name);
 		if (jobId == null) {
-			throw new NotAliveException();
+			throw new NotAliveException("Storm topology with name " + name + " not found.");
+		}
+
+		if (options != null) {
+			try {
+				Thread.sleep(1000 * options.get_wait_secs());
+			} catch (final InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		final Configuration configuration = GlobalConfiguration.getConfiguration();
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, this.jobManagerHost);
+		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, this.jobManagerPort);
+
+		final Client client;
+		try {
+			client = new Client(configuration);
+		} catch (final IOException e) {
+			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
 		try {
-			final ActorRef jobManager = this.getJobManager();
-
-			if (options != null) {
-				try {
-					Thread.sleep(1000 * options.get_wait_secs());
-				} catch (final InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-			}
-
-			final FiniteDuration askTimeout = this.getTimeout();
-			final Future<Object> response = Patterns.ask(jobManager, new CancelJob(jobId), new Timeout(askTimeout));
-			try {
-				Await.result(response, askTimeout);
-			} catch (final Exception e) {
-				throw new RuntimeException("Killing topology " + name + " with Flink job ID " + jobId + " failed", e);
-			}
-		} catch (final IOException e) {
-			throw new RuntimeException("Could not connect to Flink JobManager with address " + this.jobManagerHost
-					+ ":" + this.jobManagerPort, e);
+			client.cancel(jobId);
+		} catch (final Exception e) {
+			throw new RuntimeException("Cannot stop job.", e);
 		}
+
 	}
 
 	// Flink specific additional methods
