@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -80,7 +81,7 @@ public class AllWindowedStream<T, W extends Window> {
 			WindowAssigner<? super T, W> windowAssigner) {
 		this.input = input;
 		this.windowAssigner = windowAssigner;
-		this.trigger = windowAssigner.getDefaultTrigger();
+		this.trigger = windowAssigner.getDefaultTrigger(input.getExecutionEnvironment());
 	}
 
 	/**
@@ -139,12 +140,14 @@ public class AllWindowedStream<T, W extends Window> {
 
 		OneInputStreamOperator<T, T> operator;
 
+		boolean setProcessingTime = input.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+
 		if (evictor != null) {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					new HeapWindowBuffer.Factory<T>(),
 					new ReduceAllWindowFunction<W, T>(function),
 					trigger,
-					evictor);
+					evictor).enableSetProcessingTime(setProcessingTime);
 
 		} else {
 			// we need to copy because we need our own instance of the pre aggregator
@@ -154,7 +157,7 @@ public class AllWindowedStream<T, W extends Window> {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					new PreAggregatingHeapWindowBuffer.Factory<>(functionCopy),
 					new ReduceAllWindowFunction<W, T>(function),
-					trigger);
+					trigger).enableSetProcessingTime(setProcessingTime);
 		}
 
 		return input.transform(opName, input.getType(), operator).setParallelism(1);
@@ -205,20 +208,22 @@ public class AllWindowedStream<T, W extends Window> {
 
 		String opName = "TriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
 
-		OneInputStreamOperator<T, R> operator;
+		NonKeyedWindowOperator<T, R, W> operator;
+
+		boolean setProcessingTime = input.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 
 		if (evictor != null) {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					new HeapWindowBuffer.Factory<T>(),
 					function,
 					trigger,
-					evictor);
+					evictor).enableSetProcessingTime(setProcessingTime);
 
 		} else {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					new HeapWindowBuffer.Factory<T>(),
 					function,
-					trigger);
+					trigger).enableSetProcessingTime(setProcessingTime);
 		}
 
 		return input.transform(opName, resultType, operator).setParallelism(1);

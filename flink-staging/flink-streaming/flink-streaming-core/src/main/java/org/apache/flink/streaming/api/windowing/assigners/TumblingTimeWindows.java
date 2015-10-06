@@ -17,7 +17,10 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.WatermarkTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -58,8 +61,12 @@ public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	}
 
 	@Override
-	public Trigger<Object, TimeWindow> getDefaultTrigger() {
-		return WatermarkTrigger.create();
+	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
+			return ProcessingTimeTrigger.create();
+		} else {
+			return WatermarkTrigger.create();
+		}
 	}
 
 	@Override

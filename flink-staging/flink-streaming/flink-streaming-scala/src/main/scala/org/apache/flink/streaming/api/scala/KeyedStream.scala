@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.functions.aggregation.SumAggregator
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
 import org.apache.flink.streaming.api.windowing.assigners._
-import org.apache.flink.streaming.api.windowing.time.{ProcessingTime, EventTime, AbstractTime}
+import org.apache.flink.streaming.api.windowing.time.AbstractTime
 import org.apache.flink.streaming.api.windowing.windows.{Window, TimeWindow}
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -50,20 +50,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * @param size The size of the window.
    */
   def timeWindow(size: AbstractTime): WindowedStream[T, K, TimeWindow] = {
-    val env = new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
-    val actualSize = size.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
-
-    actualSize match {
-      case t: EventTime =>
-        val assigner = TumblingTimeWindows.of(actualSize)
-          .asInstanceOf[WindowAssigner[T, TimeWindow]]
-        window(assigner)
-      case t: ProcessingTime =>
-        val assigner = TumblingProcessingTimeWindows.of(actualSize)
-          .asInstanceOf[WindowAssigner[T, TimeWindow]]
-        window(assigner)
-      case _ => throw new RuntimeException("Invalid time: " + actualSize)
-    }
+    val assigner = TumblingTimeWindows.of(size).asInstanceOf[WindowAssigner[T, TimeWindow]]
+    window(assigner)
   }
 
   /**
@@ -78,23 +66,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * @param size The size of the window.
    */
   def timeWindow(size: AbstractTime, slide: AbstractTime): WindowedStream[T, K, TimeWindow] = {
-    val env = new StreamExecutionEnvironment(javaStream.getExecutionEnvironment)
-    val actualSize = size.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
-    val actualSlide = slide.makeSpecificBasedOnTimeCharacteristic(env.getStreamTimeCharacteristic)
-
-    actualSize match {
-      case t: EventTime =>
-        val assigner = SlidingTimeWindows.of(
-          actualSize,
-          actualSlide).asInstanceOf[WindowAssigner[T, TimeWindow]]
-        window(assigner)
-      case t: ProcessingTime =>
-        val assigner = SlidingProcessingTimeWindows.of(
-          actualSize,
-          actualSlide).asInstanceOf[WindowAssigner[T, TimeWindow]]
-        window(assigner)
-      case _ => throw new RuntimeException("Invalid time: " + actualSize)
-    }
+    val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
+    window(assigner)
   }
 
   /**

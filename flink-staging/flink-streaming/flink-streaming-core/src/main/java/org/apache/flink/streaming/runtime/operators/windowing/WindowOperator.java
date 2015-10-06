@@ -347,6 +347,11 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
+	public boolean isSetProcessingTime() {
+		return setProcessingTime;
+	}
+
+	@VisibleForTesting
 	public Trigger<? super IN, ? super W> getTriggerTemplate() {
 		return triggerTemplate;
 	}

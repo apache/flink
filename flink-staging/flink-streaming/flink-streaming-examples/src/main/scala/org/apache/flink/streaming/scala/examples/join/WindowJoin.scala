@@ -20,6 +20,7 @@ package org.apache.flink.streaming.scala.examples.join
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -45,7 +46,7 @@ object WindowJoin {
     }
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableTimestamps()
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     //Create streams for grades and salaries by mapping the inputs to the corresponding objects
     val grades = setGradesInput(env)
