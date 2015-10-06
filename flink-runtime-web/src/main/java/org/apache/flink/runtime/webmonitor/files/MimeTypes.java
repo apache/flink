@@ -91,6 +91,9 @@ public class MimeTypes {
 		MIME_MAP.put("htm", "text/html");
 		MIME_MAP.put("css", "text/css");
 		MIME_MAP.put("txt", "text/plain");
+		MIME_MAP.put("log", "text/plain");
+		MIME_MAP.put("out", "text/plain");
+		MIME_MAP.put("err", "text/plain");
 		MIME_MAP.put("xml", "text/xml");
 		MIME_MAP.put("csv", "text/csv");
 		

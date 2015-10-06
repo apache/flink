@@ -231,10 +231,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Assert.assertEquals("unable to find port in " + parsed, port,
 					parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
-			// TODO disabled until log files available in new web frontend
 			// test logfile access
-			//String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
-			//Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
+			String logs = TestBaseUtils.getFromHTTP(url + "jobmanager/log");
+			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
 		} catch(Throwable e) {
 			LOG.warn("Error while running test",e);
 			Assert.fail(e.getMessage());
@@ -567,7 +566,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			File jobmanagerLog = YarnTestBase.findFile("..", new FilenameFilter() {
 				@Override
 				public boolean accept(File dir, String name) {
-					return name.contains("jobmanager-main") && dir.getAbsolutePath().contains(id.toString());
+					return name.contains("jobmanager.log") && dir.getAbsolutePath().contains(id.toString());
 				}
 			});
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
