@@ -88,15 +88,15 @@ public class BlobLibraryCacheRecoveryITCase {
 			}
 
 			// Random data
-			byte[] actual = new byte[1024];
-			rand.nextBytes(actual);
+			byte[] expected = new byte[1024];
+			rand.nextBytes(expected);
 
 			List<BlobKey> keys = new ArrayList<>(2);
 
 			// Upload some data (libraries)
 			try (BlobClient client = new BlobClient(serverAddress[0])) {
-				keys.add(client.put(actual)); // Request 1
-				keys.add(client.put(actual, 32, 256)); // Request 2
+				keys.add(client.put(expected)); // Request 1
+				keys.add(client.put(expected, 32, 256)); // Request 2
 			}
 
 			// The cache
@@ -110,11 +110,11 @@ public class BlobLibraryCacheRecoveryITCase {
 
 			// Verify key 1
 			File f = libCache.getFile(keys.get(0));
-			assertEquals(actual.length, f.length());
+			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
-				for (int i = 0; i < actual.length && fis.available() > 0; i++) {
-					assertEquals(actual[i], (byte) fis.read());
+				for (int i = 0; i < expected.length && fis.available() > 0; i++) {
+					assertEquals(expected[i], (byte) fis.read());
 				}
 
 				assertEquals(0, fis.available());
@@ -129,11 +129,11 @@ public class BlobLibraryCacheRecoveryITCase {
 
 			// Verify key 1
 			f = libCache.getFile(keys.get(0));
-			assertEquals(actual.length, f.length());
+			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
-				for (int i = 0; i < actual.length && fis.available() > 0; i++) {
-					assertEquals(actual[i], (byte) fis.read());
+				for (int i = 0; i < expected.length && fis.available() > 0; i++) {
+					assertEquals(expected[i], (byte) fis.read());
 				}
 
 				assertEquals(0, fis.available());
@@ -145,7 +145,7 @@ public class BlobLibraryCacheRecoveryITCase {
 
 			try (FileInputStream fis = new FileInputStream(f)) {
 				for (int i = 0; i < 256 && fis.available() > 0; i++) {
-					assertEquals(actual[32 + i], (byte) fis.read());
+					assertEquals(expected[32 + i], (byte) fis.read());
 				}
 
 				assertEquals(0, fis.available());

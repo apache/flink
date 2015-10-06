@@ -80,20 +80,20 @@ public class BlobRecoveryITCase {
 			client = new BlobClient(serverAddress[0]);
 
 			// Random data
-			byte[] actual = new byte[1024];
-			rand.nextBytes(actual);
+			byte[] expected = new byte[1024];
+			rand.nextBytes(expected);
 
 			BlobKey[] keys = new BlobKey[2];
 
 			// Put data
-			keys[0] = client.put(actual); // Request 1
-			keys[1] = client.put(actual, 32, 256); // Request 2
+			keys[0] = client.put(expected); // Request 1
+			keys[1] = client.put(expected, 32, 256); // Request 2
 
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
 			String[] testKey = new String[] { "test-key-1", "test-key-2" };
 
-			client.put(jobId[0], testKey[0], actual); // Request 3
-			client.put(jobId[1], testKey[1], actual, 32, 256); // Request 4
+			client.put(jobId[0], testKey[0], expected); // Request 3
+			client.put(jobId[1], testKey[1], expected, 32, 256); // Request 4
 
 			// Close the client and connect to the other server
 			client.close();
@@ -101,42 +101,42 @@ public class BlobRecoveryITCase {
 
 			// Verify request 1
 			try (InputStream is = client.get(keys[0])) {
-				byte[] expected = new byte[actual.length];
+				byte[] actual = new byte[expected.length];
 
-				BlobUtils.readFully(is, expected, 0, actual.length, null);
+				BlobUtils.readFully(is, actual, 0, expected.length, null);
 
-				for (int i = 0; i < actual.length; i++) {
-					assertEquals(actual[i], expected[i]);
+				for (int i = 0; i < expected.length; i++) {
+					assertEquals(expected[i], actual[i]);
 				}
 			}
 
 			// Verify request 2
 			try (InputStream is = client.get(keys[1])) {
-				byte[] expected = new byte[256];
-				BlobUtils.readFully(is, expected, 0, 256, null);
+				byte[] actual = new byte[256];
+				BlobUtils.readFully(is, actual, 0, 256, null);
 
 				for (int i = 32, j = 0; i < 256; i++, j++) {
-					assertEquals(actual[i], expected[j]);
+					assertEquals(expected[i], actual[j]);
 				}
 			}
 
 			// Verify request 3
 			try (InputStream is = client.get(jobId[0], testKey[0])) {
-				byte[] expected = new byte[actual.length];
-				BlobUtils.readFully(is, expected, 0, actual.length, null);
+				byte[] actual = new byte[expected.length];
+				BlobUtils.readFully(is, actual, 0, expected.length, null);
 
-				for (int i = 0; i < actual.length; i++) {
-					assertEquals(actual[i], expected[i]);
+				for (int i = 0; i < expected.length; i++) {
+					assertEquals(expected[i], actual[i]);
 				}
 			}
 
 			// Verify request 4
 			try (InputStream is = client.get(jobId[1], testKey[1])) {
-				byte[] expected = new byte[256];
-				BlobUtils.readFully(is, expected, 0, 256, null);
+				byte[] actual = new byte[256];
+				BlobUtils.readFully(is, actual, 0, 256, null);
 
 				for (int i = 32, j = 0; i < 256; i++, j++) {
-					assertEquals(actual[i], expected[j]);
+					assertEquals(expected[i], actual[j]);
 				}
 			}
 		}
