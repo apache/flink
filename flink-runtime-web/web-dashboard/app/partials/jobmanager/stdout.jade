@@ -14,3 +14,25 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
+
+
+table.table.table-properties
+  thead
+    tr
+      th(colspan="2")
+        .row
+          .col-xs-10
+            | Job Manager Output
+          .col-xs-1.text-right
+            a(ng-click="reloadData()" class="show-pointer")
+              i.fa.fa-refresh
+          .col-xs-1.text-left
+            a(href="jobmanager/stdout")
+              i.fa.fa-download
+
+  tbody
+    tr
+      td(colspan="2")
+        pre
+          | {{jobmanager.stdout}}
+

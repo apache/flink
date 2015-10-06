@@ -18,6 +18,7 @@
 package org.apache.flink.test.web;
 
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
@@ -33,6 +34,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -110,21 +112,24 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-// TODO activate this test after logging retrieval has been added to the new web frontend
-//	@Test
-//	public void getLogfiles() {
-//		try {
-//			String logPath = cluster.configuration().getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
-//			Assert.assertNotNull(logPath);
-//			FileUtils.writeStringToFile(new File(logPath, "jobmanager-main.log"), "test content");
-//
-//			String logs = getFromHTTP("http://localhost:8081/logInfo");
-//			Assert.assertTrue(logs.contains("test content"));
-//		}catch(Throwable e) {
-//			e.printStackTrace();
-//			Assert.fail(e.getMessage());
-//		}
-//	}
+	@Test
+	public void getLogAndStdoutFiles() {
+		try {
+			String logPath = cluster.configuration().getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
+			Assert.assertNotNull(logPath);
+
+			FileUtils.writeStringToFile(new File(logPath, "jobmanager.log"), "job manager log");
+			String logs = getFromHTTP("http://localhost:" + port + "/jobmanager/log");
+			Assert.assertTrue(logs.contains("job manager log"));
+
+			FileUtils.writeStringToFile(new File(logPath, "jobmanager.out"), "job manager out");
+			logs = getFromHTTP("http://localhost:" + port + "/jobmanager/stdout");
+			Assert.assertTrue(logs.contains("job manager out"));
+		}catch(Throwable e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
 
 	@Test
 	public void getConfiguration() {

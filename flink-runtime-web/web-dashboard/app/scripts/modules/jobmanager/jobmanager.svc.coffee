@@ -32,3 +32,33 @@ angular.module('flinkApp')
     deferred.promise
 
   @
+
+.service 'JobManagerLogsService', ($http, flinkConfig, $q) ->
+  logs = {}
+
+  @loadLogs = ->
+    deferred = $q.defer()
+
+    $http.get("jobmanager/log")
+    .success (data, status, headers, config) ->
+      logs = data
+      deferred.resolve(data)
+
+    deferred.promise
+
+  @
+
+.service 'JobManagerStdoutService', ($http, flinkConfig, $q) ->
+  stdout = {}
+
+  @loadStdout = ->
+    deferred = $q.defer()
+
+    $http.get("jobmanager/stdout")
+    .success (data, status, headers, config) ->
+      stdout = data
+      deferred.resolve(data)
+
+    deferred.promise
+
+  @
