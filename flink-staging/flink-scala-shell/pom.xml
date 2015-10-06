@@ -210,7 +210,7 @@ under the License.
 						</goals>
 						<configuration>
 							<suffixes>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffixes>
-							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dlog.dir=${log.dir} -Dmvn.forkNumber=1 -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 					<execution>
@@ -221,7 +221,7 @@ under the License.
 						</goals>
 						<configuration>
 							<suffixes>(IT|Integration)(Test|Suite|Case)</suffixes>
-							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dlog.dir=${log.dir} -Dmvn.forkNumber=1 -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 				</executions>
