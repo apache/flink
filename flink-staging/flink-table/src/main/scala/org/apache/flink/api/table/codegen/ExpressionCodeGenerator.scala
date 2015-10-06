@@ -514,25 +514,6 @@ abstract class ExpressionCodeGenerator[R](
             """.stripMargin
         }
 
-      case NumericIsNotNull(child) =>
-        val childCode = generateExpression(child)
-        if (nullCheck) {
-          childCode.code +
-            s"""
-               |boolean $nullTerm = ${childCode.nullTerm};
-               |if ($nullTerm) {
-               |  0;
-               |} else {
-               |  $resultTpe $resultTerm = ${childCode.resultTerm} != null ? 1 : 0;
-               |}
-            """.stripMargin
-        } else {
-          childCode.code +
-            s"""
-               |$resultTpe $resultTerm = ${childCode.resultTerm} != null ? 1 : 0;
-            """.stripMargin
-        }
-
       case _ => throw new ExpressionException("Could not generate code for expression " + expr)
     }
 
