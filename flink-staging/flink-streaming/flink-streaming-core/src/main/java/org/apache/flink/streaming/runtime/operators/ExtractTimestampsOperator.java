@@ -43,9 +43,6 @@ public class ExtractTimestampsOperator<T>
 	public ExtractTimestampsOperator(TimestampExtractor<T> extractor) {
 		super(extractor);
 		chainingStrategy = ChainingStrategy.ALWAYS;
-
-		// we don't give the element to any user code, so input copy is not necessary
-		disableInputCopy();
 	}
 
 	@Override
