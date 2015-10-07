@@ -53,11 +53,9 @@ public class CurrentJobIdsHandler implements RequestHandler, RequestHandler.Json
 	}
 	
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(RequestJobsWithIDsOverview.getInstance(), timeout);
 				JobsWithIDsOverview overview = (JobsWithIDsOverview) Await.result(future, timeout);

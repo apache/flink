@@ -22,7 +22,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -33,26 +32,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class TaskManagersHandler implements  RequestHandler, RequestHandler.JsonResponse {
+import static com.google.common.base.Preconditions.checkNotNull;
 
-	private final JobManagerArchiveRetriever retriever;
+public class TaskManagersHandler implements RequestHandler, RequestHandler.JsonResponse {
 
 	private final FiniteDuration timeout;
 
-
-	public TaskManagersHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	public TaskManagersHandler(FiniteDuration timeout) {
+		this.timeout = checkNotNull(timeout);
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(JobManagerMessages.getRequestRegisteredTaskManagers(), timeout);
 				RegisteredTaskManagers taskManagers = (RegisteredTaskManagers) Await.result(future, timeout);
@@ -92,7 +84,8 @@ public class TaskManagersHandler implements  RequestHandler, RequestHandler.Json
 
 				gen.close();
 				return writer.toString();
-			} else {
+			}
+			else {
 				throw new Exception("No connection to the leading JobManager.");
 			}
 		}

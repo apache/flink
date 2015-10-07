@@ -30,8 +30,13 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
+import scala.Option;
+import scala.Tuple2;
+import scala.concurrent.Promise;
 
 import java.nio.charset.Charset;
 
@@ -43,42 +48,61 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * This handler also deals with setting correct response MIME types and returning
  * proper codes, like OK, NOT_FOUND, or SERVER_ERROR.
  */
-@ChannelHandler.Sharable
 public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
-	
+
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
-	private final JobManagerArchiveRetriever retriever;
-	
 	private final RequestHandler handler;
-	
+
+	private final JobManagerArchiveRetriever retriever;
+
+	private final Promise<String> localJobManagerAddressPromise;
+
 	private final String contentType;
-	
-	public RuntimeMonitorHandler(RequestHandler handler, JobManagerArchiveRetriever retriever) {
-		this.retriever = checkNotNull(retriever);
+
+	private String localJobManagerAddress;
+
+	public RuntimeMonitorHandler(
+			RequestHandler handler,
+			JobManagerArchiveRetriever retriever,
+			Promise<String> localJobManagerAddressPromise) {
+
 		this.handler = checkNotNull(handler);
+		this.retriever = checkNotNull(retriever);
+		this.localJobManagerAddressPromise = checkNotNull(localJobManagerAddressPromise);
 		this.contentType = (handler instanceof RequestHandler.JsonResponse) ? "application/json" : "text/plain";
 	}
-	
+
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		// Redirect to leader if necessary
-		String redirectAddress = retriever.getRedirectAddress();
-		if (redirectAddress != null) {
-			redirectAddress = String.format("http://%s%s", redirectAddress, routed.path());
-			HttpResponse redirect = RuntimeMonitorHandler.createRedirectResponse(redirectAddress);
-			KeepAliveWrite.flush(ctx, routed.request(), redirect);
+		if (localJobManagerAddress == null) {
+			localJobManagerAddress = localJobManagerAddressPromise.future().value().get().get();
+		}
+
+		Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
+
+		if (jobManager.isDefined()) {
+			String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
+					localJobManagerAddress, jobManager.get());
+
+			if (redirectAddress != null) {
+				HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path());
+				KeepAliveWrite.flush(ctx, routed.request(), redirect);
+			}
+			else {
+				respondAsLeader(ctx, routed, jobManager.get()._1());
+			}
 		}
 		else {
-			respondAsLeader(ctx, routed);
+			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
 		}
 	}
 
-	private void respondAsLeader(ChannelHandlerContext ctx, Routed routed) {
+	private void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager) {
 		DefaultFullHttpResponse response;
 
 		try {
-			String result = handler.handleRequest(routed.pathParams());
+			String result = handler.handleRequest(routed.pathParams(), jobManager);
 			byte[] bytes = result.getBytes(ENCODING);
 
 			response = new DefaultFullHttpResponse(
@@ -103,15 +127,5 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());
 		KeepAliveWrite.flush(ctx, routed.request(), response);
-	}
-
-	public static HttpResponse createRedirectResponse(String newLocation) {
-		HttpResponse response = new DefaultFullHttpResponse(
-				HttpVersion.HTTP_1_1, HttpResponseStatus.TEMPORARY_REDIRECT);
-		response.headers().set(HttpHeaders.Names.LOCATION, newLocation);
-		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
-		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-
-		return response;
 	}
 }

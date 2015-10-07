@@ -22,8 +22,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
-
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -31,31 +29,25 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.StringWriter;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Responder that returns the status of the Flink cluster, such as how many
  * TaskManagers are currently connected, and how many jobs are running.
  */
-public class ClusterOverviewHandler implements  RequestHandler, RequestHandler.JsonResponse {
-
-	private final JobManagerArchiveRetriever retriever;
+public class ClusterOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
 
 	private final FiniteDuration timeout;
 	
 
-	public ClusterOverviewHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	public ClusterOverviewHandler(FiniteDuration timeout) {
+		this.timeout = checkNotNull(timeout);
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(RequestStatusOverview.getInstance(), timeout);
 				StatusOverview overview = (StatusOverview) Await.result(future, timeout);

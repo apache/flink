@@ -41,11 +41,14 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class WebRuntimeMonitorITCase {
 
@@ -125,6 +128,7 @@ public class WebRuntimeMonitorITCase {
 
 		ActorSystem[] jobManagerSystem = new ActorSystem[2];
 		WebRuntimeMonitor[] webMonitor = new WebRuntimeMonitor[2];
+		List<LeaderRetrievalService> leaderRetrievalServices = new ArrayList<>();
 
 		try (TestingServer zooKeeper = new TestingServer()) {
 			final Configuration config = new Configuration();
@@ -134,7 +138,6 @@ public class WebRuntimeMonitorITCase {
 			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
 			config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
 
-
 			for (int i = 0; i < jobManagerSystem.length; i++) {
 				jobManagerSystem[i] = AkkaUtils.createActorSystem(new Configuration(),
 						new Some<>(new Tuple2<String, Object>("localhost", 0)));
@@ -142,6 +145,7 @@ public class WebRuntimeMonitorITCase {
 
 			for (int i = 0; i < webMonitor.length; i++) {
 				LeaderRetrievalService lrs = ZooKeeperUtils.createLeaderRetrievalService(config);
+				leaderRetrievalServices.add(lrs);
 				webMonitor[i] = new WebRuntimeMonitor(config, lrs, jobManagerSystem[i]);
 			}
 
@@ -160,6 +164,7 @@ public class WebRuntimeMonitorITCase {
 			}
 
 			LeaderRetrievalService lrs = ZooKeeperUtils.createLeaderRetrievalService(config);
+			leaderRetrievalServices.add(lrs);
 			TestingListener leaderListener = new TestingListener();
 			lrs.start(leaderListener);
 
@@ -168,26 +173,32 @@ public class WebRuntimeMonitorITCase {
 			String leaderAddress = leaderListener.getAddress();
 
 			int leaderIndex = leaderAddress.equals(jobManagerAddress[0]) ? 0 : 1;
+			int followerIndex = (leaderIndex + 1) % 2;
 
 			ActorSystem leadingSystem = jobManagerSystem[leaderIndex];
+			ActorSystem followerSystem = jobManagerSystem[followerIndex];
+
 			WebMonitor leadingWebMonitor = webMonitor[leaderIndex];
-			WebMonitor followingWebMonitor = webMonitor[(leaderIndex + 1) % 2];
+			WebMonitor followerWebMonitor = webMonitor[followerIndex];
 
 			// For test stability reason we have to wait until we are sure that both leader
 			// listeners have been notified.
-			JobManagerArchiveRetriever followingRetriever = Whitebox
-					.getInternalState(followingWebMonitor, "retriever");
+			JobManagerArchiveRetriever leadingRetriever = Whitebox
+					.getInternalState(leadingWebMonitor, "retriever");
 
-			while (deadline.hasTimeLeft() && followingRetriever.getRedirectAddress() == null) {
-				Thread.sleep(100);
-			}
+			JobManagerArchiveRetriever followerRetriever = Whitebox
+					.getInternalState(followerWebMonitor, "retriever");
+
+			// Wait for the initial notifications
+			waitForLeaderNotification(leadingSystem, jobManager[leaderIndex], leadingRetriever, deadline);
+			waitForLeaderNotification(leadingSystem, jobManager[leaderIndex], followerRetriever, deadline);
 
 			try (
 					HttpTestClient leaderClient = new HttpTestClient(
 							"localhost", leadingWebMonitor.getServerPort());
 
 					HttpTestClient followingClient = new HttpTestClient(
-							"localhost", followingWebMonitor.getServerPort())) {
+							"localhost", followerWebMonitor.getServerPort())) {
 
 				String expected = new Scanner(new File(MAIN_RESOURCES_PATH + "/index.html"))
 						.useDelimiter("\\A").next();
@@ -210,9 +221,7 @@ public class WebRuntimeMonitorITCase {
 				leadingSystem.shutdown();
 
 				// Wait for the notification of the follower
-				while (deadline.hasTimeLeft() && followingRetriever.getRedirectAddress() != null) {
-					Thread.sleep(100);
-				}
+				waitForLeaderNotification(followerSystem, jobManager[followerIndex], followerRetriever, deadline);
 
 				// Same request to the new leader
 				followingClient.sendGetRequest("index.html", deadline.timeLeft());
@@ -241,6 +250,79 @@ public class WebRuntimeMonitorITCase {
 
 			for (WebMonitor monitor : webMonitor) {
 				monitor.stop();
+			}
+
+			for (LeaderRetrievalService lrs : leaderRetrievalServices) {
+				lrs.stop();
+			}
+		}
+	}
+
+	@Test
+	public void testLeaderNotAvailable() throws Exception {
+		final Deadline deadline = TestTimeout.fromNow();
+
+		ActorSystem actorSystem = null;
+		WebRuntimeMonitor webRuntimeMonitor = null;
+
+		try (TestingServer zooKeeper = new TestingServer()) {
+
+			final Configuration config = new Configuration();
+			config.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
+			config.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
+			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
+			config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
+
+			actorSystem = AkkaUtils.createDefaultActorSystem();
+
+			LeaderRetrievalService leaderRetrievalService = mock(LeaderRetrievalService.class);
+			webRuntimeMonitor = new WebRuntimeMonitor(
+					config, leaderRetrievalService, actorSystem);
+
+			webRuntimeMonitor.start("akka://schmakka");
+
+			try (HttpTestClient client = new HttpTestClient(
+					"localhost", webRuntimeMonitor.getServerPort())) {
+
+				client.sendGetRequest("index.html", deadline.timeLeft());
+
+				HttpTestClient.SimpleHttpResponse response = client.getNextResponse();
+
+				assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
+				assertEquals(MimeTypes.getMimeTypeForExtension("txt"), response.getType());
+				assertTrue(response.getContent().contains("refresh"));
+			}
+		}
+		finally {
+			if (actorSystem != null) {
+				actorSystem.shutdown();
+			}
+
+			if (webRuntimeMonitor != null) {
+				webRuntimeMonitor.stop();
+			}
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private void waitForLeaderNotification(
+			ActorSystem system,
+			ActorRef expectedLeader,
+			JobManagerArchiveRetriever retriever,
+			Deadline deadline) throws Exception {
+
+		String expectedJobManagerUrl = AkkaUtils.getAkkaURL(system, expectedLeader);
+
+		while (deadline.hasTimeLeft()) {
+			ActorRef leaderRef = retriever.awaitJobManagerGatewayAndWebPort()._1().actor();
+
+			if (AkkaUtils.getAkkaURL(system, leaderRef).equals(expectedJobManagerUrl)) {
+				return;
+			}
+			else {
+				Thread.sleep(100);
 			}
 		}
 	}

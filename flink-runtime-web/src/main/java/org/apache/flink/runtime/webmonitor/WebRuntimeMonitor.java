@@ -61,6 +61,7 @@ import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -104,6 +105,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private final int configuredPort;
 
 	private final ServerBootstrap bootstrap;
+
+	private final Promise<String> jobManagerAddressPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 	private Channel serverChannel;
 
@@ -149,46 +152,46 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
 
-		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(retriever);
+		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder();
 
 		router = new Router()
 			// config how to interact with this web server
-			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval()), retriever))
+			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
 
 			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new ClusterOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT), retriever))
+			.GET("/overview", handler(new ClusterOverviewHandler(DEFAULT_REQUEST_TIMEOUT)))
 
 			// job manager configuration
-			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config), retriever))
+			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config)))
 
 			// overview over jobs
-			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, true), retriever))
-			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, true, false), retriever))
-			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(retriever, DEFAULT_REQUEST_TIMEOUT, false, true), retriever))
+			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true)))
+			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false)))
+			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true)))
 
-			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT), retriever))
+			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
-			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
 
-			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs)))
 
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs)))
 
-			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs), retriever))
-			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs), retriever))
+			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs)))
+			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
+			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
+			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs)))
 
-			.GET("/taskmanagers", handler(new TaskManagersHandler(retriever, DEFAULT_REQUEST_TIMEOUT), retriever))
+			.GET("/taskmanagers", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
 
 			// this handler serves all the static contents
-			.GET("/:*", new StaticFileServerHandler(retriever, webRootDir));
+			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise, webRootDir));
 
 		synchronized (startupShutdownLock) {
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
@@ -229,7 +232,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	public void start(String jobManagerAkkaUrl) throws Exception {
 		LOG.info("Starting with JobManager {} on port {}", jobManagerAkkaUrl, getServerPort());
 		synchronized (startupShutdownLock) {
-			retriever.setJobManagerAkkaUrlAndRetrieveGateway(jobManagerAkkaUrl);
+			jobManagerAddressPromise.success(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
 		}
 	}
@@ -266,14 +269,16 @@ public class WebRuntimeMonitor implements WebMonitor {
 		return -1;
 	}
 
+	@Override
+	public String toString() {
+		return String.format("WebRuntimeMonitor(port: %d, job manager: %s)", getServerPort(), jobManagerAddressPromise);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static RuntimeMonitorHandler handler(
-			RequestHandler handler,
-			JobManagerArchiveRetriever retriever) {
-
-		return new RuntimeMonitorHandler(handler, retriever);
+	private RuntimeMonitorHandler handler(RequestHandler handler) {
+		return new RuntimeMonitorHandler(handler, retriever, jobManagerAddressPromise);
 	}
 }
