@@ -15,7 +15,7 @@
 * limitations under the License.
 */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
