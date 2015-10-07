@@ -529,7 +529,18 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 		if (RecoveryMode.isHighAvailabilityModeActivated(flinkConfiguration)) {
 			// activate re-execution of failed applications
+			appContext.setMaxAppAttempts(
+				flinkConfiguration.getInteger(
+					ConfigConstants.YARN_APPLICATION_ATTEMPTS,
+					YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
+
 			activateHighAvailabilitySupport(appContext);
+		} else {
+			// set number of application retries to 1 in the default case
+			appContext.setMaxAppAttempts(
+				flinkConfiguration.getInteger(
+					ConfigConstants.YARN_APPLICATION_ATTEMPTS,
+					1));
 		}
 
 		final ApplicationId appId = appContext.getApplicationId();
@@ -756,11 +767,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	}
 
 	private void activateHighAvailabilitySupport(ApplicationSubmissionContext appContext) throws InvocationTargetException, IllegalAccessException {
-		appContext.setMaxAppAttempts(
-			flinkConfiguration.getInteger(
-				ConfigConstants.YARN_APPLICATION_ATTEMPTS,
-				YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS));
-
 		ApplicationSubmissionContextReflector reflector = ApplicationSubmissionContextReflector.getInstance();
 
 		reflector.setKeepContainersAcrossApplicationAttempts(appContext, true);

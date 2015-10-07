@@ -238,7 +238,7 @@ public final class ConfigConstants {
 	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers in high
 	 * availability mode. This value is usually limited by YARN.
 	 *
-	 * By default, it's 2.
+	 * By default, it's 1 in the standalone case and 2 in the high availability case.
 	 */
 	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
 
