@@ -22,9 +22,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +30,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -67,13 +62,8 @@ public class BlobServer extends Thread implements BlobService {
 	/** Is the root directory for file storage */
 	private final File storageDir;
 
-	/**
-	 * The base path for recovery (or <code>null</code> if {@link RecoveryMode#STANDALONE})
-	 */
-	private final String recoveryBasePath;
-
-	/** The configured recovery mode */
-	private final RecoveryMode recoveryMode;
+	/** Blob store for recovery */
+	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
 	private final Set<BlobServerConnection> activeConnections = new HashSet<BlobServerConnection>();
@@ -89,14 +79,14 @@ public class BlobServer extends Thread implements BlobService {
 
 	/**
 	 * Instantiates a new BLOB server and binds it to a free network port.
-	 * 
+	 *
 	 * @throws IOException
 	 *         thrown if the BLOB server cannot bind to a free network port
 	 */
 	public BlobServer(Configuration config) throws IOException {
 		checkNotNull(config, "Configuration");
 
-		this.recoveryMode = RecoveryMode.fromConfig(config);
+		RecoveryMode recoveryMode = RecoveryMode.fromConfig(config);
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -104,41 +94,10 @@ public class BlobServer extends Thread implements BlobService {
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
 		if (recoveryMode == RecoveryMode.STANDALONE) {
-			recoveryBasePath = null;
+			this.blobStore = new VoidBlobStore();
 		}
 		else {
-			// Initialize file state backend for recovery
-			String stateBackend = config.getString(ConfigConstants.STATE_BACKEND,
-					ConfigConstants.DEFAULT_STATE_BACKEND);
-
-			if (!stateBackend.toLowerCase().equals("filesystem")) {
-				throw new IllegalConfigurationException(String.format("Illegal state backend " +
-								"configuration '%s'. Please configure 'FILESYSTEM' as state " +
-								"backend and specify the recovery path via '%s' key.",
-						stateBackend, ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH));
-			}
-
-			String stateBackendBasePath = config.getString(
-					ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, "");
-
-			if (stateBackendBasePath.equals("")) {
-				throw new IllegalConfigurationException(String.format("Missing configuration for " +
-								"file system state backend recovery path. Please specify via " +
-								"'%s' key.", ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH));
-			}
-
-			stateBackendBasePath += "/blob";
-
-			this.recoveryBasePath = stateBackendBasePath;
-
-			try {
-				FileSystem.get(new URI(recoveryBasePath)).mkdirs(new Path(recoveryBasePath));
-			}
-			catch (URISyntaxException e) {
-				throw new IOException(e);
-			}
-
-			LOG.info("Created BLOB server recovery storage directory {}.", recoveryBasePath);
+			this.blobStore =new FileSystemBlobStore(config);
 		}
 
 		// configure the maximum number of concurrent connections
@@ -232,7 +191,7 @@ public class BlobServer extends Thread implements BlobService {
 
 	/**
 	 * Returns a temporary file inside the BLOB server's incoming directory.
-	 * 
+	 *
 	 * @return a temporary file inside the BLOB server's incoming directory
 	 */
 	File createTemporaryFilename() {
@@ -241,17 +200,10 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
-	 * Returns the configured recovery mode.
+	 * Returns the blob store.
 	 */
-	RecoveryMode getRecoveryMode() {
-		return recoveryMode;
-	}
-
-	/**
-	 * Returns the base bath for recovery or <code>null</code> if none is configured.
-	 */
-	String getRecoveryBasePath() {
-		return recoveryBasePath;
+	BlobStore getBlobStore() {
+		return blobStore;
 	}
 
 	@Override
@@ -330,15 +282,7 @@ public class BlobServer extends Thread implements BlobService {
 			}
 
 			// Clean up the recovery directory
-			if (recoveryBasePath != null) {
-				try {
-					FileSystem.get(new URI(recoveryBasePath)).delete(
-							new Path(recoveryBasePath), true);
-				}
-				catch (Exception e) {
-					LOG.error("BLOB server failed to properly clean up its recovery storage directory.");
-				}
-			}
+			blobStore.cleanUp();
 
 			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
 			// shutdown hook itself
@@ -377,25 +321,25 @@ public class BlobServer extends Thread implements BlobService {
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
-		if (!localFile.exists()) {
-			if (recoveryMode != RecoveryMode.STANDALONE) {
-				String recoveryPath = BlobUtils.getRecoveryPath(recoveryBasePath, requiredBlob);
+		if (localFile.exists()) {
+			return localFile.toURI().toURL();
+		}
+		else {
+			try {
+				// Try the blob store
+				blobStore.get(requiredBlob, localFile);
+			}
+			catch (Exception e) {
+				throw new IOException("Failed to copy from blob store.", e);
+			}
 
-				try {
-					BlobUtils.copyFromRecoveryPath(recoveryPath, localFile);
-
-					return localFile.toURI().toURL();
-				}
-				catch (Exception e) {
-					throw new FileNotFoundException("Local file " + localFile + " does not exist " +
-							"and failed to copy recovery file from " + recoveryPath);
-				}
+			if (localFile.exists()) {
+				return localFile.toURI().toURL();
 			}
 			else {
-				throw new FileNotFoundException("File " + localFile.getCanonicalPath() + " does not exist.");
+				throw new FileNotFoundException("Local file " + localFile + " does not exist " +
+						"and failed to copy from blob store.");
 			}
-		} else {
-			return localFile.toURI().toURL();
 		}
 	}
 
@@ -416,15 +360,7 @@ public class BlobServer extends Thread implements BlobService {
 			}
 		}
 
-		if (recoveryMode != RecoveryMode.STANDALONE) {
-			String recoveryPath = BlobUtils.getRecoveryPath(recoveryBasePath, key);
-			try {
-				FileSystem.get(new URI(recoveryPath)).delete(new Path(recoveryBasePath), true);
-			}
-			catch (Exception e) {
-				LOG.warn("Failed to delete recovery BLOB " + key + " at " + recoveryPath);
-			}
-		}
+		blobStore.delete(key);
 	}
 
 	/**

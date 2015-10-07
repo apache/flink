@@ -54,12 +54,12 @@ public class BlobUtils {
 	/**
 	 * The prefix of all BLOB files stored by the BLOB server.
 	 */
-	private static final String BLOB_FILE_PREFIX = "blob_";
+	static final String BLOB_FILE_PREFIX = "blob_";
 
 	/**
 	 * The prefix of all job-specific directories created by the BLOB server.
 	 */
-	private static final String JOB_DIR_PREFIX = "job_";
+	static final String JOB_DIR_PREFIX = "job_";
 
 	/**
 	 * The default character set to translate between characters and bytes.
@@ -179,7 +179,7 @@ public class BlobUtils {
 	 *        the user's key for a BLOB
 	 * @return the internal name for the BLOB as used by the BLOB server
 	 */
-	private static String encodeKey(String key) {
+	static String encodeKey(String key) {
 		return BaseEncoding.base64().encode(key.getBytes(DEFAULT_CHARSET));
 	}
 
