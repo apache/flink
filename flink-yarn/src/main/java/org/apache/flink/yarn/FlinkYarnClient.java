@@ -514,9 +514,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		// hard coded check for the GoogleHDFS client because its not overriding the getScheme() method.
 		if( !fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
 				fs.getScheme().startsWith("file")) {
-			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
-					+ "specified Hadoop configuration path is wrong and the sytem is using the default Hadoop configuration values."
-					+ "The Flink YARN client needs to store its files in a distributed file system");
+			throw new YarnDeploymentException("The default file system scheme is set to 'file'. " +
+					"The Flink YARN client needs to store its files in a distributed file system. " +
+					"The Hadoop configuration may be wrong or its path not correctly specified. " +
+					"Please check if the HADOOP_CONF_DIR environment variable is set correctly. " +
+					"It is currently set to '" + System.getenv("HADOOP_CONF_DIR") + "'.");
 		}
 
 		// Set-up ApplicationSubmissionContext for the application
@@ -747,8 +749,6 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {
-		public YarnDeploymentException() {
-		}
 
 		public YarnDeploymentException(String message) {
 			super(message);
