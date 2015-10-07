@@ -84,7 +84,7 @@ object JobManagerMessages {
   /**
    * Triggers recovery of all available jobs.
    */
-  case class RecoverAllJobs() extends RequiresLeaderSessionID
+  case object RecoverAllJobs extends RequiresLeaderSessionID
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
@@ -426,5 +426,9 @@ object JobManagerMessages {
 
   def getRequestArchive: AnyRef = {
     RequestArchive
+  }
+
+  def getRecoverAllJobs: AnyRef = {
+    RecoverAllJobs
   }
 }

@@ -43,11 +43,14 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -55,6 +58,9 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.concurrent.TimeUnit;
 
 public class JobManagerLeaderElectionTest extends TestLogger {
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private static ActorSystem actorSystem;
 	private static TestingServer testingServer;
@@ -84,12 +90,10 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	 */
 	@Test
 	public void testLeaderElection() throws Exception {
-		final Configuration configuration = new Configuration();
-
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		configuration.setString(
-			ConfigConstants.ZOOKEEPER_QUORUM_KEY,
-			testingServer.getConnectString());
+		final Configuration configuration = ZooKeeperTestUtils
+			.createZooKeeperRecoveryModeConfig(
+				testingServer.getConnectString(),
+				tempFolder.getRoot().getPath());
 
 		ActorRef jm = null;
 
@@ -115,12 +119,11 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	 */
 	@Test
 	public void testLeaderReelection() throws Exception {
-		final Configuration configuration = new Configuration();
+		final Configuration configuration = ZooKeeperTestUtils
+			.createZooKeeperRecoveryModeConfig(
+				testingServer.getConnectString(),
+				tempFolder.getRoot().getPath());
 
-		configuration.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
-		configuration.setString(
-			ConfigConstants.ZOOKEEPER_QUORUM_KEY,
-			testingServer.getConnectString());
 
 		ActorRef jm;
 		ActorRef jm2 = null;
