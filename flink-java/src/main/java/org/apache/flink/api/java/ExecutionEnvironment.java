@@ -208,7 +208,7 @@ public abstract class ExecutionEnvironment {
 	 * 		The delay of time the system will wait to re-execute failed
 	 * 		tasks.
 	 */
-	public void setExecutionRetryDelay(long executionRetryDelay){
+	public void setExecutionRetryDelay(long executionRetryDelay) {
 		config.setExecutionRetryDelay(executionRetryDelay);
 	}
 	
@@ -219,7 +219,7 @@ public abstract class ExecutionEnvironment {
 	 *
 	 * @return The delay time the system will wait to re-execute failed tasks.
 	 */
-	public long getExecutionRetryDelay(){
+	public long getExecutionRetryDelay() {
 		return config.getExecutionRetryDelay();
 	}
 	

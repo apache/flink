@@ -306,7 +306,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * Gets the delay between retry failed task.
 	 * @return The delay the system will wait to retry.
 	 */
-	public long getExecutionRetryDelay(){
+	public long getExecutionRetryDelay() {
 		return getExecutionConfig().getExecutionRetryDelay();
 	}
 	/**
