@@ -93,11 +93,20 @@ public class BlobServer extends Thread implements BlobService {
 		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
+		// No recovery.
 		if (recoveryMode == RecoveryMode.STANDALONE) {
 			this.blobStore = new VoidBlobStore();
 		}
+		// Recovery. Check that everything has been setup correctly. This is not clean, but it's
+		// better to resolve this with some upcoming changes to the state backend setup.
+		else if (config.containsKey(ConfigConstants.STATE_BACKEND) &&
+				config.containsKey(ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH)) {
+
+			this.blobStore = new FileSystemBlobStore(config);
+		}
+		// Fallback.
 		else {
-			this.blobStore =new FileSystemBlobStore(config);
+			this.blobStore = new VoidBlobStore();
 		}
 
 		// configure the maximum number of concurrent connections
