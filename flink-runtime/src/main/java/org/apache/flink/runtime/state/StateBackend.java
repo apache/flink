@@ -16,34 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
-/**
- * Recovery mode for Flink's cluster execution. Currently supported modes are:
- *
- * - Standalone: No recovery from JobManager failures
- * - ZooKeeper: JobManager high availability via ZooKeeper
- * ZooKeeper is used to select a leader among a group of JobManager. This JobManager
- * is responsible for the job execution. Upon failure of the leader a new leader is elected
- * which will take over the responsibilities of the old leader
- */
-public enum RecoveryMode {
-	STANDALONE,
-	ZOOKEEPER;
+public enum StateBackend {
+	JOBMANAGER, FILESYSTEM;
 
 	/**
-	 * Return the configured {@link RecoveryMode}.
+	 * Returns the configured {@link StateBackend}.
 	 *
 	 * @param config The config to parse
-	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_RECOVERY_MODE} if not
+	 * @return Configured state backend or {@link ConfigConstants#DEFAULT_RECOVERY_MODE} if not
 	 * configured.
 	 */
-	public static RecoveryMode fromConfig(Configuration config) {
-		return RecoveryMode.valueOf(config.getString(
-				ConfigConstants.RECOVERY_MODE,
-				ConfigConstants.DEFAULT_RECOVERY_MODE).toUpperCase());
+	public static StateBackend fromConfig(Configuration config) {
+		return StateBackend.valueOf(config.getString(
+				ConfigConstants.STATE_BACKEND,
+				ConfigConstants.DEFAULT_STATE_BACKEND).toUpperCase());
 	}
 }

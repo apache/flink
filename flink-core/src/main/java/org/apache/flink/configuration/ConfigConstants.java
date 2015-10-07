@@ -442,6 +442,12 @@ public final class ConfigConstants {
 	 * Directory for saving streaming checkpoints
 	 */
 	public static final String STATE_BACKEND_FS_DIR = "state.backend.fs.checkpointdir";
+
+	/**
+	 * File system state backend base path for recoverable state handles. Recovery state is written
+	 * to this path and the file state handles are persisted for recovery.
+	 */
+	public static final String STATE_BACKEND_FS_RECOVERY_PATH = "state.backend.fs.dir.recovery";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
