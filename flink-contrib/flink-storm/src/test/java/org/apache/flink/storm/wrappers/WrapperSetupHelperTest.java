@@ -181,14 +181,13 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		builder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
 		builder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		builder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-		.fieldsGrouping("bolt1", TestDummyBolt.groupingStreamId, new Fields("id"))
-		.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-		.fieldsGrouping("bolt2", TestDummyBolt.groupingStreamId, new Fields("id"))
-		.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
+			.fieldsGrouping("bolt1", TestDummyBolt.groupingStreamId, new Fields("id"))
+			.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
+			.fieldsGrouping("bolt2", TestDummyBolt.groupingStreamId, new Fields("id"))
+			.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		final int maxRetry = 3;
-		int counter;
-		for (counter = 0; counter < maxRetry; ++counter) {
+		int counter = 0;
+		while (true) {
 			LocalCluster cluster = new LocalCluster();
 			Config c = new Config();
 			c.setNumAckers(0);
@@ -200,7 +199,6 @@ public class WrapperSetupHelperTest extends AbstractTest {
 				break;
 			}
 		}
-		Assert.assertTrue(counter < maxRetry);
 
 		TestTopologyBuilder flinkBuilder = new TestTopologyBuilder();
 
@@ -209,10 +207,10 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		flinkBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
 		flinkBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		flinkBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-		.fieldsGrouping("bolt1", TestDummyBolt.groupingStreamId, new Fields("id"))
-		.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-		.fieldsGrouping("bolt2", TestDummyBolt.groupingStreamId, new Fields("id"))
-		.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
+			.fieldsGrouping("bolt1", TestDummyBolt.groupingStreamId, new Fields("id"))
+			.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
+			.fieldsGrouping("bolt2", TestDummyBolt.groupingStreamId, new Fields("id"))
+			.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
 		flinkBuilder.createTopology();
 		StormTopology stormTopology = flinkBuilder.getStormTopology();
