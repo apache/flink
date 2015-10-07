@@ -131,9 +131,9 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 				}
 
 				// add classpaths
-				URL[] cpUrls = requiredClasspaths.toArray(new URL[requiredClasspaths.size()]);
-				for (int i = 0; i < cpUrls.length; i++, count++) {
-					urls[count] = cpUrls[i];
+				for (URL url : requiredClasspaths) {
+					urls[count] = url;
+					count++;
 				}
 
 				URLClassLoader classLoader = new FlinkUserCodeClassLoader(urls);
