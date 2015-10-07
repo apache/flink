@@ -70,6 +70,18 @@ trait TestingJobManagerLike extends FlinkActor {
 
   var disconnectDisabled = false
 
+  var postStopEnabled = true
+
+  abstract override def postStop(): Unit = {
+    if (postStopEnabled) {
+      super.postStop()
+    } else {
+      // only stop leader election service to revoke the leadership of this JM so that a new JM
+      // can be elected leader
+      leaderElectionService.stop()
+    }
+  }
+
   abstract override def handleMessage: Receive = {
     handleTestingMessage orElse super.handleMessage
   }
@@ -269,6 +281,9 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case DisableDisconnect =>
       disconnectDisabled = true
+
+    case DisablePostStop =>
+      postStopEnabled = false
 
     case msg: Disconnect =>
       if (!disconnectDisabled) {

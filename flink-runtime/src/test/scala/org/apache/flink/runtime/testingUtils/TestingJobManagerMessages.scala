@@ -87,5 +87,12 @@ object TestingJobManagerMessages {
    */
   case class NotifyWhenAtLeastNumTaskManagerAreRegistered(numRegisteredTaskManager: Int)
 
-  def getNotifyWhenLeader: AnyRef = NotifyWhenLeader
+  /** Disables the post stop method of the [[TestingJobManager]].
+    *
+    * Only the leaderElectionService is stopped in the postStop method call to revoke the leadership
+    */
+  case object DisablePostStop
+
+  def getNotifyWhenLeader(): AnyRef = NotifyWhenLeader
+  def getDisablePostStop(): AnyRef = DisablePostStop
 }

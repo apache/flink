@@ -38,7 +38,7 @@ import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalService, LeaderRetrievalListener,
 StandaloneLeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
-import org.apache.flink.runtime.util.ZooKeeperUtils
+import org.apache.flink.runtime.util.{LeaderRetrievalUtils, StandaloneUtils, ZooKeeperUtils}
 import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 
 import org.slf4j.LoggerFactory
@@ -388,29 +388,29 @@ abstract class FlinkMiniCluster(
     : JobExecutionResult = {
     submitJobAndWait(jobGraph, printUpdates, timeout)
   }
+
+  def submitJobAndWait(
+    jobGraph: JobGraph,
+    printUpdates: Boolean,
+    timeout: FiniteDuration)
+  : JobExecutionResult = {
+    submitJobAndWait(jobGraph, printUpdates, timeout, createLeaderRetrievalService())
+  }
   
   @throws(classOf[JobExecutionException])
   def submitJobAndWait(
       jobGraph: JobGraph,
       printUpdates: Boolean,
-      timeout: FiniteDuration)
+      timeout: FiniteDuration,
+      leaderRetrievalService: LeaderRetrievalService)
     : JobExecutionResult = {
 
     val clientActorSystem = startJobClientActorSystem(jobGraph.getJobID)
 
      try {
-       val jobManagerGateway = try {
-           getLeaderGateway(timeout)
-         } catch {
-           case e: Exception => throw new JobExecutionException(
-             jobGraph.getJobID,
-             "Could not retrieve leading job manager gateway.",
-             e)
-         }
-
      JobClient.submitJobAndWait(
        clientActorSystem,
-       jobManagerGateway,
+       leaderRetrievalService,
        jobGraph,
        timeout,
        printUpdates,

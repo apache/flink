@@ -25,6 +25,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import scala.Option;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -39,11 +41,8 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	private final boolean useSingleActorSystem;
 	private final StreamingMode streamingMode;
 
-	public TestingLeaderElectionService[] leaderElectionServices;
-	public TestingLeaderRetrievalService[] leaderRetrievalServices;
-
-	private int leaderElectionServiceCounter = 0;
-	private int leaderRetrievalServiceCounter = 0;
+	public List<TestingLeaderElectionService> leaderElectionServices;
+	public List<TestingLeaderRetrievalService> leaderRetrievalServices;
 
 	private int leaderIndex = -1;
 
@@ -58,8 +57,8 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 		this.useSingleActorSystem = singleActorSystem;
 		this.streamingMode = streamingMode;
 
-		leaderElectionServices = new TestingLeaderElectionService[this.numJobManagers()];
-		leaderRetrievalServices = new TestingLeaderRetrievalService[this.numTaskManagers() + 1];
+		leaderElectionServices = new ArrayList<TestingLeaderElectionService>();
+		leaderRetrievalServices = new ArrayList<TestingLeaderRetrievalService>();
 	}
 
 	@Override
@@ -79,18 +78,18 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 	@Override
 	public Option<LeaderElectionService> createLeaderElectionService() {
-		leaderElectionServices[leaderElectionServiceCounter] = new TestingLeaderElectionService();
+		leaderElectionServices.add(new TestingLeaderElectionService());
 
-		LeaderElectionService result = leaderElectionServices[leaderElectionServiceCounter++];
+		LeaderElectionService result = leaderElectionServices.get(leaderElectionServices.size() - 1);
 
 		return Option.apply(result);
 	}
 
 	@Override
 	public LeaderRetrievalService createLeaderRetrievalService() {
-		leaderRetrievalServices[leaderRetrievalServiceCounter] = new TestingLeaderRetrievalService();
+		leaderRetrievalServices.add(new TestingLeaderRetrievalService());
 
-		return leaderRetrievalServices[leaderRetrievalServiceCounter++];
+		return leaderRetrievalServices.get(leaderRetrievalServices.size() - 1);
 	}
 
 	@Override
@@ -103,11 +102,11 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 	public void grantLeadership(int index, UUID leaderSessionID) {
 		if(leaderIndex >= 0) {
 			// first revoke leadership
-			leaderElectionServices[leaderIndex].notLeader();
+			leaderElectionServices.get(leaderIndex).notLeader();
 		}
 
 		// make the JM with index the new leader
-		leaderElectionServices[index].isLeader(leaderSessionID);
+		leaderElectionServices.get(index).isLeader(leaderSessionID);
 
 		leaderIndex = index;
 	}

@@ -370,6 +370,8 @@ class JobManager(
         akka.serialization.JavaSerializer.currentSystem.withValue(
           context.system.asInstanceOf[ExtendedActorSystem]) {
 
+          log.info(s"Recovering all jobs.")
+
           val jobGraphs = submittedJobGraphs.recoverJobGraphs().asScala
 
           if (!leaderElectionService.hasLeadership()) {

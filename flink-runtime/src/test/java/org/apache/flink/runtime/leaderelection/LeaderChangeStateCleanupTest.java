@@ -129,7 +129,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		// try to resubmit now the non-blocking job, it should complete successfully
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-		cluster.submitJobAndWait(job, false, timeout);
+		cluster.submitJobAndWait(job, false, timeout, new TestingLeaderRetrievalService(jm2.path(), jm2.leaderSessionID()));
 	}
 
 	/**
@@ -207,7 +207,7 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 		UUID leaderSessionID = UUID.randomUUID();
 		UUID newLeaderSessionID = UUID.randomUUID();
 
-		FiniteDuration shortTimeout = new FiniteDuration(20, TimeUnit.SECONDS);
+		FiniteDuration shortTimeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
 		cluster.grantLeadership(0, leaderSessionID);
 		cluster.notifyRetrievalListeners(0, leaderSessionID);
@@ -244,10 +244,11 @@ public class LeaderChangeStateCleanupTest extends TestLogger {
 
 		cluster.waitForTaskManagersToBeRegistered();
 
+		ActorGateway leaderGateway = cluster.getLeaderGateway(timeout);
+
 		// try to resubmit now the non-blocking job, it should complete successfully
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(false);
-		cluster.submitJobAndWait(job, false, timeout);
-
+		cluster.submitJobAndWait(job, false, timeout, new TestingLeaderRetrievalService(leaderGateway.path(), leaderGateway.leaderSessionID()));
 	}
 
 	public JobGraph createBlockingJob(int parallelism) {
