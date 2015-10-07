@@ -45,7 +45,7 @@ import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.util.CharsetUtil;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
+import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +104,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	// ------------------------------------------------------------------------
 
 	/** JobManager retriever */
-	private final JobManagerArchiveRetriever retriever;
+	private final JobManagerRetriever retriever;
 
 	private final Promise<String> localJobManagerAddressPromise;
 
@@ -117,7 +117,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	private String localJobManagerAddress;
 
 	public StaticFileServerHandler(
-			JobManagerArchiveRetriever retriever,
+			JobManagerRetriever retriever,
 			Promise<String> localJobManagerAddressPromise,
 			File rootPath) {
 
@@ -125,7 +125,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	}
 
 	public StaticFileServerHandler(
-			JobManagerArchiveRetriever retriever,
+			JobManagerRetriever retriever,
 			Promise<String> localJobManagerAddressPromise,
 			File rootPath,
 			Logger logger) {

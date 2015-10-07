@@ -98,7 +98,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	private final LeaderRetrievalService leaderRetrievalService;
 
 	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
-	private final JobManagerArchiveRetriever retriever;
+	private final JobManagerRetriever retriever;
 
 	private final Router router;
 
@@ -150,7 +150,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		FiniteDuration timeout = AkkaUtils.getTimeout(config);
 		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
 
-		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
+		retriever = new JobManagerRetriever(this, actorSystem, lookupTimeout, timeout);
 
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder();
 

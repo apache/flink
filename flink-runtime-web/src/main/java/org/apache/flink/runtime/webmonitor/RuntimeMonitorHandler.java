@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -54,7 +53,7 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	private final RequestHandler handler;
 
-	private final JobManagerArchiveRetriever retriever;
+	private final JobManagerRetriever retriever;
 
 	private final Promise<String> localJobManagerAddressPromise;
 
@@ -64,7 +63,7 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	public RuntimeMonitorHandler(
 			RequestHandler handler,
-			JobManagerArchiveRetriever retriever,
+			JobManagerRetriever retriever,
 			Promise<String> localJobManagerAddressPromise) {
 
 		this.handler = checkNotNull(handler);

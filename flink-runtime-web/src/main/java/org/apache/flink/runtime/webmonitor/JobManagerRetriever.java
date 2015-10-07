@@ -52,9 +52,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * case, we get the address of the web monitor of the leading job manager and redirect to it
  * (instead of directly communicating with it).
  */
-public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
+public class JobManagerRetriever implements LeaderRetrievalListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JobManagerArchiveRetriever.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerRetriever.class);
 
 	private final Object lock = new Object();
 
@@ -68,7 +68,7 @@ public class JobManagerArchiveRetriever implements LeaderRetrievalListener {
 					new scala.concurrent.impl.Promise.DefaultPromise<ActorGateway>(),
 					new scala.concurrent.impl.Promise.DefaultPromise<Integer>());
 
-	public JobManagerArchiveRetriever(
+	public JobManagerRetriever(
 			WebMonitor webMonitor,
 			ActorSystem actorSystem,
 			FiniteDuration lookupTimeout,

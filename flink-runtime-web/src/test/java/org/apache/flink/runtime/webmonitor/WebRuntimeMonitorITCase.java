@@ -183,10 +183,10 @@ public class WebRuntimeMonitorITCase {
 
 			// For test stability reason we have to wait until we are sure that both leader
 			// listeners have been notified.
-			JobManagerArchiveRetriever leadingRetriever = Whitebox
+			JobManagerRetriever leadingRetriever = Whitebox
 					.getInternalState(leadingWebMonitor, "retriever");
 
-			JobManagerArchiveRetriever followerRetriever = Whitebox
+			JobManagerRetriever followerRetriever = Whitebox
 					.getInternalState(followerWebMonitor, "retriever");
 
 			// Wait for the initial notifications
@@ -310,7 +310,7 @@ public class WebRuntimeMonitorITCase {
 	private void waitForLeaderNotification(
 			ActorSystem system,
 			ActorRef expectedLeader,
-			JobManagerArchiveRetriever retriever,
+			JobManagerRetriever retriever,
 			Deadline deadline) throws Exception {
 
 		String expectedJobManagerUrl = AkkaUtils.getAkkaURL(system, expectedLeader);
