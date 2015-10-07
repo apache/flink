@@ -41,9 +41,7 @@ import scala.concurrent.duration._
 
 import language.postfixOps
 
-/** This mixin can be used to decorate a JobManager with messages for testing purpose.
-  *
-  */
+/** This mixin can be used to decorate a JobManager with messages for testing purpose.  */
 trait TestingJobManagerLike extends FlinkActor {
   that: JobManager =>
 
@@ -239,7 +237,6 @@ trait TestingJobManagerLike extends FlinkActor {
           }
         case None => sender ! decorateMessage(WorkingTaskManager(None))
       }
-
 
     case NotifyWhenJobStatus(jobID, state) =>
       val jobStatusListener = waitForJobStatus.getOrElseUpdate(jobID,

@@ -108,8 +108,8 @@ class TestingCluster(
       timeout,
       archiveCount,
       leaderElectionService) = JobManager.createJobManagerComponents(
-      config,
-      createLeaderElectionService())
+        config,
+        createLeaderElectionService())
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
     val archive = actorSystem.actorOf(testArchiveProps, archiveName)

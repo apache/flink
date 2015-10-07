@@ -503,7 +503,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			}
 		}
 
-		amCommand 	+= " " + getApplicationMasterClass().getName() + " "
+		amCommand += " " + getApplicationMasterClass().getName() + " "
 			+ " 1>"
 			+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"
 			+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stderr.log";
