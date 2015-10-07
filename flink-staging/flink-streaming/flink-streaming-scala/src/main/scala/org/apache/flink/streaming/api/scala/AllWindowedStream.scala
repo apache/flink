@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
@@ -119,6 +119,47 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduce(reducer)
+  }
+
+  /**
+   * Applies the given fold function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the reduce function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * @param function The fold function.
+   * @return The data stream that is the result of applying the fold function to the window.
+   */
+  def fold[R: TypeInformation: ClassTag](
+      initialValue: R,
+      function: FoldFunction[T,R]): DataStream[R] = {
+    if (function == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+
+    val resultType : TypeInformation[R] = implicitly[TypeInformation[R]]
+
+    javaStream.fold(initialValue, function, resultType)
+  }
+
+  /**
+   * Applies the given fold function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the reduce function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * @param function The fold function.
+   * @return The data stream that is the result of applying the fold function to the window.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R, function: (R, T) => R): DataStream[R] = {
+    if (function == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    val cleanFun = clean(function)
+    val folder = new FoldFunction[T,R] {
+      def fold(acc: R, v: T) = {
+        cleanFun(acc, v)
+      }
+    }
+    fold(initialValue, folder)
   }
 
   /**
