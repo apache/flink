@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.{JoinedStreams => JavaJoinedStreams, CoGroupedStreams => JavaCoGroupedStreams}
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
@@ -66,23 +67,27 @@ object JoinedStreams {
     /**
      * Specifies a [[KeySelector]] for elements from the first input.
      */
-    def where[KEY](keySelector: T1 => KEY): JoinedStreams.WithKey[T1, T2, KEY] = {
+    def where[KEY: TypeInformation](keySelector: T1 => KEY): WithKey[T1, T2, KEY] = {
       val cleanFun = clean(keySelector)
-      val javaSelector = new KeySelector[T1, KEY] {
+      val keyType = implicitly[TypeInformation[KEY]]
+      val javaSelector = new KeySelector[T1, KEY] with ResultTypeQueryable[KEY] {
         def getKey(in: T1) = cleanFun(in)
+        override def getProducedType: TypeInformation[KEY] = keyType
       }
-      new JoinedStreams.WithKey[T1, T2, KEY](input1, input2, javaSelector, null)
+      new WithKey[T1, T2, KEY](input1, input2, javaSelector, null, keyType)
     }
 
     /**
      * Specifies a [[KeySelector]] for elements from the second input.
      */
-    def equalTo[KEY](keySelector: T2 => KEY): JoinedStreams.WithKey[T1, T2, KEY] = {
+    def equalTo[KEY: TypeInformation](keySelector: T2 => KEY): WithKey[T1, T2, KEY] = {
       val cleanFun = clean(keySelector)
-      val javaSelector = new KeySelector[T2, KEY] {
+      val keyType = implicitly[TypeInformation[KEY]]
+      val javaSelector = new KeySelector[T2, KEY] with ResultTypeQueryable[KEY] {
         def getKey(in: T2) = cleanFun(in)
+        override def getProducedType: TypeInformation[KEY] = keyType
       }
-      new JoinedStreams.WithKey[T1, T2, KEY](input1, input2, null, javaSelector)
+      new WithKey[T1, T2, KEY](input1, input2, null, javaSelector, keyType)
     }
 
     /**
@@ -109,17 +114,20 @@ object JoinedStreams {
       input1: DataStream[T1],
       input2: DataStream[T2],
       keySelector1: KeySelector[T1, KEY],
-      keySelector2: KeySelector[T2, KEY]) {
+      keySelector2: KeySelector[T2, KEY],
+      keyType: TypeInformation[KEY]) {
 
     /**
      * Specifies a [[KeySelector]] for elements from the first input.
      */
     def where(keySelector: T1 => KEY): JoinedStreams.WithKey[T1, T2, KEY] = {
       val cleanFun = clean(keySelector)
-      val javaSelector = new KeySelector[T1, KEY] {
+      val localKeyType = keyType
+      val javaSelector = new KeySelector[T1, KEY] with ResultTypeQueryable[KEY] {
         def getKey(in: T1) = cleanFun(in)
+        override def getProducedType: TypeInformation[KEY] = localKeyType
       }
-      new JoinedStreams.WithKey[T1, T2, KEY](input1, input2, javaSelector, keySelector2)
+      new WithKey[T1, T2, KEY](input1, input2, javaSelector, keySelector2, localKeyType)
     }
 
     /**
@@ -127,10 +135,12 @@ object JoinedStreams {
      */
     def equalTo(keySelector: T2 => KEY): JoinedStreams.WithKey[T1, T2, KEY] = {
       val cleanFun = clean(keySelector)
-      val javaSelector = new KeySelector[T2, KEY] {
+      val localKeyType = keyType
+      val javaSelector = new KeySelector[T2, KEY] with ResultTypeQueryable[KEY] {
         def getKey(in: T2) = cleanFun(in)
+        override def getProducedType: TypeInformation[KEY] = localKeyType
       }
-      new JoinedStreams.WithKey[T1, T2, KEY](input1, input2, keySelector1, javaSelector)
+      new WithKey[T1, T2, KEY](input1, input2, keySelector1, javaSelector, localKeyType)
     }
 
     /**
