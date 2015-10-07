@@ -303,6 +303,13 @@ public class Plan implements Visitable<Operator<?>> {
 	}
 	
 	/**
+	 * Gets the delay between retry failed task.
+	 * @return The delay the system will wait to retry.
+	 */
+	public long getExecutionRetryDelay() {
+		return getExecutionConfig().getExecutionRetryDelay();
+	}
+	/**
 	 * Gets the optimizer post-pass class for this job. The post-pass typically creates utility classes
 	 * for data types and is specific to a particular data model (record, tuple, Scala, ...)
 	 *

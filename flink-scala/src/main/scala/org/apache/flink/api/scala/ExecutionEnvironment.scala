@@ -60,7 +60,7 @@ import scala.reflect.ClassTag
  *  - [[ExecutionEnvironment#createRemoteEnvironment]]
  *
  *  Use [[ExecutionEnvironment#getExecutionEnvironment]] to get the correct environment depending
- *  on where the program is executed. If it is run inside an IDE a loca environment will be
+ *  on where the program is executed. If it is run inside an IDE a local environment will be
  *  created. If the program is submitted to a cluster a remote execution environment will
  *  be created.
  */
@@ -109,6 +109,22 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
+  /**
+   * Sets the delay that failed tasks are re-executed. A value of
+   * zero effectively disables fault tolerance. A value of "-1"
+   * indicates that the system default value (as defined in the configuration)
+   * should be used.
+   */
+  def setExecutionRetryDelay(executionRetryDelay: Long): Unit = {
+    javaEnv.setExecutionRetryDelay(executionRetryDelay)
+  }
+
+  /**
+   * Gets the delay time in milliseconds the system will wait to re-execute failed tasks.
+   * A value of "-1" indicates that the system default value (as defined
+   * in the configuration) should be used.
+   */
+  def getExecutionRetryDelay = javaEnv.getExecutionRetryDelay
   /**
    * Gets the UUID by which this environment is identified. The UUID sets the execution context
    * in the cluster or local environment.
