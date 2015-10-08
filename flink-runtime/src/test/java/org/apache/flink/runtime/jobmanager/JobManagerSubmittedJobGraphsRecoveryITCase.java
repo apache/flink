@@ -194,7 +194,9 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.RUNNING,
 					leadingJobManager, deadline.timeLeft());
 
-			// Make sure that the **non-leading** JM has actually removed the job graph from her
+			log.info("Wait that the non-leader removes the submitted job.");
+
+			// Make sure that the **non-leading** JM has actually removed the job graph from its
 			// local state.
 			boolean success = false;
 			while (!success && deadline.hasTimeLeft()) {
@@ -205,6 +207,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 					success = true;
 				}
 				else {
+					log.info(((JobManagerMessages.CurrentJobStatus)jobStatusResponse).status().toString());
 					Thread.sleep(100);
 				}
 			}

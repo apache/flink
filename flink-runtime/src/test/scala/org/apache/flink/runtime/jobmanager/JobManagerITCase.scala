@@ -657,7 +657,7 @@ class JobManagerITCase(_system: ActorSystem)
           jm.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
           expectMsg(JobSubmitSuccess(jobGraph2.getJobID))
 
-          // job stil running
+          // job still running
           jm.tell(RemoveCachedJob(jobGraph2.getJobID), self)
 
           expectMsgType[JobResultSuccess]
