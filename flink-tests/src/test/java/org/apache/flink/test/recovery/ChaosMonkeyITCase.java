@@ -523,22 +523,19 @@ public class ChaosMonkeyITCase {
 	}
 
 	private void checkCleanRecoveryState(Configuration config) throws Exception {
-		LOG.info("Checking " + ZooKeeper.getClient().getNamespace() +
+		LOG.info("Checking " + ZooKeeper.getClientNamespace() +
 				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
-		List<String> jobGraphs = ZooKeeper.getClient().getChildren()
-				.forPath(ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
+		List<String> jobGraphs = ZooKeeper.getChildren(ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 		assertEquals("Unclean job graphs: " + jobGraphs, 0, jobGraphs.size());
 
-		LOG.info("Checking " + ZooKeeper.getClient().getNamespace() +
+		LOG.info("Checking " + ZooKeeper.getClientNamespace() +
 				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
-		List<String> checkpoints = ZooKeeper.getClient().getChildren()
-				.forPath(ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
+		List<String> checkpoints = ZooKeeper.getChildren(ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
 		assertEquals("Unclean checkpoints: " + checkpoints, 0, checkpoints.size());
 
-		LOG.info("Checking " + ZooKeeper.getClient().getNamespace() +
+		LOG.info("Checking " + ZooKeeper.getClientNamespace() +
 				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
-		List<String> checkpointCounter = ZooKeeper.getClient().getChildren()
-				.forPath(ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
+		List<String> checkpointCounter = ZooKeeper.getChildren(ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 		assertEquals("Unclean checkpoint counter: " + checkpointCounter, 0, checkpointCounter.size());
 
 		LOG.info("ZooKeeper state is clean");
