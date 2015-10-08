@@ -21,18 +21,24 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.commons.math3.util.ArithmeticUtils;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.MathUtils;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.state.StateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
+import static java.util.Objects.requireNonNull;
 
-public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, F extends Function> 
+public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, STATE, F extends Function> 
 		extends AbstractUdfStreamOperator<OUT, F> 
 		implements OneInputStreamOperator<IN, OUT>, Triggerable {
 	
@@ -45,6 +51,9 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	private final Function function;
 	private final KeySelector<IN, KEY> keySelector;
 	
+	private final TypeSerializer<KEY> keySerializer;
+	private final TypeSerializer<STATE> stateTypeSerializer;
+	
 	private final long windowSize;
 	private final long windowSlide;
 	private final long paneSize;
@@ -52,9 +61,11 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	
 	// ----- fields for operator functionality -----
 	
-	private transient AbstractKeyedTimePanes<IN, KEY, ?, OUT> panes;
+	private transient AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes;
 	
 	private transient TimestampedCollector<OUT> out;
+	
+	private transient RestoredState<IN, KEY, STATE, OUT> restoredState;
 	
 	private transient long nextEvaluationTime;
 	private transient long nextSlideTime;
@@ -62,14 +73,13 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	protected AbstractAlignedProcessingTimeWindowOperator(
 			F function,
 			KeySelector<IN, KEY> keySelector,
+			TypeSerializer<KEY> keySerializer,
+			TypeSerializer<STATE> stateTypeSerializer,
 			long windowLength,
 			long windowSlide)
 	{
 		super(function);
 		
-		if (function == null || keySelector == null) {
-			throw new NullPointerException();
-		}
 		if (windowLength < MIN_SLIDE_TIME) {
 			throw new IllegalArgumentException("Window length must be at least " + MIN_SLIDE_TIME + " msecs");
 		}
@@ -87,8 +97,10 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 							"The unit of grouping is too small: %d msecs", windowLength, windowSlide, paneSlide));
 		}
 		
-		this.function = function;
-		this.keySelector = keySelector;
+		this.function = requireNonNull(function);
+		this.keySelector = requireNonNull(keySelector);
+		this.keySerializer = requireNonNull(keySerializer);
+		this.stateTypeSerializer = requireNonNull(stateTypeSerializer);
 		this.windowSize = windowLength;
 		this.windowSlide = windowSlide;
 		this.paneSize = paneSlide;
@@ -96,7 +108,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 	
 	
-	protected abstract AbstractKeyedTimePanes<IN, KEY, ?, OUT> createPanes(
+	protected abstract AbstractKeyedTimePanes<IN, KEY, STATE, OUT> createPanes(
 			KeySelector<IN, KEY> keySelector, Function function);
 
 	// ------------------------------------------------------------------------
@@ -106,19 +118,53 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	@Override
 	public void open() throws Exception {
 		super.open();
-		
+
 		out = new TimestampedCollector<>(output);
-		
-		// create the panes that gather the elements per slide
-		panes = createPanes(keySelector, function);
 		
 		// decide when to first compute the window and when to slide it
 		// the values should align with the start of time (that is, the UNIX epoch, not the big bang)
 		final long now = System.currentTimeMillis();
 		nextEvaluationTime = now + windowSlide - (now % windowSlide);
 		nextSlideTime = now + paneSize - (now % paneSize);
+
+		final long firstTriggerTime = Math.min(nextEvaluationTime, nextSlideTime);
 		
-		registerTimer(Math.min(nextEvaluationTime, nextSlideTime), this);
+		// check if we restored state and if we need to fire some windows based on that restored state
+		if (restoredState == null) {
+			// initial empty state: create empty panes that gather the elements per slide
+			panes = createPanes(keySelector, function);
+		}
+		else {
+			// restored state
+			panes = restoredState.panes;
+			
+			long nextPastEvaluationTime = restoredState.nextEvaluationTime;
+			long nextPastSlideTime = restoredState.nextSlideTime;
+			long nextPastTriggerTime = Math.min(nextPastEvaluationTime, nextPastSlideTime);
+			int numPanesRestored = panes.getNumPanes();
+			
+			// fire windows from the past as long as there are more panes with data and as long
+			// as the missed trigger times have not caught up with the presence
+			while (numPanesRestored > 0 && nextPastTriggerTime < firstTriggerTime) {
+				// evaluate the window from the past
+				if (nextPastTriggerTime == nextPastEvaluationTime) {
+					computeWindow(nextPastTriggerTime);
+					nextPastEvaluationTime += windowSlide;
+				}
+				
+				// evaluate slide from the past
+				if (nextPastTriggerTime == nextPastSlideTime) {
+					panes.slidePanes(numPanesPerWindow);
+					numPanesRestored--;
+					nextPastSlideTime += paneSize;
+				}
+
+				nextPastTriggerTime = Math.min(nextPastEvaluationTime, nextPastSlideTime);
+			}
+		}
+		
+		// make sure the first window happens
+		registerTimer(firstTriggerTime, this);
 	}
 
 	@Override
@@ -197,6 +243,44 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	// ------------------------------------------------------------------------
+	//  Checkpointing
+	// ------------------------------------------------------------------------
+
+	@Override
+	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
+		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
+		
+		// we write the panes with the key/value maps into the stream, as well as when this state
+		// should have triggered and slided
+		StateBackend.CheckpointStateOutputView out = 
+				getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+
+		out.writeLong(nextEvaluationTime);
+		out.writeLong(nextSlideTime);
+		panes.writeToOutput(out, keySerializer, stateTypeSerializer);
+		
+		taskState.setOperatorState(out.closeAndGetHandle());
+		return taskState;
+	}
+
+	@Override
+	public void restoreState(StreamTaskState taskState) throws Exception {
+		super.restoreState(taskState);
+
+		@SuppressWarnings("unchecked")
+		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
+		DataInputView in = inputState.getState(getUserCodeClassloader());
+		
+		final long nextEvaluationTime = in.readLong();
+		final long nextSlideTime = in.readLong();
+
+		AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes = createPanes(keySelector, function);
+		panes.readFromInput(in, keySerializer, stateTypeSerializer);
+		
+		restoredState = new RestoredState<>(panes, nextEvaluationTime, nextSlideTime);
+	}
+
+	// ------------------------------------------------------------------------
 	//  Property access (for testing)
 	// ------------------------------------------------------------------------
 
@@ -231,5 +315,21 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	@Override
 	public String toString() {
 		return "Window (processing time) (length=" + windowSize + ", slide=" + windowSlide + ')';
+	}
+
+	// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	
+	private static final class RestoredState<IN, KEY, STATE, OUT> {
+
+		final AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes;
+		final long nextEvaluationTime;
+		final long nextSlideTime;
+
+		RestoredState(AbstractKeyedTimePanes<IN, KEY, STATE, OUT> panes, long nextEvaluationTime, long nextSlideTime) {
+			this.panes = panes;
+			this.nextEvaluationTime = nextEvaluationTime;
+			this.nextSlideTime = nextSlideTime;
+		}
 	}
 }

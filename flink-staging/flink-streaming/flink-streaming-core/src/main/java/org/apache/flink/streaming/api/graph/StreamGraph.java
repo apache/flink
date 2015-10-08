@@ -64,8 +64,6 @@ import org.apache.sling.commons.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * Class representing the streaming topology. It contains all the information
  * necessary to build the jobgraph for the execution.
@@ -149,7 +147,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public void setStateBackend(StateBackend<?> backend) {
-		this.stateBackend = requireNonNull(backend);
+		this.stateBackend = backend;
 	}
 
 	public StateBackend<?> getStateBackend() {

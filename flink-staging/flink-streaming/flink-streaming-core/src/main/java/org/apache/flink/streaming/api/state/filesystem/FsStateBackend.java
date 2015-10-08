@@ -231,6 +231,9 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		}
 	}
 
+	@Override
+	public void close() throws Exception {}
+
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------

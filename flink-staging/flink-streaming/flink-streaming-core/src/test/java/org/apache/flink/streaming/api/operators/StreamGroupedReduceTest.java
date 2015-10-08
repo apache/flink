@@ -53,6 +53,7 @@ public class StreamGroupedReduceTest {
 		StreamGroupedReduce<Integer> operator = new StreamGroupedReduce<>(new MyReducer(), IntSerializer.INSTANCE);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -84,6 +85,7 @@ public class StreamGroupedReduceTest {
 		StreamGroupedReduce<Integer> operator =
 				new StreamGroupedReduce<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
 
 		long initialTime = 0L;
 

@@ -75,6 +75,9 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 		// nothing to do here, GC will do it
 	}
 
+	@Override
+	public void close() throws Exception {}
+
 	// ------------------------------------------------------------------------
 	//  State backend operations
 	// ------------------------------------------------------------------------

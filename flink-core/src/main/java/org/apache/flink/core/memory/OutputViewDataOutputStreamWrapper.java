@@ -21,7 +21,6 @@ package org.apache.flink.core.memory;
 import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 
 public class OutputViewDataOutputStreamWrapper implements DataOutputView, Closeable {
 	
@@ -43,9 +42,7 @@ public class OutputViewDataOutputStreamWrapper implements DataOutputView, Closea
 
 	@Override
 	public void skipBytesToWrite(int numBytes) throws IOException {
-		byte[] bytes = new byte[numBytes];
-		Arrays.fill(bytes, (byte)0);
-		out.write(bytes);
+		out.write(new byte[numBytes]);
 	}
 
 	@Override

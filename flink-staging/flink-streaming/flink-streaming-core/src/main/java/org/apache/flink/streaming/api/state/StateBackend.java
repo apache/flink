@@ -20,6 +20,10 @@ package org.apache.flink.streaming.api.state;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.StateHandle;
 
 import java.io.IOException;
@@ -57,6 +61,14 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	 * @throws Exception Exceptions may occur during disposal of the state and should be forwarded.
 	 */
 	public abstract void disposeAllStateForCurrentJob() throws Exception;
+
+	/**
+	 * Closes the state backend, releasing all internal resources, but does not delete any persistent
+	 * checkpoint data.
+	 * 
+	 * @throws Exception Exceptions can be forwarded and will be logged by the system
+	 */
+	public abstract void close() throws Exception;
 	
 	// ------------------------------------------------------------------------
 	//  key/value state
@@ -96,7 +108,21 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	 */
 	public abstract CheckpointStateOutputStream createCheckpointStateOutputStream(
 			long checkpointID, long timestamp) throws Exception;
-
+	
+	/**
+	 * Creates a {@link DataOutputView} stream that writes into the state of the given checkpoint.
+	 * When the stream is closes, it returns a state handle that can retrieve the state back.
+	 *
+	 * @param checkpointID The ID of the checkpoint.
+	 * @param timestamp The timestamp of the checkpoint.
+	 * @return An DataOutputView stream that writes state for the given checkpoint.
+	 *
+	 * @throws Exception Exceptions may occur while creating the stream and should be forwarded.
+	 */
+	public CheckpointStateOutputView createCheckpointStateOutputView(
+			long checkpointID, long timestamp) throws Exception {
+		return new CheckpointStateOutputView(createCheckpointStateOutputStream(checkpointID, timestamp));
+	}
 
 	/**
 	 * Writes the given state into the checkpoint, and returns a handle that can retrieve the state back.
@@ -131,5 +157,58 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 		 * @throws IOException Thrown, if the stream cannot be closed.
 		 */
 		public abstract StreamStateHandle closeAndGetHandle() throws IOException;
+	}
+
+	/**
+	 * A dedicated DataOutputView stream that produces a {@code StateHandle<DataInputView>} when closed.
+	 */
+	public static final class CheckpointStateOutputView extends DataOutputViewStreamWrapper {
+		
+		private final CheckpointStateOutputStream out;
+		
+		public CheckpointStateOutputView(CheckpointStateOutputStream out) {
+			super(out);
+			this.out = out;
+		}
+
+		/**
+		 * Closes the stream and gets a state handle that can create a DataInputView.
+		 * producing the data written to this stream.
+		 *
+		 * @return A state handle that can create an input stream producing the data written to this stream.
+		 * @throws IOException Thrown, if the stream cannot be closed.
+		 */
+		public StateHandle<DataInputView> closeAndGetHandle() throws IOException {
+			return new DataInputViewHandle(out.closeAndGetHandle());
+		}
+
+		@Override
+		public void close() throws IOException {
+			out.close();
+		}
+	}
+
+	/**
+	 * Simple state handle that resolved a {@link DataInputView} from a StreamStateHandle.
+	 */
+	private static final class DataInputViewHandle implements StateHandle<DataInputView> {
+
+		private static final long serialVersionUID = 2891559813513532079L;
+		
+		private final StreamStateHandle stream;
+
+		private DataInputViewHandle(StreamStateHandle stream) {
+			this.stream = stream;
+		}
+
+		@Override
+		public DataInputView getState(ClassLoader userCodeClassLoader) throws Exception {
+			return new DataInputViewStreamWrapper(stream.getState(userCodeClassLoader)); 
+		}
+
+		@Override
+		public void discardState() throws Exception {
+			stream.discardState();
+		}
 	}
 }

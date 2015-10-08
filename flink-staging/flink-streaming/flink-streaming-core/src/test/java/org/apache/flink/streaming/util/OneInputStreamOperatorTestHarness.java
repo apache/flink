@@ -18,7 +18,10 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
@@ -54,17 +57,17 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	final ConcurrentLinkedQueue<Object> outputList;
 
+	final StreamConfig config;
+	
 	final ExecutionConfig executionConfig;
 	
 	final Object checkpointLock;
-
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
-		this(operator, new StreamConfig(new Configuration()));
-	}
 	
-	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator, StreamConfig config) {
+	
+	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<Object>();
+		this.config = new StreamConfig(new Configuration());
 		this.executionConfig = new ExecutionConfig();
 		this.checkpointLock = new Object();
 
@@ -82,9 +85,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(mockTask.getStateBackend());
 		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
 
-		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput());
+		operator.setup(mockTask, config, new MockOutput());
 	}
 
+	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
+		ClosureCleaner.clean(keySelector, false);
+		config.setStatePartitioner(keySelector);
+		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
+	
 	/**
 	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
@@ -109,11 +118,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
+		operator.setKeyContextElement(element);
 		operator.processElement(element);
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
+			operator.setKeyContextElement(element);
 			operator.processElement(element);
 		}
 	}
@@ -127,13 +138,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		private TypeSerializer<OUT> outputSerializer;
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void emitWatermark(Watermark mark) {
 			outputList.add(mark);
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void collect(StreamRecord<OUT> element) {
 			if (outputSerializer == null) {
 				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);

@@ -21,20 +21,27 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.state.StateBackend;
+import org.apache.flink.streaming.api.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
+import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.junit.After;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.mockito.stubbing.OngoingStubbing;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -118,25 +125,29 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		try {
 			AggregatingProcessingTimeWindowOperator<String, String> op;
 			
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 5000, 1000);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
 			assertEquals(5000, op.getWindowSize());
 			assertEquals(1000, op.getWindowSlide());
 			assertEquals(1000, op.getPaneSize());
 			assertEquals(5, op.getNumPanesPerWindow());
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 1000, 1000);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1000, 1000);
 			assertEquals(1000, op.getWindowSize());
 			assertEquals(1000, op.getWindowSlide());
 			assertEquals(1000, op.getPaneSize());
 			assertEquals(1, op.getNumPanesPerWindow());
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 1500, 1000);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
 			assertEquals(1500, op.getWindowSize());
 			assertEquals(1000, op.getWindowSlide());
 			assertEquals(500, op.getPaneSize());
 			assertEquals(3, op.getNumPanesPerWindow());
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 1200, 1100);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1200, 1100);
 			assertEquals(1200, op.getWindowSize());
 			assertEquals(1100, op.getWindowSlide());
 			assertEquals(100, op.getPaneSize());
@@ -157,28 +168,32 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			AggregatingProcessingTimeWindowOperator<String, String> op;
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 5000, 1000);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 5000, 1000);
 			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
 			op.dispose();
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 1000, 1000);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1000, 1000);
 			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 1000 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
 			op.dispose();
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 1500, 1000);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1500, 1000);
 			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 500 == 0);
 			assertTrue(op.getNextEvaluationTime() % 1000 == 0);
 			op.dispose();
 
-			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector, 1200, 1100);
+			op = new AggregatingProcessingTimeWindowOperator<>(mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE, 1200, 1100);
 			op.setup(mockTask, new StreamConfig(new Configuration()), mockOut);
 			op.open();
 			assertTrue(op.getNextSlideTime() % 100 == 0);
@@ -200,7 +215,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
 					new AggregatingProcessingTimeWindowOperator<>(
-							sumFunction, identitySelector, windowSize, windowSize);
+							sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+							windowSize, windowSize);
 			
 			final Object lock = new Object();
 			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
@@ -211,11 +228,15 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final int numElements = 1000;
 
 			for (int i = 0; i < numElements; i++) {
-				op.processElement(new StreamRecord<Integer>(i));
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
 				Thread.sleep(1);
 			}
 
-			op.close();
+			synchronized (lock) {
+				op.close();
+			}
 			op.dispose();
 
 			// get and verify the result
@@ -238,7 +259,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 	@Test
 	public void  testTumblingWindowDuplicateElements() {
-
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 
 		try {
@@ -250,7 +270,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
 					new AggregatingProcessingTimeWindowOperator<>(
-							sumFunction, identitySelector, windowSize, windowSize);
+							sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+							windowSize, windowSize);
 			
 			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
@@ -261,22 +283,23 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			int window = 1;
 			
 			while (window <= numWindows) {
-				long nextTime = op.getNextEvaluationTime();
-				int val = ((int) nextTime) ^ ((int) (nextTime >>> 32));
-
 				synchronized (lock) {
+					long nextTime = op.getNextEvaluationTime();
+					int val = ((int) nextTime) ^ ((int) (nextTime >>> 32));
+					
 					op.processElement(new StreamRecord<Integer>(val));
+
+					if (nextTime != previousNextTime) {
+						window++;
+						previousNextTime = nextTime;
+					}
 				}
-				
-				if (nextTime != previousNextTime) {
-					window++;
-					previousNextTime = nextTime;
-				}
-				
 				Thread.sleep(1);
 			}
 
-			op.close();
+			synchronized (lock) {
+				op.close();
+			}
 			op.dispose();
 			
 			List<Integer> result = out.getElements();
@@ -287,12 +310,13 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			// deduplicate for more accurate checks
 			HashSet<Integer> set = new HashSet<>(result);
-			assertTrue(set.size() == 10 || set.size() == 11);
+			assertTrue(set.size() == 10);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		} finally {
+		}
+		finally {
 			timerService.shutdown();
 		}
 	}
@@ -308,7 +332,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			// tumbling window that triggers every 20 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
-					new AggregatingProcessingTimeWindowOperator<>(sumFunction, identitySelector, 150, 50);
+					new AggregatingProcessingTimeWindowOperator<>(
+							sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+							150, 50);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
@@ -322,7 +349,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
-			op.close();
+			synchronized (lock) {
+				op.close();
+			}
 			op.dispose();
 
 			// get and verify the result
@@ -369,7 +398,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			// tumbling window that triggers every 20 milliseconds
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
-					new AggregatingProcessingTimeWindowOperator<>(sumFunction, identitySelector, 150, 50);
+					new AggregatingProcessingTimeWindowOperator<>(
+							sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE, 150, 50);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
@@ -388,8 +419,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			Collections.sort(result);
 			assertEquals(Arrays.asList(1, 1, 1, 2, 2, 2), result);
-			
-			op.close();
+
+			synchronized (lock) {
+				op.close();
+			}
 			op.dispose();
 		}
 		catch (Exception e) {
@@ -412,7 +445,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			// the operator has a window time that is so long that it will not fire in this test
 			final long oneYear = 365L * 24 * 60 * 60 * 1000;
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op = 
-					new AggregatingProcessingTimeWindowOperator<>(sumFunction, identitySelector, oneYear, oneYear);
+					new AggregatingProcessingTimeWindowOperator<>(sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE, oneYear, oneYear);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
@@ -423,8 +457,10 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					op.processElement(new StreamRecord<Integer>(i));
 				}
 			}
-			
-			op.close();
+
+			synchronized (lock) {
+				op.close();
+			}
 			op.dispose();
 			
 			// get and verify the result
@@ -455,7 +491,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			final long hundredYears = 100L * 365 * 24 * 60 * 60 * 1000;
 			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
 					new AggregatingProcessingTimeWindowOperator<>(
-							failingFunction, identitySelector, hundredYears, hundredYears);
+							failingFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+							hundredYears, hundredYears);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out);
 			op.open();
@@ -484,13 +522,220 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			timerService.shutdown();
 		}
 	}
+
+	@Test
+	public void checkpointRestoreWithPendingWindowTumbling() {
+		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+		try {
+			final int windowSize = 200;
+			final CollectingOutput<Integer> out = new CollectingOutput<>(windowSize);
+			final Object lock = new Object();
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+
+			// tumbling window that triggers every 50 milliseconds
+			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
+					new AggregatingProcessingTimeWindowOperator<>(
+							sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+							windowSize, windowSize);
+
+			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.open();
+
+			// inject some elements
+			final int numElementsFirst = 700;
+			final int numElements = 1000;
+			
+			for (int i = 0; i < numElementsFirst; i++) {
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
+				Thread.sleep(1);
+			}
+
+			// draw a snapshot and dispose the window
+			StreamTaskState state;
+			List<Integer> resultAtSnapshot;
+			synchronized (lock) {
+				int beforeSnapShot = out.getElements().size();
+				state = op.snapshotOperatorState(1L, System.currentTimeMillis());
+				resultAtSnapshot = new ArrayList<>(out.getElements());
+				int afterSnapShot = out.getElements().size();
+				assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
+			}
+			
+			assertTrue(resultAtSnapshot.size() <= numElementsFirst);
+
+			// inject some random elements, which should not show up in the state
+			for (int i = numElementsFirst; i < numElements; i++) {
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
+				Thread.sleep(1);
+			}
+
+			op.dispose();
+
+			// re-create the operator and restore the state
+			final CollectingOutput<Integer> out2 = new CollectingOutput<>(windowSize);
+			op = new AggregatingProcessingTimeWindowOperator<>(
+					sumFunction, identitySelector,
+					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+					windowSize, windowSize);
+
+			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
+			op.restoreState(state);
+			op.open();
+
+			// inject the remaining elements
+			for (int i = numElementsFirst; i < numElements; i++) {
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
+				Thread.sleep(1);
+			}
+
+			synchronized (lock) {
+				op.close();
+			}
+			op.dispose();
+
+			// get and verify the result
+			List<Integer> finalResult = new ArrayList<>(resultAtSnapshot);
+			finalResult.addAll(out2.getElements());
+			assertEquals(numElements, finalResult.size());
+
+			Collections.sort(finalResult);
+			for (int i = 0; i < numElements; i++) {
+				assertEquals(i, finalResult.get(i).intValue());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			timerService.shutdown();
+		}
+	}
+
+	@Test
+	public void checkpointRestoreWithPendingWindowSliding() {
+		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
+		try {
+			final int factor = 4;
+			final int windowSlide = 50;
+			final int windowSize = factor * windowSlide;
+
+			final CollectingOutput<Integer> out = new CollectingOutput<>(windowSlide);
+			final Object lock = new Object();
+			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
+
+			// sliding window (200 msecs) every 50 msecs
+			AggregatingProcessingTimeWindowOperator<Integer, Integer> op =
+					new AggregatingProcessingTimeWindowOperator<>(
+							sumFunction, identitySelector,
+							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+							windowSize, windowSlide);
+
+			op.setup(mockTask, new StreamConfig(new Configuration()), out);
+			op.open();
+
+			// inject some elements
+			final int numElements = 1000;
+			final int numElementsFirst = 700;
+
+			for (int i = 0; i < numElementsFirst; i++) {
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
+				Thread.sleep(1);
+			}
+
+			// draw a snapshot
+			StreamTaskState state;
+			List<Integer> resultAtSnapshot;
+			synchronized (lock) {
+				int beforeSnapShot = out.getElements().size();
+				state = op.snapshotOperatorState(1L, System.currentTimeMillis());
+				resultAtSnapshot = new ArrayList<>(out.getElements());
+				int afterSnapShot = out.getElements().size();
+				assertEquals("operator performed computation during snapshot", beforeSnapShot, afterSnapShot);
+			}
+
+			assertTrue(resultAtSnapshot.size() <= factor * numElementsFirst);
+
+			// inject the remaining elements - these should not influence the snapshot
+			for (int i = numElementsFirst; i < numElements; i++) {
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
+				Thread.sleep(1);
+			}
+
+			op.dispose();
+
+			// re-create the operator and restore the state
+			final CollectingOutput<Integer> out2 = new CollectingOutput<>(windowSlide);
+			op = new AggregatingProcessingTimeWindowOperator<>(
+					sumFunction, identitySelector,
+					IntSerializer.INSTANCE, IntSerializer.INSTANCE,
+					windowSize, windowSlide);
+
+			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
+			op.restoreState(state);
+			op.open();
+
+
+			// inject again the remaining elements
+			for (int i = numElementsFirst; i < numElements; i++) {
+				synchronized (lock) {
+					op.processElement(new StreamRecord<Integer>(i));
+				}
+				Thread.sleep(1);
+			}
+
+			// for a deterministic result, we need to wait until all pending triggers
+			// have fired and emitted their results
+			long deadline = System.currentTimeMillis() + 120000;
+			do {
+				Thread.sleep(20);
+			}
+			while (resultAtSnapshot.size() + out2.getElements().size() < factor * numElements
+					&& System.currentTimeMillis() < deadline);
+
+			synchronized (lock) {
+				op.close();
+			}
+			op.dispose();
+
+			// get and verify the result
+			List<Integer> finalResult = new ArrayList<>(resultAtSnapshot);
+			finalResult.addAll(out2.getElements());
+			assertEquals(factor * numElements, finalResult.size());
+
+			Collections.sort(finalResult);
+			for (int i = 0; i < factor * numElements; i++) {
+				assertEquals(i / factor, finalResult.get(i).intValue());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			timerService.shutdown();
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	
 	private void assertInvalidParameter(long windowSize, long windowSlide) {
 		try {
 			new AggregatingProcessingTimeWindowOperator<String, String>(
-					mockFunction, mockKeySelector, windowSize, windowSlide);
+					mockFunction, mockKeySelector,
+					StringSerializer.INSTANCE, StringSerializer.INSTANCE,
+					windowSize, windowSlide);
 			fail("This should fail with an IllegalArgumentException");
 		}
 		catch (IllegalArgumentException e) {
@@ -537,6 +782,12 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
 		
 		when(task.getEnvironment()).thenReturn(env);
+
+		// ugly java generic hacks to get the state backend into the mock
+		@SuppressWarnings("unchecked")
+		OngoingStubbing<StateBackend<?>> stubbing =
+				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(task.getStateBackend());
+		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
 		
 		return task;
 	}
