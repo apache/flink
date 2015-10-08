@@ -63,6 +63,7 @@ under the License.
 		<module>flink-tests</module>
 		<module>flink-test-utils</module>
 		<module>flink-staging</module>
+		<module>flink-libraries</module>
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
