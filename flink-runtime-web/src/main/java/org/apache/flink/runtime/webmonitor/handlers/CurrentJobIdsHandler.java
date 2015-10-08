@@ -24,7 +24,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 
-import org.apache.flink.runtime.webmonitor.JobManagerArchiveRetriever;
+import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -39,12 +39,12 @@ import java.util.Map;
  */
 public class CurrentJobIdsHandler implements RequestHandler, RequestHandler.JsonResponse {
 
-	private final JobManagerArchiveRetriever retriever;
+	private final JobManagerRetriever retriever;
 
 	private final FiniteDuration timeout;
 
 
-	public CurrentJobIdsHandler(JobManagerArchiveRetriever retriever, FiniteDuration timeout) {
+	public CurrentJobIdsHandler(JobManagerRetriever retriever, FiniteDuration timeout) {
 		if (retriever == null || timeout == null) {
 			throw new NullPointerException();
 		}
@@ -53,11 +53,9 @@ public class CurrentJobIdsHandler implements RequestHandler, RequestHandler.Json
 	}
 	
 	@Override
-	public String handleRequest(Map<String, String> params) throws Exception {
+	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
 		try {
-			ActorGateway jobManager = retriever.getJobManagerGateway();
-
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(RequestJobsWithIDsOverview.getInstance(), timeout);
 				JobsWithIDsOverview overview = (JobsWithIDsOverview) Await.result(future, timeout);

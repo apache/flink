@@ -156,4 +156,9 @@ public class AkkaActorGateway implements ActorGateway, Serializable {
 	public UUID leaderSessionID() {
 		return leaderSessionID;
 	}
+
+	@Override
+	public String toString() {
+		return String.format("AkkaActorGateway(%s, %s)", actor.path(), leaderSessionID);
+	}
 }

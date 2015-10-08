@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.files;
 /*****************************************************************************
  * This code is based on the "HttpStaticFileServerHandler" from the
  * Netty project's HTTP server example.
- * 
+ *
  * See http://netty.io and
  * https://github.com/netty/netty/blob/4.0/example/src/main/java/io/netty/example/http/file/HttpStaticFileServerHandler.java
  *****************************************************************************/
@@ -41,15 +41,23 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.util.CharsetUtil;
-
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
+import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
+import scala.Tuple2;
+import scala.concurrent.Promise;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -57,6 +65,7 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
@@ -71,28 +80,33 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
- * Simple file server handler that serves requests to web frontend's static files, such as 
+ * Simple file server handler that serves requests to web frontend's static files, such as
  * HTML, CSS, or JS files.
- * 
+ *
  * <p>This code is based on the "HttpStaticFileServerHandler" from the Netty project's HTTP server
  * example.</p>
  */
 @ChannelHandler.Sharable
 public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
-	
+
 	/** Default logger, if none is specified */
 	private static final Logger DEFAULT_LOGGER = LoggerFactory.getLogger(StaticFileServerHandler.class);
-	
+
 	/** Timezone in which this server answers its "if-modified" requests */
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
 
 	/** Date format for HTTP */
 	private static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
-	
+
 	/** Be default, we allow files to be cached for 5 minutes */
 	private static final int HTTP_CACHE_SECONDS = 300;
 
 	// ------------------------------------------------------------------------
+
+	/** JobManager retriever */
+	private final JobManagerRetriever retriever;
+
+	private final Promise<String> localJobManagerAddressPromise;
 
 	/** The path in which the static documents are */
 	private final File rootPath;
@@ -100,26 +114,38 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	/** The log for all error reporting */
 	private final Logger logger;
 
-	
-	public StaticFileServerHandler(File rootPath) {
-		this(rootPath, DEFAULT_LOGGER);
+	private String localJobManagerAddress;
+
+	public StaticFileServerHandler(
+			JobManagerRetriever retriever,
+			Promise<String> localJobManagerAddressPromise,
+			File rootPath) {
+
+		this(retriever, localJobManagerAddressPromise, rootPath, DEFAULT_LOGGER);
 	}
-	
-	public StaticFileServerHandler(File rootPath, Logger logger) {
-		if (rootPath == null || logger == null) {
-			throw new NullPointerException();
-		}
-		
-		this.rootPath = rootPath;
-		this.logger = logger;
+
+	public StaticFileServerHandler(
+			JobManagerRetriever retriever,
+			Promise<String> localJobManagerAddressPromise,
+			File rootPath,
+			Logger logger) {
+
+		this.retriever = checkNotNull(retriever);
+		this.localJobManagerAddressPromise = localJobManagerAddressPromise;
+		this.rootPath = checkNotNull(rootPath);
+		this.logger = checkNotNull(logger);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Responses to requests
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
+		if (localJobManagerAddress == null) {
+			localJobManagerAddress = localJobManagerAddressPromise.future().value().get().get();
+		}
+
 		final HttpRequest request = routed.request();
 		String requestPath = routed.path();
 
@@ -133,9 +159,35 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			requestPath = requestPath.replace('/', File.separatorChar);
 		}
 
+		Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
+
+		if (jobManager.isDefined()) {
+			// Redirect to leader if necessary
+			String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
+					localJobManagerAddress, jobManager.get());
+
+			if (redirectAddress != null) {
+				HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, requestPath);
+				KeepAliveWrite.flush(ctx, routed.request(), redirect);
+			}
+			else {
+				respondAsLeader(ctx, request, requestPath);
+			}
+		}
+		else {
+			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
+		}
+	}
+
+	/**
+	 * Response when running with leading JobManager.
+	 */
+	private void respondAsLeader(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
+			throws ParseException, IOException {
+
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
-		
+
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
 			sendError(ctx, NOT_FOUND);
 			return;
@@ -155,7 +207,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 				if (logger.isDebugEnabled()) {
 					logger.debug("Responding 'NOT MODIFIED' for file '" + file.getAbsolutePath() + '\'');
 				}
-				
+
 				sendNotModified(ctx);
 				return;
 			}
@@ -203,15 +255,15 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			sendError(ctx, INTERNAL_SERVER_ERROR);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Utilities to encode headers and responses
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Writes a simple  error response message.
-	 * 
-	 * @param ctx The channel context to write the response to.
+	 *
+	 * @param ctx    The channel context to write the response to.
 	 * @param status The response status.
 	 */
 	private static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
@@ -253,7 +305,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	/**
 	 * Sets the "date" and "cache" headers for the HTTP Response.
 	 *
-	 * @param response The HTTP response object.
+	 * @param response    The HTTP response object.
 	 * @param fileToCache File to extract the modification timestamp from.
 	 */
 	private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
@@ -275,7 +327,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * Sets the content type header for the HTTP Response.
 	 *
 	 * @param response HTTP response
-	 * @param file file to extract content type
+	 * @param file     file to extract content type
 	 */
 	private static void setContentTypeHeader(HttpResponse response, File file) {
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
