@@ -202,9 +202,14 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		}
 		LOG.info("Disconnecting FlinkYarnCluster from ApplicationMaster");
 
-		if(!Runtime.getRuntime().removeShutdownHook(clientShutdownHook)) {
-			LOG.warn("Error while removing the shutdown hook. The YARN session might be killed unintentionally");
+		try {
+			if (!Runtime.getRuntime().removeShutdownHook(clientShutdownHook)) {
+				LOG.warn("Error while removing the shutdown hook. The YARN session might be killed unintentionally");
+			}
+		} catch (IllegalStateException e) {
+			// already shutting down
 		}
+
 		// tell the actor to shut down.
 		applicationClient.tell(Messages.getLocalUnregisterClient(), applicationClient);
 

@@ -688,6 +688,11 @@ public class CliFrontend {
 			}
 		}
 
+		if (yarnCluster != null && !yarnCluster.isDetached()) {
+			logAndSysout("Shutting down YARN cluster.");
+			yarnCluster.shutdown(false);
+		}
+
 		return 0;
 	}
 
