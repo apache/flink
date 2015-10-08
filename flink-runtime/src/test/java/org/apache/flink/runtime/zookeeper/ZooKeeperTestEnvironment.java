@@ -26,6 +26,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
+import java.util.List;
+
 /**
  * Simple ZooKeeper and CuratorFramework setup for tests.
  */
@@ -109,6 +111,14 @@ public class ZooKeeperTestEnvironment {
 	 */
 	public CuratorFramework getClient() {
 		return client;
+	}
+
+	public String getClientNamespace() {
+		return client.getNamespace();
+	}
+
+	public List<String> getChildren(String path) throws Exception {
+		return client.getChildren().forPath(path);
 	}
 
 	/**

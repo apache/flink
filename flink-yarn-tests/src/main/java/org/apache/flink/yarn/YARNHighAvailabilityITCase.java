@@ -22,6 +22,7 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.testkit.JavaTestKit;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -37,7 +38,9 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -52,6 +55,9 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	private static ActorSystem actorSystem;
 
 	private static final int numberApplicationAttempts = 10;
+
+	@Rule
+	public TemporaryFolder tmp = new TemporaryFolder();
 
 	@BeforeClass
 	public static void setup() {
@@ -102,9 +108,14 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		String confDirPath = System.getenv("FLINK_CONF_DIR");
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 
+		String fsStateHandlePath = tmp.getRoot().getPath();
+
 		flinkYarnClient.setFlinkConfigurationObject(GlobalConfiguration.getConfiguration());
 		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@ha.zookeeper.quorum=" +
-			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts);
+			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
+			"@@" + ConfigConstants.STATE_BACKEND + "=FILESYSTEM" +
+			"@@" + ConfigConstants.STATE_BACKEND_FS_DIR + "=" + fsStateHandlePath + "/checkpoints" +
+			"@@" + ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH + "=" + fsStateHandlePath + "/recovery");
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
 		AbstractFlinkYarnCluster yarnCluster = null;

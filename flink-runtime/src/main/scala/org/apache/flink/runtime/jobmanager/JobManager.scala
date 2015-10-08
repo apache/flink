@@ -64,7 +64,6 @@ import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMess
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
@@ -127,6 +126,9 @@ class JobManager(
 
   var leaderSessionID: Option[UUID] = None
 
+  /** Futures which have to be completed before terminating the job manager */
+  var futuresToComplete: Option[Seq[Future[Unit]]] = None
+
   /**
    * Run when the job manager is started. Simply logs an informational message.
    * The method also starts the leader election service.
@@ -163,7 +165,16 @@ class JobManager(
   override def postStop(): Unit = {
     log.info(s"Stopping JobManager ${getAddress}.")
 
-    cancelAndClearEverything(new Exception("The JobManager is shutting down."))
+    val newFuturesToComplete = cancelAndClearEverything(
+      new Exception("The JobManager is shutting down."),
+      true)
+
+    implicit val executionContext = context.dispatcher
+
+    val futureToComplete = Future.sequence(
+      futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
+
+    Await.ready(futureToComplete, timeout)
 
     // disconnect the registered task managers
     instanceManager.getAllRegisteredInstances.asScala.foreach {
@@ -235,9 +246,11 @@ class JobManager(
     case RevokeLeadership =>
       log.info(s"JobManager ${self.path.toSerializationFormat} was revoked leadership.")
 
-      future {
-        cancelAndClearEverything(new Exception("JobManager is no longer the leader."))
-      }(context.dispatcher)
+      val newFuturesToComplete = cancelAndClearEverything(
+        new Exception("JobManager is no longer the leader."),
+        false)
+
+      futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
 
       // disconnect the registered task managers
       instanceManager.getAllRegisteredInstances.asScala.foreach {
@@ -315,9 +328,15 @@ class JobManager(
       val jobInfo = new JobInfo(client, listeningBehaviour, System.currentTimeMillis(),
         jobGraph.getSessionTimeout)
 
-      future {
-        submitJob(jobGraph, jobInfo)
-      }(context.dispatcher)
+      submitJob(jobGraph, jobInfo)
+
+    case RecoverSubmittedJob(submittedJobGraph) =>
+      if (!currentJobs.contains(submittedJobGraph.getJobId)) {
+        submitJob(
+          submittedJobGraph.getJobGraph(),
+          submittedJobGraph.getJobInfo(),
+          isRecovery = true)
+      }
 
     case RecoverJob(jobId) =>
       future {
@@ -328,19 +347,18 @@ class JobManager(
 
           log.info(s"Attempting to recover job $jobId.")
 
-          val jobGraph = submittedJobGraphs.recoverJobGraph(jobId)
+          val submittedJobGraphOption = submittedJobGraphs.recoverJobGraph(jobId)
 
-          if (jobGraph.isDefined) {
-            if (!leaderElectionService.hasLeadership()) {
-              // we've lost leadership. mission: abort.
-              log.warn(s"Lost leadership during recovery. Aborting recovery of $jobId.")
-            }
-            else {
-              recoverJobGraph(jobGraph.get)
-            }
-          }
-          else {
-            log.warn(s"Failed to recover job graph ${jobId}.")
+          submittedJobGraphOption match {
+            case Some(submittedJobGraph) =>
+              if (!leaderElectionService.hasLeadership()) {
+                // we've lost leadership. mission: abort.
+                log.warn(s"Lost leadership during recovery. Aborting recovery of $jobId.")
+              }
+              else {
+                self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+              }
+            case None => log.warn(s"Failed to recover job graph $jobId.")
           }
         }
       }(context.dispatcher)
@@ -362,7 +380,10 @@ class JobManager(
           else {
             log.debug(s"Attempting to recover ${jobGraphs.size} job graphs.")
 
-            jobGraphs.foreach(recoverJobGraph(_))
+            jobGraphs.foreach{
+              submittedJobGraph =>
+                self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+            }
           }
         }
       }(context.dispatcher)
@@ -473,7 +494,7 @@ class JobManager(
           if (newJobStatus.isTerminalState()) {
             jobInfo.end = timeStamp
 
-            future {
+            future{
               // TODO If removing the JobGraph from the SubmittedJobGraphsStore fails, the job will
               // linger around and potentially be recovered at a later time. There is nothing we
               // can do about that, but it should be communicated with the Client.
@@ -483,11 +504,11 @@ class JobManager(
                 context.system.scheduler.scheduleOnce(jobInfo.sessionTimeout seconds) {
                   // remove only if no activity occurred in the meantime
                   if (lastActivity == jobInfo.lastActive) {
-                    removeJob(jobID)
+                    self ! decorateMessage(RemoveJob(jobID, true))
                   }
-                }
+                }(context.dispatcher)
               } else {
-                removeJob(jobID)
+                self ! decorateMessage(RemoveJob(jobID, true))
               }
 
               // is the client waiting for the job result?
@@ -539,9 +560,7 @@ class JobManager(
             }(context.dispatcher)
           }
         case None =>
-          future {
-            removeJob(jobID)
-          }(context.dispatcher)
+          self ! decorateMessage(RemoveJob(jobID, true))
       }
 
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
@@ -646,9 +665,7 @@ class JobManager(
     case Heartbeat(instanceID, metricsReport, accumulators) =>
       log.debug(s"Received hearbeat message from $instanceID.")
 
-      Future {
-        updateAccumulators(accumulators)
-      }(context.dispatcher)
+      updateAccumulators(accumulators)
 
       instanceManager.reportHeartBeat(instanceID, metricsReport)
 
@@ -671,11 +688,26 @@ class JobManager(
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
 
+    case RemoveJob(jobID, clearPersistedJob) =>
+      currentJobs.get(jobID) match {
+        case Some((graph, info)) =>
+            removeJob(graph.getJobID, clearPersistedJob) match {
+              case Some(futureToComplete) =>
+                futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) :+ futureToComplete)
+              case None =>
+            }
+        case None =>
+      }
+
     case RemoveCachedJob(jobID) =>
       currentJobs.get(jobID) match {
         case Some((graph, info)) =>
           if (graph.getState.isTerminalState) {
-            removeJob(graph.getJobID)
+            removeJob(graph.getJobID, true) match {
+              case Some(futureToComplete) =>
+                futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) :+ futureToComplete)
+              case None =>
+            }
           } else {
             // triggers removal upon completion of job
             info.sessionAlive = false
@@ -761,6 +793,7 @@ class JobManager(
               jobGraph.getClasspaths,
               userCodeLoader)
 
+            currentJobs.put(jobGraph.getJobID, (graph, jobInfo))
             graph
         }
 
@@ -878,22 +911,6 @@ class JobManager(
           executionGraph.registerExecutionListener(gateway)
           executionGraph.registerJobStatusListener(gateway)
         }
-
-        if (isRecovery) {
-          executionGraph.restoreLatestCheckpointedState()
-        }
-        else {
-          submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
-        }
-
-        // Add the job graph only after everything is finished. Otherwise there can be races in
-        // tests, which check the currentJobs (for example before killing a JM).
-        if (!currentJobs.contains(jobId)) {
-          currentJobs.put(jobGraph.getJobID, (executionGraph, jobInfo))
-        }
-
-        // done with submitting the job
-        jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
       }
       catch {
         case t: Throwable =>
@@ -916,20 +933,39 @@ class JobManager(
           return
       }
 
-      if (leaderElectionService.hasLeadership) {
-        // There is a small chance that multiple job managers schedule the same job after if they
-        // try to recover at the same time. This will eventually be noticed, but can not be ruled
-        // out from the beginning.
-
-        // NOTE: Scheduling the job for execution is a separate action from the job submission.
-        // The success of submitting the job must be independent from the success of scheduling
-        // the job.
+      // execute the recovery/writing the jobGraph into the SubmittedJobGraphStore asynchronously
+      // because it is a blocking operation
+      future {
         try {
-          log.info(s"Scheduling job $jobId ($jobName).")
+          if (isRecovery) {
+            executionGraph.restoreLatestCheckpointedState()
+          }
+          else {
+            submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
+          }
 
-          executionGraph.scheduleForExecution(scheduler)
-        }
-        catch {
+          jobInfo.client ! decorateMessage(JobSubmitSuccess(jobGraph.getJobID))
+
+          if (leaderElectionService.hasLeadership) {
+            // There is a small chance that multiple job managers schedule the same job after if
+            // they try to recover at the same time. This will eventually be noticed, but can not be
+            // ruled out from the beginning.
+
+            // NOTE: Scheduling the job for execution is a separate action from the job submission.
+            // The success of submitting the job must be independent from the success of scheduling
+            // the job.
+            log.info(s"Scheduling job $jobId ($jobName).")
+
+            executionGraph.scheduleForExecution(scheduler)
+          } else {
+            // Remove the job graph. Otherwise it will be lingering around and possibly removed from
+            // ZooKeeper by this JM.
+            self ! decorateMessage(RemoveJob(jobId, false))
+
+            log.warn(s"Submitted job $jobId, but not leader. The other leader needs to recover " +
+              "this. I am not scheduling the job for execution.")
+          }
+        } catch {
           case t: Throwable => try {
             executionGraph.fail(t)
           }
@@ -939,27 +975,6 @@ class JobManager(
             }
           }
         }
-      }
-      else {
-        // Remove the job graph. Otherwise it will be lingering around and possibly removed from
-        // ZooKeeper by this JM.
-        currentJobs.remove(jobId)
-
-        log.warn(s"Submitted job $jobId, but not leader. The other leader needs to recover " +
-          "this. I am not scheduling the job for execution.")
-      }
-    }
-  }
-
-  /**
-   * Submits the job if it is not already one of our current jobs.
-   *
-   * @param jobGraph Job to recover
-   */
-  private def recoverJobGraph(jobGraph: SubmittedJobGraph): Unit = {
-    if (!currentJobs.contains(jobGraph.getJobId)) {
-      future {
-        submitJob(jobGraph.getJobGraph(), jobGraph.getJobInfo(), isRecovery = true)
       }(context.dispatcher)
     }
   }
@@ -1169,20 +1184,24 @@ class JobManager(
    * might block. Therefore be careful not to block the actor thread.
    *
    * @param jobID ID of the job to remove and archive
+   * @param removeJobFromStateBackend true if the job shall be archived and removed from the state
+   *                            backend
    */
-  private def removeJob(jobID: JobID): Unit = {
-    currentJobs.synchronized {
-      // Don't remove the job yet...
-      currentJobs.get(jobID) match {
-        case Some((eg, _)) =>
-          try {
-            // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
-            // and the ZooKeeper client is closed. Not removing the job immediately allow the
-            // shutdown to release all resources.
-            submittedJobGraphs.removeJobGraph(jobID)
-          } catch {
-            case t: Throwable => log.error(s"Could not remove submitted job graph $jobID.", t)
-          }
+  private def removeJob(jobID: JobID, removeJobFromStateBackend: Boolean): Option[Future[Unit]] = {
+    // Don't remove the job yet...
+    val futureOption = currentJobs.get(jobID) match {
+      case Some((eg, _)) =>
+        val result = if (removeJobFromStateBackend) {
+          val futureOption = Some(future {
+            try {
+              // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
+              // and the ZooKeeper client is closed. Not removing the job immediately allow the
+              // shutdown to release all resources.
+              submittedJobGraphs.removeJobGraph(jobID)
+            } catch {
+              case t: Throwable => log.error(s"Could not remove submitted job graph $jobID.", t)
+            }
+          }(context.dispatcher))
 
           try {
             eg.prepareForArchiving()
@@ -1193,9 +1212,15 @@ class JobManager(
               "archiving.", t)
           }
 
-          currentJobs.remove(jobID)
-        case None =>
-      }
+          futureOption
+        } else {
+          None
+        }
+
+        currentJobs.remove(jobID)
+
+        result
+      case None => None
     }
 
     try {
@@ -1204,6 +1229,8 @@ class JobManager(
       case t: Throwable =>
         log.error(s"Could not properly unregister job $jobID form the library cache.", t)
     }
+
+    futureOption
   }
 
   /** Fails all currently running jobs and empties the list of currently running jobs. If the
@@ -1211,26 +1238,35 @@ class JobManager(
     *
     * @param cause Cause for the cancelling.
     */
-  private def cancelAndClearEverything(cause: Throwable) {
-    for ((jobID, (eg, jobInfo)) <- currentJobs) {
-      try {
-        submittedJobGraphs.removeJobGraph(jobID)
-      }
-      catch {
-        case t: Throwable => {
-          log.error("Error during submitted job graph clean up.", t)
+  private def cancelAndClearEverything(
+      cause: Throwable,
+      removeJobFromStateBackend: Boolean)
+    : Seq[Future[Unit]] = {
+    val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
+      future {
+        if (removeJobFromStateBackend) {
+          try {
+            submittedJobGraphs.removeJobGraph(jobID)
+          }
+          catch {
+            case t: Throwable => {
+              log.error("Error during submitted job graph clean up.", t)
+            }
+          }
         }
-      }
 
-      eg.fail(cause)
+        eg.fail(cause)
 
-      if (jobInfo.listeningBehaviour != ListeningBehaviour.DETACHED) {
-        jobInfo.client ! decorateMessage(
-          Failure(new JobExecutionException(jobID, "All jobs are cancelled and cleared.", cause)))
-      }
+        if (jobInfo.listeningBehaviour != ListeningBehaviour.DETACHED) {
+          jobInfo.client ! decorateMessage(
+            Failure(new JobExecutionException(jobID, "All jobs are cancelled and cleared.", cause)))
+        }
+      }(context.dispatcher)
     }
 
     currentJobs.clear()
+
+    futures.toSeq
   }
 
   override def grantLeadership(newLeaderSessionID: UUID): Unit = {
@@ -1285,7 +1321,9 @@ class JobManager(
       case accumulatorEvent =>
         currentJobs.get(accumulatorEvent.getJobID) match {
           case Some((jobGraph, jobInfo)) =>
-            jobGraph.updateAccumulators(accumulatorEvent)
+            future {
+              jobGraph.updateAccumulators(accumulatorEvent)
+            }(context.dispatcher)
           case None =>
           // ignore accumulator values for old job
         }

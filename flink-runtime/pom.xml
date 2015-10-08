@@ -182,7 +182,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-curator</artifactId>
+			<artifactId>flink-shaded-curator-recipes</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
@@ -417,7 +417,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-shaded-curator</include>
+									<include>org.apache.flink:flink-shaded-curator-recipes</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
