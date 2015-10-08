@@ -25,23 +25,19 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+
 import org.junit.Test;
 
-public class SlotAllocationTest extends StreamingMultipleProgramsTestBase{
-
-	@SuppressWarnings("serial")
+@SuppressWarnings("serial")
+public class SlotAllocationTest {
+	
 	@Test
 	public void test() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		FilterFunction<Long> dummyFilter = new FilterFunction<Long>() {
-
 			@Override
-			public boolean filter(Long value) throws Exception {
-
-				return false;
-			}
+			public boolean filter(Long value) { return false; }
 		};
 
 		env.generateSequence(1, 10).filter(dummyFilter).isolateResources().filter(dummyFilter)
@@ -53,11 +49,8 @@ public class SlotAllocationTest extends StreamingMultipleProgramsTestBase{
 		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
 		assertEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(2).getSlotSharingGroup());
-		assertNotEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(1)
-				.getSlotSharingGroup());
-		assertNotEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(3)
-				.getSlotSharingGroup());
+		assertNotEquals(vertices.get(0).getSlotSharingGroup(), vertices.get(1).getSlotSharingGroup());
+		assertNotEquals(vertices.get(2).getSlotSharingGroup(), vertices.get(3).getSlotSharingGroup());
 		assertEquals(vertices.get(3).getSlotSharingGroup(), vertices.get(4).getSlotSharingGroup());
-
 	}
 }

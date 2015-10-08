@@ -144,13 +144,9 @@ public abstract class AbstractStreamOperator<OUT>
 
 	@Override
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
-		// here, we deal with operator checkpoints and key/value state snapshots
+		// here, we deal with key/value state snapshots
 		
 		StreamTaskState state = new StreamTaskState();
-		
-		// (1) checkpoint the operator, if the operator is stateful
-		
-		// (2) draw a snapshot of the key/value state 
 		if (keyValueState != null) {
 			KvStateSnapshot<?, ?, ?> snapshot = keyValueState.shapshot(checkpointId, timestamp);
 			state.setKvState(snapshot);
@@ -161,10 +157,8 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	@Override
 	public void restoreState(StreamTaskState state) throws Exception {
-		// (1) checkpoint the operator, if the operator is stateful
-		
-		// (2) restore the key/value state. the actual restore happens lazily, when the function requests
-		//     the state again, because the restore method needs information provided by the user function
+		// restore the key/value state. the actual restore happens lazily, when the function requests
+		// the state again, because the restore method needs information provided by the user function
 		keyValueStateSnapshot = state.getKvState();
 	}
 	

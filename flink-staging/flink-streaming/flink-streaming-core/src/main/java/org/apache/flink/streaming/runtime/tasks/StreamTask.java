@@ -188,7 +188,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		
 		boolean disposed = false;
 		try {
-			openAllOperators();
+			// we need to make sure that any triggers scheduled in open() cannot be
+			// executed before all operators are opened
+			synchronized (lock) {
+				openAllOperators();
+			}
 
 			// let the task do its work
 			isRunning = true;
@@ -202,12 +206,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// make sure no further checkpoint and notification actions happen.
 			// we make sure that no other thread is currently in the locked scope before
 			// we close the operators by trying to acquire the checkpoint scope lock
-			synchronized (lock) {}
+			// we also need to make sure that no triggers fire concurrently with the close logic
+			synchronized (lock) {
+				// this is part of the main logic, so if this fails, the task is considered failed
+				closeAllOperators();
+			}
 			
-			// this is part of the main logic, so if this fails, the task is considered failed
-			closeAllOperators();
-			
-			// make sure all data is flushed
+			// make sure all buffered data is flushed
 			operatorChain.flushOutputs();
 
 			// make an attempt to dispose the operators such that failures in the dispose call
@@ -238,6 +243,14 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// if the operators were not disposed before, do a hard dispose
 			if (!disposed) {
 				disposeAllOperators();
+			}
+
+			try {
+				if (stateBackend != null) {
+					stateBackend.close();
+				}
+			} catch (Throwable t) {
+				LOG.error("Error while closing the state backend", t);
 			}
 		}
 	}

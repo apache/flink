@@ -23,16 +23,17 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.junit.Assert;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link StreamGroupedFold}. These test that:
@@ -48,17 +49,11 @@ public class StreamGroupedFoldTest {
 
 	private static class MyFolder implements FoldFunction<Integer, String> {
 
-		private static final long serialVersionUID = 1L;
-
 		@Override
 		public String fold(String accumulator, Integer value) throws Exception {
 			return accumulator + value.toString();
 		}
-
 	}
-
-	private TypeInformation<Integer> inType = TypeExtractor.getForClass(Integer.class);
-	private TypeInformation<String> outType = TypeExtractor.getForClass(String.class);
 
 	@Test
 	public void testGroupedFold() throws Exception {
@@ -72,9 +67,10 @@ public class StreamGroupedFoldTest {
 		};
 		
 		StreamGroupedFold<Integer, String, String> operator = new StreamGroupedFold<>(new MyFolder(), "100");
-		operator.setOutputType(outType, new ExecutionConfig());
+		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -112,7 +108,9 @@ public class StreamGroupedFoldTest {
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
 		OneInputStreamOperatorTestHarness<Integer, String> testHarness = new OneInputStreamOperatorTestHarness<>(operator);
-
+		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.INT_TYPE_INFO);
+		
+		
 		long initialTime = 0L;
 
 		testHarness.open();
@@ -122,8 +120,8 @@ public class StreamGroupedFoldTest {
 
 		testHarness.close();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseFoldFunction.closeCalled);
-		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+		assertTrue("RichFunction methods where not called.", TestOpenCloseFoldFunction.closeCalled);
+		assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
 	}
 
 	// This must only be used in one test, otherwise the static fields will be changed
@@ -138,7 +136,7 @@ public class StreamGroupedFoldTest {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			if (closeCalled) {
-				Assert.fail("Close called before open.");
+				fail("Close called before open.");
 			}
 			openCalled = true;
 		}
@@ -147,7 +145,7 @@ public class StreamGroupedFoldTest {
 		public void close() throws Exception {
 			super.close();
 			if (!openCalled) {
-				Assert.fail("Open was not called before close.");
+				fail("Open was not called before close.");
 			}
 			closeCalled = true;
 		}
@@ -155,7 +153,7 @@ public class StreamGroupedFoldTest {
 		@Override
 		public String fold(String acc, Integer in) throws Exception {
 			if (!openCalled) {
-				Assert.fail("Open was not called before run.");
+				fail("Open was not called before run.");
 			}
 			return acc + in;
 		}

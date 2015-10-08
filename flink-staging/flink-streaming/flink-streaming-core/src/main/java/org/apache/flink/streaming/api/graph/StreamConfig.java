@@ -386,7 +386,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public void setStatePartitioner(KeySelector<?, Serializable> partitioner) {
+	public void setStatePartitioner(KeySelector<?, ?> partitioner) {
 		try {
 			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER);
 		} catch (IOException e) {
