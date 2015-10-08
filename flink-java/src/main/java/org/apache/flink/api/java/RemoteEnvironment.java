@@ -65,6 +65,39 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
 	 * given host name and port.
+	 *
+	 * <p>Each program execution will have all the given JAR files in its classpath.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 */
+	public RemoteEnvironment(String host, int port, String... jarFiles) {
+		this(host, port, null, jarFiles, null);
+	}
+
+	/**
+	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
+	 * given host name and port.
+	 *
+	 * <p>Each program execution will have all the given JAR files in its classpath.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param clientConfig The configuration used by the client that connects to the cluster.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 */
+	public RemoteEnvironment(String host, int port, Configuration clientConfig, String[] jarFiles) {
+		this(host, port, clientConfig, jarFiles, null);
+	}
+
+	/**
+	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
+	 * given host name and port.
 	 * 
 	 * <p>Each program execution will have all the given JAR files in its classpath.
 	 *

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.api.scala
 
-import java.net.URL
 import java.util.UUID
 
 import com.esotericsoftware.kryo.Serializer
@@ -720,65 +719,6 @@ object ExecutionEnvironment {
    */
   def createRemoteEnvironment(host: String, port: Int, jarFiles: String*): ExecutionEnvironment = {
     new ExecutionEnvironment(JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*))
-  }
-
-  /**
-   * Creates a remote execution environment. The remote environment sends (parts of) the program
-   * to a cluster for execution. Note that all file paths used in the program must be accessible
-   * from the cluster. The execution will use the specified parallelism.
-   *
-   * @param host The host name or address of the master (JobManager),
-   *             where the program should be executed.
-   * @param port The port of the master (JobManager), where the program should be executed.
-   * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
-   *                 program uses
-   *                 user-defined functions, user-defined input formats, or any libraries,
-   *                 those must be
-   *                 provided in the JAR files.
-   * @param globalClasspaths The URLs of directories and JAR files that are added to each user
-   *                 code classloader on all nodes in the cluster. Note that the paths must
-   *                 specify a protocol (e.g. file://) and be accessible on all nodes (e.g. by
-   *                 means of a NFS share). The protocol must be supported by the
-   *                 [[java.net.URLClassLoader]].
-   */
-  def createRemoteEnvironment(
-                               host: String,
-                               port: Int,
-                               jarFiles: Array[String],
-                               globalClasspaths: Array[URL]): ExecutionEnvironment = {
-    val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles, globalClasspaths)
-    new ExecutionEnvironment(javaEnv)
-  }
-
-  /**
-   * Creates a remote execution environment. The remote environment sends (parts of) the program
-   * to a cluster for execution. Note that all file paths used in the program must be accessible
-   * from the cluster. The execution will use the specified parallelism.
-   *
-   * @param host The host name or address of the master (JobManager),
-   *             where the program should be executed.
-   * @param port The port of the master (JobManager), where the program should be executed.
-   * @param parallelism The parallelism to use during the execution.
-   * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
-   *                 program uses
-   *                 user-defined functions, user-defined input formats, or any libraries,
-   *                 those must be
-   *                 provided in the JAR files.
-   * @param globalClasspaths The URLs of directories and JAR files that are added to each user
-   *                 code classloader on all nodes in the cluster. Note that the paths must
-   *                 specify a protocol (e.g. file://) and be accessible on all nodes (e.g. by
-   *                 means of a NFS share). The protocol must be supported by the
-   *                 [[java.net.URLClassLoader]].
-   */
-  def createRemoteEnvironment(
-                               host: String,
-                               port: Int,
-                               parallelism: Int,
-                               jarFiles: Array[String],
-                               globalClasspaths: Array[URL]): ExecutionEnvironment = {
-    val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles, globalClasspaths)
-    javaEnv.setParallelism(parallelism)
-    new ExecutionEnvironment(javaEnv)
   }
 
   /**

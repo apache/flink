@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -47,8 +48,8 @@ public class CustomInputSplitProgram {
 		final int port = Integer.parseInt(args[3]);
 		final int parallelism = Integer.parseInt(args[4]);
 
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, null,
-				jarFile, classpath);
+		RemoteEnvironment env = new RemoteEnvironment(host, port, null, jarFile, classpath);
+		env.setParallelism(parallelism);
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
