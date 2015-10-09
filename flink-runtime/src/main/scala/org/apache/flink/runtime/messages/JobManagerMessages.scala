@@ -298,8 +298,10 @@ object JobManagerMessages {
   /** Triggers the removal of the job with the given job ID
     *
     * @param jobID
+    * @param jobProperlyFinished true if the job has properly finished
     */
-  case class RemoveJob(jobID: JobID) extends RequiresLeaderSessionID
+  case class RemoveJob(jobID: JobID, jobProperlyFinished: Boolean = true)
+    extends RequiresLeaderSessionID
 
   /**
    * Removes the job belonging to the job identifier from the job manager and archives it.

@@ -503,11 +503,11 @@ class JobManager(
                 context.system.scheduler.scheduleOnce(jobInfo.sessionTimeout seconds) {
                   // remove only if no activity occurred in the meantime
                   if (lastActivity == jobInfo.lastActive) {
-                    self ! decorateMessage(RemoveJob(jobID))
+                    self ! decorateMessage(RemoveJob(jobID, true))
                   }
                 }(context.dispatcher)
               } else {
-                self ! decorateMessage(RemoveJob(jobID))
+                self ! decorateMessage(RemoveJob(jobID, true))
               }
 
               // is the client waiting for the job result?
@@ -559,7 +559,7 @@ class JobManager(
             }(context.dispatcher)
           }
         case None =>
-          self ! decorateMessage(RemoveJob(jobID))
+          self ! decorateMessage(RemoveJob(jobID, true))
       }
 
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
@@ -682,10 +682,10 @@ class JobManager(
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
 
-    case RemoveJob(jobID) =>
+    case RemoveJob(jobID, clearPersistedJob) =>
       currentJobs.get(jobID) match {
         case Some((graph, info)) =>
-            removeJob(graph.getJobID) match {
+            removeJob(graph.getJobID, clearPersistedJob) match {
               case Some(futureToComplete) =>
                 futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) :+ futureToComplete)
               case None =>
@@ -697,7 +697,7 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((graph, info)) =>
           if (graph.getState.isTerminalState) {
-            removeJob(graph.getJobID) match {
+            removeJob(graph.getJobID, true) match {
               case Some(futureToComplete) =>
                 futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) :+ futureToComplete)
               case None =>
@@ -954,7 +954,7 @@ class JobManager(
           } else {
             // Remove the job graph. Otherwise it will be lingering around and possibly removed from
             // ZooKeeper by this JM.
-            self ! decorateMessage(RemoveJob(jobId))
+            self ! decorateMessage(RemoveJob(jobId, false))
 
             log.warn(s"Submitted job $jobId, but not leader. The other leader needs to recover " +
               "this. I am not scheduling the job for execution.")
@@ -1178,29 +1178,35 @@ class JobManager(
    * might block. Therefore be careful not to block the actor thread.
    *
    * @param jobID ID of the job to remove and archive
+   * @param jobProperlyFinished true if the job shall be archived and removed from the state
+   *                            backend
    */
-  private def removeJob(jobID: JobID): Option[Future[Unit]] = {
+  private def removeJob(jobID: JobID, jobProperlyFinished: Boolean): Option[Future[Unit]] = {
     // Don't remove the job yet...
     val futureOption = currentJobs.get(jobID) match {
       case Some((eg, _)) =>
-        val result = Some(future {
+        val result = if (jobProperlyFinished) {
+          Some(future {
+            try {
+              // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
+              // and the ZooKeeper client is closed. Not removing the job immediately allow the
+              // shutdown to release all resources.
+              submittedJobGraphs.removeJobGraph(jobID)
+            } catch {
+              case t: Throwable => log.error(s"Could not remove submitted job graph $jobID.", t)
+            }
+          }(context.dispatcher))
+
           try {
-            // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
-            // and the ZooKeeper client is closed. Not removing the job immediately allow the
-            // shutdown to release all resources.
-            submittedJobGraphs.removeJobGraph(jobID)
+            eg.prepareForArchiving()
+
+            archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
           } catch {
-            case t: Throwable => log.error(s"Could not remove submitted job graph $jobID.", t)
+            case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
+              "archiving.", t)
           }
-        }(context.dispatcher))
-
-        try {
-          eg.prepareForArchiving()
-
-          archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg))
-        } catch {
-          case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
-            "archiving.", t)
+        } else {
+          None
         }
 
         currentJobs.remove(jobID)
