@@ -33,8 +33,8 @@ import org.apache.flink.util.MutableObjectIterator;
  * single input and one or multiple outputs. It is provided with a ReduceFunction
  * implementation.
  * <p>
- * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
- * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
+ * The AllReduceDriver creates an iterator over all records from its input.
+ * The elements are handed pairwise to the <code>reduce()</code> method of the ReduceFunction.
  * 
  * @see org.apache.flink.api.common.functions.ReduceFunction
  */

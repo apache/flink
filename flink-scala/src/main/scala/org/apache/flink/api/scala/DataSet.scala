@@ -642,9 +642,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   *  Applies a CombineFunction on a grouped [[DataSet]].  A
-   *  CombineFunction is similar to a GroupReduceFunction but does not
-   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  Applies a GroupCombineFunction on a grouped [[DataSet]].  A
+   *  GroupCombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the GroupCombineFunction calls
    *  the combine method once per partition for combining a group of
    *  results. This operator is suitable for combining values into an
    *  intermediate format before doing a proper groupReduce where the
@@ -652,7 +652,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *  GroupReduce operator can also be supplied with a combiner by
    *  implementing the RichGroupReduce function. The combine method of
    *  the RichGroupReduce function demands input and output type to be
-   *  the same. The CombineFunction, on the other side, can have an
+   *  the same. The GroupCombineFunction, on the other side, can have an
    *  arbitrary output type.
    */
   def combineGroup[R: TypeInformation: ClassTag](
@@ -667,9 +667,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   *  Applies a CombineFunction on a grouped [[DataSet]].  A
-   *  CombineFunction is similar to a GroupReduceFunction but does not
-   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  Applies a GroupCombineFunction on a grouped [[DataSet]].  A
+   *  GroupCombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the GroupCombineFunction calls
    *  the combine method once per partition for combining a group of
    *  results. This operator is suitable for combining values into an
    *  intermediate format before doing a proper groupReduce where the
@@ -677,7 +677,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *  GroupReduce operator can also be supplied with a combiner by
    *  implementing the RichGroupReduce function. The combine method of
    *  the RichGroupReduce function demands input and output type to be
-   *  the same. The CombineFunction, on the other side, can have an
+   *  the same. The GroupCombineFunction, on the other side, can have an
    *  arbitrary output type.
    */
   def combineGroup[R: TypeInformation: ClassTag](

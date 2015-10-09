@@ -44,7 +44,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Chained variant of the GroupCombineDriver
+ * Chained variant of the GroupReduceCombineDriver
  * 
  * Acts like a combiner with a custom output type OUT.
  *
