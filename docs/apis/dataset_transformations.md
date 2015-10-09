@@ -1105,7 +1105,7 @@ Not supported.
 
 The Join transformation joins two DataSets into one DataSet. The elements of both DataSets are joined on one or more keys which can be specified using
 
-- a kex expression
+- a key expression
 - a key-selector function
 - one or more field position keys (Tuple DataSet only).
 - Case Class Fields
@@ -1152,7 +1152,7 @@ val result = input1.join(input2).where(0).equalTo(1)
 </div>
 </div>
 
-#### Join with Join-Function
+#### Join with Join Function
 
 A Join transformation can also call a user-defined join function to process joining tuples.
 A join function receives one element of the first input DataSet and one element of the second input DataSet and returns exactly one element.
@@ -1380,7 +1380,7 @@ DataSet<SomeType> input1 = // [...]
 DataSet<AnotherType> input2 = // [...]
 
 DataSet<Tuple2<SomeType, AnotherType> result =
-      input1.join(input2, BROADCAST_HASH_FIRST)
+      input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
             .where("id").equalTo("key");
 ~~~
 
@@ -1392,7 +1392,7 @@ val input1: DataSet[SomeType] = // [...]
 val input2: DataSet[AnotherType] = // [...]
 
 // hint that the second DataSet is very small
-val result1 = input1.join(input2, BROADCAST_HASH_FIRST).where("id").equalTo("key")
+val result1 = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST).where("id").equalTo("key")
 
 ~~~
 
@@ -1425,6 +1425,169 @@ The following hints are available:
 * REPARTITION_HASH_SECOND: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the second input. This strategy is good if the second
   input is smaller than the first, but both inputs are still large.
+
+* REPARTITION_SORT_MERGE: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and sorts each input (unless it is already sorted). The inputs are joined by
+  a streamed merge of the sorted inputs. This strategy is good if one or both of the inputs are
+  already sorted.
+
+
+### OuterJoin
+
+The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitararily many (including none) elements. 
+
+The elements of both DataSets are joined on one or more keys which can be specified using
+
+- a key expression
+- a key-selector function
+- one or more field position keys (Tuple DataSet only).
+- Case Class Fields
+
+**OuterJoins are only supported for the Java and Scala DataSet API.**
+
+
+#### OuterJoin with Join Function
+
+A OuterJoin transformation calls a user-defined join function to process joining tuples.
+A join function receives one element of the first input DataSet and one element of the second input DataSet and returns exactly one element. Depending on the type of the outer join (left, right, full) one of both input elements of the join function can be `null`.
+
+The following code performs a left outer join of DataSet with custom java objects and a Tuple DataSet using key-selector functions and shows how to use a user-defined join function:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+// some POJO
+public class Rating {
+  public String name;
+  public String category;
+  public int points;
+}
+
+// Join function that joins a custom POJO with a Tuple
+public class PointAssigner
+         implements JoinFunction<Tuple2<String, String>, Rating, Tuple2<String, Integer>> {
+
+  @Override
+  public Tuple2<String, Integer> join(Tuple2<String, String> movie, Rating rating) {
+    // Assigns the rating points to the movie.
+    // NOTE: rating might be null
+    return new Tuple2<String, Double>(movie.f0, rating == null ? -1 : rating.points;
+  }
+}
+
+DataSet<Tuple2<String, String>> movies = // [...]
+DataSet<Rating> ratings = // [...]
+DataSet<Tuple2<String, Integer>>
+            moviesWithPoints =
+            movies.leftOuterJoin(ratings)
+
+                   // key of the first input
+                   .where("f0")
+
+                   // key of the second input
+                   .equalTo("name")
+
+                   // applying the JoinFunction on joining pairs
+                   .with(new PointAssigner());
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+case class Rating(name: String, category: String, points: Int)
+
+val movies: DataSet[(String, String)] = // [...]
+val ratings: DataSet[Ratings] = // [...]
+
+val moviesWithPoints = movies.leftOuterJoin(ratings).where(0).equalTo("name") {
+  (movie, rating) => (movie._1, if (rating == null) -1 else rating.points)
+}
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+#### OuterJoin with Flat-Join Function
+
+Analogous to Map and FlatMap, an OuterJoin with flat-join function behaves in the same
+way as an OuterJoin with join function, but instead of returning one element, it can
+return (collect), zero, one, or more elements.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+public class PointAssigner
+         implements FlatJoinFunction<Tuple2<String, String>, Rating, Tuple2<String, Integer>> {
+  @Override
+  public void join(Tuple2<String, String> movie, Rating rating
+    Collector<Tuple2<String, Integer>> out) {
+  if (rating == null ) {
+    out.collect(new Tuple2<String, Integer>(movie.f0, -1));
+  } else if (rating.points < 10) {
+    out.collect(new Tuple2<String, Integer>(movie.f0, rating.points));
+  } else {
+    // do not emit
+  }
+}
+
+DataSet<Tuple2<String, Integer>>
+            moviesWithPoints =
+            movies.leftOuterJoin(ratings) // [...]
+~~~
+
+#### Join Algorithm Hints
+
+The Flink runtime can execute outer joins in various ways. Each possible way outperforms the others under
+different circumstances. The system tries to pick a reasonable way automatically, but allows you
+to manually pick a strategy, in case you want to enforce a specific way of executing the outer join.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<SomeType> input1 = // [...]
+DataSet<AnotherType> input2 = // [...]
+
+DataSet<Tuple2<SomeType, AnotherType> result =
+      input1.leftOuterJoin(input2, JoinHint.REPARTITION_SORT_MERGE)
+            .where("id").equalTo("key");
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input1: DataSet[SomeType] = // [...]
+val input2: DataSet[AnotherType] = // [...]
+
+// hint that the second DataSet is very small
+val result1 = input1.leftOuterJoin(input2, JoinHint.REPARTITION_SORT_MERGE).where("id").equalTo("key")
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+**NOTE:** Right now, outer joins can only be executed using the `REPARTITION_SORT_MERGE` strategy. Further execution strategies will be added in the future.
+
+* OPTIMIZER_CHOOSES: Equivalent to not giving a hint at all, leaves the choice to the system.
 
 * REPARTITION_SORT_MERGE: The system partitions (shuffles) each input (unless the input is already
   partitioned) and sorts each input (unless it is already sorted). The inputs are joined by
