@@ -36,12 +36,6 @@ public final class ConfigConstants {
 	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
 
 	/**
-	 * The deprecated config parameter defining the default parallelism for jobs.
-	 */
-	@Deprecated
-	public static final String DEFAULT_PARALLELISM_KEY_OLD = "parallelization.degree.default";
-
-	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
 	 */
@@ -136,12 +130,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
 
 	/**
-	 * Deprecated config parameter defining the size of the buffers used in the network stack.
-	 */
-	@Deprecated
-	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
-
-	/**
 	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
 	 */
 	public static final String TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY = "taskmanager.memory.segment-size";
@@ -206,20 +194,9 @@ public final class ConfigConstants {
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
-	 * Upper bound for heap cutoff on YARN.
-	 * The "yarn.heap-cutoff-ratio" is removing a certain ratio from the heap.
-	 * This value is limiting this cutoff to a absolute value.
-	 *
-	 * THE VALUE IS NO LONGER IN USE.
-	 */
-	@Deprecated
-	public static final String YARN_HEAP_LIMIT_CAP = "yarn.heap-limit-cap";
-
-	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
 	 */
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
-
 
 	/**
 	 * Reallocate failed YARN containers.
@@ -546,12 +523,6 @@ public final class ConfigConstants {
 	 * Default number of buffers used in the network stack.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS = 2048;
-
-	/**
-	 * Default size of network stack buffers.
-	 */
-	@Deprecated
-	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
 
 	/**
 	 * Default size of memory segments in the network stack and the memory manager.

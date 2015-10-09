@@ -142,6 +142,9 @@ results outside of the JVM heap. For setups with larger quantities of memory,
 this can improve the efficiency of the operations performed on the memory
 (DEFAULT: false).
 
+- `taskmanager.memory.segment-size`: The size of memory buffers used by the 
+memory manager and the network stack in bytes (DEFAULT: 32768 (= 32 KiBytes)).
+
 ### Other
 
 - `taskmanager.tmp.dirs`: The directory for temporary files, or a list of
@@ -254,8 +257,6 @@ network stack. This number determines how many streaming data exchange channels
 a TaskManager can have at the same time and how well buffered the channels are.
 If a job is rejected or you get a warning that the system has not enough buffers
 available, increase this value (DEFAULT: 2048).
-- `taskmanager.network.bufferSizeInBytes`: The size of the network buffers, in
-bytes (DEFAULT: 32768 (= 32 KiBytes)).
 - `taskmanager.memory.size`: The amount of memory (in megabytes) that the task
 manager reserves on the JVM's heap space for sorting, hash tables, and caching
 of intermediate results. If unspecified (-1), the memory manager will take a fixed
@@ -441,7 +442,7 @@ The number and size of network buffers can be configured with the following
 parameters:
 
 - `taskmanager.network.numberOfBuffers`, and
-- `taskmanager.network.bufferSizeInBytes`.
+- `taskmanager.memory.segment-size`.
 
 ### Configuring Temporary I/O Directories
 
