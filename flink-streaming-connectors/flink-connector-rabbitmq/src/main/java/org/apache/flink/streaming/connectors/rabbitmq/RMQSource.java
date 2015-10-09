@@ -18,17 +18,21 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
+import java.util.List;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.source.ConnectorSource;
+import org.apache.flink.streaming.api.functions.source.MessageAcknowledingSourceBase;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
+import com.esotericsoftware.minlog.Log;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
-public class RMQSource<OUT> extends ConnectorSource<OUT> {
+public class RMQSource<OUT> extends MessageAcknowledingSourceBase<OUT, Long> implements ResultTypeQueryable<OUT>{
 	private static final long serialVersionUID = 1L;
 
 	private final String QUEUE_NAME;
@@ -41,10 +45,15 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private transient QueueingConsumer.Delivery delivery;
 
 	private transient volatile boolean running;
+	
+	protected DeserializationSchema<OUT> schema;
 
+	int count = 0;
+	
 	public RMQSource(String HOST_NAME, String QUEUE_NAME,
 			DeserializationSchema<OUT> deserializationSchema) {
-		super(deserializationSchema);
+		super(Long.class);
+		this.schema = deserializationSchema;
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
 	}
@@ -58,9 +67,9 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();
-			channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+			channel.queueDeclare(QUEUE_NAME, true, false, false, null);
 			consumer = new QueueingConsumer(channel);
-			channel.basicConsume(QUEUE_NAME, true, consumer);
+			channel.basicConsume(QUEUE_NAME, false, consumer);
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot create RMQ connection with " + QUEUE_NAME + " at "
 					+ HOST_NAME, e);
@@ -69,6 +78,7 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 
 	@Override
 	public void open(Configuration config) throws Exception {
+		super.open(config);
 		initializeConnection();
 		running = true;
 	}
@@ -89,17 +99,35 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 		while (running) {
 			delivery = consumer.nextDelivery();
 
-			OUT result = schema.deserialize(delivery.getBody());
-			if (schema.isEndOfStream(result)) {
-				break;
+			synchronized (ctx.getCheckpointLock()) {
+				OUT result = schema.deserialize(delivery.getBody());
+				addId(ctx, delivery.getEnvelope().getDeliveryTag());
+				
+				if (schema.isEndOfStream(result)) {
+					break;
+				}
+				
+				ctx.collect(result);
 			}
-
-			ctx.collect(result);
 		}
 	}
 
 	@Override
 	public void cancel() {
 		running = false;
+	}
+
+	@Override
+	protected void acknowledgeIDs(List<Long> ids) {
+		try {
+			channel.basicAck(ids.get(ids.size() - 1), true);
+		} catch (IOException e) {
+			Log.error("Messages could not be acknowledged", e);
+		}
+	}
+
+	@Override
+	public TypeInformation<OUT> getProducedType() {
+		return schema.getProducedType();
 	}
 }
