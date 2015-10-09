@@ -49,7 +49,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -135,6 +137,22 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
+
+		if(!file.exists()) {
+			// file does not exist. Try to load it with the classloader
+			ClassLoader cl = StaticFileServerHandler.class.getClassLoader();
+			try(InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
+				if (resourceStream == null) {
+						logger.debug("Unable to load requested file {} from classloader", requestPath);
+						sendError(ctx, NOT_FOUND);
+						return;
+				}
+				logger.debug("Loading missing file from classloader: {}", requestPath);
+				// ensure that directory to file exists.
+				file.getParentFile().mkdirs();
+				Files.copy(resourceStream, file.toPath());
+			}
+		}
 		
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
 			sendError(ctx, NOT_FOUND);

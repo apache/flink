@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{File, IOException}
 import java.lang.reflect.{InvocationTargetException, Constructor}
 import java.net.InetSocketAddress
-import java.util.{UUID, Collections}
+import java.util.UUID
 
 import akka.actor.Status.Failure
 import akka.actor.{Props, Terminated, PoisonPill, ActorRef, ActorSystem}
@@ -37,7 +37,6 @@ import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
-import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService}
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
@@ -1367,21 +1366,13 @@ object JobManager {
 
         val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(configuration)
 
-        // start the job manager web frontend
-        val webServer = if (
-          configuration.getBoolean(
-            ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
-            false)) {
-
-          LOG.info("Starting NEW JobManger web frontend")
-          // start the new web frontend. we need to load this dynamically
-          // because it is not in the same project/dependencies
-          startWebRuntimeMonitor(configuration, leaderRetrievalService, jobManagerSystem)
-        }
-        else {
-          LOG.info("Starting JobManger web frontend")
-          new WebInfoServer(configuration, leaderRetrievalService, jobManagerSystem)
-        }
+        LOG.info("Starting JobManger web frontend")
+        // start the web frontend. we need to load this dynamically
+        // because it is not in the same project/dependencies
+        val webServer = WebMonitorUtils.startWebRuntimeMonitor(
+          configuration,
+          leaderRetrievalService,
+          jobManagerSystem)
 
         if(webServer != null) {
           webServer.start()
@@ -1816,51 +1807,5 @@ object JobManager {
 
     val timeout = AkkaUtils.getLookupTimeout(config)
     getJobManagerActorRef(address, system, timeout)
-  }
-
-
-  // --------------------------------------------------------------------------
-  //  Utilities
-  // --------------------------------------------------------------------------
-
-  /**
-   * Starts the web runtime monitor. Because the actual implementation of the
-   * runtime monitor is in another project, we load the runtime monitor dynamically.
-   * 
-   * Because failure to start the web runtime monitor is not considered fatal,
-   * this method does not throw any exceptions, but only logs them.
-   * 
-   * @param config The configuration for the runtime monitor.
-   * @param leaderRetrievalService Leader retrieval service to get the leading JobManager
-   */
-  def startWebRuntimeMonitor(
-      config: Configuration,
-      leaderRetrievalService: LeaderRetrievalService,
-      actorSystem: ActorSystem)
-    : WebMonitor = {
-    // try to load and instantiate the class
-    try {
-      val classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor"
-      val clazz: Class[_ <: WebMonitor] = Class.forName(classname)
-        .asSubclass(classOf[WebMonitor])
-
-      val ctor: Constructor[_ <: WebMonitor] = clazz.getConstructor(classOf[Configuration],
-        classOf[LeaderRetrievalService],
-        classOf[ActorSystem])
-      ctor.newInstance(config, leaderRetrievalService, actorSystem)
-    }
-    catch {
-      case e: ClassNotFoundException =>
-        LOG.error("Could not load web runtime monitor. " +
-          "Probably reason: flink-runtime-web is not in the classpath")
-        LOG.debug("Caught exception", e)
-        null
-      case e: InvocationTargetException =>
-        LOG.error("WebServer could not be created", e.getTargetException())
-        null
-      case t: Throwable =>
-        LOG.error("Failed to instantiate web runtime monitor.", t)
-        null
-    }
   }
 }
