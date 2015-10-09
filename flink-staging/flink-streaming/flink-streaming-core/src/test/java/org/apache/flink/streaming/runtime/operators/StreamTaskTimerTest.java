@@ -48,6 +48,7 @@ public class StreamTaskTimerTest {
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
+		
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -103,11 +104,7 @@ public class StreamTaskTimerTest {
 			mapTask.registerTimer(t3, new ValidatingTriggerable(errorRef, t3, 2));
 			mapTask.registerTimer(t4, new ValidatingTriggerable(errorRef, t4, 3));
 
-
-			testHarness.endInput();
-			testHarness.waitForTaskCompletion();
-
-			long deadline = System.currentTimeMillis() + 5000;
+			long deadline = System.currentTimeMillis() + 20000;
 			while (errorRef.get() == null &&
 					ValidatingTriggerable.numInSequence < 4 &&
 					System.currentTimeMillis() < deadline)
@@ -123,6 +120,8 @@ public class StreamTaskTimerTest {
 
 			assertEquals(4, ValidatingTriggerable.numInSequence);
 
+			testHarness.endInput();
+			testHarness.waitForTaskCompletion();
 
 			// wait until the trigger thread is shut down. otherwise, the other tests may become unstable
 			deadline = System.currentTimeMillis() + 4000;
