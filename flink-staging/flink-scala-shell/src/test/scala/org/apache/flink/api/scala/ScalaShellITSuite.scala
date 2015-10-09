@@ -33,6 +33,9 @@ import scala.tools.nsc.Settings
 @RunWith(classOf[JUnitRunner])
 class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
 
+  var cluster: Option[ForkableFlinkMiniCluster] = None
+  val parallelism = 4
+
   test("Prevent re-creation of environment") {
 
     val input: String =
@@ -51,7 +54,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     val input: String =
       """
         val initial = env.fromElements(0)
-
         val count = initial.iterate(10000) { iterationInput: DataSet[Int] =>
           val result = iterationInput.map { i =>
             val x = Math.random()
@@ -78,7 +80,6 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
         "Whether 'tis nobler in the mind to suffer",
         "The slings and arrows of outrageous fortune",
         "Or to take arms against a sea of troubles,")
-
         val counts = text.flatMap { _.toLowerCase.split("\\W+") }.map { (_, 1) }.groupBy(0).sum(1)
         val result = counts.print()
       """.stripMargin
@@ -117,14 +118,11 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     val input =
       """
       case class WC(word: String, count: Int)
-
       val wordCounts = env.fromElements(
         new WC("hello", 1),
         new WC("world", 2),
         new WC("world", 8))
-
       val reduced = wordCounts.groupBy(0).sum(1)
-
       reduced.print()
       """.stripMargin
 
@@ -225,8 +223,50 @@ class ScalaShellITSuite extends FunSuite with Matchers with BeforeAndAfterAll {
     out.toString + stdout
   }
 
-  var cluster: Option[ForkableFlinkMiniCluster] = None
-  val parallelism = 4
+  /**
+   * tests flink shell startup with remote cluster (starts cluster internally)
+   */
+  test("start flink scala shell with remote cluster") {
+
+    val input: String = "val els = env.fromElements(\"a\",\"b\");\n" +
+      "els.print\nError\n:q\n"
+
+    val in: BufferedReader = new BufferedReader(
+      new StringReader(
+        input + "\n"))
+    val out: StringWriter = new StringWriter
+
+    val baos: ByteArrayOutputStream = new ByteArrayOutputStream
+    val oldOut: PrintStream = System.out
+    System.setOut(new PrintStream(baos))
+
+    val (c, args) = cluster match{
+      case Some(cl) =>
+        val arg = Array("remote",
+          cl.hostname,
+          Integer.toString(cl.getLeaderRPCPort))
+        (cl, arg)
+      case None =>
+        fail("Cluster creation failed!")
+    }
+
+    //start scala shell with initialized
+    // buffered reader for testing
+    FlinkShell.bufferedReader = Some(in)
+    FlinkShell.main(args)
+    baos.flush()
+
+    val output: String = baos.toString
+    System.setOut(oldOut)
+
+    output should include("Job execution switched to status FINISHED.")
+    output should include("a\nb")
+
+    output should not include "Error"
+    output should not include "ERROR"
+    output should not include "Exception"
+    output should not include "failed"
+  }
 
   override def beforeAll(): Unit = {
     val cl = TestBaseUtils.startCluster(

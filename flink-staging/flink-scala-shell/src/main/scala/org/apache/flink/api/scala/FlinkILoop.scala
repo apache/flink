@@ -34,16 +34,16 @@ class FlinkILoop(
     out0: JPrintWriter)
   extends ILoopCompat(in0, out0) {
 
-  def this(host:String, 
-           port:Int, 
-           externalJars : Option[Array[String]], 
+  def this(host: String,
+           port: Int,
+           externalJars: Option[Array[String]],
            in0: BufferedReader, 
            out: JPrintWriter){
-    this(host:String, port:Int, externalJars, Some(in0), out)
+    this(host: String, port: Int, externalJars, Some(in0), out)
   }
 
-  def this(host:String, port:Int, externalJars : Option[Array[String]]){
-    this(host:String,port: Int, externalJars , None, new JPrintWriter(Console.out, true))
+  def this(host: String, port: Int, externalJars: Option[Array[String]]){
+    this(host: String, port: Int, externalJars, None, new JPrintWriter(Console.out, true))
   }
   
   def this(host: String, port: Int, in0: BufferedReader, out: JPrintWriter){
