@@ -572,7 +572,7 @@ dataStream.keyBy(0).window(TumblingTimeWindows.of(5, TimeUnit.SECONDS)); // Last
           </td>
         </tr>
         <tr>
-          <td><strong>WindowAll</strong><br>DataStream &rarr; AllWindowedDataStream</td>
+          <td><strong>WindowAll</strong><br>DataStream &rarr; AllWindowedStream</td>
           <td>
               <p>Windows can be defined on regular DataStreams. Windows group all the stream events
               according to some characteristic (e.g., the data that arrived within the last 5 seconds).
@@ -931,7 +931,7 @@ dataStream.keyBy(0).window(TumblingTimeWindows.of(5, TimeUnit.SECONDS)) // Last 
           </td>
         </tr>
         <tr>
-          <td><strong>WindowAll</strong><br>DataStream &rarr; AllWindowedDataStream</td>
+          <td><strong>WindowAll</strong><br>DataStream &rarr; AllWindowedStream</td>
           <td>
               <p>Windows can be defined on regular DataStreams. Windows group all the stream events
               according to some characteristic (e.g., the data that arrived within the last 5 seconds).
