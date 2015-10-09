@@ -34,8 +34,8 @@ public class JoinGlobalPropertiesCompatibilityTest {
 		try {
 			final FieldList keysLeft = new FieldList(1, 4);
 			final FieldList keysRight = new FieldList(3, 1);
-			
-			SortMergeJoinDescriptor descr = new SortMergeJoinDescriptor(keysLeft, keysRight);
+
+			SortMergeInnerJoinDescriptor descr = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
 			
 			// test compatible hash partitioning
 			{
@@ -121,7 +121,7 @@ public class JoinGlobalPropertiesCompatibilityTest {
 				}
 			};
 			
-			SortMergeJoinDescriptor descr = new SortMergeJoinDescriptor(keysLeft, keysRight);
+			SortMergeInnerJoinDescriptor descr = new SortMergeInnerJoinDescriptor(keysLeft, keysRight);
 			
 			// test incompatible hash with custom partitioning
 			{

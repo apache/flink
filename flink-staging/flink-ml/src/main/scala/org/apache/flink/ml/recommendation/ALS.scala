@@ -19,7 +19,6 @@
 package org.apache.flink.ml.recommendation
 
 import java.{util, lang}
-
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order

@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.table
 
 import java.lang.reflect.Modifier
-
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType

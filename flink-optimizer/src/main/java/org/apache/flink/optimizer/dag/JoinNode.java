@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
@@ -32,7 +32,7 @@ import org.apache.flink.optimizer.operators.AbstractJoinDescriptor;
 import org.apache.flink.optimizer.operators.HashJoinBuildFirstProperties;
 import org.apache.flink.optimizer.operators.HashJoinBuildSecondProperties;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
-import org.apache.flink.optimizer.operators.SortMergeJoinDescriptor;
+import org.apache.flink.optimizer.operators.SortMergeInnerJoinDescriptor;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -47,7 +47,7 @@ public class JoinNode extends TwoInputNode {
 	 * 
 	 * @param joinOperatorBase The join operator object.
 	 */
-	public JoinNode(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
+	public JoinNode(InnerJoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
 		super(joinOperatorBase);
 		
 		this.dataProperties = getDataProperties(joinOperatorBase,
@@ -62,8 +62,8 @@ public class JoinNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public JoinOperatorBase<?, ?, ?, ?> getOperator() {
-		return (JoinOperatorBase<?, ?, ?, ?>) super.getOperator();
+	public InnerJoinOperatorBase<?, ?, ?, ?> getOperator() {
+		return (InnerJoinOperatorBase<?, ?, ?, ?>) super.getOperator();
 	}
 
 	@Override
@@ -111,7 +111,7 @@ public class JoinNode extends TwoInputNode {
 		}
 	}
 	
-	private List<OperatorDescriptorDual> getDataProperties(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint,
+	private List<OperatorDescriptorDual> getDataProperties(InnerJoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint,
 			Partitioner<?> customPartitioner)
 	{
 		// see if an internal hint dictates the strategy to use
@@ -125,7 +125,7 @@ public class JoinNode extends TwoInputNode {
 				Optimizer.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
 				Optimizer.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
 			{
-				fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
+				fixedDriverStrat = new SortMergeInnerJoinDescriptor(this.keys1, this.keys2);
 			}
 			else if (Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
 				fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
@@ -164,10 +164,10 @@ public class JoinNode extends TwoInputNode {
 					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2, false, false, true));
 					break;
 				case REPARTITION_SORT_MERGE:
-					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2, false, false, true));
+					list.add(new SortMergeInnerJoinDescriptor(this.keys1, this.keys2, false, false, true));
 					break;
 				case OPTIMIZER_CHOOSES:
-					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
+					list.add(new SortMergeInnerJoinDescriptor(this.keys1, this.keys2));
 					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));
 					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
 					break;

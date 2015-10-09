@@ -42,7 +42,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 
 @SuppressWarnings({ "unchecked", "serial" })
-public class JoinOperatorBaseTest implements Serializable {
+public class InnerJoinOperatorBaseTest implements Serializable {
 
 	
 	@Test
@@ -78,11 +78,11 @@ public class JoinOperatorBaseTest implements Serializable {
 				String>> binaryOpInfo = new BinaryOperatorInformation<Tuple3<String, Double, Integer>, Tuple2<Integer,
 				String>, Tuple2<Double, String>>(leftTypeInfo, rightTypeInfo, outTypeInfo);
 
-		final JoinOperatorBase<Tuple3<String, Double, Integer>, Tuple2<Integer,
-				String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer,
-				String>, Tuple2<Double, String>>> base = new JoinOperatorBase<Tuple3<String, Double, Integer>,
-				Tuple2<Integer, String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>,
-				Tuple2<Integer, String>, Tuple2<Double, String>>>(joiner, binaryOpInfo, leftKeys, rightKeys, taskName);
+		final InnerJoinOperatorBase<Tuple3<String, Double, Integer>, Tuple2<Integer,
+						String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer,
+						String>, Tuple2<Double, String>>> base = new InnerJoinOperatorBase<Tuple3<String, Double, Integer>,
+										Tuple2<Integer, String>, Tuple2<Double, String>, FlatJoinFunction<Tuple3<String, Double, Integer>,
+										Tuple2<Integer, String>, Tuple2<Double, String>>>(joiner, binaryOpInfo, leftKeys, rightKeys, taskName);
 
 		final List<Tuple3<String, Double, Integer> > inputData1 = new ArrayList<Tuple3<String, Double,
 				Integer>>(Arrays.asList(

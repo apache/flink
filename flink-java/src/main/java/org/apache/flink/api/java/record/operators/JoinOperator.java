@@ -26,7 +26,7 @@ import java.util.Map;
 
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.RecordOperator;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
@@ -50,7 +50,7 @@ import com.google.common.base.Preconditions;
  */
 
 @Deprecated
-public class JoinOperator extends JoinOperatorBase<Record, Record, Record, JoinFunction> implements RecordOperator {
+public class JoinOperator extends InnerJoinOperatorBase<Record, Record, Record, JoinFunction> implements RecordOperator {
 	
 	/**
 	 * The types of the keys that the operator operates on.
