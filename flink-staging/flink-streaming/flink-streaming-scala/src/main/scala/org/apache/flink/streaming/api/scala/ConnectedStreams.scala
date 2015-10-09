@@ -362,4 +362,3 @@ class KeySelectorWithType[IN, K](
 
   override def getProducedType: TypeInformation[K] = info
 }
-  

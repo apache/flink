@@ -125,6 +125,22 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return this.serializer;
 	}
+
+	/**
+	 * Gets the class that represents the component type.
+	 * @return The class of the component type.
+	 */
+	public Class<?> getComponentClass() {
+		return this.arrayClass.getComponentType();
+	}
+
+	/**
+	 * Gets the type information of the component type.
+	 * @return The type information of the component type.
+	 */
+	public TypeInformation<?> getComponentType() {
+		return BasicTypeInfo.getInfoFor(getComponentClass());
+	}
 	
 	@Override
 	public String toString() {

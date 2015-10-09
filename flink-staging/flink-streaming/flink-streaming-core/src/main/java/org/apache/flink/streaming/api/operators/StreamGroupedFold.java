@@ -38,6 +38,8 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final String STATE_NAME = "_op_state";
 
 	// Grouped values
 	private transient OperatorState<OUT> values;
@@ -68,7 +70,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 				new DataInputStream(bais)
 		);
 		initialValue = outTypeSerializer.deserialize(in);
-		values = createKeyValueState(outTypeSerializer, null);
+		values = createKeyValueState(STATE_NAME, outTypeSerializer, null);
 	}
 
 	@Override

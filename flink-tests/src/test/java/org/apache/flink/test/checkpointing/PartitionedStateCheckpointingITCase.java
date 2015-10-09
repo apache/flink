@@ -107,7 +107,9 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 		@Override
 		public void open(Configuration parameters) throws IOException {
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
-			index = getRuntimeContext().getIndexOfThisSubtask();
+			if (index == 0) {
+				index = getRuntimeContext().getIndexOfThisSubtask();
+			}
 		}
 
 		@Override
@@ -165,7 +167,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			sum = getRuntimeContext().getKeyValueState(Long.class, 0L);
+			sum = getRuntimeContext().getKeyValueState("my_state", Long.class, 0L);
 		}
 
 		@Override
@@ -187,17 +189,26 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		private static Map<Integer, Long> allCounts = new ConcurrentHashMap<Integer, Long>();
 
-		private OperatorState<NonSerializableLong> counts;
+		private OperatorState<NonSerializableLong> aCounts;
+		private OperatorState<Long> bCounts;
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			counts = getRuntimeContext().getKeyValueState(NonSerializableLong.class, NonSerializableLong.of(0L));
+			aCounts = getRuntimeContext().getKeyValueState(
+					"a", NonSerializableLong.class, NonSerializableLong.of(0L));
+			bCounts = getRuntimeContext().getKeyValueState("b", Long.class, 0L);
 		}
 
 		@Override
 		public void invoke(Tuple2<Integer, Long> value) throws Exception {
-			long currentCount = counts.value().value + 1;
-			counts.update(NonSerializableLong.of(currentCount));
+			long ac = aCounts.value().value;
+			long bc = bCounts.value();
+			assertEquals(ac, bc);
+			
+			long currentCount = ac + 1;
+			aCounts.update(NonSerializableLong.of(currentCount));
+			bCounts.update(currentCount);
+			
 			allCounts.put(value.f0, currentCount);
 		}
 	}

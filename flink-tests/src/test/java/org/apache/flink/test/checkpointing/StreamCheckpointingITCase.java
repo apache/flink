@@ -252,7 +252,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			pCount = getRuntimeContext().getKeyValueState(Long.class, 0L);
+			pCount = getRuntimeContext().getKeyValueState("pCount", Long.class, 0L);
 		}
 		
 		@Override

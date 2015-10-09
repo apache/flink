@@ -121,12 +121,12 @@ public class MockRuntimeContext implements RuntimeContext {
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(Class<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(TypeInformation<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException();
 	}
 }

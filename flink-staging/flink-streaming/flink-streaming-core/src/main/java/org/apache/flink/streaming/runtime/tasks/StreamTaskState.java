@@ -22,6 +22,9 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.state.KvStateSnapshot;
 
 import java.io.Serializable;
+import java.util.ConcurrentModificationException;
+import java.util.HashMap;
+import java.util.Iterator;
 
 /**
  * The state checkpointed by a {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}.
@@ -40,7 +43,7 @@ public class StreamTaskState implements Serializable {
 
 	private StateHandle<Serializable> functionState;
 
-	private KvStateSnapshot<?, ?, ?> kvState;
+	private HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates;
 
 	// ------------------------------------------------------------------------
 
@@ -60,12 +63,12 @@ public class StreamTaskState implements Serializable {
 		this.functionState = functionState;
 	}
 
-	public KvStateSnapshot<?, ?, ?> getKvState() {
-		return kvState;
+	public HashMap<String, KvStateSnapshot<?, ?, ?>> getKvStates() {
+		return kvStates;
 	}
 
-	public void setKvState(KvStateSnapshot<?, ?, ?> kvState) {
-		this.kvState = kvState;
+	public void setKvStates(HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates) {
+		this.kvStates = kvStates;
 	}
 
 	// ------------------------------------------------------------------------
@@ -77,7 +80,7 @@ public class StreamTaskState implements Serializable {
 	 * @return True, if all state is null, false if at least one state is not null.
 	 */
 	public boolean isEmpty() {
-		return operatorState == null & functionState == null & kvState == null;
+		return operatorState == null & functionState == null & kvStates == null;
 	}
 
 	/**
@@ -89,7 +92,7 @@ public class StreamTaskState implements Serializable {
 	public void discardState() throws Exception {
 		StateHandle<?> operatorState = this.operatorState;
 		StateHandle<?> functionState = this.functionState;
-		KvStateSnapshot<?, ?, ?> kvState = this.kvState;
+		HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates = this.kvStates;
 		
 		if (operatorState != null) {
 			operatorState.discardState();
@@ -97,12 +100,25 @@ public class StreamTaskState implements Serializable {
 		if (functionState != null) {
 			functionState.discardState();
 		}
-		if (kvState != null) {
-			kvState.discardState();
+		if (kvStates != null) {
+			while (kvStates.size() > 0) {
+				try {
+					Iterator<KvStateSnapshot<?, ?, ?>> values = kvStates.values().iterator();
+					while (values.hasNext()) {
+						KvStateSnapshot<?, ?, ?> s = values.next();
+						s.discardState();
+						values.remove();
+					}
+				}
+				catch (ConcurrentModificationException e) {
+					// fall through the loop
+				}
+			}
 		}
 
 		this.operatorState = null;
 		this.functionState = null;
-		this.kvState = null;
+		this.kvStates = null;
 	}
 }
+ 
