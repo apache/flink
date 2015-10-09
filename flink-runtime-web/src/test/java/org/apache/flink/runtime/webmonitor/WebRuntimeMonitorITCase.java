@@ -27,13 +27,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
+import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
+import org.apache.flink.util.TestLogger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.powermock.reflect.Whitebox;
 import scala.Some;
 import scala.Tuple2;
@@ -50,7 +55,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class WebRuntimeMonitorITCase {
+public class WebRuntimeMonitorITCase extends TestLogger {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final static FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
@@ -77,6 +85,7 @@ public class WebRuntimeMonitorITCase {
 			Configuration monitorConfig = new Configuration();
 			monitorConfig.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
 			monitorConfig.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
+			monitorConfig.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 
 			// Needs to match the leader address from the leader retrieval service
 			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
@@ -131,12 +140,12 @@ public class WebRuntimeMonitorITCase {
 		List<LeaderRetrievalService> leaderRetrievalServices = new ArrayList<>();
 
 		try (TestingServer zooKeeper = new TestingServer()) {
-			final Configuration config = new Configuration();
+			final Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
+				zooKeeper.getConnectString(),
+				temporaryFolder.getRoot().getPath());
 			config.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
 			config.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
-			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
 
 			for (int i = 0; i < jobManagerSystem.length; i++) {
 				jobManagerSystem[i] = AkkaUtils.createActorSystem(new Configuration(),
@@ -157,7 +166,11 @@ public class WebRuntimeMonitorITCase {
 						webMonitor[i].getServerPort());
 
 				jobManager[i] = JobManager.startJobManagerActors(
-						jmConfig, jobManagerSystem[i], StreamingMode.STREAMING)._1();
+					jmConfig,
+					jobManagerSystem[i],
+					StreamingMode.STREAMING,
+					JobManager.class,
+					MemoryArchivist.class)._1();
 
 				jobManagerAddress[i] = AkkaUtils.getAkkaURL(jobManagerSystem[i], jobManager[i]);
 				webMonitor[i].start(jobManagerAddress[i]);

@@ -52,7 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
-import scala.concurrent.Promise;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -108,7 +110,9 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	/** JobManager retriever */
 	private final JobManagerRetriever retriever;
 
-	private final Promise<String> localJobManagerAddressPromise;
+	private final Future<String> localJobManagerAddressFuture;
+
+	private final FiniteDuration timeout;
 
 	/** The path in which the static documents are */
 	private final File rootPath;
@@ -120,20 +124,23 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 	public StaticFileServerHandler(
 			JobManagerRetriever retriever,
-			Promise<String> localJobManagerAddressPromise,
+			Future<String> localJobManagerAddressPromise,
+			FiniteDuration timeout,
 			File rootPath) {
 
-		this(retriever, localJobManagerAddressPromise, rootPath, DEFAULT_LOGGER);
+		this(retriever, localJobManagerAddressPromise, timeout, rootPath, DEFAULT_LOGGER);
 	}
 
 	public StaticFileServerHandler(
 			JobManagerRetriever retriever,
-			Promise<String> localJobManagerAddressPromise,
+			Future<String> localJobManagerAddressFuture,
+			FiniteDuration timeout,
 			File rootPath,
 			Logger logger) {
 
 		this.retriever = checkNotNull(retriever);
-		this.localJobManagerAddressPromise = localJobManagerAddressPromise;
+		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
+		this.timeout = checkNotNull(timeout);
 		this.rootPath = checkNotNull(rootPath);
 		this.logger = checkNotNull(logger);
 	}
@@ -144,41 +151,45 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 
 	@Override
 	public void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		if (localJobManagerAddress == null) {
-			localJobManagerAddress = localJobManagerAddressPromise.future().value().get().get();
-		}
+		if (localJobManagerAddressFuture.isCompleted()) {
+			if (localJobManagerAddress == null) {
+				localJobManagerAddress = Await.result(localJobManagerAddressFuture, timeout);
+			}
 
-		final HttpRequest request = routed.request();
-		String requestPath = routed.path();
+			final HttpRequest request = routed.request();
+			String requestPath = routed.path();
 
-		// make sure we request the "index.html" in case there is a directory request
-		if (requestPath.endsWith("/")) {
-			requestPath = requestPath + "index.html";
-		}
+			// make sure we request the "index.html" in case there is a directory request
+			if (requestPath.endsWith("/")) {
+				requestPath = requestPath + "index.html";
+			}
 
 		// in case the files being accessed are logs or stdout files, find appropriate paths.
 		if (requestPath.equals("/jobmanager/log")) {
 			requestPath = "/" + getFileName(rootPath, WebRuntimeMonitor.LOG_FILE_PATTERN);
 		} else if (requestPath.equals("/jobmanager/stdout")) {
 			requestPath = "/" + getFileName(rootPath, WebRuntimeMonitor.STDOUT_FILE_PATTERN);
-		}
+			}
 
-		Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
+			Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
 
-		if (jobManager.isDefined()) {
-			// Redirect to leader if necessary
-			String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
+			if (jobManager.isDefined()) {
+				// Redirect to leader if necessary
+				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
 					localJobManagerAddress, jobManager.get());
 
-			if (redirectAddress != null) {
-				HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, requestPath);
-				KeepAliveWrite.flush(ctx, routed.request(), redirect);
+				if (redirectAddress != null) {
+					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, requestPath);
+					KeepAliveWrite.flush(ctx, routed.request(), redirect);
+				}
+				else {
+					respondAsLeader(ctx, request, requestPath);
+				}
 			}
 			else {
-				respondAsLeader(ctx, request, requestPath);
+				KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
 			}
-		}
-		else {
+		} else {
 			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
 		}
 	}

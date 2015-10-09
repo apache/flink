@@ -144,15 +144,19 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
         // Wait for deploying after async restart
         deadline = timeout.fromNow
         while (deadline.hasTimeLeft() && eg.getAllExecutionVertices.asScala.exists(
-          _.getCurrentExecutionAttempt.getState != ExecutionState.DEPLOYING)) {
+          _.getCurrentExecutionAttempt.getAssignedResource == null)) {
           Thread.sleep(100)
         }
-        
-        for (vertex <- eg.getAllExecutionVertices.asScala) {
-          vertex.getCurrentExecutionAttempt().markFinished()
-        }
 
-        eg.getState() should equal(JobStatus.FINISHED)
+        if (deadline.hasTimeLeft()) {
+          for (vertex <- eg.getAllExecutionVertices.asScala) {
+            vertex.getCurrentExecutionAttempt().markFinished()
+          }
+
+          eg.getState() should equal(JobStatus.FINISHED)
+        } else {
+          fail("Failed to wait until all execution attempts left the state DEPLOYING.")
+        }
       } catch {
         case t: Throwable =>
           t.printStackTrace()

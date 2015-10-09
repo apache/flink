@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -35,7 +36,9 @@ import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
 import scala.Option;
 import scala.Tuple2;
-import scala.concurrent.Promise;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.nio.charset.Charset;
 
@@ -47,6 +50,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * This handler also deals with setting correct response MIME types and returning
  * proper codes, like OK, NOT_FOUND, or SERVER_ERROR.
  */
+@ChannelHandler.Sharable
 public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	private static final Charset ENCODING = Charset.forName("UTF-8");
@@ -55,7 +59,9 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	private final JobManagerRetriever retriever;
 
-	private final Promise<String> localJobManagerAddressPromise;
+	private final Future<String> localJobManagerAddressFuture;
+
+	private final FiniteDuration timeout;
 
 	private final String contentType;
 
@@ -64,35 +70,41 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 	public RuntimeMonitorHandler(
 			RequestHandler handler,
 			JobManagerRetriever retriever,
-			Promise<String> localJobManagerAddressPromise) {
+			Future<String> localJobManagerAddressFuture,
+			FiniteDuration timeout) {
 
 		this.handler = checkNotNull(handler);
 		this.retriever = checkNotNull(retriever);
-		this.localJobManagerAddressPromise = checkNotNull(localJobManagerAddressPromise);
+		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
+		this.timeout = checkNotNull(timeout);
 		this.contentType = (handler instanceof RequestHandler.JsonResponse) ? "application/json" : "text/plain";
 	}
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		if (localJobManagerAddress == null) {
-			localJobManagerAddress = localJobManagerAddressPromise.future().value().get().get();
-		}
-
-		Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
-
-		if (jobManager.isDefined()) {
-			String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
-					localJobManagerAddress, jobManager.get());
-
-			if (redirectAddress != null) {
-				HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path());
-				KeepAliveWrite.flush(ctx, routed.request(), redirect);
+		if (localJobManagerAddressFuture.isCompleted()) {
+			if (localJobManagerAddress == null) {
+				localJobManagerAddress = Await.result(localJobManagerAddressFuture, timeout);
 			}
-			else {
-				respondAsLeader(ctx, routed, jobManager.get()._1());
+
+			Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
+
+			if (jobManager.isDefined()) {
+				Tuple2<ActorGateway, Integer> gatewayPort = jobManager.get();
+				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
+					localJobManagerAddress, gatewayPort);
+
+				if (redirectAddress != null) {
+					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path());
+					KeepAliveWrite.flush(ctx, routed.request(), redirect);
+				}
+				else {
+					respondAsLeader(ctx, routed, gatewayPort._1());
+				}
+			} else {
+				KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
 			}
-		}
-		else {
+		} else {
 			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
 		}
 	}

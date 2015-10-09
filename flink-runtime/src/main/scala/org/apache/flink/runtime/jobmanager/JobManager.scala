@@ -1624,7 +1624,6 @@ object JobManager {
         monitor =>
           val jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(configuration)
           monitor.start(jobManagerAkkaUrl)
-
         LOG.info("Starting JobManger web frontend")
         // start the web frontend. we need to load this dynamically
         // because it is not in the same project/dependencies
@@ -1632,10 +1631,8 @@ object JobManager {
           configuration,
           leaderRetrievalService,
           jobManagerSystem)
-        Option(webServer)
-      } else {
-        None
       }
+
 
       (jobManagerSystem, jobManager, archive, webMonitor)
     }
@@ -1930,14 +1927,14 @@ object JobManager {
    * @return A tuple of references (JobManager Ref, Archiver Ref)
    */
   def startJobManagerActors(
-                             configuration: Configuration,
-                             actorSystem: ActorSystem,
-                             jobMangerActorName: Option[String],
-                             archiveActorName: Option[String],
-                             streamingMode: StreamingMode,
-                             jobManagerClass: Class[_ <: JobManager],
-                             archiveClass: Class[_ <: MemoryArchivist])
-  : (ActorRef, ActorRef) = {
+      configuration: Configuration,
+      actorSystem: ActorSystem,
+      jobMangerActorName: Option[String],
+      archiveActorName: Option[String],
+      streamingMode: StreamingMode,
+      jobManagerClass: Class[_ <: JobManager],
+      archiveClass: Class[_ <: MemoryArchivist])
+    : (ActorRef, ActorRef) = {
 
     val (executionContext,
     instanceManager,

@@ -67,7 +67,7 @@ public class HandlerRedirectUtils {
 				return redirectAddress;
 			}
 			else {
-				LOG.warn("Unexpected leader address pattern. Cannot extract host.");
+				LOG.warn("Unexpected leader address pattern {}. Cannot extract host.", leaderAddress);
 			}
 		}
 

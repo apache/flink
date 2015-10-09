@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -35,9 +36,11 @@ import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.Promise;
+import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -56,17 +59,14 @@ public class JobManagerRetriever implements LeaderRetrievalListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerRetriever.class);
 
-	private final Object lock = new Object();
+	private final Object waitLock = new Object();
 
 	private final WebMonitor webMonitor;
 	private final ActorSystem actorSystem;
 	private final FiniteDuration lookupTimeout;
 	private final FiniteDuration timeout;
 
-	private volatile Tuple2<Promise<ActorGateway>, Promise<Integer>> leaderPromise =
-			new Tuple2<Promise<ActorGateway>, Promise<Integer>>(
-					new scala.concurrent.impl.Promise.DefaultPromise<ActorGateway>(),
-					new scala.concurrent.impl.Promise.DefaultPromise<Integer>());
+	private volatile Future<Tuple2<ActorGateway, Integer>> leaderGatewayPortFuture;
 
 	public JobManagerRetriever(
 			WebMonitor webMonitor,
@@ -81,22 +81,21 @@ public class JobManagerRetriever implements LeaderRetrievalListener {
 	}
 
 	/**
-	 * Returns the leading job manager gateway and its web monitor port.
+	 * Returns the currently known leading job manager gateway and its web monitor port.
 	 */
 	public Option<Tuple2<ActorGateway, Integer>> getJobManagerGatewayAndWebPort() throws Exception {
-		Tuple2<Promise<ActorGateway>, Promise<Integer>> promise = leaderPromise;
+		if (leaderGatewayPortFuture != null) {
+			Future<Tuple2<ActorGateway, Integer>> gatewayPortFuture = leaderGatewayPortFuture;
 
-		if (!promise._1().isCompleted() || !promise._1().isCompleted()) {
+			if (gatewayPortFuture.isCompleted()) {
+				Tuple2<ActorGateway, Integer> gatewayPort = Await.result(gatewayPortFuture, timeout);
+
+				return Option.apply(gatewayPort);
+			} else {
+				return Option.empty();
+			}
+		} else {
 			return Option.empty();
-		}
-		else {
-			Promise<ActorGateway> leaderGatewayPromise = promise._1();
-			Promise<Integer> leaderWebPortPromise = promise._2();
-
-			ActorGateway leaderGateway = Await.result(leaderGatewayPromise.future(), timeout);
-			int leaderWebPort = Await.result(leaderWebPortPromise.future(), timeout);
-
-			return Option.apply(new Tuple2<>(leaderGateway, leaderWebPort));
 		}
 	}
 
@@ -104,66 +103,73 @@ public class JobManagerRetriever implements LeaderRetrievalListener {
 	 * Awaits the leading job manager gateway and its web monitor port.
 	 */
 	public Tuple2<ActorGateway, Integer> awaitJobManagerGatewayAndWebPort() throws Exception {
-		Tuple2<Promise<ActorGateway>, Promise<Integer>> promise = leaderPromise;
+		Future<Tuple2<ActorGateway, Integer>> gatewayPortFuture = null;
+		Deadline deadline = timeout.fromNow();
 
-		Promise<ActorGateway> leaderGatewayPromise = promise._1();
-		Promise<Integer> leaderWebPortPromise = promise._2();
+		while(!deadline.isOverdue()) {
+			synchronized (waitLock) {
+				gatewayPortFuture = leaderGatewayPortFuture;
 
-		ActorGateway leaderGateway = Await.result(leaderGatewayPromise.future(), timeout);
-		int leaderWebPort = Await.result(leaderWebPortPromise.future(), timeout);
+				if (gatewayPortFuture != null) {
+					break;
+				}
 
-		return new Tuple2<>(leaderGateway, leaderWebPort);
+				waitLock.wait(deadline.timeLeft().toMillis());
+			}
+		}
+
+		if (gatewayPortFuture == null) {
+			throw new TimeoutException("There is no JobManager available.");
+		} else {
+			return Await.result(gatewayPortFuture, deadline.timeLeft());
+		}
 	}
 
 	@Override
 	public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
 		if (leaderAddress != null && !leaderAddress.equals("")) {
 			try {
-				final Promise<ActorGateway> gatewayPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
-				final Promise<Integer> webPortPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
+				final Promise<Tuple2<ActorGateway, Integer>> leaderGatewayPortPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
-				final Tuple2<Promise<ActorGateway>, Promise<Integer>> newPromise = new Tuple2<>(
-						gatewayPromise, webPortPromise);
+				synchronized (waitLock) {
+					leaderGatewayPortFuture = leaderGatewayPortPromise.future();
+					waitLock.notifyAll();
+				}
 
-				LOG.info("Retrieved leader notification {}:{}.", leaderAddress, leaderSessionID);
+				LOG.info("New leader reachable under {}:{}.", leaderAddress, leaderSessionID);
 
 				AkkaUtils.getActorRefFuture(leaderAddress, actorSystem, lookupTimeout)
 						// Resolve the actor ref
-						.flatMap(new Mapper<ActorRef, Future<Object>>() {
+						.flatMap(new Mapper<ActorRef, Future<Tuple2<ActorGateway, Object>>>() {
 							@Override
-							public Future<Object> apply(ActorRef jobManagerRef) {
+							public Future<Tuple2<ActorGateway, Object>> apply(ActorRef jobManagerRef) {
 								ActorGateway leaderGateway = new AkkaActorGateway(
 										jobManagerRef, leaderSessionID);
 
-								gatewayPromise.success(leaderGateway);
+								Future<Object> webMonitorPort = leaderGateway.ask(
+									JobManagerMessages.getRequestWebMonitorPort(),
+									timeout);
 
-								return leaderGateway.ask(JobManagerMessages
-										.getRequestWebMonitorPort(), timeout);
+								return Futures.successful(leaderGateway).zip(webMonitorPort);
 							}
 						}, actorSystem.dispatcher())
 								// Request the web monitor port
-						.onComplete(new OnComplete<Object>() {
+						.onComplete(new OnComplete<Tuple2<ActorGateway, Object>>() {
 							@Override
-							public void onComplete(Throwable failure, Object success) throws Throwable {
+							public void onComplete(Throwable failure, Tuple2<ActorGateway, Object> success) throws Throwable {
 								if (failure == null) {
-									int webMonitorPort = ((ResponseWebMonitorPort) success).port();
-									webPortPromise.success(webMonitorPort);
+									if (success._2() instanceof ResponseWebMonitorPort) {
+										int webMonitorPort = ((ResponseWebMonitorPort) success._2()).port();
 
-									// Complete the promise
-									synchronized (lock) {
-										Tuple2<Promise<ActorGateway>, Promise<Integer>>
-												previousPromise = leaderPromise;
-
-										leaderPromise = newPromise;
-
-										if (!previousPromise._2().isCompleted()) {
-											previousPromise._1().completeWith(gatewayPromise.future());
-											previousPromise._2().completeWith(webPortPromise.future());
-										}
+										leaderGatewayPortPromise.success(new Tuple2<>(success._1(), webMonitorPort));
+									} else {
+										leaderGatewayPortPromise.failure(new Exception("Received the message " +
+										success._2() + " as response to " + JobManagerMessages.getRequestWebMonitorPort() +
+											". But a message of type " + ResponseWebMonitorPort.class + " was expected."));
 									}
-								}
-								else {
-									LOG.warn("Failed to retrieve leader gateway and port.");
+								} else {
+									LOG.warn("Failed to retrieve leader gateway and port.", failure);
+									leaderGatewayPortPromise.failure(failure);
 								}
 							}
 						}, actorSystem.dispatcher());
