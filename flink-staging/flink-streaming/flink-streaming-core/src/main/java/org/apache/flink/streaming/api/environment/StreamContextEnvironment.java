@@ -60,14 +60,10 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			setParallelism(parallelism);
 		}
 		else {
-			// first check for old parallelism config key
-			setParallelism(GlobalConfiguration.getInteger(
-					ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
-					ConfigConstants.DEFAULT_PARALLELISM));
-			// then for new
+			// determine parallelism
 			setParallelism(GlobalConfiguration.getInteger(
 					ConfigConstants.DEFAULT_PARALLELISM_KEY,
-					getParallelism()));
+					ConfigConstants.DEFAULT_PARALLELISM));
 		}
 	}
 
