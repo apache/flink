@@ -74,7 +74,7 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple2TimestampExtractor());
+		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 		source1
 				.keyBy(0)
@@ -138,7 +138,7 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple2TimestampExtractor());
+		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 		source1
 				.windowAll(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
@@ -179,7 +179,7 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long emitWatermark(Tuple2<String, Integer> element, long currentTimestamp) {
+		public long extractWatermark(Tuple2<String, Integer> element, long currentTimestamp) {
 			return element.f1 - 1;
 		}
 

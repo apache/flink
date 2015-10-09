@@ -639,8 +639,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    * @see org.apache.flink.streaming.api.watermark.Watermark
    */
-  def extractTimestamp(extractor: TimestampExtractor[T]): DataStream[T] = {
-    javaStream.extractTimestamp(clean(extractor))
+  def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
+    javaStream.assignTimestamps(clean(extractor))
   }
 
   /**
@@ -654,14 +654,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    * @see org.apache.flink.streaming.api.watermark.Watermark
    */
-  def extractAscendingTimestamp(extractor: T => Long): DataStream[T] = {
+  def assignAscendingTimestamps(extractor: T => Long): DataStream[T] = {
     val cleanExtractor = clean(extractor)
     val extractorFunction = new AscendingTimestampExtractor[T] {
       def extractAscendingTimestamp(element: T, currentTimestamp: Long): Long = {
         cleanExtractor(element)
       }
     }
-    javaStream.extractTimestamp(extractorFunction)
+    javaStream.assignTimestamps(extractorFunction)
   }
 
   /**

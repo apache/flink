@@ -57,7 +57,7 @@ public interface TimestampExtractor<T> extends Function {
 	 * @return {@code Long.MIN_VALUE} if no watermark should be emitted, positive value for
 	 *          emitting this value as a watermark.
 	 */
-	long emitWatermark(T element, long currentTimestamp);
+	long extractWatermark(T element, long currentTimestamp);
 
 	/**
 	 * Returns the current watermark. This is periodically called by the system to determine

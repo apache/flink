@@ -689,7 +689,7 @@ public class DataStream<T> {
 	 *
 	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
 	 */
-	public SingleOutputStreamOperator<T, ?> extractTimestamp(TimestampExtractor<T> extractor) {
+	public SingleOutputStreamOperator<T, ?> assignTimestamps(TimestampExtractor<T> extractor) {
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
 		// from the source go to each extraction operator round robin.

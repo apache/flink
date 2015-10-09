@@ -48,7 +48,7 @@ public abstract class AscendingTimestampExtractor<T> implements TimestampExtract
 	}
 
 	@Override
-	public final long emitWatermark(T element, long currentTimestamp) {
+	public final long extractWatermark(T element, long currentTimestamp) {
 		return Long.MIN_VALUE;
 	}
 

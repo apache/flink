@@ -68,7 +68,7 @@ public class TopSpeedWindowing {
 		}
 
 		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData
-				.extractTimestamp(new CarTimestamp())
+				.assignTimestamps(new CarTimestamp())
 				.keyBy(0)
 				.window(GlobalWindows.create())
 				.evictor(TimeEvictor.of(Time.of(evictionSec, TimeUnit.SECONDS)))
@@ -169,7 +169,7 @@ public class TopSpeedWindowing {
 		}
 
 		@Override
-		public long emitWatermark(Tuple4<Integer, Integer, Double, Long> element,
+		public long extractWatermark(Tuple4<Integer, Integer, Double, Long> element,
 				long currentTimestamp) {
 			return element.f3 - 1;
 		}

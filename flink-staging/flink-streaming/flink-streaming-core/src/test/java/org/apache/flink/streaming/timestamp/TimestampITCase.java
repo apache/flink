@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.MultiShotLatch;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
@@ -264,7 +263,7 @@ public class TimestampITCase {
 			}
 		});
 
-		DataStream<Integer> extractOp = source1.extractTimestamp(
+		DataStream<Integer> extractOp = source1.assignTimestamps(
 				new AscendingTimestampExtractor<Integer>() {
 					@Override
 					public long extractAscendingTimestamp(Integer element, long currentTimestamp) {
@@ -326,14 +325,14 @@ public class TimestampITCase {
 			}
 		});
 
-		source1.extractTimestamp(new TimestampExtractor<Integer>() {
+		source1.assignTimestamps(new TimestampExtractor<Integer>() {
 			@Override
 			public long extractTimestamp(Integer element, long currentTimestamp) {
 				return element;
 			}
 
 			@Override
-			public long emitWatermark(Integer element, long currentTimestamp) {
+			public long extractWatermark(Integer element, long currentTimestamp) {
 				return element - 1;
 			}
 

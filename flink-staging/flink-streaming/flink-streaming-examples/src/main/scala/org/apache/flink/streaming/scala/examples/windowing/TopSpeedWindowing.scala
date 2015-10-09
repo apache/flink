@@ -66,7 +66,7 @@ object TopSpeedWindowing {
     val cars = setCarsInput(env)
 
     val topSeed = cars
-      .extractAscendingTimestamp( _.time )
+      .assignAscendingTimestamps( _.time )
       .keyBy("carId")
       .window(GlobalWindows.create)
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))

@@ -74,7 +74,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple2TimestampExtractor());
+		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 		DataStream<Tuple2<String, Integer>> source2 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
 			private static final long serialVersionUID = 1L;
@@ -94,7 +94,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple2TimestampExtractor());
+		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 
 		source1.coGroup(source2)
@@ -168,7 +168,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple3TimestampExtractor());
+		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
 			private static final long serialVersionUID = 1L;
@@ -188,7 +188,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple3TimestampExtractor());
+		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 
 		source1.join(source2)
@@ -263,7 +263,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			@Override
 			public void cancel() {
 			}
-		}).extractTimestamp(new Tuple3TimestampExtractor());
+		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 		source1.join(source1)
 				.where(new Tuple3KeyExtractor())
@@ -323,7 +323,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long emitWatermark(Tuple2<String, Integer> element, long currentTimestamp) {
+		public long extractWatermark(Tuple2<String, Integer> element, long currentTimestamp) {
 			return element.f1 - 1;
 		}
 
@@ -342,7 +342,7 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long emitWatermark(Tuple3<String, String, Integer> element, long currentTimestamp) {
+		public long extractWatermark(Tuple3<String, String, Integer> element, long currentTimestamp) {
 			return element.f2 - 1;
 		}
 

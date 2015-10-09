@@ -71,7 +71,7 @@ public class IncrementalLearningSkeleton {
 
 		// build new model on every second of new data
 		DataStream<Double[]> model = trainingData
-				.extractTimestamp(new LinearTimestamp())
+				.assignTimestamps(new LinearTimestamp())
 				.timeWindowAll(Time.of(5000, TimeUnit.MILLISECONDS))
 				.apply(new PartialModelBuilder());
 
@@ -158,7 +158,7 @@ public class IncrementalLearningSkeleton {
 		}
 
 		@Override
-		public long emitWatermark(Integer element, long currentTimestamp) {
+		public long extractWatermark(Integer element, long currentTimestamp) {
 			return counter - 1;
 		}
 

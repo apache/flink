@@ -68,7 +68,7 @@ public class ExtractTimestampsOperator<T>
 	public void processElement(StreamRecord<T> element) throws Exception {
 		long newTimestamp = userFunction.extractTimestamp(element.getValue(), element.getTimestamp());
 		output.collect(element.replace(element.getValue(), newTimestamp));
-		long watermark = userFunction.emitWatermark(element.getValue(), newTimestamp);
+		long watermark = userFunction.extractWatermark(element.getValue(), newTimestamp);
 		if (watermark > currentWatermark) {
 			currentWatermark = watermark;
 			output.emitWatermark(new Watermark(currentWatermark));

@@ -61,7 +61,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestamps(new WindowFoldITCase.Tuple2TimestampExtractor)
 
     source1
       .keyBy(0)
@@ -106,7 +106,7 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new WindowFoldITCase.Tuple2TimestampExtractor)
+    }).assignTimestamps(new WindowFoldITCase.Tuple2TimestampExtractor)
 
     source1
       .windowAll(TumblingTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
@@ -137,7 +137,7 @@ object WindowFoldITCase {
       element._2
     }
 
-    def emitWatermark(element: (String, Int), currentTimestamp: Long): Long = {
+    def extractWatermark(element: (String, Int), currentTimestamp: Long): Long = {
       element._2 - 1
     }
 

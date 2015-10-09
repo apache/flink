@@ -199,7 +199,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<OuterPojo> sourceStream22 = env.addSource(new PojoSource());
 
 		sourceStream21
-				.extractTimestamp(new MyTimestampExtractor())
+				.assignTimestamps(new MyTimestampExtractor())
 				.keyBy(2, 2)
 				.timeWindow(Time.of(10, TimeUnit.MILLISECONDS), Time.of(4, TimeUnit.MILLISECONDS))
 				.maxBy(3)
@@ -467,7 +467,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Tuple2<Date, HashMap<Character, Integer>>> sourceStream6 = env.fromCollection(sales);
 		sourceStream6
-				.extractTimestamp(new Timestamp6())
+				.assignTimestamps(new Timestamp6())
 				.timeWindowAll(Time.of(1, TimeUnit.MILLISECONDS))
 				.reduce(new SalesReduceFunction())
 				.flatMap(new FlatMapFunction6())
@@ -551,7 +551,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long emitWatermark(Tuple5<Integer, String, Character, Double, Boolean> value,
+		public long extractWatermark(Tuple5<Integer, String, Character, Double, Boolean> value,
 				long currentTimestamp) {
 			return (long) value.f0 - 1;
 		}
@@ -705,7 +705,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public long emitWatermark(Tuple2<Date, HashMap<Character, Integer>> value,
+		public long extractWatermark(Tuple2<Date, HashMap<Character, Integer>> value,
 				long currentTimestamp) {
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(value.f0);

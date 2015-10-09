@@ -57,7 +57,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new CoGroupJoinITCase.Tuple2TimestampExtractor)
+    }).assignTimestamps(new CoGroupJoinITCase.Tuple2TimestampExtractor)
 
     val source2 = env.addSource(new SourceFunction[(String, Int)]() {
       def run(ctx: SourceFunction.SourceContext[(String, Int)]) {
@@ -71,7 +71,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new CoGroupJoinITCase.Tuple2TimestampExtractor)
+    }).assignTimestamps(new CoGroupJoinITCase.Tuple2TimestampExtractor)
 
     source1.coGroup(source2)
       .where(_._1)
@@ -121,7 +121,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new CoGroupJoinITCase.Tuple3TimestampExtractor)
+    }).assignTimestamps(new CoGroupJoinITCase.Tuple3TimestampExtractor)
 
     val source2 = env.addSource(new SourceFunction[(String, String, Int)]() {
       def run(ctx: SourceFunction.SourceContext[(String, String, Int)]) {
@@ -137,7 +137,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new CoGroupJoinITCase.Tuple3TimestampExtractor)
+    }).assignTimestamps(new CoGroupJoinITCase.Tuple3TimestampExtractor)
 
     source1.join(source2)
       .where(_._1)
@@ -197,7 +197,7 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-    }).extractTimestamp(new CoGroupJoinITCase.Tuple3TimestampExtractor)
+    }).assignTimestamps(new CoGroupJoinITCase.Tuple3TimestampExtractor)
 
     source1.join(source1)
       .where(_._1)
@@ -250,7 +250,7 @@ object CoGroupJoinITCase {
       element._2
     }
 
-    def emitWatermark(element: (String, Int), currentTimestamp: Long): Long = {
+    def extractWatermark(element: (String, Int), currentTimestamp: Long): Long = {
       element._2 - 1
     }
 
@@ -264,7 +264,7 @@ object CoGroupJoinITCase {
       element._3
     }
 
-    def emitWatermark(element: (String, String, Int), currentTimestamp: Long): Long = {
+    def extractWatermark(element: (String, String, Int), currentTimestamp: Long): Long = {
       element._3 - 1
     }
 

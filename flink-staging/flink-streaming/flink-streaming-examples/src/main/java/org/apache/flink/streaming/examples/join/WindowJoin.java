@@ -73,8 +73,8 @@ public class WindowJoin {
 		DataStream<Tuple3<Long, String, Integer>> salaries = input.f1;
 
 		// extract the timestamps
-		grades = grades.extractTimestamp(new MyTimestampExtractor());
-		salaries = salaries.extractTimestamp(new MyTimestampExtractor());
+		grades = grades.assignTimestamps(new MyTimestampExtractor());
+		salaries = salaries.assignTimestamps(new MyTimestampExtractor());
 
 		// apply a temporal join over the two stream based on the names over one
 		// second windows
@@ -220,7 +220,7 @@ public class WindowJoin {
 		}
 
 		@Override
-		public long emitWatermark(Tuple3<Long, String, Integer> element, long currentTimestamp) {
+		public long extractWatermark(Tuple3<Long, String, Integer> element, long currentTimestamp) {
 			return element.f0 - 1;
 		}
 
