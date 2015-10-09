@@ -26,7 +26,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.state.StateBackend;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 import static java.util.Objects.requireNonNull;
@@ -69,11 +72,18 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 	//  operator life cycle
 	// ------------------------------------------------------------------------
 
+
+	@Override
+	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+		super.setup(containingTask, config, output);
+		
+		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
+	}
+
 	@Override
 	public void open() throws Exception {
 		super.open();
 		
-		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
 		FunctionUtils.openFunction(userFunction, new Configuration());
 	}
 
