@@ -422,6 +422,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		
 		synchronized (lock) {
 			if (isRunning) {
+
+				// since both state checkpointing and downstream barrier emission occurs in this
+				// lock scope, they are an atomic operation regardless of the order in which they occur
+				// we immediately emit the checkpoint barriers, so the downstream operators can start
+				// their checkpoint work as soon as possible
+				operatorChain.broadcastCheckpointBarrier(checkpointId, timestamp);
+				
 				// now draw the state snapshot
 				try {
 					final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
@@ -436,13 +443,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					}
 
 					StreamTaskStateList allStates = new StreamTaskStateList(states);
-
-					// since both state checkpointing and downstream barrier emission occurs in this
-					// lock scope, they are an atomic operation regardless of the order in which they occur
-					// we immediately emit the checkpoint barriers, so the downstream operators can start
-					// their checkpoint work as soon as possible
-					operatorChain.broadcastCheckpointBarrier(checkpointId, timestamp);
-					
 					if (allStates.isEmpty()) {
 						getEnvironment().acknowledgeCheckpoint(checkpointId);
 					} else {
