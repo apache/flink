@@ -20,18 +20,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink is a platform for efficient, distributed, general-purpose data processing.
-It features powerful programming abstractions in Java and Scala, a high-performance runtime, and
-automatic program optimization. It has native support for iterations, incremental iterations, and
-programs consisting of large DAGs of operations.
+Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is
+a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed
+computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying
+native iteration support, managed memory, and program optimization.
 
-If you quickly want to try out the system, please look at one of the available quickstarts. For
-a thorough introduction of the Flink API please refer to the
-[Programming Guide](apis/programming_guide.html).
+If you want to write your first program, look at one of the available quickstarts, and refer to the
+[DataSet API guide](apis/programming_guide.html) or the [DataStream API guide](apis/streaming_guide.html).
 
 ## Stack
 
-This is an overview of Flink's stack. Click on any component to go to the respective documentation.
+This is an overview of Flink's stack. Click on any component to go to the respective documentation page.
 
 <img src="fig/overview-stack-0.9.png" width="893" height="450" alt="Stack" usemap="#overview-stack">
 
@@ -62,13 +61,10 @@ This documentation is for Apache Flink version {{ site.version }}, which is the 
 
 You can download the latest pre-built snapshot version from the [downloads]({{ site.download_url }}#latest) page of the [project website]({{ site.website_url }}).
 
-The Scala API uses Scala {{ site.scala_version }}. Please make sure to use a compatible version.
+<!--The Scala API uses Scala {{ site.scala_version }}. Please make sure to use a compatible version.
 
-Basically, the Scala API uses Scala 2.10. But you can use the API with Scala 2.11. To use Flink with
+The Scala API uses Scala 2.10, but you can use the API with Scala 2.11. To use Flink with
 Scala 2.11, please check [build guide](/setup/building.html#build-flink-for-scala-211)
-and [programming guide](/apis/programming_guide.html#scala-dependency-versions).
+and [programming guide](/apis/programming_guide.html#scala-dependency-versions).-->
 
 
-## Flink Architecture
-
-<img src="fig/process_model.svg" width="100%" alt="Flink Process Model">

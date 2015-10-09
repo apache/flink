@@ -32,31 +32,53 @@ up within the same JVM.
 
 When a program is submitted, a client is created that performs the pre-processing and turns the program
 into the parallel data flow form that is executed by the JobManager and TaskManagers. The figure below
-illustrates the different actors in the system very coarsely.
+illustrates the different actors in the system and their interactions.
 
 <div style="text-align: center;">
-<img src="fig/ClientJmTm.svg" alt="The Interactions between Client, JobManager and TaskManager" height="400px" style="text-align: center;"/>
+<img src="../fig/process_model.svg" width="100%" alt="Flink Process Model">
 </div>
 
 ## Component Stack
 
-An alternative view on the system is given by the stack below. The different layers of the stack build on
+As a software stack, Flink is a layered system. The different layers of the stack build on
 top of each other and raise the abstraction level of the program representations they accept:
 
 - The **runtime** layer receives a program in the form of a *JobGraph*. A JobGraph is a generic parallel
 data flow with arbitrary tasks that consume and produce data streams.
 
-- The **optimizer** and **common api** layer takes programs in the form of operator DAGs. The operators are
-specific (e.g., Map, Join, Filter, Reduce, ...), but are data type agnostic. The concrete types and their
-interaction with the runtime is specified by the higher layers.
+- Both the **DataStream API** and the **DataSet API** generate JobGraphs through separate compilation
+processes. The DataSet API uses an optimizer to determine the optimal plan for the program, while
+the DataStream API uses a stream builder.
 
-- The **API layer** implements multiple APIs that create operator DAGs for their programs. Each API needs
-to provide utilities (serializers, comparators) that describe the interaction between its data types and
-the runtime.
+- The JobGraph is executed according to a variety of deployment options available in Flink (e.g., local,
+remote, YARN, etc)
 
-<div style="text-align: center;">
-<img src="fig/stack.svg" alt="The Flink component stack" width="800px" />
-</div>
+- Libraries and APIs that are bundled with Flink generate DataSet or DataStream API programs. These are
+Table for queries on logical tables, FlinkML for Machine Learning, and Gelly for graph processing.
+
+You can click on the components in the figure to learn more.
+
+<img src="../fig/overview-stack-0.9.png" width="893" height="450" alt="Stack" usemap="#overview-stack">
+
+<map name="overview-stack">
+  <area shape="rect" coords="188,0,263,200" alt="Graph API: Gelly" href="libs/gelly_guide.html">
+  <area shape="rect" coords="268,0,343,200" alt="Flink ML" href="libs/ml/">
+  <area shape="rect" coords="348,0,423,200" alt="Table" href="libs/table.html">
+
+  <area shape="rect" coords="188,205,538,260" alt="DataSet API (Java/Scala)" href="apis/programming_guide.html">
+  <area shape="rect" coords="543,205,893,260" alt="DataStream API (Java/Scala)" href="apis/streaming_guide.html">
+
+  <!-- <area shape="rect" coords="188,275,538,330" alt="Optimizer" href="optimizer.html"> -->
+  <!-- <area shape="rect" coords="543,275,893,330" alt="Stream Builder" href="streambuilder.html"> -->
+
+  <area shape="rect" coords="188,335,893,385" alt="Flink Runtime" href="internals/general_arch.html">
+
+  <area shape="rect" coords="188,405,328,455" alt="Local" href="apis/local_execution.html">
+  <area shape="rect" coords="333,405,473,455" alt="Remote" href="apis/cluster_execution.html">
+  <area shape="rect" coords="478,405,638,455" alt="Embedded" href="apis/local_execution.html">
+  <area shape="rect" coords="643,405,765,455" alt="YARN" href="setup/yarn_setup.html">
+  <area shape="rect" coords="770,405,893,455" alt="Tez" href="setup/flink_on_tez.html">
+</map>
 
 ## Projects and Dependencies
 
