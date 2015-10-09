@@ -117,7 +117,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		catch (Exception e) {
 			throw new RuntimeException("Cannot analyze type '" + stateType.getName() + 
 					"' from the class alone, due to generic type parameters. " +
-					"Please specify the TypeInformation directly.");
+					"Please specify the TypeInformation directly.", e);
 		}
 		
 		return getKeyValueState(typeInfo, defaultState);
