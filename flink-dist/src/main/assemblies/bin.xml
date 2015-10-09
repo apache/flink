@@ -123,13 +123,6 @@ under the License.
 			<fileMode>0644</fileMode>
 		</fileSet>
 
-		<!-- copy the web documents -->
-		<fileSet>
-			<directory>../flink-runtime-web/web-dashboard/web</directory>
-			<outputDirectory>resources/web-runtime-monitor</outputDirectory>
-			<fileMode>0644</fileMode>
-		</fileSet>
-		
 		<!-- copy the tools -->
 		<fileSet>
 			<directory>src/main/flink-bin/tools</directory>

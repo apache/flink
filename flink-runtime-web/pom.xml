@@ -34,6 +34,18 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<build>
+		<resources>
+			<resource>
+				<!-- Only include the web folder from the web-dashboard directory -->
+				<directory>web-dashboard</directory>
+				<includes>
+					<include>web/**</include>
+				</includes>
+			</resource>
+		</resources>
+	</build>
+
 	<dependencies>
 
 		<!-- ===================================================
