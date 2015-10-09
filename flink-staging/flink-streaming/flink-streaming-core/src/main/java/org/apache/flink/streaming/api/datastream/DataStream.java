@@ -239,7 +239,7 @@ public class DataStream<T> {
 	 *            The KeySelector to be used for extracting the key for partitioning
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
-	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key){
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
 		return new KeyedStream<T, K>(this, clean(key));
 	}
 
@@ -622,16 +622,16 @@ public class DataStream<T> {
 	 * Creates a join operation. See {@link CoGroupedStreams} for an example of how the keys
 	 * and window can be specified.
 	 */
-	public <T2> CoGroupedStreams.Unspecified<T, T2> coGroup(DataStream<T2> otherStream) {
-		return CoGroupedStreams.createCoGroup(this, otherStream);
+	public <T2> CoGroupedStreams<T, T2> coGroup(DataStream<T2> otherStream) {
+		return new CoGroupedStreams<>(this, otherStream);
 	}
 
 	/**
 	 * Creates a join operation. See {@link JoinedStreams} for an example of how the keys
 	 * and window can be specified.
 	 */
-	public <T2> JoinedStreams.Unspecified<T, T2> join(DataStream<T2> otherStream) {
-		return JoinedStreams.createJoin(this, otherStream);
+	public <T2> JoinedStreams<T, T2> join(DataStream<T2> otherStream) {
+		return new JoinedStreams<>(this, otherStream);
 	}
 
 	/**

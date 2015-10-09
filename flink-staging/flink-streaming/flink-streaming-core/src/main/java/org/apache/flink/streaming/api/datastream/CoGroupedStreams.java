@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -36,7 +35,10 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  *{@code CoGroupedStreams} represents two {@link DataStream DataStreams} that have been co-grouped.
@@ -64,93 +66,87 @@ import java.util.List;
  *     .apply(new MyCoGroupFunction());
  * } </pre>
  */
-public class CoGroupedStreams {
+public class CoGroupedStreams<T1, T2> {
+
+	/** The first input stream */
+	private final DataStream<T1> input1;
+
+	/** The second input stream */
+	private final DataStream<T2> input2;
 
 	/**
-	 * A co-group operation that does not yet have its {@link KeySelector KeySelectors} defined.
-	 *
-	 * @param <T1> Type of the elements from the first input
-	 * @param <T2> Type of the elements from the second input
+	 * Creates new CoGroped data streams, which are the first step towards building a streaming co-group.
+	 * 
+	 * @param input1 The first data stream.
+	 * @param input2 The second data stream.
 	 */
-	public static class Unspecified<T1, T2> {
-		DataStream<T1> input1;
-		DataStream<T2> input2;
-
-		protected Unspecified(DataStream<T1> input1,
-				DataStream<T2> input2) {
-			this.input1 = input1;
-			this.input2 = input2;
-		}
-
-		/**
-		 * Specifies a {@link KeySelector} for elements from the first input.
-		 */
-		public <KEY> WithKey<T1, T2, KEY> where(KeySelector<T1, KEY> keySelector)  {
-			return new WithKey<>(input1, input2, input1.clean(keySelector), null);
-		}
-
-		/**
-		 * Specifies a {@link KeySelector} for elements from the second input.
-		 */
-		public <KEY> WithKey<T1, T2, KEY> equalTo(KeySelector<T2, KEY> keySelector)  {
-			return new WithKey<>(input1, input2, null, input1.clean(keySelector));
-		}
+	public CoGroupedStreams(DataStream<T1> input1, DataStream<T2> input2) {
+		this.input1 = requireNonNull(input1);
+		this.input2 = requireNonNull(input2);
 	}
 
 	/**
-	 * A co-group operation that has {@link KeySelector KeySelectors} defined for either both or
-	 * one input.
-	 *
-	 * <p>
-	 * You need to specify a {@code KeySelector} for both inputs using {@link #where(KeySelector)}
-	 * and {@link #equalTo(KeySelector)} before you can proceeed with specifying a
-	 * {@link WindowAssigner} using {@link #window(WindowAssigner)}.
-	 *
-	 * @param <T1> Type of the elements from the first input
-	 * @param <T2> Type of the elements from the second input
-	 * @param <KEY> Type of the key. This must be the same for both inputs
+	 * Specifies a {@link KeySelector} for elements from the first input.
 	 */
-	public static class WithKey<T1, T2, KEY> {
-		DataStream<T1> input1;
-		DataStream<T2> input2;
+	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
+		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		return new Where<>(input1.clean(keySelector), keyType);
+	}
 
-		KeySelector<T1, KEY> keySelector1;
-		KeySelector<T2, KEY> keySelector2;
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * CoGrouped streams that have the key for one side defined.
+	 * 
+	 * @param <KEY> The type of the key.
+	 */
+	public class Where<KEY> {
 
-		protected WithKey(DataStream<T1> input1, DataStream<T2> input2, KeySelector<T1, KEY> keySelector1, KeySelector<T2, KEY> keySelector2) {
-			this.input1 = input1;
-			this.input2 = input2;
+		private final KeySelector<T1, KEY> keySelector1;
+		private final TypeInformation<KEY> keyType;
 
+		Where(KeySelector<T1, KEY> keySelector1, TypeInformation<KEY> keyType) {
 			this.keySelector1 = keySelector1;
-			this.keySelector2 = keySelector2;
+			this.keyType = keyType;
 		}
-
-		/**
-		 * Specifies a {@link KeySelector} for elements from the first input.
-		 */
-		public WithKey<T1, T2, KEY> where(KeySelector<T1, KEY> keySelector)  {
-			return new CoGroupedStreams.WithKey<>(input1, input2, input1.clean(keySelector), keySelector2);
-		}
-
+	
 		/**
 		 * Specifies a {@link KeySelector} for elements from the second input.
 		 */
-		public CoGroupedStreams.WithKey<T1, T2, KEY> equalTo(KeySelector<T2, KEY> keySelector)  {
-			return new CoGroupedStreams.WithKey<>(input1, input2, keySelector1, input1.clean(keySelector));
+		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
+			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+			if (!otherKey.equals(this.keyType)) {
+				throw new IllegalArgumentException("The keys for the two inputs are not equal: " + 
+						"first key = " + this.keyType + " , second key = " + otherKey);
+			}
+			
+			return new EqualTo(input2.clean(keySelector));
 		}
 
+		// --------------------------------------------------------------------
+		
 		/**
-		 * Specifies the window on which the co-group operation works.
+		 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
 		 */
-		public <W extends Window> CoGroupedStreams.WithWindow<T1, T2, KEY, W> window(WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
-			if (keySelector1 == null || keySelector2 == null) {
-				throw new UnsupportedOperationException("You first need to specify KeySelectors for both inputs using where() and equalTo().");
+		public class EqualTo {
 
+			private final KeySelector<T2, KEY> keySelector2;
+
+			EqualTo(KeySelector<T2, KEY> keySelector2) {
+				this.keySelector2 = requireNonNull(keySelector2);
 			}
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, assigner, null, null);
+
+			/**
+			 * Specifies the window on which the co-group operation works.
+			 */
+			public <W extends Window> WithWindow<T1, T2, KEY, W> window(WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
+				return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType, assigner, null, null);
+			}
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs as
 	 * well as a {@link WindowAssigner}.
@@ -166,6 +162,8 @@ public class CoGroupedStreams {
 
 		private final KeySelector<T1, KEY> keySelector1;
 		private final KeySelector<T2, KEY> keySelector2;
+		
+		private final TypeInformation<KEY> keyType;
 
 		private final WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner;
 
@@ -177,6 +175,7 @@ public class CoGroupedStreams {
 				DataStream<T2> input2,
 				KeySelector<T1, KEY> keySelector1,
 				KeySelector<T2, KEY> keySelector2,
+				TypeInformation<KEY> keyType,
 				WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
 				Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
 				Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor) {
@@ -185,7 +184,8 @@ public class CoGroupedStreams {
 
 			this.keySelector1 = keySelector1;
 			this.keySelector2 = keySelector2;
-
+			this.keyType = keyType;
+			
 			this.windowAssigner = windowAssigner;
 			this.trigger = trigger;
 			this.evictor = evictor;
@@ -195,7 +195,8 @@ public class CoGroupedStreams {
 		 * Sets the {@code Trigger} that should be used to trigger window emission.
 		 */
 		public WithWindow<T1, T2, KEY, W> trigger(Trigger<? super TaggedUnion<T1, T2>, ? super W> newTrigger) {
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, windowAssigner, newTrigger, evictor);
+			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
+					windowAssigner, newTrigger, evictor);
 		}
 
 		/**
@@ -206,7 +207,8 @@ public class CoGroupedStreams {
 		 * pre-aggregation of window results cannot be used.
 		 */
 		public WithWindow<T1, T2, KEY, W> evictor(Evictor<? super TaggedUnion<T1, T2>, ? super W> newEvictor) {
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, windowAssigner, trigger, newEvictor);
+			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
+					windowAssigner, trigger, newEvictor);
 		}
 
 		/**
@@ -236,16 +238,21 @@ public class CoGroupedStreams {
 			//clean the closure
 			function = input1.getExecutionEnvironment().clean(function);
 
+			UnionTypeInfo<T1, T2> unionType = new UnionTypeInfo<>(input1.getType(), input2.getType());
+			UnionKeySelector<T1, T2, KEY> unionKeySelector = new UnionKeySelector<>(keySelector1, keySelector2);
+			
 			DataStream<TaggedUnion<T1, T2>> taggedInput1 = input1
 					.map(new Input1Tagger<T1, T2>())
-					.returns(new UnionTypeInfo<>(input1.getType(), input2.getType()));
+					.returns(unionType);
 			DataStream<TaggedUnion<T1, T2>> taggedInput2 = input2
 					.map(new Input2Tagger<T1, T2>())
-					.returns(new UnionTypeInfo<>(input1.getType(), input2.getType()));
+					.returns(unionType);
 
-			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp = taggedInput1
-					.union(taggedInput2)
-					.keyBy(new UnionKeySelector<>(keySelector1, keySelector2))
+			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
+			
+			// we explicitly create the keyed stream to manually pass the key type information in
+			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp = 
+					new KeyedStream<TaggedUnion<T1, T2>, KEY>(unionStream, unionKeySelector, keyType)
 					.window(windowAssigner);
 
 			if (trigger != null) {
@@ -259,13 +266,10 @@ public class CoGroupedStreams {
 		}
 	}
 
-	/**
-	 * Creates a new co-group operation from the two given inputs.
-	 */
-	public static <T1, T2> Unspecified<T1, T2> createCoGroup(DataStream<T1> input1, DataStream<T2> input2) {
-		return new Unspecified<>(input1, input2);
-	}
-
+	// ------------------------------------------------------------------------
+	//  Data type and type information for Tagged Union
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Internal class for implementing tagged union co-group.
 	 */
@@ -425,7 +429,7 @@ public class CoGroupedStreams {
 
 		@Override
 		public int getLength() {
-			return 0;
+			return -1;
 		}
 
 		@Override
@@ -494,6 +498,11 @@ public class CoGroupedStreams {
 		}
 	}
 
+	// ------------------------------------------------------------------------
+	//  Utility functions that implement the CoGroup logic based on the tagged
+	//  untion window reduce
+	// ------------------------------------------------------------------------
+	
 	private static class Input1Tagger<T1, T2> implements MapFunction<T1, TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
@@ -537,6 +546,7 @@ public class CoGroupedStreams {
 	private static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
 			extends WrappingFunction<CoGroupFunction<T1, T2, T>>
 			implements WindowFunction<TaggedUnion<T1, T2>, T, KEY, W> {
+		
 		private static final long serialVersionUID = 1L;
 
 		public CoGroupWindowFunction(CoGroupFunction<T1, T2, T> userFunction) {
@@ -548,8 +558,10 @@ public class CoGroupedStreams {
 				W window,
 				Iterable<TaggedUnion<T1, T2>> values,
 				Collector<T> out) throws Exception {
-			List<T1> oneValues = Lists.newArrayList();
-			List<T2> twoValues = Lists.newArrayList();
+			
+			List<T1> oneValues = new ArrayList<>();
+			List<T2> twoValues = new ArrayList<>();
+			
 			for (TaggedUnion<T1, T2> val: values) {
 				if (val.isOne()) {
 					oneValues.add(val.getOne());
