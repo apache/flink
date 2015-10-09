@@ -74,29 +74,47 @@ public class OperatorChain<OUT> {
 		Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap = new HashMap<>(outEdgesInOrder.size());
 		this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
 		
-		for (int i = 0; i < outEdgesInOrder.size(); i++) {
-			StreamEdge outEdge = outEdgesInOrder.get(i);
+		// from here on, we need to make sure that the output writers are shut down again on failure
+		boolean success = false;
+		try {
+			for (int i = 0; i < outEdgesInOrder.size(); i++) {
+				StreamEdge outEdge = outEdgesInOrder.get(i);
+				
+				RecordWriterOutput<?> streamOutput = createStreamOutput(
+						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
+						containingTask.getEnvironment(), enableTimestamps, reporter, containingTask.getName());
+	
+				this.streamOutputs[i] = streamOutput;
+				streamOutputMap.put(outEdge, streamOutput);
+			}
+	
+			// we create the chain of operators and grab the collector that leads into the chain
+			List<StreamOperator<?>> allOps = new ArrayList<>(chainedConfigs.size());
+			this.chainEntryPoint = createOutputCollector(containingTask, configuration,
+					chainedConfigs, userCodeClassloader, streamOutputMap, allOps);
 			
-			RecordWriterOutput<?> streamOutput = createStreamOutput(
-					outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
-					containingTask.getEnvironment(), enableTimestamps, reporter, containingTask.getName());
-
-			streamOutputMap.put(outEdge, streamOutput);
-			this.streamOutputs[i] = streamOutput;
+			this.allOperators = allOps.toArray(new StreamOperator<?>[allOps.size() + 1]);
+			
+			// add the head operator to the end of the list
+			this.allOperators[this.allOperators.length - 1] = headOperator;
+			
+			success = true;
 		}
-
-		// we create the chain of operators and grab the collector that leads into the chain
-		List<StreamOperator<?>> allOps = new ArrayList<>(chainedConfigs.size());
-		this.chainEntryPoint = createOutputCollector(containingTask, configuration,
-				chainedConfigs, userCodeClassloader, streamOutputMap, allOps);
+		finally {
+			// make sure we clean up after ourselves in case of a failure after acquiring
+			// the first resources
+			if (!success) {
+				for (RecordWriterOutput<?> output : this.streamOutputs) {
+					if (output != null) {
+						output.close();
+						output.clearBuffers();
+					}
+				}
+			}
+		}
 		
-		this.allOperators = allOps.toArray(new StreamOperator<?>[allOps.size() + 1]);
-		
-		// add the head operator to the end of the list
-		this.allOperators[this.allOperators.length - 1] = headOperator;
 	}
-
-	// 
+	
 	
 	public void broadcastCheckpointBarrier(long id, long timestamp) throws IOException, InterruptedException {
 		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp);
