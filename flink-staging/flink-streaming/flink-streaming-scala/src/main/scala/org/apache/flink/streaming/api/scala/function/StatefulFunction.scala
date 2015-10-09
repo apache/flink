@@ -43,6 +43,6 @@ trait StatefulFunction[I, O, S] extends RichFunction {
   }
 
   override def open(c: Configuration) = {
-    state = getRuntimeContext().getKeyValueState[S](stateType, null.asInstanceOf[S])
+    state = getRuntimeContext().getKeyValueState[S]("state", stateType, null.asInstanceOf[S])
   }
 }

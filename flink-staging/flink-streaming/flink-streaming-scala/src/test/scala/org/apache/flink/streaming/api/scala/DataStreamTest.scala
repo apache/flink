@@ -118,7 +118,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val partition1: DataStream[_] = src1.partitionByHash(0)
     val partition2: DataStream[_] = src1.partitionByHash(1, 0)
     val partition3: DataStream[_] = src1.partitionByHash("_1")
-    val partition4: DataStream[_] = src1.partitionByHash((x : (Long, Long)) => x._1);
+    val partition4: DataStream[_] = src1.partitionByHash((x : (Long, Long)) => x._1)
 
     val pid1 = createDownStreamId(partition1)
     val pid2 = createDownStreamId(partition2)

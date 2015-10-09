@@ -165,13 +165,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(Class<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(TypeInformation<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}

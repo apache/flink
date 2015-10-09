@@ -31,11 +31,12 @@ object StateTestPrograms {
     
     // test stateful map
     env.generateSequence(0, 10).setParallelism(1)
-      .keyBy(x => x)
+      .map { v => (1, v) }.setParallelism(1)
+      .keyBy(_._1)
       .mapWithState((in, count: Option[Long]) =>
         count match {
-          case Some(c) => (in - c, Some(c + 1))
-          case None => (in, Some(1L))
+          case Some(c) => (in._2 - c, Some(c + 1))
+          case None => (in._2, Some(1L))
         }).setParallelism(1)
       
       .addSink(new RichSinkFunction[Long]() {
@@ -49,12 +50,12 @@ object StateTestPrograms {
       })
 
     // test stateful flatmap
-    env.fromElements("Fir st-", "Hello world")
-      .keyBy(x => x)
+    env.fromElements((1, "First"), (2, "Second"), (1, "Hello world"))
+      .keyBy(_._1)
       .flatMapWithState((w, s: Option[String]) =>
         s match {
-          case Some(state) => (w.split(" ").toList.map(state + _), Some(w))
-          case None => (List(w), Some(w))
+          case Some(state) => (w._2.split(" ").toList.map(state + _), Some(w._2))
+          case None => (List(w._2), Some(w._2))
         })
       .setParallelism(1)
       
@@ -62,10 +63,11 @@ object StateTestPrograms {
         val received = new util.HashSet[String]()
         override def invoke(in: String) = { received.add(in) }
         override def close() = {
-          assert(received.size() == 3)
-          assert(received.contains("Fir st-"))
-          assert(received.contains("Fir st-Hello"))
-          assert(received.contains("Fir st-world"))
+          assert(received.size() == 4)
+          assert(received.contains("First"))
+          assert(received.contains("Second"))
+          assert(received.contains("FirstHello"))
+          assert(received.contains("Firstworld"))
         }
       }).setParallelism(1)
 

@@ -167,6 +167,7 @@ public interface RuntimeContext {
 	 * Gets the key/value state, which is only accessible if the function is executed on
 	 * a KeyedStream. Upon calling {@link OperatorState#value()}, the key/value state will
 	 * return the value bound to the key of the element currently processed by the function.
+	 * Each operator may maintain multiple key/value states, addressed with different names.
 	 *
 	 * <p>Because the scope of each value is the key of the currently processed element,
 	 * and the elements are distributed by the Flink runtime, the system can transparently
@@ -200,8 +201,9 @@ public interface RuntimeContext {
 	 * <p>This method attempts to deduce the type information from the given type class. If the
 	 * full type cannot be determined from the class (for example because of generic parameters),
 	 * the TypeInformation object must be manually passed via 
-	 * {@link #getKeyValueState(TypeInformation, Object)}. 
+	 * {@link #getKeyValueState(String, TypeInformation, Object)}. 
 	 * 
+	 * @param name The name of the key/value state.
 	 * @param stateType The class of the type that is stored in the state. Used to generate
 	 *                  serializers for managed memory and checkpointing.
 	 * @param defaultState The default state value, returned when the state is accessed and
@@ -213,12 +215,13 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
-	<S> OperatorState<S> getKeyValueState(Class<S> stateType, S defaultState);
+	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
 
 	/**
 	 * Gets the key/value state, which is only accessible if the function is executed on
 	 * a KeyedStream. Upon calling {@link OperatorState#value()}, the key/value state will
 	 * return the value bound to the key of the element currently processed by the function.
+	 * Each operator may maintain multiple key/value states, addressed with different names.
 	 * 
 	 * <p>Because the scope of each value is the key of the currently processed element,
 	 * and the elements are distributed by the Flink runtime, the system can transparently
@@ -249,6 +252,7 @@ public interface RuntimeContext {
 	 *     
 	 * }</pre>
 	 * 
+	 * @param name The name of the key/value state.
 	 * @param stateType The type information for the type that is stored in the state.
 	 *                  Used to create serializers for managed memory and checkpoints.   
 	 * @param defaultState The default state value, returned when the state is accessed and
@@ -260,5 +264,5 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
-	<S> OperatorState<S> getKeyValueState(TypeInformation<S> stateType, S defaultState);
+	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 }

@@ -21,7 +21,6 @@ import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import backtype.storm.tuple.Fields;
@@ -54,7 +53,6 @@ public class FlinkTopologyBuilderTest {
 	}
 
 	@Test
-	@Ignore
 	public void testFieldsGroupingOnMultipleSpoutOutputStreams() {
 		FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
 
@@ -66,7 +64,6 @@ public class FlinkTopologyBuilderTest {
 	}
 
 	@Test
-	@Ignore
 	public void testFieldsGroupingOnMultipleBoltOutputStreams() {
 		FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
 

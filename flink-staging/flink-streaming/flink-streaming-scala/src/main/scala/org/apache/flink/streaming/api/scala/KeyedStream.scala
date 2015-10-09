@@ -36,6 +36,15 @@ import scala.reflect.ClassTag
 class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T](javaStream) {
 
   // ------------------------------------------------------------------------
+  //  Properties
+  // ------------------------------------------------------------------------
+
+  /**
+   * Gets the type of the key by which this stream is keyed.
+   */
+  def getKeyType = javaStream.getKeyType()
+  
+  // ------------------------------------------------------------------------
   //  Windowing
   // ------------------------------------------------------------------------
 

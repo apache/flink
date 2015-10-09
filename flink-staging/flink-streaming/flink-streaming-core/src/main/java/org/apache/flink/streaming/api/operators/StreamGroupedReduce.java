@@ -27,6 +27,8 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 		implements OneInputStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final String STATE_NAME = "_op_state";
 	
 	private transient OperatorState<IN> values;
 	
@@ -41,7 +43,7 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	@Override
 	public void open() throws Exception {
 		super.open();
-		values = createKeyValueState(serializer, null);
+		values = createKeyValueState(STATE_NAME, serializer, null);
 	}
 
 	@Override

@@ -200,6 +200,7 @@ public class FlinkTopologyBuilder {
 									} else {
 										inputStream = inputStream
 												.keyBy(new SplitStreamTypeKeySelector(
+														inputStream.getType(),
 														prodDeclarer.getGroupingFieldIndexes(
 																inputStreamId,
 																grouping.get_fields())));

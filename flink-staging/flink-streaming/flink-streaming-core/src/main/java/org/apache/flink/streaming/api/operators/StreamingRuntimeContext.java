@@ -28,6 +28,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,10 +47,10 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	private final Environment taskEnvironment;
 	
 	/** The key/value state, if the user-function requests it */
-	private OperatorState<?> keyValueState;
+	private HashMap<String, OperatorState<?>> keyValueStates;
 	
 	/** Type of the values stored in the state, to make sure repeated requests of the state are consistent */
-	private TypeInformation<?> stateTypeInfo;
+	private HashMap<String, TypeInformation<?>> stateTypeInfos;
 	
 	
 	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
@@ -107,7 +108,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(Class<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		requireNonNull(stateType, "The state type class must not be null");
 
 		TypeInformation<S> typeInfo;
@@ -120,35 +121,48 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 					"Please specify the TypeInformation directly.", e);
 		}
 		
-		return getKeyValueState(typeInfo, defaultState);
+		return getKeyValueState(name, typeInfo, defaultState);
 	}
 
 	@Override
-	public <S> OperatorState<S> getKeyValueState(TypeInformation<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
+		requireNonNull(name, "The name of the state must not be null");
 		requireNonNull(stateType, "The state type information must not be null");
 		
+		OperatorState<?> previousState;
+		
 		// check if this is a repeated call to access the state 
-		if (this.stateTypeInfo != null && this.keyValueState != null) {
+		if (this.stateTypeInfos != null && this.keyValueStates != null &&
+				(previousState = this.keyValueStates.get(name)) != null) {
+			
 			// repeated call
-			if (this.stateTypeInfo.equals(stateType)) {
+			TypeInformation<?> previousType;
+			if (stateType.equals((previousType = this.stateTypeInfos.get(name)))) {
 				// valid case, same type requested again
 				@SuppressWarnings("unchecked")
-				OperatorState<S> previous = (OperatorState<S>) this.keyValueState;
+				OperatorState<S> previous = (OperatorState<S>) previousState;
 				return previous;
 			}
 			else {
 				// invalid case, different type requested this time
 				throw new IllegalStateException("Cannot initialize key/value state for type " + stateType +
 						" ; The key/value state has already been created and initialized for a different type: " +
-						this.stateTypeInfo);
+						previousType);
 			}
 		}
 		else {
 			// first time access to the key/value state
+			if (this.stateTypeInfos == null) {
+				this.stateTypeInfos = new HashMap<>();
+			}
+			if (this.keyValueStates == null) {
+				this.keyValueStates = new HashMap<>();
+			}
+			
 			try {
-				OperatorState<S> state = operator.createKeyValueState(stateType, defaultState);
-				this.keyValueState = state;
-				this.stateTypeInfo = stateType;
+				OperatorState<S> state = operator.createKeyValueState(name, stateType, defaultState);
+				this.keyValueStates.put(name, state);
+				this.stateTypeInfos.put(name, stateType);
 				return state;
 			}
 			catch (RuntimeException e) {

@@ -18,10 +18,13 @@
 package org.apache.flink.streaming.util.keys;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -30,6 +33,8 @@ import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Utility class that contains helper methods to manipulating {@link KeySelector} for streaming.
@@ -49,7 +54,7 @@ public final class KeySelectorUtil {
 		
 		// use ascending order here, the code paths for that are usually a slight bit faster
 		boolean[] orders = new boolean[numKeyFields];
-		TypeInformation[] typeInfos = new TypeInformation[numKeyFields];
+		TypeInformation<?>[] typeInfos = new TypeInformation<?>[numKeyFields];
 		for (int i = 0; i < numKeyFields; i++) {
 			orders[i] = true;
 			typeInfos[i] = compositeType.getTypeAt(logicalKeyPositions[i]);
@@ -59,23 +64,55 @@ public final class KeySelectorUtil {
 		return new ComparableKeySelector<>(comparator, numKeyFields, new TupleTypeInfo<>(typeInfos));
 	}
 
+	public static <X> ArrayKeySelector<X> getSelectorForArray(int[] positions, TypeInformation<X> typeInfo) {
+		if (positions == null || positions.length == 0 || positions.length > Tuple.MAX_ARITY) {
+			throw new IllegalArgumentException("Array keys must have between 1 and " + Tuple.MAX_ARITY + " fields.");
+		}
+		
+		TypeInformation<?> componentType;
+		
+		if (typeInfo instanceof BasicArrayTypeInfo) {
+			BasicArrayTypeInfo<X, ?>  arrayInfo = (BasicArrayTypeInfo<X, ?>) typeInfo;
+			componentType = arrayInfo.getComponentInfo();
+		}
+		else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
+			PrimitiveArrayTypeInfo<X> arrayType = (PrimitiveArrayTypeInfo<X>) typeInfo;
+			componentType = arrayType.getComponentType();
+		}
+		else {
+			throw new IllegalArgumentException("This method only supports arrays of primitives and boxed primitives.");
+		}
+		
+		TypeInformation<?>[] primitiveInfos = new TypeInformation<?>[positions.length];
+		Arrays.fill(primitiveInfos, componentType);
+
+		return new ArrayKeySelector<>(positions, new TupleTypeInfo<>(primitiveInfos));
+	}
+
 	
-	public static <X, K> KeySelector<X, K> getSelectorForOneKey(Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo,
-			ExecutionConfig executionConfig) {
+	public static <X, K> KeySelector<X, K> getSelectorForOneKey(
+			Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo, ExecutionConfig executionConfig)
+	{
+		if (!(typeInfo instanceof CompositeType)) {
+			throw new InvalidTypesException(
+					"This key operation requires a composite type such as Tuples, POJOs, case classes, etc");
+		}
 		if (partitioner != null) {
 			keys.validateCustomPartitioner(partitioner, null);
 		}
 
+		CompositeType<X> compositeType = (CompositeType<X>) typeInfo;
 		int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
-
 		if (logicalKeyPositions.length != 1) {
 			throw new IllegalArgumentException("There must be exactly 1 key specified");
 		}
-
-		TypeComparator<X> comparator = ((CompositeType<X>) typeInfo).createComparator(
-				logicalKeyPositions, new boolean[1], 0, executionConfig);
+		
+		TypeComparator<X> comparator = compositeType.createComparator(
+				logicalKeyPositions, new boolean[] { true }, 0, executionConfig);
 		return new OneKeySelector<>(comparator);
 	}
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Private constructor to prevent instantiation.
@@ -83,7 +120,15 @@ public final class KeySelectorUtil {
 	private KeySelectorUtil() {
 		throw new RuntimeException();
 	}
-	
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Key extractor that extracts a single field via a generic comparator. 
+	 * 
+	 * @param <IN> The type of the elements where the key is extracted from.
+	 * @param <K> The type of the key.
+	 */
 	public static final class OneKeySelector<IN, K> implements KeySelector<IN, K> {
 
 		private static final long serialVersionUID = 1L;
@@ -94,8 +139,8 @@ public final class KeySelectorUtil {
 		 * are null), it does not have any serialization problems */
 		@SuppressWarnings("NonSerializableFieldInSerializableClass")
 		private final Object[] keyArray;
-
-		public OneKeySelector(TypeComparator<IN> comparator) {
+		
+		OneKeySelector(TypeComparator<IN> comparator) {
 			this.comparator = comparator;
 			this.keyArray = new Object[1];
 		}
@@ -121,18 +166,18 @@ public final class KeySelectorUtil {
 
 		private final TypeComparator<IN> comparator;
 		private final int keyLength;
-		private final TupleTypeInfo tupleTypeInfo;
+		private transient TupleTypeInfo<Tuple> tupleTypeInfo;
 
 		/** Reusable array to hold the key objects. Since this is initially empty (all positions
 		 * are null), it does not have any serialization problems */
 		@SuppressWarnings("NonSerializableFieldInSerializableClass")
 		private final Object[] keyArray;
 
-		public ComparableKeySelector(TypeComparator<IN> comparator, int keyLength, TupleTypeInfo tupleTypeInfo) {
+		ComparableKeySelector(TypeComparator<IN> comparator, int keyLength, TupleTypeInfo<Tuple> tupleTypeInfo) {
 			this.comparator = comparator;
 			this.keyLength = keyLength;
 			this.tupleTypeInfo = tupleTypeInfo;
-			keyArray = new Object[keyLength];
+			this.keyArray = new Object[keyLength];
 		}
 
 		@Override
@@ -147,6 +192,9 @@ public final class KeySelectorUtil {
 
 		@Override
 		public TypeInformation<Tuple> getProducedType() {
+			if (tupleTypeInfo == null) {
+				throw new IllegalStateException("The return type information is not available after serialization");
+			}
 			return tupleTypeInfo;
 		}
 	}
@@ -158,23 +206,35 @@ public final class KeySelectorUtil {
 	 * 
 	 * @param <IN> The type from which the key is extracted, i.e., the array type.
 	 */
-	public static final class ArrayKeySelector<IN> implements KeySelector<IN, Tuple> {
+	public static final class ArrayKeySelector<IN> implements KeySelector<IN, Tuple>, ResultTypeQueryable<Tuple> {
 
 		private static final long serialVersionUID = 1L;
 		
 		private final int[] fields;
+		private final Class<? extends Tuple> tupleClass;
+		private transient TupleTypeInfo<Tuple> returnType;
 
-		public ArrayKeySelector(int... fields) {
-			this.fields = fields;
+		ArrayKeySelector(int[] fields, TupleTypeInfo<Tuple> returnType) {
+			this.fields = requireNonNull(fields);
+			this.returnType = requireNonNull(returnType);
+			this.tupleClass = Tuple.getTupleClass(fields.length);
 		}
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
-			Tuple key = Tuple.getTupleClass(fields.length).newInstance();
+			Tuple key = tupleClass.newInstance();
 			for (int i = 0; i < fields.length; i++) {
 				key.setField(Array.get(value, fields[i]), i);
 			}
 			return key;
+		}
+
+		@Override
+		public TypeInformation<Tuple> getProducedType() {
+			if (returnType == null) {
+				throw new IllegalStateException("The return type information is not available after serialization");
+			}
+			return returnType;
 		}
 	}
 }

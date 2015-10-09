@@ -253,7 +253,7 @@ public class DataStream<T> {
 	 */
 	public KeyedStream<T, Tuple> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return keyBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
+			return keyBy(KeySelectorUtil.getSelectorForArray(fields, getType()));
 		} else {
 			return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
 		}
@@ -291,7 +291,7 @@ public class DataStream<T> {
 	 */
 	public DataStream<T> partitionByHash(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return partitionByHash(new KeySelectorUtil.ArrayKeySelector<T>(fields));
+			return partitionByHash(KeySelectorUtil.getSelectorForArray(fields, getType()));
 		} else {
 			return partitionByHash(new Keys.ExpressionKeys<T>(fields, getType()));
 		}
