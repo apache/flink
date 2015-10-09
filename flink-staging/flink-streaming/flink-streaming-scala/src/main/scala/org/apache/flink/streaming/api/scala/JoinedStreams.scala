@@ -263,7 +263,7 @@ object JoinedStreams {
      */
     def apply[T: TypeInformation](function: JoinFunction[T1, T2, T]): DataStream[T] = {
 
-      val join = JavaJoinedStreams.createJoin(input1.getJavaStream, input2.getJavaStream)
+      val join = new JavaJoinedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
 
       join
         .where(keySelector1)
@@ -280,7 +280,7 @@ object JoinedStreams {
      */
     def apply[T: TypeInformation](function: FlatJoinFunction[T1, T2, T]): DataStream[T] = {
 
-      val join = JavaJoinedStreams.createJoin(input1.getJavaStream, input2.getJavaStream)
+      val join = new JavaJoinedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
 
       join
         .where(keySelector1)
