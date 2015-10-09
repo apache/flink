@@ -32,9 +32,8 @@ import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
 
 import io.netty.handler.stream.ChunkedWriteHandler;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
@@ -66,7 +65,9 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -82,15 +83,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/** By default, all requests to the JobManager have a timeout of 10 seconds */ 
 	public static final FiniteDuration DEFAULT_REQUEST_TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
-	
+
 	/** Logger for web frontend startup / shutdown messages */
 	private static final Logger LOG = LoggerFactory.getLogger(WebRuntimeMonitor.class);
-	
-	/** Teh default path under which the static contents is stored */
-	private static final String STATIC_CONTENTS_PATH = "resources/web-runtime-monitor";
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/** Guarding concurrent modifications to the server channel pipeline during startup and shutdown */
 	private final Object startupShutdownLock = new Object();
 
@@ -98,48 +96,34 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
 	private final JobManagerArchiveRetriever retriever;
-	
+
 	private final Router router;
 
 	private final int configuredPort;
 
 	private ServerBootstrap bootstrap;
-	
+
 	private Channel serverChannel;
 
-	
+	private final File webRootDir;
+
+	private AtomicBoolean isShutdown = new AtomicBoolean();
+
+
 	public WebRuntimeMonitor(
 				Configuration config,
 				LeaderRetrievalService leaderRetrievalService,
 				ActorSystem actorSystem) throws IOException
 	{
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
-		
+
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
-		
-		// figure out where our static contents is
-		final String flinkRoot = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, null);
-		final String configuredWebRoot = cfg.getWebRoot();
-		
-		final File webRootDir;
-		if (configuredWebRoot != null) {
-			webRootDir = new File(configuredWebRoot);
-		}
-		else if (flinkRoot != null) {
-			webRootDir = new File(flinkRoot, STATIC_CONTENTS_PATH);
-		}
-		else {
-			throw new IllegalConfigurationException("The given configuration provides neither the web-document root (" 
-					+ WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY + "), not the Flink installation root ("
-					+ ConfigConstants.FLINK_BASE_DIR_PATH_KEY + ").");
-		}
-		
-		// validate that the doc root is a valid directory
-		if (!(webRootDir.exists() && webRootDir.isDirectory() && webRootDir.canRead())) {
-			throw new IllegalConfigurationException("The path to the static contents (" + 
-					webRootDir.getAbsolutePath() + ") is not a readable directory.");
-		}
-		
+
+		// create an empty directory in temp for the web server
+		String fileName = String.format("flink-web-%s", UUID.randomUUID().toString());
+		webRootDir = new File(System.getProperty("java.io.tmpdir"), fileName);
+		LOG.info("Using directory {} for the web interface files", webRootDir);
+
 		// port configuration
 		this.configuredPort = cfg.getWebFrontendPort();
 		if (this.configuredPort < 0) {
@@ -150,7 +134,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
 
 		retriever = new JobManagerArchiveRetriever(this, actorSystem, lookupTimeout, timeout);
-		
+
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(retriever);
 
 		router = new Router()
@@ -200,13 +184,29 @@ public class WebRuntimeMonitor implements WebMonitor {
 			if (this.bootstrap != null) {
 				throw new IllegalStateException("The server has already been started");
 			}
-			
+
+			// add shutdown hook for deleting the directory
+			try {
+				Runtime.getRuntime().addShutdownHook(new Thread() {
+					@Override
+					public void run() {
+						shutdown();
+					}
+				});
+			} catch (IllegalStateException e) {
+				// race, JVM is in shutdown already, we can safely ignore this
+				LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
+			} catch(Throwable t) {
+				// these errors usually happen when the shutdown is already in progress
+				LOG.warn("Error while adding shutdown hook", t);
+			}
+
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 	
 				@Override
 				protected void initChannel(SocketChannel ch) {
 					Handler handler = new Handler(router);
-					
+
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new HttpObjectAggregator(65536))
@@ -214,34 +214,34 @@ public class WebRuntimeMonitor implements WebMonitor {
 						.addLast(handler.name(), handler);
 				}
 			};
-			
+
 			NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
 			NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-	
+
 			this.bootstrap = new ServerBootstrap();
 			this.bootstrap
 					.group(bossGroup, workerGroup)
 					.channel(NioServerSocketChannel.class)
 					.childHandler(initializer);
-	
+
 			Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
 			this.serverChannel = ch;
-			
+
 			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
-			
+
 			LOG.info("Web frontend listening at " + address + ':' + port);
 
 			leaderRetrievalService.start(retriever);
 		}
 	}
-	
+
 	@Override
 	public void stop() throws Exception {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.stop();
-			
+
 			if (this.serverChannel != null) {
 				this.serverChannel.close().awaitUninterruptibly();
 				this.serverChannel = null;
@@ -252,9 +252,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 				}
 				this.bootstrap = null;
 			}
+
+			shutdown();
 		}
 	}
-	
+
 	@Override
 	public int getServerPort() {
 		Channel server = this.serverChannel;
@@ -266,14 +268,26 @@ public class WebRuntimeMonitor implements WebMonitor {
 				LOG.error("Cannot access local server port", e);
 			}
 		}
-			
+
 		return -1;
 	}
-	
+
+	private void shutdown() {
+		if (!isShutdown.compareAndSet(false, true)) {
+			return;
+		}
+		try {
+			LOG.info("Removing web root dir {}", webRootDir);
+			FileUtils.deleteDirectory(webRootDir);
+		} catch (Throwable t) {
+			LOG.warn("Error while deleting web root dir {}", webRootDir, t);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	private static RuntimeMonitorHandler handler(RequestHandler handler) {
 		return new RuntimeMonitorHandler(handler);
 	}

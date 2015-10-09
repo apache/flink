@@ -34,13 +34,12 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.{JobExecutionException, JobClient}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalService, LeaderRetrievalListener,
 StandaloneLeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
-import org.apache.flink.runtime.util.{StandaloneUtils, ZooKeeperUtils}
-import org.apache.flink.runtime.webmonitor.WebMonitor
+import org.apache.flink.runtime.util.ZooKeeperUtils
+import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 
 import org.slf4j.LoggerFactory
 
@@ -289,20 +288,11 @@ abstract class FlinkMiniCluster(
       // TODO: Add support for HA: Make web server work independently from the JM
       val leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManagerAkkaURL)
 
-      // start the job manager web frontend
-      val webServer = if (
-        config.getBoolean(
-          ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY,
-          false)) {
-
-        LOG.info("Starting NEW JobManger web frontend")
-        // start the new web frontend. we need to load this dynamically
-        // because it is not in the same project/dependencies
-        JobManager.startWebRuntimeMonitor(config, leaderRetrievalService, actorSystem)
-      } else {
-        LOG.info("Starting JobManger web frontend")
-        new WebInfoServer(config, leaderRetrievalService, actorSystem)
-      }
+      LOG.info("Starting JobManger web frontend")
+      // start the new web frontend. we need to load this dynamically
+      // because it is not in the same project/dependencies
+      val webServer = WebMonitorUtils.startWebRuntimeMonitor(
+        config, leaderRetrievalService, actorSystem)
 
       webServer.start()
 

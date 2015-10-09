@@ -293,23 +293,15 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
 	/**
-	 * The option that specifies whether to use the new web frontend
-	 */
-	public static final String JOB_MANAGER_NEW_WEB_FRONTEND_KEY = "jobmanager.new-web-frontend";
-	
-	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
 	 */
 	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.history";
-	
+
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.logpath";
 
-	/** The directory where the web server's static contents is stored */
-	public static final String JOB_MANAGER_WEB_DOC_ROOT_KEY = "jobmanager.web.docroot";
-	
-	
+
 	// ------------------------------ Web Client ------------------------------
-	
+
 	/**
 	 * The config parameter defining port for the pact web-frontend server.
 	 */

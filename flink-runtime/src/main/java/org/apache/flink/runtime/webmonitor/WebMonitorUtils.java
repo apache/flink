@@ -18,12 +18,25 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import akka.actor.ActorSystem;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Utilities for the web runtime monitor. This class contains for example methods to build
@@ -32,55 +45,85 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
  */
 public final class WebMonitorUtils {
 
+	private static final Logger LOG = LoggerFactory.getLogger(WebMonitorUtils.class);
+
+	/**
+	 * Starts the web runtime monitor. Because the actual implementation of the runtime monitor is
+	 * in another project, we load the runtime monitor dynamically.
+	 * <p/>
+	 * Because failure to start the web runtime monitor is not considered fatal, this method does
+	 * not throw any exceptions, but only logs them.
+	 *
+	 * @param config                 The configuration for the runtime monitor.
+	 * @param leaderRetrievalService Leader retrieval service to get the leading JobManager
+	 */
+	public static WebMonitor startWebRuntimeMonitor(
+			Configuration config,
+			LeaderRetrievalService leaderRetrievalService,
+			ActorSystem actorSystem) {
+		// try to load and instantiate the class
+		try {
+			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
+			Class clazz = Class.forName(classname).asSubclass(WebMonitor.class);
+			@SuppressWarnings("unchecked")
+			Constructor<WebMonitor> constructor = clazz.getConstructor(Configuration.class,
+					LeaderRetrievalService.class,
+					ActorSystem.class);
+			return constructor.newInstance(config, leaderRetrievalService, actorSystem);
+		} catch (ClassNotFoundException e) {
+			LOG.error("Could not load web runtime monitor. " +
+					"Probably reason: flink-runtime-web is not in the classpath");
+			LOG.debug("Caught exception", e);
+			return null;
+		} catch (InvocationTargetException e) {
+			LOG.error("WebServer could not be created", e.getTargetException());
+			return null;
+		} catch (Throwable t) {
+			LOG.error("Failed to instantiate web runtime monitor.", t);
+			return null;
+		}
+	}
+
+	public static Map<String, String> fromKeyValueJsonArray (JSONArray parsed) throws JSONException {
+		Map<String, String> hashMap = new HashMap<>();
+
+		for (int i = 0; i < parsed.length(); i++) {
+			JSONObject jsonObject = parsed.getJSONObject(i);
+			String key = jsonObject.getString("key");
+			String value = jsonObject.getString("value");
+			hashMap.put(key, value);
+		}
+
+		return hashMap;
+	}
+
 	public static JobDetails createDetailsForJob(ExecutionGraph job) {
 		JobStatus status = job.getState();
-		
+
 		long started = job.getStatusTimestamp(JobStatus.CREATED);
 		long finished = status.isTerminalState() ? job.getStatusTimestamp(status) : -1L;
-		
+
 		int[] countsPerStatus = new int[ExecutionState.values().length];
 		long lastChanged = 0;
 		int numTotalTasks = 0;
-		
+
 		for (ExecutionJobVertex ejv : job.getVerticesTopologically()) {
 			ExecutionVertex[] vertices = ejv.getTaskVertices();
 			numTotalTasks += vertices.length;
-			
+
 			for (ExecutionVertex vertex : vertices) {
 				ExecutionState state = vertex.getExecutionState();
 				countsPerStatus[state.ordinal()]++;
 				lastChanged = Math.max(lastChanged, vertex.getStateTimestamp(state));
 			}
 		}
-		
+
 		lastChanged = Math.max(lastChanged, finished);
-		
+
 		return new JobDetails(job.getJobID(), job.getJobName(),
-				started, finished, status, lastChanged,  
+				started, finished, status, lastChanged,
 				countsPerStatus, numTotalTasks);
 	}
-	
-	public static void aggregateExecutionStateTimestamps(long[] timestamps, long[] other) {
-		timestamps[CREATED_POS] = Math.min(timestamps[CREATED_POS], other[CREATED_POS]);
-		timestamps[SCHEDULED_POS] = Math.min(timestamps[SCHEDULED_POS], other[SCHEDULED_POS]);
-		timestamps[DEPLOYING_POS] = Math.min(timestamps[DEPLOYING_POS], other[DEPLOYING_POS]);
-		timestamps[RUNNING_POS] = Math.min(timestamps[RUNNING_POS], other[RUNNING_POS]);
-		timestamps[FINISHED_POS] = Math.max(timestamps[FINISHED_POS], other[FINISHED_POS]);
-		timestamps[CANCELING_POS] = Math.min(timestamps[CANCELING_POS], other[CANCELING_POS]);
-		timestamps[CANCELED_POS] = Math.max(timestamps[CANCELED_POS], other[CANCELED_POS]);
-		timestamps[FAILED_POS] = Math.min(timestamps[FAILED_POS], other[FAILED_POS]);
-	}
-	
-	// ------------------------------------------------------------------------
-
-	private static final int CREATED_POS = ExecutionState.CREATED.ordinal();
-	private static final int SCHEDULED_POS = ExecutionState.SCHEDULED.ordinal();
-	private static final int DEPLOYING_POS = ExecutionState.DEPLOYING.ordinal();
-	private static final int RUNNING_POS = ExecutionState.RUNNING.ordinal();
-	private static final int FINISHED_POS = ExecutionState.FINISHED.ordinal();
-	private static final int CANCELING_POS = ExecutionState.CANCELING.ordinal();
-	private static final int CANCELED_POS = ExecutionState.CANCELED.ordinal();
-	private static final int FAILED_POS = ExecutionState.FAILED.ordinal();
 
 	/**
 	 * Private constructor to prevent instantiation.
@@ -88,4 +131,6 @@ public final class WebMonitorUtils {
 	private WebMonitorUtils() {
 		throw new RuntimeException();
 	}
+
+
 }

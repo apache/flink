@@ -23,6 +23,7 @@ import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
@@ -43,6 +44,7 @@ import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Cont
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
 import org.apache.log4j.Level;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.After;
 import org.junit.Assert;
@@ -196,14 +198,20 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 			LOG.info("Got application URL from YARN {}", url);
 
-			// get number of TaskManagers:
-			Assert.assertEquals("{\"taskmanagers\": 1, \"slots\": 1}", TestBaseUtils.getFromHTTP(url + "jobsInfo?get=taskmanagers"));
+			String response = TestBaseUtils.getFromHTTP(url + "taskmanagers/");
+			JSONObject parsedTMs = new JSONObject(response);
+			JSONArray taskManagers = parsedTMs.getJSONArray("taskmanagers");
+			Assert.assertNotNull(taskManagers);
+			Assert.assertEquals(1, taskManagers.length());
+			Assert.assertEquals(1, taskManagers.getJSONObject(0).getInt("slotsNumber"));
 
 			// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
-			String config = TestBaseUtils.getFromHTTP(url + "setupInfo?get=globalC");
-			JSONObject parsed = new JSONObject(config);
-			Assert.assertEquals("veryFancy", parsed.getString("fancy-configuration-value"));
-			Assert.assertEquals("3", parsed.getString("yarn.maximum-failed-containers"));
+			String jsonConfig = TestBaseUtils.getFromHTTP(url + "jobmanager/config");
+			JSONArray parsed = new JSONArray(jsonConfig);
+			Map<String, String> parsedConfig = WebMonitorUtils.fromKeyValueJsonArray(parsed);
+
+			Assert.assertEquals("veryFancy", parsedConfig.get("fancy-configuration-value"));
+			Assert.assertEquals("3", parsedConfig.get("yarn.maximum-failed-containers"));
 
 			// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
 			// first, get the hostname/port
@@ -218,12 +226,15 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			}
 			LOG.info("Extracted hostname:port: {} {}", hostname, port);
 
-			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY).toLowerCase());
-			Assert.assertEquals("unable to find port in " + parsed, port, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
+			Assert.assertEquals("unable to find hostname in " + parsed, hostname,
+					parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY));
+			Assert.assertEquals("unable to find port in " + parsed, port,
+					parsedConfig.get(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
+			// TODO disabled until log files available in new web frontend
 			// test logfile access
-			String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
-			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
+			//String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
+			//Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
 		} catch(Throwable e) {
 			LOG.warn("Error while running test",e);
 			Assert.fail(e.getMessage());

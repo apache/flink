@@ -178,28 +178,6 @@ under the License.
 		-->
 		<dependencies>
 
-			<!-- Make sure we use a consistent jetty version throughout the project -->
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-server</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-security</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-servlet</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-util</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-
 			<!-- Make sure we use a consistent avro version throughout the project -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
@@ -746,14 +724,6 @@ under the License.
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/sb-admin.css</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/flot/*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.layout.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/rickshaw.*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/rickshaw.*</exclude>
 
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>

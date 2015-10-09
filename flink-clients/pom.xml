@@ -73,23 +73,23 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
-			<!-- version is derived from base module -->
+			<version>8.0.0.M1</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-security</artifactId>
-			<!-- version is derived from base module -->
+			<version>8.0.0.M1</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-servlet</artifactId>
-			<!-- version is derived from base module -->
+			<version>8.0.0.M1</version>
 		</dependency>
 
 		<dependency>
