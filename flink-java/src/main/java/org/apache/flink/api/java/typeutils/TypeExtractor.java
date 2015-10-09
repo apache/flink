@@ -1239,7 +1239,7 @@ public class TypeExtractor {
 		// check for subclasses of Tuple
 		if (Tuple.class.isAssignableFrom(clazz)) {
 			if(clazz == Tuple0.class) {
-				return new TupleTypeInfo(Tuple0.class, new TypeInformation<?>[0]);
+				return new TupleTypeInfo(Tuple0.class);
 			}
 			throw new InvalidTypesException("Type information extraction for tuples (except Tuple0) cannot be done based on the class.");
 		}
@@ -1352,17 +1352,22 @@ public class TypeExtractor {
 	protected <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 
+		if (!Modifier.isPublic(clazz.getModifiers())) {
+			LOG.info("Class " + clazz.getName() + " is not public, cannot treat it as a POJO type. Will be handled as GenericType");
+			return new GenericTypeInfo<OUT>(clazz);
+		}
+		
 		// add the hierarchy of the POJO itself if it is generic
 		if (parameterizedType != null) {
 			getTypeHierarchy(typeHierarchy, parameterizedType, Object.class);
 		}
 		// create a type hierarchy, if the incoming only contains the most bottom one or none.
-		else if(typeHierarchy.size() <= 1) {
+		else if (typeHierarchy.size() <= 1) {
 			getTypeHierarchy(typeHierarchy, clazz, Object.class);
 		}
 		
 		List<Field> fields = getAllDeclaredFields(clazz);
-		if(fields.size() == 0) {
+		if (fields.size() == 0) {
 			LOG.info("No fields detected for " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType");
 			return new GenericTypeInfo<OUT>(clazz);
 		}
