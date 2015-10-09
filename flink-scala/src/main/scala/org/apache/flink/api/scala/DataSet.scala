@@ -876,29 +876,29 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *     }
    * }}}
    */
-  def join[O](other: DataSet[O]): UnfinishedInnerJoinOperation[T, O] =
-    new UnfinishedInnerJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES)
+  def join[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES)
 
   /**
    * Special [[join]] operation for explicitly telling the system what join strategy to use. If
    * null is given as the join strategy, then the optimizer will pick the strategy.
    */
-  def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedInnerJoinOperation[T, O] =
-    new UnfinishedInnerJoinOperation(this, other, strategy)
+  def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, strategy)
   
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.
    */
-  def joinWithTiny[O](other: DataSet[O]): UnfinishedInnerJoinOperation[T, O] =
-    new UnfinishedInnerJoinOperation(this, other, JoinHint.BROADCAST_HASH_SECOND)
+  def joinWithTiny[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_SECOND)
 
   /**
    * Special [[join]] operation for explicitly telling the system that the left side is assumed
    * to be a lot smaller than the right side of the join.
    */
-  def joinWithHuge[O](other: DataSet[O]): UnfinishedInnerJoinOperation[T, O] =
-    new UnfinishedInnerJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
+  def joinWithHuge[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
 
   /**
    * Creates a new DataSet by performing a full outer join of `this` DataSet

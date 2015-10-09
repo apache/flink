@@ -42,10 +42,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
+import org.apache.flink.api.java.operators.join.JoinOperatorSetsBase;
 import org.apache.flink.api.java.operators.join.JoinType;
 import org.apache.flink.api.java.operators.join.JoinFunctionAssigner;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
@@ -842,6 +844,132 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //			throw new UnsupportedOperationException("RightSemiJoin operator currently not supported.");
 //		}
 //	}
+
+	/**
+	 * Intermediate step of a Join transformation. <br/>
+	 * To continue the Join transformation, select the join key of the first input {@link DataSet} by calling
+	 * {@link JoinOperatorSets#where(int...)} or
+	 * {@link JoinOperatorSets#where(org.apache.flink.api.java.functions.KeySelector)}.
+	 *
+	 * @param <I1> The type of the first input DataSet of the Join transformation.
+	 * @param <I2> The type of the second input DataSet of the Join transformation.
+	 */
+	public static final class JoinOperatorSets<I1, I2> extends JoinOperatorSetsBase<I1, I2> {
+
+		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
+			super(input1, input2);
+		}
+
+		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
+			super(input1, input2, hint);
+		}
+
+		/**
+		 * {@inheritDoc}
+		 *
+		 * @return An incomplete Join transformation.
+		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
+		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join.
+		 */
+		@Override
+		public JoinOperatorSetsPredicate where(int... fields) {
+			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<>(fields, input1.getType()));
+		}
+
+		/**
+		 * {@inheritDoc}
+		 *
+		 * @return An incomplete Join transformation.
+		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
+		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join.
+		 */
+		@Override
+		public JoinOperatorSetsPredicate where(String... fields) {
+			return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<>(fields, input1.getType()));
+		}
+
+		/**
+		 * {@inheritDoc}
+		 *
+		 * @return An incomplete Join transformation.
+		 *           Call {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
+		 *           {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}
+		 *           to continue the Join.
+		 */
+		@Override
+		public <K> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
+			TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
+		}
+
+
+		/**
+		 * Intermediate step of a Join transformation. <br/>
+		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}.
+		 */
+		public class JoinOperatorSetsPredicate extends JoinOperatorSetsPredicateBase {
+
+			private JoinOperatorSetsPredicate(Keys<I1> keys1) {
+				super(keys1);
+			}
+
+			/**
+			 * Continues a Join transformation and defines the {@link Tuple} fields of the second join
+			 * {@link DataSet} that should be used as join keys.<br/>
+			 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
+			 * <p/>
+			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
+			 * the element of the first input being the first field of the tuple and the element of the
+			 * second input being the second field of the tuple.
+			 *
+			 * @param fields The indexes of the Tuple fields of the second join DataSet that should be used as keys.
+			 * @return A DefaultJoin that represents the joined DataSet.
+			 */
+			@Override
+			public DefaultJoin<I1, I2> equalTo(int... fields) {
+				return createDefaultJoin(new Keys.ExpressionKeys<>(fields, input2.getType()));
+			}
+
+			/**
+			 * Continues a Join transformation and defines the fields of the second join
+			 * {@link DataSet} that should be used as join keys.<br/>
+			 * <p/>
+			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
+			 * the element of the first input being the first field of the tuple and the element of the
+			 * second input being the second field of the tuple.
+			 *
+			 * @param fields The fields of the second join DataSet that should be used as keys.
+			 * @return A DefaultJoin that represents the joined DataSet.
+			 */
+			@Override
+			public DefaultJoin<I1, I2> equalTo(String... fields) {
+				return createDefaultJoin(new Keys.ExpressionKeys<>(fields, input2.getType()));
+			}
+
+			/**
+			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.</br>
+			 * The KeySelector function is called for each element of the second DataSet and extracts a single
+			 * key value on which the DataSet is joined. </br>
+			 * <p/>
+			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
+			 * the element of the first input being the first field of the tuple and the element of the
+			 * second input being the second field of the tuple.
+			 *
+			 * @param keySelector The KeySelector function which extracts the key values from the second DataSet on which it is joined.
+			 * @return A DefaultJoin that represents the joined DataSet.
+			 */
+			@Override
+			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
+				TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+				return createDefaultJoin(new Keys.SelectorFunctionKeys<>(keySelector, input2.getType(), keyType));
+			}
+		}
+	}
+
 	
 	// --------------------------------------------------------------------------------------------
 	//  default join functions

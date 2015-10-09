@@ -212,7 +212,7 @@ class JoinDataSet[L, R](
   }
 }
 
-private[flink] abstract class UnfinishedJoinOperation[L, R, O <: JoinFunctionAssigner[L, R]](
+private[flink] abstract class UnfinishedJoinOperationBase[L, R, O <: JoinFunctionAssigner[L, R]](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
     val joinHint: JoinHint,
@@ -261,11 +261,11 @@ private[flink] abstract class UnfinishedJoinOperation[L, R, O <: JoinFunctionAss
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.
  */
-class UnfinishedInnerJoinOperation[L, R](
+class UnfinishedJoinOperation[L, R](
     leftSet: DataSet[L],
     rightSet: DataSet[R],
     joinHint: JoinHint)
-  extends UnfinishedJoinOperation[L, R, JoinDataSet[L, R]](
+  extends UnfinishedJoinOperationBase[L, R, JoinDataSet[L, R]](
     leftSet, rightSet, joinHint, JoinType.INNER) {
 
   override def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]) = {
@@ -297,7 +297,7 @@ class UnfinishedOuterJoinOperation[L, R](
     rightSet: DataSet[R],
     joinHint: JoinHint,
     joinType: JoinType)
-  extends UnfinishedJoinOperation[L, R, JoinFunctionAssigner[L, R]](
+  extends UnfinishedJoinOperationBase[L, R, JoinFunctionAssigner[L, R]](
     leftSet, rightSet, joinHint, joinType) {
 
   override def createJoinFunctionAssigner(leftKey: Keys[L], rightKey: Keys[R]):

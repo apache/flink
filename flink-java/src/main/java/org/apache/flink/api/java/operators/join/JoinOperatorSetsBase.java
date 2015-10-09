@@ -35,13 +35,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 /**
  * Intermediate step of an Outer Join transformation. <br/>
  * To continue the Join transformation, select the join key of the first input {@link DataSet} by calling
- * {@link JoinOperatorSets#where(int...)} or
- * {@link JoinOperatorSets#where(KeySelector)}.
+ * {@link JoinOperatorSetsBase#where(int...)} or
+ * {@link JoinOperatorSetsBase#where(KeySelector)}.
  *
  * @param <I1> The type of the first input DataSet of the Join transformation.
  * @param <I2> The type of the second input DataSet of the Join transformation.
  */
-public class JoinOperatorSets<I1, I2> {
+public class JoinOperatorSetsBase<I1, I2> {
 
 	protected final DataSet<I1> input1;
 	protected final DataSet<I2> input2;
@@ -49,15 +49,15 @@ public class JoinOperatorSets<I1, I2> {
 	protected final JoinHint joinHint;
 	protected final JoinType joinType;
 
-	public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
+	public JoinOperatorSetsBase(DataSet<I1> input1, DataSet<I2> input2) {
 		this(input1, input2, JoinHint.OPTIMIZER_CHOOSES);
 	}
 
-	public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
+	public JoinOperatorSetsBase(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint) {
 		this(input1, input2, hint, JoinType.INNER);
 	}
 
-	public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint, JoinType type) {
+	public JoinOperatorSetsBase(DataSet<I1> input1, DataSet<I2> input2, JoinHint hint, JoinType type) {
 		if (input1 == null || input2 == null) {
 			throw new NullPointerException();
 		}
@@ -75,15 +75,15 @@ public class JoinOperatorSets<I1, I2> {
 	 *
 	 * @param fields The indexes of the other Tuple fields of the first join DataSets that should be used as keys.
 	 * @return An incomplete Join transformation.
-	 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or
-	 *           {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+	 *           Call {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(int...)} or
+	 *           {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(KeySelector)}
 	 *           to continue the Join.
 	 *
 	 * @see Tuple
 	 * @see DataSet
 	 */
-	public JoinOperatorSetsPredicate where(int... fields) {
-		return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<>(fields, input1.getType()));
+	public JoinOperatorSetsPredicateBase where(int... fields) {
+		return new JoinOperatorSetsPredicateBase(new Keys.ExpressionKeys<>(fields, input1.getType()));
 	}
 
 	/**
@@ -93,15 +93,15 @@ public class JoinOperatorSets<I1, I2> {
 	 *
 	 * @param fields The  fields of the first join DataSets that should be used as keys.
 	 * @return An incomplete Join transformation.
-	 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or
-	 *           {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+	 *           Call {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(int...)} or
+	 *           {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(KeySelector)}
 	 *           to continue the Join.
 	 *
 	 * @see Tuple
 	 * @see DataSet
 	 */
-	public JoinOperatorSetsPredicate where(String... fields) {
-		return new JoinOperatorSetsPredicate(new Keys.ExpressionKeys<>(fields, input1.getType()));
+	public JoinOperatorSetsPredicateBase where(String... fields) {
+		return new JoinOperatorSetsPredicateBase(new Keys.ExpressionKeys<>(fields, input1.getType()));
 	}
 
 	/**
@@ -111,31 +111,31 @@ public class JoinOperatorSets<I1, I2> {
 	 *
 	 * @param keySelector The KeySelector function which extracts the key values from the DataSet on which it is joined.
 	 * @return An incomplete Join transformation.
-	 *           Call {@link JoinOperatorSetsPredicate#equalTo(int...)} or
-	 *           {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}
+	 *           Call {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(int...)} or
+	 *           {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(KeySelector)}
 	 *           to continue the Join.
 	 *
 	 * @see KeySelector
 	 * @see DataSet
 	 */
-	public <K> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
+	public <K> JoinOperatorSetsPredicateBase where(KeySelector<I1, K> keySelector) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
-		return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
+		return new JoinOperatorSetsPredicateBase(new Keys.SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
 	}
 
 
 	/**
 	 * Intermediate step of a Join transformation. <br/>
 	 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling
-	 * {@link JoinOperatorSetsPredicate#equalTo(int...)} or
-	 * {@link JoinOperatorSetsPredicate#equalTo(KeySelector)}.
+	 * {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(int...)} or
+	 * {@link org.apache.flink.api.java.operators.join.JoinOperatorSetsBase.JoinOperatorSetsPredicateBase#equalTo(KeySelector)}.
 	 *
 	 */
-	public class JoinOperatorSetsPredicate {
+	public class JoinOperatorSetsPredicateBase {
 
 		protected final Keys<I1> keys1;
 
-		protected JoinOperatorSetsPredicate(Keys<I1> keys1) {
+		protected JoinOperatorSetsPredicateBase(Keys<I1> keys1) {
 			if (keys1 == null) {
 				throw new NullPointerException();
 			}

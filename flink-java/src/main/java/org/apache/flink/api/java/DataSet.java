@@ -63,7 +63,7 @@ import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.api.java.operators.join.InnerJoinOperatorSets;
+import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
@@ -75,7 +75,7 @@ import org.apache.flink.api.java.operators.SortPartitionOperator;
 import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UnionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
-import org.apache.flink.api.java.operators.join.JoinOperatorSets;
+import org.apache.flink.api.java.operators.join.JoinOperatorSetsBase;
 import org.apache.flink.api.java.operators.join.JoinType;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -729,17 +729,17 @@ public abstract class DataSet<T> {
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
 	 *   joining elements into one DataSet.<br/>
 	 * 
-	 * This method returns a {@link InnerJoinOperatorSets} on which one of the {@code where} methods
+	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
-	 * @return A InnerJoinOperatorSets to continue the definition of the Join transformation.
+	 * @return A JoinOperatorSets to continue the definition of the Join transformation.
 	 * 
-	 * @see InnerJoinOperatorSets
+	 * @see JoinOperatorSets
 	 * @see DataSet
 	 */
-	public <R> InnerJoinOperatorSets<T, R> join(DataSet<R> other) {
-		return new InnerJoinOperatorSets<T, R>(this, other);
+	public <R> JoinOperatorSets<T, R> join(DataSet<R> other) {
+		return new JoinOperatorSets<T, R>(this, other);
 	}
 	
 	/**
@@ -748,19 +748,19 @@ public abstract class DataSet<T> {
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
 	 *   joining elements into one DataSet.<br/>
 	 * 
-	 * This method returns a {@link InnerJoinOperatorSets} on which one of the {@code where} methods
+	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
 	 * @param strategy The strategy that should be used execute the join. If {@code null} is given, then the
 	 *                 optimizer will pick the join strategy.
-	 * @return A InnerJoinOperatorSets to continue the definition of the Join transformation.
+	 * @return A JoinOperatorSets to continue the definition of the Join transformation.
 	 * 
-	 * @see InnerJoinOperatorSets
+	 * @see JoinOperatorSets
 	 * @see DataSet
 	 */
-	public <R> InnerJoinOperatorSets<T, R> join(DataSet<R> other, JoinHint strategy) {
-		return new InnerJoinOperatorSets<T, R>(this, other, strategy);
+	public <R> JoinOperatorSets<T, R> join(DataSet<R> other, JoinHint strategy) {
+		return new JoinOperatorSets<T, R>(this, other, strategy);
 	}
 
 	/**
@@ -770,18 +770,18 @@ public abstract class DataSet<T> {
 	 *   joining elements into one DataSet.<br/>
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   smaller than the first one.<br/>
-	 * This method returns a {@link InnerJoinOperatorSets} on which
-	 *   {@link InnerJoinOperatorSets#where(String...)} needs to be called to define the join key of the first
+	 * This method returns a {@link JoinOperatorSets} on which
+	 *   {@link JoinOperatorSets#where(String...)} needs to be called to define the join key of the first
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
-	 * @return A InnerJoinOperatorSets to continue the definition of the Join transformation.
+	 * @return A JoinOperatorSets to continue the definition of the Join transformation.
 	 * 
-	 * @see InnerJoinOperatorSets
+	 * @see JoinOperatorSets
 	 * @see DataSet
 	 */
-	public <R> InnerJoinOperatorSets<T, R> joinWithTiny(DataSet<R> other) {
-		return new InnerJoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_SECOND);
+	public <R> JoinOperatorSets<T, R> joinWithTiny(DataSet<R> other) {
+		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_SECOND);
 	}
 	
 	/**
@@ -791,17 +791,17 @@ public abstract class DataSet<T> {
 	 *   joining elements into one DataSet.<br/>
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   larger than the first one.<br/>
-	 * This method returns a {@link InnerJoinOperatorSets} on which one of the {@code where} methods
+	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 * 
-	 * @see InnerJoinOperatorSets
+	 * @see JoinOperatorSets
 	 * @see DataSet
 	 */
-	public <R> InnerJoinOperatorSets<T, R> joinWithHuge(DataSet<R> other) {
-		return new InnerJoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_FIRST);
+	public <R> JoinOperatorSets<T, R> joinWithHuge(DataSet<R> other) {
+		return new JoinOperatorSets<T, R>(this, other, JoinHint.BROADCAST_HASH_FIRST);
 	}
 
 	/**
@@ -816,11 +816,11 @@ public abstract class DataSet<T> {
 	 * @param other The other DataSet with which this DataSet is joined.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 *
-	 * @see JoinOperatorSets
+	 * @see org.apache.flink.api.java.operators.join.JoinOperatorSetsBase
 	 * @see DataSet
 	 */
-	public <R> JoinOperatorSets<T, R> leftOuterJoin(DataSet<R> other) {
-		return new JoinOperatorSets<>(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.LEFT_OUTER);
+	public <R> JoinOperatorSetsBase<T, R> leftOuterJoin(DataSet<R> other) {
+		return new JoinOperatorSetsBase<>(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.LEFT_OUTER);
 	}
 
 	/**
@@ -837,11 +837,11 @@ public abstract class DataSet<T> {
 	 *                 optimizer will pick the join strategy.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 *
-	 * @see JoinOperatorSets
+	 * @see org.apache.flink.api.java.operators.join.JoinOperatorSetsBase
 	 * @see DataSet
 	 */
-	public <R> JoinOperatorSets<T, R> leftOuterJoin(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSets<>(this, other, strategy, JoinType.LEFT_OUTER);
+	public <R> JoinOperatorSetsBase<T, R> leftOuterJoin(DataSet<R> other, JoinHint strategy) {
+		return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.LEFT_OUTER);
 	}
 
 	/**
@@ -856,11 +856,11 @@ public abstract class DataSet<T> {
 	 * @param other The other DataSet with which this DataSet is joined.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 *
-	 * @see JoinOperatorSets
+	 * @see org.apache.flink.api.java.operators.join.JoinOperatorSetsBase
 	 * @see DataSet
 	 */
-	public <R> JoinOperatorSets<T, R> rightOuterJoin(DataSet<R> other) {
-		return new JoinOperatorSets<>(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.RIGHT_OUTER);
+	public <R> JoinOperatorSetsBase<T, R> rightOuterJoin(DataSet<R> other) {
+		return new JoinOperatorSetsBase<>(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.RIGHT_OUTER);
 	}
 
 	/**
@@ -877,11 +877,11 @@ public abstract class DataSet<T> {
 	 *                 optimizer will pick the join strategy.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 *
-	 * @see JoinOperatorSets
+	 * @see org.apache.flink.api.java.operators.join.JoinOperatorSetsBase
 	 * @see DataSet
 	 */
-	public <R> JoinOperatorSets<T, R> rightOuterJoin(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSets<>(this, other, strategy, JoinType.RIGHT_OUTER);
+	public <R> JoinOperatorSetsBase<T, R> rightOuterJoin(DataSet<R> other, JoinHint strategy) {
+		return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.RIGHT_OUTER);
 	}
 
 	/**
@@ -896,11 +896,11 @@ public abstract class DataSet<T> {
 	 * @param other The other DataSet with which this DataSet is joined.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 *
-	 * @see JoinOperatorSets
+	 * @see org.apache.flink.api.java.operators.join.JoinOperatorSetsBase
 	 * @see DataSet
 	 */
-	public <R> JoinOperatorSets<T, R> fullOuterJoin(DataSet<R> other) {
-		return new JoinOperatorSets<>(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.FULL_OUTER);
+	public <R> JoinOperatorSetsBase<T, R> fullOuterJoin(DataSet<R> other) {
+		return new JoinOperatorSetsBase<>(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.FULL_OUTER);
 	}
 
 	/**
@@ -917,11 +917,11 @@ public abstract class DataSet<T> {
 	 *                 optimizer will pick the join strategy.
 	 * @return A JoinOperatorSet to continue the definition of the Join transformation.
 	 *
-	 * @see JoinOperatorSets
+	 * @see org.apache.flink.api.java.operators.join.JoinOperatorSetsBase
 	 * @see DataSet
 	 */
-	public <R> JoinOperatorSets<T, R> fullOuterJoin(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSets<>(this, other, strategy, JoinType.FULL_OUTER);
+	public <R> JoinOperatorSetsBase<T, R> fullOuterJoin(DataSet<R> other, JoinHint strategy) {
+		return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.FULL_OUTER);
 	}
 
 
