@@ -298,9 +298,9 @@ object JobManagerMessages {
   /** Triggers the removal of the job with the given job ID
     *
     * @param jobID
-    * @param jobProperlyFinished true if the job has properly finished
+    * @param removeJobFromStateBackend true if the job has properly finished
     */
-  case class RemoveJob(jobID: JobID, jobProperlyFinished: Boolean = true)
+  case class RemoveJob(jobID: JobID, removeJobFromStateBackend: Boolean = true)
     extends RequiresLeaderSessionID
 
   /**
