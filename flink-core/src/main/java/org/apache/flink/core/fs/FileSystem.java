@@ -51,8 +51,6 @@ public abstract class FileSystem {
 
 	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
 	
-	private static final String S3_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.s3.S3FileSystem";
-
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
 	
@@ -156,7 +154,6 @@ public abstract class FileSystem {
 		FSDIRECTORY.put("hdfs", HADOOP_WRAPPER_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
-		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
 	}
 
 	/**
