@@ -17,19 +17,19 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Long, Long>> {
 	private static final long serialVersionUID = 1L;
@@ -95,16 +95,21 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 
 		FileStatus[] statuses = fileSystem.listStatus(new Path(path));
 
-		for (FileStatus status : statuses) {
-			Path filePath = status.getPath();
-			String fileName = filePath.getName();
-			long modificationTime = status.getModificationTime();
+		if (statuses == null) {
+			LOG.warn("Path does not exist: {}", path);
+		} else {
+			for (FileStatus status : statuses) {
+				Path filePath = status.getPath();
+				String fileName = filePath.getName();
+				long modificationTime = status.getModificationTime();
 
-			if (!isFiltered(fileName, modificationTime)) {
-				files.add(filePath.toString());
-				modificationTimes.put(fileName, modificationTime);
+				if (!isFiltered(fileName, modificationTime)) {
+					files.add(filePath.toString());
+					modificationTimes.put(fileName, modificationTime);
+				}
 			}
 		}
+
 		return files;
 	}
 
