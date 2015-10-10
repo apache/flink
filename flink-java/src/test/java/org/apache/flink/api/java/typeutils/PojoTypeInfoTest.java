@@ -74,11 +74,25 @@ public class PojoTypeInfoTest {
 
 		assertEquals(pojoTypeInfo, deserializedPojoTypeInfo);
 	}
-	
+
+	@Test
+	public void testPrimitivePojo() {
+		TypeInformation<PrimitivePojo> info1 = TypeExtractor.getForClass(PrimitivePojo.class);
+
+		assertTrue(info1 instanceof PojoTypeInfo);
+	}
+
+	@Test
+	public void testUnderscorePojo() {
+		TypeInformation<UnderscorePojo> info1 = TypeExtractor.getForClass(UnderscorePojo.class);
+
+		assertTrue(info1 instanceof PojoTypeInfo);
+	}
+
 	public static final class TestPojo {
 		
 		public int someInt;
-		
+
 		private String aString;
 		
 		public Double[] doubleArray;
@@ -108,6 +122,32 @@ public class PojoTypeInfoTest {
 
 		public String getaString() {
 			return aString;
+		}
+	}
+
+	public static final class PrimitivePojo {
+
+		private int someInt;
+
+		public void setSomeInt(Integer someInt) {
+			this.someInt = someInt;
+		}
+
+		public Integer getSomeInt() {
+			return this.someInt;
+		}
+	}
+
+	public static final class UnderscorePojo {
+
+		private int some_int;
+
+		public void setSomeInt(int some_int) {
+			this.some_int = some_int;
+		}
+
+		public Integer getSomeInt() {
+			return this.some_int;
 		}
 	}
 }
