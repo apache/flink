@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -30,27 +31,29 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
-	private long interval;
-
-	private long nextFireTimestamp = 0;
+	private final long interval;
 
 	private ContinuousProcessingTimeTrigger(long interval) {
 		this.interval = interval;
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) {
+	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		long currentTime = System.currentTimeMillis();
+
+		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
+		long nextFireTimestamp = fireState.value();
+
 		if (nextFireTimestamp == 0) {
 			long start = currentTime - (currentTime % interval);
-			nextFireTimestamp = start + interval;
+			fireState.update(start + interval);
 
 			ctx.registerProcessingTimeTimer(nextFireTimestamp);
 			return TriggerResult.CONTINUE;
 		}
 		if (currentTime > nextFireTimestamp) {
 			long start = currentTime - (currentTime % interval);
-			nextFireTimestamp = start + interval;
+			fireState.update(start + interval);
 
 			ctx.registerProcessingTimeTimer(nextFireTimestamp);
 
@@ -60,20 +63,19 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) {
+	public TriggerResult onTime(long time, TriggerContext ctx) throws Exception {
+
+		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
+		long nextFireTimestamp = fireState.value();
+
 		// only fire if an element didn't already fire
 		long currentTime = System.currentTimeMillis();
 		if (currentTime > nextFireTimestamp) {
 			long start = currentTime - (currentTime % interval);
-			nextFireTimestamp = start + interval;
+			fireState.update(start + interval);
 			return TriggerResult.FIRE;
 		}
 		return TriggerResult.CONTINUE;
-	}
-
-	@Override
-	public Trigger<Object, W> duplicate() {
-		return new ContinuousProcessingTimeTrigger<>(interval);
 	}
 
 	@VisibleForTesting

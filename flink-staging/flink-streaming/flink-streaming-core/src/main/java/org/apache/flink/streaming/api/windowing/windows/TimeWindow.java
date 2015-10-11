@@ -17,31 +17,37 @@
  */
 package org.apache.flink.streaming.api.windowing.windows;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+
+/**
+ * A {@link Window} that represents a time interval from {@code start} (inclusive) to
+ * {@code start + size} (exclusive).
+ */
 public class TimeWindow extends Window {
-	long start;
-	long end;
 
-	public TimeWindow() {
-	}
+	private final long start;
+	private final long end;
 
-	public TimeWindow(long start, long size) {
+	public TimeWindow(long start, long end) {
 		this.start = start;
-		this.end = start + size - 1;
+		this.end = end;
 	}
 
-	@Override
 	public long getStart() {
 		return start;
 	}
 
-	@Override
 	public long getEnd() {
 		return end;
 	}
 
 	@Override
 	public long maxTimestamp() {
-		return end;
+		return end - 1;
 	}
 
 	@Override
@@ -72,4 +78,80 @@ public class TimeWindow extends Window {
 				", end=" + end +
 				'}';
 	}
+
+	public static class Serializer extends TypeSerializer<TimeWindow> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public TypeSerializer<TimeWindow> duplicate() {
+			return this;
+		}
+
+		@Override
+		public TimeWindow createInstance() {
+			return null;
+		}
+
+		@Override
+		public TimeWindow copy(TimeWindow from) {
+			return from;
+		}
+
+		@Override
+		public TimeWindow copy(TimeWindow from, TimeWindow reuse) {
+			return from;
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public void serialize(TimeWindow record, DataOutputView target) throws IOException {
+			target.writeLong(record.start);
+			target.writeLong(record.end);
+		}
+
+		@Override
+		public TimeWindow deserialize(DataInputView source) throws IOException {
+			long start = source.readLong();
+			long end = source.readLong();
+			return new TimeWindow(start, end);
+		}
+
+		@Override
+		public TimeWindow deserialize(TimeWindow reuse, DataInputView source) throws IOException {
+			long start = source.readLong();
+			long end = source.readLong();
+			return new TimeWindow(start, end);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			target.writeLong(source.readLong());
+			target.writeLong(source.readLong());
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof Serializer;
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof Serializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return 0;
+		}
+	}
+
 }

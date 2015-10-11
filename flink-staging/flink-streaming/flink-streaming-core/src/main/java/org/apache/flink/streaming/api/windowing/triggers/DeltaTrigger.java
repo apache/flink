@@ -17,8 +17,11 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
+import java.io.Serializable;
 
 /**
  * A {@link Trigger} that fires based on a {@link DeltaFunction} and a threshold.
@@ -30,12 +33,11 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
+public class DeltaTrigger<T extends Serializable, W extends Window> implements Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
-	DeltaFunction<T> deltaFunction;
-	private double threshold;
-	private transient T lastElement;
+	private final DeltaFunction<T> deltaFunction;
+	private final double threshold;
 
 	private DeltaTrigger(double threshold, DeltaFunction<T> deltaFunction) {
 		this.deltaFunction = deltaFunction;
@@ -43,13 +45,14 @@ public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
-	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) {
-		if (lastElement == null) {
-			lastElement = element;
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
+		OperatorState<T> lastElementState = ctx.getKeyValueState("last-element", null);
+		if (lastElementState.value() == null) {
+			lastElementState.update(element);
 			return TriggerResult.CONTINUE;
 		}
-		if (deltaFunction.getDelta(lastElement, element) > this.threshold) {
-			lastElement = element;
+		if (deltaFunction.getDelta(lastElementState.value(), element) > this.threshold) {
+			lastElementState.update(element);
 			return TriggerResult.FIRE;
 		}
 		return TriggerResult.CONTINUE;
@@ -58,11 +61,6 @@ public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 	@Override
 	public TriggerResult onTime(long time, TriggerContext ctx) {
 		return null;
-	}
-
-	@Override
-	public Trigger<T, W> duplicate() {
-		return new DeltaTrigger<>(threshold, deltaFunction);
 	}
 
 	@Override
@@ -78,9 +76,8 @@ public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 	 *
 	 * @param <T> The type of elements on which this trigger can operate.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
-	 * @return
 	 */
-	public static <T, W extends Window> DeltaTrigger<T, W> of(double threshold, DeltaFunction<T> deltaFunction) {
+	public static <T extends Serializable, W extends Window> DeltaTrigger<T, W> of(double threshold, DeltaFunction<T> deltaFunction) {
 		return new DeltaTrigger<>(threshold, deltaFunction);
 	}
 }

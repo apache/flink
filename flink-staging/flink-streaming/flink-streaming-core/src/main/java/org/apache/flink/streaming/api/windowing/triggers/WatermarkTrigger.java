@@ -28,27 +28,17 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 public class WatermarkTrigger implements Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	boolean isFirst = true;
-
 	private WatermarkTrigger() {}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) {
-		if (isFirst) {
-			ctx.registerWatermarkTimer(window.maxTimestamp());
-			isFirst = false;
-		}
+	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
+		ctx.registerWatermarkTimer(window.maxTimestamp());
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
 	public TriggerResult onTime(long time, TriggerContext ctx) {
 		return TriggerResult.FIRE_AND_PURGE;
-	}
-
-	@Override
-	public Trigger<Object, TimeWindow> duplicate() {
-		return new WatermarkTrigger();
 	}
 
 	@Override

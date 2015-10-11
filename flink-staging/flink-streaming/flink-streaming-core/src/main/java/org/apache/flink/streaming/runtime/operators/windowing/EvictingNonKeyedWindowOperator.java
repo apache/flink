@@ -18,17 +18,14 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.EvictingWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuffer;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static java.util.Objects.requireNonNull;
 
@@ -45,51 +42,35 @@ public class EvictingNonKeyedWindowOperator<IN, OUT, W extends Window> extends N
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(EvictingNonKeyedWindowOperator.class);
-
 	private final Evictor<? super IN, ? super W> evictor;
 
 	public EvictingNonKeyedWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
+			TypeSerializer<W> windowSerializer,
 			WindowBufferFactory<? super IN, ? extends EvictingWindowBuffer<IN>> windowBufferFactory,
 			AllWindowFunction<IN, OUT, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor) {
-		super(windowAssigner, windowBufferFactory, windowFunction, trigger);
+		super(windowAssigner, windowSerializer, windowBufferFactory, windowFunction, trigger);
 		this.evictor = requireNonNull(evictor);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked, rawtypes")
-	protected void emitWindow(W window, boolean purge) throws Exception {
-
-		timestampedCollector.setTimestamp(window.getEnd());
-
-		Tuple2<WindowBuffer<IN>, TriggerContext> bufferAndTrigger;
-		if (purge) {
-			bufferAndTrigger = windows.remove(window);
-		} else {
-			bufferAndTrigger = windows.get(window);
-		}
-
-		if (bufferAndTrigger == null) {
-			LOG.debug("Window {} already gone.", window);
-			return;
-		}
-
-
-		EvictingWindowBuffer<IN> windowBuffer = (EvictingWindowBuffer<IN>) bufferAndTrigger.f0;
+	protected void emitWindow(Context context) throws Exception {
+		timestampedCollector.setTimestamp(context.window.maxTimestamp());
+		EvictingWindowBuffer<IN> windowBuffer = (EvictingWindowBuffer<IN>) context.windowBuffer;
 
 		int toEvict = 0;
 		if (windowBuffer.size() > 0) {
 			// need some type trickery here...
-			toEvict = evictor.evict((Iterable) windowBuffer.getElements(), windowBuffer.size(), window);
+			toEvict = evictor.evict((Iterable) windowBuffer.getElements(), windowBuffer.size(), context.window);
 		}
 
 		windowBuffer.removeElements(toEvict);
 
 		userFunction.apply(
-				window,
-				bufferAndTrigger.f0.getUnpackedElements(),
+				context.window,
+				context.windowBuffer.getUnpackedElements(),
 				timestampedCollector);
 	}
 

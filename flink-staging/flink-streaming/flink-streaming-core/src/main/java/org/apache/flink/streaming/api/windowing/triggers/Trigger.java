@@ -17,7 +17,9 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
 import java.io.Serializable;
 
 /**
@@ -30,6 +32,11 @@ import java.io.Serializable;
  * be in multiple panes of it was assigned to multiple windows by the
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
  * have their own instance of the {@code Trigger}.
+ *
+ * <p>
+ * Triggers must not maintain state internally since they can be re-created or reused for
+ * different keys. All necessary state should be persisted using the state abstraction
+ * available on the {@link org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext}.
  *
  * @param <T> The type of elements on which this {@code Trigger} works.
  * @param <W> The type of {@link Window Windows} on which this {@code Trigger} can operate.
@@ -45,7 +52,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param window The window to which this pane belongs.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx);
+	TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Called when a timer that was set using the trigger context fires.
@@ -53,13 +60,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onTime(long time, TriggerContext ctx);
-
-	/**
-	 * Creates a duplicate of the {@code Trigger} without the state of the original {@code Trigger}.
-	 * @return The duplicate {@code Trigger} object.
-	 */
-	Trigger<T, W> duplicate();
+	TriggerResult onTime(long time, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Result type for trigger methods. This determines what happens which the window.
@@ -75,7 +76,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 
 	/**
 	 * A context object that is given to {@code Trigger} methods to allow them to register timer
-	 * callbacks.
+	 * callbacks and deal with state.
 	 */
 	interface TriggerContext {
 
@@ -96,5 +97,15 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		 * @param time The watermark at which to invoke {@link #onTime(long, TriggerContext)}
 		 */
 		void registerWatermarkTimer(long time);
+
+		/**
+		 * Retrieves an {@link OperatorState} object that can be used to interact with
+		 * fault-tolerant state that is scoped to the window and key of the current
+		 * trigger invocation.
+		 *
+		 * @param name A unique key for the state.
+		 * @param defaultState The default value of the state.
+		 */
+		<S extends Serializable> OperatorState<S> getKeyValueState(final String name, final S defaultState);
 	}
 }

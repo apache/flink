@@ -17,7 +17,10 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
+import java.io.IOException;
 
 /**
  * A {@link Trigger} that fires once the count of elements in a pane reaches the given count.
@@ -27,19 +30,19 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
-	private long maxCount;
-	private long count;
+	private final long maxCount;
 
 	private CountTrigger(long maxCount) {
 		this.maxCount = maxCount;
-		count = 0;
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) {
-		count++;
-		if (count >= maxCount) {
-			count = 0;
+	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws IOException {
+		OperatorState<Long> count = ctx.getKeyValueState("count", 0L);
+		long currentCount = count.value() + 1;
+		count.update(currentCount);
+		if (currentCount >= maxCount) {
+			count.update(0L);
 			return TriggerResult.FIRE;
 		}
 		return TriggerResult.CONTINUE;
@@ -48,11 +51,6 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	@Override
 	public TriggerResult onTime(long time, TriggerContext ctx) {
 		return null;
-	}
-
-	@Override
-	public Trigger<Object, W> duplicate() {
-		return new CountTrigger<>(maxCount);
 	}
 
 	@Override

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -97,8 +98,7 @@ public class SessionWindowing {
 
 		private static final long serialVersionUID = 1L;
 
-		private volatile Long lastSeenEvent = 1L;
-		private Long sessionTimeout;
+		private final Long sessionTimeout;
 
 		public SessionTrigger(Long sessionTimeout) {
 			this.sessionTimeout = sessionTimeout;
@@ -106,13 +106,17 @@ public class SessionWindowing {
 		}
 
 		@Override
-		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) {
-			Long timeSinceLastEvent = timestamp - lastSeenEvent;
+		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) throws Exception {
+
+			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
+			Long lastSeen = lastSeenState.value();
+
+			Long timeSinceLastEvent = timestamp - lastSeen;
 
 			// Update the last seen event time
-			lastSeenEvent = timestamp;
+			lastSeenState.update(timestamp);
 
-			ctx.registerWatermarkTimer(lastSeenEvent + sessionTimeout);
+			ctx.registerWatermarkTimer(lastSeen + sessionTimeout);
 
 			if (timeSinceLastEvent > sessionTimeout) {
 				return TriggerResult.FIRE_AND_PURGE;
@@ -122,16 +126,14 @@ public class SessionWindowing {
 		}
 
 		@Override
-		public TriggerResult onTime(long time, TriggerContext ctx) {
-			if (time - lastSeenEvent >= sessionTimeout) {
+		public TriggerResult onTime(long time, TriggerContext ctx) throws Exception {
+			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
+			Long lastSeen = lastSeenState.value();
+
+			if (time - lastSeen >= sessionTimeout) {
 				return TriggerResult.FIRE_AND_PURGE;
 			}
 			return TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public SessionTrigger duplicate() {
-			return new SessionTrigger(sessionTimeout);
 		}
 	}
 

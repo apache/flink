@@ -17,8 +17,10 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import jdk.nashorn.internal.objects.Global;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -54,7 +56,9 @@ public class EvictingWindowOperatorTest {
 
 		EvictingWindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingWindowOperator<>(
 				GlobalWindows.create(),
+				new GlobalWindow.Serializer(),
 				new TupleKeySelector(),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				new HeapWindowBuffer.Factory<Tuple2<String, Integer>>(),
 				new ReduceWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(new SumReducer(closeCalled)),
 				CountTrigger.of(WINDOW_SLIDE),

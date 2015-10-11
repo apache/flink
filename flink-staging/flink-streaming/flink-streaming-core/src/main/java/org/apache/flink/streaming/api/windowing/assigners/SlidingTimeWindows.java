@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
@@ -61,7 +63,7 @@ public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 		for (long start = lastStart;
 			start > timestamp - size;
 			start -= slide) {
-			windows.add(new TimeWindow(start, size));
+			windows.add(new TimeWindow(start, start + size));
 		}
 		return windows;
 	}
@@ -98,5 +100,10 @@ public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	 */
 	public static SlidingTimeWindows of(AbstractTime size, AbstractTime slide) {
 		return new SlidingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
+	}
+
+	@Override
+	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
+		return new TimeWindow.Serializer();
 	}
 }

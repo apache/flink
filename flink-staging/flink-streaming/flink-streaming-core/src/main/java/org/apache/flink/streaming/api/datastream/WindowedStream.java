@@ -158,7 +158,9 @@ public class WindowedStream<T, K, W extends Window> {
 
 		if (evictor != null) {
 			operator = new EvictingWindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					new HeapWindowBuffer.Factory<T>(),
 					new ReduceWindowFunction<K, W, T>(function),
 					trigger,
@@ -170,7 +172,9 @@ public class WindowedStream<T, K, W extends Window> {
 			ReduceFunction<T> functionCopy = (ReduceFunction<T>) SerializationUtils.clone(function);
 
 			operator = new WindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					new PreAggregatingHeapWindowBuffer.Factory<>(functionCopy),
 					new ReduceWindowFunction<K, W, T>(function),
 					trigger).enableSetProcessingTime(setProcessingTime);
@@ -241,6 +245,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * is evaluated, as the function provides no means of pre-aggregation.
 	 *
 	 * @param function The window function.
+	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
@@ -248,7 +253,7 @@ public class WindowedStream<T, K, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 
 		String callLocation = Utils.getCallLocationName();
-		String udfName = "MapWindow at " + callLocation;
+		String udfName = "WindowApply at " + callLocation;
 
 		SingleOutputStreamOperator<R, ?> result = createFastTimeOperatorIfValid(function, resultType, udfName);
 		if (result != null) {
@@ -265,7 +270,9 @@ public class WindowedStream<T, K, W extends Window> {
 
 		if (evictor != null) {
 			operator = new EvictingWindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					new HeapWindowBuffer.Factory<T>(),
 					function,
 					trigger,
@@ -273,8 +280,82 @@ public class WindowedStream<T, K, W extends Window> {
 
 		} else {
 			operator = new WindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 					new HeapWindowBuffer.Factory<T>(),
+					function,
+					trigger).enableSetProcessingTime(setProcessingTime);
+		}
+
+		return input.transform(opName, resultType, operator);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each
+	 * evaluation of the window for each key individually. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * <p>
+	 * Arriving data is pre-aggregated using the given pre-aggregation reducer.
+	 *
+	 * @param preAggregator The reduce function that is used for pre-aggregation
+	 * @param function The window function.
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+
+	public <R> SingleOutputStreamOperator<R, ?> apply(ReduceFunction<T> preAggregator, WindowFunction<T, R, K, W> function) {
+		TypeInformation<T> inType = input.getType();
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+				function, WindowFunction.class, true, true, inType, null, false);
+
+		return apply(preAggregator, function, resultType);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each
+	 * evaluation of the window for each key individually. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * <p>
+	 * Arriving data is pre-aggregated using the given pre-aggregation reducer.
+	 *
+	 * @param preAggregator The reduce function that is used for pre-aggregation
+	 * @param function The window function.
+	 * @param resultType Type information for the result type of the window function
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> apply(ReduceFunction<T> preAggregator, WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
+		//clean the closures
+		function = input.getExecutionEnvironment().clean(function);
+		preAggregator = input.getExecutionEnvironment().clean(preAggregator);
+
+		String callLocation = Utils.getCallLocationName();
+		String udfName = "WindowApply at " + callLocation;
+
+		String opName = "TriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
+		KeySelector<T, K> keySel = input.getKeySelector();
+
+		OneInputStreamOperator<T, R> operator;
+
+		boolean setProcessingTime = input.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+
+		if (evictor != null) {
+			operator = new EvictingWindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					new HeapWindowBuffer.Factory<T>(),
+					function,
+					trigger,
+					evictor).enableSetProcessingTime(setProcessingTime);
+
+		} else {
+			operator = new WindowOperator<>(windowAssigner,
+					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+					keySel,
+					input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+					new PreAggregatingHeapWindowBuffer.Factory<>(preAggregator),
 					function,
 					trigger).enableSetProcessingTime(setProcessingTime);
 		}

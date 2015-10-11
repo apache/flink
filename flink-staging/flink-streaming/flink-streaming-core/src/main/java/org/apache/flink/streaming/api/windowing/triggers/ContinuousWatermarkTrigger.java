@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -32,22 +33,24 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
-	private long interval;
-
-	private boolean first = true;
+	private final long interval;
 
 	private ContinuousWatermarkTrigger(long interval) {
 		this.interval = interval;
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) {
-		if (first) {
+	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
+
+		OperatorState<Boolean> first = ctx.getKeyValueState("first", true);
+
+		if (first.value()) {
 			long start = timestamp - (timestamp % interval);
 			long nextFireTimestamp = start + interval;
 
 			ctx.registerWatermarkTimer(nextFireTimestamp);
-			first = false;
+
+			first.update(false);
 			return TriggerResult.CONTINUE;
 		}
 		return TriggerResult.CONTINUE;
@@ -57,11 +60,6 @@ public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Obj
 	public TriggerResult onTime(long time, TriggerContext ctx) {
 		ctx.registerWatermarkTimer(time + interval);
 		return TriggerResult.FIRE;
-	}
-
-	@Override
-	public Trigger<Object, W> duplicate() {
-		return new ContinuousWatermarkTrigger<>(interval);
 	}
 
 	@Override
