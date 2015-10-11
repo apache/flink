@@ -202,6 +202,58 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     javaStream.apply(applyFunction, implicitly[TypeInformation[R]])
   }
 
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Arriving data is pre-aggregated using the given pre-aggregation reducer.
+   *
+   * @param preAggregator The reduce function that is used for pre-aggregation
+   * @param function The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def apply[R: TypeInformation: ClassTag](
+      preAggregator: ReduceFunction[T],
+      function: AllWindowFunction[T, R, W]): DataStream[R] = {
+    javaStream.apply(clean(preAggregator), clean(function), implicitly[TypeInformation[R]])
+  }
+
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Arriving data is pre-aggregated using the given pre-aggregation reducer.
+   *
+   * @param preAggregator The reduce function that is used for pre-aggregation
+   * @param function The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def apply[R: TypeInformation: ClassTag](
+      preAggregator: (T, T) => T,
+      function: (W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+    if (function == null) {
+      throw new NullPointerException("Reduce function must not be null.")
+    }
+    if (function == null) {
+      throw new NullPointerException("WindowApply function must not be null.")
+    }
+
+    val cleanReducer = clean(preAggregator)
+    val reducer = new ReduceFunction[T] {
+      def reduce(v1: T, v2: T) = { cleanReducer(v1, v2) }
+    }
+
+    val cleanApply = clean(function)
+    val applyFunction = new AllWindowFunction[T, R, W] {
+      def apply(window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
+        cleanApply(window, elements.asScala, out)
+      }
+    }
+    javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]])
+  }
+
   // ------------------------------------------------------------------------
   //  Aggregations on the keyed windows
   // ------------------------------------------------------------------------

@@ -40,7 +40,7 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
-	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) {
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onElement(element, timestamp, window, ctx);
 		switch (triggerResult) {
 			case FIRE:
@@ -53,7 +53,7 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) {
+	public TriggerResult onTime(long time, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onTime(time, ctx);
 		switch (triggerResult) {
 			case FIRE:
@@ -63,11 +63,6 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 			default:
 				return TriggerResult.CONTINUE;
 		}
-	}
-
-	@Override
-	public Trigger<T, W> duplicate() {
-		return new PurgingTrigger<>(nestedTrigger.duplicate());
 	}
 
 	@Override

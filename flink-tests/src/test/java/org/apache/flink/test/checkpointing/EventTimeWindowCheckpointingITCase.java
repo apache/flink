@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -32,45 +32,30 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichEventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
- * This test uses a custom non-serializable data type to to ensure that state
- * serializability is handled correctly.
+ * This verfies that checkpointing works correctly with event time windows. This is more
+ * strict than {@link WindowCheckpointingITCase} because for event-time the contents
+ * of the emitted windows are deterministic.
  */
 @SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class WindowCheckpointingITCase extends TestLogger {
-
-	private TimeCharacteristic timeCharacteristic;
-
-	public WindowCheckpointingITCase(TimeCharacteristic timeCharacteristic) {
-		this.timeCharacteristic = timeCharacteristic;
-	}
+public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
@@ -99,8 +84,10 @@ public class WindowCheckpointingITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testTumblingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+	public void testTumblingTimeWindow() {
+		final int NUM_ELEMENTS_PER_KEY = 3000;
+		final int WINDOW_SIZE = 100;
+		final int NUM_KEYS = 100;
 		FailingSource.reset();
 		
 		try {
@@ -108,18 +95,17 @@ public class WindowCheckpointingITCase extends TestLogger {
 					"localhost", cluster.getLeaderRPCPort());
 			
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
-			env.getConfig().setAutoWatermarkInterval(10);
+			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
+					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(100, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
+					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -134,18 +120,22 @@ public class WindowCheckpointingITCase extends TestLogger {
 								Tuple tuple,
 								TimeWindow window,
 								Iterable<Tuple2<Long, IntType>> values,
-								Collector<Tuple2<Long, IntType>> out) {
+								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
+							int sum = 0;
+							long key = -1;
+
 							for (Tuple2<Long, IntType> value : values) {
-								assertEquals(value.f0.intValue(), value.f1.value);
-								out.collect(new Tuple2<Long, IntType>(value.f0, new IntType(1)));
+								sum += value.f1.value;
+								key = value.f0;
 							}
+							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 1)).setParallelism(1);
+					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
 
 
 			tryExecute(env, "Tumbling Window Test");
@@ -157,27 +147,29 @@ public class WindowCheckpointingITCase extends TestLogger {
 	}
 
 	@Test
-	public void testSlidingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+	public void testSlidingTimeWindow() {
+		final int NUM_ELEMENTS_PER_KEY = 3000;
+		final int WINDOW_SIZE = 1000;
+		final int WINDOW_SLIDE = 100;
+		final int NUM_KEYS = 100;
 		FailingSource.reset();
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getLeaderRPCPort());
-			
+
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
-			env.getConfig().setAutoWatermarkInterval(10);
+			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
+					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
+					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -192,18 +184,22 @@ public class WindowCheckpointingITCase extends TestLogger {
 								Tuple tuple,
 								TimeWindow window,
 								Iterable<Tuple2<Long, IntType>> values,
-								Collector<Tuple2<Long, IntType>> out) {
+								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
+
+							int sum = 0;
+							long key = -1;
 
 							for (Tuple2<Long, IntType> value : values) {
-								assertEquals(value.f0.intValue(), value.f1.value);
-								out.collect(new Tuple2<Long, IntType>(value.f0, new IntType(1)));
+								sum += value.f1.value;
+								key = value.f0;
 							}
+							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 3)).setParallelism(1);
+					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
 
 
 			tryExecute(env, "Tumbling Window Test");
@@ -215,8 +211,10 @@ public class WindowCheckpointingITCase extends TestLogger {
 	}
 
 	@Test
-	public void testAggregatingTumblingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+	public void testPreAggregatedTumblingTimeWindow() {
+		final int NUM_ELEMENTS_PER_KEY = 3000;
+		final int WINDOW_SIZE = 100;
+		final int NUM_KEYS = 100;
 		FailingSource.reset();
 
 		try {
@@ -224,25 +222,38 @@ public class WindowCheckpointingITCase extends TestLogger {
 					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
-			env.getConfig().setAutoWatermarkInterval(10);
+			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
-					.map(new MapFunction<Tuple2<Long,IntType>, Tuple2<Long,IntType>>() {
-						@Override
-						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
-							value.f1.value = 1;
-							return value;
-						}
-					})
+					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(100, MILLISECONDS))
-					.reduce(new RichReduceFunction<Tuple2<Long, IntType>>() {
+					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
+					.apply(
+							new RichReduceFunction<Tuple2<Long, IntType>>() {
+
+								private boolean open = false;
+
+								@Override
+								public void open(Configuration parameters) {
+									assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
+									open = true;
+								}
+
+								@Override
+								public Tuple2<Long, IntType> reduce(
+										Tuple2<Long, IntType> a,
+										Tuple2<Long, IntType> b) {
+
+									// validate that the function has been opened properly
+									assertTrue(open);
+									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
+								}
+							},
+							new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -253,16 +264,26 @@ public class WindowCheckpointingITCase extends TestLogger {
 						}
 
 						@Override
-						public Tuple2<Long, IntType> reduce(
-								Tuple2<Long, IntType> a,
-								Tuple2<Long, IntType> b) {
+						public void apply(
+								Tuple tuple,
+								TimeWindow window,
+								Iterable<Tuple2<Long, IntType>> values,
+								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
-							return new Tuple2<>(a.f0, new IntType(1));
+
+							int sum = 0;
+							long key = -1;
+
+							for (Tuple2<Long, IntType> value : values) {
+								sum += value.f1.value;
+								key = value.f0;
+							}
+							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 1)).setParallelism(1);
+					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
 
 
 			tryExecute(env, "Tumbling Window Test");
@@ -274,8 +295,11 @@ public class WindowCheckpointingITCase extends TestLogger {
 	}
 
 	@Test
-	public void testAggregatingSlidingProcessingTimeWindow() {
-		final int NUM_ELEMENTS = 3000;
+	public void testPreAggregatedSlidingTimeWindow() {
+		final int NUM_ELEMENTS_PER_KEY = 3000;
+		final int WINDOW_SIZE = 1000;
+		final int WINDOW_SLIDE = 100;
+		final int NUM_KEYS = 100;
 		FailingSource.reset();
 
 		try {
@@ -283,25 +307,38 @@ public class WindowCheckpointingITCase extends TestLogger {
 					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
-			env.getConfig().setAutoWatermarkInterval(10);
+			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
 
 			env
-					.addSource(new FailingSource(NUM_ELEMENTS, NUM_ELEMENTS / 3))
-					.map(new MapFunction<Tuple2<Long,IntType>, Tuple2<Long,IntType>>() {
-						@Override
-						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
-							value.f1.value = 1;
-							return value;
-						}
-					})
+					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.reduce(new RichReduceFunction<Tuple2<Long, IntType>>() {
+					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
+					.apply(
+							new RichReduceFunction<Tuple2<Long, IntType>>() {
+
+								private boolean open = false;
+
+								@Override
+								public void open(Configuration parameters) {
+									assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
+									open = true;
+								}
+
+								@Override
+								public Tuple2<Long, IntType> reduce(
+										Tuple2<Long, IntType> a,
+										Tuple2<Long, IntType> b) {
+
+									// validate that the function has been opened properly
+									assertTrue(open);
+									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
+								}
+							},
+							new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -312,16 +349,26 @@ public class WindowCheckpointingITCase extends TestLogger {
 						}
 
 						@Override
-						public Tuple2<Long, IntType> reduce(
-								Tuple2<Long, IntType> a,
-								Tuple2<Long, IntType> b) {
+						public void apply(
+								Tuple tuple,
+								TimeWindow window,
+								Iterable<Tuple2<Long, IntType>> values,
+								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
-							return new Tuple2<>(a.f0, new IntType(1));
+
+							int sum = 0;
+							long key = -1;
+
+							for (Tuple2<Long, IntType> value : values) {
+								sum += value.f1.value;
+								key = value.f0;
+							}
+							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
 						}
 					})
-					.addSink(new ValidatingSink(NUM_ELEMENTS, 3)).setParallelism(1);
+					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
 
 
 			tryExecute(env, "Tumbling Window Test");
@@ -331,16 +378,18 @@ public class WindowCheckpointingITCase extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
+	private static class FailingSource extends RichEventTimeSourceFunction<Tuple2<Long, IntType>>
 			implements Checkpointed<Integer>, CheckpointNotifier
 	{
 		private static volatile boolean failedBefore = false;
 
+		private final int numKeys;
 		private final int numElementsToEmit;
 		private final int failureAfterNumElements;
 
@@ -348,8 +397,9 @@ public class WindowCheckpointingITCase extends TestLogger {
 		private volatile int numSuccessfulCheckpoints;
 		private volatile boolean running = true;
 
-		private FailingSource(int numElementsToEmit, int failureAfterNumElements) {
-			this.numElementsToEmit = numElementsToEmit;
+		private FailingSource(int numKeys, int numElementsToEmitPerKey, int failureAfterNumElements) {
+			this.numKeys = numKeys;
+			this.numElementsToEmit = numElementsToEmitPerKey;
 			this.failureAfterNumElements = failureAfterNumElements;
 		}
 
@@ -382,10 +432,19 @@ public class WindowCheckpointingITCase extends TestLogger {
 					// the function failed before, or we are in the elements before the failure
 					synchronized (ctx.getCheckpointLock()) {
 						int next = numElementsEmitted++;
-						ctx.collect(new Tuple2<Long, IntType>((long) next, new IntType(next)));
+						for (long i = 0; i < numKeys; i++) {
+							ctx.collectWithTimestamp(new Tuple2<Long, IntType>(i, new IntType(next)), next);
+						}
+						ctx.emitWatermark(new Watermark(next));
 					}
 				}
 				else {
+					// exit at some point so that we don't deadlock
+					if (numElementsEmitted > numElementsToEmit * 5) {
+//						running = false;
+						System.err.println("Succ Checkpoints: " + numSuccessfulCheckpoints + " numElemEmitted: " + numElementsEmitted + "num elements to emit: " + numElementsToEmit);
+					}
+
 					// if our work is done, delay a bit to prevent busy waiting
 					Thread.sleep(1);
 				}
@@ -417,19 +476,17 @@ public class WindowCheckpointingITCase extends TestLogger {
 		}
 	}
 
-	private static class ValidatingSink extends RichSinkFunction<Tuple2<Long, IntType>>
+	private static class ValidatingSink extends RichSinkFunction<Tuple4<Long, Long, Long, IntType>>
 			implements Checkpointed<HashMap<Long, Integer>> {
 
-		private final HashMap<Long, Integer> counts = new HashMap<>();
+		private final HashMap<Long, Integer> windowCounts = new HashMap<>();
 
-		private final int elementCountExpected;
-		private final int countPerElementExpected;
+		private final int numKeys;
+		private final int numWindowsExpected;
 
-		private int aggCount;
-
-		private ValidatingSink(int elementCountExpected, int countPerElementExpected) {
-			this.elementCountExpected = elementCountExpected;
-			this.countPerElementExpected = countPerElementExpected;
+		private ValidatingSink(int numKeys, int numWindowsExpected) {
+			this.numKeys = numKeys;
+			this.numWindowsExpected = numWindowsExpected;
 		}
 
 		@Override
@@ -439,56 +496,73 @@ public class WindowCheckpointingITCase extends TestLogger {
 		}
 
 		@Override
-		public void invoke(Tuple2<Long, IntType> value) throws Exception {
-			Integer curr = counts.get(value.f0);
+		public void close() throws Exception {
+			boolean seenAll = true;
+			if (windowCounts.size() == numKeys) {
+				for (Integer windowCount: windowCounts.values()) {
+					if (windowCount < numWindowsExpected) {
+						seenAll = false;
+						break;
+					}
+				}
+			}
+			assertTrue("The source must see all expected windows.", seenAll);
+		}
+
+		@Override
+		public void invoke(Tuple4<Long, Long, Long, IntType> value) throws Exception {
+
+			// verify the contents of that window, Tuple4.f1 and .f2 are the window start/end
+			// the sum should be "sum (start .. end-1)"
+
+			int expectedSum = 0;
+			for (long i = value.f1; i < value.f2; i++) {
+				// only sum up positive vals, to filter out the negative start of the
+				// first sliding windows
+				if (i > 0) {
+					expectedSum += i;
+				}
+			}
+
+			assertEquals("Window start: " + value.f1 + " end: " + value.f2, expectedSum, value.f3.value);
+
+
+			Integer curr = windowCounts.get(value.f0);
 			if (curr != null) {
-				counts.put(value.f0, curr + value.f1.value);
+				windowCounts.put(value.f0, curr + 1);
 			}
 			else {
-				counts.put(value.f0, value.f1.value);
+				windowCounts.put(value.f0, 1);
 			}
 
-			// check if we have seen all we expect
-			aggCount += value.f1.value;
-			if (aggCount >= elementCountExpected * countPerElementExpected) {
-				// we are done. validate
-				assertEquals(elementCountExpected, counts.size());
-
-				for (Integer i : counts.values()) {
-					assertEquals(countPerElementExpected, i.intValue());
+			boolean seenAll = true;
+			if (windowCounts.size() == numKeys) {
+				for (Integer windowCount: windowCounts.values()) {
+					if (windowCount < numWindowsExpected) {
+						seenAll = false;
+						break;
+					} else if (windowCount > numWindowsExpected) {
+						fail("Window count to high: " + windowCount);
+					}
 				}
 
-				// exit
-				throw new SuccessException();
+				if (seenAll) {
+					// exit
+					throw new SuccessException();
+				}
+
 			}
 		}
 
 		@Override
 		public HashMap<Long, Integer> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return this.counts;
+			return this.windowCounts;
 		}
 
 		@Override
 		public void restoreState(HashMap<Long, Integer> state) {
-			this.counts.putAll(state);
-
-			for (Integer i : state.values()) {
-				this.aggCount += i;
-			}
-
+			this.windowCounts.putAll(state);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Parametrization for testing different time characteristics
-	// ------------------------------------------------------------------------
-
-	@Parameterized.Parameters(name = "TimeCharacteristic = {0}")
-	@SuppressWarnings("unchecked,rawtypes")
-	public static Collection<TimeCharacteristic[]> timeCharacteristic(){
-		return Arrays.asList(new TimeCharacteristic[]{TimeCharacteristic.ProcessingTime},
-				new TimeCharacteristic[]{TimeCharacteristic.IngestionTime}
-		);
 	}
 
 	// ------------------------------------------------------------------------

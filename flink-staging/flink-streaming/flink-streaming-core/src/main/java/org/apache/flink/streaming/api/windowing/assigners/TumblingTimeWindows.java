@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
@@ -53,7 +55,7 @@ public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
 		long start = timestamp - (timestamp % size);
-		return Collections.singletonList(new TimeWindow(start, size));
+		return Collections.singletonList(new TimeWindow(start, start + size));
 	}
 
 	public long getSize() {
@@ -85,4 +87,8 @@ public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 		return new TumblingTimeWindows(size.toMilliseconds());
 	}
 
+	@Override
+	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
+		return new TimeWindow.Serializer();
+	}
 }

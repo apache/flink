@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -80,10 +82,10 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 		public TriggerResult onTime(long time, TriggerContext ctx) {
 			return TriggerResult.CONTINUE;
 		}
+	}
 
-		@Override
-		public Trigger<Object, GlobalWindow> duplicate() {
-			return this;
-		}
+	@Override
+	public TypeSerializer<GlobalWindow> getWindowSerializer(ExecutionConfig executionConfig) {
+		return new GlobalWindow.Serializer();
 	}
 }
