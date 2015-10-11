@@ -25,12 +25,14 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.example.utils.TriangleCountData;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -57,9 +59,9 @@ import java.util.List;
  * grouping on edges on the vertex with the smaller degree.
  */
 
-public class TriangleCounter<K extends Comparable<K>, VV, EV> implements GraphAlgorithm<K, VV, EV, DataSet<Integer>> {
+public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K,K,K>>> {
 	@Override
-	public DataSet<Integer> run(Graph<K, VV, EV> input) throws Exception {
+	public DataSet<Tuple3<K,K,K>> run(Graph<K, VV, EV> input) throws Exception {
 
 		DataSet<Edge<K, EV>> edges = input.getEdges();
 
@@ -73,20 +75,14 @@ public class TriangleCounter<K extends Comparable<K>, VV, EV> implements GraphAl
 		// project edges by vertex id
 		DataSet<Edge<K, NullValue>> edgesById = edgesByDegree.map(new EdgeByIdProjector<K>());
 
-		DataSet<Integer> triangles = edgesByDegree
+		DataSet<Tuple3<K,K,K>> triangles = edgesByDegree
 				// build triads
 				.groupBy(EdgeWithDegrees.V1).sortGroup(EdgeWithDegrees.V2, Order.ASCENDING)
 				.reduceGroup(new TriadBuilder())
 				// filter triads
 				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(0, 1).with(new TriadFilter<K>());
 
-		DataSet<Integer> numberOfTriangles = triangles.reduce(new ReduceFunction<Integer>() {
-			@Override
-			public Integer reduce(Integer first, Integer second) throws Exception {
-				return first + second;
-			}
-		});
-		return numberOfTriangles;
+		return triangles;
 	}
 
 	/**
@@ -262,11 +258,11 @@ public class TriangleCounter<K extends Comparable<K>, VV, EV> implements GraphAl
 	/**
 	 * Filters triads (three vertices connected by two edges) without a closing third edge.
 	 */
-	private static final class TriadFilter<K> implements JoinFunction<Triad, Edge<K,NullValue>, Integer> {
+	private static final class TriadFilter<K> implements JoinFunction<Triad<K>, Edge<K,NullValue>, Tuple3<K,K,K>> {
 
 		@Override
-		public Integer join(Triad triad, Edge<K, NullValue> edge) throws Exception {
-			return 1;
+		public Tuple3<K,K,K> join(Triad<K> triad, Edge<K, NullValue> edge) throws Exception {
+			return new Tuple3<>(triad.getFirstVertex(), triad.getSecondVertex(), triad.getThirdVertex());
 		}
 	}
 
@@ -323,6 +319,18 @@ public class TriangleCounter<K extends Comparable<K>, VV, EV> implements GraphAl
 		public static final int V1 = 0;
 		public static final int V2 = 1;
 		public static final int V3 = 2;
+
+		public K getFirstVertex() {
+			return this.getField(V1);
+		}
+
+		public K getSecondVertex() {
+			return this.getField(V2);
+		}
+
+		public K getThirdVertex() {
+			return this.getField(V3);
+		}
 
 		public void setFirstVertex(final K vertex1) {
 			this.setField(vertex1, V1);

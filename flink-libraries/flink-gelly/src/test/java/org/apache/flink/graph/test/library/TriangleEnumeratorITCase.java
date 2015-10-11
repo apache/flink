@@ -19,9 +19,10 @@
 package org.apache.flink.graph.test.library;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.example.utils.TriangleCountData;
-import org.apache.flink.graph.library.GSATriangleCount;
+import org.apache.flink.graph.library.TriangleEnumerator;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
 import org.junit.Assert;
@@ -32,25 +33,26 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class TriangleCountITCase extends MultipleProgramsTestBase {
+public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
 
-	private String expectedResult;
-
-	public TriangleCountITCase(TestExecutionMode mode) {
+	public TriangleEnumeratorITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
 	@Test
-	public void testGSATriangleCount() throws Exception {
+	public void testTriangleEnumerator() throws Exception	{
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
 				env).getUndirected();
 
-		List<Integer> numberOfTriangles = graph.run(new GSATriangleCount<Long, NullValue, NullValue>()).collect();
-		expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
+		List<Tuple3<Long,Long,Long>> actualOutput = graph.run(new TriangleEnumerator<Long, NullValue, NullValue>()).collect();
+		List<Tuple3<Long,Long,Long>>  expectedResult = TriangleCountData.getListOfTriangles();
 
-		Assert.assertEquals(numberOfTriangles.get(0).intValue(), Integer.parseInt(expectedResult));
+		Assert.assertEquals(actualOutput.size(), expectedResult.size());
+		for(Tuple3<Long,Long,Long> resultTriangle:actualOutput)	{
+			Assert.assertTrue(expectedResult.indexOf(resultTriangle)>=0);
+		}
 	}
 }
