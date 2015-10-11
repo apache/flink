@@ -32,10 +32,15 @@ import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
@@ -135,6 +140,27 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 */
 	public WindowedStream<T, KEY, TimeWindow> timeWindow(AbstractTime size, AbstractTime slide) {
 		return window(SlidingTimeWindows.of(size, slide));
+	}
+
+	/**
+	 * Windows this {@code KeyedStream} into tumbling count windows.
+	 *
+	 * @param size The size of the windows in number of elements.
+	 */
+	public WindowedStream<T, KEY, GlobalWindow> countWindow(long size) {
+		return window(GlobalWindows.create()).trigger(PurgingTrigger.of(CountTrigger.of(size)));
+	}
+
+	/**
+	 * Windows this {@code KeyedStream} into sliding count windows.
+	 *
+	 * @param size The size of the windows in number of elements.
+	 * @param slide The slide interval in number of elements.
+	 */
+	public WindowedStream<T, KEY, GlobalWindow> countWindow(long size, long slide) {
+		return window(GlobalWindows.create())
+				.evictor(CountEvictor.of(size))
+				.trigger(CountTrigger.of(slide));
 	}
 
 	/**

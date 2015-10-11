@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.functions.{AscendingTimestampExtractor, Ti
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.AbstractTime
-import org.apache.flink.streaming.api.windowing.windows.{TimeWindow, Window}
+import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
 import org.apache.flink.util.Collector
 
@@ -607,6 +607,25 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def timeWindowAll(size: AbstractTime, slide: AbstractTime): AllWindowedStream[T, TimeWindow] = {
     val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
     windowAll(assigner)
+  }
+
+  /**
+   * Windows this [[DataStream]] into sliding count windows.
+   *
+   * @param size The size of the windows in number of elements.
+   * @param slide The slide interval in number of elements.
+   */
+  def countWindowAll(size: Long, slide: Long): AllWindowedStream[T, GlobalWindow] = {
+    new AllWindowedStream(javaStream.countWindowAll(size, slide))
+  }
+
+  /**
+   * Windows this [[DataStream]] into tumbling count windows.
+   *
+   * @param size The size of the windows in number of elements.
+   */
+  def countWindowAll(size: Long): AllWindowedStream[T, GlobalWindow] = {
+    new AllWindowedStream(javaStream.countWindowAll(size))
   }
 
   /**

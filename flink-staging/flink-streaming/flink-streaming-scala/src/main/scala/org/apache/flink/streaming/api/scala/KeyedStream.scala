@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.AbstractTime
-import org.apache.flink.streaming.api.windowing.windows.{Window, TimeWindow}
+import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, Window, TimeWindow}
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.FoldFunction
@@ -41,7 +41,6 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   /**
    * Windows this [[KeyedStream]] into tumbling time windows.
    *
-   * <p>
    * This is a shortcut for either `.window(TumblingTimeWindows.of(size))` or
    * `.window(TumblingProcessingTimeWindows.of(size))` depending on the time characteristic
    * set using
@@ -55,9 +54,27 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   }
 
   /**
+   * Windows this [[KeyedStream]] into sliding count windows.
+   *
+   * @param size The size of the windows in number of elements.
+   * @param slide The slide interval in number of elements.
+   */
+  def countWindow(size: Long, slide: Long): WindowedStream[T, K, GlobalWindow] = {
+    new WindowedStream(javaStream.countWindow(size, slide))
+  }
+
+  /**
+   * Windows this [[KeyedStream]] into tumbling count windows.
+   *
+   * @param size The size of the windows in number of elements.
+   */
+  def countWindow(size: Long): WindowedStream[T, K, GlobalWindow] = {
+    new WindowedStream(javaStream.countWindow(size))
+  }
+
+  /**
    * Windows this [[KeyedStream]] into sliding time windows.
    *
-   * <p>
    * This is a shortcut for either `.window(SlidingTimeWindows.of(size))` or
    * `.window(SlidingProcessingTimeWindows.of(size))` depending on the time characteristic
    * set using
@@ -75,7 +92,6 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    * over a key grouped stream. Elements are put into windows by a [[WindowAssigner]]. The
    * grouping of elements is done both by key and by window.
    *
-   * <p>
    * A [[org.apache.flink.streaming.api.windowing.triggers.Trigger]] can be defined to specify
    * when windows are evaluated. However, `WindowAssigner` have a default `Trigger`
    * that is used if a `Trigger` is not specified.

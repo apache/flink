@@ -59,10 +59,15 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
@@ -370,7 +375,8 @@ public class DataStream<T> {
 	 * @see KeySelector
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
-		return setConnectionType(new CustomPartitionerWrapper<K, T>(clean(partitioner), clean(keySelector)));
+		return setConnectionType(new CustomPartitionerWrapper<K, T>(clean(partitioner),
+				clean(keySelector)));
 	}
 
 	//	private helper method for custom partitioning
@@ -650,6 +656,26 @@ public class DataStream<T> {
 	 */
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(AbstractTime size, AbstractTime slide) {
 		return windowAll(SlidingTimeWindows.of(size, slide));
+	}
+
+	/**
+	 * Windows this {@code DataStream} into tumbling count windows.
+	 *
+	 * @param size The size of the windows in number of elements.
+	 */
+	public AllWindowedStream<T, GlobalWindow> countWindowAll(long size) {
+		return windowAll(GlobalWindows.create()).trigger(PurgingTrigger.of(CountTrigger.of(size)));
+	}
+
+	/**
+	 * Windows this {@code DataStream} into sliding count windows.
+	 * @param size The size of the windows in number of elements.
+	 * @param slide The slide interval in number of elements.
+	 */
+	public AllWindowedStream<T, GlobalWindow> countWindowAll(long size, long slide) {
+		return windowAll(GlobalWindows.create())
+				.evictor(CountEvictor.of(size))
+				.trigger(CountTrigger.of(slide));
 	}
 
 	/**
