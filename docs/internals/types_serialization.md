@@ -127,7 +127,7 @@ Another common cause are generic methods, which can be fixed as described in the
 Consider the following case below:
 
 {% highlight scala %}
-def[T] selectFirst(input: DataSet[(T, _)]) : DataSet[T] = {
+def selectFirst[T](input: DataSet[(T, _)]) : DataSet[T] = {
   input.map { v => v._1 }
 }
 
@@ -148,7 +148,7 @@ information will then be generated at the sites where the method is invoked, rat
 method is defined.
 
 {% highlight scala %}
-def[T : TypeInformation] selectFirst(input: DataSet[(T, _)]) : DataSet[T] = {
+def selectFirst[T : TypeInformation](input: DataSet[(T, _)]) : DataSet[T] = {
   input.map { v => v._1 }
 }
 {% endhighlight %}
