@@ -36,7 +36,7 @@ Everything from this guide also applies to FlinkML.
 
 ## Pick a Topic
 
-If you are looking for some new ideas you should first look into our [roadmap](vision_roadmap.html#Roadmap), then you should check out the list of [unresolved issues on JIRA](https://issues.apache.org/jira/issues/?jql=component%20%3D%20%22Machine%20Learning%20Library%22%20AND%20project%20%3D%20FLINK%20AND%20resolution%20%3D%20Unresolved%20ORDER%20BY%20priority%20DESC).
+If you are looking for some new ideas you should first look into our [roadmap](https://cwiki.apache.org/confluence/display/FLINK/FlinkML%3A+Vision+and+Roadmap), then you should check out the list of [unresolved issues on JIRA](https://issues.apache.org/jira/issues/?jql=component%20%3D%20%22Machine%20Learning%20Library%22%20AND%20project%20%3D%20FLINK%20AND%20resolution%20%3D%20Unresolved%20ORDER%20BY%20priority%20DESC).
 Once you decide to contribute to one of these issues, you should take ownership of it and track your progress with this issue.
 That way, the other contributors know the state of the different issues and redundant work is avoided.
 
