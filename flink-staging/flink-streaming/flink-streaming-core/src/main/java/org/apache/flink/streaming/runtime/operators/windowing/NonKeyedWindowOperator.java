@@ -46,6 +46,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Window operator for non-keyed windows.
  *
@@ -87,10 +89,10 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		super(windowFunction);
 
-		this.windowAssigner = windowAssigner;
+		this.windowAssigner = requireNonNull(windowAssigner);
 
-		this.windowBufferFactory = windowBufferFactory;
-		this.triggerTemplate = trigger;
+		this.windowBufferFactory = requireNonNull(windowBufferFactory);
+		this.triggerTemplate = requireNonNull(trigger);
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}

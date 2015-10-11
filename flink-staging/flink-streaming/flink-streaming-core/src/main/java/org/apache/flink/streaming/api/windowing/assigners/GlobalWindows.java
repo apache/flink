@@ -29,7 +29,7 @@ import java.util.Collections;
  *
  * <p>
  * Use this if you want to use a {@link Trigger} and
- * {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} to to flexible, policy based
+ * {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} to do flexible, policy based
  * windows.
  */
 public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
@@ -44,7 +44,7 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
 	@Override
 	public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return null;
+		return new NeverTrigger();
 	}
 
 	@Override
@@ -60,5 +60,30 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	 */
 	public static GlobalWindows create() {
 		return new GlobalWindows();
+	}
+
+	/**
+	 * A trigger that never fires, as default Trigger for GlobalWindows.
+	 */
+	private static class NeverTrigger implements Trigger<Object, GlobalWindow> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public TriggerResult onElement(Object element,
+				long timestamp,
+				GlobalWindow window,
+				TriggerContext ctx) {
+				return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public TriggerResult onTime(long time, TriggerContext ctx) {
+			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public Trigger<Object, GlobalWindow> duplicate() {
+			return this;
+		}
 	}
 }

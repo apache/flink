@@ -30,6 +30,8 @@ import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuff
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Evicting window operator for non-keyed windows.
  *
@@ -53,7 +55,7 @@ public class EvictingNonKeyedWindowOperator<IN, OUT, W extends Window> extends N
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor) {
 		super(windowAssigner, windowBufferFactory, windowFunction, trigger);
-		this.evictor = evictor;
+		this.evictor = requireNonNull(evictor);
 	}
 
 	@Override

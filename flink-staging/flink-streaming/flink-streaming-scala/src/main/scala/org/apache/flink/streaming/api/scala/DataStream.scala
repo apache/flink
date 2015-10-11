@@ -587,6 +587,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * set using
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic]].
    *
+   * Note: This operation can be inherently non-parallel since all elements have to pass through
+   * the same operator instance. (Only for special cases, such as aligned time windows is
+   * it possible to perform this operation in parallel).
+   *
    * @param size The size of the window.
    */
   def timeWindowAll(size: AbstractTime): AllWindowedStream[T, TimeWindow] = {
@@ -602,6 +606,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * set using
    * [[StreamExecutionEnvironment.setStreamTimeCharacteristic]].
    *
+   * Note: This operation can be inherently non-parallel since all elements have to pass through
+   * the same operator instance. (Only for special cases, such as aligned time windows is
+   * it possible to perform this operation in parallel).
+   *
    * @param size The size of the window.
    */
   def timeWindowAll(size: AbstractTime, slide: AbstractTime): AllWindowedStream[T, TimeWindow] = {
@@ -612,6 +620,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Windows this [[DataStream]] into sliding count windows.
    *
+   * Note: This operation can be inherently non-parallel since all elements have to pass through
+   * the same operator instance. (Only for special cases, such as aligned time windows is
+   * it possible to perform this operation in parallel).
+   *
    * @param size The size of the windows in number of elements.
    * @param slide The slide interval in number of elements.
    */
@@ -621,6 +633,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
   /**
    * Windows this [[DataStream]] into tumbling count windows.
+   *
+   * Note: This operation can be inherently non-parallel since all elements have to pass through
+   * the same operator instance. (Only for special cases, such as aligned time windows is
+   * it possible to perform this operation in parallel).
    *
    * @param size The size of the windows in number of elements.
    */

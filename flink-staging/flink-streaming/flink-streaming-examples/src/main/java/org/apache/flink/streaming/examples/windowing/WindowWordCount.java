@@ -21,9 +21,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.examples.wordcount.WordCount;
 
 /**
@@ -73,9 +70,7 @@ public class WindowWordCount {
 		text.flatMap(new WordCount.Tokenizer())
 				// create windows of windowSize records slided every slideSize records
 				.keyBy(0)
-				.window(GlobalWindows.create())
-				.evictor(CountEvictor.of(windowSize))
-				.trigger(CountTrigger.of(slideSize))
+				.countWindow(windowSize, slideSize)
 				// group by the tuple field "0" and sum up tuple field "1"
 				.sum(1);
 

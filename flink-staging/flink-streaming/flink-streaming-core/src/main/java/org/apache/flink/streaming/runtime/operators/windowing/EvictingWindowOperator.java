@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A {@link WindowOperator} that also allows an {@link Evictor} to be used.
  *
@@ -60,7 +62,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor) {
 		super(windowAssigner, keySelector, windowBufferFactory, windowFunction, trigger);
-		this.evictor = evictor;
+		this.evictor = requireNonNull(evictor);
 	}
 
 	@Override
