@@ -31,7 +31,7 @@ import org.apache.flink.util.SerializedValue;
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
  * acknowledged by all tasks that need to acknowledge it. Once all tasks have
- * acknowledged it, it becomes a {@link SuccessfulCheckpoint}.
+ * acknowledged it, it becomes a {@link CompletedCheckpoint}.
  * 
  * <p>Note that the pending checkpoint, as well as the successful checkpoint keep the
  * state handles always as serialized values, never as actual values.</p>
@@ -109,13 +109,13 @@ public class PendingCheckpoint {
 		return collectedStates;
 	}
 	
-	public SuccessfulCheckpoint toCompletedCheckpoint() {
+	public CompletedCheckpoint toCompletedCheckpoint() {
 		synchronized (lock) {
 			if (discarded) {
 				throw new IllegalStateException("pending checkpoint is discarded");
 			}
 			if (notYetAcknowledgedTasks.isEmpty()) {
-				SuccessfulCheckpoint completed =  new SuccessfulCheckpoint(jobId, checkpointId,
+				CompletedCheckpoint completed =  new CompletedCheckpoint(jobId, checkpointId,
 						checkpointTimestamp, new ArrayList<StateForTask>(collectedStates));
 				discard(null, false);
 				

@@ -21,8 +21,10 @@ package org.apache.flink.yarn
 import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.StreamingMode
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.testingUtils.TestingJobManagerLike
@@ -60,7 +62,9 @@ class TestingYarnJobManager(
     delayBetweenRetries: Long,
     timeout: FiniteDuration,
     mode: StreamingMode,
-    leaderElectionService: LeaderElectionService)
+    leaderElectionService: LeaderElectionService,
+    submittedJobGraphs : SubmittedJobGraphStore,
+    checkpointRecoveryFactory : CheckpointRecoveryFactory)
   extends YarnJobManager(
     flinkConfiguration,
     executionContext,
@@ -72,7 +76,9 @@ class TestingYarnJobManager(
     delayBetweenRetries,
     timeout,
     mode,
-    leaderElectionService)
+    leaderElectionService,
+    submittedJobGraphs,
+    checkpointRecoveryFactory)
   with TestingJobManagerLike {
 
   override val taskManagerRunnerClass = classOf[TestingYarnTaskManagerRunner]

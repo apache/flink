@@ -32,14 +32,14 @@ import java.io.Serializable;
  * serialization.
  * 
  */
-public abstract class ByteStreamStateHandle implements StateHandle<Serializable> {
+public abstract class ByteStreamStateHandle<T extends Serializable> implements StateHandle<T> {
 
 	private static final long serialVersionUID = -962025800339325828L;
 
-	private transient Serializable state;
+	private transient T state;
 	private boolean isWritten = false;
 
-	public ByteStreamStateHandle(Serializable state) {
+	public ByteStreamStateHandle(T state) {
 		if (state != null) {
 			this.state = state;
 		} else {
@@ -58,13 +58,13 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 	protected abstract InputStream getInputStream() throws Exception;
 
 	@Override
-	public Serializable getState(ClassLoader userCodeClassLoader) throws Exception {
+	@SuppressWarnings("unchecked")
+	public T getState(ClassLoader userCodeClassLoader) throws Exception {
 		if (!stateFetched()) {
-			ObjectInputStream stream = new InstantiationUtil.ClassLoaderObjectInputStream(getInputStream(), userCodeClassLoader);
-			try {
-				state = (Serializable) stream.readObject();
-			} finally {
-				stream.close();
+			try (ObjectInputStream stream = new InstantiationUtil
+					.ClassLoaderObjectInputStream(getInputStream(), userCodeClassLoader)) {
+
+				state = (T) stream.readObject();
 			}
 		}
 		return state;
@@ -72,12 +72,9 @@ public abstract class ByteStreamStateHandle implements StateHandle<Serializable>
 
 	private void writeObject(ObjectOutputStream oos) throws Exception {
 		if (!isWritten) {
-			ObjectOutputStream stream = new ObjectOutputStream(getOutputStream());
-			try {
+			try (ObjectOutputStream stream = new ObjectOutputStream(getOutputStream())) {
 				stream.writeObject(state);
 				isWritten = true;
-			} finally {
-				stream.close();
 			}
 		}
 		oos.defaultWriteObject();

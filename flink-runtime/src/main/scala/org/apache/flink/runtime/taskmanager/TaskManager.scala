@@ -1117,7 +1117,12 @@ class TaskManager(
 
     currentJobManager match {
       case Some(jm) =>
-        handleJobManagerDisconnect(jm, s"JobManager ${newJobManagerAkkaURL} was elected as leader.")
+        Option(newJobManagerAkkaURL) match {
+          case Some(newJMAkkaURL) =>
+            handleJobManagerDisconnect(jm, s"JobManager ${newJMAkkaURL} was elected as leader.")
+          case None =>
+            handleJobManagerDisconnect(jm, s"Old JobManager lost its leadership.")
+        }
       case None =>
     }
 

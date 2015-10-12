@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -46,7 +44,6 @@ public class PartialConsumePipelinedResultTest {
 	private final static int NUMBER_OF_NETWORK_BUFFERS = 128;
 
 	private static TestingCluster flink;
-	private static ActorSystem jobClient;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -59,8 +56,6 @@ public class PartialConsumePipelinedResultTest {
 		flink = new TestingCluster(config, true);
 
 		flink.start();
-
-		jobClient = JobClient.startJobClientActorSystem(flink.configuration());
 	}
 
 	@AfterClass
@@ -102,13 +97,7 @@ public class PartialConsumePipelinedResultTest {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		JobClient.submitJobAndWait(
-				jobClient,
-				flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
-				jobGraph,
-				TestingUtils.TESTING_DURATION(),
-				false,
-				this.getClass().getClassLoader());
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	// ---------------------------------------------------------------------------------------------

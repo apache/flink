@@ -26,10 +26,10 @@ import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CurrentJobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.JobNotFound;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.types.IntValue;
 import org.junit.Test;
 import scala.concurrent.Await;
@@ -48,7 +49,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import static org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus;
-import static org.junit.Assert.fail;
 
 public class TaskCancelTest {
 
@@ -109,30 +109,21 @@ public class TaskCancelTest {
 
 			// Wait for the job to make some progress and then cancel
 			awaitRunning(
-				flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
-				jobGraph.getJobID(),
-				TestingUtils.TESTING_DURATION());
+					flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
+					jobGraph.getJobID(),
+					TestingUtils.TESTING_DURATION());
 
 			Thread.sleep(5000);
 
 			cancelJob(
-				flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
-				jobGraph.getJobID(),
-				TestingUtils.TESTING_DURATION());
+					flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
+					jobGraph.getJobID(),
+					TestingUtils.TESTING_DURATION());
 
 			// Wait for the job to be cancelled
-			JobStatus status = awaitTermination(
-				flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
-				jobGraph.getJobID(),
-				TestingUtils.TESTING_DURATION());
-
-			if (status == JobStatus.CANCELED) {
-				// Expected :-) All is swell.
-			}
-			else {
-				fail("The job finished with unexpected terminal state " + status + ". "
-						+ "This indicates that there is a bug in the task cancellation.");
-			}
+			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.CANCELED,
+					flink.getLeaderGateway(TestingUtils.TESTING_DURATION()),
+					TestingUtils.TESTING_DURATION());
 		}
 		finally {
 			if (flink != null) {
@@ -222,42 +213,6 @@ public class TaskCancelTest {
 			}
 		}
 
-	}
-
-	private JobStatus awaitTermination(ActorGateway jobManager, JobID jobId, FiniteDuration timeout)
-			throws Exception {
-
-		checkNotNull(jobManager);
-		checkNotNull(jobId);
-		checkNotNull(timeout);
-
-		while (true) {
-			Future<Object> ask = jobManager.ask(
-					new RequestJobStatus(jobId),
-					timeout);
-
-			Object result = Await.result(ask, timeout);
-
-			if (result instanceof CurrentJobStatus) {
-				// Success
-				CurrentJobStatus status = (CurrentJobStatus) result;
-
-				if (!status.jobID().equals(jobId)) {
-					throw new Exception("JobManager responded for wrong job ID. Request: "
-							+ jobId + ", response: " + status.jobID() + ".");
-				}
-
-				if (status.status().isTerminalState()) {
-					return status.status();
-				}
-			}
-			else if (result instanceof JobNotFound) {
-				throw new Exception("Cannot find job with ID " + jobId + ".");
-			}
-			else {
-				throw new Exception("Unexpected response to cancel request: " + result);
-			}
-		}
 	}
 
 	// ---------------------------------------------------------------------------------------------

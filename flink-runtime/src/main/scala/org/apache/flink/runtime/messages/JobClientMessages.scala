@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.messages
 
+import java.util.UUID
+
+import akka.actor.ActorRef
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.runtime.util.SerializedThrowable
 
 /**
  * This object contains the [[org.apache.flink.runtime.client.JobClient]] specific messages
@@ -47,4 +49,26 @@ object JobClientMessages {
    * @param jobGraph The job to be executed.
    */
   case class SubmitJobDetached(jobGraph: JobGraph)
+
+  /** Notifies the JobClientActor about a new leader address and a leader session ID.
+    *
+    * @param address New leader address
+    * @param leaderSessionID New leader session ID
+    */
+  case class JobManagerLeaderAddress(address: String, leaderSessionID: UUID)
+
+  /** Notifies the JobClientActor about the ActorRef of the new leader.
+    *
+    * @param jobManager ActorRef of the new leader
+    */
+  case class JobManagerActorRef(jobManager: ActorRef) extends RequiresLeaderSessionID
+
+  /** Message which is triggered when the submission timeout has been reached. */
+  case object SubmissionTimeout extends RequiresLeaderSessionID
+
+  /** Messaeg which is triggered when the connection timeout has been reached. */
+  case object ConnectionTimeout extends RequiresLeaderSessionID
+
+  def getSubmissionTimeout(): AnyRef = SubmissionTimeout
+  def getConnectionTimeout(): AnyRef = ConnectionTimeout
 }

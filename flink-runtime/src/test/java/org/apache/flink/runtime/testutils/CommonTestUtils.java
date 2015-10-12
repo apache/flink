@@ -18,26 +18,17 @@
 
 package org.apache.flink.runtime.testutils;
 
-import static org.junit.Assert.fail;
+import org.apache.flink.runtime.util.FileUtils;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import java.util.UUID;
 
 /**
  * This class contains auxiliary methods for unit tests.
@@ -74,6 +65,18 @@ public class CommonTestUtils {
 	public static String getCurrentClasspath() {
 		RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
 		return bean.getClassPath();
+	}
+
+	/**
+	 * Create a temporary log4j configuration for the test.
+	 */
+	public static File createTemporaryLog4JProperties() throws IOException {
+		File log4jProps = File.createTempFile(FileUtils.getRandomFilename(""), "-log4j" +
+				".properties");
+		log4jProps.deleteOnExit();
+		CommonTestUtils.printLog4jDebugConfig(log4jProps);
+
+		return log4jProps;
 	}
 
 	/**
@@ -150,6 +153,52 @@ public class CommonTestUtils {
 		}
 		finally {
 			fw.close();
+		}
+	}
+
+	public static File createTempDirectory() throws IOException {
+		File tempDir = new File(System.getProperty("java.io.tmpdir"));
+
+		for (int i = 0; i < 10; i++) {
+			File dir = new File(tempDir, UUID.randomUUID().toString());
+			if (!dir.exists() && dir.mkdirs()) {
+				return dir;
+			}
+			System.err.println("Could not use temporary directory " + dir.getAbsolutePath());
+		}
+
+		throw new IOException("Could not create temporary file directory");
+	}
+
+	/**
+	 * Utility class to read the output of a process stream and forward it into a StringWriter.
+	 */
+	public static class PipeForwarder extends Thread {
+
+		private final StringWriter target;
+		private final InputStream source;
+
+		public PipeForwarder(InputStream source, StringWriter target) {
+			super("Pipe Forwarder");
+			setDaemon(true);
+
+			this.source = source;
+			this.target = target;
+
+			start();
+		}
+
+		@Override
+		public void run() {
+			try {
+				int next;
+				while ((next = source.read()) != -1) {
+					target.write(next);
+				}
+			}
+			catch (IOException e) {
+				// terminate
+			}
 		}
 	}
 }
