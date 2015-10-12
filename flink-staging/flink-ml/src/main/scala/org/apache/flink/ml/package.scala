@@ -18,6 +18,7 @@
 
 package org.apache.flink
 
+
 import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.DataSink
@@ -25,6 +26,7 @@ import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
 
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 package object ml {
@@ -70,6 +72,14 @@ package object ml {
       dataSet.map(new BroadcastSingleElementMapperWithIteration[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
+
+    def mapWithBcSet[B, O: TypeInformation: ClassTag](
+        broadcastVariable: DataSet[B])(
+        fun: (T, Seq[B]) => O)
+    : DataSet[O] = {
+      dataSet.map(new BroadcastSetMapper[T, B, O](dataSet.clean(fun)))
+        .withBroadcastSet(broadcastVariable, "broadcastVariable")
+    }
   }
 
   private class BroadcastSingleElementMapper[T, B, O](
@@ -101,7 +111,7 @@ package object ml {
       fun(value, broadcastVariable, getIterationRuntimeContext.getSuperstepNumber)
     }
   }
-
+  
   private class BroadcastSingleElementFilter[T, B](
       fun: (T, B) => Boolean)
     extends RichFilterFunction[T] {
@@ -113,6 +123,23 @@ package object ml {
     }
 
     override def filter(value: T): Boolean = {
+      fun(value, broadcastVariable)
+    }
+  }
+
+  private class BroadcastSetMapper[T, B, O](fun: (T, Seq[B]) => O)
+    extends RichMapFunction[T, O] {
+    var broadcastVariable: Seq[B] = _
+
+    @throws(classOf[Exception])
+    override def open(configuration: Configuration): Unit = {
+      broadcastVariable = getRuntimeContext
+        .getBroadcastVariable[B]("broadcastVariable")
+        .asScala
+        .toSeq
+    }
+
+    override def map(value: T): O = {
       fun(value, broadcastVariable)
     }
   }
