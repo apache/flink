@@ -42,8 +42,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.hash.ReusingHashMatchIteratorITCase.RecordMatch;
-import org.apache.flink.runtime.operators.hash.ReusingHashMatchIteratorITCase.RecordMatchRemovingJoin;
+import org.apache.flink.runtime.operators.hash.ReusingHashMatchIteratorITCase.TupleMatch;
+import org.apache.flink.runtime.operators.hash.ReusingHashMatchIteratorITCase.TupleMatchRemovingJoin;
 import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -203,17 +203,17 @@ public class ReusingReOpenableHashTableITCase {
 	
 	private void doTest(TestData.TupleGeneratorIterator buildInput, TestData.TupleGeneratorIterator probeInput, TestData.TupleGenerator bgen, TestData.TupleGenerator pgen) throws Exception {
 		// collect expected data
-		final Map<Integer, Collection<RecordMatch>> expectedFirstMatchesMap = ReusingHashMatchIteratorITCase.matchRecordValues(ReusingHashMatchIteratorITCase.collectRecordData(buildInput), ReusingHashMatchIteratorITCase.collectRecordData(probeInput));
+		final Map<Integer, Collection<TupleMatch>> expectedFirstMatchesMap = ReusingHashMatchIteratorITCase.matchSecondTupleFields(ReusingHashMatchIteratorITCase.collectTupleData(buildInput), ReusingHashMatchIteratorITCase.collectTupleData(probeInput));
 		
-		final List<Map<Integer, Collection<RecordMatch>>> expectedNMatchesMapList = new ArrayList<>(NUM_PROBES);
-		final FlatJoinFunction[] nMatcher = new RecordMatchRemovingJoin[NUM_PROBES];
+		final List<Map<Integer, Collection<TupleMatch>>> expectedNMatchesMapList = new ArrayList<>(NUM_PROBES);
+		final FlatJoinFunction[] nMatcher = new TupleMatchRemovingJoin[NUM_PROBES];
 		for(int i = 0; i < NUM_PROBES; i++) {
-			Map<Integer, Collection<RecordMatch>> tmp;
+			Map<Integer, Collection<TupleMatch>> tmp;
 			expectedNMatchesMapList.add(tmp = deepCopy(expectedFirstMatchesMap));
-			nMatcher[i] = new RecordMatchRemovingJoin(tmp);
+			nMatcher[i] = new TupleMatchRemovingJoin(tmp);
 		}
 		
-		final FlatJoinFunction firstMatcher = new RecordMatchRemovingJoin(expectedFirstMatchesMap);
+		final FlatJoinFunction firstMatcher = new TupleMatchRemovingJoin(expectedFirstMatchesMap);
 		
 		final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 
@@ -235,7 +235,7 @@ public class ReusingReOpenableHashTableITCase {
 		while (iterator.callWithNextKey(firstMatcher, collector));
 
 		// assert that each expected match was seen for the first input
-		for (Entry<Integer, Collection<RecordMatch>> entry : expectedFirstMatchesMap.entrySet()) {
+		for (Entry<Integer, Collection<TupleMatch>> entry : expectedFirstMatchesMap.entrySet()) {
 			if (!entry.getValue().isEmpty()) {
 				Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 			}
@@ -250,7 +250,7 @@ public class ReusingReOpenableHashTableITCase {
 			while (iterator.callWithNextKey(nMatcher[i], collector));
 			
 			// assert that each expected match was seen for the second input
-			for (Entry<Integer, Collection<RecordMatch>> entry : expectedNMatchesMapList.get(i).entrySet()) {
+			for (Entry<Integer, Collection<TupleMatch>> entry : expectedNMatchesMapList.get(i).entrySet()) {
 				if (!entry.getValue().isEmpty()) {
 					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
 				}
@@ -501,11 +501,11 @@ public class ReusingReOpenableHashTableITCase {
 	}
 	
 	
-	static Map<Integer, Collection<RecordMatch>> deepCopy(Map<Integer, Collection<RecordMatch>> expectedSecondMatchesMap) {
-		Map<Integer, Collection<RecordMatch>> copy = new HashMap<>(expectedSecondMatchesMap.size());
-		for(Map.Entry<Integer, Collection<RecordMatch>> entry : expectedSecondMatchesMap.entrySet()) {
-			List<RecordMatch> matches = new ArrayList<RecordMatch>(entry.getValue().size());
-			for(RecordMatch m : entry.getValue()) {
+	static Map<Integer, Collection<TupleMatch>> deepCopy(Map<Integer, Collection<TupleMatch>> expectedSecondMatchesMap) {
+		Map<Integer, Collection<TupleMatch>> copy = new HashMap<>(expectedSecondMatchesMap.size());
+		for(Map.Entry<Integer, Collection<TupleMatch>> entry : expectedSecondMatchesMap.entrySet()) {
+			List<TupleMatch> matches = new ArrayList<TupleMatch>(entry.getValue().size());
+			for(TupleMatch m : entry.getValue()) {
 				matches.add(m);
 			}
 			copy.put(entry.getKey(), matches);

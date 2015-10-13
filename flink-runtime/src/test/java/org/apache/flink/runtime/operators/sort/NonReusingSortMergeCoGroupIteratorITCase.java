@@ -61,7 +61,7 @@ public class NonReusingSortMergeCoGroupIteratorITCase
 
 	private TupleGenerator generator2;
 
-	// left and right input RecordReader mocks
+	// left and right input TupleReader mocks
 	private MutableObjectIterator<Tuple2<Integer, String>> reader1;
 
 	private MutableObjectIterator<Tuple2<Integer, String>> reader2;

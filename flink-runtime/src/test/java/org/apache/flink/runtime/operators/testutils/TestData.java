@@ -166,7 +166,7 @@ public final class TestData {
 	}
 
 	/**
-	 * Record reader mock.
+	 * Tuple reader mock.
 	 */
 	public static class TupleGeneratorIterator implements MutableObjectIterator<Tuple2<Integer, String>> {
 
