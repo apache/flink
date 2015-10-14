@@ -25,11 +25,11 @@ import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupRawOperator;
-import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
+import org.apache.flink.api.java.operators.CrossOperator.ProjectCross;
 import org.apache.flink.api.java.operators.Grouping;
-import org.apache.flink.api.java.operators.JoinOperator;
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin;
+import org.apache.flink.api.java.operators.JoinOperator.ProjectJoin;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UdfOperator;
@@ -90,7 +90,7 @@ public class PythonPlanBinder {
 
 	private HashMap<Integer, Object> sets = new HashMap();
 	public ExecutionEnvironment env;
-	private org.apache.flink.python.api.streaming.Receiver receiver;
+	private Receiver receiver;
 
 	public static final int MAPPED_FILE_SIZE = 1024 * 1024 * 64;
 
@@ -583,7 +583,7 @@ public class PythonPlanBinder {
 		} else if (info.projections.length == 0) {
 			sets.put(info.setID, defaultResult.name("DefaultCross"));
 		} else {
-			CrossOperator.ProjectCross project = null;
+			ProjectCross project = null;
 			for (ProjectionEntry pe : info.projections) {
 				switch (pe.side) {
 					case FIRST:
@@ -673,11 +673,11 @@ public class PythonPlanBinder {
 			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode).name("PythonJoinPreStep")
 					.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
 		} else {
-			JoinOperator.DefaultJoin defaultResult = createDefaultJoin(op1, op2, info.keys1, info.keys2, mode);
+			DefaultJoin defaultResult = createDefaultJoin(op1, op2, info.keys1, info.keys2, mode);
 			if (info.projections.length == 0) {
 				sets.put(info.setID, defaultResult.name("DefaultJoin"));
 			} else {
-				JoinOperator.ProjectJoin project = null;
+				ProjectJoin project = null;
 				for (ProjectionEntry pe : info.projections) {
 					switch (pe.side) {
 						case FIRST:
