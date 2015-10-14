@@ -145,6 +145,7 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
      */
     def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
       def partitionHelper(box: Seq[Vector], dim: Int): Seq[Vector] = {
+        println("hello")
         if (dim >= width.size) {
           box
         } else {
@@ -162,15 +163,12 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
       partitionHelper(Seq(center), 0)
     }
   }
-
-  val minVecBreeze = minVec.asBreeze
-  val maxVecBreeze = minVec.asBreeze
-
+  
  // val root = new Node( (minVec., maxVec).zipped.map(_ + _).map(x => 0.5 * x),
  //   (maxVec, minVec).zipped.map(_ - _),null)
 
-  val root = new Node( ((minVecBreeze + maxVecBreeze)*0.5).fromBreeze,
-    (minVecBreeze - maxVecBreeze).fromBreeze, null)
+  val root = new Node( ((minVec.asBreeze + maxVec.asBreeze)*0.5).fromBreeze,
+    (maxVec.asBreeze - minVec.asBreeze).fromBreeze, null)
 
     /**
      *   simple printing of tree for testing/debugging

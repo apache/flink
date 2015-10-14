@@ -194,10 +194,6 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
-
-                  ///////////////  NEED TO CHANGE TO VECTOR................
-                  //var MinVecBuff = new ListBuffer[Double]
-                  //var MaxVecBuff = new ListBuffer[Double]
                   var MinArr =  List.range(0,training.values.head.size).toArray
                   var MaxArr =  List.range(0,training.values.head.size).toArray
 

@@ -43,12 +43,6 @@ class KNNITSuite extends FlatSpec with Matchers with FlinkTestBase {
   it should "calculate kNN join correctly" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-     // val myVect = DenseVector(1.0,2.0)
-      //myVect.map(x => x.asInstanceOf[Double]/2)
-
-    //  val myArr = Array(1.0,2.0)
-    //  myArr.map(x => x/2)
-
     // prepare data
     val trainingSet = env.fromCollection(Classification.trainingData).map(_.vector)
     val testingSet = env.fromElements(DenseVector(0.0, 0.0))
