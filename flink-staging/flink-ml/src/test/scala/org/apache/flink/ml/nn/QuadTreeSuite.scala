@@ -37,8 +37,8 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   it should "partition into equal size sub-boxes and search for nearby objects properly" in {
 
-    val minVec = DenseVector(-1.0, -0.5).asInstanceOf[Vector]
-    val maxVec = DenseVector(1.0, 0.5).asInstanceOf[Vector]
+    val minVec = DenseVector(-1.0, -0.5)
+    val maxVec = DenseVector(1.0, 0.5)
     println("hello")
 
     val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric())

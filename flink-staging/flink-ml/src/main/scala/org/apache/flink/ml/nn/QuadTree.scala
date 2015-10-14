@@ -121,17 +121,8 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
 
     def makeChildren() {
       val cPart = partitionBox(center, width)
-/*
-      val mappedWidth = width match {
-        case SparseVector(size, indices, data) =>
-          val newData = data.map(_ / 2.0)
-          SparseVector(size, indices, data)
-        case DenseVector(data) =>
-          val newData = data.map(_ / 2.0)
-          DenseVector(data)
-      }
-*/
-      val mappedWidth = 2.0*width.asBreeze
+
+      val mappedWidth = 0.5*width.asBreeze
       children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
     }
 
@@ -163,7 +154,7 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
       partitionHelper(Seq(center), 0)
     }
   }
-  
+
  // val root = new Node( (minVec., maxVec).zipped.map(_ + _).map(x => 0.5 * x),
  //   (maxVec, minVec).zipped.map(_ - _),null)
 
