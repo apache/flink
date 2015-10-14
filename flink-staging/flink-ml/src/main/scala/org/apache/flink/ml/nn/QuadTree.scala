@@ -19,7 +19,9 @@
 
 package org.apache.flink.ml.nn.util
 
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{Breeze, Vector}
+import Breeze._
+
 import org.apache.flink.ml.metrics.distances.DistanceMetric
 
 import scala.collection.mutable.ListBuffer
@@ -38,10 +40,10 @@ import scala.collection.mutable.PriorityQueue
  * @param minVec
  * @param maxVec
  */
-class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:DistanceMetric){
+class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
   var maxPerBox = 20
 
-  class Node(c:ListBuffer[Double],L:ListBuffer[Double], var children:ListBuffer[Node]) {
+  class Node(center:Vector,width:Vector, var children:Seq[Node]) {
 
     var objects = new ListBuffer[Vector]
 
@@ -49,8 +51,8 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
       *
       * @return
       */
-    def getCenterLength(): (ListBuffer[Double], ListBuffer[Double]) = {
-      (c, L)
+    def getCenterWidth(): (Vector, Vector) = {
+      (center, width)
     }
 
     def contains(obj: Vector): Boolean = {
@@ -66,15 +68,15 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     def overlap(obj: Vector, radius: Double): Boolean = {
       var count = 0
       for (i <- 0 to obj.size - 1) {
-        if (obj(i) - radius < c(i) + L(i) / 2 && obj(i) + radius > c(i) - L(i) / 2) {
+        if (obj(i) - radius < center(i) + width(i) / 2 && obj(i) + radius > center(i) - width(i) / 2) {
           count += 1
         }
       }
 
       if (count == obj.size) {
-        return true
+        true
       } else {
-        return false
+        false
       }
     }
 
@@ -97,75 +99,78 @@ class QuadTree(minVec:ListBuffer[Double], maxVec:ListBuffer[Double],distMetric:D
     def minDist(obj: Vector): Double = {
       var minDist = 0.0
       for (i <- 0 to obj.size - 1) {
-        if (obj(i) < c(i) - L(i) / 2) {
-          minDist += math.pow(obj(i) - c(i) + L(i) / 2, 2)
-        } else if (obj(i) > c(i) + L(i) / 2) {
-          minDist += math.pow(obj(i) - c(i) - L(i) / 2, 2)
+        if (obj(i) < center(i) - width(i) / 2) {
+          minDist += math.pow(obj(i) - center(i) + width(i) / 2, 2)
+        } else if (obj(i) > center(i) + width(i) / 2) {
+          minDist += math.pow(obj(i) - center(i) - width(i) / 2, 2)
         }
       }
-      return minDist
+      minDist
     }
 
-    def whichChild(obj:Vector):Int = {
+    def whichChild(obj: Vector): Int = {
 
       var count = 0
-      for (i <- 0 to obj.size - 1){
-        if (obj(i) > c(i)) {
-          count += Math.pow(2,i).toInt
+      for (i <- 0 to obj.size - 1) {
+        if (obj(i) > center(i)) {
+          count += Math.pow(2, i).toInt
         }
       }
       count
     }
 
     def makeChildren() {
-      var cBuff = new ListBuffer[ListBuffer[Double]]
-      cBuff += c
-      var Childrennodes = new ListBuffer[Node]
-      val cPart = partitionBox(cBuff,L,L.length)
-      for (i <- cPart.indices){
-        Childrennodes = Childrennodes :+ new Node(cPart(i), L.map(x => x/2.0), null)
-
+      val cPart = partitionBox(center, width)
+/*
+      val mappedWidth = width match {
+        case SparseVector(size, indices, data) =>
+          val newData = data.map(_ / 2.0)
+          SparseVector(size, indices, data)
+        case DenseVector(data) =>
+          val newData = data.map(_ / 2.0)
+          DenseVector(data)
       }
-      children = Childrennodes.clone()
+*/
+      val mappedWidth = 2.0*width.asBreeze
+      children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
     }
 
     /**
-      * Recursive function that partitions a n-dim box by taking the (n-1) dimensional
-      * plane through the center of the box keeping the n-th coordinate fixed,
-      *  then shifting it in the n-th direction up and down
-      * and recursively applying partitionBox to the two shifted (n-1) dimensional planes.
+     * Recursive function that partitions a n-dim box by taking the (n-1) dimensional
+     * plane through the center of the box keeping the n-th coordinate fixed,
+     * then shifting it in the n-th direction up and down
+     * and recursively applying partitionBox to the two shifted (n-1) dimensional planes.
      *
-     * @param cPart
-     * @param L
-     * @param dim
      * @return
      */
-    def partitionBox(cPart:ListBuffer[ListBuffer[Double]],L:ListBuffer[Double], dim:Int):
-    ListBuffer[ListBuffer[Double]]=
-    {
-      if (L.length == 1){
+    def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
+      def partitionHelper(box: Seq[Vector], dim: Int): Seq[Vector] = {
+        if (dim >= width.size) {
+          box
+        } else {
+          val newBox = box.flatMap {
+            vector =>
+              val (up, down) = (vector.copy, vector)
+              up.update(dim, up(dim) - width(dim) / 4)
+              down.update(dim, down(dim) + width(dim) / 4)
 
-        var cPartDown = cPart.clone()
-        //// shift center up and down
-        val cPartUp = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
-        cPartDown = cPartDown.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
-
-        return cPartDown ++ cPartUp
+              Seq(up, down)
+          }
+          partitionHelper(newBox, dim + 1)
+        }
       }
-
-      var cPartDown = cPart.clone()
-      //// shift center up and down
-      val cPartUp = cPart.map{v => v.patch(dim-1, Seq(v(dim - 1) + L(dim-1)/4), 1)}
-      cPartDown = cPartDown.map{v => v.patch(dim-1, Seq(v(dim - 1) - L(dim-1)/4), 1)}
-
-      cPart -= cPart.head
-      cPart ++= partitionBox(cPartDown,L.take(dim-1),dim-1)
-      cPart ++= partitionBox(cPartUp,L.take(dim-1),dim-1)
+      partitionHelper(Seq(center), 0)
     }
   }
 
-  val root = new Node( (minVec, maxVec).zipped.map(_ + _).map(x=>0.5*x),
-    (maxVec, minVec).zipped.map(_ - _),null)
+  val minVecBreeze = minVec.asBreeze
+  val maxVecBreeze = minVec.asBreeze
+
+ // val root = new Node( (minVec., maxVec).zipped.map(_ + _).map(x => 0.5 * x),
+ //   (maxVec, minVec).zipped.map(_ - _),null)
+
+  val root = new Node( ((minVecBreeze + maxVecBreeze)*0.5).fromBreeze,
+    (minVecBreeze - maxVecBreeze).fromBreeze, null)
 
     /**
      *   simple printing of tree for testing/debugging

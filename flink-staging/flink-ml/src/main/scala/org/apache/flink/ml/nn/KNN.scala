@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSetUtils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{Breeze,Vector, DenseVector}
 import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric,
 DistanceMetric, EuclideanDistanceMetric}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
@@ -194,8 +194,13 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
-                  var MinVec = new ListBuffer[Double]
-                  var MaxVec = new ListBuffer[Double]
+
+                  ///////////////  NEED TO CHANGE TO VECTOR................
+                  //var MinVecBuff = new ListBuffer[Double]
+                  //var MaxVecBuff = new ListBuffer[Double]
+                  var MinArr = new Array[Double](training.values.head.size)
+                  var MaxArr = new Array[Double](training.values.head.size)
+
                   var trainingFiltered = new ListBuffer[Vector]
 
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
@@ -220,11 +225,11 @@ object KNN {
                     val maxTrain = training.values.map(x => x(i)).max + 0.01
                     val maxTest = testing.values.map(x => x._2(i)).max + 0.01
 
-                    MinVec = MinVec :+ Array(minTrain, minTest).min
-                    MaxVec = MaxVec :+ Array(maxTrain, maxTest).max
+                    MinVecBuff = MinVecBuff :+ Array(minTrain, minTest).min
+                    MaxVecBuff = MaxVecBuff :+ Array(maxTrain, maxTest).max
                   }
 
-                  var trainingQuadTree = new QuadTree(MinVec, MaxVec,metric)
+                  var trainingQuadTree = new QuadTree(MinVecBuff.asInstanceOf[Vector], MaxVecBuff.asInstanceOf[Vector],metric)
 
                   if (trainingQuadTree.maxPerBox < k) {
                       trainingQuadTree.maxPerBox = k

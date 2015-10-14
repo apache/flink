@@ -20,7 +20,8 @@
 import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
 import org.apache.flink.ml.nn.util.QuadTree
 import org.apache.flink.test.util.FlinkTestBase
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math.{Breeze, Vector, DenseVector}
+import Breeze._
 
 import org.scalatest.{Matchers, FlatSpec}
 import scala.collection.mutable.ListBuffer
@@ -36,17 +37,12 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   it should "partition into equal size sub-boxes and search for nearby objects properly" in {
 
-    val minVec = ListBuffer(-1.0, -0.5)
-    val maxVec = ListBuffer(1.0, 0.5)
+    val minVec = DenseVector(-1.0, -0.5).asBreeze
+    val maxVec = DenseVector(1.0, 0.5)
 
-    val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric())
+    val myTree = new QuadTree(minVec.fromBreeze, maxVec, EuclideanDistanceMetric())
     myTree.maxPerBox = 3
 
-    /**
-     * WANT TO MAKE SURE THAT OBJECTS INSERTED ARE IN BOUNDING BOX??
-     * 2 OPTIONS:  RE-BUILD TREE WHEN AN OUTSIDE OBJECT IS ADDED, OR NOT ALLOW OBJECT TO BE ADDED
-     *
-     */
 
     myTree.insert(DenseVector(-0.25, 0.3))
     myTree.insert(DenseVector(-0.20, 0.31))
@@ -81,9 +77,9 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
      * (centers,dimensions) computed from QuadTree.makeChildren
      */
 
-    var computedCentersLength =  Set( ( ListBuffer(0.0,0.0) , ListBuffer(2.0,1.0) ))
+    var computedCentersLength =  Set( ( ListBuffer(0.0,0.0).asInstanceOf[Vector] , ListBuffer(2.0,1.0).asInstanceOf[Vector] ))
     for (child <- myTree.root.children){
-     computedCentersLength += child.getCenterLength()
+     computedCentersLength += child.getCenterWidth()
 
     }
 
