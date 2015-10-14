@@ -198,8 +198,8 @@ object KNN {
                   ///////////////  NEED TO CHANGE TO VECTOR................
                   //var MinVecBuff = new ListBuffer[Double]
                   //var MaxVecBuff = new ListBuffer[Double]
-                  var MinArr = new Array[Double](training.values.head.size)
-                  var MaxArr = new Array[Double](training.values.head.size)
+                  var MinArr =  List.range(0,training.values.head.size).toArray
+                  var MaxArr =  List.range(0,training.values.head.size).toArray
 
                   var trainingFiltered = new ListBuffer[Vector]
 
@@ -218,18 +218,16 @@ object KNN {
                     }
                   }
                     // define a bounding box for the quadtree
-                  for (i <- 0 to training.values.head.size - 1) {
-                    val minTrain = training.values.map(x => x(i)).min - 0.01
-                    val minTest = testing.values.map(x => x._2(i)).min - 0.01
+                  val minVecTrain = MinArr.map(i=>training.values.map(x=>x(i)).min - 0.01)
+                  val minVecTest = MinArr.map(i=>testing.values.map(x => x._2(i)).min - 0.01)
 
-                    val maxTrain = training.values.map(x => x(i)).max + 0.01
-                    val maxTest = testing.values.map(x => x._2(i)).max + 0.01
+                  val maxVecTrain = MaxArr.map(i=>training.values.map(x=>x(i)).min + 0.01)
+                  val maxVecTest = MaxArr.map(i=>testing.values.map(x => x._2(i)).min + 0.01)
 
-                    MinVecBuff = MinVecBuff :+ Array(minTrain, minTest).min
-                    MaxVecBuff = MaxVecBuff :+ Array(maxTrain, maxTest).max
-                  }
+                  val MinVec = DenseVector(MinArr.map(i=>Array(minVecTrain(i),minVecTest(i)).min))
+                  val MaxVec = DenseVector(MinArr.map(i=>Array(maxVecTrain(i),maxVecTest(i)).max))
 
-                  var trainingQuadTree = new QuadTree(MinVecBuff.asInstanceOf[Vector], MaxVecBuff.asInstanceOf[Vector],metric)
+                  var trainingQuadTree = new QuadTree(MinVec, MaxVec,metric)
 
                   if (trainingQuadTree.maxPerBox < k) {
                       trainingQuadTree.maxPerBox = k
