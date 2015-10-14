@@ -90,7 +90,7 @@ under the License.
 	</dependencies>
 
 	<!-- We use the maven-assembly plugin to create a fat jar that contains all dependencies
-		except flink and it's transitive dependencies. The resulting fat-jar can be executed
+		except flink and its transitive dependencies. The resulting fat-jar can be executed
 		on a cluster. Change the value of Program-Class if your program entry point changes. -->
 	<build>
 		<plugins>
