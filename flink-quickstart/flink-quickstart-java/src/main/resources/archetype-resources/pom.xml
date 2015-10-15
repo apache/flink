@@ -118,7 +118,6 @@ under the License.
 									<exclude>org.apache.flink:flink-runtime</exclude>
 									<exclude>org.apache.flink:flink-optimizer</exclude>
 									<exclude>org.apache.flink:flink-clients</exclude>
-									<exclude>org.apache.flink:flink-spargel</exclude>
 									<exclude>org.apache.flink:flink-avro</exclude>
 									<exclude>org.apache.flink:flink-java-examples</exclude>
 									<exclude>org.apache.flink:flink-scala-examples</exclude>
