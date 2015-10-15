@@ -333,7 +333,7 @@ angular.module('flinkApp').service('MainService', ["$http", "flinkConfig", "$q",
   this.loadConfig = function() {
     var deferred;
     deferred = $q.defer();
-    $http.get("/config").success(function(data, status, headers, config) {
+    $http.get("config").success(function(data, status, headers, config) {
       return deferred.resolve(data);
     });
     return deferred.promise;
@@ -356,7 +356,7 @@ angular.module('flinkApp').service('JobManagerConfigService', ["$http", "flinkCo
   this.loadConfig = function() {
     var deferred;
     deferred = $q.defer();
-    $http.get("/jobmanager/config").success(function(data, status, headers, config) {
+    $http.get("jobmanager/config").success(function(data, status, headers, config) {
       config = data;
       return deferred.resolve(data);
     });
@@ -1015,7 +1015,7 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
   this.listJobs = function() {
     var deferred;
     deferred = $q.defer();
-    $http.get("/joboverview").success((function(_this) {
+    $http.get("joboverview").success((function(_this) {
       return function(data, status, headers, config) {
         angular.forEach(data, function(list, listKey) {
           switch (listKey) {
@@ -1044,11 +1044,11 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
   this.loadJob = function(jobid) {
     currentJob = null;
     deferreds.job = $q.defer();
-    $http.get("/jobs/" + jobid).success((function(_this) {
+    $http.get("jobs/" + jobid).success((function(_this) {
       return function(data, status, headers, config) {
         _this.setEndTimes(data.vertices);
         _this.processVertices(data);
-        return $http.get("/jobs/" + jobid + "/config").success(function(jobConfig) {
+        return $http.get("jobs/" + jobid + "/config").success(function(jobConfig) {
           data = angular.extend(data, jobConfig);
           currentJob = data;
           return deferreds.job.resolve(currentJob);
@@ -1104,7 +1104,7 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
       return function(data) {
         var vertex;
         vertex = _this.seekVertex(vertexid);
-        return $http.get("/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes").success(function(data) {
+        return $http.get("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasktimes").success(function(data) {
           vertex.subtasks = data.subtasks;
           return deferred.resolve(vertex);
         });
@@ -1117,7 +1117,7 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
     deferred = $q.defer();
     deferreds.job.promise.then((function(_this) {
       return function(data) {
-        return $http.get("/jobs/" + currentJob.jid + "/vertices/" + vertexid).success(function(data) {
+        return $http.get("jobs/" + currentJob.jid + "/vertices/" + vertexid).success(function(data) {
           var subtasks;
           subtasks = data.subtasks;
           return deferred.resolve(subtasks);
@@ -1131,10 +1131,10 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
     deferred = $q.defer();
     deferreds.job.promise.then((function(_this) {
       return function(data) {
-        return $http.get("/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators").success(function(data) {
+        return $http.get("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/accumulators").success(function(data) {
           var accumulators;
           accumulators = data['user-accumulators'];
-          return $http.get("/jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators").success(function(data) {
+          return $http.get("jobs/" + currentJob.jid + "/vertices/" + vertexid + "/subtasks/accumulators").success(function(data) {
             var subtaskAccumulators;
             subtaskAccumulators = data.subtasks;
             return deferred.resolve({
@@ -1152,7 +1152,7 @@ angular.module('flinkApp').service('JobsService', ["$http", "flinkConfig", "$log
     deferred = $q.defer();
     deferreds.job.promise.then((function(_this) {
       return function(data) {
-        return $http.get("/jobs/" + currentJob.jid + "/exceptions").success(function(exceptions) {
+        return $http.get("jobs/" + currentJob.jid + "/exceptions").success(function(exceptions) {
           currentJob.exceptions = exceptions;
           return deferred.resolve(exceptions);
         });
@@ -1308,7 +1308,7 @@ angular.module('flinkApp').service('TaskManagersService', ["$http", "flinkConfig
   this.loadManagers = function() {
     var deferred;
     deferred = $q.defer();
-    $http.get("/taskmanagers").success(function(data, status, headers, config) {
+    $http.get("taskmanagers").success(function(data, status, headers, config) {
       return deferred.resolve(data['taskmanagers']);
     });
     return deferred.promise;
@@ -1318,7 +1318,7 @@ angular.module('flinkApp').service('TaskManagersService', ["$http", "flinkConfig
   this.loadMetrics = function(taskmanagerid) {
     var deferred;
     deferred = $q.defer();
-    $http.get("/taskmanagers/" + taskmanagerid).success(function(data, status, headers, config) {
+    $http.get("taskmanagers/" + taskmanagerid).success(function(data, status, headers, config) {
       return deferred.resolve(data['taskmanagers']);
     });
     return deferred.promise;
@@ -1356,7 +1356,7 @@ angular.module('flinkApp').service('OverviewService', ["$http", "flinkConfig", "
   this.loadOverview = function() {
     var deferred;
     deferred = $q.defer();
-    $http.get("/overview").success(function(data, status, headers, config) {
+    $http.get("overview").success(function(data, status, headers, config) {
       overview = data;
       return deferred.resolve(data);
     });
