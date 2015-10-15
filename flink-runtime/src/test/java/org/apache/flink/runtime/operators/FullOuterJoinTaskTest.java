@@ -26,7 +26,12 @@ public class FullOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 	
 	
 	public FullOuterJoinTaskTest(ExecutionConfig config) {
-		super(config, DriverStrategy.FULL_OUTER_MERGE);
+		super(config);
+	}
+
+	@Override
+	protected DriverStrategy getSortDriverStrategy() {
+		return DriverStrategy.FULL_OUTER_MERGE;
 	}
 	
 	@Override

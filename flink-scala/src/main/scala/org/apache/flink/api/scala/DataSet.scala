@@ -932,7 +932,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * use. If null is given as the join strategy, then the optimizer will pick the strategy.
    */
   def fullOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
-    new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.FULL_OUTER)
+    strategy match {
+      case JoinHint.OPTIMIZER_CHOOSES |
+           JoinHint.REPARTITION_SORT_MERGE =>
+        new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.FULL_OUTER)
+      case _ =>
+        throw new InvalidProgramException("Invalid JoinHint for FullOuterJoin: " + strategy)
+    }
 
   /**
    * An outer join on the left side.
@@ -960,7 +966,15 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @see #fullOuterJoin
    */
   def leftOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
-    new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.LEFT_OUTER)
+    strategy match {
+      case JoinHint.OPTIMIZER_CHOOSES |
+           JoinHint.REPARTITION_SORT_MERGE |
+           JoinHint.REPARTITION_HASH_SECOND |
+      JoinHint.BROADCAST_HASH_SECOND =>
+        new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.LEFT_OUTER)
+      case _ =>
+        throw new InvalidProgramException("Invalid JoinHint for LeftOuterJoin: " + strategy)
+    }
 
   /**
    * An outer join on the right side.
@@ -988,7 +1002,15 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @see #fullOuterJoin
    */
   def rightOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
-    new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.RIGHT_OUTER)
+    strategy match {
+      case JoinHint.OPTIMIZER_CHOOSES |
+           JoinHint.REPARTITION_SORT_MERGE |
+           JoinHint.REPARTITION_HASH_FIRST |
+      JoinHint.BROADCAST_HASH_FIRST =>
+        new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.RIGHT_OUTER)
+      case _ =>
+        throw new InvalidProgramException("Invalid JoinHint for RightOuterJoin: " + strategy)
+    }
 
   // --------------------------------------------------------------------------------------------
   //  Co-Group

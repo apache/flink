@@ -841,7 +841,16 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSetsBase<T, R> leftOuterJoin(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.LEFT_OUTER);
+		switch(strategy) {
+			case OPTIMIZER_CHOOSES:
+			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_SECOND:
+			case BROADCAST_HASH_SECOND:
+				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.LEFT_OUTER);
+			default:
+				throw new InvalidProgramException("Invalid JoinHint for LeftOuterJoin: "+strategy);
+		}
+
 	}
 
 	/**
@@ -881,7 +890,15 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSetsBase<T, R> rightOuterJoin(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.RIGHT_OUTER);
+		switch(strategy) {
+			case OPTIMIZER_CHOOSES:
+			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
+			case BROADCAST_HASH_FIRST:
+				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.RIGHT_OUTER);
+			default:
+			throw new InvalidProgramException("Invalid JoinHint for RightOuterJoin: "+strategy);
+		}
 	}
 
 	/**
@@ -921,7 +938,13 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public <R> JoinOperatorSetsBase<T, R> fullOuterJoin(DataSet<R> other, JoinHint strategy) {
-		return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.FULL_OUTER);
+		switch(strategy) {
+			case OPTIMIZER_CHOOSES:
+			case REPARTITION_SORT_MERGE:
+				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.FULL_OUTER);
+			default:
+			throw new InvalidProgramException("Invalid JoinHint for FullOuterJoin: "+strategy);
+		}
 	}
 
 

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,9 @@
 
 
 package org.apache.flink.runtime.operators.hash;
+
+import java.io.IOException;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -32,31 +35,34 @@ import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import java.io.IOException;
-import java.util.List;
-
 
 /**
  * An implementation of the {@link org.apache.flink.runtime.operators.util.JoinTaskIterator} that uses a hybrid-hash-join
  * internally to match the records with equal key. The build side of the hash is the second input of the match.  
  */
-public class NonReusingBuildSecondHashMatchIterator<V1, V2, O> extends HashMatchIteratorBase implements JoinTaskIterator<V1, V2, O> {
-
+public class ReusingBuildSecondHashJoinIterator<V1, V2, O> extends HashJoinIteratorBase implements JoinTaskIterator<V1, V2, O> {
+	
 	protected final MutableHashTable<V2, V1> hashJoin;
-
+	
+	private final V2 nextBuildSideObject;
+	
+	private final V2 tempBuildSideRecord;
+	
 	protected final TypeSerializer<V1> probeSideSerializer;
-
+	
 	private final MemoryManager memManager;
-
+	
 	private final MutableObjectIterator<V1> firstInput;
-
+	
 	private final MutableObjectIterator<V2> secondInput;
 
+	private final boolean joinWithEmptyBuildSide;
+	
 	private volatile boolean running = true;
-
+	
 	// --------------------------------------------------------------------------------------------
-
-	public NonReusingBuildSecondHashMatchIterator(
+	
+	public ReusingBuildSecondHashJoinIterator(
 			MutableObjectIterator<V1> firstInput,
 			MutableObjectIterator<V2> secondInput,
 			TypeSerializer<V1> serializer1,
@@ -64,18 +70,28 @@ public class NonReusingBuildSecondHashMatchIterator<V1, V2, O> extends HashMatch
 			TypeSerializer<V2> serializer2,
 			TypeComparator<V2> comparator2,
 			TypePairComparator<V1, V2> pairComparator,
-			MemoryManager memManager, IOManager ioManager,
+			MemoryManager memManager,
+			IOManager ioManager,
 			AbstractInvokable ownerTask,
 			double memoryFraction,
+			boolean joinWithEmptyBuildSide,
 			boolean useBitmapFilters) throws MemoryAllocationException {
 		
 		this.memManager = memManager;
 		this.firstInput = firstInput;
 		this.secondInput = secondInput;
 		this.probeSideSerializer = serializer1;
+
+		if(useBitmapFilters && joinWithEmptyBuildSide) {
+			throw new IllegalArgumentException("Bitmap filter may not be activated for joining with empty build side");
+		}
+		this.joinWithEmptyBuildSide = joinWithEmptyBuildSide;
 		
-		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1,
-				comparator1, pairComparator, memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
+		this.nextBuildSideObject = serializer2.createInstance();
+		this.tempBuildSideRecord = serializer2.createInstance();
+
+		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
+			memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -103,37 +119,37 @@ public class NonReusingBuildSecondHashMatchIterator<V1, V2, O> extends HashMatch
 		{
 			// we have a next record, get the iterators to the probe and build side values
 			final MutableHashTable.HashBucketIterator<V2, V1> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			V2 nextBuildSideRecord;
+			V2 nextBuildSideRecord = this.nextBuildSideObject;
 			
 			// get the first build side value
-			if ((nextBuildSideRecord = buildSideIterator.next()) != null) {
-				V2 tmpRec;
+			if ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null) {
+				V2 tmpRec = this.tempBuildSideRecord;
 				final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
 				
 				// check if there is another build-side value
-				if ((tmpRec = buildSideIterator.next()) != null) {
-					// more than one build-side value --> copy the probe side
-					V1 probeCopy;
-					probeCopy = this.probeSideSerializer.copy(probeRecord);
-
+				if ((tmpRec = buildSideIterator.next(tmpRec)) != null) {
 					// call match on the first pair
-					matchFunction.join(probeCopy, nextBuildSideRecord, collector);
+					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 					
 					// call match on the second pair
-					probeCopy = this.probeSideSerializer.copy(probeRecord);
-					matchFunction.join(probeCopy, tmpRec, collector);
+					matchFunction.join(probeRecord, tmpRec, collector);
 					
-					while (this.running && ((nextBuildSideRecord = buildSideIterator.next()) != null)) {
+					while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
-						probeCopy = this.probeSideSerializer.copy(probeRecord);
-						matchFunction.join(probeCopy, nextBuildSideRecord, collector);
+						matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 					}
 				}
 				else {
 					// only single pair matches
 					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 				}
+			}
+			else if(joinWithEmptyBuildSide) {
+				// build side is empty, join with null
+				final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
+
+				matchFunction.join(probeRecord, null, collector);
 			}
 			return true;
 		}

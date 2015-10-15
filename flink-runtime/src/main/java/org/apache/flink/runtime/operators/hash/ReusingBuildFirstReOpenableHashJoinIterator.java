@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,9 @@
 
 package org.apache.flink.runtime.operators.hash;
 
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -29,38 +32,36 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
 
-import java.io.IOException;
-import java.util.List;
+public class ReusingBuildFirstReOpenableHashJoinIterator<V1, V2, O> extends ReusingBuildFirstHashJoinIterator<V1, V2, O> {
 
-public class NonReusingBuildSecondReOpenableHashMatchIterator<V1, V2, O> extends NonReusingBuildSecondHashMatchIterator<V1, V2, O> {
-
-
-	private final ReOpenableMutableHashTable<V2, V1> reopenHashTable;
-
-	public NonReusingBuildSecondReOpenableHashMatchIterator(
+	
+	private final ReOpenableMutableHashTable<V1, V2> reopenHashTable;
+	
+	public ReusingBuildFirstReOpenableHashJoinIterator(
 			MutableObjectIterator<V1> firstInput,
 			MutableObjectIterator<V2> secondInput,
 			TypeSerializer<V1> serializer1,
 			TypeComparator<V1> comparator1,
 			TypeSerializer<V2> serializer2,
 			TypeComparator<V2> comparator2,
-			TypePairComparator<V1, V2> pairComparator,
+			TypePairComparator<V2, V1> pairComparator,
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
 			double memoryFraction,
-			boolean useBitmapFilters) throws MemoryAllocationException {
-		
+			boolean joinWithEmptyBuildSide,
+			boolean useBitmapFilters)
+		throws MemoryAllocationException
+	{
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
-				comparator2, pairComparator, memManager, ioManager, ownerTask, memoryFraction, useBitmapFilters);
-		
-		reopenHashTable = (ReOpenableMutableHashTable<V2, V1>) hashJoin;
+				comparator2, pairComparator, memManager, ioManager, ownerTask,
+				memoryFraction, joinWithEmptyBuildSide, useBitmapFilters);
+		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
 	}
 
 	@Override
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(
-			TypeSerializer<BT> buildSideSerializer,
-			TypeComparator<BT> buildSideComparator,
+			TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
 			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> pairComparator,
 			MemoryManager memManager, IOManager ioManager,
@@ -75,12 +76,12 @@ public class NonReusingBuildSecondReOpenableHashMatchIterator<V1, V2, O> extends
 				buildSideComparator, probeSideComparator, pairComparator,
 				memorySegments, ioManager, useBitmapFilters);
 	}
-
+	
 	/**
 	 * Set new input for probe side
-	 * @throws java.io.IOException
+	 * @throws IOException 
 	 */
-	public void reopenProbe(MutableObjectIterator<V1> probeInput) throws IOException {
+	public void reopenProbe(MutableObjectIterator<V2> probeInput) throws IOException {
 		reopenHashTable.reopenProbe(probeInput);
 	}
 }

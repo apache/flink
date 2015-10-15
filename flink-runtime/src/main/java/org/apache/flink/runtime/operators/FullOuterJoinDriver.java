@@ -47,10 +47,11 @@ public class FullOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 			TypePairComparatorFactory<IT1, IT2> pairComparatorFactory,
 			MemoryManager memoryManager,
 			IOManager ioManager,
-			int numPages
+			double driverMemFraction
 	) throws Exception {
 		switch (driverStrategy) {
 			case FULL_OUTER_MERGE:
+				int numPages = memoryManager.computeNumberOfPages(driverMemFraction);
 				return new ReusingMergeOuterJoinIterator<>(
 						OuterJoinType.FULL,
 						in1,
@@ -82,10 +83,11 @@ public class FullOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 			TypePairComparatorFactory<IT1, IT2> pairComparatorFactory,
 			MemoryManager memoryManager,
 			IOManager ioManager,
-			int numPages
+			double driverMemFraction
 	) throws Exception {
 		switch (driverStrategy) {
 			case FULL_OUTER_MERGE:
+				int numPages = memoryManager.computeNumberOfPages(driverMemFraction);
 				return new NonReusingMergeOuterJoinIterator<>(
 						OuterJoinType.FULL,
 						in1,

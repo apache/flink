@@ -55,7 +55,7 @@ import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 @SuppressWarnings({"serial", "deprecation"})
-public class NonReusingHashMatchIteratorITCase {
+public class NonReusingHashJoinIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
 
@@ -129,9 +129,9 @@ public class NonReusingHashMatchIteratorITCase {
 			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = matchSecondTupleFields(
-				collectTupleData(input1),
-				collectTupleData(input2));
+			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = joinTuples(
+					collectTupleData(input1),
+					collectTupleData(input2));
 			
 			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<Tuple2<Integer, String>>();
@@ -143,11 +143,11 @@ public class NonReusingHashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			NonReusingBuildFirstHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
-					new NonReusingBuildFirstHashMatchIterator<>(
+			NonReusingBuildFirstHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new NonReusingBuildFirstHashJoinIterator<>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-						this.memoryManager, ioManager, this.parentTask, 1.0, true);
+						this.memoryManager, ioManager, this.parentTask, 1.0, false, true);
 			
 			iterator.open();
 			
@@ -202,9 +202,9 @@ public class NonReusingHashMatchIteratorITCase {
 			
 			
 			// collect expected data
-			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = matchSecondTupleFields(
-				collectTupleData(input1),
-				collectTupleData(input2));
+			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = joinTuples(
+					collectTupleData(input1),
+					collectTupleData(input2));
 			
 			// re-create the whole thing for actual processing
 			
@@ -230,11 +230,11 @@ public class NonReusingHashMatchIteratorITCase {
 			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
-			NonReusingBuildFirstHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
-					new NonReusingBuildFirstHashMatchIterator<>(
+			NonReusingBuildFirstHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new NonReusingBuildFirstHashJoinIterator<>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-						this.memoryManager, ioManager, this.parentTask, 1.0, true);
+						this.memoryManager, ioManager, this.parentTask, 1.0, false, true);
 
 			iterator.open();
 			
@@ -265,9 +265,9 @@ public class NonReusingHashMatchIteratorITCase {
 			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = matchSecondTupleFields(
-				collectTupleData(input1),
-				collectTupleData(input2));
+			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = joinTuples(
+					collectTupleData(input1),
+					collectTupleData(input2));
 			
 			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
@@ -279,11 +279,11 @@ public class NonReusingHashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values			
-			NonReusingBuildSecondHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
-				new NonReusingBuildSecondHashMatchIterator<>(
+			NonReusingBuildSecondHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+				new NonReusingBuildSecondHashJoinIterator<>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, 1.0, true);
+					this.memoryManager, ioManager, this.parentTask, 1.0, false, true);
 
 			iterator.open();
 			
@@ -338,9 +338,9 @@ public class NonReusingHashMatchIteratorITCase {
 			
 			
 			// collect expected data
-			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = matchSecondTupleFields(
-				collectTupleData(input1),
-				collectTupleData(input2));
+			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = joinTuples(
+					collectTupleData(input1),
+					collectTupleData(input2));
 			
 			// re-create the whole thing for actual processing
 			
@@ -366,11 +366,11 @@ public class NonReusingHashMatchIteratorITCase {
 			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 
-			NonReusingBuildSecondHashMatchIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
-				new NonReusingBuildSecondHashMatchIterator<>(
+			NonReusingBuildSecondHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+				new NonReusingBuildSecondHashJoinIterator<>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, 1.0, true);
+					this.memoryManager, ioManager, this.parentTask, 1.0, false, true);
 			
 			iterator.open();
 			
@@ -400,12 +400,12 @@ public class NonReusingHashMatchIteratorITCase {
 			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			final Map<Integer, Collection<TupleIntPairMatch>> expectedMatchesMap = matchTupleIntPairValues(
-				collectIntPairData(input1),
-				collectTupleData(input2));
+			final Map<Integer, Collection<TupleIntPairMatch>> expectedMatchesMap = joinIntPairs(
+					collectIntPairData(input1),
+					collectTupleData(input2));
 			
 			final FlatJoinFunction<IntPair, Tuple2<Integer, String>, Tuple2<Integer, String>> matcher = new TupleIntPairMatchRemovingMatcher(expectedMatchesMap);
-			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<Tuple2<Integer, String>>();
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
 			input1 = new UniformIntPairGenerator(500, 40, false);
@@ -413,11 +413,11 @@ public class NonReusingHashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			NonReusingBuildSecondHashMatchIterator<IntPair, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
-					new NonReusingBuildSecondHashMatchIterator<>(
+			NonReusingBuildSecondHashJoinIterator<IntPair, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new NonReusingBuildSecondHashJoinIterator<>(
 						input1, input2, this.pairSerializer, this.pairComparator,
 						this.recordSerializer, this.record2Comparator, this.pairRecordPairComparator,
-						this.memoryManager, this.ioManager, this.parentTask, 1.0, true);
+						this.memoryManager, this.ioManager, this.parentTask, 1.0, false, true);
 			
 			iterator.open();
 			
@@ -447,9 +447,9 @@ public class NonReusingHashMatchIteratorITCase {
 			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
 			
 			// collect expected data
-			final Map<Integer, Collection<TupleIntPairMatch>> expectedMatchesMap = matchTupleIntPairValues(
-				collectIntPairData(input1),
-				collectTupleData(input2));
+			final Map<Integer, Collection<TupleIntPairMatch>> expectedMatchesMap = joinIntPairs(
+					collectIntPairData(input1),
+					collectTupleData(input2));
 			
 			final FlatJoinFunction<IntPair, Tuple2<Integer, String>, Tuple2<Integer, String>> matcher = new TupleIntPairMatchRemovingMatcher(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
@@ -460,11 +460,11 @@ public class NonReusingHashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			NonReusingBuildFirstHashMatchIterator<IntPair, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
-					new NonReusingBuildFirstHashMatchIterator<>(
+			NonReusingBuildFirstHashJoinIterator<IntPair, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new NonReusingBuildFirstHashJoinIterator<>(
 						input1, input2, this.pairSerializer, this.pairComparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairPairComparator,
-						this.memoryManager, this.ioManager, this.parentTask, 1.0, true);
+						this.memoryManager, this.ioManager, this.parentTask, 1.0, false, true);
 			
 			iterator.open();
 			
@@ -484,6 +484,104 @@ public class NonReusingHashMatchIteratorITCase {
 			Assert.fail("An exception occurred during the test: " + e.getMessage());
 		}
 	}
+
+	@Test
+	public void testBuildFirstJoinWithEmptyBuild() {
+		try {
+			TupleGenerator generator1 = new TupleGenerator(SEED1, 500, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TupleGenerator generator2 = new TupleGenerator(SEED2, 1000, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+
+			final TestData.TupleGeneratorIterator input1 = new TestData.TupleGeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
+
+			// collect expected data
+			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = rightOuterJoinTuples(
+					collectTupleData(input1),
+					collectTupleData(input2));
+
+			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
+
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+			input1.reset();
+			input2.reset();
+
+			// compare with iterator values
+			NonReusingBuildFirstHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new NonReusingBuildFirstHashJoinIterator<>(
+							input1, input2, this.recordSerializer, this.record1Comparator,
+							this.recordSerializer, this.record2Comparator, this.recordPairComparator,
+							this.memoryManager, ioManager, this.parentTask, 1.0, true, false);
+
+			iterator.open();
+
+			while (iterator.callWithNextKey(matcher, collector));
+
+			iterator.close();
+
+			// assert that each expected match was seen
+			for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
+				if (!entry.getValue().isEmpty()) {
+					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+				}
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
+		}
+	}
+
+	@Test
+	public void testBuildSecondJoinWithEmptyBuild() {
+		try {
+			TupleGenerator generator1 = new TupleGenerator(SEED1, 1000, 4096, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+			TupleGenerator generator2 = new TupleGenerator(SEED2, 500, 2048, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+
+			final TestData.TupleGeneratorIterator input1 = new TestData.TupleGeneratorIterator(generator1, INPUT_1_SIZE);
+			final TestData.TupleGeneratorIterator input2 = new TestData.TupleGeneratorIterator(generator2, INPUT_2_SIZE);
+
+			// collect expected data
+			final Map<Integer, Collection<TupleMatch>> expectedMatchesMap = leftOuterJoinTuples(
+					collectTupleData(input1),
+					collectTupleData(input2));
+
+			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
+
+			// reset the generators
+			generator1.reset();
+			generator2.reset();
+			input1.reset();
+			input2.reset();
+
+			// compare with iterator values
+			NonReusingBuildSecondHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
+					new NonReusingBuildSecondHashJoinIterator<>(
+							input1, input2, this.recordSerializer, this.record1Comparator,
+							this.recordSerializer, this.record2Comparator, this.recordPairComparator,
+							this.memoryManager, ioManager, this.parentTask, 1.0, true, false);
+
+			iterator.open();
+
+			while (iterator.callWithNextKey(matcher, collector));
+
+			iterator.close();
+
+			// assert that each expected match was seen
+			for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
+				if (!entry.getValue().isEmpty()) {
+					Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+				}
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("An exception occurred during the test: " + e.getMessage());
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                                    Utilities
@@ -491,7 +589,7 @@ public class NonReusingHashMatchIteratorITCase {
 
 	
 	
-	static Map<Integer, Collection<TupleMatch>> matchSecondTupleFields(
+	public static Map<Integer, Collection<TupleMatch>> joinTuples(
 			Map<Integer, Collection<String>> leftMap,
 			Map<Integer, Collection<String>> rightMap)
 	{
@@ -520,10 +618,72 @@ public class NonReusingHashMatchIteratorITCase {
 
 		return map;
 	}
+
+	public static Map<Integer, Collection<TupleMatch>> leftOuterJoinTuples(
+			Map<Integer, Collection<String>> leftMap,
+			Map<Integer, Collection<String>> rightMap)
+	{
+		Map<Integer, Collection<TupleMatch>> map = new HashMap<>();
+
+		for (Integer key : leftMap.keySet()) {
+			Collection<String> leftValues = leftMap.get(key);
+			Collection<String> rightValues = rightMap.get(key);
+
+			if (!map.containsKey(key)) {
+				map.put(key, new ArrayList<TupleMatch>());
+			}
+
+			Collection<TupleMatch> matchedValues = map.get(key);
+
+			for (String leftValue : leftValues) {
+				if(rightValues != null) {
+					for (String rightValue : rightValues) {
+						matchedValues.add(new TupleMatch(leftValue, rightValue));
+					}
+				}
+				else {
+					matchedValues.add(new TupleMatch(leftValue, null));
+				}
+			}
+		}
+
+		return map;
+	}
+
+	public static Map<Integer, Collection<TupleMatch>> rightOuterJoinTuples(
+			Map<Integer, Collection<String>> leftMap,
+			Map<Integer, Collection<String>> rightMap)
+	{
+		Map<Integer, Collection<TupleMatch>> map = new HashMap<>();
+
+		for (Integer key : rightMap.keySet()) {
+			Collection<String> leftValues = leftMap.get(key);
+			Collection<String> rightValues = rightMap.get(key);
+
+			if (!map.containsKey(key)) {
+				map.put(key, new ArrayList<TupleMatch>());
+			}
+
+			Collection<TupleMatch> matchedValues = map.get(key);
+
+			for (String rightValue : rightValues) {
+				if(leftValues != null) {
+					for (String leftValue : leftValues) {
+						matchedValues.add(new TupleMatch(leftValue, rightValue));
+					}
+				}
+				else {
+					matchedValues.add(new TupleMatch(null, rightValue));
+				}
+			}
+		}
+
+		return map;
+	}
 	
-	static Map<Integer, Collection<TupleIntPairMatch>> matchTupleIntPairValues(
-		Map<Integer, Collection<Integer>> leftMap,
-		Map<Integer, Collection<String>> rightMap)
+	public static Map<Integer, Collection<TupleIntPairMatch>> joinIntPairs(
+			Map<Integer, Collection<Integer>> leftMap,
+			Map<Integer, Collection<String>> rightMap)
 	{
 		final Map<Integer, Collection<TupleIntPairMatch>> map = new HashMap<>();
 	
@@ -553,7 +713,7 @@ public class NonReusingHashMatchIteratorITCase {
 	}
 
 	
-	static Map<Integer, Collection<String>> collectTupleData(MutableObjectIterator<Tuple2<Integer, String>> iter)
+	public static Map<Integer, Collection<String>> collectTupleData(MutableObjectIterator<Tuple2<Integer, String>> iter)
 	throws Exception
 	{
 		Map<Integer, Collection<String>> map = new HashMap<>();
@@ -573,10 +733,10 @@ public class NonReusingHashMatchIteratorITCase {
 		return map;
 	}
 	
-	static Map<Integer, Collection<Integer>> collectIntPairData(MutableObjectIterator<IntPair> iter)
+	public static Map<Integer, Collection<Integer>> collectIntPairData(MutableObjectIterator<IntPair> iter)
 	throws Exception
 	{
-		Map<Integer, Collection<Integer>> map = new HashMap<Integer, Collection<Integer>>();
+		Map<Integer, Collection<Integer>> map = new HashMap<>();
 		IntPair pair = new IntPair();
 		
 		while ((pair = iter.next(pair)) != null) {
@@ -595,9 +755,9 @@ public class NonReusingHashMatchIteratorITCase {
 	}
 
 	/**
-	 * Private class used for storage of the expected matches in a hash-map.
+	 * Class used for storage of the expected matches in a hash-map.
 	 */
-	static class TupleMatch {
+	public static class TupleMatch {
 		
 		private final String left;
 		private final String right;
@@ -610,24 +770,43 @@ public class NonReusingHashMatchIteratorITCase {
 		@Override
 		public boolean equals(Object obj) {
 			TupleMatch o = (TupleMatch) obj;
-			return this.left.equals(o.left) && this.right.equals(o.right);
+
+			if(left != null && o.left != null && right != null && o.right != null) {
+				return this.left.equals(o.left) && this.right.equals(o.right);
+			}
+			else if(left == null && o.left == null) {
+				return this.right.equals(o.right);
+			}
+			else if(right == null && o.right == null) {
+				return this.left.equals(o.left);
+			}
+			else if(left == null && o.left == null && right == null && o.right == null) {
+				return true;
+			}
+			else {
+				return false;
+			}
 		}
 		
 		@Override
 		public int hashCode() {
-			return this.left.hashCode() ^ this.right.hashCode();
+			int hc = this.left != null ? this.left.hashCode() : 23;
+			hc = hc ^ (this.right != null ? this.right.hashCode() : 41);
+			return hc;
 		}
 
 		@Override
 		public String toString() {
-			return left + ", " + right;
+			String s = left == null ? "<null>" : left;
+			s += ", " + right == null ? "<null>" : right;
+			return s;
 		}
 	}
 	
 	/**
 	 * Private class used for storage of the expected matches in a hash-map.
 	 */
-	static class TupleIntPairMatch
+	public static class TupleIntPairMatch
 	{
 		private final int left;
 		private final String right;
@@ -665,9 +844,11 @@ public class NonReusingHashMatchIteratorITCase {
 		@Override
 		public void join(Tuple2<Integer, String> rec1, Tuple2<Integer, String> rec2, Collector<Tuple2<Integer, String>> out) throws Exception
 		{
-			int key = rec1.f0;
-			String value1 = rec1.f1;
-			String value2 = rec2.f1;
+
+			int key = rec1 != null ? rec1.f0 : rec2.f0;
+			String value1 = rec1 != null ? rec1.f1 : null;
+			String value2 = rec2 != null ? rec2.f1 : null;
+
 			//System.err.println("rec1 key = "+key+"  rec2 key= "+rec2.f0);
 			Collection<TupleMatch> matches = this.toRemoveFrom.get(key);
 			if (matches == null) {
