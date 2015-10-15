@@ -25,14 +25,12 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
-import org.apache.flink.graph.example.utils.TriangleCountData;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -42,8 +40,8 @@ import java.util.List;
 
 
 /**
- * This function returns number of triangles present in the input graph.
- * A triangle consists of three edges that connect three vertices with each other.
+ * This function returns Dataset of all triangles present in the input graph.
+ * A triangle consists of three edges that connect three vertices with each other.  Edge directions are ignored here.
  * <p>
  * <p>
  * The basic algorithm works as follows:
@@ -222,21 +220,21 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	 * Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
 	@FunctionAnnotation.ForwardedFields("0")
-	private static final class TriadBuilder<K extends Comparable<K>, EV>
-			implements GroupReduceFunction<Edge<K, EV>, Triad<K>> {
+	private static final class TriadBuilder<K extends Comparable<K>>
+			implements GroupReduceFunction<Edge<K, NullValue>, Triad<K>> {
 
 		private final List<K> vertices = new ArrayList<>();
 		private final Triad<K> outTriad = new Triad<>();
 
 		@Override
-		public void reduce(Iterable<Edge<K, EV>> edgesIter, Collector<Triad<K>> out) throws Exception {
-			final Iterator<Edge<K, EV>> edges = edgesIter.iterator();
+		public void reduce(Iterable<Edge<K, NullValue>> edgesIter, Collector<Triad<K>> out) throws Exception {
+			final Iterator<Edge<K, NullValue>> edges = edgesIter.iterator();
 
 			// clear vertex list
 			vertices.clear();
 
 			// read first edge
-			Edge<K, EV> firstEdge = edges.next();
+			Edge<K, NullValue> firstEdge = edges.next();
 			outTriad.setFirstVertex(firstEdge.getSource());
 			vertices.add(firstEdge.getTarget());
 

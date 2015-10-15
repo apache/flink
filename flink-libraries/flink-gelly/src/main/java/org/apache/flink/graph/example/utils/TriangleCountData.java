@@ -25,7 +25,6 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.types.NullValue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
