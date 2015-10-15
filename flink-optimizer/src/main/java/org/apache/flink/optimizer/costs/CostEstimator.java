@@ -202,9 +202,11 @@ public abstract class CostEstimator {
 			addLocalMergeCost(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST:
+		case RIGHT_HYBRIDHASH_BUILD_FIRST:
 			addHybridHashCosts(firstInput, secondInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_SECOND:
+		case LEFT_HYBRIDHASH_BUILD_SECOND:
 			addHybridHashCosts(secondInput, firstInput, driverCosts, costWeight);
 			break;
 		case HYBRIDHASH_BUILD_FIRST_CACHED:

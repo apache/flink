@@ -21,6 +21,7 @@ package org.apache.flink.test.javaApiOperators;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -50,7 +51,21 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUDFLeftOuterJoinOnTuplesWithKeyFieldPositions() throws Exception {
+	public void testLeftOuterJoin1() throws Exception {
+		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_SORT_MERGE);
+	}
+
+	@Test
+	public void testLeftOuterJoin2() throws Exception {
+		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_SECOND);
+	}
+
+	@Test
+	public void testLeftOuterJoin3() throws Exception {
+		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
+	}
+
+	private void testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
 		/*
 		 * UDF Join on tuples with key field positions
 		 */
@@ -60,7 +75,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
 		DataSet<Tuple2<String, String>> joinDs =
-				ds1.leftOuterJoin(ds2)
+				ds1.leftOuterJoin(ds2, hint)
 						.where(0)
 						.equalTo(0)
 						.with(new T3T5FlatJoin());
@@ -76,7 +91,21 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUDFRightOuterJoinOnTuplesWithKeyFieldPositions() throws Exception {
+	public void testRightOuterJoin1() throws Exception {
+		testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_SORT_MERGE);
+	}
+
+	@Test
+	public void testRightOuterJoin2() throws Exception {
+		testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_FIRST);
+	}
+
+	@Test
+	public void testRightOuterJoin3() throws Exception {
+		testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+	}
+
+	private void testRightOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
 		/*
 		 * UDF Join on tuples with key field positions
 		 */
@@ -86,7 +115,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
 		DataSet<Tuple2<String, String>> joinDs =
-				ds1.rightOuterJoin(ds2)
+				ds1.rightOuterJoin(ds2, hint)
 						.where(1)
 						.equalTo(1)
 						.with(new T3T5FlatJoin());
@@ -102,7 +131,11 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUDFFullOuterJoinOnTuplesWithKeyFieldPositions() throws Exception {
+	public void testFullOuterJoin1() throws Exception {
+		testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_SORT_MERGE);
+	}
+
+	private void testFullOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
 		/*
 		 * UDF Join on tuples with key field positions
 		 */
@@ -112,7 +145,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.getSmall5TupleDataSet(env);
 		DataSet<Tuple2<String, String>> joinDs =
-				ds1.fullOuterJoin(ds2)
+				ds1.fullOuterJoin(ds2, hint)
 						.where(0)
 						.equalTo(2)
 						.with(new T3T5FlatJoin());
@@ -128,7 +161,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUDFJoinOnTuplesWithMultipleKeyFieldPositions() throws Exception {
+	public void testJoinOnTuplesWithCompositeKeyPositions() throws Exception {
 		/*
 		 * UDF Join on tuples with multiple key field positions
 		 */
@@ -183,7 +216,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testJoinOnACustomTypeInputWithKeyExtractorAndATupleInputWithKeyFieldSelector() throws Exception {
+	public void testJoinWithMixedKeyTypes1() throws Exception {
 		/*
 		 * Join on a tuple input with key field selector and a custom type input with key extractor
 		 */
@@ -218,7 +251,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 
 
 	@Test
-	public void testJoinOnATupleInputWithKeyFieldSelectorAndACustomTypeInputWithKeyExtractor()
+	public void testJoinWithMixedKeyTypes2()
 			throws Exception {
 		/*
 		 * Join on a tuple input with key field selector and a custom type input with key extractor
@@ -252,7 +285,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testUDFJoinOnTuplesWithTupleReturningKeySelectors() throws Exception {
+	public void testJoinWithTupleReturningKeySelectors() throws Exception {
 		/*
 		 * UDF Join on tuples with tuple-returning key selectors
 		 */
@@ -296,7 +329,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testJoinNestedPojoAgainstTupleSelectedUsingString() throws Exception {
+	public void testJoinWithNestedKeyExpression1() throws Exception {
 		/*
 		 * Join nested pojo against tuple (selected using a string)
 		 */
@@ -308,7 +341,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 				ds1.fullOuterJoin(ds2)
 						.where("nestedPojo.longNumber")
 						.equalTo("f6")
-						.with(new ProjectBothFunction());
+						.with(new ProjectBothFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>());
 
 		List<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>>> result = joinDs.collect();
 
@@ -320,7 +353,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testJoinNestedPojoAgainstTupleSelectedUsingInteger() throws Exception {
+	public void testJoinWithNestedKeyExpression2() throws Exception {
 		/*
 		 * Join nested pojo against tuple (selected as an integer)
 		 */
@@ -344,7 +377,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testSelectingMultipleFieldsUsingExpressionLanguage() throws Exception {
+	public void testJoinWithCompositeKeyExpressions() throws Exception {
 		/*
 		 * selecting multiple fields using expression language
 		 */

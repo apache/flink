@@ -81,8 +81,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 		final IOManager ioManager = this.taskContext.getIOManager();
 		
 		// set up memory and I/O parameters
-		final double fractionAvailableMemory = config.getRelativeMemoryDriver();
-		final int numPages = memoryManager.computeNumberOfPages(fractionAvailableMemory);
+		final double driverMemFraction = config.getRelativeMemoryDriver();
 		
 		final DriverStrategy ls = config.getDriverStrategy();
 		
@@ -121,7 +120,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 					pairComparatorFactory,
 					memoryManager,
 					ioManager,
-					numPages
+					driverMemFraction
 			);
 		} else {
 			this.outerJoinIterator = getNonReusingOuterJoinIterator(
@@ -135,7 +134,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 					pairComparatorFactory,
 					memoryManager,
 					ioManager,
-					numPages
+					driverMemFraction
 			);
 		}
 		
@@ -183,7 +182,7 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 			TypePairComparatorFactory<IT1, IT2> pairComparatorFactory,
 			MemoryManager memoryManager,
 			IOManager ioManager,
-			int numPages
+			double driverMemFraction
 	) throws Exception;
 	
 	protected abstract JoinTaskIterator<IT1, IT2, OT> getNonReusingOuterJoinIterator(
@@ -197,6 +196,6 @@ public abstract class AbstractOuterJoinDriver<IT1, IT2, OT> implements Driver<Fl
 			TypePairComparatorFactory<IT1, IT2> pairComparatorFactory,
 			MemoryManager memoryManager,
 			IOManager ioManager,
-			int numPages
+			double driverMemFraction
 	) throws Exception;
 }
