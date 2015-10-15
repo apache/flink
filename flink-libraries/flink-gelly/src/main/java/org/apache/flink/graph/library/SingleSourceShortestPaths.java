@@ -37,6 +37,12 @@ public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, D
 	private final K srcVertexId;
 	private final Integer maxIterations;
 
+	/**
+	 * Creates an instance of the SingleSourceShortestPaths algorithm.
+	 * 
+	 * @param srcVertexId The ID of the source vertex.
+	 * @param maxIterations The maximum number of iterations to run.
+	 */
 	public SingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
 		this.srcVertexId = srcVertexId;
 		this.maxIterations = maxIterations;

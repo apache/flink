@@ -40,6 +40,14 @@ public class GSAConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV
 
 	private Integer maxIterations;
 
+	/**
+	 * Creates an instance of the GSA Connected Components algorithm.
+	 * The algorithm computes weakly connected components
+	 * and converges when no vertex updates its component ID
+	 * or when the maximum number of iterations has been reached.
+	 * 
+	 * @param maxIterations The maximum number of iterations to run.
+	 */
 	public GSAConnectedComponents(Integer maxIterations) {
 		this.maxIterations = maxIterations;
 	}

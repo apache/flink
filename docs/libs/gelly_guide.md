@@ -1440,7 +1440,7 @@ val env = ExecutionEnvironment.getExecutionEnvironment
 val graph: Graph[Long, Long, NullValue] = ...
 
 // run Label Propagation for 30 iterations to detect communities on the input graph
-val verticesWithCommunity = graph.run(new LabelPropagation[Long](30)).getVertices
+val verticesWithCommunity = graph.run(new LabelPropagation[Long](30))
 
 // print the result
 verticesWithCommunity.print
@@ -1449,5 +1449,141 @@ env.execute
 {% endhighlight %}
 </div>
 </div>
+
+### Community Detection
+
+#### Overview
+In graph theory, communities refer to groups of nodes that are well connected internally, but sparsely connected to other groups.
+This library method is an implementation of the community detection algorithm described in the paper [Towards real-time community detection in large networks](http://arxiv.org/pdf/0808.2633.pdf%22%3Earticle%20explaining%20the%20algorithm%20in%20detail).
+
+#### Details
+The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+Initially, each vertex is assigned a `Tuple2` containing its initial value along with a score equal to 1.0.
+In each iteration, vertices send their labels and scores to their neighbors. Upon receiving messages from its neighbors,
+a vertex chooses the label with the highest score and subsequently re-scores it using the edge values, 
+a user-defined hop attenuation parameter, `delta`, and the superstep number.
+The algorithm converges when vertices no longer update their value or when the maximum number of iterations
+is reached.
+
+#### Usage
+The algorithm takes as input a `Graph` with any vertex type, `Long` vertex values, and `Double` edge values. It returns a `Graph` of the same type as the input,
+where the vertex values correspond to the community labels, i.e. two vertices belong to the same community if they have the same vertex value.
+The constructor takes two parameters:
+
+* `maxIterations`: the maximum number of iterations to run.
+* `delta`: the hop attenuation parameter, with default value 0.5.
+
+
+### Label Propagation
+
+#### Overview
+This is an implementation of the well-known Label Propagation algorithm described in [this paper](http://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.036106). The algorithm discovers communities in a graph, by iteratively propagating labels between neighbors. Unlike the [Community Detection library method](#community-detection), this implementation does not use scores associated with the labels.
+
+#### Details
+The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+Labels are expected to be of `Long` types and are initialized using the vertex values of the input `Graph`.
+The algorithm iteratively refines discovered communities by propagating labels. In each iteration, a vertex adopts
+the label that is most frequent among its neighbors' labels. In order to break ties, we assume a total ordering among vertex IDs.
+The algorithm converges when no vertex changes its value or the maximum number of iterations has been reached. Note that different
+initializations might lead to different results.
+
+#### Usage
+The algorithm takes as input a `Graph` with a `Comparable` vertex type, `Long` vertex values, and any edge value type. It returns a `DataSet`,
+of vertices, where the vertex value corresponds to the community in which this vertex belongs after convergence.
+The constructor takes one parameter:
+
+* `maxIterations`: the maximum number of iterations to run.
+
+### Connected Components
+
+#### Overview
+This is an implementation of the Weakly Connected Components algorithm. Upon convergence, two vertices belong to the same component, if there is a path from one to the other,
+without taking edge direction into account.
+
+#### Details
+The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+This implementation assumes that the vertex values of the input Graph are initialized with Long component IDs.
+The vertices propagate their current component ID in iterations. Upon receiving component IDs from its neighbors, a vertex adopts a new component ID if its value
+is lower than its current component ID. The algorithm converges when vertices no longer update their component ID value or when the maximum number of iterations has been reached.
+
+#### Usage
+The result is a `DataSet` of vertices, where the vertex value corresponds to the assigned component.
+The constructor takes one parameter:
+
+* `maxIterations`: the maximum number of iterations to run.
+
+
+### GSA Connected Components
+
+The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
+
+See the [Connected Components](#connected-components) library method for implementation details and usage information.
+
+
+### PageRank
+
+#### Overview
+An implementation of a simple [PageRank algorithm](https://en.wikipedia.org/wiki/PageRank), using [vertex-centric iterations](#vertex-centric-iterations).
+PageRank is an algorithm that was first used to rank web search engine results. Today, the algorithm and many variations, are used in various graph application domains. The idea of PageRank is that important or relevant pages tend to link to other important pages.
+
+#### Details
+The algorithm operates in iterations, where pages distribute their scores to their neighbors (pages they have links to) and subsequently update their scores based on the partial values they receive. The implementation assumes that each page has at least one incoming and one outgoing link.
+In order to consider the importance of a link from one page to another, scores are divided by the total number of out-links of the source page. Thus, a page with 10 links will distribute 1/10 of its score to each neighbor, while a page with 100 links, will distribute 1/100 of its score to each neighboring page. This process computes what is often called the transition probablities, i.e. the probability that some page will lead to other page while surfing the web. To correctly compute the transition probabilities, this implementation expectes the edge values to be initialiez to 1.0.
+
+#### Usage
+The algorithm takes as input a `Graph` with any vertex type, `Double` vertex values, and `Double` edge values. Edges values should be initialized to 1.0, in order to correctly compute the transition probabilities. Otherwise, the transition probability for an Edge `(u, v)` will be set to the edge value divided by `u`'s out-degree. The algorithm returns a `DataSet` of vertices, where the vertex value corresponds to assigned rank after convergence (or maximum iterations).
+The constructors take the following parameters:
+
+* `beta`: the damping factor.
+* `maxIterations`: the maximum number of iterations to run.
+* `numVertices`: the number of vertices in the input. If known beforehand, is it advised to provide this argument to speed up execution.
+
+
+### GSA PageRank
+
+The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
+
+See the [PageRank](#pagerank) library method for implementation details and usage information.
+
+
+### Single Source Shortest Paths
+
+#### Overview
+An implementation of the Single-Source-Shortest-Paths algorithm for weighted graphs. Given a source vertex, the algorithm computes the shortest paths from this source to all other nodes in the graph.
+
+#### Details
+The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+In each iteration, a vertex sends to its neighbors a message containing the sum its current distance and the edge weight connecting this vertex with the neighbor. Upon receiving candidate distance messages, a vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The computation terminates after the specified maximum number of supersteps or when there are no value updates.
+
+#### Usage
+The algorithm takes as input a `Graph` with any vertex type, `Double` vertex values, and `Double` edge values. The output is a `DataSet` of vertices where the vertex values
+correspond to the minimum distances from the given source vertex.
+The constructor takes two parameters:
+
+* `srcVertexId` The vertex ID of the source vertex.
+* `maxIterations`: the maximum number of iterations to run.
+
+
+### GSA Single Source Shortest Paths
+
+The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
+
+See the [Single Source Shortest Paths](#single-source-shortest-paths) library method for implementation details and usage information.
+
+
+### GSA Triangle Count
+
+#### Overview
+An implementation of the Triangle Count algorithm. Given an input graph, it returns the number of unique triangles in it.
+
+#### Details
+This algorithm operates in three phases. First, vertices select neighbors with IDs greater than theirs
+and send messages to them. Each received message is then propagated to neighbors with higher IDs.
+Finally, if a node encounters the target ID in the list of received messages, it increments the number of discovered triangles.
+
+#### Usage
+The algorithm takes an undirected, unweighted graph as input and outputs a `DataSet` which contains a single integer corresponding to the number of triangles
+in the graph. The algorithm constructor takes no arguments.
+
 
 [Back to top](#top)

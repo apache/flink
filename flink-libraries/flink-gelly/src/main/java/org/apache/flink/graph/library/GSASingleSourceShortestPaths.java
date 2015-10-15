@@ -37,6 +37,12 @@ public class GSASingleSourceShortestPaths<K> implements
 	private final K srcVertexId;
 	private final Integer maxIterations;
 
+	/**
+	 * Creates an instance of the GSA SingleSourceShortestPaths algorithm.
+	 * 
+	 * @param srcVertexId The ID of the source vertex.
+	 * @param maxIterations The maximum number of iterations to run.
+	 */
 	public GSASingleSourceShortestPaths(K srcVertexId, Integer maxIterations) {
 		this.srcVertexId = srcVertexId;
 		this.maxIterations = maxIterations;

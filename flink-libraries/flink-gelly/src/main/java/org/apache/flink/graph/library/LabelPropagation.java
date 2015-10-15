@@ -35,11 +35,11 @@ import java.util.Map.Entry;
 /**
  * An implementation of the label propagation algorithm. The iterative algorithm
  * detects communities by propagating labels. In each iteration, a vertex adopts
- * the label that is most frequent among its neighbors' labels. Labels are
- * represented by Longs and we assume a total ordering among them, in order to
- * break ties. The algorithm converges when no vertex changes its value or the
- * maximum number of iterations have been reached. Note that different
- * initializations might lead to different results.
+ * the label that is most frequent among its neighbors' labels.
+ * The initial vertex values are used as initial labels and are expected to be of type Long.
+ * We assume comparable vertex IDs, in order to break ties when two or more labels appear with the same frequency.
+ * The algorithm converges when no vertex changes its value or the maximum number of iterations has been reached.
+ * Note that different initializations might lead to different results.
  * 
  */
 @SuppressWarnings("serial")
@@ -49,6 +49,16 @@ public class LabelPropagation<K extends Comparable<K>, EV> implements GraphAlgor
 
 	private final int maxIterations;
 
+	/**
+	 * Creates a new Label Propagation algorithm instance.
+	 * The algorithm converges when vertices no longer update their value
+	 * or when the maximum number of iterations is reached.
+	 * 
+	 * @see <a href="http://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.036106">
+	 * Near linear time algorithm to detect community structures in large-scale networks</a>
+	 * 
+	 * @param maxIterations The maximum number of iterations to run.
+	 */
 	public LabelPropagation(int maxIterations) {
 		this.maxIterations = maxIterations;
 	}
