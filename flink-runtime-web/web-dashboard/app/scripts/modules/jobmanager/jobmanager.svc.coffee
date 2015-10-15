@@ -24,7 +24,7 @@ angular.module('flinkApp')
   @loadConfig = ->
     deferred = $q.defer()
 
-    $http.get("/jobmanager/config")
+    $http.get("jobmanager/config")
     .success (data, status, headers, config) ->
       config = data
       deferred.resolve(data)

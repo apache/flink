@@ -22,7 +22,7 @@ angular.module('flinkApp')
   @loadManagers = () ->
     deferred = $q.defer()
 
-    $http.get("/taskmanagers")
+    $http.get("taskmanagers")
     .success (data, status, headers, config) ->
       deferred.resolve(data['taskmanagers'])
 
@@ -34,7 +34,7 @@ angular.module('flinkApp')
   @loadMetrics = (taskmanagerid) ->
     deferred = $q.defer()
 
-    $http.get("/taskmanagers/" + taskmanagerid)
+    $http.get("taskmanagers/" + taskmanagerid)
     .success (data, status, headers, config) ->
       deferred.resolve(data['taskmanagers'])
 
