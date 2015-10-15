@@ -233,6 +233,5 @@ HINT: You can use print() on a DataSet to print the contents to this shell.
   }
 
   def getExternalJars(): Array[String] = externalJars.getOrElse(Array.empty[String])
-
 }
 

@@ -20,20 +20,44 @@ package org.apache.flink.api.scala
 
 import java.io._
 
-import org.junit.runner.RunWith
-import org.scalatest.{Matchers, FunSuite}
-import org.scalatest.junit.JUnitRunner
+import org.apache.flink.util.TestLogger
+import org.junit.Test
+import org.junit.Assert
 
+class ScalaShellLocalStartupITCase extends TestLogger {
 
-@RunWith(classOf[JUnitRunner])
-class ScalaShellLocalStartupITCase extends FunSuite with Matchers {
-
-    /**
-     * tests flink shell with local setup through startup script in bin folder
-     */
-    test("start flink scala shell with local cluster") {
-
-      val input: String = "val els = env.fromElements(\"a\",\"b\");\n" + "els.print\nError\n:q\n"
+  /**
+   * tests flink shell with local setup through startup script in bin folder
+   */
+  @Test
+  def testLocalCluster: Unit = {
+    val input: String =
+      """
+        |import org.apache.flink.api.common.functions.RichMapFunction
+        |import org.apache.flink.api.java.io.PrintingOutputFormat
+        |import org.apache.flink.api.common.accumulators.IntCounter
+        |import org.apache.flink.configuration.Configuration
+        |
+        |val els = env.fromElements("foobar","barfoo")
+        |val mapped = els.map{
+        | new RichMapFunction[String, String]() {
+        |   var intCounter: IntCounter = _
+        |   override def open(conf: Configuration): Unit = {
+        |     intCounter = getRuntimeContext.getIntCounter("intCounter")
+        |   }
+        |
+        |   def map(element: String): String = {
+        |     intCounter.add(1)
+        |     element
+        |   }
+        | }
+        |}
+        |mapped.output(new PrintingOutputFormat())
+        |val executionResult = env.execute("Test Job")
+        |System.out.println("IntCounter: " + executionResult.getIntCounterResult("intCounter"))
+        |
+        |:q
+      """.stripMargin
       val in: BufferedReader = new BufferedReader(new StringReader(input + "\n"))
       val out: StringWriter = new StringWriter
       val baos: ByteArrayOutputStream = new ByteArrayOutputStream
@@ -41,20 +65,21 @@ class ScalaShellLocalStartupITCase extends FunSuite with Matchers {
       System.setOut(new PrintStream(baos))
       val args: Array[String] = Array("local")
 
-      //start flink scala shell
-      FlinkShell.bufferedReader = Some(in);
-      FlinkShell.main(args)
+    //start flink scala shell
+    FlinkShell.bufferedReader = Some(in);
+    FlinkShell.main(args)
 
-      baos.flush()
-      val output: String = baos.toString
-      System.setOut(oldOut)
+    baos.flush()
+    val output: String = baos.toString
+    System.setOut(oldOut)
 
-      output should include("Job execution switched to status FINISHED.")
-      output should include("a\nb")
+    Assert.assertTrue(output.contains("IntCounter: 2"))
+    Assert.assertTrue(output.contains("foobar"))
+    Assert.assertTrue(output.contains("barfoo"))
 
-      output should not include "Error"
-      output should not include "ERROR"
-      output should not include "Exception"
-      output should not include "failed"
-    }
+    Assert.assertFalse(output.contains("failed"))
+    Assert.assertFalse(output.contains("Error"))
+    Assert.assertFalse(output.contains("ERROR"))
+    Assert.assertFalse(output.contains("Exception"))
+  }
 }

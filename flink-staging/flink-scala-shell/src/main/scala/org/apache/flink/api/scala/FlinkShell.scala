@@ -22,7 +22,7 @@ import java.io.{StringWriter, BufferedReader}
 
 import org.apache.flink.api.common.ExecutionMode
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 
 import scala.tools.nsc.Settings
@@ -86,7 +86,7 @@ object FlinkShell {
           config.flinkShellExecutionMode,
           config.externalJars)
 
-      case _ => println("Could not parse program arguments")
+      case _ => System.out.println("Could not parse program arguments")
     }
   }
 
@@ -97,36 +97,41 @@ object FlinkShell {
       executionMode: ExecutionMode.Value,
       externalJars: Option[Array[String]] = None): Unit ={
     
-    println("Starting Flink Shell:")
+    System.out.println("Starting Flink Shell:")
 
     // either port or userhost not specified by user, create new minicluster
     val (host: String, port: Int, cluster: Option[LocalFlinkMiniCluster]) =
       executionMode match {
         case ExecutionMode.LOCAL =>
-          val miniCluster = new LocalFlinkMiniCluster(new Configuration, false)
+          val config = new Configuration()
+          config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
+          val miniCluster = new LocalFlinkMiniCluster(config, false)
           miniCluster.start()
           val port = miniCluster.getLeaderRPCPort
-          println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
+          System.out.println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
           ("localhost", port, Some(miniCluster))
 
         case ExecutionMode.REMOTE =>
           if (userHost == "none" || userPort == -1) {
-            println("Error: <host> or <port> not specified!")
+            System.out.println("Error: <host> or <port> not specified!")
             return
           } else {
-            println(s"\nConnecting to Flink cluster (host: $userHost, port: $userPort).\n")
+            System.out.println(
+              s"\nConnecting to Flink cluster (host: $userHost, port: $userPort).\n")
             (userHost, userPort, None)
           }
 
         case ExecutionMode.UNDEFINED =>
-          println("Error: please specify execution mode:")
-          println("[local | remote <host> <port>]")
+          System.out.println("Error: please specify execution mode:")
+          System.out.println("[local | remote <host> <port>]")
           return
       }
 
+    var repl: Option[FlinkILoop] = None
+
     try {
       // custom shell
-      val repl: FlinkILoop =
+      repl = Some(
         bufferedReader match {
 
           case Some(br) =>
@@ -135,21 +140,20 @@ object FlinkShell {
 
           case None =>
             new FlinkILoop(host, port, externalJars)
-        }
+        })
 
       val settings = new Settings()
 
       settings.usejavacp.value = true
+      settings.Yreplsync.value = true
 
       // start scala interpreter shell
-      repl.process(settings)
+      repl.foreach(_.process(settings))
     } finally {
-      cluster match {
-        case Some(c) => c.stop()
-        case None =>
-      }
+      repl.foreach(_.closeInterpreter())
+      cluster.foreach(_.stop())
     }
 
-    println(" good bye ..")
+    System.out.println(" good bye ..")
   }
 }
