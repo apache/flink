@@ -43,28 +43,28 @@ import scala.concurrent.{Await, Future}
  *                          otherwise false
  */
 class TestingCluster(
-    userConfiguration: Configuration,
-    singleActorSystem: Boolean,
-    synchronousDispatcher: Boolean,
-    streamingMode: StreamingMode)
+                      userConfiguration: Configuration,
+                      singleActorSystem: Boolean,
+                      synchronousDispatcher: Boolean,
+                      streamingMode: StreamingMode)
   extends FlinkMiniCluster(
     userConfiguration,
     singleActorSystem,
     streamingMode) {
-  
+
 
   def this(userConfiguration: Configuration,
            singleActorSystem: Boolean,
            synchronousDispatcher: Boolean)
-       = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
+  = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
 
   def this(userConfiguration: Configuration, singleActorSystem: Boolean)
-       = this(userConfiguration, singleActorSystem, false)
+  = this(userConfiguration, singleActorSystem, false)
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
-  
+
   // --------------------------------------------------------------------------
-  
+
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
@@ -100,16 +100,18 @@ class TestingCluster(
     }
 
     val (executionContext,
-      instanceManager,
-      scheduler,
-      libraryCacheManager,
-      executionRetries,
-      delayBetweenRetries,
-      timeout,
-      archiveCount,
-      leaderElectionService) = JobManager.createJobManagerComponents(
-        config,
-        createLeaderElectionService())
+    instanceManager,
+    scheduler,
+    libraryCacheManager,
+    executionRetries,
+    delayBetweenRetries,
+    timeout,
+    archiveCount,
+    leaderElectionService,
+    submittedJobsGraphs,
+    checkpointRecoveryFactory) = JobManager.createJobManagerComponents(
+      config,
+      createLeaderElectionService())
 
     val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
     val archive = actorSystem.actorOf(testArchiveProps, archiveName)
@@ -126,7 +128,9 @@ class TestingCluster(
         delayBetweenRetries,
         timeout,
         streamingMode,
-        leaderElectionService))
+        leaderElectionService,
+        submittedJobsGraphs,
+        checkpointRecoveryFactory))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)

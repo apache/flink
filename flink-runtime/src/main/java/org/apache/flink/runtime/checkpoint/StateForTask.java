@@ -24,6 +24,11 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Simple bean to describe the state belonging to a parallel operator.
  * Since we hold the state across execution attempts, we identify a task by its
@@ -34,8 +39,10 @@ import org.slf4j.LoggerFactory;
  * Furthermore, the state may involve user-defined classes that are not accessible without
  * the respective classloader.
  */
-public class StateForTask {
-	
+public class StateForTask implements Serializable {
+
+	private static final long serialVersionUID = -2394696997971923995L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(StateForTask.class);
 
 	/** The state of the parallel operator */
@@ -48,12 +55,10 @@ public class StateForTask {
 	private final int subtask;
 	
 	public StateForTask(SerializedValue<StateHandle<?>> state, JobVertexID operatorId, int subtask) {
-	if (state == null || operatorId == null || subtask < 0) {
-			throw new IllegalArgumentException();
-		}
-		
-		this.state = state;
-		this.operatorId = operatorId;
+		this.state = checkNotNull(state, "State");
+		this.operatorId = checkNotNull(operatorId, "Operator ID");
+
+		checkArgument(subtask >= 0, "Negative subtask index");
 		this.subtask = subtask;
 	}
 

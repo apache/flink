@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.util.LeaderElectionUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
@@ -41,7 +42,7 @@ import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
@@ -92,7 +93,11 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 		Thread thread;
 
+		CuratorFramework[] client = new CuratorFramework[2];
+
 		try {
+			client[0] = ZooKeeperUtils.startCuratorFramework(config);
+			client[1] = ZooKeeperUtils.startCuratorFramework(config);
 
 			InetSocketAddress wrongInetSocketAddress = new InetSocketAddress(InetAddress.getByName("1.1.1.1"), 1234);
 
@@ -116,7 +121,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 			String correctAddress = JobManager.getRemoteJobManagerAkkaURL(correctInetSocketAddress, Option.<String>empty());
 
-			faultyLeaderElectionService = LeaderElectionUtils.createLeaderElectionService(config);
+			faultyLeaderElectionService = ZooKeeperUtils.createLeaderElectionService(client[0], config);
 			TestingContender wrongLeaderAddressContender = new TestingContender(wrongAddress, faultyLeaderElectionService);
 
 			faultyLeaderElectionService.start(wrongLeaderAddressContender);
@@ -127,7 +132,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 			thread.start();
 
-			leaderElectionService = LeaderElectionUtils.createLeaderElectionService(config);
+			leaderElectionService = ZooKeeperUtils.createLeaderElectionService(client[1], config);
 			TestingContender correctLeaderAddressContender = new TestingContender(correctAddress, leaderElectionService);
 
 			Thread.sleep(sleepingTime);
@@ -154,6 +159,14 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		} finally {
 			if (leaderElectionService != null) {
 				leaderElectionService.stop();
+			}
+
+			if (client[0] != null) {
+				client[0].close();
+			}
+
+			if (client[1] != null) {
+				client[1].close();
 			}
 		}
 	}

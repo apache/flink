@@ -37,7 +37,7 @@ import static org.junit.Assert.assertEquals;
  */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class ProcessFailureBatchRecoveryITCase extends AbstractProcessFailureRecoveryTest {
+public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskManagerProcessFailureRecoveryTest {
 
 	// --------------------------------------------------------------------------------------------
 	//  Parametrization (run pipelined and batch)
@@ -45,7 +45,7 @@ public class ProcessFailureBatchRecoveryITCase extends AbstractProcessFailureRec
 
 	private final ExecutionMode executionMode;
 
-	public ProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
+	public TaskManagerProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
 		this.executionMode = executionMode;
 	}
 
@@ -61,7 +61,7 @@ public class ProcessFailureBatchRecoveryITCase extends AbstractProcessFailureRec
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void testProgram(int jobManagerPort, final File coordinateDir) throws Exception {
+	public void testTaskManagerFailure(int jobManagerPort, final File coordinateDir) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
