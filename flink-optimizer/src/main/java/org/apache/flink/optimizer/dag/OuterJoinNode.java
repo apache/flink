@@ -25,6 +25,8 @@ import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase.OuterJoi
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.AbstractJoinDescriptor;
+import org.apache.flink.optimizer.operators.HashLeftOuterJoinBuildSecondDescriptor;
+import org.apache.flink.optimizer.operators.HashRightOuterJoinBuildFirstDescriptor;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
 import org.apache.flink.optimizer.operators.SortMergeFullOuterJoinDescriptor;
 import org.apache.flink.optimizer.operators.SortMergeLeftOuterJoinDescriptor;
@@ -56,20 +58,19 @@ public class OuterJoinNode extends TwoInputNode {
 		JoinHint joinHint = operator.getJoinHint();
 		joinHint = joinHint == null ? JoinHint.OPTIMIZER_CHOOSES : joinHint;
 
-		List<OperatorDescriptorDual> list = new ArrayList<>();
-		switch (joinHint) {
-			case OPTIMIZER_CHOOSES:
-				list.add(getSortMergeDescriptor(type, true));
+		List<OperatorDescriptorDual> list;
+		switch (type) {
+			case LEFT:
+				list = createLeftOuterJoinDescriptors(joinHint);
 				break;
-			case REPARTITION_SORT_MERGE:
-				list.add(getSortMergeDescriptor(type, false));
+			case RIGHT:
+				list = createRightOuterJoinDescriptors(joinHint);
 				break;
-			case REPARTITION_HASH_FIRST:
-			case REPARTITION_HASH_SECOND:
-			case BROADCAST_HASH_FIRST:
-			case BROADCAST_HASH_SECOND:
+			case FULL:
+				list = createFullOuterJoinDescriptors(joinHint);
+				break;
 			default:
-				throw new CompilerException("Invalid join hint: " + joinHint + " for outer join type: " + type);
+				throw new CompilerException("Unknown outer join type: " + type);
 		}
 
 		Partitioner<?> customPartitioner = operator.getCustomPartitioner();
@@ -81,14 +82,74 @@ public class OuterJoinNode extends TwoInputNode {
 		return list;
 	}
 
-	private OperatorDescriptorDual getSortMergeDescriptor(OuterJoinType type, boolean broadcastAllowed) {
-		if (type == OuterJoinType.FULL) {
-			return new SortMergeFullOuterJoinDescriptor(this.keys1, this.keys2);
-		} else if (type == OuterJoinType.LEFT) {
-			return new SortMergeLeftOuterJoinDescriptor(this.keys1, this.keys2, broadcastAllowed);
-		} else {
-			return new SortMergeRightOuterJoinDescriptor(this.keys1, this.keys2, broadcastAllowed);
+	private List<OperatorDescriptorDual> createLeftOuterJoinDescriptors(JoinHint hint) {
+
+		List<OperatorDescriptorDual> list = new ArrayList<>();
+		switch (hint) {
+			case OPTIMIZER_CHOOSES:
+				list.add(new SortMergeLeftOuterJoinDescriptor(this.keys1, this.keys2, true));
+				list.add(new HashLeftOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, true, true));
+				break;
+			case REPARTITION_SORT_MERGE:
+				list.add(new SortMergeLeftOuterJoinDescriptor(this.keys1, this.keys2, false));
+				break;
+			case REPARTITION_HASH_SECOND:
+				list.add(new HashLeftOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, false, true));
+				break;
+			case BROADCAST_HASH_SECOND:
+				list.add(new HashLeftOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, true, false));
+				break;
+			case BROADCAST_HASH_FIRST:
+			case REPARTITION_HASH_FIRST:
+			default:
+				throw new CompilerException("Invalid join hint: " + hint + " for left outer join");
 		}
+		return list;
+	}
+
+	private List<OperatorDescriptorDual> createRightOuterJoinDescriptors(JoinHint hint) {
+
+		List<OperatorDescriptorDual> list = new ArrayList<>();
+		switch (hint) {
+			case OPTIMIZER_CHOOSES:
+				list.add(new SortMergeRightOuterJoinDescriptor(this.keys1, this.keys2, true));
+				list.add(new HashRightOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, true, true));
+				break;
+			case REPARTITION_SORT_MERGE:
+				list.add(new SortMergeRightOuterJoinDescriptor(this.keys1, this.keys2, false));
+				break;
+			case REPARTITION_HASH_FIRST:
+				list.add(new HashRightOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, false, true));
+				break;
+			case BROADCAST_HASH_FIRST:
+				list.add(new HashRightOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, true, false));
+				break;
+			case BROADCAST_HASH_SECOND:
+			case REPARTITION_HASH_SECOND:
+			default:
+				throw new CompilerException("Invalid join hint: " + hint + " for right outer join");
+		}
+		return list;
+	}
+
+	private List<OperatorDescriptorDual> createFullOuterJoinDescriptors(JoinHint hint) {
+
+		List<OperatorDescriptorDual> list = new ArrayList<>();
+		switch (hint) {
+			case OPTIMIZER_CHOOSES:
+				list.add(new SortMergeFullOuterJoinDescriptor(this.keys1, this.keys2));
+				break;
+			case REPARTITION_SORT_MERGE:
+				list.add(new SortMergeFullOuterJoinDescriptor(this.keys1, this.keys2));
+				break;
+			case REPARTITION_HASH_SECOND:
+			case BROADCAST_HASH_SECOND:
+			case BROADCAST_HASH_FIRST:
+			case REPARTITION_HASH_FIRST:
+			default:
+				throw new CompilerException("Invalid join hint: " + hint + " for full outer join");
+		}
+		return list;
 	}
 
 	@Override

@@ -31,7 +31,7 @@ import java.util.List;
 /**
  * Common methods for all Hash Join Iterators.
  */
-public class HashMatchIteratorBase {
+public class HashJoinIteratorBase {
 	
 	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(
 			TypeSerializer<BT> buildSideSerializer,

@@ -32,30 +32,31 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class ReusingBuildFirstReOpenableHashMatchIterator<V1, V2, O> extends ReusingBuildFirstHashMatchIterator<V1, V2, O> {
+public class ReusingBuildSecondReOpenableHashJoinIterator<V1, V2, O> extends ReusingBuildSecondHashJoinIterator<V1, V2, O> {
 
 	
-	private final ReOpenableMutableHashTable<V1, V2> reopenHashTable;
+	private final ReOpenableMutableHashTable<V2, V1> reopenHashTable;
 	
-	public ReusingBuildFirstReOpenableHashMatchIterator(
+	public ReusingBuildSecondReOpenableHashJoinIterator(
 			MutableObjectIterator<V1> firstInput,
 			MutableObjectIterator<V2> secondInput,
 			TypeSerializer<V1> serializer1,
 			TypeComparator<V1> comparator1,
 			TypeSerializer<V2> serializer2,
 			TypeComparator<V2> comparator2,
-			TypePairComparator<V2, V1> pairComparator,
+			TypePairComparator<V1, V2> pairComparator,
 			MemoryManager memManager,
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
 			double memoryFraction,
-			boolean useBitmapFilters)
-		throws MemoryAllocationException
-	{
+			boolean joinWithEmptyBuildSide,
+			boolean useBitmapFilters) throws MemoryAllocationException {
+		
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
 				comparator2, pairComparator, memManager, ioManager, ownerTask,
-				memoryFraction, useBitmapFilters);
-		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
+				memoryFraction, joinWithEmptyBuildSide, useBitmapFilters);
+		
+		reopenHashTable = (ReOpenableMutableHashTable<V2, V1>) hashJoin;
 	}
 
 	@Override
@@ -80,7 +81,7 @@ public class ReusingBuildFirstReOpenableHashMatchIterator<V1, V2, O> extends Reu
 	 * Set new input for probe side
 	 * @throws IOException 
 	 */
-	public void reopenProbe(MutableObjectIterator<V2> probeInput) throws IOException {
+	public void reopenProbe(MutableObjectIterator<V1> probeInput) throws IOException {
 		reopenHashTable.reopenProbe(probeInput);
 	}
 }
