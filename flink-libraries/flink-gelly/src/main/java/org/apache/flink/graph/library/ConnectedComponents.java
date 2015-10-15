@@ -29,14 +29,15 @@ import org.apache.flink.graph.utils.NullValueEdgeMapper;
 import org.apache.flink.types.NullValue;
 
 /**
- * A vertex-centric implementation of the Connected Components algorithm.
+ * A vertex-centric implementation of the Weakly Connected Components algorithm.
  *
- * This implementation assumes that the vertices of the input Graph are initialized with unique, Long component IDs.
- * The vertices propagate their current component ID in iterations, each time adopting a new value from the received neighbor IDs,
- * provided that the value is less than the current minimum.
+ * This implementation assumes that the vertex values of the input Graph are initialized with Long component IDs.
+ * The vertices propagate their current component ID in iterations.
+ * Upon receiving component IDs from its neighbors, a vertex adopts a new component ID if its value
+ * is lower than its current component ID.
  *
- * The algorithm converges when vertices no longer update their value or when the maximum number of iterations
- * is reached.
+ * The algorithm converges when vertices no longer update their component ID value
+ * or when the maximum number of iterations has been reached.
  * 
  * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
  * 
@@ -47,6 +48,14 @@ public class ConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, D
 
 	private Integer maxIterations;
 
+	/**
+	 * Creates an instance of the Connected Components algorithm.
+	 * The algorithm computes weakly connected components
+	 * and converges when no vertex updates its component ID
+	 * or when the maximum number of iterations has been reached.
+	 * 
+	 * @param maxIterations The maximum number of iterations to run.
+	 */
 	public ConnectedComponents(Integer maxIterations) {
 		this.maxIterations = maxIterations;
 	}

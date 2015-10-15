@@ -36,19 +36,15 @@ import java.util.TreeMap;
 /**
  * Community Detection Algorithm.
  *
- * This implementation expects Long Vertex values and labels. The Vertex values of the input Graph provide the initial label assignments.
+ * The Vertex values of the input Graph provide the initial label assignments.
  * 
  * Initially, each vertex is assigned a tuple formed of its own initial value along with a score equal to 1.0.
  * The vertices propagate their labels and max scores in iterations, each time adopting the label with the
  * highest score from the list of received messages. The chosen label is afterwards re-scored using the fraction
  * delta/the superstep number. Delta is passed as a parameter and has 0.5 as a default value.
- *
- * The algorithm converges when vertices no longer update their value or when the maximum number of iterations
- * is reached.
  * 
  * @param <K> the Vertex ID type 
  *
- * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
  */
 public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Graph<K, Long, Double>> {
 
@@ -56,6 +52,17 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 
 	private Double delta;
 
+	/**
+	 * Creates a new Community Detection algorithm instance.
+	 * The algorithm converges when vertices no longer update their value
+	 * or when the maximum number of iterations is reached.
+	 * 
+	 * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">
+	 * Towards real-time community detection in large networks</a>
+	 * 
+	 * @param maxIterations The maximum number of iterations to run.
+	 * @param delta The hop attenuation parameter. Its default value is 0.5.  
+	 */
 	public CommunityDetection(Integer maxIterations, Double delta) {
 
 		this.maxIterations = maxIterations;

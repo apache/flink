@@ -44,6 +44,12 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	private long numberOfVertices;
 
 	/**
+	 * Creates an instance of the GSA PageRank algorithm.
+	 * If the number of vertices of the input graph is known,
+	 * use the {@link GSAPageRank#GSAPageRank(double, long, int)} constructor instead.
+	 * 
+	 * The implementation assumes that each page has at least one incoming and one outgoing link.
+	 * 
 	 * @param beta the damping factor
 	 * @param maxIterations the maximum number of iterations
 	 */
@@ -52,6 +58,17 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 		this.maxIterations = maxIterations;
 	}
 
+	/**
+	 * Creates an instance of the GSA PageRank algorithm.
+	 * If the number of vertices of the input graph is known,
+	 * use the {@link GSAPageRank#GSAPageRank(double, long)} constructor instead.
+	 * 
+	 * The implementation assumes that each page has at least one incoming and one outgoing link.
+	 * 
+	 * @param beta the damping factor
+	 * @param maxIterations the maximum number of iterations
+	 * @param numVertices the number of vertices in the input
+	 */
 	public GSAPageRank(double beta, long numVertices, int maxIterations) {
 		this.beta = beta;
 		this.numberOfVertices = numVertices;
