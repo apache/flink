@@ -17,4 +17,18 @@
 # limitations under the License.
 ################################################################################
 
-find .. -name 'pom.xml' -type f -exec sed -i 's#<version>0.9-SNAPSHOT</version>#<version>0.10-SNAPSHOT</version>#' {} \;
+OLD="0.9-SNAPSHOT"
+NEW="0.10-SNAPSHOT"
+
+
+HERE=` basename "$PWD"`
+if [[ "$HERE" != "tools" ]]; then
+    echo "Please only execute in the tools/ directory";
+    exit 1;
+fi
+
+# change version in all pom files
+find .. -name 'pom.xml' -type f -exec sed -i 's#<version>'"$OLD"'</version>#<version>'"$NEW"'</version>#' {} \;
+
+# change version of the quickstart property
+find .. -name 'pom.xml' -type f -exec sed -i 's#<flink.version>'"$OLD"'</flink.version>#<flink.version>'"$NEW"'</flink.version>#' {} \;
