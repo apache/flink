@@ -103,19 +103,25 @@ So if you are building Flink for Hadoop `2.0.0-alpha`, use the following command
 Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version
 of their projects (because Scala is not strictly backwards compatible).
 
-By default, Flink is built with Scala *2.10*. To build Flink with Scala *2.11*, append the `-Dscala-2.11` option to your build command:
+By default, Flink is built with the Scala *2.10*. To build Flink with Scala *2.11*, you need to change the default Scala *binary version* with a build script:
 
 ~~~bash
-mvn clean install -DskipTests -Dscala-2.11
+# Switch Scala binary version between 2.10 and 2.11
+tools/change-scala-version.sh 2.11
+# Build and install locally
+mvn clean install -DskipTests
 ~~~
 
-To build against custom Scala versions, you need to supply the *language version* and the *binary version* as properties to the build:
+To build against custom Scala versions, you need to switch to the appropriate binary version and supply the *language version* as additional build property. For example, to buid against Scala 2.11.4, you have to execute:
 
 ~~~bash
-mvn clean install -DskipTests -Dscala-2.11 -Dscala.version=2.11.4 -Dscala.binary.version=2.11
+# Switch Scala binary version to 2.11
+tools/change-scala-version.sh 2.11
+# Build with custom Scala version 2.11.4
+mvn clean install -DskipTests -Dscala.version=2.11.4
 ~~~
 
-Flink is developed against Scala *2.10*, and tested additionally against Scala *2.11*. These two versions are known to be compatible. Earlier versions (like Scala *2.9*) are *not* compatible.
+Flink is developed against Scala *2.10* and tested additionally against Scala *2.11*. These two versions are known to be compatible. Earlier versions (like Scala *2.9*) are *not* compatible.
 
 Newer versions may be compatible, depending on breaking changes in the language features used by Flink, and the availability of Flink's dependencies in those Scala versions. The dependencies written in Scala include for example *Kafka*, *Akka*, *Scalatest*, and *scopt*.
 

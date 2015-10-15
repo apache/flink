@@ -197,7 +197,7 @@ to run your program on Flink with Scala 2.11, you need to add a `_2.11` suffix t
 values of the Flink modules in your dependencies section.
 
 If you are looking for building Flink with Scala 2.11, please check
-[build guide](../setup/building.html#build-flink-for-scala-211).
+[build guide](../setup/building.html#build-flink-for-a-specific-scala-version).
 
 #### Hadoop Dependency Versions
 
