@@ -54,12 +54,13 @@ object Graph {
   /**
   * Creates a graph from a DataSet of edges.
   * Vertices are created automatically and their values are set by applying the provided
-  * map function to the vertex ids.
+  * vertexValueInitializer map function to the vertex ids.
   */
   def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
-  TypeInformation : ClassTag](edges: DataSet[Edge[K, EV]], mapper: MapFunction[K, VV],
-      env: ExecutionEnvironment): Graph[K, VV, EV] = {
-    wrapGraph(jg.Graph.fromDataSet[K, VV, EV](edges.javaSet, mapper, env.getJavaEnv))
+  TypeInformation : ClassTag](edges: DataSet[Edge[K, EV]],
+  vertexValueInitializer: MapFunction[K, VV], env: ExecutionEnvironment): Graph[K, VV, EV] = {
+    wrapGraph(jg.Graph.fromDataSet[K, VV, EV](edges.javaSet, vertexValueInitializer,
+      env.getJavaEnv))
   }
 
   /**
@@ -84,16 +85,22 @@ object Graph {
   /**
   * Creates a graph from a Seq of edges.
   * Vertices are created automatically and their values are set by applying the provided
-  * map function to the vertex ids.
+  * vertexValueInitializer map function to the vertex ids.
   */
   def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
-  TypeInformation : ClassTag](edges: Seq[Edge[K, EV]], mapper: MapFunction[K, VV],
-      env: ExecutionEnvironment): Graph[K, VV, EV] = {
-    wrapGraph(jg.Graph.fromCollection[K, VV, EV](edges.asJavaCollection, mapper, env.getJavaEnv))
+  TypeInformation : ClassTag](edges: Seq[Edge[K, EV]], vertexValueInitializer: MapFunction[K, VV],
+  env: ExecutionEnvironment): Graph[K, VV, EV] = {
+    wrapGraph(jg.Graph.fromCollection[K, VV, EV](edges.asJavaCollection, vertexValueInitializer,
+      env.getJavaEnv))
   }
 
   /**
-  * Creates a Graph from a DataSets of Tuples.
+   * Creates a graph from DataSets of tuples for vertices and for edges.
+   * The first field of the Tuple2 vertex object will become the vertex ID
+   * and the second field will become the vertex value.
+   * The first field of the Tuple3 object for edges will become the source ID,
+   * the second field will become the target ID, and the third field will become
+   * the edge value. 
   */
   def fromTupleDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
   TypeInformation : ClassTag](vertices: DataSet[(K, VV)], edges: DataSet[(K, K, EV)],
@@ -101,11 +108,14 @@ object Graph {
     val javaTupleVertices = vertices.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
     val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
     wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleVertices, javaTupleEdges,
-        env.getJavaEnv))
+      env.getJavaEnv))
   }
 
   /**
   * Creates a Graph from a DataSet of Tuples representing the edges.
+  * The first field of the Tuple3 object for edges will become the source ID,
+  * the second field will become the target ID, and the third field will become
+  * the edge value. 
   * Vertices are created automatically and their values are set to NullValue.
   */
   def fromTupleDataSet[K: TypeInformation : ClassTag, EV: TypeInformation : ClassTag]
@@ -116,14 +126,45 @@ object Graph {
 
   /**
   * Creates a Graph from a DataSet of Tuples representing the edges.
+  * The first field of the Tuple3 object for edges will become the source ID,
+  * the second field will become the target ID, and the third field will become
+  * the edge value. 
   * Vertices are created automatically and their values are set by applying the provided
-  * map function to the vertex ids.
+  * vertexValueInitializer map function to the vertex ids.
   */
   def fromTupleDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
-  TypeInformation : ClassTag](edges: DataSet[(K, K, EV)], mapper: MapFunction[K, VV],
-      env: ExecutionEnvironment): Graph[K, VV, EV] = {
+  TypeInformation : ClassTag](edges: DataSet[(K, K, EV)],
+  vertexValueInitializer: MapFunction[K, VV], env: ExecutionEnvironment): Graph[K, VV, EV] = {
     val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
-    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleEdges, mapper, env.getJavaEnv))
+    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleEdges, vertexValueInitializer,
+      env.getJavaEnv))
+  }
+
+    /**
+  * Creates a Graph from a DataSet of Tuple2's representing the edges.
+  * The first field of the Tuple2 object for edges will become the source ID,
+  * the second field will become the target ID. The edge value will be set to NullValue.
+  * Vertices are created automatically and their values are set to NullValue.
+  */
+  def fromTuple2DataSet[K: TypeInformation : ClassTag](edges: DataSet[(K, K)],
+  env: ExecutionEnvironment): Graph[K, NullValue, NullValue] = {
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
+    wrapGraph(jg.Graph.fromTuple2DataSet[K](javaTupleEdges, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a Graph from a DataSet of Tuple2's representing the edges.
+  * The first field of the Tuple2 object for edges will become the source ID,
+  * the second field will become the target ID. The edge value will be set to NullValue.
+  * Vertices are created automatically and their values are set by applying the provided
+  * vertexValueInitializer map function to the vertex IDs.
+  */
+  def fromTuple2DataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag]
+  (edges: DataSet[(K, K)], vertexValueInitializer: MapFunction[K, VV],
+  env: ExecutionEnvironment): Graph[K, VV, NullValue] = {
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
+    wrapGraph(jg.Graph.fromTuple2DataSet[K, VV](javaTupleEdges, vertexValueInitializer,
+      env.getJavaEnv))
   }
 
   /**
@@ -160,7 +201,8 @@ object Graph {
   * edges file.
   * @param includedFieldsEdges The fields in the edges file that should be read.
   * By default all fields are read.
-  * @param mapper If no vertex values are provided, this mapper can be used to initialize them.
+  * @param vertexValueInitializer If no vertex values are provided,
+  * this mapper can be used to initialize them, by applying a map transformation on the vertex IDs.
   * 
   */
   // scalastyle:off
@@ -186,7 +228,7 @@ object Graph {
       ignoreCommentsEdges: String = null,
       lenientEdges: Boolean = false,
       includedFieldsEdges: Array[Int] = null,
-      mapper: MapFunction[K, VV] = null) = {
+      vertexValueInitializer: MapFunction[K, VV] = null) = {
 
     // with vertex and edge values
     if (readVertices && hasEdgeValues) {
@@ -229,8 +271,8 @@ object Graph {
         includedFieldsEdges)
 
       // initializer provided
-      if (mapper != null) {
-        fromTupleDataSet[K, VV, EV](edges, mapper, env)
+      if (vertexValueInitializer != null) {
+        fromTupleDataSet[K, VV, EV](edges, vertexValueInitializer, env)
       }
       else {
         fromTupleDataSet[K, EV](edges, env) 
@@ -243,8 +285,8 @@ object Graph {
       lenientEdges, includedFieldsEdges).map(edge => (edge._1, edge._2, NullValue.getInstance))
 
       // no initializer provided
-      if (mapper != null) {
-        fromTupleDataSet[K, VV, NullValue](edges, mapper, env)
+      if (vertexValueInitializer != null) {
+        fromTupleDataSet[K, VV, NullValue](edges, vertexValueInitializer, env)
       }
       else {
         fromTupleDataSet[K, NullValue](edges, env) 

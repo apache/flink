@@ -111,11 +111,11 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a Collection of edges, vertices are induced from the
-	 * edges. Vertices are created automatically and their values are set to
+	 * Creates a graph from a Collection of edges.
+	 * Vertices are created automatically and their values are set to
 	 * NullValue.
 	 * 
-	 * @param edges a Collection of vertices.
+	 * @param edges a Collection of edges.
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
@@ -126,20 +126,20 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a Collection of edges, vertices are induced from the
-	 * edges and vertex values are calculated by a mapper function. Vertices are
-	 * created automatically and their values are set by applying the provided
-	 * map function to the vertex ids.
+	 * Creates a graph from a Collection of edges.
+	 * Vertices are created automatically and their values are set 
+	 * by applying the provided map function to the vertex IDs.
 	 * 
 	 * @param edges a Collection of edges.
-	 * @param mapper the mapper function.
+	 * @param vertexValueInitializer a map function that initializes the vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value. 
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Edge<K, EV>> edges,
-			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
 
-		return fromDataSet(context.fromCollection(edges), mapper, context);
+		return fromDataSet(context.fromCollection(edges), vertexValueInitializer, context);
 	}
 
 	/**
@@ -157,8 +157,8 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a DataSet of edges, vertices are induced from the
-	 * edges. Vertices are created automatically and their values are set to
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set to
 	 * NullValue.
 	 * 
 	 * @param edges a DataSet of edges.
@@ -183,23 +183,23 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a DataSet of edges, vertices are induced from the
-	 * edges and vertex values are calculated by a mapper function. Vertices are
-	 * created automatically and their values are set by applying the provided
-	 * map function to the vertex ids.
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set
+	 * by applying the provided map function to the vertex IDs.
 	 * 
 	 * @param edges a DataSet of edges.
-	 * @param mapper the mapper function.
+	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromDataSet(DataSet<Edge<K, EV>> edges,
-			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
 
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
 
 		TypeInformation<VV> valueType = TypeExtractor.createTypeInfo(
-				MapFunction.class, mapper.getClass(), 1, null, null);
+				MapFunction.class, vertexValueInitializer.getClass(), 1, null, null);
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		TypeInformation<Vertex<K, VV>> returnType = (TypeInformation<Vertex<K, VV>>) new TupleTypeInfo(
@@ -209,7 +209,7 @@ public class Graph<K, VV, EV> {
 				.flatMap(new EmitSrcAndTargetAsTuple1<K, EV>()).distinct()
 				.map(new MapFunction<Tuple1<K>, Vertex<K, VV>>() {
 					public Vertex<K, VV> map(Tuple1<K> value) throws Exception {
-						return new Vertex<K, VV>(value.f0, mapper.map(value.f0));
+						return new Vertex<K, VV>(value.f0, vertexValueInitializer.map(value.f0));
 					}
 				}).returns(returnType).withForwardedFields("f0");
 
@@ -226,13 +226,17 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a DataSet of Tuple objects for vertices and edges.
+	 * Creates a graph from a DataSet of Tuple2 objects for vertices and 
+	 * Tuple3 objects for edges.
+	 * <p>
+	 * The first field of the Tuple2 vertex object will become the vertex ID
+	 * and the second field will become the vertex value.
+	 * The first field of the Tuple3 object for edges will become the source ID,
+	 * the second field will become the target ID, and the third field will become
+	 * the edge value.
 	 * 
-	 * Vertices with value are created from Tuple2, Edges with value are created
-	 * from Tuple3.
-	 * 
-	 * @param vertices a DataSet of Tuple2.
-	 * @param edges a DataSet of Tuple3.
+	 * @param vertices a DataSet of Tuple2 representing the vertices.
+	 * @param edges a DataSet of Tuple3 representing the edges.
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
@@ -245,13 +249,15 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a DataSet of Tuple objects for edges, vertices are
-	 * induced from the edges.
+	 * Creates a graph from a DataSet of Tuple3 objects for edges.
+	 * <p>
+	 * The first field of the Tuple3 object will become the source ID,
+	 * the second field will become the target ID, and the third field will become
+	 * the edge value.
+	 * <p>
+	 * Vertices are created automatically and their values are set to NullValue.
 	 * 
-	 * Edges with value are created from Tuple3. Vertices are created
-	 * automatically and their values are set to NullValue.
-	 * 
-	 * @param edges a DataSet of Tuple3.
+	 * @param edges a DataSet of Tuple3 representing the edges.
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
@@ -263,22 +269,78 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Creates a graph from a DataSet of Tuple objects for edges, vertices are
-	 * induced from the edges and vertex values are calculated by a mapper
-	 * function. Edges with value are created from Tuple3. Vertices are created
-	 * automatically and their values are set by applying the provided map
-	 * function to the vertex ids.
+	 * Creates a graph from a DataSet of Tuple3 objects for edges.
+	 * <p>
+	 * Each Tuple3 will become one Edge, where the source ID will be the first field of the Tuple2,
+	 * the target ID will be the second field of the Tuple2
+	 * and the Edge value will be the third field of the Tuple3.
+	 * <p>
+	 * Vertices are created automatically and their values are initialized
+	 * by applying the provided vertexValueInitializer map function to the vertex IDs.
 	 * 
 	 * @param edges a DataSet of Tuple3.
-	 * @param mapper the mapper function.
+	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
 	public static <K, VV, EV> Graph<K, VV, EV> fromTupleDataSet(DataSet<Tuple3<K, K, EV>> edges,
-			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
 
 		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
-		return fromDataSet(edgeDataSet, mapper, context);
+		return fromDataSet(edgeDataSet, vertexValueInitializer, context);
+	}
+
+	/**
+	 * Creates a graph from a DataSet of Tuple2 objects for edges.
+	 * Each Tuple2 will become one Edge, where the source ID will be the first field of the Tuple2
+	 * and the target ID will be the second field of the Tuple2.
+	 * <p>
+	 * Edge value types and Vertex values types will be set to NullValue.
+	 * 
+	 * @param edges a DataSet of Tuple2.
+	 * @param context the flink execution environment.
+	 * @return the newly created graph.
+	 */
+	public static <K> Graph<K, NullValue, NullValue> fromTuple2DataSet(DataSet<Tuple2<K, K>> edges,
+			ExecutionEnvironment context) {
+
+		DataSet<Edge<K, NullValue>> edgeDataSet = edges.map(
+				new MapFunction<Tuple2<K, K>, Edge<K, NullValue>>() {
+
+					public Edge<K, NullValue> map(Tuple2<K, K> input) {
+						return new Edge<K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+					}
+		}).withForwardedFields("f0; f1");
+		return fromDataSet(edgeDataSet, context);
+	}
+
+	/**
+	 * Creates a graph from a DataSet of Tuple2 objects for edges.
+	 * Each Tuple2 will become one Edge, where the source ID will be the first field of the Tuple2
+	 * and the target ID will be the second field of the Tuple2.
+	 * <p>
+	 * Edge value types will be set to NullValue.
+	 * Vertex values can be initialized by applying a user-defined map function on the vertex IDs.
+	 * 
+	 * @param edges a DataSet of Tuple2, where the first field corresponds to the source ID
+	 * and the second field corresponds to the target ID.
+	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
+	 * @param context the flink execution environment.
+	 * @return the newly created graph.
+	 */
+	public static <K, VV> Graph<K, VV, NullValue> fromTuple2DataSet(DataSet<Tuple2<K, K>> edges,
+			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
+
+		DataSet<Edge<K, NullValue>> edgeDataSet = edges.map(
+				new MapFunction<Tuple2<K, K>, Edge<K, NullValue>>() {
+
+					public Edge<K, NullValue> map(Tuple2<K, K> input) {
+						return new Edge<K, NullValue>(input.f0, input.f1, NullValue.getInstance());
+					}
+				}).withForwardedFields("f0; f1");
+		return fromDataSet(edgeDataSet, vertexValueInitializer, context);
 	}
 
 	/**
@@ -318,10 +380,11 @@ public class Graph<K, VV, EV> {
 
 	/** 
 	 * Creates a graph from a CSV file of edges. Vertices will be created automatically and
-	 * Vertex values are set by the provided mapper.
+	 * Vertex values can be initialized using a user-defined mapper.
 	 *
 	 * @param edgesPath a path to a CSV file with the Edge data
-	 * @param mapper the mapper function.
+	 * @param vertexValueInitializer the mapper function that initializes the vertex values.
+	 * It allows to apply a map transformation on the vertex ID to produce an initial vertex value.
 	 * @param context the execution environment.
 	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader},
 	 * on which calling methods to specify types of the Vertex ID, Vertex Value and Edge value returns a Graph.
@@ -332,8 +395,8 @@ public class Graph<K, VV, EV> {
 	 * {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
 	 */
 	public static <K, VV> GraphCsvReader fromCsvReader(String edgesPath,
-			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
-		return new GraphCsvReader(edgesPath, mapper, context);
+			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
+		return new GraphCsvReader(edgesPath, vertexValueInitializer, context);
 	}
 
 	/**
