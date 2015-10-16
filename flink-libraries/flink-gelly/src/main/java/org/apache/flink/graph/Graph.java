@@ -879,20 +879,21 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the edges of each vertex. The function applied
-	 * on the edges has access to the vertex value.
+	 * Groups by vertex and computes a GroupReduce transformation over the edge values of each vertex.
+	 * The edgesFunction applied on the edges has access to both the id and the value
+	 * of the grouping vertex.
 	 * 
-	 * @param edgesFunction
-	 *            the function to apply to the neighborhood
-	 * @param direction
-	 *            the edge direction (in-, out-, all-)
-	 * @param <T>
-	 *            the output type
-	 * @return a dataset of a T
+	 * For each vertex, the edgesFunction can iterate over all edges of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param edgesFunction the group reduce function to apply to the neighboring edges of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
+	 * @param <T> the output type
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
-											EdgeDirection direction) throws IllegalArgumentException {
+			EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 		case IN:
@@ -910,21 +911,22 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the edges of each vertex. The function applied
-	 * on the edges has access to the vertex value.
-	 *
-	 * @param edgesFunction
-	 *            the function to apply to the neighborhood
-	 * @param direction
-	 *            the edge direction (in-, out-, all-)
-	 * @param <T>
-	 *            the output type
+	 * Groups by vertex and computes a GroupReduce transformation over the edge values of each vertex.
+	 * The edgesFunction applied on the edges has access to both the id and the value
+	 * of the grouping vertex.
+	 * 
+	 * For each vertex, the edgesFunction can iterate over all edges of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param edgesFunction the group reduce function to apply to the neighboring edges of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
+	 * @param <T> the output type
 	 * @param typeInfo the explicit return type.
-	 * @return a dataset of a T
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
-											EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+			EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
 
 		switch (direction) {
 			case IN:
@@ -942,18 +944,19 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the edges of each vertex. The function applied
-	 * on the edges only has access to the vertex id (not the vertex value).
+	 * Groups by vertex and computes a GroupReduce transformation over the edge values of each vertex.
+	 * The edgesFunction applied on the edges only has access to the vertex id (not the vertex value)
+	 * of the grouping vertex.
 	 * 
-	 * @param edgesFunction
-	 *            the function to apply to the neighborhood
-	 * @param direction
-	 *            the edge direction (in-, out-, all-)
-	 * @param <T>
-	 *            the output type
-	 * @return a dataset of T
+	 * For each vertex, the edgesFunction can iterate over all edges of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param edgesFunction the group reduce function to apply to the neighboring edges of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
+	 * @param <T> the output type
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
 			EdgeDirection direction) throws IllegalArgumentException {
 
@@ -975,21 +978,22 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the edges of each vertex. The function applied
-	 * on the edges only has access to the vertex id (not the vertex value).
-	 *
-	 * @param edgesFunction
-	 *            the function to apply to the neighborhood
-	 * @param direction
-	 *            the edge direction (in-, out-, all-)
-	 * @param <T>
-	 *            the output type
+	 * Groups by vertex and computes a GroupReduce transformation over the edge values of each vertex.
+	 * The edgesFunction applied on the edges only has access to the vertex id (not the vertex value)
+	 * of the grouping vertex.
+	 * 
+	 * For each vertex, the edgesFunction can iterate over all edges of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param edgesFunction the group reduce function to apply to the neighboring edges of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
+	 * @param <T> the output type
 	 * @param typeInfo the explicit return type.
-	 * @return a dataset of T
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
-											EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+			EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
 
 		switch (direction) {
 			case IN:
@@ -1596,18 +1600,22 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the neighbors (edges and vertices) of each
-	 * vertex. The function applied on the neighbors has access to the vertex
-	 * value.
+	 * Groups by vertex and computes a GroupReduce transformation over the neighbors (both edges and vertices)
+	 * of each vertex. The neighborsFunction applied on the neighbors only has access to both the vertex id
+	 * and the vertex value of the grouping vertex.
 	 * 
-	 * @param neighborsFunction the function to apply to the neighborhood
-	 * @param direction the edge direction (in-, out-, all-)
+	 * For each vertex, the neighborsFunction can iterate over all neighbors of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param neighborsFunction the group reduce function to apply to the neighboring edges and vertices
+	 * of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
 	 * @param <T> the output type
-	 * @return a dataset of a T
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
-												EdgeDirection direction) throws IllegalArgumentException {
+			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1639,19 +1647,23 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the neighbors (edges and vertices) of each
-	 * vertex. The function applied on the neighbors has access to the vertex
-	 * value.
-	 *
-	 * @param neighborsFunction the function to apply to the neighborhood
-	 * @param direction the edge direction (in-, out-, all-)
+	 * Groups by vertex and computes a GroupReduce transformation over the neighbors (both edges and vertices)
+	 * of each vertex. The neighborsFunction applied on the neighbors only has access to both the vertex id
+	 * and the vertex value of the grouping vertex.
+	 * 
+	 * For each vertex, the neighborsFunction can iterate over all neighbors of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param neighborsFunction the group reduce function to apply to the neighboring edges and vertices
+	 * of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
 	 * @param <T> the output type
-	 * @param typeInfo the explicit return type.
-	 * @return a dataset of a T
+	 * @param typeInfo the explicit return type
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
-												EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+			EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
 		switch (direction) {
 			case IN:
 				// create <edge-sourceVertex> pairs
@@ -1682,20 +1694,23 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
-
 	/**
-	 * Compute an aggregate over the neighbors (edges and vertices) of each
-	 * vertex. The function applied on the neighbors only has access to the
-	 * vertex id (not the vertex value).
+	 * Groups by vertex and computes a GroupReduce transformation over the neighbors (both edges and vertices)
+	 * of each vertex. The neighborsFunction applied on the neighbors only has access to the vertex id
+	 * (not the vertex value) of the grouping vertex.
 	 * 
-	 * @param neighborsFunction the function to apply to the neighborhood
-	 * @param direction the edge direction (in-, out-, all-)
+	 * For each vertex, the neighborsFunction can iterate over all neighbors of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param neighborsFunction the group reduce function to apply to the neighboring edges and vertices
+	 * of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
 	 * @param <T> the output type
-	 * @return a dataset of a T
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
-												EdgeDirection direction) throws IllegalArgumentException {
+			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1728,19 +1743,23 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the neighbors (edges and vertices) of each
-	 * vertex. The function applied on the neighbors only has access to the
-	 * vertex id (not the vertex value).
-	 *
-	 * @param neighborsFunction the function to apply to the neighborhood
-	 * @param direction the edge direction (in-, out-, all-)
+	 * Groups by vertex and computes a GroupReduce transformation over the neighbors (both edges and vertices)
+	 * of each vertex. The neighborsFunction applied on the neighbors only has access to the vertex id
+	 * (not the vertex value) of the grouping vertex.
+	 * 
+	 * For each vertex, the neighborsFunction can iterate over all neighbors of this vertex
+	 * with the specified direction, and emit any number of output elements, including none.
+	 * 
+	 * @param neighborsFunction the group reduce function to apply to the neighboring edges and vertices
+	 * of each vertex.
+	 * @param direction the edge direction (in-, out-, all-).
 	 * @param <T> the output type
-	 * @param typeInfo the explicit return type.
-	 * @return a dataset of a T
+	 * @param typeInfo the explicit return type
+	 * @return a DataSet containing elements of type T
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
-												EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
+			EdgeDirection direction, TypeInformation<T> typeInfo) throws IllegalArgumentException {
 		switch (direction) {
 			case IN:
 				// create <edge-sourceVertex> pairs
@@ -1988,7 +2007,7 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Compute a reduce transformation over the edge values of each vertex.
 	 * For each vertex, the transformation consecutively calls a
-	 * {@link ReduceEdgesFunction} until only a single value for each vertex remains.
+	 * {@link ReduceEdgesFunction} until only a single value for each edge remains.
 	 * The {@link ReduceEdgesFunction} combines two edge values into one new value of the same type.
 	 *
 	 * @param reduceEdgesFunction the reduce function to apply to the neighbors of each vertex.
@@ -1999,7 +2018,7 @@ public class Graph<K, VV, EV> {
 	 * @throws IllegalArgumentException
 	*/
 	public DataSet<Tuple2<K, EV>> reduceOnEdges(ReduceEdgesFunction<EV> reduceEdgesFunction,
-								EdgeDirection direction) throws IllegalArgumentException {
+			EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 			case IN:

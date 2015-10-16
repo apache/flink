@@ -31,5 +31,14 @@ import java.io.Serializable;
  */
 public interface ReduceNeighborsFunction <VV> extends Function, Serializable {
 
+	/**
+	 * It combines two neighboring vertex values into one new value of the same type.
+	 * For each vertex, this function is consecutively called,
+	 * until only a single value for each vertex remains.
+	 * 
+	 * @param firstNeighborValue the first neighboring vertex value to combine
+	 * @param secondNeighborValue the second neighboring vertex value to combine
+	 * @return the combined value of both input values
+	 */
 	VV reduceNeighbors(VV firstNeighborValue, VV secondNeighborValue);
 }
