@@ -101,7 +101,7 @@ MultipleProgramsTestBase(mode) {
     val graph = Graph.fromCsvReader[Long, Double, Long](
         readVertices = false,
         pathEdges = edgesSplit.getPath.toString,
-        mapper = new VertexDoubleIdAssigner(),
+        vertexValueInitializer = new VertexDoubleIdAssigner(),
         env = env)
     
     val result = graph.getTriplets.collect()

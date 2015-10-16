@@ -26,6 +26,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.EdgeJoinFunction;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
@@ -462,9 +463,10 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
     }
 
 	@SuppressWarnings("serial")
-	private static final class AddValuesMapper implements MapFunction<Tuple2<Long, Long>, Long> {
-		public Long map(Tuple2<Long, Long> tuple) throws Exception {
-			return tuple.f0 + tuple.f1;
+	private static final class AddValuesMapper implements EdgeJoinFunction<Long, Long> {
+
+		public Long edgeJoin(Long edgeValue, Long inputValue) throws Exception {
+			return edgeValue + inputValue;
 		}
 	}
 
@@ -477,29 +479,34 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
     }
 
 	@SuppressWarnings("serial")
-	private static final class DoubleIfTrueMapper implements MapFunction<Tuple2<Long, Boolean>, Long> {
-        public Long map(Tuple2<Long, Boolean> tuple) throws Exception {
-            if(tuple.f1) {
-                return tuple.f0 * 2;
+	private static final class DoubleIfTrueMapper implements EdgeJoinFunction<Long, Boolean> {
+
+		public Long edgeJoin(Long edgeValue, Boolean inputValue) {
+            if(inputValue) {
+                return edgeValue * 2;
             }
             else {
-                return tuple.f0;
+                return edgeValue;
             }
-        }
+		}
     }
 
 	@SuppressWarnings("serial")
-	private static final class DoubleValueMapper implements MapFunction<Tuple2<Long, Long>, Long> {
-        public Long map(Tuple2<Long, Long> tuple) throws Exception {
-            return tuple.f1 * 2;
-        }
+	private static final class DoubleValueMapper implements EdgeJoinFunction<Long, Long> {
+ 
+		public Long edgeJoin(Long edgeValue, Long inputValue) {
+			return inputValue*2;
+		}
     }
 
 	@SuppressWarnings("serial")
-	private static final class CustomValueMapper implements MapFunction<Tuple2<Long, DummyCustomParameterizedType<Float>>, Long> {
-        public Long map(Tuple2<Long, DummyCustomParameterizedType<Float>> tuple) throws Exception {
-            return (long) tuple.f1.getIntField();
-        }
+	private static final class CustomValueMapper implements EdgeJoinFunction<
+	Long, DummyCustomParameterizedType<Float>> {
+
+		public Long edgeJoin(Long edgeValue,
+				DummyCustomParameterizedType<Float> inputValue) {
+			return (long) inputValue.getIntField();
+		}
     }
 
 	@SuppressWarnings("serial")

@@ -37,6 +37,7 @@ import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.EdgesFunctionWithVertexValue;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexJoinFunction;
 import org.apache.flink.graph.example.utils.MusicProfilesData;
 import org.apache.flink.graph.library.LabelPropagation;
 import org.apache.flink.types.NullValue;
@@ -149,9 +150,9 @@ public class MusicProfiles implements ProgramDescription {
 
 		DataSet<Vertex<String, Long>> verticesWithCommunity = similarUsersGraph
 				.joinWithVertices(idsWithInitialLabels,
-						new MapFunction<Tuple2<Long, Long>, Long>() {
-							public Long map(Tuple2<Long, Long> value) {
-								return value.f1;
+						new VertexJoinFunction<Long, Long>() {
+							public Long vertexJoin(Long vertexValue, Long inputValue) {
+								return inputValue;
 							}
 						}).run(new LabelPropagation<String, NullValue>(maxIterations));
 

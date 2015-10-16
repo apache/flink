@@ -149,6 +149,30 @@ val graph = Graph.fromDataSet(vertices, edges, env)
 </div>
 </div>
 
+* from a `DataSet` of `Tuple2` representing the edges. Gelly will convert each `Tuple2` to an `Edge`, where the first field will be the source ID and the second field will be the target ID. Both vertex and edge values will be set to `NullValue`.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+DataSet<Tuple2<String, String>> edges = ...
+
+Graph<String, NullValue, NullValue> graph = Graph.fromTuple2DataSet(edges, env);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+val edges: DataSet[(String, String)] = ...
+
+val graph = Graph.fromTuple2DataSet(edges, env)
+{% endhighlight %}
+</div>
+</div>
+
 * from a `DataSet` of `Tuple3` and an optional `DataSet` of `Tuple2`. In this case, Gelly will convert each `Tuple3` to an `Edge`, where the first field will be the source ID, the second field will be the target ID and the third field will be the edge value. Equivalently, each `Tuple2` will be converted to a `Vertex`, where the first field will be the vertex ID and the second field will be the vertex value:
 
 <div class="codetabs" markdown="1">
@@ -424,8 +448,8 @@ graph.subgraph((vertex => vertex.getValue > 0), (edge => edge.getValue < 0))
     <img alt="Filter Transformations" width="80%" src="fig/gelly-filter.png"/>
 </p>
 
-* <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithVertices` joins the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `Graph` where the vertex values have been updated according to a provided user-defined map function.
-Similarly, an input dataset can be joined with the edges, using one of three methods. `joinWithEdges` expects an input `DataSet` of `Tuple3` and joins on the composite key of both source and target vertex IDs. `joinWithEdgesOnSource` expects a `DataSet` of `Tuple2` and joins on the source key of the edges and the first attribute of the input dataset and `joinWithEdgesOnTarget` expects a `DataSet` of `Tuple2` and joins on the target key of the edges and the first attribute of the input dataset. All three methods apply a map function on the edge and the input data set values.
+* <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithVertices` joins the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `Graph` where the vertex values have been updated according to a provided user-defined transformation function.
+Similarly, an input dataset can be joined with the edges, using one of three methods. `joinWithEdges` expects an input `DataSet` of `Tuple3` and joins on the composite key of both source and target vertex IDs. `joinWithEdgesOnSource` expects a `DataSet` of `Tuple2` and joins on the source key of the edges and the first attribute of the input dataset and `joinWithEdgesOnTarget` expects a `DataSet` of `Tuple2` and joins on the target key of the edges and the first attribute of the input dataset. All three methods apply a transformation function on the edge and the input data set values.
 Note that if the input dataset contains a key multiple times, all Gelly join methods will only consider the first value encountered.
 
 <div class="codetabs" markdown="1">
@@ -437,9 +461,9 @@ DataSet<Tuple2<Long, Long>> vertexOutDegrees = network.outDegrees();
 
 // assign the transition probabilities as the edge weights
 Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees,
-				new MapFunction<Tuple2<Double, Long>, Double>() {
-					public Double map(Tuple2<Double, Long> value) {
-						return value.f0 / value.f1;
+				new VertexJoinFunction<Double, Long>() {
+					public Double vertexJoin(Double vertexValue, Long inputValue) {
+						return vertexValue / inputValue;
 					}
 				});
 {% endhighlight %}

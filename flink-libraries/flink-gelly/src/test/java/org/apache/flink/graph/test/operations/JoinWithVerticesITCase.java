@@ -26,6 +26,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexJoinFunction;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
@@ -173,9 +174,10 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
     }
 
 	@SuppressWarnings("serial")
-	private static final class AddValuesMapper implements MapFunction<Tuple2<Long, Long>, Long> {
-		public Long map(Tuple2<Long, Long> tuple) throws Exception {
-			return tuple.f0 + tuple.f1;
+	private static final class AddValuesMapper implements VertexJoinFunction<Long, Long> {
+
+		public Long vertexJoin(Long vertexValue, Long inputValue) {
+			return vertexValue + inputValue;
 		}
 	}
 
@@ -187,28 +189,32 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
     }
 
 	@SuppressWarnings("serial")
-	private static final class DoubleIfTrueMapper implements MapFunction<Tuple2<Long, Boolean>, Long> {
-        public Long map(Tuple2<Long, Boolean> tuple) throws Exception {
-            if(tuple.f1) {
-                return tuple.f0 * 2;
+	private static final class DoubleIfTrueMapper implements VertexJoinFunction<Long, Boolean> {
+
+		public Long vertexJoin(Long vertexValue, Boolean inputValue) {
+            if(inputValue) {
+                return vertexValue * 2;
             }
             else {
-                return tuple.f0;
+                return vertexValue;
             }
-        }
+		}
     }
 
 	@SuppressWarnings("serial")
-	private static final class ProjectSecondMapper implements MapFunction<Tuple2<Long, Long>, Long> {
-        public Long map(Tuple2<Long, Long> tuple) throws Exception {
-            return tuple.f1;
-        }
+	private static final class ProjectSecondMapper implements VertexJoinFunction<Long, Long> {
+
+		public Long vertexJoin(Long vertexValue, Long inputValue) {
+			return inputValue;
+		}
     }
 
 	@SuppressWarnings("serial")
-	private static final class CustomValueMapper implements MapFunction<Tuple2<Long, DummyCustomParameterizedType<Float>>, Long> {
-        public Long map(Tuple2<Long, DummyCustomParameterizedType<Float>> tuple) throws Exception {
-            return (long) tuple.f1.getIntField();
-        }
+	private static final class CustomValueMapper implements VertexJoinFunction<Long,
+		DummyCustomParameterizedType<Float>> {
+
+		public Long vertexJoin(Long vertexValue, DummyCustomParameterizedType<Float> inputValue) {
+			return (long) inputValue.getIntField();
+		}
     }
 }

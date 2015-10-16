@@ -54,12 +54,13 @@ object Graph {
   /**
   * Creates a graph from a DataSet of edges.
   * Vertices are created automatically and their values are set by applying the provided
-  * map function to the vertex ids.
+  * vertexValueInitializer map function to the vertex ids.
   */
   def fromDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
-  TypeInformation : ClassTag](edges: DataSet[Edge[K, EV]], mapper: MapFunction[K, VV],
-      env: ExecutionEnvironment): Graph[K, VV, EV] = {
-    wrapGraph(jg.Graph.fromDataSet[K, VV, EV](edges.javaSet, mapper, env.getJavaEnv))
+  TypeInformation : ClassTag](edges: DataSet[Edge[K, EV]],
+  vertexValueInitializer: MapFunction[K, VV], env: ExecutionEnvironment): Graph[K, VV, EV] = {
+    wrapGraph(jg.Graph.fromDataSet[K, VV, EV](edges.javaSet, vertexValueInitializer,
+      env.getJavaEnv))
   }
 
   /**
@@ -84,16 +85,22 @@ object Graph {
   /**
   * Creates a graph from a Seq of edges.
   * Vertices are created automatically and their values are set by applying the provided
-  * map function to the vertex ids.
+  * vertexValueInitializer map function to the vertex ids.
   */
   def fromCollection[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
-  TypeInformation : ClassTag](edges: Seq[Edge[K, EV]], mapper: MapFunction[K, VV],
-      env: ExecutionEnvironment): Graph[K, VV, EV] = {
-    wrapGraph(jg.Graph.fromCollection[K, VV, EV](edges.asJavaCollection, mapper, env.getJavaEnv))
+  TypeInformation : ClassTag](edges: Seq[Edge[K, EV]], vertexValueInitializer: MapFunction[K, VV],
+  env: ExecutionEnvironment): Graph[K, VV, EV] = {
+    wrapGraph(jg.Graph.fromCollection[K, VV, EV](edges.asJavaCollection, vertexValueInitializer,
+      env.getJavaEnv))
   }
 
   /**
-  * Creates a Graph from a DataSets of Tuples.
+   * Creates a graph from DataSets of tuples for vertices and for edges.
+   * The first field of the Tuple2 vertex object will become the vertex ID
+   * and the second field will become the vertex value.
+   * The first field of the Tuple3 object for edges will become the source ID,
+   * the second field will become the target ID, and the third field will become
+   * the edge value. 
   */
   def fromTupleDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
   TypeInformation : ClassTag](vertices: DataSet[(K, VV)], edges: DataSet[(K, K, EV)],
@@ -101,11 +108,14 @@ object Graph {
     val javaTupleVertices = vertices.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
     val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
     wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleVertices, javaTupleEdges,
-        env.getJavaEnv))
+      env.getJavaEnv))
   }
 
   /**
   * Creates a Graph from a DataSet of Tuples representing the edges.
+  * The first field of the Tuple3 object for edges will become the source ID,
+  * the second field will become the target ID, and the third field will become
+  * the edge value. 
   * Vertices are created automatically and their values are set to NullValue.
   */
   def fromTupleDataSet[K: TypeInformation : ClassTag, EV: TypeInformation : ClassTag]
@@ -116,14 +126,45 @@ object Graph {
 
   /**
   * Creates a Graph from a DataSet of Tuples representing the edges.
+  * The first field of the Tuple3 object for edges will become the source ID,
+  * the second field will become the target ID, and the third field will become
+  * the edge value. 
   * Vertices are created automatically and their values are set by applying the provided
-  * map function to the vertex ids.
+  * vertexValueInitializer map function to the vertex ids.
   */
   def fromTupleDataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag, EV:
-  TypeInformation : ClassTag](edges: DataSet[(K, K, EV)], mapper: MapFunction[K, VV],
-      env: ExecutionEnvironment): Graph[K, VV, EV] = {
+  TypeInformation : ClassTag](edges: DataSet[(K, K, EV)],
+  vertexValueInitializer: MapFunction[K, VV], env: ExecutionEnvironment): Graph[K, VV, EV] = {
     val javaTupleEdges = edges.map(v => new jtuple.Tuple3(v._1, v._2, v._3)).javaSet
-    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleEdges, mapper, env.getJavaEnv))
+    wrapGraph(jg.Graph.fromTupleDataSet[K, VV, EV](javaTupleEdges, vertexValueInitializer,
+      env.getJavaEnv))
+  }
+
+    /**
+  * Creates a Graph from a DataSet of Tuple2's representing the edges.
+  * The first field of the Tuple2 object for edges will become the source ID,
+  * the second field will become the target ID. The edge value will be set to NullValue.
+  * Vertices are created automatically and their values are set to NullValue.
+  */
+  def fromTuple2DataSet[K: TypeInformation : ClassTag](edges: DataSet[(K, K)],
+  env: ExecutionEnvironment): Graph[K, NullValue, NullValue] = {
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
+    wrapGraph(jg.Graph.fromTuple2DataSet[K](javaTupleEdges, env.getJavaEnv))
+  }
+
+  /**
+  * Creates a Graph from a DataSet of Tuple2's representing the edges.
+  * The first field of the Tuple2 object for edges will become the source ID,
+  * the second field will become the target ID. The edge value will be set to NullValue.
+  * Vertices are created automatically and their values are set by applying the provided
+  * vertexValueInitializer map function to the vertex IDs.
+  */
+  def fromTuple2DataSet[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag]
+  (edges: DataSet[(K, K)], vertexValueInitializer: MapFunction[K, VV],
+  env: ExecutionEnvironment): Graph[K, VV, NullValue] = {
+    val javaTupleEdges = edges.map(v => new jtuple.Tuple2(v._1, v._2)).javaSet
+    wrapGraph(jg.Graph.fromTuple2DataSet[K, VV](javaTupleEdges, vertexValueInitializer,
+      env.getJavaEnv))
   }
 
   /**
@@ -160,7 +201,8 @@ object Graph {
   * edges file.
   * @param includedFieldsEdges The fields in the edges file that should be read.
   * By default all fields are read.
-  * @param mapper If no vertex values are provided, this mapper can be used to initialize them.
+  * @param vertexValueInitializer If no vertex values are provided,
+  * this mapper can be used to initialize them, by applying a map transformation on the vertex IDs.
   * 
   */
   // scalastyle:off
@@ -186,7 +228,7 @@ object Graph {
       ignoreCommentsEdges: String = null,
       lenientEdges: Boolean = false,
       includedFieldsEdges: Array[Int] = null,
-      mapper: MapFunction[K, VV] = null) = {
+      vertexValueInitializer: MapFunction[K, VV] = null) = {
 
     // with vertex and edge values
     if (readVertices && hasEdgeValues) {
@@ -229,8 +271,8 @@ object Graph {
         includedFieldsEdges)
 
       // initializer provided
-      if (mapper != null) {
-        fromTupleDataSet[K, VV, EV](edges, mapper, env)
+      if (vertexValueInitializer != null) {
+        fromTupleDataSet[K, VV, EV](edges, vertexValueInitializer, env)
       }
       else {
         fromTupleDataSet[K, EV](edges, env) 
@@ -243,8 +285,8 @@ object Graph {
       lenientEdges, includedFieldsEdges).map(edge => (edge._1, edge._2, NullValue.getInstance))
 
       // no initializer provided
-      if (mapper != null) {
-        fromTupleDataSet[K, VV, NullValue](edges, mapper, env)
+      if (vertexValueInitializer != null) {
+        fromTupleDataSet[K, VV, NullValue](edges, vertexValueInitializer, env)
       }
       else {
         fromTupleDataSet[K, NullValue](edges, env) 
@@ -369,185 +411,215 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
-   * Joins the vertex DataSet of this graph with an input DataSet and applies
-   * a UDF on the resulted values.
-   *
-   * @param inputDataSet the DataSet to join with.
-   * @param mapper the UDF map function to apply.
-   * @return a new graph where the vertex values have been updated.
-   */
-  def joinWithVertices[T: TypeInformation](inputDataSet: DataSet[(K, T)], mapper: MapFunction[
-    (VV, T), VV]): Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
-      override def map(value: jtuple.Tuple2[VV, T]): VV = {
-        mapper.map((value.f0, value.f1))
-      }
-    }
+   * Joins the vertex DataSet of this graph with an input Tuple2 DataSet and applies
+   * a user-defined transformation on the values of the matched records.
+   * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.
+   * 
+   * @param inputDataSet the Tuple2 DataSet to join with.
+   * The first field of the Tuple2 is used as the join key and the second field is passed
+   * as a parameter to the transformation function.
+   * @param vertexJoinFunction the transformation function to apply.
+   * The first parameter is the current vertex value and the second parameter is the value
+   * of the matched Tuple2 from the input DataSet.
+   * @return a new Graph, where the vertex values have been updated according to the
+   * result of the vertexJoinFunction.
+   * 
+   * @tparam T the type of the second field of the input Tuple2 DataSet.
+  */
+  def joinWithVertices[T: TypeInformation](inputDataSet: DataSet[(K, T)],
+  vertexJoinFunction: VertexJoinFunction[VV, T]): Graph[K, VV, EV] = {
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
       scalatuple._2)).javaSet
-    wrapGraph(jgraph.joinWithVertices[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithVertices[T](javaTupleSet, vertexJoinFunction))
   }
 
   /**
-   * Joins the vertex DataSet of this graph with an input DataSet and applies
-   * a UDF on the resulted values.
-   *
-   * @param inputDataSet the DataSet to join with.
-   * @param fun the UDF map function to apply.
-   * @return a new graph where the vertex values have been updated.
-   */
+   * Joins the vertex DataSet of this graph with an input Tuple2 DataSet and applies
+   * a user-defined transformation on the values of the matched records.
+   * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.
+   * 
+   * @param inputDataSet the Tuple2 DataSet to join with.
+   * The first field of the Tuple2 is used as the join key and the second field is passed
+   * as a parameter to the transformation function.
+   * @param fun the transformation function to apply.
+   * The first parameter is the current vertex value and the second parameter is the value
+   * of the matched Tuple2 from the input DataSet.
+   * @return a new Graph, where the vertex values have been updated according to the
+   * result of the vertexJoinFunction.
+   * 
+   * @tparam T the type of the second field of the input Tuple2 DataSet.
+  */
   def joinWithVertices[T: TypeInformation](inputDataSet: DataSet[(K, T)], fun: (VV, T) => VV):
   Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[VV, T], VV]() {
+    val newVertexJoin = new VertexJoinFunction[VV, T]() {
       val cleanFun = clean(fun)
 
-      override def map(value: jtuple.Tuple2[VV, T]): VV = {
-        cleanFun(value.f0, value.f1)
+      override def vertexJoin(vertexValue: VV, inputValue: T): VV = {
+        cleanFun(vertexValue, inputValue)
       }
     }
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
       scalatuple._2)).javaSet
-    wrapGraph(jgraph.joinWithVertices[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithVertices[T](javaTupleSet, newVertexJoin))
   }
 
   /**
-   * Joins the edge DataSet with an input DataSet on a composite key of both
-   * source and target and applies a UDF on the resulted values.
-   *
+   * Joins the edge DataSet with an input DataSet on the composite key of both
+   * source and target IDs and applies a user-defined transformation on the values
+   * of the matched records. The first two fields of the input DataSet are used as join keys.
+   * 
    * @param inputDataSet the DataSet to join with.
-   * @param mapper the UDF map function to apply.
-   * @tparam T the return type
-   * @return a new graph where the edge values have been updated.
-   */
-  def joinWithEdges[T: TypeInformation](inputDataSet: DataSet[(K, K, T)], mapper: MapFunction[
-    (EV, T), EV]): Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
-      override def map(value: jtuple.Tuple2[EV, T]): EV = {
-        mapper.map((value.f0, value.f1))
-      }
-    }
+   * The first two fields of the Tuple3 are used as the composite join key
+   * and the third field is passed as a parameter to the transformation function.
+   * @param edgeJoinFunction the transformation function to apply.
+   * The first parameter is the current edge value and the second parameter is the value
+   * of the matched Tuple3 from the input DataSet.
+   * 
+   * @tparam T the type of the third field of the input Tuple3 DataSet.
+   * @return a new Graph, where the edge values have been updated according to the
+   * result of the edgeJoinFunction.
+  */
+  def joinWithEdges[T: TypeInformation](inputDataSet: DataSet[(K, K, T)],
+  edgeJoinFunction: EdgeJoinFunction[EV, T]): Graph[K, VV, EV] = {
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple3(scalatuple._1,
       scalatuple._2, scalatuple._3)).javaSet
-    wrapGraph(jgraph.joinWithEdges[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithEdges[T](javaTupleSet, edgeJoinFunction))
   }
 
   /**
-   * Joins the edge DataSet with an input DataSet on a composite key of both
-   * source and target and applies a UDF on the resulted values.
-   *
+   * Joins the edge DataSet with an input DataSet on the composite key of both
+   * source and target IDs and applies a user-defined transformation on the values
+   * of the matched records. The first two fields of the input DataSet are used as join keys.
+   * 
    * @param inputDataSet the DataSet to join with.
-   * @param fun the UDF map function to apply.
-   * @tparam T the return type
-   * @return a new graph where the edge values have been updated.
-   */
+   * The first two fields of the Tuple3 are used as the composite join key
+   * and the third field is passed as a parameter to the transformation function.
+   * @param fun the transformation function to apply.
+   * The first parameter is the current edge value and the second parameter is the value
+   * of the matched Tuple3 from the input DataSet.
+   * 
+   * @tparam T the type of the third field of the input Tuple3 DataSet.
+   * @return a new Graph, where the edge values have been updated according to the
+   * result of the edgeJoinFunction.
+  */
   def joinWithEdges[T: TypeInformation](inputDataSet: DataSet[(K, K, T)], fun: (EV, T) => EV):
   Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+    val newEdgeJoin = new EdgeJoinFunction[EV, T]() {
       val cleanFun = clean(fun)
 
-      override def map(value: jtuple.Tuple2[EV, T]): EV = {
-        cleanFun(value.f0, value.f1)
+      override def edgeJoin(edgeValue: EV, inputValue: T): EV = {
+        cleanFun(edgeValue, inputValue)
       }
     }
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple3(scalatuple._1,
       scalatuple._2, scalatuple._3)).javaSet
-    wrapGraph(jgraph.joinWithEdges[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithEdges[T](javaTupleSet, newEdgeJoin))
   }
 
   /**
-   * Joins the edge DataSet with an input DataSet on the source key of the
-   * edges and the first attribute of the input DataSet and applies a UDF on
-   * the resulted values. In case the inputDataSet contains the same key more
-   * than once, only the first value will be considered.
-   *
+   * Joins the edge DataSet with an input Tuple2 DataSet and applies a user-defined transformation
+   * on the values of the matched records.
+   * The source ID of the edges input and the first field of the input DataSet
+   * are used as join keys.
+   * 
    * @param inputDataSet the DataSet to join with.
-   * @param mapper the UDF map function to apply.
-   * @tparam T the return type
-   * @return a new graph where the edge values have been updated.
-   */
-  def joinWithEdgesOnSource[T: TypeInformation](inputDataSet: DataSet[(K, T)], mapper:
-  MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
-      override def map(value: jtuple.Tuple2[EV, T]): EV = {
-        mapper.map((value.f0, value.f1))
-      }
-    }
+   * The first field of the Tuple2 is used as the join key
+   * and the second field is passed as a parameter to the transformation function.
+   * @param edgeJoinFunction the transformation function to apply.
+   * The first parameter is the current edge value and the second parameter is the value
+   * of the matched Tuple2 from the input DataSet.
+   * @tparam T the type of the second field of the input Tuple2 DataSet.
+   * @return a new Graph, where the edge values have been updated according to the
+   * result of the edgeJoinFunction.
+  */
+  def joinWithEdgesOnSource[T: TypeInformation](inputDataSet: DataSet[(K, T)],
+  edgeJoinFunction: EdgeJoinFunction[EV, T]): Graph[K, VV, EV] = {
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
       scalatuple._2)).javaSet
-    wrapGraph(jgraph.joinWithEdgesOnSource[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithEdgesOnSource[T](javaTupleSet, edgeJoinFunction))
   }
 
   /**
-   * Joins the edge DataSet with an input DataSet on the source key of the
-   * edges and the first attribute of the input DataSet and applies a UDF on
-   * the resulted values. In case the inputDataSet contains the same key more
-   * than once, only the first value will be considered.
-   *
+   * Joins the edge DataSet with an input Tuple2 DataSet and applies a user-defined transformation
+   * on the values of the matched records.
+   * The source ID of the edges input and the first field of the input DataSet
+   * are used as join keys.
+   * 
    * @param inputDataSet the DataSet to join with.
-   * @param fun the UDF map function to apply.
-   * @tparam T the return type
-   * @return a new graph where the edge values have been updated.
-   */
+   * The first field of the Tuple2 is used as the join key
+   * and the second field is passed as a parameter to the transformation function.
+   * @param fun the transformation function to apply.
+   * The first parameter is the current edge value and the second parameter is the value
+   * of the matched Tuple2 from the input DataSet.
+   * @tparam T the type of the second field of the input Tuple2 DataSet.
+   * @return a new Graph, where the edge values have been updated according to the
+   * result of the edgeJoinFunction.
+  */
   def joinWithEdgesOnSource[T: TypeInformation](inputDataSet: DataSet[(K, T)], fun: (EV, T) =>
     EV): Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+    val newEdgeJoin = new EdgeJoinFunction[EV, T]() {
       val cleanFun = clean(fun)
 
-      override def map(value: jtuple.Tuple2[EV, T]): EV = {
-        cleanFun(value.f0, value.f1)
+      override def edgeJoin(edgeValue: EV, inputValue: T): EV = {
+        cleanFun(edgeValue, inputValue)
       }
     }
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
       scalatuple._2)).javaSet
-    wrapGraph(jgraph.joinWithEdgesOnSource[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithEdgesOnSource[T](javaTupleSet, newEdgeJoin))
   }
 
   /**
-   * Joins the edge DataSet with an input DataSet on the target key of the
-   * edges and the first attribute of the input DataSet and applies a UDF on
-   * the resulted values. Should the inputDataSet contain the same key more
-   * than once, only the first value will be considered.
-   *
+   * Joins the edge DataSet with an input Tuple2 DataSet and applies a user-defined transformation
+   * on the values of the matched records.
+   * The target ID of the edges input and the first field of the input DataSet
+   * are used as join keys.
+   * 
    * @param inputDataSet the DataSet to join with.
-   * @param mapper the UDF map function to apply.
-   * @tparam T the return type
-   * @return a new graph where the edge values have been updated.
-   */
-  def joinWithEdgesOnTarget[T: TypeInformation](inputDataSet: DataSet[(K, T)], mapper:
-  MapFunction[(EV, T), EV]): Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
-      override def map(value: jtuple.Tuple2[EV, T]): EV = {
-        mapper.map((value.f0, value.f1))
-      }
-    }
+   * The first field of the Tuple2 is used as the join key
+   * and the second field is passed as a parameter to the transformation function.
+   * @param edgeJoinFunction the transformation function to apply.
+   * The first parameter is the current edge value and the second parameter is the value
+   * of the matched Tuple2 from the input DataSet.
+   * @param T the type of the second field of the input Tuple2 DataSet.
+   * @return a new Graph, where the edge values have been updated according to the
+   * result of the edgeJoinFunction.
+  */
+  def joinWithEdgesOnTarget[T: TypeInformation](inputDataSet: DataSet[(K, T)],
+  edgeJoinFunction: EdgeJoinFunction[EV, T]): Graph[K, VV, EV] = {
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
       scalatuple._2)).javaSet
-    wrapGraph(jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithEdgesOnTarget[T](javaTupleSet, edgeJoinFunction))
   }
 
   /**
-   * Joins the edge DataSet with an input DataSet on the target key of the
-   * edges and the first attribute of the input DataSet and applies a UDF on
-   * the resulted values. Should the inputDataSet contain the same key more
-   * than once, only the first value will be considered.
-   *
+   * Joins the edge DataSet with an input Tuple2 DataSet and applies a user-defined transformation
+   * on the values of the matched records.
+   * The target ID of the edges input and the first field of the input DataSet
+   * are used as join keys.
+   * 
    * @param inputDataSet the DataSet to join with.
-   * @param fun the UDF map function to apply.
-   * @tparam T the return type
-   * @return a new graph where the edge values have been updated.
-   */
+   * The first field of the Tuple2 is used as the join key
+   * and the second field is passed as a parameter to the transformation function.
+   * @param fun the transformation function to apply.
+   * The first parameter is the current edge value and the second parameter is the value
+   * of the matched Tuple2 from the input DataSet.
+   * @param T the type of the second field of the input Tuple2 DataSet.
+   * @return a new Graph, where the edge values have been updated according to the
+   * result of the edgeJoinFunction.
+  */
   def joinWithEdgesOnTarget[T: TypeInformation](inputDataSet: DataSet[(K, T)], fun: (EV, T) =>
     EV): Graph[K, VV, EV] = {
-    val newmapper = new MapFunction[jtuple.Tuple2[EV, T], EV]() {
+    val newEdgeJoin = new EdgeJoinFunction[EV, T]() {
       val cleanFun = clean(fun)
 
-      override def map(value: jtuple.Tuple2[EV, T]): EV = {
-        cleanFun(value.f0, value.f1)
+      override def edgeJoin(edgeValue: EV, inputValue:T): EV = {
+        cleanFun(edgeValue, inputValue)
       }
     }
     val javaTupleSet = inputDataSet.map(scalatuple => new jtuple.Tuple2(scalatuple._1,
       scalatuple._2)).javaSet
-    wrapGraph(jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newmapper))
+    wrapGraph(jgraph.joinWithEdgesOnTarget[T](javaTupleSet, newEdgeJoin))
   }
 
   /**
@@ -896,12 +968,17 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
-   * Compute an aggregate over the neighbor values of each
-   * vertex.
-   *
-   * @param reduceNeighborsFunction the function to apply to the neighborhood
-   * @param direction               the edge direction (in-, out-, all-)
-   * @return a Dataset containing one value per vertex (vertex id, aggregate vertex value)
+   * Compute a reduce transformation over the neighbors' vertex values of each vertex.
+   * For each vertex, the transformation consecutively calls a
+   * {@link ReduceNeighborsFunction} until only a single value for each vertex remains.
+   * The {@link ReduceNeighborsFunction} combines a pair of neighbor vertex values
+   * into one new value of the same type.
+   * 
+   * @param reduceNeighborsFunction the reduce function to apply to the neighbors of each vertex.
+   * @param direction the edge direction (in-, out-, all-)
+   * @return a Dataset of Tuple2, with one tuple per vertex.
+   * The first field of the Tuple2 is the vertex ID and the second field
+   * is the aggregate value computed by the provided {@link ReduceNeighborsFunction}.
    */
   def reduceOnNeighbors(reduceNeighborsFunction: ReduceNeighborsFunction[VV], direction:
   EdgeDirection): DataSet[(K, VV)] = {
@@ -910,13 +987,18 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
-   * Compute an aggregate over the edge values of each vertex.
-   *
-   * @param reduceEdgesFunction the function to apply to the neighborhood
-   * @param direction           the edge direction (in-, out-, all-)
-   * @return a Dataset containing one value per vertex(vertex key, aggegate edge value)
-   * @throws IllegalArgumentException
-   */
+   * Compute a reduce transformation over the neighbors' vertex values of each vertex.
+   * For each vertex, the transformation consecutively calls a
+   * {@link ReduceNeighborsFunction} until only a single value for each vertex remains.
+   * The {@link ReduceNeighborsFunction} combines a pair of neighbor vertex values
+   * into one new value of the same type.
+   * 
+   * @param reduceNeighborsFunction the reduce function to apply to the neighbors of each vertex.
+   * @param direction the edge direction (in-, out-, all-)
+   * @return a Dataset of Tuple2, with one tuple per vertex.
+   * The first field of the Tuple2 is the vertex ID and the second field
+   * is the aggregate value computed by the provided {@link ReduceNeighborsFunction}.
+  */
   def reduceOnEdges(reduceEdgesFunction: ReduceEdgesFunction[EV], direction: EdgeDirection):
   DataSet[(K, EV)] = {
     wrap(jgraph.reduceOnEdges(reduceEdgesFunction, direction)).map(jtuple => (jtuple.f0,
