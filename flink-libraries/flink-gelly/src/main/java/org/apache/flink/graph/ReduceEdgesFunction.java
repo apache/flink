@@ -30,5 +30,14 @@ import java.io.Serializable;
  */
 public interface ReduceEdgesFunction<EV> extends Function, Serializable {
 
+	/**
+	 * It combines two neighboring edge values into one new value of the same type.
+	 * For each vertex, this function is consecutively called,
+	 * until only a single value for each edge remains.
+	 * 
+	 * @param firstEdgeValue the first neighboring edge value to combine
+	 * @param secondEdgeValue the second neighboring edge value to combine
+	 * @return the combined value of both input values
+	 */
 	EV reduceEdges(EV firstEdgeValue, EV secondEdgeValue);
 }

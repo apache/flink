@@ -30,6 +30,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
 import _root_.scala.collection.JavaConverters._
+import org.apache.flink.graph.EdgeJoinFunction
 
 @RunWith(classOf[Parameterized])
 class JoinWithEdgesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
@@ -127,10 +128,10 @@ MultipleProgramsTestBase(mode) {
   }
 
 
-  final class AddValuesMapper extends MapFunction[(Long, Long), Long] {
+  final class AddValuesMapper extends EdgeJoinFunction[Long, Long] {
     @throws(classOf[Exception])
-    def map(tuple: (Long, Long)): Long = {
-      tuple._1 + tuple._2
+    def edgeJoin(edgeValue: Long, inputValue: Long): Long = {
+      edgeValue + inputValue
     }
   }
 

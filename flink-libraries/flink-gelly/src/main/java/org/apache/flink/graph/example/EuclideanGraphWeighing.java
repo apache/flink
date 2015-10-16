@@ -25,6 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.EdgeJoinFunction;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.Vertex;
@@ -90,11 +91,10 @@ public class EuclideanGraphWeighing implements ProgramDescription {
 				});
 
 		Graph<Long, Point, Double> resultedGraph = graph.joinWithEdges(edgesWithEuclideanWeight,
-				new MapFunction<Tuple2<Double, Double>, Double>() {
+				new EdgeJoinFunction<Double, Double>() {
 
-					@Override
-					public Double map(Tuple2<Double, Double> distance) throws Exception {
-						return distance.f1;
+					public Double edgeJoin(Double edgeValue, Double inputValue) {
+						return inputValue;
 					}
 				});
 

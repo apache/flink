@@ -18,27 +18,26 @@
 
 package org.apache.flink.graph;
 
-import org.apache.flink.api.common.functions.Function;
-
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.Function;
+
 /**
- * Interface to be implemented by the function applied to a vertex neighborhood
- * in the {@link Graph#reduceOnNeighbors(ReduceNeighborsFunction, EdgeDirection)}
- * method.
+ * Interface to be implemented by the transformation function
+ * applied in {@link Graph#joinWithVertices(DataSet, VertexJoinFunction)} method.
  *
  * @param <VV> the vertex value type
+ * @param <T> the input value type
  */
-public interface ReduceNeighborsFunction <VV> extends Function, Serializable {
+public interface VertexJoinFunction<VV, T> extends Function, Serializable {
 
 	/**
-	 * It combines two neighboring vertex values into one new value of the same type.
-	 * For each vertex, this function is consecutively called,
-	 * until only a single value for each vertex remains.
+	 * Applies a transformation on the current vertex value
+	 * and the value of the matched tuple of the input DataSet.
 	 * 
-	 * @param firstNeighborValue the first neighboring vertex value to combine
-	 * @param secondNeighborValue the second neighboring vertex value to combine
-	 * @return the combined value of both input values
+	 * @param vertexValue the current vertex value
+	 * @param inputValue the value of the matched Tuple2 input
+	 * @return the new vertex value
 	 */
-	VV reduceNeighbors(VV firstNeighborValue, VV secondNeighborValue);
+	VV vertexJoin(VV vertexValue, T inputValue) throws Exception;
 }

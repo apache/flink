@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -151,6 +152,59 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		compareResultAsText(result, expectedResult);
 	}
 
+	@Test
+	public void testFromTuple2() throws Exception {
+		/*
+		 * Test graph creation with fromTuple2DataSet
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<Long, Long>> edges = TestGraphUtils.getLongLongTuple2Data(env);
+
+		Graph<Long, NullValue, NullValue> graph = Graph.fromTuple2DataSet(edges, env);
+
+        List<Vertex<Long, NullValue>> result = graph.getVertices().collect();
+        
+		expectedResult = "1,(null)\n" +
+					"2,(null)\n" +
+					"3,(null)\n" +
+					"4,(null)\n" +
+					"6,(null)\n" +
+					"10,(null)\n" +
+					"20,(null)\n" +
+					"30,(null)\n" +
+					"40,(null)\n" +
+					"60,(null)\n";
+
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testFromTuple2WithMapper() throws Exception {
+		/*
+		 * Test graph creation with fromTuple2DataSet with vertex initializer
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<Long, Long>> edges = TestGraphUtils.getLongLongTuple2Data(env);
+
+		Graph<Long, String, NullValue> graph = Graph.fromTuple2DataSet(edges,
+				new BooMapper(), env);
+
+        List<Vertex<Long, String>> result = graph.getVertices().collect();
+        
+		expectedResult = "1,boo\n" +
+					"2,boo\n" +
+					"3,boo\n" +
+					"4,boo\n" +
+					"6,boo\n" +
+					"10,boo\n" +
+					"20,boo\n" +
+					"30,boo\n" +
+					"40,boo\n" +
+					"60,boo\n";
+
+		compareResultAsTuples(result, expectedResult);
+	}
+
 	@SuppressWarnings("serial")
 	private static final class AssignIdAsValueMapper implements MapFunction<Long, Long> {
 		public Long map(Long vertexId) {
@@ -170,5 +224,10 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 			dummyValue.setTField(vertexId*2.0);
 			return dummyValue;
 		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class BooMapper implements MapFunction<Long, String> {
+		public String map(Long value) {	return "boo"; }
 	}
 }
