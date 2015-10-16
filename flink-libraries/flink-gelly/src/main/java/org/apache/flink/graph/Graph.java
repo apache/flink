@@ -564,29 +564,37 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Joins the vertex DataSet of this graph with an input DataSet and applies
-	 * a UDF on the resulted values.
+	 * Joins the vertex DataSet of this graph with an input Tuple2 DataSet and applies
+	 * a user-defined transformation on the values of the matched records.
+	 * The vertex ID and the first field of the Tuple2 DataSet are used as the join keys.
 	 * 
-	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper the UDF map function to apply.
-	 * @return a new graph where the vertex values have been updated.
-	 */
+	 * @param inputDataSet the Tuple2 DataSet to join with.
+	 * The first field of the Tuple2 is used as the join key and the second field is passed
+	 * as a parameter to the transformation function. 
+	 * @param vertexJoinFunction the transformation function to apply.
+	 * The first parameter is the current vertex value and the second parameter is the value
+	 * of the matched Tuple2 from the input DataSet.
+	 * @return a new Graph, where the vertex values have been updated according to the
+	 * result of the vertexJoinFunction.
+	 * 
+	 * @param <T> the type of the second field of the input Tuple2 DataSet.
+	*/
 	public <T> Graph<K, VV, EV> joinWithVertices(DataSet<Tuple2<K, T>> inputDataSet, 
-			final MapFunction<Tuple2<VV, T>, VV> mapper) {
+			final VertexJoinFunction<VV, T> vertexJoinFunction) {
 
 		DataSet<Vertex<K, VV>> resultedVertices = this.getVertices()
 				.coGroup(inputDataSet).where(0).equalTo(0)
-				.with(new ApplyCoGroupToVertexValues<K, VV, T>(mapper));
+				.with(new ApplyCoGroupToVertexValues<K, VV, T>(vertexJoinFunction));
 		return new Graph<K, VV, EV>(resultedVertices, this.edges, this.context);
 	}
 
 	private static final class ApplyCoGroupToVertexValues<K, VV, T>
 			implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, T>, Vertex<K, VV>> {
 
-		private MapFunction<Tuple2<VV, T>, VV> mapper;
+		private VertexJoinFunction<VV, T> vertexJoinFunction;
 
-		public ApplyCoGroupToVertexValues(MapFunction<Tuple2<VV, T>, VV> mapper) {
-			this.mapper = mapper;
+		public ApplyCoGroupToVertexValues(VertexJoinFunction<VV, T> mapper) {
+			this.vertexJoinFunction = mapper;
 		}
 
 		@Override
@@ -600,42 +608,46 @@ public class Graph<K, VV, EV> {
 				if (inputIterator.hasNext()) {
 					final Tuple2<K, T> inputNext = inputIterator.next();
 
-					collector.collect(new Vertex<K, VV>(inputNext.f0, mapper
-							.map(new Tuple2<VV, T>(vertexIterator.next().f1,
-									inputNext.f1))));
+					collector.collect(new Vertex<K, VV>(inputNext.f0, vertexJoinFunction
+							.vertexJoin(vertexIterator.next().f1, inputNext.f1)));
 				} else {
 					collector.collect(vertexIterator.next());
 				}
-
 			}
 		}
 	}
 
 	/**
-	 * Joins the edge DataSet with an input DataSet on a composite key of both
-	 * source and target and applies a UDF on the resulted values.
+	 * Joins the edge DataSet with an input DataSet on the composite key of both
+	 * source and target IDs and applies a user-defined transformation on the values
+	 * of the matched records. The first two fields of the input DataSet are used as join keys.
 	 * 
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper the UDF map function to apply.
-	 * @param <T> the return type
-	 * @return a new graph where the edge values have been updated.
-	 */
+	 * The first two fields of the Tuple3 are used as the composite join key
+	 * and the third field is passed as a parameter to the transformation function. 
+	 * @param edgeJoinFunction the transformation function to apply.
+	 * The first parameter is the current edge value and the second parameter is the value
+	 * of the matched Tuple3 from the input DataSet.
+	 * @param <T> the type of the third field of the input Tuple3 DataSet.
+	 * @return a new Graph, where the edge values have been updated according to the
+	 * result of the edgeJoinFunction.
+	*/
 	public <T> Graph<K, VV, EV> joinWithEdges(DataSet<Tuple3<K, K, T>> inputDataSet,
-			final MapFunction<Tuple2<EV, T>, EV> mapper) {
+			final EdgeJoinFunction<EV, T> edgeJoinFunction) {
 
 		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
 				.coGroup(inputDataSet).where(0, 1).equalTo(0, 1)
-				.with(new ApplyCoGroupToEdgeValues<K, EV, T>(mapper));
+				.with(new ApplyCoGroupToEdgeValues<K, EV, T>(edgeJoinFunction));
 		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
 	}
 
 	private static final class ApplyCoGroupToEdgeValues<K, EV, T>
 			implements CoGroupFunction<Edge<K, EV>, Tuple3<K, K, T>, Edge<K, EV>> {
 
-		private MapFunction<Tuple2<EV, T>, EV> mapper;
+		private EdgeJoinFunction<EV, T> edgeJoinFunction;
 
-		public ApplyCoGroupToEdgeValues(MapFunction<Tuple2<EV, T>, EV> mapper) {
-			this.mapper = mapper;
+		public ApplyCoGroupToEdgeValues(EdgeJoinFunction<EV, T> mapper) {
+			this.edgeJoinFunction = mapper;
 		}
 
 		@Override
@@ -650,8 +662,8 @@ public class Graph<K, VV, EV> {
 					final Tuple3<K, K, T> inputNext = inputIterator.next();
 
 					collector.collect(new Edge<K, EV>(inputNext.f0,
-							inputNext.f1, mapper.map(new Tuple2<EV, T>(
-									edgesIterator.next().f2, inputNext.f2))));
+							inputNext.f1, edgeJoinFunction.edgeJoin(
+									edgesIterator.next().f2, inputNext.f2)));
 				} else {
 					collector.collect(edgesIterator.next());
 				}
@@ -660,22 +672,26 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Joins the edge DataSet with an input DataSet on the source key of the
-	 * edges and the first attribute of the input DataSet and applies a UDF on
-	 * the resulted values. In case the inputDataSet contains the same key more
-	 * than once, only the first value will be considered.
+	 * Joins the edge DataSet with an input Tuple2 DataSet and applies a user-defined transformation
+	 * on the values of the matched records.
+	 * The source ID of the edges input and the first field of the input DataSet are used as join keys.
 	 * 
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper the UDF map function to apply.
-	 * @param <T> the return type
-	 * @return a new graph where the edge values have been updated.
-	 */
+	 * The first field of the Tuple2 is used as the join key
+	 * and the second field is passed as a parameter to the transformation function. 
+	 * @param edgeJoinFunction the transformation function to apply.
+	 * The first parameter is the current edge value and the second parameter is the value
+	 * of the matched Tuple2 from the input DataSet.
+	 * @param <T> the type of the second field of the input Tuple2 DataSet.
+	 * @return a new Graph, where the edge values have been updated according to the
+	 * result of the edgeJoinFunction.
+	*/
 	public <T> Graph<K, VV, EV> joinWithEdgesOnSource(DataSet<Tuple2<K, T>> inputDataSet,
-			final MapFunction<Tuple2<EV, T>, EV> mapper) {
+			final EdgeJoinFunction<EV, T> edgeJoinFunction) {
 
 		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
 				.coGroup(inputDataSet).where(0).equalTo(0)
-				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(mapper));
+				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(edgeJoinFunction));
 
 		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
 	}
@@ -683,11 +699,10 @@ public class Graph<K, VV, EV> {
 	private static final class ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>
 			implements CoGroupFunction<Edge<K, EV>, Tuple2<K, T>, Edge<K, EV>> {
 
-		private MapFunction<Tuple2<EV, T>, EV> mapper;
+		private EdgeJoinFunction<EV, T> edgeJoinFunction;
 
-		public ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget(
-				MapFunction<Tuple2<EV, T>, EV> mapper) {
-			this.mapper = mapper;
+		public ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget(EdgeJoinFunction<EV, T> mapper) {
+			this.edgeJoinFunction = mapper;
 		}
 
 		@Override
@@ -704,8 +719,7 @@ public class Graph<K, VV, EV> {
 					Edge<K, EV> edgesNext = edgesIterator.next();
 
 					collector.collect(new Edge<K, EV>(edgesNext.f0,
-							edgesNext.f1, mapper.map(new Tuple2<EV, T>(
-									edgesNext.f2, inputNext.f1))));
+							edgesNext.f1, edgeJoinFunction.edgeJoin(edgesNext.f2, inputNext.f1)));
 				}
 
 			} else {
@@ -717,22 +731,26 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Joins the edge DataSet with an input DataSet on the target key of the
-	 * edges and the first attribute of the input DataSet and applies a UDF on
-	 * the resulted values. Should the inputDataSet contain the same key more
-	 * than once, only the first value will be considered.
+	 * Joins the edge DataSet with an input Tuple2 DataSet and applies a user-defined transformation
+	 * on the values of the matched records.
+	 * The target ID of the edges input and the first field of the input DataSet are used as join keys.
 	 * 
 	 * @param inputDataSet the DataSet to join with.
-	 * @param mapper the UDF map function to apply.
-	 * @param <T> the return type
-	 * @return a new graph where the edge values have been updated.
-	 */
+	 * The first field of the Tuple2 is used as the join key
+	 * and the second field is passed as a parameter to the transformation function. 
+	 * @param edgeJoinFunction the transformation function to apply.
+	 * The first parameter is the current edge value and the second parameter is the value
+	 * of the matched Tuple2 from the input DataSet.
+	 * @param <T> the type of the second field of the input Tuple2 DataSet.
+	 * @return a new Graph, where the edge values have been updated according to the
+	 * result of the edgeJoinFunction.
+	*/
 	public <T> Graph<K, VV, EV> joinWithEdgesOnTarget(DataSet<Tuple2<K, T>> inputDataSet,
-			final MapFunction<Tuple2<EV, T>, EV> mapper) {
+			final EdgeJoinFunction<EV, T> edgeJoinFunction) {
 
 		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
 				.coGroup(inputDataSet).where(1).equalTo(0)
-				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(mapper));
+				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(edgeJoinFunction));
 
 		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
 	}
@@ -937,7 +955,7 @@ public class Graph<K, VV, EV> {
 	 * @throws IllegalArgumentException
 	 */
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
-											EdgeDirection direction) throws IllegalArgumentException {
+			EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 		case IN:
@@ -1905,16 +1923,21 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the neighbor values of each
-	 * vertex.
+	 * Compute a reduce transformation over the neighbors' vertex values of each vertex.
+	 * For each vertex, the transformation consecutively calls a
+	 * {@link ReduceNeighborsFunction} until only a single value for each vertex remains.
+	 * The {@link ReduceNeighborsFunction} combines a pair of neighbor vertex values
+	 * into one new value of the same type.
 	 *
-	 * @param reduceNeighborsFunction the function to apply to the neighborhood
+	 * @param reduceNeighborsFunction the reduce function to apply to the neighbors of each vertex.
 	 * @param direction the edge direction (in-, out-, all-)
-	 * @return a Dataset containing one value per vertex (vertex id, aggregate vertex value)
+	 * @return a Dataset of Tuple2, with one tuple per vertex.
+	 * The first field of the Tuple2 is the vertex ID and the second field
+	 * is the aggregate value computed by the provided {@link ReduceNeighborsFunction}.
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public DataSet<Tuple2<K, VV>> reduceOnNeighbors(ReduceNeighborsFunction<VV> reduceNeighborsFunction,
-									EdgeDirection direction) throws IllegalArgumentException {
+			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 			case IN:
 				// create <vertex-source value> pairs
@@ -1963,15 +1986,18 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Compute an aggregate over the edge values of each vertex.
+	 * Compute a reduce transformation over the edge values of each vertex.
+	 * For each vertex, the transformation consecutively calls a
+	 * {@link ReduceEdgesFunction} until only a single value for each vertex remains.
+	 * The {@link ReduceEdgesFunction} combines two edge values into one new value of the same type.
 	 *
-	 * @param reduceEdgesFunction
-	 *            the function to apply to the neighborhood
-	 * @param direction
-	 *            the edge direction (in-, out-, all-)
-	 * @return a Dataset containing one value per vertex(vertex key, aggregate edge value)
+	 * @param reduceEdgesFunction the reduce function to apply to the neighbors of each vertex.
+	 * @param direction the edge direction (in-, out-, all-)
+	 * @return a Dataset of Tuple2, with one tuple per vertex.
+	 * The first field of the Tuple2 is the vertex ID and the second field
+	 * is the aggregate value computed by the provided {@link ReduceEdgesFunction}.
 	 * @throws IllegalArgumentException
-	 */
+	*/
 	public DataSet<Tuple2<K, EV>> reduceOnEdges(ReduceEdgesFunction<EV> reduceEdgesFunction,
 								EdgeDirection direction) throws IllegalArgumentException {
 

@@ -29,6 +29,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.ReduceNeighborsFunction;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.Triplet;
+import org.apache.flink.graph.VertexJoinFunction;
 import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 
 import java.util.HashSet;
@@ -88,12 +89,11 @@ public class JaccardSimilarityMeasure implements ProgramDescription {
 
 		// join with the vertices to update the node values
 		Graph<Long, HashSet<Long>, Double> graphWithVertexValues =
-				graph.joinWithVertices(computedNeighbors, new MapFunction<Tuple2<HashSet<Long>, HashSet<Long>>,
+				graph.joinWithVertices(computedNeighbors, new VertexJoinFunction<HashSet<Long>,
 						HashSet<Long>>() {
 
-					@Override
-					public HashSet<Long> map(Tuple2<HashSet<Long>, HashSet<Long>> tuple2) throws Exception {
-						return tuple2.f1;
+					public HashSet<Long> vertexJoin(HashSet<Long> vertexValue, HashSet<Long> inputValue) {
+						return inputValue;
 					}
 				});
 
