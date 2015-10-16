@@ -163,6 +163,17 @@ under the License.
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>1.11</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>1.11</version>
+            <scope>provided</scope>
+        </dependency>
 	</dependencies>
 
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
