@@ -18,9 +18,10 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 
 import java.util.Collection;
@@ -39,6 +40,8 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	// We need this because sinks can also have state that is partitioned by key
 	private KeySelector<T, ?> stateKeySelector;
+	
+	private TypeInformation<?> stateKeyType;
 
 	/**
 	 * Creates a new {@code SinkTransformation} from the given input {@code StreamTransformation}.
@@ -91,6 +94,14 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 		return stateKeySelector;
 	}
 
+	public void setStateKeyType(TypeInformation<?> stateKeyType) {
+		this.stateKeyType = stateKeyType;
+	}
+
+	public TypeInformation<?> getStateKeyType() {
+		return stateKeyType;
+	}
+
 	@Override
 	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
 		List<StreamTransformation<?>> result = Lists.newArrayList();
@@ -100,7 +111,7 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 	}
 
 	@Override
-	public final void setChainingStrategy(StreamOperator.ChainingStrategy strategy) {
+	public final void setChainingStrategy(ChainingStrategy strategy) {
 		operator.setChainingStrategy(strategy);
 	}
 }

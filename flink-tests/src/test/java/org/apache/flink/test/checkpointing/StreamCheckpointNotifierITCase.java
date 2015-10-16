@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
@@ -101,14 +100,16 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 
 	@Override
 	public void postSubmit() {
-		List[][] checkList = new List[][]{	GeneratingSourceFunction.completedCheckpoints,
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		List<Long>[][] checkList = new List[][] {
+				GeneratingSourceFunction.completedCheckpoints,
 				IdentityMapFunction.completedCheckpoints,
 				LongRichFilterFunction.completedCheckpoints,
 				LeftIdentityCoRichFlatMapFunction.completedCheckpoints};
 
 		long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
 
-		for(List[] parallelNotifications : checkList) {
+		for(List<Long>[] parallelNotifications : checkList) {
 			for (int i = 0; i < PARALLELISM; i++){
 				List<Long> notifications = parallelNotifications[i];
 				assertTrue("No checkpoint notification was received.",
@@ -134,21 +135,23 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 	 * interface it stores all the checkpoint ids it has seen in a static list.
 	 */
 	private static class GeneratingSourceFunction extends RichSourceFunction<Long>
-			implements  ParallelSourceFunction<Long>, CheckpointNotifier {
+			implements ParallelSourceFunction<Long>, CheckpointNotifier, Checkpointed<Integer> {
 
-		// operator life cycle
-		private volatile boolean isRunning;
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		static List<Long>[] completedCheckpoints = new List[PARALLELISM];
+		
 
 		// operator behaviour
 		private final long numElements;
 		private long result;
 
-		private OperatorState<Integer> index;
+		private int index;
 		private int step;
 
 		// test behaviour
 		private int subtaskId;
-		public static List[] completedCheckpoints = new List[PARALLELISM];
+
+		private volatile boolean isRunning = true;
 
 		GeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
@@ -158,26 +161,27 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		public void open(Configuration parameters) throws IOException {
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
 			subtaskId = getRuntimeContext().getIndexOfThisSubtask();
-			index = getRuntimeContext().getOperatorState("index", subtaskId, false);
+			
+			if (index == 0) {
+				index = subtaskId;
+			}
 
 			// Create a collection on the first open
 			if (completedCheckpoints[subtaskId] == null) {
-				completedCheckpoints[subtaskId] = new ArrayList();
+				completedCheckpoints[subtaskId] = new ArrayList<>();
 			}
-
-			isRunning = true;
 		}
 
 		@Override
 		public void run(SourceContext<Long> ctx) throws Exception {
 			final Object lockingObject = ctx.getCheckpointLock();
 
-			while (isRunning && index.value() < numElements) {
+			while (isRunning && index < numElements) {
 
-				result = index.value() % 10;
+				result = index % 10;
 
 				synchronized (lockingObject) {
-					index.update(index.value() + step);
+					index += step;
 					ctx.collect(result);
 				}
 			}
@@ -192,6 +196,16 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			completedCheckpoints[subtaskId].add(checkpointId);
 		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
+			return index;
+		}
+
+		@Override
+		public void restoreState(Integer state) {
+			index = state;
+		}
 	}
 
 	/**
@@ -201,7 +215,9 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 	private static class IdentityMapFunction extends RichMapFunction<Long, Tuple1<Long>>
 			implements CheckpointNotifier {
 
-		public static List[] completedCheckpoints = new List[PARALLELISM];
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		public static List<Long>[] completedCheckpoints = new List[PARALLELISM];
+		
 		private int subtaskId;
 
 		@Override
@@ -215,7 +231,7 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 
 			// Create a collection on the first open
 			if (completedCheckpoints[subtaskId] == null) {
-				completedCheckpoints[subtaskId] = new ArrayList();
+				completedCheckpoints[subtaskId] = new ArrayList<>();
 			}
 		}
 
@@ -283,7 +299,9 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 	private static class LongRichFilterFunction extends RichFilterFunction<Long>
 			implements CheckpointNotifier {
 
-		public static List[] completedCheckpoints = new List[PARALLELISM];
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		static List<Long>[] completedCheckpoints = new List[PARALLELISM];
+		
 		private int subtaskId;
 
 		@Override
@@ -297,7 +315,7 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 
 			// Create a collection on the first open
 			if (completedCheckpoints[subtaskId] == null) {
-				completedCheckpoints[subtaskId] = new ArrayList();
+				completedCheckpoints[subtaskId] = new ArrayList<>();
 			}
 		}
 
@@ -315,7 +333,8 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<Long, Long, Long>
 			implements CheckpointNotifier {
 
-		public static List[] completedCheckpoints = new List[PARALLELISM];
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		public static List<Long>[] completedCheckpoints = new List[PARALLELISM];
 		private int subtaskId;
 
 		@Override
@@ -324,7 +343,7 @@ public class StreamCheckpointNotifierITCase extends StreamFaultToleranceTestBase
 
 			// Create a collection on the first open
 			if (completedCheckpoints[subtaskId] == null) {
-				completedCheckpoints[subtaskId] = new ArrayList();
+				completedCheckpoints[subtaskId] = new ArrayList<>();
 			}
 		}
 

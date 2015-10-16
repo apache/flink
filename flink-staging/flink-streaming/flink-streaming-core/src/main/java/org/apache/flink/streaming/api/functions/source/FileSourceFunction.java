@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -52,7 +52,8 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	public void open(Configuration parameters) throws Exception {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		this.provider = context.getInputSplitProvider();
-		format.configure(context.getTaskStubParameters());
+		
+		format.configure(parameters);
 		serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 
 		splitIterator = getInputSplits();

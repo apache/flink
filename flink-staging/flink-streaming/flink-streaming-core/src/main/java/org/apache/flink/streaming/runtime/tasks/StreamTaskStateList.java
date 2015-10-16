@@ -16,38 +16,45 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.streaming.runtime.tasks;
 
-import java.io.Serializable;
-import java.util.Map;
+import org.apache.flink.runtime.state.StateHandle;
 
 /**
- * Wrapper for storing the handles for each state in a partitioned form. It can
- * be used to repartition the state before re-injecting to the tasks.
- *
- * TODO: This class needs testing!
+ * List of task states for a chain of streaming tasks.
  */
-public class PartitionedStateHandle implements
-		StateHandle<Map<Serializable, StateHandle<Serializable>>> {
+public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
-	private static final long serialVersionUID = 7505365403501402100L;
+	private static final long serialVersionUID = 1L;
 
-	Map<Serializable, StateHandle<Serializable>> handles;
+	/** The states for all operator */
+	private final StreamTaskState[] states;
 
-	public PartitionedStateHandle(Map<Serializable, StateHandle<Serializable>> handles) {
-		this.handles = handles;
+	
+	public StreamTaskStateList(StreamTaskState[] states) {
+		this.states = states;
 	}
 
+	public boolean isEmpty() {
+		for (StreamTaskState state : states) {
+			if (state != null) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
 	@Override
-	public Map<Serializable, StateHandle<Serializable>> getState(ClassLoader userCodeClassLoader) throws Exception {
-		return handles;
+	public StreamTaskState[] getState(ClassLoader userCodeClassLoader) {
+		return states;
 	}
 
 	@Override
 	public void discardState() throws Exception {
-		for (StateHandle<Serializable> handle : handles.values()) {
-			handle.discardState();
+		for (StreamTaskState state : states) {
+			if (state != null) {
+				state.discardState();
+			}
 		}
 	}
-
 }

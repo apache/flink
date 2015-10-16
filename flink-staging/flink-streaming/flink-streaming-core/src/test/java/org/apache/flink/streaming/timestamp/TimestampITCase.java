@@ -439,8 +439,8 @@ public class TimestampITCase {
 		}
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
+		public void open() throws Exception {
+			super.open();
 			watermarks = new ArrayList<Watermark>();
 		}
 

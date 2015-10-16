@@ -24,11 +24,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  *{@code JoinedStreams} represents two {@link DataStream DataStreams} that have been joined.
@@ -56,92 +59,86 @@ import org.apache.flink.util.Collector;
  *     .apply(new MyJoinFunction());
  * } </pre>
  */
-public class JoinedStreams extends CoGroupedStreams{
+public class JoinedStreams<T1, T2> {
+
+	/** The first input stream */
+	private final DataStream<T1> input1;
+
+	/** The second input stream */
+	private final DataStream<T2> input2;
 
 	/**
-	 * A join operation that does not yet have its {@link KeySelector KeySelectors} defined.
+	 * Creates new JoinedStreams data streams, which are the first step towards building a streaming co-group.
 	 *
-	 * @param <T1> Type of the elements from the first input
-	 * @param <T2> Type of the elements from the second input
+	 * @param input1 The first data stream.
+	 * @param input2 The second data stream.
 	 */
-	public static class Unspecified<T1, T2> {
-		DataStream<T1> input1;
-		DataStream<T2> input2;
-
-		protected Unspecified(DataStream<T1> input1,
-				DataStream<T2> input2) {
-			this.input1 = input1;
-			this.input2 = input2;
-		}
-
-		/**
-		 * Specifies a {@link KeySelector} for elements from the first input.
-		 */
-		public <KEY> WithKey<T1, T2, KEY> where(KeySelector<T1, KEY> keySelector)  {
-			return new WithKey<>(input1, input2, keySelector, null);
-		}
-
-		/**
-		 * Specifies a {@link KeySelector} for elements from the second input.
-		 */
-		public <KEY> WithKey<T1, T2, KEY> equalTo(KeySelector<T2, KEY> keySelector)  {
-			return new WithKey<>(input1, input2, null, keySelector);
-		}
+	public JoinedStreams(DataStream<T1> input1, DataStream<T2> input2) {
+		this.input1 = requireNonNull(input1);
+		this.input2 = requireNonNull(input2);
 	}
 
 	/**
-	 * A join operation that has {@link KeySelector KeySelectors} defined for either both or
-	 * one input.
-	 *
-	 * <p>
-	 * You need to specify a {@code KeySelector} for both inputs using {@link #where(KeySelector)}
-	 * and {@link #equalTo(KeySelector)} before you can proceeed with specifying a
-	 * {@link WindowAssigner} using {@link #window(WindowAssigner)}.
-	 *
-	 * @param <T1> Type of the elements from the first input
-	 * @param <T2> Type of the elements from the second input
-	 * @param <KEY> Type of the key. This must be the same for both inputs
+	 * Specifies a {@link KeySelector} for elements from the first input.
 	 */
-	public static class WithKey<T1, T2, KEY> {
-		DataStream<T1> input1;
-		DataStream<T2> input2;
+	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
+		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		return new Where<>(input1.clean(keySelector), keyType);
+	}
 
-		KeySelector<T1, KEY> keySelector1;
-		KeySelector<T2, KEY> keySelector2;
+	// ------------------------------------------------------------------------
 
-		protected WithKey(DataStream<T1> input1, DataStream<T2> input2, KeySelector<T1, KEY> keySelector1, KeySelector<T2, KEY> keySelector2) {
-			this.input1 = input1;
-			this.input2 = input2;
+	/**
+	 * CoGrouped streams that have the key for one side defined.
+	 *
+	 * @param <KEY> The type of the key.
+	 */
+	public class Where<KEY> {
 
+		private final KeySelector<T1, KEY> keySelector1;
+		private final TypeInformation<KEY> keyType;
+
+		Where(KeySelector<T1, KEY> keySelector1, TypeInformation<KEY> keyType) {
 			this.keySelector1 = keySelector1;
-			this.keySelector2 = keySelector2;
-		}
-
-		/**
-		 * Specifies a {@link KeySelector} for elements from the first input.
-		 */
-		public WithKey<T1, T2, KEY> where(KeySelector<T1, KEY> keySelector)  {
-			return new JoinedStreams.WithKey<>(input1, input2, keySelector, keySelector2);
+			this.keyType = keyType;
 		}
 
 		/**
 		 * Specifies a {@link KeySelector} for elements from the second input.
 		 */
-		public JoinedStreams.WithKey<T1, T2, KEY> equalTo(KeySelector<T2, KEY> keySelector)  {
-			return new JoinedStreams.WithKey<>(input1, input2, keySelector1, keySelector);
+		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
+			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+			if (!otherKey.equals(this.keyType)) {
+				throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
+						"first key = " + this.keyType + " , second key = " + otherKey);
+			}
+
+			return new EqualTo(input2.clean(keySelector));
 		}
+
+		// --------------------------------------------------------------------
 
 		/**
-		 * Specifies the window on which the join operation works.
+		 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
 		 */
-		public <W extends Window> JoinedStreams.WithWindow<T1, T2, KEY, W> window(WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
-			if (keySelector1 == null || keySelector2 == null) {
-				throw new UnsupportedOperationException("You first need to specify KeySelectors for both inputs using where() and equalTo().");
+		public class EqualTo {
 
+			private final KeySelector<T2, KEY> keySelector2;
+
+			EqualTo(KeySelector<T2, KEY> keySelector2) {
+				this.keySelector2 = requireNonNull(keySelector2);
 			}
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, assigner, null, null);
+
+			/**
+			 * Specifies the window on which the co-group operation works.
+			 */
+			public <W extends Window> WithWindow<T1, T2, KEY, W> window(WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
+				return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType, assigner, null, null);
+			}
 		}
 	}
+	
+	// ------------------------------------------------------------------------
 
 	/**
 	 * A join operation that has {@link KeySelector KeySelectors} defined for both inputs as
@@ -153,11 +150,13 @@ public class JoinedStreams extends CoGroupedStreams{
 	 * @param <W> Type of {@link Window} on which the join operation works.
 	 */
 	public static class WithWindow<T1, T2, KEY, W extends Window> {
+		
 		private final DataStream<T1> input1;
 		private final DataStream<T2> input2;
 
 		private final KeySelector<T1, KEY> keySelector1;
 		private final KeySelector<T2, KEY> keySelector2;
+		private final TypeInformation<KEY> keyType;
 
 		private final WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner;
 
@@ -169,16 +168,20 @@ public class JoinedStreams extends CoGroupedStreams{
 				DataStream<T2> input2,
 				KeySelector<T1, KEY> keySelector1,
 				KeySelector<T2, KEY> keySelector2,
+				TypeInformation<KEY> keyType,
 				WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
 				Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
 				Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor) {
-			this.input1 = input1;
-			this.input2 = input2;
+			
+			this.input1 = requireNonNull(input1);
+			this.input2 = requireNonNull(input2);
 
-			this.keySelector1 = keySelector1;
-			this.keySelector2 = keySelector2;
-
-			this.windowAssigner = windowAssigner;
+			this.keySelector1 = requireNonNull(keySelector1);
+			this.keySelector2 = requireNonNull(keySelector2);
+			this.keyType = requireNonNull(keyType);
+			
+			this.windowAssigner = requireNonNull(windowAssigner);
+			
 			this.trigger = trigger;
 			this.evictor = evictor;
 		}
@@ -187,7 +190,8 @@ public class JoinedStreams extends CoGroupedStreams{
 		 * Sets the {@code Trigger} that should be used to trigger window emission.
 		 */
 		public WithWindow<T1, T2, KEY, W> trigger(Trigger<? super TaggedUnion<T1, T2>, ? super W> newTrigger) {
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, windowAssigner, newTrigger, evictor);
+			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
+					windowAssigner, newTrigger, evictor);
 		}
 
 		/**
@@ -198,7 +202,8 @@ public class JoinedStreams extends CoGroupedStreams{
 		 * pre-aggregation of window results cannot be used.
 		 */
 		public WithWindow<T1, T2, KEY, W> evictor(Evictor<? super TaggedUnion<T1, T2>, ? super W> newEvictor) {
-			return new WithWindow<>(input1, input2, keySelector1, keySelector2, windowAssigner, trigger, newEvictor);
+			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
+					windowAssigner, trigger, newEvictor);
 		}
 
 		/**
@@ -213,7 +218,7 @@ public class JoinedStreams extends CoGroupedStreams{
 					true,
 					input1.getType(),
 					input2.getType(),
-					"CoGroup",
+					"Join",
 					false);
 
 			return apply(function, resultType);
@@ -249,7 +254,7 @@ public class JoinedStreams extends CoGroupedStreams{
 					true,
 					input1.getType(),
 					input2.getType(),
-					"CoGroup",
+					"Join",
 					false);
 
 			return apply(function, resultType);
@@ -273,13 +278,10 @@ public class JoinedStreams extends CoGroupedStreams{
 
 		}
 	}
-
-	/**
-	 * Creates a new join operation from the two given inputs.
-	 */
-	public static <T1, T2> Unspecified<T1, T2> createJoin(DataStream<T1> input1, DataStream<T2> input2) {
-		return new Unspecified<>(input1, input2);
-	}
+	
+	// ------------------------------------------------------------------------
+	//  Implementation of the functions
+	// ------------------------------------------------------------------------
 
 	/**
 	 * CoGroup function that does a nested-loop join to get the join result.

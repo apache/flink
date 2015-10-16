@@ -246,7 +246,7 @@ public final class InstantiationUtil {
 		}
 	}
 	
-	public static Object readObjectFromConfig(Configuration config, String key, ClassLoader cl) throws IOException, ClassNotFoundException {
+	public static <T> T readObjectFromConfig(Configuration config, String key, ClassLoader cl) throws IOException, ClassNotFoundException {
 		byte[] bytes = config.getBytes(key, null);
 		if (bytes == null) {
 			return null;
@@ -284,13 +284,14 @@ public final class InstantiationUtil {
 		return serializer.deserialize(record, inputViewWrapper);
 	}
 	
-	public static Object deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
+	@SuppressWarnings("unchecked")
+	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
 		ObjectInputStream oois = null;
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(cl);
 			oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl);
-			return oois.readObject();
+			return (T) oois.readObject();
 		} finally {
 			Thread.currentThread().setContextClassLoader(old);
 			if (oois != null) {

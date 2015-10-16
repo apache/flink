@@ -18,24 +18,30 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.state.StateBackend;
+import org.apache.flink.streaming.api.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.mockito.stubbing.OngoingStubbing;
 
-import java.io.Serializable;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator}.
@@ -47,30 +53,47 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
-	OneInputStreamOperator<IN, OUT> operator;
+	final OneInputStreamOperator<IN, OUT> operator;
 
-	ConcurrentLinkedQueue<Object> outputList;
+	final ConcurrentLinkedQueue<Object> outputList;
 
-	ExecutionConfig executionConfig;
-
+	final StreamConfig config;
+	
+	final ExecutionConfig executionConfig;
+	
+	final Object checkpointLock;
+	
+	
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
 		this.operator = operator;
+		this.outputList = new ConcurrentLinkedQueue<Object>();
+		this.config = new StreamConfig(new Configuration());
+		this.executionConfig = new ExecutionConfig();
+		this.checkpointLock = new Object();
 
-		outputList = new ConcurrentLinkedQueue<Object>();
+		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
+		StreamTask<?, ?> mockTask = mock(StreamTask.class);
+		when(mockTask.getName()).thenReturn("Mock Task");
+		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
+		when(mockTask.getConfiguration()).thenReturn(config);
+		when(mockTask.getEnvironment()).thenReturn(env);
+		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
+		
+		// ugly Java generic hacks
+		@SuppressWarnings("unchecked")
+		OngoingStubbing<StateBackend<?>> stubbing = 
+				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(mockTask.getStateBackend());
+		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
 
-		executionConfig = new ExecutionConfig();
-
-		StreamingRuntimeContext runtimeContext =  new StreamingRuntimeContext(
-				new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-				executionConfig,
-				null,
-				new LocalStateHandle.LocalStateHandleProvider<Serializable>(),
-				new HashMap<String, Accumulator<?, ?>>(),
-				new OneInputStreamTask());
-
-		operator.setup(new MockOutput(), runtimeContext);
+		operator.setup(mockTask, config, new MockOutput());
 	}
 
+	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
+		ClosureCleaner.clean(keySelector, false);
+		config.setStatePartitioner(keySelector);
+		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
+	
 	/**
 	 * Get all the output from the task. This contains StreamRecords and Events interleaved. Use
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getStreamRecordsFromOutput(java.util.List)}
@@ -81,19 +104,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open(org.apache.flink.configuration.Configuration)}
-	 * with an empty {@link org.apache.flink.configuration.Configuration}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}
 	 */
 	public void open() throws Exception {
-		operator.open(new Configuration());
-	}
-
-	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open(org.apache.flink.configuration.Configuration)}
-	 * with the given {@link org.apache.flink.configuration.Configuration}.
-	 */
-	public void open(Configuration config) throws Exception {
-		operator.open(config);
+		operator.open();
 	}
 
 	/**
@@ -104,11 +118,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
+		operator.setKeyContextElement(element);
 		operator.processElement(element);
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
+			operator.setKeyContextElement(element);
 			operator.processElement(element);
 		}
 	}
@@ -122,13 +138,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		private TypeSerializer<OUT> outputSerializer;
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void emitWatermark(Watermark mark) {
 			outputList.add(mark);
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void collect(StreamRecord<OUT> element) {
 			if (outputSerializer == null) {
 				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);

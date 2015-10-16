@@ -17,6 +17,7 @@
  */
 package org.apache.flink.storm.util;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
@@ -34,8 +35,8 @@ public class SplitStreamTypeKeySelector implements KeySelector<SplitStreamType<T
 
 	private final ArrayKeySelector<Tuple> selector;
 
-	public SplitStreamTypeKeySelector(int... fields) {
-		this.selector = new KeySelectorUtil.ArrayKeySelector<Tuple>(fields);
+	public SplitStreamTypeKeySelector(TypeInformation<Tuple> type, int... fields) {
+		this.selector = KeySelectorUtil.getSelectorForArray(fields, type);
 	}
 
 	@Override

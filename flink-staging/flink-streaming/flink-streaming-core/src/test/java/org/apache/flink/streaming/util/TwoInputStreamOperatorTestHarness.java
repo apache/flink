@@ -19,23 +19,26 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.state.StateBackend;
+import org.apache.flink.streaming.api.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.mockito.stubbing.OngoingStubbing;
 
-import java.io.Serializable;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A test harness for testing a {@link TwoInputStreamOperator}.
@@ -49,26 +52,37 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 	TwoInputStreamOperator<IN1, IN2, OUT> operator;
 
-	ConcurrentLinkedQueue<Object> outputList;
+	final ConcurrentLinkedQueue<Object> outputList;
 
-	ExecutionConfig executionConfig;
+	final ExecutionConfig executionConfig;
+
+	final Object checkpointLock;
 
 	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator) {
+		this(operator, new StreamConfig(new Configuration()));
+	}
+		
+	public TwoInputStreamOperatorTestHarness(TwoInputStreamOperator<IN1, IN2, OUT> operator, StreamConfig config) {
 		this.operator = operator;
+		this.outputList = new ConcurrentLinkedQueue<Object>();
+		this.executionConfig = new ExecutionConfig();
+		this.checkpointLock = new Object();
 
-		outputList = new ConcurrentLinkedQueue<Object>();
+		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
+		StreamTask<?, ?> mockTask = mock(StreamTask.class);
+		when(mockTask.getName()).thenReturn("Mock Task");
+		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
+		when(mockTask.getConfiguration()).thenReturn(config);
+		when(mockTask.getEnvironment()).thenReturn(env);
+		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 
-		executionConfig = new ExecutionConfig();
+		// ugly Java generic hacks
+		@SuppressWarnings("unchecked")
+		OngoingStubbing<StateBackend<?>> stubbing =
+				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(mockTask.getStateBackend());
+		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
 
-		StreamingRuntimeContext runtimeContext =  new StreamingRuntimeContext(
-				new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-				new ExecutionConfig(),
-				null,
-				new LocalStateHandle.LocalStateHandleProvider<>(),
-				new HashMap<String, Accumulator<?, ?>>(),
-				new TwoInputStreamTask());
-
-		operator.setup(new MockOutput(), runtimeContext);
+		operator.setup(mockTask, new StreamConfig(new Configuration()), new MockOutput());
 	}
 
 	/**
@@ -82,19 +96,10 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
 
 	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open(Configuration)}
-	 * with an empty {@link Configuration}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}.
 	 */
 	public void open() throws Exception {
-		operator.open(new Configuration());
-	}
-
-	/**
-	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open(Configuration)}
-	 * with the given {@link Configuration}.
-	 */
-	public void open(Configuration config) throws Exception {
-		operator.open(config);
+		operator.open();
 	}
 
 	/**

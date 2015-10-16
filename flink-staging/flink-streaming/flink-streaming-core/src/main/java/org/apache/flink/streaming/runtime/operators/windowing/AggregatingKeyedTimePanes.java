@@ -29,8 +29,10 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 	private final KeySelector<Type, Key> keySelector;
 	
 	private final ReduceFunction<Type> reducer;
-	
-	private long evaluationPass;
+
+	/**
+	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries have (zero) */
+	private long evaluationPass = 1L;
 
 	// ------------------------------------------------------------------------
 	

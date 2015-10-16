@@ -270,7 +270,7 @@ object CoGroupedStreams {
      */
     def apply[T: TypeInformation](function: CoGroupFunction[T1, T2, T]): DataStream[T] = {
 
-      val coGroup = JavaCoGroupedStreams.createCoGroup(input1.getJavaStream, input2.getJavaStream)
+      val coGroup = new JavaCoGroupedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
 
       coGroup
         .where(keySelector1)

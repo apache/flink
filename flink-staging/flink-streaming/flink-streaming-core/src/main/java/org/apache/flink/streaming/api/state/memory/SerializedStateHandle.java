@@ -16,24 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.streaming.api.state.memory;
 
-import java.io.Serializable;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.SerializedValue;
+
+import java.io.IOException;
 
 /**
- * Stateful streaming operators use a StateHandleProvider to create new
- * {@link StateHandle}s to store each checkpoint in a persistent storage layer.
+ * A state handle that represents its state in serialized form as bytes.
+ *
+ * @param <T> The type of state represented by this state handle.
  */
-public interface StateHandleProvider<T> extends Serializable {
+public class SerializedStateHandle<T> extends SerializedValue<T> implements StateHandle<T> {
+	
+	private static final long serialVersionUID = 4145685722538475769L;
+
+	public SerializedStateHandle(T value) throws IOException {
+		super(value);
+	}
+	
+	@Override
+	public T getState(ClassLoader classLoader) throws Exception {
+		return deserializeValue(classLoader);
+	}
 
 	/**
-	 * Creates a new {@link StateHandle} instance that will be used to store the
-	 * state checkpoint. This method is called for each state checkpoint saved.
-	 * 
-	 * @param state
-	 *            State to be stored in the handle.
-	 * 
+	 * Discarding heap-memory backed state is a no-op, so this method does nothing.
 	 */
-	public StateHandle<T> createStateHandle(T state);
-
+	@Override
+	public void discardState() {}
 }

@@ -50,6 +50,7 @@ public class StreamNode implements Serializable {
 	private Integer slotSharingID;
 	private boolean isolatedSlot = false;
 	private KeySelector<?,?> statePartitioner;
+	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperator<?> operator;
 	private List<OutputSelector<?>> outputSelectors;
@@ -231,6 +232,14 @@ public class StreamNode implements Serializable {
 
 	public void setStatePartitioner(KeySelector<?, ?> statePartitioner) {
 		this.statePartitioner = statePartitioner;
+	}
+
+	public TypeSerializer<?> getStateKeySerializer() {
+		return stateKeySerializer;
+	}
+
+	public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
+		this.stateKeySerializer = stateKeySerializer;
 	}
 
 	@Override

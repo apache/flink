@@ -51,15 +51,13 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 	@Override
 	protected void run() throws Exception {
 		final Object checkpointLock = getCheckpointLock();
-		
-		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<>(outputHandler.getOutput(), checkpointLock);
-		
-		streamOperator.run(checkpointLock, output);
+		final SourceOutput<StreamRecord<OUT>> output = new SourceOutput<>(getHeadOutput(), checkpointLock);
+		headOperator.run(checkpointLock, output);
 	}
 	
 	@Override
 	protected void cancelTask() throws Exception {
-		streamOperator.cancel();
+		headOperator.cancel();
 	}
 
 	// ------------------------------------------------------------------------
@@ -95,9 +93,7 @@ public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 		@Override
 		public void collect(T record) {
 			synchronized (lockObject) {
-				if (timerException != null) {
-					throw timerException;
-				}
+				checkTimerException();
 				output.collect(record);
 			}
 		}

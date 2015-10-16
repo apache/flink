@@ -36,7 +36,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 	public void init() throws Exception {
 		super.init();
 		
-		final String iterationId = configuration.getIterationId();
+		final String iterationId = getConfiguration().getIterationId();
 		if (iterationId == null || iterationId.length() == 0) {
 			throw new Exception("Missing iteration ID in the task configuration");
 		}
@@ -44,7 +44,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		final String brokerID = StreamIterationHead.createBrokerIdString(getEnvironment().getJobID(), iterationId,
 				getEnvironment().getIndexInSubtaskGroup());
 
-		final long iterationWaitTime = configuration.getIterationWaitTime();
+		final long iterationWaitTime = getConfiguration().getIterationWaitTime();
 
 		LOG.info("Iteration tail {} trying to acquire feedback queue under {}", getName(), brokerID);
 		
@@ -54,7 +54,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		
 		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
 		
-		this.streamOperator = new RecordPusher<>(dataChannel, iterationWaitTime);
+		this.headOperator = new RecordPusher<>(dataChannel, iterationWaitTime);
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {

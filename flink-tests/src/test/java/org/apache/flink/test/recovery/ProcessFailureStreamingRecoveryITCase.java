@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.recovery;
 
-
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
@@ -29,16 +26,18 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.FileStateHandle;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.state.filesystem.FsStateBackend;
+
 import org.junit.Assert;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for streaming program behaviour in case of TaskManager failure
@@ -72,7 +71,8 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(1);
 		env.enableCheckpointing(200);
-		env.setStateHandleProvider(FileStateHandle.createProvider(tempCheckpointDir.getAbsolutePath()));
+		
+		env.setStateBackend(new FsStateBackend(tempCheckpointDir.getAbsoluteFile().toURI()));
 
 		DataStream<Long> result = env.addSource(new SleepyDurableGenerateSequence(coordinateDir, DATA_COUNT))
 				// add a non-chained no-op map to test the chain state restore logic
@@ -104,7 +104,8 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> {
+	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> 
+			implements Checkpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;
 
@@ -113,7 +114,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 		private volatile boolean isRunning = true;
 		
-		private OperatorState<Long> collected;
+		private long collected;
 
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
 			this.coordinateDir = coordinateDir;
@@ -133,7 +134,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
 			boolean checkForProceedFile = true;
 
-			while (isRunning && collected.value() < toCollect) {
+			while (isRunning && collected < toCollect) {
 				// check if the proceed file exists (then we go full speed)
 				// if not, we always recheck and sleep
 				if (checkForProceedFile) {
@@ -146,20 +147,25 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				}
 
 				synchronized (checkpointLock) {
-					sourceCtx.collect(collected.value() * stepSize + congruence);
-					collected.update(collected.value() + 1);
+					sourceCtx.collect(collected * stepSize + congruence);
+					collected++;
 				}
 			}
-		}
-		
-		@Override
-		public void open(Configuration conf) throws IOException {
-			collected = getRuntimeContext().getOperatorState("count", 0L, false);
 		}
 
 		@Override
 		public void cancel() {
 			isRunning = false;
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return collected;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			collected = state;
 		}
 	}
 	

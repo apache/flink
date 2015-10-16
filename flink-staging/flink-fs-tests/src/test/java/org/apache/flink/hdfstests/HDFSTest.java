@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tachyon;
+package org.apache.flink.hdfstests;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;

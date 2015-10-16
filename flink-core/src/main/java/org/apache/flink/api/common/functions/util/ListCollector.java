@@ -22,6 +22,11 @@ import java.util.List;
 
 import org.apache.flink.util.Collector;
 
+/**
+ * A {@link Collector} that puts the collected elements into a given list.
+ * 
+ * @param <T> The type of the collected elements.
+ */
 public class ListCollector<T> implements Collector<T> {
 
 	private final List<T> list;

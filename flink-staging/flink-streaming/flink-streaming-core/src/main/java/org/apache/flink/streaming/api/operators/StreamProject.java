@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -53,8 +52,8 @@ public class StreamProject<IN, OUT extends Tuple>
 	}
 
 	@Override
-	public void open(Configuration config) throws Exception {
-		super.open(config);
+	public void open() throws Exception {
+		super.open();
 		outTuple = outSerializer.createInstance();
 	}
 

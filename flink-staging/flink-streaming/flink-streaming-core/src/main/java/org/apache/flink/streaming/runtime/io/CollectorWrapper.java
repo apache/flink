@@ -25,23 +25,21 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
 
 	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
 
-	private List<Output<OUT>> allOutputs;
+	private ArrayList<Output<StreamRecord<OUT>>> allOutputs;
 
 	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
 		this.outputSelectorWrapper = outputSelectorWrapper;
-		allOutputs = new ArrayList<Output<OUT>>();
+		allOutputs = new ArrayList<Output<StreamRecord<OUT>>>();
 	}
-
-	@SuppressWarnings("unchecked,rawtypes")
-	public void addCollector(Output<StreamRecord<?>> output, StreamEdge edge) {
+	
+	public void addCollector(Output<StreamRecord<OUT>> output, StreamEdge edge) {
 		outputSelectorWrapper.addCollector(output, edge);
-		allOutputs.add((Output) output);
+		allOutputs.add(output);
 	}
 
 	@Override
@@ -53,13 +51,11 @@ public class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
 
 	@Override
 	public void emitWatermark(Watermark mark) {
-		for (Output<OUT> output : allOutputs) {
+		for (Output<?> output : allOutputs) {
 			output.emitWatermark(mark);
 		}
 	}
 
 	@Override
-	public void close() {
-	}
-
+	public void close() {}
 }

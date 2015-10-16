@@ -885,7 +885,6 @@ public class Task implements Runnable {
 
 				// build a local closure 
 				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
-				final Logger logger = LOG;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
@@ -919,7 +918,6 @@ public class Task implements Runnable {
 
 				// build a local closure 
 				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
-				final Logger logger = LOG;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {

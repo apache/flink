@@ -17,17 +17,16 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,10 +56,9 @@ public class BucketStreamSortOperator<T> extends AbstractStreamOperator<T> imple
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		buckets = Maps.newHashMap();
+	public void open() throws Exception {
+		super.open();
+		buckets = new HashMap<>();
 
 	}
 
@@ -70,7 +68,7 @@ public class BucketStreamSortOperator<T> extends AbstractStreamOperator<T> imple
 		long bucketId = record.getTimestamp() - (record.getTimestamp() % granularity);
 		List<StreamRecord<T>> bucket = buckets.get(bucketId);
 		if (bucket == null) {
-			bucket = Lists.newArrayList();
+			bucket = new ArrayList<>();
 			buckets.put(bucketId, bucket);
 		}
 		bucket.add(record);
@@ -79,7 +77,7 @@ public class BucketStreamSortOperator<T> extends AbstractStreamOperator<T> imple
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		long maxBucketId = mark.getTimestamp() - (mark.getTimestamp() % granularity);
-		Set<Long> toRemove = Sets.newHashSet();
+		Set<Long> toRemove = new HashSet<>();
 		for (Map.Entry<Long, List<StreamRecord<T>>> bucket: buckets.entrySet()) {
 			if (bucket.getKey() < maxBucketId) {
 				Collections.sort(bucket.getValue(), new Comparator<StreamRecord<T>>() {

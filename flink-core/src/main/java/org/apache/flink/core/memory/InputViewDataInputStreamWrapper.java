@@ -121,9 +121,10 @@ public class InputViewDataInputStreamWrapper implements DataInputView, Closeable
 	public double readDouble() throws IOException {
 		return in.readDouble();
 	}
-
-	@SuppressWarnings("deprecation")
+	
 	@Override
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public String readLine() throws IOException {
 		return in.readLine();
 	}

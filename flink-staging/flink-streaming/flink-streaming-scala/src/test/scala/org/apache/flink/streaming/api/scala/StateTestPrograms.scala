@@ -17,8 +17,9 @@
  */
 package org.apache.flink.streaming.api.scala
 
+import java.util
+
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import java.util.HashSet
 
 /**
  * Test programs for stateful functions.
@@ -30,11 +31,14 @@ object StateTestPrograms {
     
     // test stateful map
     env.generateSequence(0, 10).setParallelism(1)
+      .map { v => (1, v) }.setParallelism(1)
+      .keyBy(_._1)
       .mapWithState((in, count: Option[Long]) =>
         count match {
-          case Some(c) => ((in - c), Some(c + 1))
-          case None => (in, Some(1L))
+          case Some(c) => (in._2 - c, Some(c + 1))
+          case None => (in._2, Some(1L))
         }).setParallelism(1)
+      
       .addSink(new RichSinkFunction[Long]() {
         var allZero = true
         override def invoke(in: Long) = {
@@ -46,19 +50,24 @@ object StateTestPrograms {
       })
 
     // test stateful flatmap
-    env.fromElements("Fir st-", "Hello world").flatMapWithState((w, s: Option[String]) =>
-      s match {
-        case Some(s) => (w.split(" ").toList.map(s + _), Some(w))
-        case None => (List(w), Some(w))
-      }).setParallelism(1)
+    env.fromElements((1, "First"), (2, "Second"), (1, "Hello world"))
+      .keyBy(_._1)
+      .flatMapWithState((w, s: Option[String]) =>
+        s match {
+          case Some(state) => (w._2.split(" ").toList.map(state + _), Some(w._2))
+          case None => (List(w._2), Some(w._2))
+        })
+      .setParallelism(1)
+      
       .addSink(new RichSinkFunction[String]() {
-        val received = new HashSet[String]()
+        val received = new util.HashSet[String]()
         override def invoke(in: String) = { received.add(in) }
         override def close() = {
-          assert(received.size() == 3)
-          assert(received.contains("Fir st-"))
-          assert(received.contains("Fir st-Hello"))
-          assert(received.contains("Fir st-world"))
+          assert(received.size() == 4)
+          assert(received.contains("First"))
+          assert(received.contains("Second"))
+          assert(received.contains("FirstHello"))
+          assert(received.contains("Firstworld"))
         }
       }).setParallelism(1)
 

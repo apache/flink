@@ -20,10 +20,11 @@ package org.apache.flink.streaming.api.functions.sink;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +38,11 @@ import org.slf4j.LoggerFactory;
  *            Input type
  */
 public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
+	
 	private static final long serialVersionUID = 1L;
+	
 	private static final Logger LOG = LoggerFactory.getLogger(FileSinkFunction.class);
+	
 	protected ArrayList<IN> tupleList = new ArrayList<IN>();
 	protected volatile OutputFormat<IN> format;
 	protected volatile boolean cleanupCalled = false;
@@ -51,8 +55,8 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
-		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-		format.configure(context.getTaskStubParameters());
+		RuntimeContext context = getRuntimeContext();
+		format.configure(parameters);
 		indexInSubtaskGroup = context.getIndexOfThisSubtask();
 		currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
 		format.open(indexInSubtaskGroup, currentNumberOfSubtasks);

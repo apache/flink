@@ -17,16 +17,16 @@
 
 package org.apache.flink.streaming.api.collector.selector;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,32 +38,31 @@ public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper
 
 	private List<OutputSelector<OUT>> outputSelectors;
 
-	private Map<String, List<Collector<StreamRecord<OUT>>>> outputMap;
-	private Set<Collector<StreamRecord<OUT>>> selectAllOutputs;
+	private HashMap<String, ArrayList<Collector<StreamRecord<OUT>>>> outputMap;
+	private HashSet<Collector<StreamRecord<OUT>>> selectAllOutputs;
 
 	public DirectedOutputSelectorWrapper(List<OutputSelector<OUT>> outputSelectors) {
 		this.outputSelectors = outputSelectors;
-		this.selectAllOutputs = new HashSet<Collector<StreamRecord<OUT>>>(); //new LinkedList<Collector<OUT>>();
-		this.outputMap = new HashMap<String, List<Collector<StreamRecord<OUT>>>>();
+		this.selectAllOutputs = new HashSet<Collector<StreamRecord<OUT>>>();
+		this.outputMap = new HashMap<String, ArrayList<Collector<StreamRecord<OUT>>>>();
 	}
-
-	@SuppressWarnings("unchecked,rawtypes")
+	
 	@Override
-	public void addCollector(Collector<StreamRecord<?>> output, StreamEdge edge) {
-		Collector output1 = output;
+	public void addCollector(Collector<StreamRecord<OUT>> output, StreamEdge edge) {
 		List<String> selectedNames = edge.getSelectedNames();
 
 		if (selectedNames.isEmpty()) {
-			selectAllOutputs.add((Collector<StreamRecord<OUT>>) output1);
-		} else {
+			selectAllOutputs.add(output);
+		}
+		else {
 			for (String selectedName : selectedNames) {
-
 				if (!outputMap.containsKey(selectedName)) {
-					outputMap.put(selectedName, new LinkedList<Collector<StreamRecord<OUT>>>());
-					outputMap.get(selectedName).add((Collector<StreamRecord<OUT>>) output1);
-				} else {
+					outputMap.put(selectedName, new ArrayList<Collector<StreamRecord<OUT>>>());
+					outputMap.get(selectedName).add(output);
+				}
+				else {
 					if (!outputMap.get(selectedName).contains(output)) {
-						outputMap.get(selectedName).add((Collector<StreamRecord<OUT>>) output1);
+						outputMap.get(selectedName).add(output);
 					}
 				}
 			}

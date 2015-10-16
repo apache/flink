@@ -18,17 +18,16 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -44,6 +43,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -149,11 +150,11 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		windows = Maps.newHashMap();
-		watermarkTimers = Maps.newHashMap();
-		processingTimeTimers = Maps.newHashMap();
+	public void open() throws Exception {
+		super.open();
+		windows = new HashMap<>();
+		watermarkTimers = new HashMap<>();
+		processingTimeTimers = new HashMap<>();
 		timestampedCollector = new TimestampedCollector<>(output);
 
 		if (inputSerializer == null) {
@@ -161,7 +162,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		}
 
 		windowBufferFactory.setRuntimeContext(getRuntimeContext());
-		windowBufferFactory.open(parameters);
+		windowBufferFactory.open(getUserFunctionParameters());
 	}
 
 	@Override
@@ -191,7 +192,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 		Map<W, Tuple2<WindowBuffer<IN>, TriggerContext>> keyWindows = windows.get(key);
 		if (keyWindows == null) {
-			keyWindows = Maps.newHashMap();
+			keyWindows = new HashMap<>();
 			windows.put(key, keyWindows);
 		}
 
@@ -260,7 +261,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		Set<Long> toRemove = Sets.newHashSet();
+		Set<Long> toRemove = new HashSet<>();
 
 		for (Map.Entry<Long, Set<TriggerContext>> triggers: watermarkTimers.entrySet()) {
 			if (triggers.getKey() <= mark.getTimestamp()) {
@@ -280,7 +281,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 	@Override
 	public void trigger(long time) throws Exception {
-		Set<Long> toRemove = Sets.newHashSet();
+		Set<Long> toRemove = new HashSet<>();
 
 		for (Map.Entry<Long, Set<TriggerContext>> triggers: processingTimeTimers.entrySet()) {
 			if (triggers.getKey() < time) {
@@ -317,7 +318,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 			Set<TriggerContext> triggers = processingTimeTimers.get(time);
 			if (triggers == null) {
 				getRuntimeContext().registerTimer(time, WindowOperator.this);
-				triggers = Sets.newHashSet();
+				triggers = new HashSet<>();
 				processingTimeTimers.put(time, triggers);
 			}
 			triggers.add(this);
@@ -327,7 +328,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		public void registerWatermarkTimer(long time) {
 			Set<TriggerContext> triggers = watermarkTimers.get(time);
 			if (triggers == null) {
-				triggers = Sets.newHashSet();
+				triggers = new HashSet<>();
 				watermarkTimers.put(time, triggers);
 			}
 			triggers.add(this);

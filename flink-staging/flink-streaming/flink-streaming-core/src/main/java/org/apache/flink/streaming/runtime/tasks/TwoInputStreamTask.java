@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
@@ -35,6 +36,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	public void init() throws Exception {
+		StreamConfig configuration = getConfiguration();
+		ClassLoader userClassLoader = getUserCodeClassLoader();
+		
 		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
 		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
 	
@@ -75,10 +79,13 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	protected void run() throws Exception {
-		while (running && inputProcessor.processInput(streamOperator, lock)) {
-			if (timerException != null) {
-				throw timerException;
-			}
+		// cache some references on the stack, to make the code more JIT friendly
+		final TwoInputStreamOperator<IN1, IN2, OUT> operator = this.headOperator;
+		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
+		final Object lock = getCheckpointLock();
+		
+		while (running && inputProcessor.processInput(operator, lock)) {
+			checkTimerException();
 		}
 	}
 

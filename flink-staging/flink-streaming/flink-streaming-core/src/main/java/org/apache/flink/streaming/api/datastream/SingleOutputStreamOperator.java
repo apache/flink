@@ -23,8 +23,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph.ResourceStrategy;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -141,7 +140,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return The operator with chaining disabled
 	 */
 	public SingleOutputStreamOperator<T, O> disableChaining() {
-		return setChainingStrategy(AbstractStreamOperator.ChainingStrategy.NEVER);
+		return setChainingStrategy(ChainingStrategy.NEVER);
 	}
 
 	/**
@@ -152,7 +151,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @return The operator with chaining set.
 	 */
 	public SingleOutputStreamOperator<T, O> startNewChain() {
-		return setChainingStrategy(AbstractStreamOperator.ChainingStrategy.HEAD);
+		return setChainingStrategy(ChainingStrategy.HEAD);
 	}
 
 	/**

@@ -503,7 +503,10 @@ public class WindowedStream<T, K, W extends Window> {
 				@SuppressWarnings("unchecked")
 				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
 						new AggregatingProcessingTimeWindowOperator<>(
-								reducer, input.getKeySelector(), windowLength, windowSlide);
+								reducer, input.getKeySelector(), 
+								input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+								input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+								windowLength, windowSlide);
 				return input.transform(opName, resultType, op);
 			}
 			else if (function instanceof WindowFunction) {
@@ -511,7 +514,10 @@ public class WindowedStream<T, K, W extends Window> {
 				WindowFunction<T, R, K, TimeWindow> wf = (WindowFunction<T, R, K, TimeWindow>) function;
 
 				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
-						wf, input.getKeySelector(), windowLength, windowSlide);
+						wf, input.getKeySelector(),
+						input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+						input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+						windowLength, windowSlide);
 				return input.transform(opName, resultType, op);
 			}
 		} else if (windowAssigner instanceof TumblingTimeWindows && trigger instanceof ProcessingTimeTrigger && evictor == null) {
@@ -528,7 +534,11 @@ public class WindowedStream<T, K, W extends Window> {
 				@SuppressWarnings("unchecked")
 				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
 						new AggregatingProcessingTimeWindowOperator<>(
-								reducer, input.getKeySelector(), windowLength, windowSlide);
+								reducer,
+								input.getKeySelector(),
+								input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+								input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+								windowLength, windowSlide);
 				return input.transform(opName, resultType, op);
 			}
 			else if (function instanceof WindowFunction) {
@@ -536,7 +546,10 @@ public class WindowedStream<T, K, W extends Window> {
 				WindowFunction<T, R, K, TimeWindow> wf = (WindowFunction<T, R, K, TimeWindow>) function;
 
 				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
-						wf, input.getKeySelector(), windowLength, windowSlide);
+						wf, input.getKeySelector(),
+						input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+						input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+						windowLength, windowSlide);
 				return input.transform(opName, resultType, op);
 			}
 		}

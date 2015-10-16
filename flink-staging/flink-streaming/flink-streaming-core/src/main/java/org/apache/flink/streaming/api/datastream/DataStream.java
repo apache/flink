@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -172,8 +172,9 @@ public class DataStream<T> {
 	 *            The DataStreams to union output with.
 	 * @return The {@link DataStream}.
 	 */
-	public DataStream<T> union(DataStream<T>... streams) {
-		List<StreamTransformation<T>> unionedTransforms = Lists.newArrayList();
+	@SafeVarargs
+	public final DataStream<T> union(DataStream<T>... streams) {
+		List<StreamTransformation<T>> unionedTransforms = new ArrayList<>();
 		unionedTransforms.add(this.transformation);
 
 		Collection<StreamTransformation<?>> thisPredecessors = this.getTransformation().getTransitivePredecessors();
@@ -185,6 +186,11 @@ public class DataStream<T> {
 								"This Stream: " + this.getTransformation() +
 								", other stream: " + newStream.getTransformation());
 			}
+			if (!getType().equals(newStream.getType())) {
+				throw new IllegalArgumentException("Cannot union streams of different types: "
+						+ getType() + " and " + newStream.getType());
+			}
+			
 			Collection<StreamTransformation<?>> predecessors = newStream.getTransformation().getTransitivePredecessors();
 
 			if (predecessors.contains(this.transformation) || thisPredecessors.contains(newStream.getTransformation())) {
@@ -233,7 +239,7 @@ public class DataStream<T> {
 	 *            The KeySelector to be used for extracting the key for partitioning
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
-	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key){
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
 		return new KeyedStream<T, K>(this, clean(key));
 	}
 
@@ -247,7 +253,7 @@ public class DataStream<T> {
 	 */
 	public KeyedStream<T, Tuple> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return keyBy(new KeySelectorUtil.ArrayKeySelector<T>(fields));
+			return keyBy(KeySelectorUtil.getSelectorForArray(fields, getType()));
 		} else {
 			return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
 		}
@@ -285,7 +291,7 @@ public class DataStream<T> {
 	 */
 	public DataStream<T> partitionByHash(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return partitionByHash(new KeySelectorUtil.ArrayKeySelector<T>(fields));
+			return partitionByHash(KeySelectorUtil.getSelectorForArray(fields, getType()));
 		} else {
 			return partitionByHash(new Keys.ExpressionKeys<T>(fields, getType()));
 		}
@@ -616,16 +622,16 @@ public class DataStream<T> {
 	 * Creates a join operation. See {@link CoGroupedStreams} for an example of how the keys
 	 * and window can be specified.
 	 */
-	public <T2> CoGroupedStreams.Unspecified<T, T2> coGroup(DataStream<T2> otherStream) {
-		return CoGroupedStreams.createCoGroup(this, otherStream);
+	public <T2> CoGroupedStreams<T, T2> coGroup(DataStream<T2> otherStream) {
+		return new CoGroupedStreams<>(this, otherStream);
 	}
 
 	/**
 	 * Creates a join operation. See {@link JoinedStreams} for an example of how the keys
 	 * and window can be specified.
 	 */
-	public <T2> JoinedStreams.Unspecified<T, T2> join(DataStream<T2> otherStream) {
-		return JoinedStreams.createJoin(this, otherStream);
+	public <T2> JoinedStreams<T, T2> join(DataStream<T2> otherStream) {
+		return new JoinedStreams<>(this, otherStream);
 	}
 
 	/**
