@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import com.google.common.base.Preconditions;
+
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -25,19 +27,20 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
+
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Properties;
-
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.internals.ErrorLoggingCallback;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
+import java.util.Properties;
 
 
 /**
@@ -67,26 +70,34 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	/**
 	 * The name of the topic this producer is writing data to
 	 */
-	private String topicId;
+	private final String topicId;
 
 	/**
 	 * (Serializable) SerializationSchema for turning objects used with Flink into
 	 * byte[] for Kafka.
 	 */
-	private SerializationSchema<IN, byte[]> schema;
+	private final SerializationSchema<IN, byte[]> schema;
 
 	/**
 	 * User-provided partitioner for assigning an object to a Kafka partition.
 	 */
-	private KafkaPartitioner partitioner;
-
-	// -------------------------------- Runtime fields ------------------------------------------
+	private final KafkaPartitioner partitioner;
 
 	/**
-	 * KafkaProducer instance.
+	 * Flag indicating whether to accept failures (and log them), or to fail on failures
 	 */
+	private boolean logFailuresOnly;
+	
+	// -------------------------------- Runtime fields ------------------------------------------
+
+	/** KafkaProducer instance */
 	private transient KafkaProducer<byte[], byte[]> producer;
 
+	/** The callback than handles error propagation or logging callbacks */
+	private transient Callback callback;
+	
+	/** Errors encountered in the async producer are stored here */
+	private transient volatile Exception asyncException;
 
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
@@ -154,8 +165,7 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 
 		// create a local KafkaProducer to get the list of partitions.
 		// this will also ensure locally that all required ProducerConfig values are set.
-		{
-			KafkaProducer<Void, IN> getPartitionsProd = new KafkaProducer<>(this.producerConfig);
+		try (KafkaProducer<Void, IN> getPartitionsProd = new KafkaProducer<>(this.producerConfig)) {
 			List<PartitionInfo> partitionsList = getPartitionsProd.partitionsFor(topicId);
 
 			this.partitions = new int[partitionsList.size()];
@@ -165,14 +175,29 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 			getPartitionsProd.close();
 		}
 
-		if(customPartitioner == null) {
+		if (customPartitioner == null) {
 			this.partitioner = new FixedPartitioner();
 		} else {
 			this.partitioner = customPartitioner;
 		}
 	}
 
+	// ---------------------------------- Properties --------------------------
 
+	/**
+	 * Defines whether the producer should fail on errors, or only log them.
+	 * If this is set to true, then exceptions will be only logged, if set to false,
+	 * exceptions will be eventually thrown and cause the streaming program to 
+	 * fail (and enter recovery).
+	 * 
+	 * @param logFailuresOnly The flag to indicate logging-only on exceptions.
+	 */
+	public void setLogFailuresOnly(boolean logFailuresOnly) {
+		this.logFailuresOnly = logFailuresOnly;
+	}
+
+	// ----------------------------------- Utilities --------------------------
+	
 	/**
 	 * Initializes the connection to Kafka.
 	 */
@@ -180,9 +205,33 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	public void open(Configuration configuration) {
 		producer = new org.apache.kafka.clients.producer.KafkaProducer<>(this.producerConfig);
 
-		partitioner.open(getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks(), partitions);
+		RuntimeContext ctx = getRuntimeContext();
+		partitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), partitions);
 
-		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", getRuntimeContext().getIndexOfThisSubtask(), getRuntimeContext().getNumberOfParallelSubtasks(), topicId);
+		LOG.info("Starting FlinkKafkaProducer ({}/{}) to produce into topic {}", 
+				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), topicId);
+		
+		if (logFailuresOnly) {
+			callback = new Callback() {
+				
+				@Override
+				public void onCompletion(RecordMetadata metadata, Exception e) {
+					if (e != null) {
+						LOG.error("Error while sending record to Kafka: " + e.getMessage(), e);
+					}
+				}
+			};
+		}
+		else {
+			callback = new Callback() {
+				@Override
+				public void onCompletion(RecordMetadata metadata, Exception exception) {
+					if (exception != null && asyncException == null) {
+						asyncException = exception;
+					}
+				}
+			};
+		}
 	}
 
 	/**
@@ -192,27 +241,41 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	 * 		The incoming data
 	 */
 	@Override
-	public void invoke(IN next) {
+	public void invoke(IN next) throws Exception {
+		// propagate asynchronous errors
+		checkErroneous();
+		
 		byte[] serialized = schema.serialize(next);
-
-		producer.send(new ProducerRecord<byte[], byte[]>(topicId,
-			partitioner.partition(next, partitions.length),
-			null,
-			serialized),
-			new ErrorLoggingCallback(topicId, null, serialized, false));
+		ProducerRecord<byte[], byte[]> record = new ProducerRecord<byte[], byte[]>(topicId,
+				partitioner.partition(next, partitions.length),
+				null, serialized);
+		
+		producer.send(record, callback);
 	}
 
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		if (producer != null) {
 			producer.close();
 		}
+		
+		// make sure we propagate pending errors
+		checkErroneous();
 	}
 
 
 	// ----------------------------------- Utilities --------------------------
 
+	private void checkErroneous() throws Exception {
+		Exception e = asyncException;
+		if (e != null) {
+			// prevent double throwing
+			asyncException = null;
+			throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
+		}
+	}
+	
 	public static Properties getPropertiesFromBrokerList(String brokerList) {
 		String[] elements = brokerList.split(",");
 		for(String broker: elements) {
