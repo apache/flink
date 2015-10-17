@@ -969,7 +969,7 @@ val joined = left.leftOuterJoin(right).where(0).equalTo(1) {
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
-        See the <a href="#specifying-keys">keys section</a> to learn how to define coGroup keys.
+        See the <a href="#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
 {% highlight scala %}
 data1.coGroup(data2).where(0).equalTo(1)
 {% endhighlight %}
