@@ -55,12 +55,21 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;
 
 	/**
-	 * Called when a timer that was set using the trigger context fires.
+	 * Called when a processing-time timer that was set using the trigger context fires.
 	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onTime(long time, TriggerContext ctx) throws Exception;
+	TriggerResult onProcessingTime(long time, TriggerContext ctx) throws Exception;
+
+	/**
+	 * Called when an event-time timer that was set using the trigger context fires.
+	 *
+	 * @param time The timestamp at which the timer fired.
+	 * @param ctx A context object that can be used to register timer callbacks.
+	 */
+	TriggerResult onEventTime(long time, TriggerContext ctx) throws Exception;
+
 
 	/**
 	 * Result type for trigger methods. This determines what happens which the window.
@@ -82,21 +91,21 @@ public interface Trigger<T, W extends Window> extends Serializable {
 
 		/**
 		 * Register a system time callback. When the current system time passes the specified
-		 * time {@link #onTime(long, TriggerContext)} is called.
+		 * time {@link #onProcessingTime(long, TriggerContext)} is called with the time specified here.
 		 *
-		 * @param time The time at which to invoke {@link #onTime(long, TriggerContext)}
+		 * @param time The time at which to invoke {@link #onProcessingTime(long, TriggerContext)}
 		 */
 		void registerProcessingTimeTimer(long time);
 
 		/**
-		 * Register a watermark callback. When the current watermark passes the specified
-		 * time {@link #onTime(long, TriggerContext)} is called.
+		 * Register an event-time callback. When the current watermark passes the specified
+		 * time {@link #onEventTime(long, TriggerContext)} is called with the time specified here.
 		 *
 		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 *
-		 * @param time The watermark at which to invoke {@link #onTime(long, TriggerContext)}
+		 * @param time The watermark at which to invoke {@link #onEventTime(long, TriggerContext)}
 		 */
-		void registerWatermarkTimer(long time);
+		void registerEventTimeTimer(long time);
 
 		/**
 		 * Retrieves an {@link OperatorState} object that can be used to interact with

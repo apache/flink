@@ -25,32 +25,38 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
  *
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
-public class WatermarkTrigger implements Trigger<Object, TimeWindow> {
+public class EventTimeTrigger implements Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	private WatermarkTrigger() {}
+	private EventTimeTrigger() {}
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
-		ctx.registerWatermarkTimer(window.maxTimestamp());
+		ctx.registerEventTimeTimer(window.maxTimestamp());
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) {
+	public TriggerResult onEventTime(long time, TriggerContext ctx) {
 		return TriggerResult.FIRE_AND_PURGE;
 	}
 
 	@Override
+	public TriggerResult onProcessingTime(long time,
+			TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
 	public String toString() {
-		return "WatermarkTrigger()";
+		return "EventTimeTrigger()";
 	}
 
 	/**
 	 * Creates trigger that fires once the watermark passes the end of the window.
 	 */
-	public static WatermarkTrigger create() {
-		return new WatermarkTrigger();
+	public static EventTimeTrigger create() {
+		return new EventTimeTrigger();
 	}
 
 }

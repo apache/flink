@@ -489,7 +489,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		}
 
 		@Override
-		public void registerWatermarkTimer(long time) {
+		public void registerEventTimeTimer(long time) {
 			if (watermarkTimer == time) {
 				// we already have set a trigger for that time
 				return;
@@ -505,7 +505,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
 			if (time == processingTimeTimer) {
-				return trigger.onTime(time, this);
+				return trigger.onProcessingTime(time, this);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}
@@ -513,7 +513,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 		public Trigger.TriggerResult onEventTime(long time) throws Exception {
 			if (time == watermarkTimer) {
-				return trigger.onTime(time, this);
+				return trigger.onEventTime(time, this);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}
