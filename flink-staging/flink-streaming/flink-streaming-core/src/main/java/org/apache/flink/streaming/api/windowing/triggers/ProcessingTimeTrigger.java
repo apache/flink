@@ -35,7 +35,13 @@ public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) {
+	public TriggerResult onEventTime(long time,
+			TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public TriggerResult onProcessingTime(long time, TriggerContext ctx) {
 		return TriggerResult.FIRE_AND_PURGE;
 	}
 

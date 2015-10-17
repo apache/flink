@@ -63,7 +63,13 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) throws Exception {
+	public TriggerResult onEventTime(long time,
+			TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public TriggerResult onProcessingTime(long time, TriggerContext ctx) throws Exception {
 
 		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
 		long nextFireTimestamp = fireState.value();

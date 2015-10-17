@@ -17,7 +17,6 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import jdk.nashorn.internal.objects.Global;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;

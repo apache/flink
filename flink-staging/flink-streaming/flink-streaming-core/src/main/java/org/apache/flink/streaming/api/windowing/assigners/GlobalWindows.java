@@ -79,7 +79,12 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 		}
 
 		@Override
-		public TriggerResult onTime(long time, TriggerContext ctx) {
+		public TriggerResult onEventTime(long time, TriggerContext ctx) {
+			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public TriggerResult onProcessingTime(long time, TriggerContext ctx) {
 			return TriggerResult.CONTINUE;
 		}
 	}
