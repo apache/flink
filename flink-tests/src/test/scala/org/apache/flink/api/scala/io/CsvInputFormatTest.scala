@@ -21,10 +21,11 @@ import java.io.{File, FileOutputStream, FileWriter, OutputStreamWriter}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.io.PojoCsvInputFormat
+import org.apache.flink.api.java.io.TupleCsvInputFormat
 import org.apache.flink.api.java.io.CsvInputFormatTest.TwitterPOJO
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, PojoTypeInfo}
+import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
@@ -50,7 +51,7 @@ class CsvInputFormatTest {
                         "a test|3|4.0|\n" +
                         "#next|5|6.0|\n"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(String, Integer, Double)](
+      val format = new TupleCsvInputFormat[(String, Integer, Double)](
         PATH,
         createTypeInformation[(String, Integer, Double)]
           .asInstanceOf[CaseClassTypeInfo[(String, Integer, Double)]])
@@ -92,7 +93,7 @@ class CsvInputFormatTest {
                         "a test|3|4.0|\n" +
                         "//next|5|6.0|\n"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(String, Integer, Double)](
+      val format = new TupleCsvInputFormat[(String, Integer, Double)](
         PATH,
         createTypeInformation[(String, Integer, Double)]
           .asInstanceOf[CaseClassTypeInfo[(String, Integer, Double)]])
@@ -130,7 +131,7 @@ class CsvInputFormatTest {
     try {
       val fileContent = "abc|def|ghijk\nabc||hhg\n|||"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(String, String, String)](
+      val format = new TupleCsvInputFormat[(String, String, String)](
         PATH,
         createTypeInformation[(String, String, String)]
           .asInstanceOf[CaseClassTypeInfo[(String, String, String)]])
@@ -172,7 +173,7 @@ class CsvInputFormatTest {
     try {
       val fileContent = "abc|\"de|f\"|ghijk\n\"a|bc\"||hhg\n|||"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(String, String, String)](
+      val format = new TupleCsvInputFormat[(String, String, String)](
         PATH,
         createTypeInformation[(String, String, String)]
           .asInstanceOf[CaseClassTypeInfo[(String, String, String)]])
@@ -215,7 +216,7 @@ class CsvInputFormatTest {
     try {
       val fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(String, String, String)](
+      val format = new TupleCsvInputFormat[(String, String, String)](
         PATH,
         createTypeInformation[(String, String, String)]
           .asInstanceOf[CaseClassTypeInfo[(String, String, String)]])
@@ -256,7 +257,7 @@ class CsvInputFormatTest {
     try {
       val fileContent = "111|222|333|444|555\n666|777|888|999|000|\n"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(Int, Int, Int, Int, Int)](
+      val format = new TupleCsvInputFormat[(Int, Int, Int, Int, Int)](
         PATH, createTypeInformation[(Int, Int, Int, Int, Int)].
           asInstanceOf[CaseClassTypeInfo[(Int, Int, Int, Int, Int)]])
       format.setFieldDelimiter("|")
@@ -293,7 +294,7 @@ class CsvInputFormatTest {
       val fileContent = "111|x|222|x|333|x|444|x|555|x|\n" +
         "666|x|777|x|888|x|999|x|000|x|\n"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(Int, Int)](
+      val format = new TupleCsvInputFormat[(Int, Int)](
         PATH,
         createTypeInformation[(Int, Int)].asInstanceOf[CaseClassTypeInfo[(Int, Int)]])
       format.setFieldDelimiter("|x|")
@@ -317,19 +318,17 @@ class CsvInputFormatTest {
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
     }
   }
-
   @Test
   def testReadSparseWithPositionSetter(): Unit = {
     try {
       val fileContent: String = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666" +
         "|555|444|333|222|111|"
       val split = createTempFile(fileContent)
-      val format = new ScalaCsvInputFormat[(Int, Int, Int)](
+      val format = new TupleCsvInputFormat[(Int, Int, Int)](
         PATH,
-        createTypeInformation[(Int, Int, Int)].asInstanceOf[CaseClassTypeInfo[(Int, Int, Int)]])
+        createTypeInformation[(Int, Int, Int)].asInstanceOf[CaseClassTypeInfo[(Int, Int, Int)]],
+        Array(0, 3, 7))
       format.setFieldDelimiter("|")
-      format.setFields(Array(0, 3, 7),
-        Array(classOf[Integer], classOf[Integer], classOf[Integer]): Array[Class[_]])
       format.configure(new Configuration)
       format.open(split)
       var result: (Int, Int, Int) = null
@@ -346,28 +345,6 @@ class CsvInputFormatTest {
       result = format.nextRecord(result)
       assertNull(result)
       assertTrue(format.reachedEnd)
-    }
-    catch {
-      case ex: Exception =>
-        fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
-    }
-  }
-
-  @Test
-  def testReadSparseWithShuffledPositions(): Unit = {
-    try {
-      val format = new ScalaCsvInputFormat[(Int, Int, Int)](
-        PATH,
-        createTypeInformation[(Int, Int, Int)].asInstanceOf[CaseClassTypeInfo[(Int, Int, Int)]])
-      format.setFieldDelimiter("|")
-      try {
-        format.setFields(Array(8, 1, 3),
-          Array(classOf[Integer], classOf[Integer], classOf[Integer]): Array[Class[_]])
-        fail("Input sequence should have been rejected.")
-      }
-      catch {
-        case e: IllegalArgumentException => // ignore
-      }
     }
     catch {
       case ex: Exception =>
@@ -402,7 +379,7 @@ class CsvInputFormatTest {
       val wrt = new OutputStreamWriter(new FileOutputStream(tempFile))
       wrt.write(fileContent)
       wrt.close()
-      val inputFormat = new ScalaCsvInputFormat[Tuple1[String]](new Path(tempFile.toURI.toString),
+      val inputFormat = new TupleCsvInputFormat[Tuple1[String]](new Path(tempFile.toURI.toString),
         createTypeInformation[Tuple1[String]].asInstanceOf[CaseClassTypeInfo[Tuple1[String]]])
       val parameters = new Configuration
       inputFormat.configure(parameters)
@@ -432,7 +409,7 @@ class CsvInputFormatTest {
 
   case class CaseClassItem(field1: Int, field2: String, field3: Double)
 
-  private def validatePOJOItem(format: ScalaCsvInputFormat[POJOItem]): Unit = {
+  private def validatePOJOItem(format: PojoCsvInputFormat[POJOItem]): Unit = {
     var result = new POJOItem()
     result = format.nextRecord(result)
     assertEquals(123, result.field1)
@@ -445,7 +422,7 @@ class CsvInputFormatTest {
     assertEquals(1.234, result.field3, 0.001)
   }
 
-  private def validateCaseClassItem(format: ScalaCsvInputFormat[CaseClassItem]): Unit = {
+  private def validateCaseClassItem(format: TupleCsvInputFormat[CaseClassItem]): Unit = {
     var result = format.nextRecord(null)
     assertEquals(123, result.field1)
     assertEquals("HELLO", result.field2)
@@ -463,7 +440,7 @@ class CsvInputFormatTest {
     val tempFile = createTempFile(fileContent)
     val typeInfo: PojoTypeInfo[POJOItem] = createTypeInformation[POJOItem]
       .asInstanceOf[PojoTypeInfo[POJOItem]]
-    val format = new ScalaCsvInputFormat[POJOItem](PATH, typeInfo)
+    val format = new PojoCsvInputFormat[POJOItem](PATH, typeInfo)
 
     format.setDelimiter('\n')
     format.setFieldDelimiter(',')
@@ -477,9 +454,10 @@ class CsvInputFormatTest {
   def testCaseClass(): Unit = {
     val fileContent = "123,HELLO,3.123\n" + "456,ABC,1.234"
     val tempFile = createTempFile(fileContent)
-    val typeInfo: CompositeType[CaseClassItem] = createTypeInformation[CaseClassItem]
-      .asInstanceOf[CompositeType[CaseClassItem]]
-    val format = new ScalaCsvInputFormat[CaseClassItem](PATH, typeInfo)
+    val typeInfo: CaseClassTypeInfo[CaseClassItem] = 
+      createTypeInformation[CaseClassItem]
+      .asInstanceOf[CaseClassTypeInfo[CaseClassItem]]
+    val format = new TupleCsvInputFormat[CaseClassItem](PATH, typeInfo)
 
     format.setDelimiter('\n')
     format.setFieldDelimiter(',')
@@ -495,12 +473,11 @@ class CsvInputFormatTest {
     val tempFile = createTempFile(fileContent)
     val typeInfo: PojoTypeInfo[POJOItem] = createTypeInformation[POJOItem]
       .asInstanceOf[PojoTypeInfo[POJOItem]]
-    val format = new ScalaCsvInputFormat[POJOItem](PATH, typeInfo)
+    val format = new PojoCsvInputFormat[POJOItem](
+      PATH, typeInfo, Array("field2", "field1", "field3"))
 
     format.setDelimiter('\n')
     format.setFieldDelimiter(',')
-    format.setFieldTypes(classOf[String], classOf[Integer], classOf[java.lang.Double])
-    format.setOrderOfPOJOFields(Array("field2", "field1", "field3"))
     format.configure(new Configuration)
     format.open(tempFile)
 
@@ -513,13 +490,12 @@ class CsvInputFormatTest {
     val tempFile = createTempFile(fileContent)
     val typeInfo: PojoTypeInfo[POJOItem] = createTypeInformation[POJOItem]
       .asInstanceOf[PojoTypeInfo[POJOItem]]
-    val format = new ScalaCsvInputFormat[POJOItem](PATH, typeInfo)
+    val format = new PojoCsvInputFormat[POJOItem](
+      PATH, typeInfo, Array("field2", "field1", "field3"), 
+      Array(true, true, false, true, false))
 
     format.setDelimiter('\n')
     format.setFieldDelimiter(',')
-    format.setFields(Array(true, true, false, true, false),
-      Array(classOf[String], classOf[Integer], classOf[java.lang.Double]): Array[Class[_]])
-    format.setOrderOfPOJOFields(Array("field2", "field1", "field3"))
     format.configure(new Configuration)
     format.open(tempFile)
 
@@ -532,7 +508,7 @@ class CsvInputFormatTest {
     val tempFile = createTempFile(fileContent)
     val typeInfo: PojoTypeInfo[TwitterPOJO] = createTypeInformation[TwitterPOJO]
       .asInstanceOf[PojoTypeInfo[TwitterPOJO]]
-    val format = new ScalaCsvInputFormat[TwitterPOJO](PATH, typeInfo)
+    val format = new PojoCsvInputFormat[TwitterPOJO](PATH, typeInfo)
 
     format.setDelimiter('\n')
     format.setFieldDelimiter(',')
