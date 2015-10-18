@@ -45,7 +45,7 @@ public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
-				env).getUndirected();
+				env);
 
 		List<Tuple3<Long,Long,Long>> actualOutput = graph.run(new TriangleEnumerator<Long, NullValue, NullValue>()).collect();
 		List<Tuple3<Long,Long,Long>>  expectedResult = TriangleCountData.getListOfTriangles();
