@@ -1403,15 +1403,16 @@ Library Methods
 -----------
 Gelly has a growing collection of graph algorithms for easily analyzing large-scale Graphs. So far, the following library methods are implemented:
 
-* PageRank
-* Single-Source Shortest Paths
-* Label Propagation
-* Simple Community Detection
-* Connected Components
-* GSA PageRank
-* GSA Connected Components
-* GSA Single-Source Shortest Paths
-* GSA Triangle Count
+* [Community Detection](#community-detection)
+* [Label Propagation](#label-propagation)
+* [Connected Components](#connected-components)
+* [GSA Connected Components](#gsa-connected-components)
+* [PageRank](#pagerank)
+* [GSA PageRank](#gsa-pagerank)
+* [Single Source Shortest Paths](#single-source-shortest-paths)
+* [GSA Single Source Shortest Paths](#gsa-single-source-shortest-paths)
+* [GSA Triangle Count](#gsa-triangle-count)
+* [Triangle Enumerator](#triangle-enumerator)
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 
@@ -1423,13 +1424,11 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 Graph<Long, Long, NullValue> graph = ...
 
 // run Label Propagation for 30 iterations to detect communities on the input graph
-DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(
-				new LabelPropagation<Long>(30)).getVertices();
+DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(new LabelPropagation<Long>(30));
 
 // print the result
 verticesWithCommunity.print();
 
-env.execute();
 {% endhighlight %}
 </div>
 
@@ -1445,7 +1444,6 @@ val verticesWithCommunity = graph.run(new LabelPropagation[Long](30))
 // print the result
 verticesWithCommunity.print
 
-env.execute
 {% endhighlight %}
 </div>
 </div>
@@ -1472,7 +1470,6 @@ The constructor takes two parameters:
 
 * `maxIterations`: the maximum number of iterations to run.
 * `delta`: the hop attenuation parameter, with default value 0.5.
-
 
 ### Label Propagation
 
@@ -1512,13 +1509,11 @@ The constructor takes one parameter:
 
 * `maxIterations`: the maximum number of iterations to run.
 
-
 ### GSA Connected Components
 
 The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
 
 See the [Connected Components](#connected-components) library method for implementation details and usage information.
-
 
 ### PageRank
 
@@ -1538,13 +1533,11 @@ The constructors take the following parameters:
 * `maxIterations`: the maximum number of iterations to run.
 * `numVertices`: the number of vertices in the input. If known beforehand, is it advised to provide this argument to speed up execution.
 
-
 ### GSA PageRank
 
 The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
 
 See the [PageRank](#pagerank) library method for implementation details and usage information.
-
 
 ### Single Source Shortest Paths
 
@@ -1563,13 +1556,11 @@ The constructor takes two parameters:
 * `srcVertexId` The vertex ID of the source vertex.
 * `maxIterations`: the maximum number of iterations to run.
 
-
 ### GSA Single Source Shortest Paths
 
 The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
 
 See the [Single Source Shortest Paths](#single-source-shortest-paths) library method for implementation details and usage information.
-
 
 ### GSA Triangle Count
 
@@ -1585,5 +1576,21 @@ Finally, if a node encounters the target ID in the list of received messages, it
 The algorithm takes an undirected, unweighted graph as input and outputs a `DataSet` which contains a single integer corresponding to the number of triangles
 in the graph. The algorithm constructor takes no arguments.
 
+### Triangle Enumerator
+
+#### Overview
+This library method enumerates unique triangles present in the input graph. A triangle consists of three edges that connect three vertices with each other.
+This implementation ignores edge directions.
+
+#### Details
+The basic triangle enumeration algorithm groups all edges that share a common vertex and builds triads, i.e., triples of vertices
+that are connected by two edges. Then, all triads are filtered for which no third edge exists that closes the triangle.
+For a group of <i>n</i> edges that share a common vertex, the number of built triads is quadratic <i>((n*(n-1))/2)</i>.
+Therefore, an optimization of the algorithm is to group edges on the vertex with the smaller output degree to reduce the number of triads.
+This implementation extends the basic algorithm by computing output degrees of edge vertices and grouping on edges on the vertex with the smaller degree.
+
+#### Usage
+The algorithm takes a directed graph as input and outputs a `DataSet` of `Tuple3`. The Vertex ID type has to be `Comparable`.
+Each `Tuple3` corresponds to a triangle, with the fields containing the IDs of the vertices forming the triangle.
 
 [Back to top](#top)

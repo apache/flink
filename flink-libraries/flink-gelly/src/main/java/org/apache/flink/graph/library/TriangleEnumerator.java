@@ -40,8 +40,10 @@ import java.util.List;
 
 
 /**
- * This function returns Dataset of all triangles present in the input graph.
- * A triangle consists of three edges that connect three vertices with each other.  Edge directions are ignored here.
+ * This library method enumerates unique triangles present in the input graph.
+ * A triangle consists of three edges that connect three vertices with each other.
+ * Edge directions are ignored here.
+ * The method returns a DataSet of Tuple3, where the fields of each Tuple3 contain the Vertex IDs of a triangle.
  * <p>
  * <p>
  * The basic algorithm works as follows:
@@ -56,8 +58,9 @@ import java.util.List;
  * This implementation extends the basic algorithm by computing output degrees of edge vertices and
  * grouping on edges on the vertex with the smaller degree.
  */
+public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
+	GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K,K,K>>> {
 
-public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K,K,K>>> {
 	@Override
 	public DataSet<Tuple3<K,K,K>> run(Graph<K, VV, EV> input) throws Exception {
 
@@ -76,7 +79,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 		DataSet<Tuple3<K,K,K>> triangles = edgesByDegree
 				// build triads
 				.groupBy(EdgeWithDegrees.V1).sortGroup(EdgeWithDegrees.V2, Order.ASCENDING)
-				.reduceGroup(new TriadBuilder())
+				.reduceGroup(new TriadBuilder<K>())
 				// filter triads
 				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(0, 1).with(new TriadFilter<K>());
 
@@ -86,6 +89,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	/**
 	 * Emits for an edge the original edge and its switched version.
 	 */
+	@SuppressWarnings("serial")
 	private static final class EdgeDuplicator<K, EV> implements FlatMapFunction<Edge<K, EV>, Edge<K, EV>> {
 
 		@Override
@@ -101,6 +105,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	 * Emits one edge for each input edge with a degree annotation for the shared vertex.
 	 * For each emitted edge, the first vertex is the vertex with the smaller id.
 	 */
+	@SuppressWarnings("serial")
 	private static final class DegreeCounter<K extends Comparable<K>, EV>
 			implements GroupReduceFunction<Edge<K, EV>, EdgeWithDegrees<K>> {
 
@@ -151,6 +156,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	 * Builds an edge with degree annotation from two edges that have the same vertices and only one
 	 * degree annotation.
 	 */
+	@SuppressWarnings("serial")
 	@FunctionAnnotation.ForwardedFields("0;1")
 	private static final class DegreeJoiner<K> implements ReduceFunction<EdgeWithDegrees<K>> {
 		private final EdgeWithDegrees<K> outEdge = new EdgeWithDegrees<>();
@@ -174,6 +180,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	/**
 	 * Projects an edge (pair of vertices) such that the first vertex is the vertex with the smaller degree.
 	 */
+	@SuppressWarnings("serial")
 	private static final class EdgeByDegreeProjector<K> implements MapFunction<EdgeWithDegrees<K>, Edge<K, NullValue>> {
 
 		private final Edge<K, NullValue> outEdge = new Edge<>();
@@ -199,6 +206,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	/**
 	 * Projects an edge (pair of vertices) such that the id of the first is smaller than the id of the second.
 	 */
+	@SuppressWarnings("serial")
 	private static final class EdgeByIdProjector<K extends Comparable<K>>
 			implements MapFunction<Edge<K, NullValue>, Edge<K, NullValue>> {
 
@@ -219,6 +227,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	 * The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId.
 	 * Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
+	@SuppressWarnings("serial")
 	@FunctionAnnotation.ForwardedFields("0")
 	private static final class TriadBuilder<K extends Comparable<K>>
 			implements GroupReduceFunction<Edge<K, NullValue>, Triad<K>> {
@@ -256,6 +265,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 	/**
 	 * Filters triads (three vertices connected by two edges) without a closing third edge.
 	 */
+	@SuppressWarnings("serial")
 	private static final class TriadFilter<K> implements JoinFunction<Triad<K>, Edge<K,NullValue>, Tuple3<K,K,K>> {
 
 		@Override
@@ -264,6 +274,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements Grap
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static final class EdgeWithDegrees<K> extends Tuple4<K, K, Integer, Integer> {
 
 		public static final int V1 = 0;
