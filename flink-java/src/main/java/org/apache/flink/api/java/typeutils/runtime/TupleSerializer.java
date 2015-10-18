@@ -89,6 +89,14 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	}
 
 	@Override
+	public T createOrReuseInstance(Object[] fields, T reuse) {
+		for (int i = 0; i < arity; i++) {
+			reuse.setField(fields[i], i);
+		}
+		return reuse;
+	}
+
+	@Override
 	public T copy(T from) {
 		T target = instantiateRaw();
 		for (int i = 0; i < arity; i++) {

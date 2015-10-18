@@ -73,6 +73,10 @@ abstract class CaseClassSerializer[T <: Product](
     }
   }
 
+  override def createOrReuseInstance(fields: Array[Object], reuse: T) : T = {
+    createInstance(fields)
+  }
+
   def copy(from: T, reuse: T): T = {
     copy(from)
   }

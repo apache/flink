@@ -67,6 +67,8 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	// of immutable Typles (i.e. Scala Tuples)
 	public abstract T createInstance(Object[] fields);
 
+	public abstract T createOrReuseInstance(Object[] fields, T reuse);
+
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		for (int i = 0; i < arity; i++) {

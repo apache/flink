@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.io.CommonCsvInputFormat;
+import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
@@ -51,9 +51,9 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 
 	// --------------------------------------------------------------------------------------------
 
-	public static final String DEFAULT_LINE_DELIMITER = CommonCsvInputFormat.DEFAULT_LINE_DELIMITER;
+	public static final String DEFAULT_LINE_DELIMITER = CsvInputFormat.DEFAULT_LINE_DELIMITER;
 
-	public static final String DEFAULT_FIELD_DELIMITER = String.valueOf(CommonCsvInputFormat.DEFAULT_FIELD_DELIMITER);
+	public static final String DEFAULT_FIELD_DELIMITER = String.valueOf(CsvInputFormat.DEFAULT_FIELD_DELIMITER);
 
 	// --------------------------------------------------------------------------------------------
 

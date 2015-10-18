@@ -15,11 +15,10 @@ package org.apache.flink.languagebinding.api.java.common;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
+import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
 import org.apache.flink.api.java.operators.CrossOperator.ProjectCross;
@@ -30,6 +29,7 @@ import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.languagebinding.api.java.common.OperationInfo.DatasizeHint;
@@ -258,13 +258,12 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 	protected abstract INFO createOperationInfo(AbstractOperation operationIdentifier) throws IOException;
 
 	private void createCsvSource(OperationInfo info) throws IOException {
-		if (!(info.types instanceof CompositeType)) {
-			throw new RuntimeException("The output type of a csv source has to be a tuple or a " +
-				"pojo type. The derived type is " + info);
+		if (!(info.types instanceof TupleTypeInfo)) {
+			throw new RuntimeException("The output type of a csv source has to be a tuple. The derived type is " + info);
 		}
 
-		sets.put(info.setID, env.createInput(new CsvInputFormat(new Path(info.path),
-			info.lineDelimiter, info.fieldDelimiter, (CompositeType)info.types), info.types)
+		sets.put(info.setID, env.createInput(new TupleCsvInputFormat(new Path(info.path),
+			info.lineDelimiter, info.fieldDelimiter, (TupleTypeInfo)info.types), info.types)
 			.name("CsvSource"));
 	}
 
