@@ -1722,7 +1722,10 @@ File-based:
   types.
 
 - `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
-  delimited primitive data types such as `String` or `Integer`. 
+  delimited primitive data types such as `String` or `Integer`.
+   
+- `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+   delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
 Collection-based:
 
@@ -1858,7 +1861,7 @@ File-based:
   types.
 
 - `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
-  delimited primitive data types such as `String` or `Integer`.
+  delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
 Collection-based:
 
