@@ -20,32 +20,64 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## Reading from filesystems.
+## Reading from file systems.
 
 Flink has build-in support for the following file systems:
 
-| Filesystem        | Since           | Scheme  | Notes |
-| ------------- |-------------| -----| ------ |
-| Hadoop Distributed File System (HDFS)  | 0.2 | `hdfs://`| All HDFS versions are supported |
-| Amazon S3    |  0.2 | `s3://` |   |
-| MapR file system      | 0.7-incubating      |  `maprfs://` | The user has to manually place the required jar files in the `lib/` dir |
-| Tachyon   |  0.9 | `tachyon://` | Support through Hadoop file system implementation (see below) |
+| Filesystem                            | Scheme       | Notes  |
+| ------------------------------------- |--------------| ------ |
+| Hadoop Distributed File System (HDFS) &nbsp; | `hdfs://`    | All HDFS versions are supported |
+| Amazon S3                             | `s3://`      | Support through Hadoop file system implementation (see below) | 
+| MapR file system                      | `maprfs://`  | The user has to manually place the required jar files in the `lib/` dir |
+| Tachyon                               | `tachyon://` &nbsp; | Support through Hadoop file system implementation (see below) |
 
 
 
-### Using Hadoop file systems with Apache Flink
+### Using Hadoop file system implementations
 
 Apache Flink allows users to use any file system implementing the `org.apache.hadoop.fs.FileSystem`
-interface. Hadoop ships adapters for FTP, [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html), and others.
+interface. There are Hadoop `FileSystem` implementations for
 
-Flink has integrated testcases to validate the integration with [Tachyon](http://tachyon-project.org/).
-Other file systems we tested the integration is the
-[Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) and [XtreemFS](http://www.xtreemfs.org/).
+- [S3](https://aws.amazon.com/s3/) (tested)
+- [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
+- [Tachyon](http://tachyon-project.org/) (tested)
+- [XtreemFS](http://www.xtreemfs.org/) (tested)
+- FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
+- and many more.
 
-In order to use a Hadoop file system with Flink, make sure that the `flink-conf.yaml` has set the
-`fs.hdfs.hadoopconf` property set to the Hadoop configuration directory.
-In addition to that, the Hadoop configuration (in that directory) needs to have an entry for each supported file system.
-For example for tachyon support, there must be the following entry in the `core-site.xml` file:
+In order to use a Hadoop file system with Flink, make sure that
+
+- the `flink-conf.yaml` has set the `fs.hdfs.hadoopconf` property set to the Hadoop configuration directory.
+- the Hadoop configuration (in that directory) has an entry for the required file system. Examples for S3 and Tachyon are shown below.
+- the required classes for using the file system are available in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink is also respecting the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
+
+#### Amazon S3
+
+For Amazon S3 support add the following entries into the `core-site.xml` file:
+
+~~~xml
+<!-- configure the file system implementation -->
+<property>
+  <name>fs.s3.impl</name>
+  <value>org.apache.hadoop.fs.s3native.NativeS3FileSystem</value>
+</property>
+
+<!-- set your AWS ID -->
+<property>
+  <name>fs.s3.awsAccessKeyId</name>
+  <value>putKeyHere</value>
+</property>
+
+<!-- set your AWS access key -->
+<property>
+  <name>fs.s3.awsSecretAccessKey</name>
+  <value>putSecretHere</value>
+</property>
+~~~
+
+#### Tachyon
+
+For Tachyon support add the following entry into the `core-site.xml` file:
 
 ~~~xml
 <property>
@@ -54,10 +86,8 @@ For example for tachyon support, there must be the following entry in the `core-
 </property>
 ~~~
 
-Also, the required classes for using the file system need to be placed in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink is also respecting the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
 
-
-## Connecting to other systems using Input / Output Format wrappers for Hadoop
+## Connecting to other systems using Input/OutputFormat wrappers for Hadoop
 
 Apache Flink allows users to access many different systems as data sources or sinks.
 The system is designed for very easy extensibility. Similar to Apache Hadoop, Flink has the concept
