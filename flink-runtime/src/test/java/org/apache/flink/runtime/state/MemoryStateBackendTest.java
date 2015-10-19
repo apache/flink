@@ -16,15 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
+import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.streaming.api.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.types.StringValue;
 import org.junit.Test;
 
@@ -36,7 +40,7 @@ import java.util.HashMap;
 import static org.junit.Assert.*;
 
 /**
- * Tests for the {@link org.apache.flink.streaming.api.state.memory.MemoryStateBackend}.
+ * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
  */
 public class MemoryStateBackendTest {
 	

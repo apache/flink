@@ -16,31 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state.filesystem;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.state.StreamStateHandle;
-
-import java.io.InputStream;
+import org.apache.flink.configuration.Configuration;
 
 /**
- * A state handle that points to state in a file system, accessible as an input stream.
+ * A factory to create a specific state backend. The state backend creation gets a Configuration
+ * object that can be used to read further config values.
+ * 
+ * @param <T> The type of the state backend created.
  */
-public class FileStreamStateHandle extends AbstractFileState implements StreamStateHandle {
-	
-	private static final long serialVersionUID = -6826990484549987311L;
+public interface StateBackendFactory<T extends StateBackend<T>> {
 
 	/**
-	 * Creates a new FileStreamStateHandle pointing to state at the given file path.
+	 * Creates the state backend, optionally using the given configuration.
 	 * 
-	 * @param filePath The path to the file containing the checkpointed state.
+	 * @param config The Flink configuration (loaded by the TaskManager).
+	 * @return The created state backend. 
+	 * 
+	 * @throws Exception Exceptions during instantiation can be forwarded.
 	 */
-	public FileStreamStateHandle(Path filePath) {
-		super(filePath);
-	}
-
-	@Override
-	public InputStream getState(ClassLoader userCodeClassLoader) throws Exception {
-		return getFileSystem().open(getFilePath());
-	}
+	StateBackend<T> createFromConfig(Configuration config) throws Exception;
 }

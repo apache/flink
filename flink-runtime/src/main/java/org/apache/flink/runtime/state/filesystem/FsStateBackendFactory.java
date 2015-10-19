@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state.filesystem;
+package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateBackendFactory;
 
 /**
- * A factory that creates an {@link org.apache.flink.streaming.api.state.filesystem.FsStateBackend}
+ * A factory that creates an {@link org.apache.flink.runtime.state.filesystem.FsStateBackend}
  * from a configuration.
  */
 public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend> {

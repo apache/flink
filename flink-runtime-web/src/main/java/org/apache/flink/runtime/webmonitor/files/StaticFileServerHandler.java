@@ -58,10 +58,12 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.FilenameFilter;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -198,7 +200,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * Response when running with leading JobManager.
 	 */
 	private void respondAsLeader(ChannelHandlerContext ctx, HttpRequest request, String requestPath)
-			throws ParseException, IOException {
+		throws IOException, ParseException {
 
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);

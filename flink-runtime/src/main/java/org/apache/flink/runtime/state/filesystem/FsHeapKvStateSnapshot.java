@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state.filesystem;
+package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.streaming.api.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.io.DataInputStream;
 import java.util.HashMap;

@@ -16,13 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state;
+package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 /**
- * A state handle that produces an input stream when resolved.
+ * A state handle that contains stream state in a byte array.
  */
-public interface StreamStateHandle extends StateHandle<InputStream> {}
+public final class ByteStreamStateHandle implements StreamStateHandle {
+
+	private static final long serialVersionUID = -5280226231200217594L;
+	
+	/** the state data */
+	private final byte[] data;
+
+	/**
+	 * Creates a new ByteStreamStateHandle containing the given data.
+	 * 
+	 * @param data The state data.
+	 */
+	public ByteStreamStateHandle(byte[] data) {
+		this.data = data;
+	}
+
+	@Override
+	public InputStream getState(ClassLoader userCodeClassLoader) {
+		return new ByteArrayInputStream(data);
+	}
+
+	@Override
+	public void discardState() {}
+}

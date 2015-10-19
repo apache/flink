@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,40 +50,27 @@ class FileSystemBlobStore implements BlobStore {
 	private final String basePath;
 
 	FileSystemBlobStore(Configuration config) throws IOException {
-		StateBackend stateBackend = StateBackend.fromConfig(config);
+		String stateBackendBasePath = config.getString(
+				ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, "");
 
-		if (stateBackend == StateBackend.FILESYSTEM) {
-			String stateBackendBasePath = config.getString(
-					ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, "");
-
-			if (stateBackendBasePath.equals("")) {
-				throw new IllegalConfigurationException(String.format("Missing configuration for " +
-						"file system state backend recovery path. Please specify via " +
-						"'%s' key.", ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH));
-			}
-
-			stateBackendBasePath += "/blob";
-
-			this.basePath = stateBackendBasePath;
-
-			try {
-				FileSystem.get(new URI(basePath)).mkdirs(new Path(basePath));
-			}
-			catch (URISyntaxException e) {
-				throw new IOException(e);
-			}
-
-			LOG.info("Created blob directory {}.", basePath);
+		if (stateBackendBasePath.equals("")) {
+			throw new IllegalConfigurationException(String.format("Missing configuration for " +
+				"file system state backend recovery path. Please specify via " +
+				"'%s' key.", ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH));
 		}
-		else {
-			// Nothing else support at the moment
-			throw new IllegalConfigurationException(
-					String.format("Illegal state backend " +
-									"configuration '%s'. Please configure '%s' as state " +
-									"backend and specify the recovery path via '%s' key.",
-							stateBackend, StateBackend.FILESYSTEM,
-							ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH));
+
+		stateBackendBasePath += "/blob";
+
+		this.basePath = stateBackendBasePath;
+
+		try {
+			FileSystem.get(new URI(basePath)).mkdirs(new Path(basePath));
 		}
+		catch (URISyntaxException e) {
+			throw new IOException(e);
+		}
+
+		LOG.info("Created blob directory {}.", basePath);
 	}
 
 	// - Put ------------------------------------------------------------------

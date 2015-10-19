@@ -123,7 +123,7 @@ abstract class ApplicationMasterBase {
         config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
       }
 
-      val (actorSystem, jmActor, archivActor, webMonitor) =
+      val (actorSystem, jmActor, archiveActor, webMonitor) =
         JobManager.startActorSystemAndJobManagerActors(
           config,
           JobManagerMode.CLUSTER,

@@ -1542,30 +1542,25 @@ object JobManager {
       }
     }
 
+    val address = AkkaUtils.getAddress(jobManagerSystem)
+
+    configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
+    configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
+
     val webMonitor: Option[WebMonitor] =
       if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-        val address = AkkaUtils.getAddress(jobManagerSystem)
+        LOG.info("Starting JobManger web frontend")
+        val leaderRetrievalService = LeaderRetrievalUtils
+          .createLeaderRetrievalService(configuration)
 
-        configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
-        configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
+        // start the web frontend. we need to load this dynamically
+        // because it is not in the same project/dependencies
+        val webServer = WebMonitorUtils.startWebRuntimeMonitor(
+          configuration,
+          leaderRetrievalService,
+          jobManagerSystem)
 
-        // start the job manager web frontend
-        if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
-          val leaderRetrievalService = LeaderRetrievalUtils
-            .createLeaderRetrievalService(configuration)
-
-          LOG.info("Starting NEW JobManger web frontend")
-          // start the new web frontend. we need to load this dynamically
-          // because it is not in the same project/dependencies
-          Some(startWebRuntimeMonitor(configuration, leaderRetrievalService, jobManagerSystem))
-        }
-        else {
-          LOG.info("Starting JobManger web frontend")
-
-          // The old web frontend does not work with recovery mode
-          val leaderRetrievalService = StandaloneUtils.createLeaderRetrievalService(configuration)
-          Some(new WebInfoServer(configuration, leaderRetrievalService, jobManagerSystem))
-        }
+        Option(webServer)
       }
       else {
         None
@@ -1624,15 +1619,7 @@ object JobManager {
         monitor =>
           val jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(configuration)
           monitor.start(jobManagerAkkaUrl)
-        LOG.info("Starting JobManger web frontend")
-        // start the web frontend. we need to load this dynamically
-        // because it is not in the same project/dependencies
-        val webServer = WebMonitorUtils.startWebRuntimeMonitor(
-          configuration,
-          leaderRetrievalService,
-          jobManagerSystem)
       }
-
 
       (jobManagerSystem, jobManager, archive, webMonitor)
     }

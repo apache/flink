@@ -26,7 +26,7 @@ import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateHandleProvider;
+import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -87,13 +87,21 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	/** Flag indicating whether this instance is running. */
 	private boolean isRunning;
 
+	/**
+	 * Submitted job graph store backed by ZooKeeper
+	 *
+	 * @param client ZooKeeper client
+	 * @param currentJobsPath ZooKeeper path for current job graphs
+	 * @param stateStorage State storage used to persist the submitted jobs
+	 * @throws Exception
+	 */
 	public ZooKeeperSubmittedJobGraphStore(
 			CuratorFramework client,
 			String currentJobsPath,
-			StateHandleProvider<SubmittedJobGraph> stateHandleProvider) throws Exception {
+			StateStorageHelper<SubmittedJobGraph> stateStorage) throws Exception {
 
 		checkNotNull(currentJobsPath, "Current jobs path");
-		checkNotNull(stateHandleProvider, "State handle provider");
+		checkNotNull(stateStorage, "State storage");
 
 		// Keep a reference to the original client and not the namespace facade. The namespace
 		// facade cannot be closed.
@@ -104,11 +112,11 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				.ensure(client.getZookeeperClient());
 
 		// All operations will have the path as root
-		client = client.usingNamespace(client.getNamespace() + currentJobsPath);
+		CuratorFramework facade = client.usingNamespace(client.getNamespace() + currentJobsPath);
 
-		this.jobGraphsInZooKeeper = new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
+		this.jobGraphsInZooKeeper = new ZooKeeperStateHandleStore<>(facade, stateStorage);
 
-		this.pathCache = new PathChildrenCache(client, "/", false);
+		this.pathCache = new PathChildrenCache(facade, "/", false);
 		pathCache.getListenable().addListener(new SubmittedJobGraphsPathCacheListener());
 	}
 

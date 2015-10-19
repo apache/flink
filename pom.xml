@@ -735,7 +735,7 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
 
                         <!-- generated contents -->
-						<exclude>flink-runtime-web/src/main/resources/web/**</exclude>
+						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>

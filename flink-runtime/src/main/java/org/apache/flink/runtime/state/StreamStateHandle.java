@@ -16,34 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state.memory;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
 
-import java.io.IOException;
+import java.io.InputStream;
 
 /**
- * A state handle that represents its state in serialized form as bytes.
- *
- * @param <T> The type of state represented by this state handle.
+ * A state handle that produces an input stream when resolved.
  */
-public class SerializedStateHandle<T> extends SerializedValue<T> implements StateHandle<T> {
-	
-	private static final long serialVersionUID = 4145685722538475769L;
-
-	public SerializedStateHandle(T value) throws IOException {
-		super(value);
-	}
-	
-	@Override
-	public T getState(ClassLoader classLoader) throws Exception {
-		return deserializeValue(classLoader);
-	}
-
-	/**
-	 * Discarding heap-memory backed state is a no-op, so this method does nothing.
-	 */
-	@Override
-	public void discardState() {}
-}
+public interface StreamStateHandle extends StateHandle<InputStream> {}

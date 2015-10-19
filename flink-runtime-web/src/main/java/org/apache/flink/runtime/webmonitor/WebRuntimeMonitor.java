@@ -192,8 +192,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			// job manager configuration, log and stdout
 			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config)))
-			.GET("/jobmanager/log", new StaticFileServerHandler(logDir))
-			.GET("/jobmanager/stdout", new StaticFileServerHandler(outDir))
 
 			// overview over jobs
 			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true)))
@@ -222,6 +220,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/taskmanagers", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
 			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY, handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
 
+			.GET("/jobmanager/log", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logDir))
+			.GET("/jobmanager/stdout", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, outDir))
 			// this handler serves all the static contents
 			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir));
 

@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state;
+package org.apache.flink.runtime.zookeeper;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.StateHandle;
+
+import java.io.Serializable;
 
 /**
- * A factory to create a specific state backend. The state backend creation gets a Configuration
- * object that can be used to read further config values.
- * 
- * @param <T> The type of the state backend created.
+ * State storage helper which is used by {@ZooKeeperStateHandleStore} to persiste state before
+ * the state handle is written to ZooKeeper.
+ *
+ * @param <T>
  */
-public interface StateBackendFactory<T extends StateBackend<T>> {
+public interface StateStorageHelper<T extends Serializable> {
 
 	/**
-	 * Creates the state backend, optionally using the given configuration.
-	 * 
-	 * @param config The Flink configuration (loaded by the TaskManager).
-	 * @return The created state backend. 
-	 * 
-	 * @throws Exception Exceptions during instantiation can be forwarded.
+	 * Stores the given state and returns a state handle to it.
+	 *
+	 * @param state State to be stored
+	 * @return State handle to the stored state
+	 * @throws Exception
 	 */
-	StateBackend<T> createFromConfig(Configuration config) throws Exception;
+	StateHandle<T> store(T state) throws Exception;
 }

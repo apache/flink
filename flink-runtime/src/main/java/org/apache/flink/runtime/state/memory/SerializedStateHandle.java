@@ -16,37 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state.memory;
+package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.streaming.api.state.StreamStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.util.SerializedValue;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
+import java.io.IOException;
 
 /**
- * A state handle that contains stream state in a byte array.
+ * A state handle that represents its state in serialized form as bytes.
+ *
+ * @param <T> The type of state represented by this state handle.
  */
-public final class ByteStreamStateHandle implements StreamStateHandle {
-
-	private static final long serialVersionUID = -5280226231200217594L;
+public class SerializedStateHandle<T> extends SerializedValue<T> implements StateHandle<T> {
 	
-	/** the state data */
-	private final byte[] data;
+	private static final long serialVersionUID = 4145685722538475769L;
+
+	public SerializedStateHandle(T value) throws IOException {
+		super(value);
+	}
+	
+	@Override
+	public T getState(ClassLoader classLoader) throws Exception {
+		return deserializeValue(classLoader);
+	}
 
 	/**
-	 * Creates a new ByteStreamStateHandle containing the given data.
-	 * 
-	 * @param data The state data.
+	 * Discarding heap-memory backed state is a no-op, so this method does nothing.
 	 */
-	public ByteStreamStateHandle(byte[] data) {
-		this.data = data;
-	}
-
-	@Override
-	public InputStream getState(ClassLoader userCodeClassLoader) {
-		return new ByteArrayInputStream(data);
-	}
-
 	@Override
 	public void discardState() {}
 }

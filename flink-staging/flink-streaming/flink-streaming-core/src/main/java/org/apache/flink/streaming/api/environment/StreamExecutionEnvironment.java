@@ -63,7 +63,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
@@ -372,11 +372,11 @@ public abstract class StreamExecutionEnvironment {
 	 * the key/value state, and for checkpointed functions (implementing the interface
 	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}).
 	 *
-	 * <p>The {@link org.apache.flink.streaming.api.state.memory.MemoryStateBackend} for example
+	 * <p>The {@link org.apache.flink.runtime.state.memory.MemoryStateBackend} for example
 	 * maintains the state in heap memory, as objects. It is lightweight without extra dependencies,
 	 * but can checkpoint only small states (some counters).
 	 * 
-	 * <p>In contrast, the {@link org.apache.flink.streaming.api.state.filesystem.FsStateBackend}
+	 * <p>In contrast, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend}
 	 * stores checkpoints of the state (also maintained as heap objects) in files. When using a replicated
 	 * file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee that state is not lost upon
 	 * failures of individual nodes and that streaming program can be executed highly available and strongly

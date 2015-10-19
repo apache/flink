@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.state.memory;
+package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
-import org.apache.flink.streaming.api.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.util.HashMap;
 

@@ -23,12 +23,14 @@ import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateHandleProvider;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,11 +67,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class ZooKeeperStateHandleStore<T extends Serializable> {
 
+	public static Logger LOG = LoggerFactory.getLogger(ZooKeeperStateHandleStore.class);
+
 	/** Curator ZooKeeper client */
 	private final CuratorFramework client;
 
-	/** State handle provider */
-	private final StateHandleProvider<T> stateHandleProvider;
+	private final StateStorageHelper<T> storage;
 
 	/**
 	 * Creates a {@link ZooKeeperStateHandleStore}.
@@ -78,14 +81,13 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	 *                            expected that the client's namespace ensures that the root
 	 *                            path is exclusive for all state handles managed by this
 	 *                            instance, e.g. <code>client.usingNamespace("/stateHandles")</code>
-	 * @param stateHandleProvider The state handle provider for the state
 	 */
 	public ZooKeeperStateHandleStore(
-			CuratorFramework client,
-			StateHandleProvider<T> stateHandleProvider) {
+		CuratorFramework client,
+		StateStorageHelper storage) throws IOException {
 
 		this.client = checkNotNull(client, "Curator client");
-		this.stateHandleProvider = checkNotNull(stateHandleProvider, "State handle provider");
+		this.storage = checkNotNull(storage, "State storage");
 	}
 
 	/**
@@ -112,12 +114,14 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	 * @return Created {@link StateHandle}
 	 * @throws Exception If a ZooKeeper or state handle operation fails
 	 */
-	public StateHandle<T> add(String pathInZooKeeper, T state, CreateMode createMode) throws Exception {
+	public StateHandle<T> add(
+			String pathInZooKeeper,
+			T state,
+			CreateMode createMode) throws Exception {
 		checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
 		checkNotNull(state, "State");
 
-		// Create the state handle. Nothing persisted yet.
-		StateHandle<T> stateHandle = stateHandleProvider.createStateHandle(state);
+		StateHandle<T> stateHandle = storage.store(state);
 
 		boolean success = false;
 
@@ -159,7 +163,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 
 		StateHandle<T> oldStateHandle = get(pathInZooKeeper);
 
-		StateHandle<T> stateHandle = stateHandleProvider.createStateHandle(state);
+		StateHandle<T> stateHandle = storage.store(state);
 
 		boolean success = false;
 

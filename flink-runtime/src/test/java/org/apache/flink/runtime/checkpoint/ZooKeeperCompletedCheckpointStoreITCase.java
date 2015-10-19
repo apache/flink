@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -56,8 +58,12 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 			ClassLoader userLoader) throws Exception {
 
 		return new ZooKeeperCompletedCheckpointStore(maxNumberOfCheckpointsToRetain, userLoader,
-				ZooKeeper.createClient(), CheckpointsPath, new LocalStateHandle
-				.LocalStateHandleProvider<CompletedCheckpoint>());
+			ZooKeeper.createClient(), CheckpointsPath, new StateStorageHelper<CompletedCheckpoint>() {
+			@Override
+			public StateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
+				return new LocalStateHandle<>(state);
+			}
+		});
 	}
 
 	// ---------------------------------------------------------------------------------------------

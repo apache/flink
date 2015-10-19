@@ -30,17 +30,16 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.state.StateBackend;
-import org.apache.flink.streaming.api.state.StateBackendFactory;
-import org.apache.flink.streaming.api.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.state.filesystem.FsStateBackendFactory;
-import org.apache.flink.streaming.api.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -493,55 +492,52 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	
 	private StateBackend<?> createStateBackend() throws Exception {
 		StateBackend<?> configuredBackend = configuration.getStateBackend(userClassLoader);
-		
+
 		if (configuredBackend != null) {
 			// backend has been configured on the environment
 			LOG.info("Using user-defined state backend: " + configuredBackend);
 			return configuredBackend;
-		}
-		else {
+		} else {
 			// see if we have a backend specified in the configuration
 			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
 			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
-			
+
 			if (backendName == null) {
 				LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
 				backendName = "jobmanager";
 			}
-			
+
 			backendName = backendName.toLowerCase();
 			switch (backendName) {
 				case "jobmanager":
 					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
 					return MemoryStateBackend.defaultInstance();
-				
+
 				case "filesystem":
 					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
 					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
-							+ backend.getBasePath() + "\")");
+						+ backend.getBasePath() + "\")");
 					return backend;
-				
+
 				default:
 					try {
 						@SuppressWarnings("rawtypes")
 						Class<? extends StateBackendFactory> clazz =
-								Class.forName(backendName, false, userClassLoader).asSubclass(StateBackendFactory.class);
+							Class.forName(backendName, false, userClassLoader).asSubclass(StateBackendFactory.class);
 
 						return (StateBackend<?>) clazz.newInstance();
-					}
-					catch (ClassNotFoundException e) {
+					} catch (ClassNotFoundException e) {
 						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
-					}
-					catch (ClassCastException e) {
+					} catch (ClassCastException e) {
 						throw new IllegalConfigurationException("The class configured under '" +
-								ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
-								backendName + ')');
-					}
-					catch (Throwable t) {
+							ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
+							backendName + ')');
+					} catch (Throwable t) {
 						throw new IllegalConfigurationException("Cannot create configured state backend", t);
 					}
 			}
 		}
+	}
 
 	/**
 	 * Registers a timer.

@@ -34,10 +34,13 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
-import org.apache.flink.runtime.state.StateHandleProvider;
-import org.apache.flink.runtime.state.StateHandleProviderFactory;
+import org.apache.flink.runtime.zookeeper.StateStorageHelper;
+import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -170,7 +173,7 @@ public class ZooKeeperUtils {
 		String latchPath = configuration.getString(ConfigConstants.ZOOKEEPER_LATCH_PATH,
 				ConfigConstants.DEFAULT_ZOOKEEPER_LATCH_PATH);
 		String leaderPath = configuration.getString(ConfigConstants.ZOOKEEPER_LEADER_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
+			ConfigConstants.DEFAULT_ZOOKEEPER_LEADER_PATH);
 
 		return new ZooKeeperLeaderElectionService(client, latchPath, leaderPath);
 	}
@@ -188,8 +191,7 @@ public class ZooKeeperUtils {
 
 		checkNotNull(configuration, "Configuration");
 
-		StateHandleProvider<SubmittedJobGraph> stateHandleProvider =
-				StateHandleProviderFactory.createRecoveryFileStateHandleProvider(configuration);
+		StateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
 
 		// ZooKeeper submitted jobs root dir
 		String zooKeeperSubmittedJobsPath = configuration.getString(
@@ -197,7 +199,7 @@ public class ZooKeeperUtils {
 				ConfigConstants.DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		return new ZooKeeperSubmittedJobGraphStore(
-				client, zooKeeperSubmittedJobsPath, stateHandleProvider);
+				client, zooKeeperSubmittedJobsPath, stateStorage);
 	}
 
 	/**
@@ -219,21 +221,23 @@ public class ZooKeeperUtils {
 
 		checkNotNull(configuration, "Configuration");
 
-		StateHandleProvider<CompletedCheckpoint> stateHandleProvider =
-				StateHandleProviderFactory.createRecoveryFileStateHandleProvider(configuration);
+		String checkpointsPath = configuration.getString(
+			ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH,
+			ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
 
-		String completedCheckpointsPath = configuration.getString(
-				ConfigConstants.ZOOKEEPER_CHECKPOINTS_PATH,
-				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
 
-		completedCheckpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		StateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
+			configuration,
+			"completedCheckpoint");
+
+		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCompletedCheckpointStore(
 				maxNumberOfCheckpointsToRetain,
 				userClassLoader,
 				client,
-				completedCheckpointsPath,
-				stateHandleProvider);
+				checkpointsPath,
+				stateStorage);
 	}
 
 	/**
@@ -256,6 +260,30 @@ public class ZooKeeperUtils {
 		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
+	}
+
+	/**
+	 * Creates a {@link FileSystemStateStorageHelper} instance.
+	 *
+	 * @param configuration {@link Configuration} object
+	 * @param prefix Prefix for the created files
+	 * @param <T> Type of the state objects
+	 * @return {@link FileSystemStateStorageHelper} instance
+	 * @throws IOException
+	 */
+	private static <T extends Serializable> FileSystemStateStorageHelper<T> createFileSystemStateStorage(
+			Configuration configuration,
+			String prefix) throws IOException {
+
+		String rootPath = configuration.getString(
+			ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, "");
+
+		if (rootPath.equals("")) {
+			throw new IllegalConfigurationException("Missing recovery path. Specify via " +
+				"configuration key '" + ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH + "'.");
+		} else {
+			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
+		}
 	}
 
 	/**

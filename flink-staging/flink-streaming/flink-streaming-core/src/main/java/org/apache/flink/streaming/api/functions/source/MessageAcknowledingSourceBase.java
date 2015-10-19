@@ -26,8 +26,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.state.SerializedCheckpointData;
+import org.apache.flink.runtime.state.SerializedCheckpointData;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

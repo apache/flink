@@ -46,6 +46,7 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -62,7 +63,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 	private final static FiniteDuration TestTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
-	private final String MAIN_RESOURCES_PATH = getClass().getResource("/../classes/web").getPath();
+	private final String MAIN_RESOURCES_PATH = getClass().getResource("/web").getPath();
 
 	/**
 	 * Tests operation of the monitor in standalone operation.
@@ -82,10 +83,13 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			ActorSystem jmActorSystem = flink.jobManagerActorSystems().get().head();
 			ActorRef jmActor = flink.jobManagerActors().get().head();
 
+			File logDir = temporaryFolder.newFolder("log");
+			Files.createFile(new File(logDir, "jobmanager.log").toPath());
+			Files.createFile(new File(logDir, "jobmanager.out").toPath());
+
 			Configuration monitorConfig = new Configuration();
-			monitorConfig.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
-			monitorConfig.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
 			monitorConfig.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+			monitorConfig.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.getAbsolutePath());
 
 			// Needs to match the leader address from the leader retrieval service
 			String jobManagerAddress = AkkaUtils.getAkkaURL(jmActorSystem, jmActor);
@@ -143,9 +147,13 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			final Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
 				zooKeeper.getConnectString(),
 				temporaryFolder.getRoot().getPath());
-			config.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
-			config.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
+
+			File logDir = temporaryFolder.newFolder();
+			Files.createFile(new File(logDir, "jobmanager.log").toPath());
+			Files.createFile(new File(logDir, "jobmanager.out").toPath());
+
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.getAbsolutePath());
 
 			for (int i = 0; i < jobManagerSystem.length; i++) {
 				jobManagerSystem[i] = AkkaUtils.createActorSystem(new Configuration(),
@@ -280,10 +288,13 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		try (TestingServer zooKeeper = new TestingServer()) {
 
+			File logDir = temporaryFolder.newFolder();
+			Files.createFile(new File(logDir, "jobmanager.log").toPath());
+			Files.createFile(new File(logDir, "jobmanager.out").toPath());
+
 			final Configuration config = new Configuration();
-			config.setString(WebMonitorConfig.JOB_MANAGER_WEB_DOC_ROOT_KEY, MAIN_RESOURCES_PATH);
-			config.setBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, true);
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.getAbsolutePath());
 			config.setString(ConfigConstants.RECOVERY_MODE, "ZOOKEEPER");
 			config.setString(ConfigConstants.ZOOKEEPER_QUORUM_KEY, zooKeeper.getConnectString());
 
