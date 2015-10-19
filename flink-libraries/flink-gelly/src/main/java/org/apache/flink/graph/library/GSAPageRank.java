@@ -18,9 +18,9 @@
 
 package org.apache.flink.graph.library;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.EdgeJoinFunction;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
@@ -85,7 +85,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 		DataSet<Tuple2<K, Long>> vertexOutDegrees = network.outDegrees();
 
 		Graph<K, Double, Double> networkWithWeights = network
-				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeightsMapper());
+				.joinWithEdgesOnSource(vertexOutDegrees, new InitWeights());
 
 		return networkWithWeights.runGatherSumApplyIteration(new GatherRanks(numberOfVertices), new SumRanks(),
 				new UpdateRanks<K>(beta, numberOfVertices), maxIterations)
@@ -144,9 +144,10 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitWeightsMapper implements MapFunction<Tuple2<Double, Long>, Double> {
-		public Double map(Tuple2<Double, Long> value) {
-			return value.f0 / value.f1;
+	private static final class InitWeights implements EdgeJoinFunction<Double, Long> {
+
+		public Double edgeJoin(Double edgeValue, Long inputValue) {
+			return edgeValue / (double) inputValue;
 		}
 	}
 }

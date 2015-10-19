@@ -18,27 +18,28 @@
 
 package org.apache.flink.graph;
 
-import org.apache.flink.api.common.functions.Function;
-
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.Function;
+
 /**
- * Interface to be implemented by the function applied to a vertex neighborhood
- * in the {@link Graph#reduceOnNeighbors(ReduceNeighborsFunction, EdgeDirection)}
- * method.
+ * Interface to be implemented by the transformation function
+ * applied in {@link Graph#joinWithEdges(DataSet, EdgeJoinFunction)},
+ * {@link Graph#joinWithEdgesOnSource(DataSet, EdgeJoinFunction)}, and
+ * {@link Graph#joinWithEdgesOnTarget(DataSet, EdgeJoinFunction)} methods.
  *
- * @param <VV> the vertex value type
+ * @param <EV> the edge value type
+ * @param <T> the input value type
  */
-public interface ReduceNeighborsFunction <VV> extends Function, Serializable {
+public interface EdgeJoinFunction<EV, T> extends Function, Serializable {
 
 	/**
-	 * It combines two neighboring vertex values into one new value of the same type.
-	 * For each vertex, this function is consecutively called,
-	 * until only a single value for each vertex remains.
+	 * Applies a transformation on the current edge value
+	 * and the value of the matched tuple of the input DataSet.
 	 * 
-	 * @param firstNeighborValue the first neighboring vertex value to combine
-	 * @param secondNeighborValue the second neighboring vertex value to combine
-	 * @return the combined value of both input values
+	 * @param edgeValue the current edge value
+	 * @param inputValue the value of the matched Tuple2 input
+	 * @return the new edge value
 	 */
-	VV reduceNeighbors(VV firstNeighborValue, VV secondNeighborValue);
+	EV edgeJoin(EV edgeValue, T inputValue) throws Exception;
 }

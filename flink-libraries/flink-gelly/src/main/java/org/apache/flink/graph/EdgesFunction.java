@@ -34,5 +34,24 @@ import org.apache.flink.util.Collector;
  */
 public interface EdgesFunction<K, EV, O> extends Function, Serializable {
 
+	/**
+	 * This method is called per vertex and can iterate over all of its neighboring edges
+	 * with the specified direction.
+	 * <p>
+	 * If called with {@link EdgeDirection#OUT} the group will contain
+	 * the out-edges of the grouping vertex.
+	 * If called with {@link EdgeDirection#IN} the group will contain
+	 * the in-edges of the grouping vertex.
+	 * If called with {@link EdgeDirection#ALL} the group will contain
+	 * all edges of the grouping vertex.
+	 * <p>
+	 * The method can emit any number of output elements, including none.
+	 * 
+	 * @param edges the neighboring edges of the grouping vertex.
+	 * The first filed of each Tuple2 is the ID of the grouping vertex.
+	 * The second field is the neighboring edge.
+	 * @param out the collector to emit results to
+	 * @throws Exception
+	*/
 	void iterateEdges(Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<O> out) throws Exception;
 }

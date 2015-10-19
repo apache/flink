@@ -31,6 +31,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.VertexJoinFunction;
 import org.apache.flink.types.NullValue;
 
 import java.util.TreeMap;
@@ -143,12 +144,13 @@ public class GSATriangleCount<K extends Comparable<K>, VV, EV> implements
 	}
 
 	@SuppressWarnings("serial")
-	private static final class AttachValues<K> implements MapFunction<Tuple2<TreeMap<K, Integer>,
-			TreeMap<K, Integer>>, TreeMap<K, Integer>> {
+	private static final class AttachValues<K> implements VertexJoinFunction<TreeMap<K, Integer>,
+			TreeMap<K, Integer>> {
 
 		@Override
-		public TreeMap<K, Integer> map(Tuple2<TreeMap<K, Integer>, TreeMap<K, Integer>> tuple2) throws Exception {
-			return tuple2.f1;
+		public TreeMap<K, Integer> vertexJoin(TreeMap<K, Integer> vertexValue,
+				TreeMap<K, Integer> inputValue) {
+			return inputValue;
 		}
 	}
 
