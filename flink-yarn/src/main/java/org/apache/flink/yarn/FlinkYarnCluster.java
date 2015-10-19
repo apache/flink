@@ -496,7 +496,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		@Override
 		public void run() {
 			LOG.info("Shutting down FlinkYarnCluster from the client shutdown hook");
-			shutdown(true);
+			shutdown(false);
 		}
 	}
 
