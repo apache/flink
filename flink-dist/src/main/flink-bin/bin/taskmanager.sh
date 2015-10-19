@@ -59,8 +59,9 @@ if [[ $STARTSTOP == "start" ]]; then
     if [ "${FLINK_TM_HEAP}" -gt "0" ]; then
 
         TM_HEAP_SIZE=${FLINK_TM_HEAP}
-        # This is an upper bound, much less direct memory will be used
-        TM_MAX_OFFHEAP_SIZE=${FLINK_TM_HEAP}
+        # Long.MAX_VALUE in TB: This is an upper bound, much less direct memory will be used
+        #
+        TM_MAX_OFFHEAP_SIZE="8388607T"
 
         if [[ "${STREAMINGMODE}" == "batch" ]] && useOffHeapMemory; then
             if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
@@ -88,7 +89,7 @@ if [[ $STARTSTOP == "start" ]]; then
             fi
         fi
 
-        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}M"
+        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
 
     fi
 
