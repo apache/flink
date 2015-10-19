@@ -147,19 +147,39 @@ public class TimestampITCase {
 			if (CustomOperator.finalWatermarks[i].size() == NUM_WATERMARKS + 1) {
 				for (int j = 0; j < NUM_WATERMARKS; j++) {
 					if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
+						System.err.println("All Watermarks: ");
+						for (int k = 0; k <= NUM_WATERMARKS; k++) {
+							System.err.println(CustomOperator.finalWatermarks[i].get(k));
+						}
+
 						Assert.fail("Wrong watermark.");
 					}
 				}
 				if (!CustomOperator.finalWatermarks[i].get(NUM_WATERMARKS).equals(new Watermark(Long.MAX_VALUE))) {
+					System.err.println("All Watermarks: ");
+					for (int k = 0; k <= NUM_WATERMARKS; k++) {
+						System.err.println(CustomOperator.finalWatermarks[i].get(k));
+					}
+
 					Assert.fail("Wrong watermark.");
 				}
 			} else {
 				for (int j = 0; j < NUM_WATERMARKS / 2; j++) {
 					if (!CustomOperator.finalWatermarks[i].get(j).equals(new Watermark(initialTime + j))) {
+						System.err.println("All Watermarks: ");
+						for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
+							System.err.println(CustomOperator.finalWatermarks[i].get(k));
+						}
+
 						Assert.fail("Wrong watermark.");
 					}
 				}
 				if (!CustomOperator.finalWatermarks[i].get(NUM_WATERMARKS / 2).equals(new Watermark(Long.MAX_VALUE))) {
+					System.err.println("All Watermarks: ");
+					for (int k = 0; k <= NUM_WATERMARKS / 2; k++) {
+						System.err.println(CustomOperator.finalWatermarks[i].get(k));
+					}
+
 					Assert.fail("Wrong watermark.");
 				}
 
