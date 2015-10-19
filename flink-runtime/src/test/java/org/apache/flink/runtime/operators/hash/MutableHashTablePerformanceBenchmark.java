@@ -90,7 +90,7 @@ public class MutableHashTablePerformanceBenchmark {
 	}
 	
 	@Benchmark
-	public void compareMutableHashTablePerformance1() throws IOException {
+	public void compareMutableHashTableWithBloomFilter1() throws IOException {
 		// ----------------------------------------------90% filtered during probe spill phase-----------------------------------------
 		// create a build input with 1000000 records with key spread between [0 -- 10000000] with step of 10 for nearby records.
 		int buildSize = 1000000;
@@ -103,19 +103,40 @@ public class MutableHashTablePerformanceBenchmark {
 		
 		int expectedResult = 500000;
 		
-		long withBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
-		long withoutBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 		
 		System.out.println("HybridHashJoin2:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
 		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
-		System.out.println(String.format("Cost: without bloom filter(%d), with bloom filter(%d)", withoutBloomFilterCost, withBloomFilterCost));
 	}
 	
 	@Benchmark
-	public void compareMutableHashTablePerformance2() throws IOException {
+	public void compareMutableHashTableWithoutBloomFilter1() throws IOException {
+		// ----------------------------------------------90% filtered during probe spill phase-----------------------------------------
+		// create a build input with 1000000 records with key spread between [0 -- 10000000] with step of 10 for nearby records.
+		int buildSize = 1000000;
+		int buildStep = 10;
+		int buildScope = buildStep * buildSize;
+		// create a probe input with 5000000 records with key spread between [0 -- 1000000] with distance of 1 for nearby records.
+		int probeSize = 5000000;
+		int probeStep = 1;
+		int probeScope = buildSize;
+
+		int expectedResult = 500000;
+		
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+
+		System.out.println("HybridHashJoin2:");
+		System.out.println("Build input size: " + 100 * buildSize);
+		System.out.println("Probe input size: " + 100 * probeSize);
+		System.out.println("Available memory: " + this.memManager.getMemorySize());
+		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
+	}
+	
+	@Benchmark
+	public void compareMutableHashTableWithBloomFilter2() throws IOException {
 		// ----------------------------------------------80% filtered during probe spill phase-----------------------------------------
 		// create a build input with 1000000 records with key spread between [0 -- 5000000] with step of 5 for nearby records.
 		int buildSize = 1000000;
@@ -128,19 +149,40 @@ public class MutableHashTablePerformanceBenchmark {
 		
 		int expectedResult = 1000000;
 		
-		long withBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
-		long withoutBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 		
 		System.out.println("HybridHashJoin3:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
 		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
-		System.out.println(String.format("Cost: without bloom filter(%d), with bloom filter(%d)", withoutBloomFilterCost, withBloomFilterCost));
 	}
 	
 	@Benchmark
-	public void compareMutableHashTablePerformance3() throws IOException {
+	public void compareMutableHashTableWithoutBloomFilter2() throws IOException {
+		// ----------------------------------------------80% filtered during probe spill phase-----------------------------------------
+		// create a build input with 1000000 records with key spread between [0 -- 5000000] with step of 5 for nearby records.
+		int buildSize = 1000000;
+		int buildStep = 5;
+		int buildScope = buildStep * buildSize;
+		// create a probe input with 5000000 records with key spread between [0 -- 1000000] with distance of 1 for nearby records.
+		int probeSize = 5000000;
+		int probeStep = 1;
+		int probeScope = buildSize;
+
+		int expectedResult = 1000000;
+		
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+
+		System.out.println("HybridHashJoin3:");
+		System.out.println("Build input size: " + 100 * buildSize);
+		System.out.println("Probe input size: " + 100 * probeSize);
+		System.out.println("Available memory: " + this.memManager.getMemorySize());
+		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
+	}
+	
+	@Benchmark
+	public void compareMutableHashTableWithBloomFilter3() throws IOException {
 		// ----------------------------------------------50% filtered during probe spill phase-------------------------------------------------
 		// create a build input with 1000000 records with key spread between [0 -- 2000000] with step of 2 for nearby records.
 		int buildSize = 1000000;
@@ -153,19 +195,40 @@ public class MutableHashTablePerformanceBenchmark {
 		
 		int expectedResult = 2500000;
 		
-		long withoutBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
-		long withBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 		
 		System.out.println("HybridHashJoin4:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
 		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
-		System.out.println(String.format("Cost: without bloom filter(%d), with bloom filter(%d)", withoutBloomFilterCost, withBloomFilterCost));
 	}
 	
 	@Benchmark
-	public void compareMutableHashTablePerformance4() throws IOException {
+	public void compareMutableHashTableWithoutBloomFilter3() throws IOException {
+		// ----------------------------------------------50% filtered during probe spill phase-------------------------------------------------
+		// create a build input with 1000000 records with key spread between [0 -- 2000000] with step of 2 for nearby records.
+		int buildSize = 1000000;
+		int buildStep = 2;
+		int buildScope = buildStep * buildSize;
+		// create a probe input with 5000000 records with key spread between [0 -- 1000000] with distance of 1 for nearby records.
+		int probeSize = 5000000;
+		int probeStep = 1;
+		int probeScope = buildSize;
+
+		int expectedResult = 2500000;
+
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+
+		System.out.println("HybridHashJoin4:");
+		System.out.println("Build input size: " + 100 * buildSize);
+		System.out.println("Probe input size: " + 100 * probeSize);
+		System.out.println("Available memory: " + this.memManager.getMemorySize());
+		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
+	}
+	
+	@Benchmark
+	public void compareMutableHashTableWithBloomFilter4() throws IOException {
 		// ----------------------------------------------0% filtered during probe spill phase-----------------------------------------
 		// create a build input with 1000000 records with key spread between [0 -- 1000000] with step of 1 for nearby records.
 		int buildSize = 1000000;
@@ -178,15 +241,36 @@ public class MutableHashTablePerformanceBenchmark {
 		
 		int expectedResult = probeSize / buildStep;
 		
-		long withBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
-		long withoutBloomFilterCost = hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 		
 		System.out.println("HybridHashJoin5:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
 		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
-		System.out.println(String.format("Cost: without bloom filter(%d), with bloom filter(%d)", withoutBloomFilterCost, withBloomFilterCost));
+	}
+	
+	@Benchmark
+	public void compareMutableHashTableWithoutBloomFilter4() throws IOException {
+		// ----------------------------------------------0% filtered during probe spill phase-----------------------------------------
+		// create a build input with 1000000 records with key spread between [0 -- 1000000] with step of 1 for nearby records.
+		int buildSize = 1000000;
+		int buildStep = 1;
+		int buildScope = buildStep * buildSize;
+		// create a probe input with 5000000 records with key spread between [0 -- 1000000] with distance of 1 for nearby records.
+		int probeSize = 5000000;
+		int probeStep = 1;
+		int probeScope = buildSize;
+
+		int expectedResult = probeSize / buildStep;
+		
+		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
+
+		System.out.println("HybridHashJoin5:");
+		System.out.println("Build input size: " + 100 * buildSize);
+		System.out.println("Probe input size: " + 100 * probeSize);
+		System.out.println("Available memory: " + this.memManager.getMemorySize());
+		System.out.println("Probe record be filtered before spill: " + (1 - (double)probeScope / buildScope) * 100 + "% percent.");
 	}
 	
 	private long hybridHashJoin(int buildSize, int buildStep, int buildScope, int probeSize,
@@ -207,7 +291,6 @@ public class MutableHashTablePerformanceBenchmark {
 		
 		// ----------------------------------------------------------------------------------------
 		
-		long start = System.currentTimeMillis();
 		final MutableHashTable<StringPair, StringPair> join = new MutableHashTable<StringPair, StringPair>(
 			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
@@ -226,11 +309,11 @@ public class MutableHashTablePerformanceBenchmark {
 		Assert.assertEquals("Wrong number of records in join result.", expectedResultSize, numRecordsInJoinResult);
 		
 		join.close();
-		long cost = System.currentTimeMillis() - start;
 		// ----------------------------------------------------------------------------------------
 		
 		this.memManager.release(join.getFreedMemory());
-		return cost;
+		//return cost;
+		return 1;
 	}
 	
 	
