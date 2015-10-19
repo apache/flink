@@ -139,11 +139,6 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			requestPath = "/" + getFileName(rootPath, WebRuntimeMonitor.STDOUT_FILE_PATTERN);
 		}
 
-		// convert file separators.
-		if (File.separatorChar != '/') {
-			requestPath = requestPath.replace('/', File.separatorChar);
-		}
-
 		// convert to absolute path
 		final File file = new File(rootPath, requestPath);
 
