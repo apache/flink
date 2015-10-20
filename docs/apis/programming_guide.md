@@ -1721,7 +1721,11 @@ File-based:
   Returns a DataSet of tuples or POJOs. Supports the basic java types and their Value counterparts as field
   types.
 
-- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`. 
+- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+  delimited primitive data types such as `String` or `Integer`.
+   
+- `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+   delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
 Collection-based:
 
@@ -1855,6 +1859,9 @@ File-based:
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
   Returns a DataSet of tuples, case class objects, or POJOs. Supports the basic java types and their Value counterparts as field
   types.
+
+- `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+  delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
 Collection-based:
 
