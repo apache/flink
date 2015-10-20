@@ -297,7 +297,10 @@ public final class ConfigConstants {
 	 */
 	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.history";
 
-	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.logpath";
+	/**
+	 * The log file location (may be in /log for standalone but under log directory when using YARN)
+	 */
+	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
 
 
 	// ------------------------------ Web Client ------------------------------

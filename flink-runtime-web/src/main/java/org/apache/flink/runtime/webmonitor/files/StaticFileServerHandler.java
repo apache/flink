@@ -45,7 +45,6 @@ import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 import io.netty.util.CharsetUtil;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.slf4j.Logger;
@@ -60,7 +59,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.FilenameFilter;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.text.ParseException;
@@ -166,11 +164,9 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 				requestPath = requestPath + "index.html";
 			}
 
-		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		if (requestPath.equals("/jobmanager/log")) {
-			requestPath = "/" + getFileName(rootPath, WebRuntimeMonitor.LOG_FILE_PATTERN);
-		} else if (requestPath.equals("/jobmanager/stdout")) {
-			requestPath = "/" + getFileName(rootPath, WebRuntimeMonitor.STDOUT_FILE_PATTERN);
+			// in case the files being accessed are logs or stdout files, find appropriate paths.
+			if (requestPath.equals("/jobmanager/log") || requestPath.equals("/jobmanager/stdout")) {
+				requestPath = "";
 			}
 
 			Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
@@ -370,10 +366,5 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
 		String mimeFinal = mimeType != null ? mimeType : MimeTypes.getDefaultMimeType();
 		response.headers().set(CONTENT_TYPE, mimeFinal);
-	}
-
-	private static String getFileName(File directory, FilenameFilter pattern) {
-		File[] files = directory.listFiles(pattern);
-		return files.length == 0 ? null : files[0].getName();
 	}
 }
