@@ -1437,6 +1437,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * [GSA Single Source Shortest Paths](#gsa-single-source-shortest-paths)
 * [GSA Triangle Count](#gsa-triangle-count)
 * [Triangle Enumerator](#triangle-enumerator)
+* [Summarization](#summarization)
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 
@@ -1616,5 +1617,29 @@ This implementation extends the basic algorithm by computing output degrees of e
 #### Usage
 The algorithm takes a directed graph as input and outputs a `DataSet` of `Tuple3`. The Vertex ID type has to be `Comparable`.
 Each `Tuple3` corresponds to a triangle, with the fields containing the IDs of the vertices forming the triangle.
+
+### Summarization
+
+#### Overview
+The summarization algorithm computes a condensed version of the input graph by grouping vertices and edges based on 
+their values. In doing so, the algorithm helps to uncover insights about patterns and distributions in the graph.
+One possible use case is the visualization of communities where the whole graph is too large and needs to be summarized
+based on the community identifier stored at a vertex.
+
+#### Details
+In the resulting graph, each vertex represents a group of vertices that share the same value. An edge, that connects a 
+vertex with itself, represents all edges with the same edge value that connect vertices from the same vertex group. An 
+edge between different vertices in the output graph represents all edges with the same edge value between members of 
+different vertex groups in the input graph.
+
+The algorithm is implemented using Flink data operators. First, vertices are grouped by their value and a representative
+is chosen from each group. For any edge, the source and target vertex identifiers are replaced with the corresponding 
+representative and grouped by source, target and edge value. Output vertices and edges are created from their
+corresponding groupings.
+
+#### Usage
+The algorithm takes a directed, vertex (and possibly edge) attributed graph as input and outputs a new graph where each
+vertex represents a group of vertices and each edge represents a group of edges from the input graph. Furthermore, each 
+vertex and edge in the output graph stores the common group value and the number of represented elements.
 
 [Back to top](#top)

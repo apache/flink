@@ -1370,7 +1370,7 @@ public class Graph<K, VV, EV> {
 		DataSet<Vertex<K, VV>> newVertices = getVertices().coGroup(verticesToBeRemoved).where(0).equalTo(0)
 				.with(new VerticesRemovalCoGroup<K, VV>());
 
-		DataSet < Edge < K, EV >> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
+		DataSet <Edge< K, EV>> newEdges = newVertices.join(getEdges()).where(0).equalTo(0)
 				// if the edge source was removed, the edge will also be removed
 				.with(new ProjectEdgeToBeRemoved<K, VV, EV>())
 				// if the edge target was removed, the edge will also be removed
@@ -1485,7 +1485,9 @@ public class Graph<K, VV, EV> {
 
 	/**
 	 * Performs Difference on the vertex and edge sets of the input graphs
-	 * removes common vertices and edges. If a source/target vertex is removed, its corresponding edge will also be removed
+	 * removes common vertices and edges. If a source/target vertex is removed,
+	 * its corresponding edge will also be removed
+	 * 
 	 * @param graph the graph to perform difference with
 	 * @return a new graph where the common vertices and edges have been removed
 	 */
