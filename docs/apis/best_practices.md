@@ -342,7 +342,7 @@ Change your projects `pom.xml` file like this:
 	</dependency>
 	<dependency>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-core</artifactId>
+		<artifactId>flink-streaming-java</artifactId>
 		<version>0.10-SNAPSHOT</version>
 		<exclusions>
 			<exclusion>
