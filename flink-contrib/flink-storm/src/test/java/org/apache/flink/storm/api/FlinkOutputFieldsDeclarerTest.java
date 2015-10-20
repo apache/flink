@@ -20,7 +20,6 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.storm.api.FlinkOutputFieldsDeclarer;
 import org.apache.flink.storm.util.AbstractTest;
 import org.junit.Assert;
@@ -29,8 +28,6 @@ import org.junit.Test;
 import java.util.LinkedList;
 
 public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
-
-
 
 	@Test
 	public void testNull() {
@@ -100,13 +97,8 @@ public class FlinkOutputFieldsDeclarerTest extends AbstractTest {
 		for (String stream : streams) {
 			final TypeInformation<?> type = declarer.getOutputType(stream);
 
-			if (numberOfAttributes == 1) {
-				Assert.assertEquals(type.getClass(), GenericTypeInfo.class);
-				Assert.assertEquals(type.getTypeClass(), Object.class);
-			} else {
-				Assert.assertEquals(numberOfAttributes, type.getArity());
-				Assert.assertTrue(type.isTupleType());
-			}
+			Assert.assertEquals(numberOfAttributes, type.getArity());
+			Assert.assertTrue(type.isTupleType());
 		}
 	}
 

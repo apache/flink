@@ -33,9 +33,10 @@ import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.storm.util.SplitStreamMapper;
 import org.apache.flink.storm.util.SplitStreamType;
-import org.apache.flink.storm.util.SplitStreamTypeKeySelector;
 import org.apache.flink.storm.util.StormStreamSelector;
 import org.apache.flink.storm.wrappers.BoltWrapper;
 import org.apache.flink.storm.wrappers.SpoutWrapper;
@@ -77,14 +78,13 @@ public class FlinkTopologyBuilder {
 	/**
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 */
-	@SuppressWarnings({"rawtypes", "unchecked"})
 	public FlinkTopology createTopology() {
 		this.stormTopology = this.stormBuilder.createTopology();
 
 		final FlinkTopology env = new FlinkTopology();
 		env.setParallelism(1);
 
-		final HashMap<String, HashMap<String, DataStream>> availableInputs = new HashMap<String, HashMap<String, DataStream>>();
+		final HashMap<String, HashMap<String, DataStream<Tuple>>> availableInputs = new HashMap<String, HashMap<String, DataStream<Tuple>>>();
 
 		for (final Entry<String, IRichSpout> spout : this.spouts.entrySet()) {
 			final String spoutId = spout.getKey();
@@ -96,24 +96,37 @@ public class FlinkTopologyBuilder {
 			this.outputStreams.put(spoutId, sourceStreams);
 			declarers.put(spoutId, declarer);
 
-			final SpoutWrapper spoutWrapper = new SpoutWrapper(userSpout);
-			spoutWrapper.setStormTopology(stormTopology);
 
-			DataStreamSource source;
-			final HashMap<String, DataStream> outputStreams = new HashMap<String, DataStream>();
+			final HashMap<String, DataStream<Tuple>> outputStreams = new HashMap<String, DataStream<Tuple>>();
+			final DataStreamSource<?> source;
+
 			if (sourceStreams.size() == 1) {
-				final String outputStreamId = (String) sourceStreams.keySet().toArray()[0];
-				source = env.addSource(spoutWrapper, spoutId,
-						declarer.getOutputType(outputStreamId));
-				outputStreams.put(outputStreamId, source);
-			} else {
-				source = env.addSource(spoutWrapper, spoutId,
-						TypeExtractor.getForClass(SplitStreamType.class));
-				SplitStream splitSource = source.split(new StormStreamSelector());
+				final SpoutWrapper<Tuple> spoutWrapperSingleOutput = new SpoutWrapper<Tuple>(userSpout);
+				spoutWrapperSingleOutput.setStormTopology(stormTopology);
 
+				final String outputStreamId = (String) sourceStreams.keySet().toArray()[0];
+
+				DataStreamSource<Tuple> src = env.addSource(spoutWrapperSingleOutput, spoutId,
+						declarer.getOutputType(outputStreamId));
+
+				outputStreams.put(outputStreamId, src);
+				source = src;
+			} else {
+				final SpoutWrapper<SplitStreamType<Tuple>> spoutWrapperMultipleOutputs = new SpoutWrapper<SplitStreamType<Tuple>>(
+						userSpout);
+				spoutWrapperMultipleOutputs.setStormTopology(stormTopology);
+
+				@SuppressWarnings({ "unchecked", "rawtypes" })
+				DataStreamSource<SplitStreamType<Tuple>> multiSource = env.addSource(
+						spoutWrapperMultipleOutputs, spoutId,
+						(TypeInformation) TypeExtractor.getForClass(SplitStreamType.class));
+
+				SplitStream<SplitStreamType<Tuple>> splitSource = multiSource
+						.split(new StormStreamSelector<Tuple>());
 				for (String streamId : sourceStreams.keySet()) {
-					outputStreams.put(streamId, splitSource.select(streamId));
+					outputStreams.put(streamId, splitSource.select(streamId).map(new SplitStreamMapper<Tuple>()));
 				}
+				source = multiSource;
 			}
 			availableInputs.put(spoutId, outputStreams);
 
@@ -171,11 +184,11 @@ public class FlinkTopologyBuilder {
 					final String producerId = stormInputStream.getKey().get_componentId();
 					final String inputStreamId = stormInputStream.getKey().get_streamId();
 
-					final HashMap<String, DataStream> producer = availableInputs.get(producerId);
+					final HashMap<String, DataStream<Tuple>> producer = availableInputs.get(producerId);
 					if (producer != null) {
 						makeProgress = true;
 
-						DataStream inputStream = producer.get(inputStreamId);
+						DataStream<Tuple> inputStream = producer.get(inputStreamId);
 						if (inputStream != null) {
 							final FlinkOutputFieldsDeclarer declarer = new FlinkOutputFieldsDeclarer();
 							userBolt.declareOutputFields(declarer);
@@ -193,18 +206,9 @@ public class FlinkTopologyBuilder {
 								final List<String> fields = grouping.get_fields();
 								if (fields.size() > 0) {
 									FlinkOutputFieldsDeclarer prodDeclarer = this.declarers.get(producerId);
-									if (producer.size() == 1) {
-										inputStream = inputStream.keyBy(prodDeclarer
-												.getGroupingFieldIndexes(inputStreamId,
-														grouping.get_fields()));
-									} else {
-										inputStream = inputStream
-												.keyBy(new SplitStreamTypeKeySelector(
-														inputStream.getType(),
-														prodDeclarer.getGroupingFieldIndexes(
-																inputStreamId,
-																grouping.get_fields())));
-									}
+									inputStream = inputStream.keyBy(prodDeclarer
+											.getGroupingFieldIndexes(inputStreamId,
+													grouping.get_fields()));
 								} else {
 									inputStream = inputStream.global();
 								}
@@ -215,43 +219,56 @@ public class FlinkTopologyBuilder {
 										"Flink only supports (local-or-)shuffle, fields, all, and global grouping");
 							}
 
-							final SingleOutputStreamOperator outputStream;
-							final BoltWrapper boltWrapper;
+							final SingleOutputStreamOperator<?, ?> outputStream;
+
 							if (boltOutputStreams.size() < 2) { // single output stream or sink
 								String outputStreamId = null;
 								if (boltOutputStreams.size() == 1) {
 									outputStreamId = (String) boltOutputStreams.keySet().toArray()[0];
 								}
-								final TypeInformation<?> outType = declarer
+								final TypeInformation<Tuple> outType = declarer
 										.getOutputType(outputStreamId);
 
-								boltWrapper = new BoltWrapper(userBolt, this.outputStreams
-										.get(producerId).get(inputStreamId));
-								outputStream = inputStream.transform(boltId, outType, boltWrapper);
+								final BoltWrapper<Tuple, Tuple> boltWrapperSingleOutput = new BoltWrapper<Tuple, Tuple>(
+										userBolt, this.outputStreams.get(producerId).get(
+												inputStreamId));
+								boltWrapperSingleOutput.setStormTopology(stormTopology);
+
+								final SingleOutputStreamOperator<Tuple, ?> outStream = inputStream
+										.transform(boltId, outType, boltWrapperSingleOutput);
 
 								if (outType != null) {
 									// only for non-sink nodes
-									final HashMap<String, DataStream> op = new HashMap<String, DataStream>();
-									op.put(outputStreamId, outputStream);
+									final HashMap<String, DataStream<Tuple>> op = new HashMap<String, DataStream<Tuple>>();
+									op.put(outputStreamId, outStream);
 									availableInputs.put(boltId, op);
 								}
+								outputStream = outStream;
 							} else {
-								final TypeInformation<?> outType = TypeExtractor
+								final BoltWrapper<Tuple, SplitStreamType<Tuple>> boltWrapperMultipleOutputs = new BoltWrapper<Tuple, SplitStreamType<Tuple>>(
+										userBolt, this.outputStreams.get(producerId).get(
+												inputStreamId));
+								boltWrapperMultipleOutputs.setStormTopology(stormTopology);
+
+								@SuppressWarnings({ "unchecked", "rawtypes" })
+								final TypeInformation<SplitStreamType<Tuple>> outType = (TypeInformation) TypeExtractor
 										.getForClass(SplitStreamType.class);
 
-								boltWrapper = new BoltWrapper(userBolt, this.outputStreams.get(producerId).get(inputStreamId));
-								outputStream = inputStream.transform(boltId, outType, boltWrapper);
+								final SingleOutputStreamOperator<SplitStreamType<Tuple>, ?> multiStream = inputStream
+										.transform(boltId, outType, boltWrapperMultipleOutputs);
 
-								final SplitStream splitStreams = outputStream
-										.split(new StormStreamSelector());
+								final SplitStream<SplitStreamType<Tuple>> splitStream = multiStream
+										.split(new StormStreamSelector<Tuple>());
 
-								final HashMap<String, DataStream> op = new HashMap<String, DataStream>();
+								final HashMap<String, DataStream<Tuple>> op = new HashMap<String, DataStream<Tuple>>();
 								for (String outputStreamId : boltOutputStreams.keySet()) {
-									op.put(outputStreamId, splitStreams.select(outputStreamId));
+									op.put(outputStreamId,
+											splitStream.select(outputStreamId).map(
+													new SplitStreamMapper<Tuple>()));
 								}
 								availableInputs.put(boltId, op);
+								outputStream = multiStream;
 							}
-							boltWrapper.setStormTopology(stormTopology);
 
 							int dop = 1;
 							if (common.is_set_parallelism_hint()) {
@@ -342,7 +359,7 @@ public class FlinkTopologyBuilder {
 	 * 		the basic bolt
 	 * @param parallelism_hint
 	 * 		the number of tasks that should be assigned to execute this bolt. Each task will run on a thread in a
-	 * 		process somwehere around the cluster.
+	 * 		process somewhere around the cluster.
 	 * @return use the returned object to declare the inputs to this component
 	 */
 	public BoltDeclarer setBolt(final String id, final IBasicBolt bolt, final Number parallelism_hint) {
@@ -371,7 +388,7 @@ public class FlinkTopologyBuilder {
 	 * 		outputs.
 	 * @param parallelism_hint
 	 * 		the number of tasks that should be assigned to execute this spout. Each task will run on a thread in a
-	 * 		process somwehere around the cluster.
+	 * 		process somewhere around the cluster.
 	 * @param spout
 	 * 		the spout
 	 */
