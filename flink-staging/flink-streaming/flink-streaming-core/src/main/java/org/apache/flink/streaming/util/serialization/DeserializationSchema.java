@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -36,7 +37,7 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
 	 * @param message The message, as a byte array.
 	 * @return The deserialized message as an object.
 	 */
-	T deserialize(byte[] message);
+	T deserialize(byte[] message) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
