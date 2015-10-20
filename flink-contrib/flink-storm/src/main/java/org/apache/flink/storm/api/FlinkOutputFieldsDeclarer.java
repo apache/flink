@@ -91,7 +91,7 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 	 * @throws IllegalArgumentException
 	 *             If no output schema was declared for the specified stream or if more then 25 attributes got declared.
 	 */
-	TypeInformation<?> getOutputType(final String streamId) throws IllegalArgumentException {
+	TypeInformation<Tuple> getOutputType(final String streamId) throws IllegalArgumentException {
 		if (streamId == null) {
 			return null;
 		}
@@ -105,9 +105,7 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 		Tuple t;
 		final int numberOfAttributes = outputSchema.size();
 
-		if (numberOfAttributes == 1) {
-			return TypeExtractor.getForClass(Object.class);
-		} else if (numberOfAttributes <= 25) {
+		if (numberOfAttributes <= 25) {
 			try {
 				t = Tuple.getTupleClass(numberOfAttributes).newInstance();
 			} catch (final InstantiationException e) {

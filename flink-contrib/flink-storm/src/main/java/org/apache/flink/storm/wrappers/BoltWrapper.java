@@ -29,7 +29,6 @@ import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
-import org.apache.flink.storm.util.SplitStreamType;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -61,7 +60,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	private final Fields inputSchema;
 	/** The original Storm topology. */
 	protected StormTopology stormTopology;
-	
+
 	/**
 	 *  We have to use this because Operators must output
 	 *  {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
@@ -239,17 +238,11 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		this.bolt.cleanup();
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void processElement(final StreamRecord<IN> element) throws Exception {
 		this.flinkCollector.setTimestamp(element.getTimestamp());
 		IN value = element.getValue();
-		if (value instanceof SplitStreamType) {
-			this.bolt.execute(new StormTuple<IN>(((SplitStreamType<IN>) value).value,
-					inputSchema));
-		} else {
-			this.bolt.execute(new StormTuple<IN>(value, inputSchema));
-		}
+		this.bolt.execute(new StormTuple<IN>(value, inputSchema));
 	}
 
 	@Override
