@@ -106,7 +106,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 
-		System.out.println("HybridHashJoin2:");
+		System.out.println("HybridHashJoin1:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -129,7 +129,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
 
-		System.out.println("HybridHashJoin2:");
+		System.out.println("HybridHashJoin1:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -152,7 +152,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 
-		System.out.println("HybridHashJoin3:");
+		System.out.println("HybridHashJoin2:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -175,7 +175,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
 
-		System.out.println("HybridHashJoin3:");
+		System.out.println("HybridHashJoin2:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -198,7 +198,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 
-		System.out.println("HybridHashJoin4:");
+		System.out.println("HybridHashJoin3:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -221,7 +221,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
 
-		System.out.println("HybridHashJoin4:");
+		System.out.println("HybridHashJoin3:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -244,7 +244,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, true);
 
-		System.out.println("HybridHashJoin5:");
+		System.out.println("HybridHashJoin4:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
@@ -267,7 +267,7 @@ public class MutableHashTablePerformanceBenchmark {
 
 		this.hybridHashJoin(buildSize, buildStep, buildScope, probeSize, probeStep, probeScope, expectedResult, false);
 
-		System.out.println("HybridHashJoin5:");
+		System.out.println("HybridHashJoin4:");
 		System.out.println("Build input size: " + 100 * buildSize);
 		System.out.println("Probe input size: " + 100 * probeSize);
 		System.out.println("Available memory: " + this.memManager.getMemorySize());
