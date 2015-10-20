@@ -115,14 +115,13 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getLogAndStdoutFiles() {
 		try {
-			String logPath = cluster.configuration().getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
-			Assert.assertNotNull(logPath);
+			WebMonitorUtils.LogFiles logFiles = WebMonitorUtils.LogFiles.find(cluster.configuration());
 
-			FileUtils.writeStringToFile(new File(logPath, "jobmanager.log"), "job manager log");
+			FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 			String logs = getFromHTTP("http://localhost:" + port + "/jobmanager/log");
 			Assert.assertTrue(logs.contains("job manager log"));
 
-			FileUtils.writeStringToFile(new File(logPath, "jobmanager.out"), "job manager out");
+			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 			logs = getFromHTTP("http://localhost:" + port + "/jobmanager/stdout");
 			Assert.assertTrue(logs.contains("job manager out"));
 		}catch(Throwable e) {
@@ -138,8 +137,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			JSONArray array = new JSONArray(config);
 
 			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(array);
-			Assert.assertEquals(logDir.toString(),
-					conf.get(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY));
+			Assert.assertTrue(conf.get(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY).startsWith(logDir.toString()));
 			Assert.assertEquals(
 					cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
 					conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));

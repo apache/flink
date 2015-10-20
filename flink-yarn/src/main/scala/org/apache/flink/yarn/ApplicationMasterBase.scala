@@ -93,8 +93,6 @@ abstract class ApplicationMasterBase {
       val currDir = env.get(Environment.PWD.key())
       require(currDir != null, "Current directory unknown.")
 
-      val logDirs = env.get(Environment.LOG_DIRS.key())
-
       val streamingMode = if(ApplicationMasterBase.hasStreamingMode(env)) {
         log.info("Starting ApplicationMaster/JobManager in streaming mode")
         StreamingMode.STREAMING
@@ -119,8 +117,7 @@ abstract class ApplicationMasterBase {
 
       // if a web monitor shall be started, set the port to random binding
       if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-        config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
-        config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
+        config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
       }
 
       val (actorSystem, jmActor, archiveActor, webMonitor) =
@@ -147,7 +144,7 @@ abstract class ApplicationMasterBase {
 
       // generate configuration file for TaskManagers
       generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, akkaHostname,
-        jobManagerPort, webServerPort, logDirs, slots, taskManagerCount,
+        jobManagerPort, webServerPort, slots, taskManagerCount,
         dynamicPropertiesEncodedString)
 
       val hadoopConfig = new YarnConfiguration();
@@ -184,7 +181,6 @@ abstract class ApplicationMasterBase {
     ownHostname: String,
     jobManagerPort: Int,
     jobManagerWebPort: Int,
-    logDirs: String,
     slots: Int,
     taskManagerCount: Int,
     dynamicPropertiesEncodedString: String)
@@ -202,7 +198,6 @@ abstract class ApplicationMasterBase {
     output.println(s"${ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY}: $ownHostname")
     output.println(s"${ConfigConstants.JOB_MANAGER_IPC_PORT_KEY}: $jobManagerPort")
 
-    output.println(s"${ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY}: $logDirs")
     output.println(s"${ConfigConstants.JOB_MANAGER_WEB_PORT_KEY}: $jobManagerWebPort")
 
 

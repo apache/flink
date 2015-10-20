@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -33,6 +35,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
@@ -46,6 +49,66 @@ import java.util.Map;
 public final class WebMonitorUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(WebMonitorUtils.class);
+
+	/**
+	 * Singleton to hold the log and stdout file
+	 */
+	public static class LogFiles {
+
+		private static LogFiles INSTANCE;
+
+		public final File logFile;
+		public final File stdOutFile;
+
+		private LogFiles(String logFile) {
+			this.logFile = checkFileLocation(logFile);
+			String stdOutFile = logFile.replaceFirst("\\.log$", ".out");
+			this.stdOutFile = checkFileLocation(stdOutFile);;
+		}
+
+		/**
+		 * Verify log file location
+		 * @param logFilePath Path to log file
+		 * @return File or null if not a valid log file
+		 */
+		private static File checkFileLocation (String logFilePath) {
+			File logFile = new File(logFilePath);
+			if (logFile.exists() && logFile.canRead()) {
+				return logFile;
+			} else {
+				throw new IllegalConfigurationException("Job manager log file was supposed to be at " +
+						logFile.getAbsolutePath() + " but it does not exist or is not readable.");
+			}
+		}
+
+		/**
+		 * Finds the Flink log directory using log.file Java property that is set during startup.
+		 */
+		public static LogFiles find(Configuration config) {
+			if (INSTANCE == null) {
+
+				/** Figure out log file location based on 'log.file' VM argument **/
+				final String logEnv = "log.file";
+				String logFilePath = System.getProperty(logEnv);
+
+				if (logFilePath == null) {
+					LOG.warn("Log file environment variable '{}' is not set.", logEnv);
+					logFilePath = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
+				}
+
+				if (logFilePath == null) {
+					throw new IllegalConfigurationException("JobManager log file not found. " +
+							"Can't serve log files. Log file location couldn't be determined via the " +
+							logEnv + " environment variable or the config constant " +
+							ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY);
+				}
+
+				INSTANCE = new LogFiles(logFilePath);
+			}
+
+			return INSTANCE;
+		}
+	}
 
 	/**
 	 * Starts the web runtime monitor. Because the actual implementation of the runtime monitor is
