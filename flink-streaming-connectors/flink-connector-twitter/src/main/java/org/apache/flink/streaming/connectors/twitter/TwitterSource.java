@@ -133,10 +133,8 @@ public class TwitterSource extends RichSourceFunction<String> {
 	private Properties loadAuthenticationProperties() {
 		
 		Properties properties = new Properties();
-		try {
-			InputStream input = new FileInputStream(authPath);
+		try (InputStream input = new FileInputStream(authPath)) {
 			properties.load(input);
-			input.close();
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot open .properties file: " + authPath, e);
 		}
