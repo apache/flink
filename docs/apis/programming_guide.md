@@ -120,17 +120,17 @@ manually create the project, you can use the archetype and create a project by c
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight bash %}
-mvn archetype:generate /
-    -DarchetypeGroupId=org.apache.flink/
-    -DarchetypeArtifactId=flink-quickstart-java /
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-quickstart-java \
     -DarchetypeVersion={{site.version }}
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight bash %}
-mvn archetype:generate /
-    -DarchetypeGroupId=org.apache.flink/
-    -DarchetypeArtifactId=flink-quickstart-scala /
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-quickstart-scala \
     -DarchetypeVersion={{site.version }}
 {% endhighlight %}
 </div>

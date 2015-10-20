@@ -1189,7 +1189,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	/**
 	 * Creates the {@link Collector} for the given task, as described by the given configuration. The
 	 * output collector contains the writers that forward the data to the different tasks that the given task
-	 * is connected to. Each writer applies a the partitioning as described in the configuration.
+	 * is connected to. Each writer applies the partitioning as described in the configuration.
 	 *
 	 * @param task The task that the output collector is created for.
 	 * @param config The configuration describing the output shipping strategies.

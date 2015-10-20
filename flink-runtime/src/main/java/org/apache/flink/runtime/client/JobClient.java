@@ -190,7 +190,7 @@ public class JobClient {
 
 	/**
 	 * Submits a job in detached mode. The method sends the JobGraph to the
-	 * JobManager and waits for the answer whether teh job could be started or not.
+	 * JobManager and waits for the answer whether the job could be started or not.
 	 *
 	 * @param jobManagerGateway Gateway to the JobManager which will execute the jobs
 	 * @param jobGraph The job

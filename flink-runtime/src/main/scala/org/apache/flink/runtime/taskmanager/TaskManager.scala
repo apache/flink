@@ -1943,7 +1943,7 @@ object TaskManager {
    * directories (not files), and are writable.
    *
    * @param tmpDirs The array of directory paths to check.
-   * @throws Exception Thrown if any of the directories doe not exist or is not writable
+   * @throws Exception Thrown if any of the directories does not exist or is not writable
    *                   or is a file, rather than a directory.
    */
   @throws(classOf[IOException])
