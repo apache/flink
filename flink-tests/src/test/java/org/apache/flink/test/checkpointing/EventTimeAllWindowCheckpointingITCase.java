@@ -413,6 +413,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			// we loop longer than we have elements, to permit delayed checkpoints
 			// to still cause a failure
 			while (running) {
+
 				if (!failedBefore) {
 					// delay a bit, if we have not failed before
 					Thread.sleep(1);
@@ -439,7 +440,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 				else {
 					// exit at some point so that we don't deadlock
 					if (numElementsEmitted > numElementsToEmit * 5) {
-						running = false;
+//						running = false;
+						System.err.println("Succ Checkpoints: " + numSuccessfulCheckpoints + " numElemEmitted: " + numElementsEmitted + "num elements to emit: " + numElementsToEmit);
 					}
 					// if our work is done, delay a bit to prevent busy waiting
 					Thread.sleep(1);
@@ -502,7 +504,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					}
 				}
 			}
-			assertTrue(seenAll);
+			assertTrue("The source must see all expected windows.", seenAll);
 		}
 
 		@Override
