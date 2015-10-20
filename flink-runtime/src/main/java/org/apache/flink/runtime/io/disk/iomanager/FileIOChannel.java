@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.util.StringUtils;
 
@@ -153,21 +154,26 @@ public interface FileIOChannel {
 	 */
 	public static final class Enumerator {
 
+		private static AtomicInteger globalCounter = new AtomicInteger();
+
 		private final File[] paths;
-		
+
 		private final String namePrefix;
 
-		private int counter;
+		private int localCounter;
 
 		protected Enumerator(File[] basePaths, Random random) {
 			this.paths = basePaths;
 			this.namePrefix = ID.randomString(random);
-			this.counter = 0;
+			this.localCounter = 0;
 		}
 
 		public ID next() {
-			int threadNum = counter % paths.length;
-			String filename = String.format("%s.%06d.channel", namePrefix, (counter++));
+			// The local counter is used to increment file names while the global counter is used
+			// for indexing the directory and associated read and write threads. This performs a
+			// round-robin among all spilling operators and avoids I/O bunching.
+			int threadNum = globalCounter.getAndIncrement() % paths.length;
+			String filename = String.format("%s.%06d.channel", namePrefix, (localCounter++));
 			return new ID(new File(paths[threadNum], filename), threadNum);
 		}
 	}
