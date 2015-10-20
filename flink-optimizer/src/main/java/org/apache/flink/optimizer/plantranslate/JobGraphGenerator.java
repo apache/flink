@@ -150,7 +150,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	public JobGraphGenerator(Configuration config) {
 		this.defaultMaxFan = config.getInteger(ConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY, 
-				ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
+			ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
 		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
 			ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
 	}

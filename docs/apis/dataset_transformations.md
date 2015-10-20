@@ -240,6 +240,16 @@ This problem can be overcome by hinting the return type of `project` operator li
 DataSet<Tuple1<String>> ds2 = ds.<Tuple1<String>>project(0).distinct(0);
 ~~~
 
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+out = in.project(2,0);
+~~~
+
+</div>
+</div>
+
 ### Transformations on Grouped DataSet
 
 The reduce operations can operate on grouped data sets. Specifying the key to
@@ -251,23 +261,6 @@ be used for grouping can be done in many ways:
 - Case Class fields (Case Classes only)
 
 Please look at the reduce examples to see how the grouping keys are specified.
-
-</div>
-<div data-lang="python" markdown="1">
-
-~~~python
-out = in.project(2,0);
-~~~
-
-### Transformations on Grouped DataSet
-
-The reduce operations can operate on grouped data sets. Specifying the key to
-be used for grouping can be done using one or more field position keys (Tuple DataSet only).
-
-Please look at the reduce examples to see how the grouping keys are specified.
-
-</div>
-</div>
 
 ### Reduce on Grouped DataSet
 
@@ -679,9 +672,10 @@ an alternative WordCount implementation. In the implementation,
 
 ~~~java
 DataSet<String> input = [..] // The words received as input
-DataSet<String> groupedInput = input.groupBy(0); // group identical words
 
-DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
+DataSet<Tuple2<String, Integer>> combinedWords = input
+  .groupBy(0); // group identical words
+  .combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
 
     public void combine(Iterable<String> words, Collector<Tuple2<String, Integer>>) { // combine
         int count = 0;
@@ -692,9 +686,9 @@ DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new G
     }
 });
 
-DataSet<Tuple2<String, Integer>> groupedCombinedWords = combinedWords.groupBy(0); // group by words again
-
-DataSet<Tuple2<String, Integer>> output = combinedWords.reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
+DataSet<Tuple2<String, Integer>> output = combinedWords
+  .groupBy(0);                             // group by words again
+  .reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
 
     public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {
         int count = 0;
@@ -711,9 +705,10 @@ DataSet<Tuple2<String, Integer>> output = combinedWords.reduceGroup(new GroupRed
 
 ~~~scala
 val input: DataSet[String] = [..] // The words received as input
-val groupedInput: DataSet[String] = input.groupBy(0)
 
-val combinedWords: DataSet[(String, Int)] = groupedInput.combineGroup {
+val combinedWords: DataSet[(String, Int)] = input
+  .groupBy(0)
+  .combineGroup {
     (words, out: Collector[(String, Int)]) =>
         var count = 0
         for (word <- words) {
@@ -722,9 +717,9 @@ val combinedWords: DataSet[(String, Int)] = groupedInput.combineGroup {
         out.collect(word, count)
 }
 
-val groupedCombinedWords: DataSet[(String, Int)] = combinedWords.groupBy(0)
-
-val output: DataSet[(String, Int)] = groupedInput.reduceGroup {
+val output: DataSet[(String, Int)] = combinedWords
+  .groupBy(0)
+  .reduceGroup {
     (words, out: Collector[(String, Int)]) =>
         var count = 0
         for ((word, Int) <- words) {
