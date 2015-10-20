@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.operators.hash;
+package org.apache.flink.benchmark.runtime.operates.hash;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.hash.MutableHashTable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.types.StringPair;
 import org.apache.flink.runtime.operators.testutils.types.StringPairComparator;
