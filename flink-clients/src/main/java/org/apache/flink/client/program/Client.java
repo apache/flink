@@ -521,16 +521,16 @@ public class Client {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
-	public static JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
+	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
 		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths());
 	}
 
-	private static JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths) {
+	private JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 		} else {
-			JobGraphGenerator gen = new JobGraphGenerator();
+			JobGraphGenerator gen = new JobGraphGenerator(this.config);
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 

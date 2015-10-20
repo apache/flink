@@ -313,7 +313,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			// submit the job
 			try {
 				Client client = new Client(GlobalConfiguration.getConfiguration());
-				client.runDetached(Client.getJobGraph(job.f0, job.f1), job.f0.getUserCodeClassLoader());
+				client.runDetached(client.getJobGraph(job.f0, job.f1), job.f0.getUserCodeClassLoader());
 			}
 			catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
