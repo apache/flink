@@ -126,7 +126,7 @@ under the License.
 									<exclude>org.apache.flink:flink-java-examples</exclude>
 									<exclude>org.apache.flink:flink-scala-examples</exclude>
 									<exclude>org.apache.flink:flink-streaming-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-core</exclude>
+									<exclude>org.apache.flink:flink-streaming-java</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -334,7 +334,7 @@ under the License.
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-core</artifactId>
+					<artifactId>flink-streaming-java</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
