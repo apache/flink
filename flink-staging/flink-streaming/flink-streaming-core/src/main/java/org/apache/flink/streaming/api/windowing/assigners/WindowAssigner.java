@@ -17,6 +17,8 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -52,4 +54,10 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
 	 * Returns the default trigger associated with this {@code WindowAssigner}.
 	 */
 	public abstract Trigger<T, W> getDefaultTrigger(StreamExecutionEnvironment env);
+
+	/**
+	 * Returns a {@link TypeSerializer} for serializing windows that are assigned by
+	 * this {@code WindowAssigner}.
+	 */
+	public abstract TypeSerializer<W> getWindowSerializer(ExecutionConfig executionConfig);
 }

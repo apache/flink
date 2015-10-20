@@ -17,6 +17,12 @@
  */
 package org.apache.flink.streaming.api.windowing.windows;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+
 public class GlobalWindow extends Window {
 
 	private static GlobalWindow INSTANCE = new GlobalWindow();
@@ -28,29 +34,13 @@ public class GlobalWindow extends Window {
 	}
 
 	@Override
-	public long getStart() {
-		return Long.MIN_VALUE;
-	}
-
-	@Override
-	public long getEnd() {
-		return Long.MAX_VALUE;
-	}
-
-	@Override
 	public long maxTimestamp() {
 		return Long.MAX_VALUE;
 	}
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		return true;
+		return this == o || !(o == null || getClass() != o.getClass());
 	}
 
 	@Override
@@ -61,5 +51,78 @@ public class GlobalWindow extends Window {
 	@Override
 	public String toString() {
 		return "GlobalWindow";
+	}
+
+	public static class Serializer extends TypeSerializer<GlobalWindow> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public TypeSerializer<GlobalWindow> duplicate() {
+			return this;
+		}
+
+		@Override
+		public GlobalWindow createInstance() {
+			return GlobalWindow.INSTANCE;
+		}
+
+		@Override
+		public GlobalWindow copy(GlobalWindow from) {
+			return from;
+		}
+
+		@Override
+		public GlobalWindow copy(GlobalWindow from, GlobalWindow reuse) {
+			return from;
+		}
+
+		@Override
+		public int getLength() {
+			return 0;
+		}
+
+		@Override
+		public void serialize(GlobalWindow record, DataOutputView target) throws IOException {
+			target.writeByte(0);
+		}
+
+		@Override
+		public GlobalWindow deserialize(DataInputView source) throws IOException {
+			source.readByte();
+			return GlobalWindow.INSTANCE;
+		}
+
+		@Override
+		public GlobalWindow deserialize(GlobalWindow reuse,
+				DataInputView source) throws IOException {
+			source.readByte();
+			return GlobalWindow.INSTANCE;
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			source.readByte();
+			target.writeByte(0);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj instanceof Serializer;
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof Serializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return 0;
+		}
 	}
 }

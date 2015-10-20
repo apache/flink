@@ -54,6 +54,7 @@ public class EvictingNonKeyedWindowOperatorTest {
 
 		EvictingNonKeyedWindowOperator<Tuple2<String, Integer>, Tuple2<String, Integer>, GlobalWindow> operator = new EvictingNonKeyedWindowOperator<>(
 				GlobalWindows.create(),
+				new GlobalWindow.Serializer(),
 				new HeapWindowBuffer.Factory<Tuple2<String, Integer>>(),
 				new ReduceAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer(closeCalled)),
 				CountTrigger.of(WINDOW_SLIDE),

@@ -196,6 +196,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    */
   def apply[R: TypeInformation: ClassTag](
       function: (K, W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+    if (function == null) {
+      throw new NullPointerException("WindowApply function must not be null.")
+    }
+
     val cleanedFunction = clean(function)
     val applyFunction = new WindowFunction[T, R, K, W] {
       def apply(key: K, window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
@@ -203,6 +207,58 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
       }
     }
     javaStream.apply(applyFunction, implicitly[TypeInformation[R]])
+  }
+
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Arriving data is pre-aggregated using the given pre-aggregation reducer.
+   *
+   * @param preAggregator The reduce function that is used for pre-aggregation
+   * @param function The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def apply[R: TypeInformation: ClassTag](
+      preAggregator: ReduceFunction[T],
+      function: WindowFunction[T, R, K, W]): DataStream[R] = {
+    javaStream.apply(clean(preAggregator), clean(function), implicitly[TypeInformation[R]])
+  }
+
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Arriving data is pre-aggregated using the given pre-aggregation reducer.
+   *
+   * @param preAggregator The reduce function that is used for pre-aggregation
+   * @param function The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def apply[R: TypeInformation: ClassTag](
+      preAggregator: (T, T) => T,
+      function: (K, W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+    if (function == null) {
+      throw new NullPointerException("Reduce function must not be null.")
+    }
+    if (function == null) {
+      throw new NullPointerException("WindowApply function must not be null.")
+    }
+
+    val cleanReducer = clean(preAggregator)
+    val reducer = new ReduceFunction[T] {
+      def reduce(v1: T, v2: T) = { cleanReducer(v1, v2) }
+    }
+
+    val cleanApply = clean(function)
+    val applyFunction = new WindowFunction[T, R, K, W] {
+      def apply(key: K, window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
+        cleanApply(key, window, elements.asScala, out)
+      }
+    }
+    javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]])
   }
 
   // ------------------------------------------------------------------------

@@ -26,27 +26,23 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	boolean isFirst = true;
-
 	private ProcessingTimeTrigger() {}
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) {
-		if (isFirst) {
-			ctx.registerProcessingTimeTimer(window.getEnd());
-			isFirst = false;
-		}
+		ctx.registerProcessingTimeTimer(window.maxTimestamp());
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) {
-		return TriggerResult.FIRE_AND_PURGE;
+	public TriggerResult onEventTime(long time,
+			TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public Trigger<Object, TimeWindow> duplicate() {
-		return new ProcessingTimeTrigger();
+	public TriggerResult onProcessingTime(long time, TriggerContext ctx) {
+		return TriggerResult.FIRE_AND_PURGE;
 	}
 
 	@Override

@@ -151,6 +151,7 @@ public class ExecutionConfig implements Serializable {
 	 * @param interval The interval between watermarks in milliseconds.
 	 */
 	public ExecutionConfig setAutoWatermarkInterval(long interval) {
+		enableTimestamps();
 		this.autoWatermarkInterval = interval;
 		return this;
 	}

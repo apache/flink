@@ -1008,7 +1008,7 @@ dataStream.union(otherStream1, otherStream2, ...)
     {% highlight scala %}
 dataStream.join(otherStream)
     .where(0).equalTo(1)
-    .onTimeWindow(TumblingTimeWindows.of(Time.of(3, TimeUnit.SECONDS)))
+    .window(TumblingTimeWindows.of(Time.of(3, TimeUnit.SECONDS)))
     .apply { ... }
     {% endhighlight %}
           </td>
@@ -2308,7 +2308,7 @@ windowedStream.trigger(ProcessingTimeTrigger.create());
         The elements on the triggered window are henceforth discarded.
       </p>
 {% highlight java %}
-windowedStream.trigger(WatermarkTrigger.create());
+windowedStream.trigger(EventTimeTrigger.create());
 {% endhighlight %}
     </td>
   </tr>
@@ -2334,7 +2334,7 @@ windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.of(5, TimeUnit.SE
         The elements on the triggered window are retained.
       </p>
 {% highlight java %}
-windowedStream.trigger(ContinuousWatermarkTrigger.of(Time.of(5, TimeUnit.SECONDS)));
+windowedStream.trigger(ContinuousEventTimeTrigger.of(Time.of(5, TimeUnit.SECONDS)));
 {% endhighlight %}
     </td>
   </tr>
@@ -2414,7 +2414,7 @@ windowedStream.trigger(ProcessingTimeTrigger.create);
         The elements on the triggered window are henceforth discarded.
       </p>
 {% highlight scala %}
-windowedStream.trigger(WatermarkTrigger.create);
+windowedStream.trigger(EventTimeTrigger.create);
 {% endhighlight %}
     </td>
   </tr>
@@ -2440,7 +2440,7 @@ windowedStream.trigger(ContinuousProcessingTimeTrigger.of(Time.of(5, TimeUnit.SE
         The elements on the triggered window are retained.
       </p>
 {% highlight scala %}
-windowedStream.trigger(ContinuousWatermarkTrigger.of(Time.of(5, TimeUnit.SECONDS)));
+windowedStream.trigger(ContinuousEventTimeTrigger.of(Time.of(5, TimeUnit.SECONDS)));
 {% endhighlight %}
     </td>
   </tr>
@@ -2653,7 +2653,7 @@ stream.timeWindow(Time.of(5, TimeUnit.SECONDS))
         <td>
     {% highlight java %}
 stream.window(TumblingTimeWindows.of((Time.of(5, TimeUnit.SECONDS)))
-  .trigger(WatermarkTrigger.create())
+  .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
       </tr>
@@ -2667,7 +2667,7 @@ stream.timeWindow(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
         <td>
     {% highlight java %}
 stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
-  .trigger(WatermarkTrigger.create())
+  .trigger(EventTimeTrigger.create())
     {% endhighlight %}
         </td>
       </tr>

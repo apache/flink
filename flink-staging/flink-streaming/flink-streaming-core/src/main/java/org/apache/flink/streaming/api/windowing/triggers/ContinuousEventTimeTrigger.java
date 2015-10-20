@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -29,39 +30,42 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Object, W> {
+public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
-	private long interval;
+	private final long interval;
 
-	private boolean first = true;
-
-	private ContinuousWatermarkTrigger(long interval) {
+	private ContinuousEventTimeTrigger(long interval) {
 		this.interval = interval;
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) {
-		if (first) {
+	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
+
+		OperatorState<Boolean> first = ctx.getKeyValueState("first", true);
+
+		if (first.value()) {
 			long start = timestamp - (timestamp % interval);
 			long nextFireTimestamp = start + interval;
 
-			ctx.registerWatermarkTimer(nextFireTimestamp);
-			first = false;
+			ctx.registerEventTimeTimer(nextFireTimestamp);
+
+			first.update(false);
 			return TriggerResult.CONTINUE;
 		}
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public TriggerResult onTime(long time, TriggerContext ctx) {
-		ctx.registerWatermarkTimer(time + interval);
+	public TriggerResult onEventTime(long time, TriggerContext ctx) {
+		ctx.registerEventTimeTimer(time + interval);
 		return TriggerResult.FIRE;
 	}
 
 	@Override
-	public Trigger<Object, W> duplicate() {
-		return new ContinuousWatermarkTrigger<>(interval);
+	public TriggerResult onProcessingTime(long time,
+			TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
 	}
 
 	@Override
@@ -80,7 +84,7 @@ public class ContinuousWatermarkTrigger<W extends Window> implements Trigger<Obj
 	 * @param interval The time interval at which to fire.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <W extends Window> ContinuousWatermarkTrigger<W> of(AbstractTime interval) {
-		return new ContinuousWatermarkTrigger<>(interval.toMilliseconds());
+	public static <W extends Window> ContinuousEventTimeTrigger<W> of(AbstractTime interval) {
+		return new ContinuousEventTimeTrigger<>(interval.toMilliseconds());
 	}
 }
