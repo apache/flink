@@ -76,6 +76,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import scala.collection.Seq;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1012,7 +1013,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	private static void printTopic(String topicName, ConsumerConfig config,
 								DeserializationSchema<?> deserializationSchema,
-								int stopAfter) {
+								int stopAfter) throws IOException {
 
 		List<MessageAndMetadata<byte[], byte[]>> contents = readTopicToList(topicName, config, stopAfter);
 		LOG.info("Printing contents of topic {} in consumer grouo {}", topicName, config.groupId());
@@ -1023,7 +1024,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	private static void printTopic(String topicName, int elements,DeserializationSchema<?> deserializer) {
+	private static void printTopic(String topicName, int elements,DeserializationSchema<?> deserializer) 
+			throws IOException
+	{
 		// write the sequence to log for debugging purposes
 		Properties stdProps = standardCC.props().props();
 		Properties newProps = new Properties(stdProps);
