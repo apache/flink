@@ -89,8 +89,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 		FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
 		FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 		FULL_PATH = FLINK_DIR != null
-				//substring is used because the root dir path ends with "/bin/.."
-				? FLINK_DIR.substring(0, FLINK_DIR.length() - 7) + FLINK_PYTHON_REL_LOCAL_PATH //command-line
+				? FLINK_DIR + "/" + FLINK_PYTHON_REL_LOCAL_PATH //command-line
 				: FileSystem.getLocalFileSystem().getWorkingDirectory().toString() //testing
 				+ "/src/main/python/org/apache/flink/languagebinding/api/python";
 	}
