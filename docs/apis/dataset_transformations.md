@@ -240,6 +240,16 @@ This problem can be overcome by hinting the return type of `project` operator li
 DataSet<Tuple1<String>> ds2 = ds.<Tuple1<String>>project(0).distinct(0);
 ~~~
 
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+out = in.project(2,0);
+~~~
+
+</div>
+</div>
+
 ### Transformations on Grouped DataSet
 
 The reduce operations can operate on grouped data sets. Specifying the key to
@@ -251,23 +261,6 @@ be used for grouping can be done in many ways:
 - Case Class fields (Case Classes only)
 
 Please look at the reduce examples to see how the grouping keys are specified.
-
-</div>
-<div data-lang="python" markdown="1">
-
-~~~python
-out = in.project(2,0);
-~~~
-
-### Transformations on Grouped DataSet
-
-The reduce operations can operate on grouped data sets. Specifying the key to
-be used for grouping can be done using one or more field position keys (Tuple DataSet only).
-
-Please look at the reduce examples to see how the grouping keys are specified.
-
-</div>
-</div>
 
 ### Reduce on Grouped DataSet
 
@@ -694,7 +687,7 @@ DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new G
 
 DataSet<Tuple2<String, Integer>> groupedCombinedWords = combinedWords.groupBy(0); // group by words again
 
-DataSet<Tuple2<String, Integer>> output = combinedWords.reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
+DataSet<Tuple2<String, Integer>> output = groupedCombinedWords.reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
 
     public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {
         int count = 0;

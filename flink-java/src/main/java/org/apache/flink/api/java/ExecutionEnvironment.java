@@ -791,7 +791,7 @@ public abstract class ExecutionEnvironment {
 	
 	/**
 	 * Creates a new data set that contains a sequence of numbers. The data set will be created in parallel,
-	 * so there is no guarantee about the oder of the elements.
+	 * so there is no guarantee about the order of the elements.
 	 * 
 	 * @param from The number to start at (inclusive).
 	 * @param to The number to stop at (inclusive).

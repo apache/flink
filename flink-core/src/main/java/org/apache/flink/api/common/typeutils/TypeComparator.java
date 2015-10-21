@@ -38,7 +38,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * Implementing classes are stateful, because several methods require to set one record as the reference for
  * comparisons and later comparing a candidate against it. Therefore, the classes implementing this interface are
  * not thread safe. The runtime will ensure that no instance is used twice in different threads, but will create
- * a copy for that purpose. It is hence imperative that the copied created by the {@link #duplicate()} method
+ * a copy for that purpose. It is hence imperative that the copies created by the {@link #duplicate()} method
  * share no state with the instance from which they were copied: They have to be deep copies.  
  *
  * @see java.lang.Object#hashCode()
@@ -60,7 +60,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * results in a rather uniform value distribution.
 	 * However, any collisions produced by this method cannot be undone. While it is NOT
 	 * important to create hash codes that cover the full spectrum of bits in the integer, it IS important 
-	 * to avoid collisions when combining two value as good as possible.
+	 * to avoid collisions when combining two value as much as possible.
 	 * 
 	 * @param record The record to be hashed.
 	 * @return A hash value for the record.

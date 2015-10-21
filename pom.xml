@@ -810,7 +810,7 @@ under the License.
 				<configuration>
 					<source>1.7</source>
 					<target>1.7</target>
-					<!-- The output of Xlint is not show by default, but we activate it for the QA bot
+					<!-- The output of Xlint is not shown by default, but we activate it for the QA bot
 					to be able to get more warnings -->
 					<compilerArgument>-Xlint:all</compilerArgument>
 				</configuration>

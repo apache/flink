@@ -19,8 +19,8 @@
 package org.apache.flink.api.common.accumulators;
 
 /**
- * An accumulator that get the average values.
- * Input can be {@code long}, {@code integer}, {@code double} as the result is {@code double}.
+ * An accumulator that computes the average value.
+ * Input can be {@code long}, {@code integer}, or {@code double} and the result is {@code double}.
  */
 public class AverageAccumulator implements SimpleAccumulator<Double> {
 

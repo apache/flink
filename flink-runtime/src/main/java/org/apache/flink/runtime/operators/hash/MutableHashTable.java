@@ -49,7 +49,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * spilling contents to disk, when the memory is not sufficient. It does not need to know a priori 
  * how large the input will be.
  * 
- * <p>The design of this class follows on many parts the design presented in
+ * <p>The design of this class follows in many parts the design presented in
  * "Hash joins and hash teams in Microsoft SQL Server", by Goetz Graefe et al. In its current state, the
  * implementation lacks features like dynamic role reversal, partition tuning, or histogram guided partitioning.</p>
  * 
