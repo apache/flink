@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -16,8 +17,8 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -27,31 +28,11 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<!--
-	There is a separate "flink-yarn-tests" package that expects the "flink-dist" package
-	to be build before.
-	We need the YARN fat jar build by flink-dist for the tests.
-	-->
-	
-	<artifactId>flink-yarn-tests</artifactId>
-	<name>flink-yarn-tests</name>
+	<artifactId>flink-streaming-scala</artifactId>
+	<name>flink-streaming-scala</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<!-- Needed for the streaming wordcount example -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java</artifactId>
@@ -60,128 +41,67 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-yarn</artifactId>
+			<artifactId>flink-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
-			<version>${project.version}</version>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-reflect</artifactId>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
-			<version>${project.version}</version>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-include-yarn-tests</artifactId>
-			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>asm</groupId>
-					<artifactId>asm</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-				
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.11</version>
-			<type>jar</type>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-compiler</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm</artifactId>
+			<version>${asm.version}</version>
+		</dependency>
+		
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 		</dependency>
 
+		<!-- To access general test utils -->
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
-			<scope>compile</scope>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
+
+		<!-- To access test data -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- To access streaming test utils -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 	</dependencies>
 
 	<build>
-		<testSourceDirectory>src/main/java</testSourceDirectory>
-
 		<plugins>
-			<!-- Set the root directory for all tests to the project root.
-			We need this to be able to locate the final build (in flink-dist)
-			-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<!-- Enforce single threaded execution due to port conflicts with the mini yarn cluster -->
-					<forkCount>1</forkCount>
-					<workingDirectory>../</workingDirectory>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<workingDirectory>../</workingDirectory>
-				</configuration>
-			</plugin>
-      
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-hadoop</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-							<createDependencyReducedPom>true</createDependencyReducedPom>
-							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-							<filters>
-								<filter>
-									<artifact>org.slf4j:*</artifact>
-									<excludes>
-										<exclude>org/slf4j/impl/StaticLoggerBinder*</exclude>
-									</excludes>
-								</filter>
-							</filters>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-							</transformers>
-							<relocations>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.hadoop.shaded.com.google</shadedPattern>
-									<excludes>
-										<exclude>com.google.inject.**</exclude>
-									</excludes>
-								</relocation>
-								<relocation>
-									<pattern>org.objectweb.asm</pattern>
-									<shadedPattern>org.apache.flink.hadoop.shaded.org.objectweb.asm</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.jboss.netty</pattern>
-									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
-								</relocation>
-							</relocations>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
-							</transformers>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
@@ -197,7 +117,7 @@ under the License.
 							<goal>compile</goal>
 						</goals>
 					</execution>
-
+ 
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
 						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
@@ -213,6 +133,13 @@ under the License.
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
 					</jvmArgs>
+					<compilerPlugins combine.children="append">
+					   <compilerPlugin>
+						   <groupId>org.scalamacros</groupId>
+						   <artifactId>paradise_${scala.version}</artifactId>
+						   <version>${scala.macros.version}</version>
+					   </compilerPlugin>
+				   </compilerPlugins>
 				</configuration>
 			</plugin>
 
@@ -303,19 +230,7 @@ under the License.
 					<outputEncoding>UTF-8</outputEncoding>
 				</configuration>
 			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
 		</plugins>
 	</build>
+
 </project>

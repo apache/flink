@@ -17,10 +17,11 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-    <modelVersion>4.0.0</modelVersion>
+	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
@@ -29,23 +30,20 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
+	<artifactId>flink-streaming-connectors-parent</artifactId>
+	<name>flink-streaming-connectors</name>
 
-	<artifactId>flink-staging</artifactId>
-	<name>flink-staging</name>
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-avro</module>
-		<module>flink-jdbc</module>
-		<module>flink-hadoop-compatibility</module>
-		<module>flink-hbase</module>
-		<module>flink-hcatalog</module>
-		<module>flink-table</module>
-		<module>flink-ml</module>
-		<module>flink-language-binding</module>
-		<module>flink-scala-shell</module>
+		<module>flink-connector-flume</module>
+		<module>flink-connector-kafka</module>
+		<module>flink-connector-elasticsearch</module>
+		<module>flink-connector-rabbitmq</module>
+		<module>flink-connector-twitter</module>
+		<module>flink-connector-nifi</module>
 	</modules>
-	
+
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<profile>
@@ -60,14 +58,9 @@ under the License.
 				<!-- Include the flink-fs-tests project only for HD2.
 				 	The HDFS minicluster interfaces changed between the two versions.
 				 -->
-				<module>flink-fs-tests</module>
-			</modules>
-		</profile>
-		<profile>
-			<id>include-tez</id>
-			<modules>
-				<module>flink-tez</module>
+				<module>flink-connector-filesystem</module>
 			</modules>
 		</profile>
 	</profiles>
+
 </project>

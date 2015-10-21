@@ -160,7 +160,7 @@ If you want to add Flink to an existing Maven project, add the following entry t
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-core</artifactId>
+  <artifactId>flink-streaming-java</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 <dependency>
