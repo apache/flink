@@ -243,6 +243,106 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testSendToAllDirectionIN() throws Exception {
+
+		/*
+		 * Test that sendMessageToAllNeighbors() works correctly
+		 * when the direction is set to IN
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, HashSet<Long>, Long> graph = Graph
+				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+				.mapVertices(new InitialiseHashSetMapper());
+
+		// configure the iteration
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+
+		parameters.setDirection(EdgeDirection.IN);
+
+		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
+				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
+				.getVertices();
+
+        List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+
+		expectedResult = "1,[2, 3]\n" +
+				"2,[3]\n" +
+				"3,[4, 5]\n" +
+				"4,[5]\n" +
+				"5,[1]";
+		
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testSendToAllDirectionOUT() throws Exception {
+
+		/*
+		 * Test that sendMessageToAllNeighbors() works correctly
+		 * when the direction is set to OUT
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, HashSet<Long>, Long> graph = Graph
+				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+				.mapVertices(new InitialiseHashSetMapper());
+
+		// configure the iteration
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+
+		parameters.setDirection(EdgeDirection.OUT);
+
+		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
+				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
+				.getVertices();
+
+        List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+
+		expectedResult = "1,[5]\n" +
+				"2,[1]\n" +
+				"3,[1, 2]\n" +
+				"4,[3]\n" +
+				"5,[3, 4]";
+		
+		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public void testSendToAllDirectionALL() throws Exception {
+
+		/*
+		 * Test that sendMessageToAllNeighbors() works correctly
+		 * when the direction is set to ALL
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, HashSet<Long>, Long> graph = Graph
+				.fromCollection(TestGraphUtils.getLongLongVertices(), TestGraphUtils.getLongLongEdges(), env)
+				.mapVertices(new InitialiseHashSetMapper());
+
+		// configure the iteration
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+
+		parameters.setDirection(EdgeDirection.ALL);
+
+		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
+				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
+				.getVertices();
+
+        List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+
+		expectedResult = "1,[2, 3, 5]\n" +
+				"2,[1, 3]\n" +
+				"3,[1, 2, 4, 5]\n" +
+				"4,[3, 5]\n" +
+				"5,[1, 3, 4]";
+		
+		compareResultAsTuples(result, expectedResult);
+	}
+
+
+	@Test
 	public void testNumVerticesNotSet() throws Exception {
 
 		/*
@@ -641,6 +741,15 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 					sendMessageTo(edge.getTarget(), vertex.getId());
 				}
 			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static final class SendMsgToAll extends MessagingFunction<Long, HashSet<Long>, Long, Long> {
+
+		@Override
+		public void sendMessages(Vertex<Long, HashSet<Long>> vertex) throws Exception {
+			sendMessageToAllNeighbors(vertex.getId());
 		}
 	}
 
