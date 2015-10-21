@@ -30,6 +30,17 @@ import java.util.UUID;
  */
 public class DummyActorGateway implements ActorGateway {
 	public static final DummyActorGateway INSTANCE = new DummyActorGateway();
+	private static final long serialVersionUID = -833861606769367952L;
+
+	private final String path;
+
+	public DummyActorGateway() {
+		this("DummyActorGateway");
+	}
+
+	public DummyActorGateway(String path) {
+		this.path = path;
+	}
 
 	@Override
 	public Future<Object> ask(Object message, FiniteDuration timeout) {
@@ -52,7 +63,7 @@ public class DummyActorGateway implements ActorGateway {
 
 	@Override
 	public String path() {
-		return "DummyInstanceGateway";
+		return path;
 	}
 
 	@Override
