@@ -77,28 +77,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 		return ppo;
 	}
-
-	/**
-	 * Continues a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
-	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b></br>
-	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * Additional fields can be added to the projection by calling this method repeatedly.
-	 *
-	 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
-	 *
-	 * @param fieldIndexes The field indexes which are added to the Project transformation.
-	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
-	 * @return A ProjectOperator that represents the projected DataSet.
-	 *
-	 * @see Tuple
-	 * @see DataSet
-	 * @see ProjectOperator
-	 */
-	public <R extends Tuple> ProjectOperator<?, R> project(int... fieldIndexes) {
-		proj.acceptAdditionalIndexes(fieldIndexes);
-		
-		return proj.projectTupleX();
-	}
 	/**
 	 * Deprecated method only kept for compatibility.
 	 */
@@ -145,28 +123,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			this.ds = ds;
 			this.fieldIndexes = fieldIndexes;
 		}
-		
-		private void acceptAdditionalIndexes(int... additionalIndexes) {
-			
-			if(additionalIndexes.length == 0) {
-				throw new IllegalArgumentException("project() needs to select at least one (1) field.");
-			} else if(additionalIndexes.length > Tuple.MAX_ARITY - 1) {
-				throw new IllegalArgumentException(
-						"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
-			}
-			
-			int offset = this.fieldIndexes.length;
-			
-			this.fieldIndexes = Arrays.copyOf(this.fieldIndexes, this.fieldIndexes.length + additionalIndexes.length);
-			
-			int maxFieldIndex = ds.getType().getArity();
-			for (int i = 0; i < additionalIndexes.length; i++) {
-				Preconditions.checkElementIndex(additionalIndexes[i], maxFieldIndex);
-
-				this.fieldIndexes[offset + i] = additionalIndexes[i];
-			}
-		}
-		
 		
 		
 		// --------------------------------------------------------------------------------------------	
