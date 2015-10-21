@@ -115,8 +115,12 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	/**
 	 * Gets an {@link java.lang.Iterable} with all edges. This method is mutually exclusive with
 	 * {@link #sendMessageToAllNeighbors(Object)} and may be called only once.
+	 * <p>
+	 * If the {@link EdgeDirection} is OUT (default), then this iterator contains outgoing edges.
+	 * If the {@link EdgeDirection} is IN, then this iterator contains incoming edges.
+	 * If the {@link EdgeDirection} is ALL, then this iterator contains both outgoing and incoming edges.
 	 * 
-	 * @return An iterator with all outgoing edges.
+	 * @return An iterator with all edges.
 	 */
 	@SuppressWarnings("unchecked")
 	public Iterable<Edge<K, EV>> getEdges() {
@@ -129,24 +133,54 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	}
 
 	/**
-	 * Sends the given message to all vertices that are targets of an outgoing edge of the changed vertex.
+	 * Sends the given message to all vertices that are targets of an edge of the changed vertex.
 	 * This method is mutually exclusive to the method {@link #getEdges()} and may be called only once.
+	 * <p>
+	 * If the {@link EdgeDirection} is OUT (default), the message will be sent to out-neighbors.
+	 * If the {@link EdgeDirection} is IN, the message will be sent to in-neighbors.
+	 * If the {@link EdgeDirection} is ALL, the message will be sent to all neighbors.
 	 * 
 	 * @param m The message to send.
 	 */
 	public void sendMessageToAllNeighbors(Message m) {
 		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllTargets()' exactly once.");
+			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllNeighbors()'"
+					+ "exactly once.");
 		}
 		
 		edgesUsed = true;
-		
 		outValue.f1 = m;
 		
 		while (edges.hasNext()) {
 			Tuple next = (Tuple) edges.next();
-			K k = next.getField(1);
-			outValue.f0 = k;
+
+			/*
+			 * When EdgeDirection is OUT, the edges iterator only has the out-edges 
+			 * of the vertex, i.e. the ones where this vertex is src. 
+			 * next.getField(1) gives the neighbor of the vertex running this MessagingFunction.
+			 */
+			if (getDirection().equals(EdgeDirection.OUT)) {
+				outValue.f0 = next.getField(1);
+			}
+			/*
+			 * When EdgeDirection is IN, the edges iterator only has the in-edges 
+			 * of the vertex, i.e. the ones where this vertex is trg. 
+			 * next.getField(10) gives the neighbor of the vertex running this MessagingFunction.
+			 */
+			else if (getDirection().equals(EdgeDirection.IN)) {
+				outValue.f0 = next.getField(0);
+			}
+			 // When EdgeDirection is ALL, the edges iterator contains both in- and out- edges
+			if (getDirection().equals(EdgeDirection.ALL)) {
+				if (next.getField(0).equals(vertexId)) {
+					// send msg to the trg
+					outValue.f0 = next.getField(1);
+				}
+				else {
+					// send msg to the src
+					outValue.f0 = next.getField(0);
+				}
+			}
 			out.collect(outValue);
 		}
 	}
@@ -219,6 +253,8 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 	private Iterator<?> edges;
 	
 	private Collector<Tuple2<K, Message>> out;
+
+	private K vertexId;
 	
 	private EdgesIterator<K, EV> edgeIterator;
 	
@@ -234,9 +270,10 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 		this.edgeIterator = new EdgesIterator<K, EV>();
 	}
 	
-	void set(Iterator<?> edges, Collector<Tuple2<K, Message>> out) {
+	void set(Iterator<?> edges, Collector<Tuple2<K, Message>> out, K id) {
 		this.edges = edges;
 		this.out = out;
+		this.vertexId = id;
 		this.edgesUsed = false;
 	}
 	

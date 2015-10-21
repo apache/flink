@@ -405,7 +405,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 		
 			if (stateIter.hasNext()) {
 				Vertex<K, VV> newVertexState = stateIter.next();
-				messagingFunction.set((Iterator<?>) edges.iterator(), out);
+				messagingFunction.set((Iterator<?>) edges.iterator(), out, newVertexState.getId());
 				messagingFunction.sendMessages(newVertexState);
 			}
 		}
@@ -437,7 +437,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 				messagingFunction.setInDegree(vertexWithDegrees.f1.f1);
 				messagingFunction.setOutDegree(vertexWithDegrees.f1.f2);
 
-				messagingFunction.set((Iterator<?>) edges.iterator(), out);
+				messagingFunction.set((Iterator<?>) edges.iterator(), out, vertexWithDegrees.getId());
 				messagingFunction.sendMessages(nextVertex);
 			}
 		}
