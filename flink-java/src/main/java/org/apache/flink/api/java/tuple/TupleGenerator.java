@@ -304,7 +304,7 @@ class TupleGenerator {
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(this.ds, this.fieldIndexes, tType, this);\n");
+			sb.append(">>(this.ds, this.fieldIndexes, tType);\n");
 
 			// method end
 			sb.append("\t\t}\n");
