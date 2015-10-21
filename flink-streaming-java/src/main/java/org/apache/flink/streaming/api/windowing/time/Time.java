@@ -51,16 +51,52 @@ public final class Time extends AbstractTime {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a time policy describing a processing time interval. The policy refers to the
-	 * time characteristic that is set on the dataflow via
+	 * Creates a new {@link Time} of the given duration and {@link TimeUnit}.
+	 *
+	 * <p>The {@code Time} refers to the time characteristic that is set on the dataflow via
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#
 	 * setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}.
 	 *
-	 * @param size The size of the generated windows.
-	 * @param unit The init (seconds, milliseconds) of the time interval.
+	 * @param size The duration of time.
+	 * @param unit The unit of time of the duration, for example {@code TimeUnit.SECONDS}.
 	 * @return The time policy.
 	 */
 	public static Time of(long size, TimeUnit unit) {
 		return new Time(size, unit);
+	}
+
+	/**
+	 * Creates a new {@link Time} that represents the given number of milliseconds.
+	 */
+	public static Time milliseconds(long milliseconds) {
+		return of(milliseconds, TimeUnit.MILLISECONDS);
+	}
+
+	/**
+	 * Creates a new {@link Time} that represents the given number of seconds.
+	 */
+	public static Time seconds(long seconds) {
+		return of(seconds, TimeUnit.SECONDS);
+	}
+
+	/**
+	 * Creates a new {@link Time} that represents the given number of minutes.
+	 */
+	public static Time minutes(long minutes) {
+		return of(minutes, TimeUnit.MINUTES);
+	}
+
+	/**
+	 * Creates a new {@link Time} that represents the given number of hours.
+	 */
+	public static Time hours(long hours) {
+		return of(hours, TimeUnit.HOURS);
+	}
+
+	/**
+	 * Creates a new {@link Time} that represents the given number of days.
+	 */
+	public static Time days(long days) {
+		return of(days, TimeUnit.DAYS);
 	}
 }
