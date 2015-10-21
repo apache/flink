@@ -439,11 +439,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					}
 				}
 				else {
-					// exit at some point so that we don't deadlock
-					if (numElementsEmitted > numElementsToEmit * 5) {
-//						running = false;
-						System.err.println("Succ Checkpoints: " + numSuccessfulCheckpoints + " numElemEmitted: " + numElementsEmitted + "num elements to emit: " + numElementsToEmit);
-					}
 
 					// if our work is done, delay a bit to prevent busy waiting
 					Thread.sleep(1);

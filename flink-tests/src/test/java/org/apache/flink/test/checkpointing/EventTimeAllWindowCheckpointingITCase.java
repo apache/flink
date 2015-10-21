@@ -432,17 +432,12 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					synchronized (ctx.getCheckpointLock()) {
 						int next = numElementsEmitted++;
 						for (long i = 0; i < numKeys; i++) {
-							ctx.collectWithTimestamp(new Tuple2<Long, IntType>(i, new IntType(next)), next);
+							ctx.collectWithTimestamp(new Tuple2<>(i, new IntType(next)), next);
 						}
 						ctx.emitWatermark(new Watermark(next));
 					}
 				}
 				else {
-					// exit at some point so that we don't deadlock
-					if (numElementsEmitted > numElementsToEmit * 5) {
-//						running = false;
-						System.err.println("Succ Checkpoints: " + numSuccessfulCheckpoints + " numElemEmitted: " + numElementsEmitted + "num elements to emit: " + numElementsToEmit);
-					}
 					// if our work is done, delay a bit to prevent busy waiting
 					Thread.sleep(1);
 				}
@@ -491,6 +486,22 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 		public void open(Configuration parameters) throws Exception {
 			// this sink can only work with DOP 1
 			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+
+			// it can happen that a checkpoint happens when the complete success state is
+			// already set. In that case we restart with the final state and would never
+			// finish because no more elements arrive.
+			if (windowCounts.size() == numKeys) {
+				boolean seenAll = true;
+				for (Integer windowCount: windowCounts.values()) {
+					if (windowCount != numWindowsExpected) {
+						seenAll = false;
+						break;
+					}
+				}
+				if (seenAll) {
+					throw new SuccessException();
+				}
+			}
 		}
 
 		@Override
@@ -498,7 +509,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			boolean seenAll = true;
 			if (windowCounts.size() == numKeys) {
 				for (Integer windowCount: windowCounts.values()) {
-					if (windowCount < numWindowsExpected) {
+					if (windowCount != numWindowsExpected) {
 						seenAll = false;
 						break;
 					}
