@@ -677,7 +677,7 @@ public class ExecutionConfig implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		/**
-		 * Convert UserConfig into a Map<String, String> representation.
+		 * Convert UserConfig into a {@code Map<String, String>} representation.
 		 * This can be used by the runtime, for example for presenting the user config in the web frontend.
 		 *
 		 * @return Key/Value representation of the UserConfig, or null.

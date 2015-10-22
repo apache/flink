@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 
 /**
- * Same as {@link WorkCount} but implements {@link ProgramDescription} interface.
+ * Same as {@link WordCount} but implements {@link ProgramDescription} interface.
  * 
  * <p>
  * The input is a plain text file with lines separated by newline characters.
@@ -35,7 +35,7 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData;
  * This example shows:
  * <ul>
  * <li>how to provide additional information (using {@link ProgramDescription} interface}, that can be displayed by
- * Flink clients, ie, {@link bin/flink} and WebClient</li>
+ * Flink clients, ie, bin/flink and WebClient</li>
  * </ul>
  * 
  */

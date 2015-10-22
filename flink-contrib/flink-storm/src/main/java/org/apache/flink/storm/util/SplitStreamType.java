@@ -20,10 +20,11 @@ package org.apache.flink.storm.util;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 /**
- * Used by {@link org.apache.flink.storm.wrappers.AbstractStormCollector AbstractStormCollector} to wrap
+ * Used by org.apache.flink.storm.wrappers.AbstractStormCollector to wrap
  * output tuples if multiple output streams are declared. For this case, the Flink output data stream must be split via
  * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector) .split(...)} using
  * {@link StormStreamSelector}.
+ *
  */
 public class SplitStreamType<T> {
 

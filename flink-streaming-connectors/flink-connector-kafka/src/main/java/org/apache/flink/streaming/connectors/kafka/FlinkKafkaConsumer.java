@@ -79,7 +79,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <ul>
  *     <li>{@link FetcherType#NEW_HIGH_LEVEL}: A fetcher based on the new Kafka consumer API.
  *         This fetcher is generally more robust, but works only with later versions of
- *         Kafka (> 0.8.2).</li>
+ *         Kafka (&gt; 0.8.2).</li>
  *         
  *     <li>{@link FetcherType#LEGACY_LOW_LEVEL}: A fetcher based on the old low-level consumer API.
  *         This fetcher is works also with older versions of Kafka (0.8.1). The fetcher interprets

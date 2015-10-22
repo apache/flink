@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * An intermediate iteration task, which runs a {@link org.apache.flink.runtime.operators.PactDriver} inside.
+ * An intermediate iteration task, which runs a {@link org.apache.flink.runtime.operators.Driver} inside.
  * <p>
  * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks. Furthermore
  * intermediate tasks can also update the iteration state, either the workset or the solution set.

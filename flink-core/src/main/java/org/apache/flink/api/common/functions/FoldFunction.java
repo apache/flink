@@ -25,12 +25,12 @@ import java.io.Serializable;
  * a single value, by applying a binary operation to an initial accumulator element every element from a group elements.
  * <p>
  * The basic syntax for using a FoldFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  *
  * X initialValue = ...;
  * DataSet<X> result = input.fold(new MyFoldFunction(), initialValue);
- * </blockquote></pre>
+ * }</pre>
  * <p>
  * Like all functions, the FoldFunction needs to be serializable, as defined in {@link java.io.Serializable}.
  *

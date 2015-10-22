@@ -49,7 +49,7 @@ import java.io.IOException;
  *
  * <p>
  * When using this you need to add the following line to your test class to setup Powermock:
- * {@code @PrepareForTest({ResultPartitionWriter.class})}
+ * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarness<OUT> {
 

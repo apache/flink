@@ -118,8 +118,8 @@ public final class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 	}
 
 	/**
-	 * Custom serialization methods.
-	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
+	 * Custom serialization methods
+	 * @see <a href="http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html">http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html</a>
 	 */
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		

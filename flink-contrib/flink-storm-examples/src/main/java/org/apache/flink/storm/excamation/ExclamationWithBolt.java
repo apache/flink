@@ -31,17 +31,14 @@ import backtype.storm.utils.Utils;
 
 /**
  * Implements the "Exclamation" program that attaches 3+x exclamation marks to every line of a text files in a streaming
- * fashion. The program is constructed as a regular {@link StormTopology}.
- * <p/>
- * <p/>
+ * fashion. The program is constructed as a regular {@link backtype.storm.generated.StormTopology}.
+ * <p>
  * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
+ * <p>
  * Usage:
- * <code>ExclamationWithmBolt &lt;text path&gt; &lt;result path&gt; &lt;number of exclamation marks&gt;</code><br/>
+ * <code>ExclamationWithmBolt &lt;text path&gt; &lt;result path&gt; &lt;number of exclamation marks&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData} with x=2.
- * <p/>
- * <p/>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>use a Bolt within a Flink Streaming program</li>

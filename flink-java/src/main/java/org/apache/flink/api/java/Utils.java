@@ -63,7 +63,6 @@ public final class Utils {
 	 * Returns all GenericTypeInfos contained in a composite type.
 	 *
 	 * @param typeInfo
-	 * @return
 	 */
 	public static void getContainedGenericTypes(CompositeType typeInfo, List<GenericTypeInfo<?>> target) {
 		for(int i = 0; i < typeInfo.getArity(); i++) {

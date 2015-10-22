@@ -92,7 +92,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A DataSet represents a collection of elements of the same type.<br/>
+ * A DataSet represents a collection of elements of the same type.<br>
  * A DataSet can be transformed into another DataSet by applying a transformation as for example 
  * <ul>
  *   <li>{@link DataSet#map(org.apache.flink.api.common.functions.MapFunction)},</li>
@@ -193,7 +193,7 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies a Map transformation on this DataSet.<br/>
+	 * Applies a Map transformation on this DataSet.<br>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.MapFunction} for each element of the DataSet.
 	 * Each MapFunction call returns exactly one element.
 	 * 
@@ -244,7 +244,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a FlatMap transformation on a {@link DataSet}.<br/>
+	 * Applies a FlatMap transformation on a {@link DataSet}.<br>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichFlatMapFunction} for each element of the DataSet.
 	 * Each FlatMapFunction call can return any number of elements including none.
 	 * 
@@ -266,7 +266,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a Filter transformation on a {@link DataSet}.<br/>
+	 * Applies a Filter transformation on a {@link DataSet}.<br>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichFilterFunction} for each element of the DataSet
 	 * and retains only those element for which the function returns true. Elements for 
 	 * which the function returns false are filtered. 
@@ -291,9 +291,9 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
-	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b><br/>
-	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.<br/>
+	 * Applies a Project transformation on a {@link Tuple} {@link DataSet}.<br>
+	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b><br>
+	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.<br>
 	 * Additional fields can be added to the projection by calling {@link ProjectOperator#project(int[])}.
 	 *
 	 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
@@ -315,7 +315,7 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies an Aggregate transformation on a non-grouped {@link Tuple} {@link DataSet}.<br/>
+	 * Applies an Aggregate transformation on a non-grouped {@link Tuple} {@link DataSet}.<br>
 	 * <b>Note: Only Tuple DataSets can be aggregated.</b>
 	 * The transformation applies a built-in {@link Aggregations Aggregation} on a specified field 
 	 *   of a Tuple DataSet. Additional aggregation functions can be added to the resulting 
@@ -424,7 +424,7 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br/>
+	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br>
 	 * The transformation consecutively calls a {@link org.apache.flink.api.common.functions.RichReduceFunction}
 	 *   until only a single element remains which is the result of the transformation.
 	 * A ReduceFunction combines two elements into one new element of the same type.
@@ -444,7 +444,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>
+	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} once with the full DataSet.
 	 * The GroupReduceFunction can iterate over all elements of the DataSet and emit any
 	 *   number of output elements including none.
@@ -561,7 +561,7 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Returns a new set containing the first n elements in this {@link DataSet}.<br/>
+	 * Returns a new set containing the first n elements in this {@link DataSet}.<br>
 	 * @param n The desired number of elements.
 	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
 	*/
@@ -640,7 +640,7 @@ public abstract class DataSet<T> {
 	/**
 	 * Groups a {@link DataSet} using a {@link KeySelector} function. 
 	 * The KeySelector function is called for each element of the DataSet and extracts a single 
-	 *   key value on which the DataSet is grouped. <br/>
+	 *   key value on which the DataSet is grouped. <br>
 	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
 	 *   can be applied. 
 	 * <ul>
@@ -666,8 +666,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Groups a {@link Tuple} {@link DataSet} using field position keys.<br/> 
-	 * <b>Note: Field position keys only be specified for Tuple DataSets.</b><br/>
+	 * Groups a {@link Tuple} {@link DataSet} using field position keys.<br> 
+	 * <b>Note: Field position keys only be specified for Tuple DataSets.</b><br>
 	 * The field position keys specify the fields of Tuples on which the DataSet is grouped.
 	 * This method returns an {@link UnsortedGrouping} on which one of the following grouping transformation 
 	 *   can be applied. 
@@ -724,10 +724,10 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Initiates a Join transformation. <br/>
+	 * Initiates a Join transformation. <br>
 	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * 
 	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
@@ -743,10 +743,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Join transformation. <br/>
+	 * Initiates a Join transformation. <br>
 	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * 
 	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
@@ -764,12 +764,12 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Join transformation. <br/>
+	 * Initiates a Join transformation. <br>
 	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
-	 *   smaller than the first one.<br/>
+	 *   smaller than the first one.<br>
 	 * This method returns a {@link JoinOperatorSets} on which
 	 *   {@link JoinOperatorSets#where(String...)} needs to be called to define the join key of the first
 	 *   joining (i.e., this) DataSet.
@@ -785,12 +785,12 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Join transformation.<br/>
+	 * Initiates a Join transformation.<br>
 	 * A Join transformation joins the elements of two 
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
-	 *   larger than the first one.<br/>
+	 *   larger than the first one.<br>
 	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 *  
@@ -805,10 +805,10 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Left Outer Join transformation.<br/>
+	 * Initiates a Left Outer Join transformation.<br>
 	 * An Outer Join transformation joins two elements of two
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * Elements of the <b>left</b> DataSet (i.e. {@code this}) that do not have a matching
 	 *   element on the other side are joined with {@code null} and emitted to the
 	 *   resulting DataSet.
@@ -824,10 +824,10 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Left Outer Join transformation.<br/>
+	 * Initiates a Left Outer Join transformation.<br>
 	 * An Outer Join transformation joins two elements of two
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * Elements of the <b>left</b> DataSet (i.e. {@code this}) that do not have a matching
 	 *   element on the other side are joined with {@code null} and emitted to the
 	 *   resulting DataSet.
@@ -854,10 +854,10 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Right Outer Join transformation.<br/>
+	 * Initiates a Right Outer Join transformation.<br>
 	 * An Outer Join transformation joins two elements of two
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * Elements of the <b>right</b> DataSet (i.e. {@code other}) that do not have a matching
 	 *   element on {@code this} side are joined with {@code null} and emitted to the
 	 *   resulting DataSet.
@@ -873,10 +873,10 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Right Outer Join transformation.<br/>
+	 * Initiates a Right Outer Join transformation.<br>
 	 * An Outer Join transformation joins two elements of two
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * Elements of the <b>right</b> DataSet (i.e. {@code other}) that do not have a matching
 	 *   element on {@code this} side are joined with {@code null} and emitted to the
 	 *   resulting DataSet.
@@ -902,10 +902,10 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Full Outer Join transformation.<br/>
+	 * Initiates a Full Outer Join transformation.<br>
 	 * An Outer Join transformation joins two elements of two
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * Elements of <b>both</b> DataSets that do not have a matching
 	 *   element on the opposing side are joined with {@code null} and emitted to the
 	 *   resulting DataSet.
@@ -921,10 +921,10 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Initiates a Full Outer Join transformation.<br/>
+	 * Initiates a Full Outer Join transformation.<br>
 	 * An Outer Join transformation joins two elements of two
 	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine
-	 *   joining elements into one DataSet.<br/>
+	 *   joining elements into one DataSet.<br>
 	 * Elements of <b>both</b> DataSets that do not have a matching
 	 *   element on the opposing side are joined with {@code null} and emitted to the
 	 *   resulting DataSet.
@@ -953,14 +953,14 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Initiates a CoGroup transformation.<br/>
+	 * Initiates a CoGroup transformation.<br>
 	 * A CoGroup transformation combines the elements of
 	 *   two {@link DataSet DataSets} into one DataSet. It groups each DataSet individually on a key and 
 	 *   gives groups of both DataSets with equal keys together into a {@link org.apache.flink.api.common.functions.RichCoGroupFunction}.
 	 *   If a DataSet has a group with no matching key in the other DataSet, the CoGroupFunction
-	 *   is called with an empty group for the non-existing group.<br/>
+	 *   is called with an empty group for the non-existing group.<br>
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
-	 *   of elements including none.<br/>
+	 *   of elements including none.<br>
 	 * This method returns a {@link CoGroupOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 * 
@@ -981,8 +981,8 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Continues a Join transformation and defines the {@link Tuple} fields of the second join 
-	 * {@link DataSet} that should be used as join keys.<br/>
-	 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
+	 * {@link DataSet} that should be used as join keys.<br>
+	 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br>
 	 * 
 	 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
@@ -993,7 +993,7 @@ public abstract class DataSet<T> {
 	 */
 	
 	/**
-	 * Initiates a Cross transformation.<br/>
+	 * Initiates a Cross transformation.<br>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
 	 *   both DataSets, i.e., it builds a Cartesian product.
@@ -1006,7 +1006,7 @@ public abstract class DataSet<T> {
 	 * <p>
 	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
-	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br/>
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
@@ -1021,7 +1021,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Cross transformation.<br/>
+	 * Initiates a Cross transformation.<br>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
 	 *   both DataSets, i.e., it builds a Cartesian product.
@@ -1036,7 +1036,7 @@ public abstract class DataSet<T> {
 	 * <p>
 	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
-	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br/>
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
@@ -1051,7 +1051,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Initiates a Cross transformation.<br/>
+	 * Initiates a Cross transformation.<br>
 	 * A Cross transformation combines the elements of two 
 	 *   {@link DataSet DataSets} into one DataSet. It builds all pair combinations of elements of 
 	 *   both DataSets, i.e., it builds a Cartesian product.
@@ -1066,7 +1066,7 @@ public abstract class DataSet<T> {
 	 * <p>
 	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
-	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br/>
+	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.<br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
@@ -1343,7 +1343,7 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * Writes a DataSet as a text file to the specified location.<br>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
 	 * 
 	 * @param filePath The path pointing to the location the text file is written to.
@@ -1356,7 +1356,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * Writes a DataSet as a text file to the specified location.<br>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
 	 * 
 	 * @param filePath The path pointing to the location the text file is written to.
@@ -1372,7 +1372,7 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * Writes a DataSet as a text file to the specified location.<br>
 	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
 	 *
 	 * @param filePath The path pointing to the location the text file is written to.
@@ -1386,7 +1386,7 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * Writes a DataSet as a text file to the specified location.<br>
 	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
 	 *
 	 * @param filePath The path pointing to the location the text file is written to.
@@ -1401,10 +1401,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br/>
-	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
 	 * For each Tuple field the result of {@link Object#toString()} is written.
-	 * Tuple fields are separated by the default field delimiter {@code "comma" (,)}.<br/>
+	 * Tuple fields are separated by the default field delimiter {@code "comma" (,)}.<br>
 	 * Tuples are are separated by the newline character ({@code \n}).
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
@@ -1418,10 +1418,10 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br/>
-	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location.<br>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
 	 * For each Tuple field the result of {@link Object#toString()} is written.
-	 * Tuple fields are separated by the default field delimiter {@code "comma" (,)}.<br/>
+	 * Tuple fields are separated by the default field delimiter {@code "comma" (,)}.<br>
 	 * Tuples are are separated by the newline character ({@code \n}).
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
@@ -1436,8 +1436,8 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location with the specified field and line delimiters.<br/>
-	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location with the specified field and line delimiters.<br>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
 	 * For each Tuple field the result of {@link Object#toString()} is written.
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
@@ -1452,9 +1452,9 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location with the specified field and line delimiters.<br/>
-	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br/>
-	 * For each Tuple field the result of {@link Object#toString()} is written.
+	 * Writes a {@link Tuple} DataSet as a CSV file to the specified location with the specified field and line delimiters.<br>
+	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
+§	 * For each Tuple field the result of {@link Object#toString()} is written.
 	 * 
 	 * @param filePath The path pointing to the location the CSV file is written to.
 	 * @param rowDelimiter The row delimiter to separate Tuples.

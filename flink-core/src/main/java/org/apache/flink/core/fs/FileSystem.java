@@ -162,8 +162,6 @@ public abstract class FileSystem {
 	 * 
 	 * @return a reference to the {@link FileSystem} instance for accessing the
 	 *         local file system.
-	 * @throws IOException
-	 *         thrown if a reference to the file system instance could not be obtained
 	 */
 	public static FileSystem getLocalFileSystem() {
 		// this should really never fail.
@@ -485,20 +483,20 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on local file systems according to the given write mode.
 	 * 
-	 * WriteMode.CREATE & parallel output:
+	 * WriteMode.CREATE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
 	 *  - An existing file raises an exception.
 	 *    
-	 * WriteMode.CREATE & NONE parallel output:
+	 * WriteMode.CREATE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception.
 	 *  
-	 * WriteMode.OVERWRITE & parallel output:
+	 * WriteMode.OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
 	 *  - An existing file is deleted and replaced by a new directory.
 	 *  
-	 * WriteMode.OVERWRITE & NONE parallel output:
+	 * WriteMode.OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory (and all its content) is deleted
 	 * 
 	 * Files contained in an existing directory are not deleted, because multiple instances of a 
@@ -646,19 +644,19 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on distributed file systems according to the given write mode.
 	 * 
-	 * WriteMode.CREATE & parallel output:
+	 * WriteMode.CREATE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing file or directory raises an exception.
 	 * 
-	 * WriteMode.CREATE & NONE parallel output:
+	 * WriteMode.CREATE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception. 
 	 *    
-	 * WriteMode.OVERWRITE & parallel output:
+	 * WriteMode.OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory and its content is deleted and a new directory is created.
 	 *  - An existing file is deleted and replaced by a new directory.
 	 *  
-	 *  WriteMode.OVERWRITE & NONE parallel output:
+	 *  WriteMode.OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory is deleted and replaced by a new directory.
 	 * 
 	 * @param outPath Output path that should be prepared.

@@ -57,7 +57,7 @@ import java.util.List;
  *
  * <p>
  * When using this you need to add the following line to your test class to setup Powermock:
- * {@code @PrepareForTest({ResultPartitionWriter.class})}
+ * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTestHarness<OUT> {
 

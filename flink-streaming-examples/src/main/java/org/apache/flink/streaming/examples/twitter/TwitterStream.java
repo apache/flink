@@ -31,16 +31,15 @@ import java.util.StringTokenizer;
 /**
  * Implements the "TwitterStream" program that computes a most used word
  * occurrence over JSON files in a streaming fashion.
- * <p/>
- * <p/>
+ * <p>
  * The input is a JSON text file with lines separated by newline characters.
- * <p/>
- * <p/>
+ * </p>
+ * <p>
  * Usage: <code>TwitterStream &lt;text path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link TwitterStreamData}.
- * <p/>
- * <p/>
+ * </p>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>acquire external data,
@@ -88,13 +87,11 @@ public class TwitterStream {
 
 	/**
 	 * Makes sentences from English tweets.
-	 * <p/>
 	 * <p>
 	 * Implements a string tokenizer that splits sentences into words as a
 	 * user-defined FlatMapFunction. The function takes a line (String) and
-	 * splits it into multiple pairs in the form of "(word,1)" (Tuple2<String,
-	 * Integer>).
-	 * </p>
+	 * splits it into multiple pairs in the form of "(word,1)" ({@code Tuple2<String,
+	 * Integer>}).
 	 */
 	public static class SelectEnglishAndTokenizeFlatMap extends JSONParseFlatMap<String, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;

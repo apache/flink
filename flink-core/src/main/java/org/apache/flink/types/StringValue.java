@@ -377,7 +377,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * @param prefix The prefix character sequence.
 	 * @param startIndex The position to start checking for the prefix.
 	 * 
-	 * @return True, if this StringValue substring, starting at position <code>startIndex</code> has </code>prefix</code>
+	 * @return True, if this StringValue substring, starting at position <code>startIndex</code> has <code>prefix</code>
 	 *         as its prefix.
 	 */
 	public boolean startsWith(CharSequence prefix, int startIndex) {
@@ -403,7 +403,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	 * 
 	 * @param prefix The prefix character sequence.
 	 * 
-	 * @return True, if this StringValue has </code>prefix</code> as its prefix.
+	 * @return True, if this StringValue has <code>prefix</code> as its prefix.
 	 */
 	public boolean startsWith(CharSequence prefix) {
 		return startsWith(prefix, 0);

@@ -34,15 +34,12 @@ import org.apache.flink.util.Collector;
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The used data source is a {@link IRichSpout Spout}.
- * <p/>
- * <p/>
+ * <p>
  * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
+ * <p>
  * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p/>
- * <p/>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>use a Spout within a Flink Streaming program.</li>
@@ -89,7 +86,7 @@ public class SpoutSourceWordCount {
 
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined FlatMapFunction. The function
-	 * takes a line (String) and splits it into multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 * takes a line (String) and splits it into multiple pairs in the form of "(word,1)" ({@code Tuple2<String, Integer>}).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;

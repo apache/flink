@@ -30,12 +30,12 @@ import org.apache.flink.util.Collector;
 
 /**
  * This class must be extended by functions that compute the state of the vertex depending on the old state and the
- * incoming messages. The central method is {@link #updateVertex(Comparable, Object, MessageIterator)}, which is
+ * incoming messages. The central method is {@link #updateVertex(Vertex, MessageIterator)}, which is
  * invoked once per vertex per superstep.
  * 
- * <K> The vertex key type.
- * <VV> The vertex value type.
- * <Message> The message type.
+ * {@code <K>} The vertex key type.
+ * {@code <VV>} The vertex value type.
+ * {@code <Message>} The message type.
  */
 public abstract class VertexUpdateFunction<K, VV, Message> implements Serializable {
 
@@ -50,7 +50,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 
 	/**
 	 * Retrieves the number of vertices in the graph.
-	 * @return the number of vertices if the {@link IterationConfiguration#setOptNumVertices(boolean)}
+	 * @return the number of vertices if the {@link org.apache.flink.graph.IterationConfiguration#setOptNumVertices(boolean)}
 	 * option has been set; -1 otherwise.
 	 */
 	public long getNumberOfVertices() {
@@ -206,8 +206,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 
 	/**
 	 * Retrieves the vertex in-degree (number of in-coming edges).
-	 * @return The in-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
-	 * option has been set; -1 otherwise. 
+	 * @return The in-degree of this vertex
 	 */
 	public long getInDegree() {
 		return inDegree;
@@ -219,8 +218,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 
 	/**
 	 * Retrieve the vertex out-degree (number of out-going edges).
-	 * @return The out-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
-	 * option has been set; -1 otherwise. 
+	 * @return The out-degree of this vertex
 	 */
 	public long getOutDegree() {
 		return outDegree;
