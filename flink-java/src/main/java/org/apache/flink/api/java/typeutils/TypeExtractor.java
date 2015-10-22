@@ -1311,7 +1311,9 @@ public class TypeExtractor {
 				fieldType = materializeTypeVariable(typeHierarchy, (TypeVariable<?>)fieldType);
 			}
 			for(Method m : clazz.getMethods()) {
-				final String methodNameLow = m.getName().toLowerCase().replaceAll("_", "");
+				final String methodNameLow = m.getName().endsWith("_$eq") ?
+						m.getName().toLowerCase().replaceAll("_", "").replaceFirst("\\$eq$", "_\\$eq") :
+						m.getName().toLowerCase().replaceAll("_", "");
 
 				// check for getter
 				if(	// The name should be "get<FieldName>" or "<fieldName>" (for scala) or "is<fieldName>" for boolean fields.
