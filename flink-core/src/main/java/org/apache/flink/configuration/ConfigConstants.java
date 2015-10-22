@@ -414,7 +414,7 @@ public final class ConfigConstants {
 	 * File system state backend base path for recoverable state handles. Recovery state is written
 	 * to this path and the file state handles are persisted for recovery.
 	 */
-	public static final String STATE_BACKEND_FS_RECOVERY_PATH = "state.backend.fs.dir.recovery";
+	public static final String STATE_BACKEND_FS_RECOVERY_PATH = "state.backend.fs.recoverydir";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
