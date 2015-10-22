@@ -241,10 +241,12 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	protected void emitWindow(Context context) throws Exception {
 		timestampedCollector.setTimestamp(context.window.maxTimestamp());
 
-		userFunction.apply(
-				context.window,
-				context.windowBuffer.getUnpackedElements(),
-				timestampedCollector);
+		if (context.windowBuffer.size() > 0) {
+			userFunction.apply(
+					context.window,
+					context.windowBuffer.getUnpackedElements(),
+					timestampedCollector);
+		}
 	}
 
 	private void processTriggerResult(Trigger.TriggerResult triggerResult, W window) throws Exception {

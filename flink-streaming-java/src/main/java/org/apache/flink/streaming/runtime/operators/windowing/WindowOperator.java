@@ -286,10 +286,15 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	protected void emitWindow(Context context) throws Exception {
 		timestampedCollector.setTimestamp(context.window.maxTimestamp());
 
-		userFunction.apply(context.key,
-				context.window,
-				context.windowBuffer.getUnpackedElements(),
-				timestampedCollector);
+
+		if (context.windowBuffer.size() > 0) {
+			setKeyContextElement(context.windowBuffer.getElements().iterator().next());
+
+			userFunction.apply(context.key,
+					context.window,
+					context.windowBuffer.getUnpackedElements(),
+					timestampedCollector);
+		}
 	}
 
 	private void processTriggerResult(Trigger.TriggerResult triggerResult, K key, W window) throws Exception {
