@@ -276,11 +276,11 @@ public class ZooKeeperUtils {
 			String prefix) throws IOException {
 
 		String rootPath = configuration.getString(
-			ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, "");
+			ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "");
 
 		if (rootPath.equals("")) {
 			throw new IllegalConfigurationException("Missing recovery path. Specify via " +
-				"configuration key '" + ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH + "'.");
+				"configuration key '" + ConfigConstants.ZOOKEEPER_RECOVERY_PATH + "'.");
 		} else {
 			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
 		}

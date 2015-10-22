@@ -56,7 +56,7 @@ In high availabliity mode, all Flink components try to connect to a JobManager v
 
 - The following configuration keys are optional:
 
-  - `recovery.zookeeper.dir: /flink [default]`: ZooKeeper directory to use for coordination
+  - `recovery.zookeeper.path.root: /flink [default]`: ZooKeeper directory to use for coordination
   - TODO Add client configuration keys
 
 ## Starting an HA-cluster

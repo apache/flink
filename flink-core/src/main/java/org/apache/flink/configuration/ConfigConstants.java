@@ -410,12 +410,6 @@ public final class ConfigConstants {
 	 */
 	public static final String STATE_BACKEND = "state.backend";
 	
-	/**
-	 * File system state backend base path for recoverable state handles. Recovery state is written
-	 * to this path and the file state handles are persisted for recovery.
-	 */
-	public static final String STATE_BACKEND_FS_RECOVERY_PATH = "state.backend.fs.recoverydir";
-	
 	// ----------------------------- Miscellaneous ----------------------------
 	
 	/**
@@ -435,21 +429,27 @@ public final class ConfigConstants {
 	/** ZooKeeper servers. */
 	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
 
+	/**
+	 * File system state backend base path for recoverable state handles. Recovery state is written
+	 * to this path and the file state handles are persisted for recovery.
+	 */
+	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
+
 	/** ZooKeeper root path. */
-	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.dir";
+	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
 
-	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.dir.latch";
+	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
 
-	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.dir.leader";
+	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
 
 	/** ZooKeeper root path (ZNode) for job graphs. */
-	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.dir.jobgraphs";
+	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
 
 	/** ZooKeeper root path (ZNode) for completed checkpoints. */
-	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.dir.checkpoints";
+	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
 
 	/** ZooKeeper root path (ZNode) for checkpoint counters. */
-	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.dir.checkpoint-counter";
+	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
 
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
