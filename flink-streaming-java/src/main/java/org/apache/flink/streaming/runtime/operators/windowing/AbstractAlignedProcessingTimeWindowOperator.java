@@ -239,7 +239,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	private void computeWindow(long timestamp) throws Exception {
 		out.setTimestamp(timestamp);
 		panes.truncatePanes(numPanesPerWindow);
-		panes.evaluateWindow(out, new TimeWindow(timestamp, timestamp + windowSize));
+		panes.evaluateWindow(out, new TimeWindow(timestamp, timestamp + windowSize), this);
 	}
 
 	// ------------------------------------------------------------------------
