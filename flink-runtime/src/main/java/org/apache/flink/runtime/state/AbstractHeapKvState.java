@@ -88,7 +88,8 @@ public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Bac
 	@Override
 	public V value() {
 		V value = state.get(currentKey);
-		return value != null ? value : defaultValue;
+		return value != null ? value : 
+				(defaultValue == null ? null : valueSerializer.copy(defaultValue));
 	}
 
 	@Override
