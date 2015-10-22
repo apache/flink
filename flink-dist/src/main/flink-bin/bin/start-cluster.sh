@@ -17,32 +17,45 @@
 # limitations under the License.
 ################################################################################
 
+# Start a Flink cluster in batch or streaming mode
+USAGE="Usage: start-cluster.sh [batch|streaming]"
+
+STREAMING_MODE=$1
+
+if [[ -z $STREAMING_MODE ]]; then
+    STREAMING_MODE="batch"
+fi
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-HOSTLIST=$FLINK_SLAVES
+# Start the JobManager instance(s)
+shopt -s nocasematch
+if [[ $RECOVERY_MODE == "zookeeper" ]]; then
+    # HA Mode
+    readMasters
 
-if [ "$HOSTLIST" = "" ]; then
-    HOSTLIST="${FLINK_CONF_DIR}/slaves"
+    echo "Starting HA cluster (${STREAMING_MODE} mode) with ${#MASTERS[@]} masters and ${#ZK_QUORUM[@]} peers in ZooKeeper quorum."
+
+    for ((i=0;i<${#MASTERS[@]};++i)); do
+        master=${MASTERS[i]}
+        webuiport=${WEBUIPORTS[i]}
+        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start cluster ${STREAMING_MODE} ${master} ${webuiport} &"
+    done
+
+else
+    echo "Starting cluster (${STREAMING_MODE} mode)."
+
+    # Start single JobManager on this machine
+    "$FLINK_BIN_DIR"/jobmanager.sh start cluster ${STREAMING_MODE}
 fi
+shopt -u nocasematch
 
-if [ ! -f "$HOSTLIST" ]; then
-    echo $HOSTLIST is not a valid slave list
-    exit 1
-fi
+# Start TaskManager instance(s)
+readSlaves
 
-# cluster mode, bring up job manager locally and a task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh start cluster batch
-
-GOON=true
-while $GOON
-do
-    read line || GOON=false
-    HOST=$( extractHostName $line)
-    if [ -n "$HOST" ]; then
-        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash -l $FLINK_BIN_DIR/taskmanager.sh start batch &"
-    fi
-done < "$HOSTLIST"
+for slave in ${SLAVES[@]}; do
+    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start ${STREAMING_MODE} &"
+done

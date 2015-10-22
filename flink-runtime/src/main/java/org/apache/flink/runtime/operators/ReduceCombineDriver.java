@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
@@ -45,7 +45,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @param <T> The data type consumed and produced by the combiner.
  */
-public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> {
+public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ReduceCombineDriver.class);
 
@@ -53,7 +53,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 	
 	
-	private PactTaskContext<ReduceFunction<T>, T> taskContext;
+	private TaskContext<ReduceFunction<T>, T> taskContext;
 
 	private TypeSerializer<T> serializer;
 
@@ -63,11 +63,11 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 	
 	private Collector<T> output;
 	
-	private MemoryManager memManager;
-	
 	private InMemorySorter<T> sorter;
 	
 	private QuickSort sortAlgo = new QuickSort();
+
+	private List<MemorySegment> memory;
 
 	private boolean running;
 
@@ -77,7 +77,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<ReduceFunction<T>, T> context) {
+	public void setup(TaskContext<ReduceFunction<T>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -105,10 +105,6 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 			throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for reduce combiner.");
 		}
 		
-		this.memManager = this.taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig()
-				.getRelativeMemoryDriver());
-		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.comparator = this.taskContext.getDriverComparator(0);
@@ -116,7 +112,10 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 		this.reducer = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();
 
-		final List<MemorySegment> memory = this.memManager.allocatePages(this.taskContext.getOwningNepheleTask(), numMemoryPages);
+		MemoryManager memManager = this.taskContext.getMemoryManager();
+		final int numMemoryPages = memManager.computeNumberOfPages(
+				this.taskContext.getTaskConfig().getRelativeMemoryDriver());
+		this.memory = memManager.allocatePages(this.taskContext.getOwningNepheleTask(), numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (this.comparator.supportsSerializationWithKeyNormalization() &&
@@ -144,22 +143,43 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
 		final TypeSerializer<T> serializer = this.serializer;
 		
-		T value = serializer.createInstance();
+		if (objectReuseEnabled) {
+			T value = serializer.createInstance();
 		
-		while (running && (value = in.next(value)) != null) {
-			
-			// try writing to the sorter first
-			if (this.sorter.write(value)) {
-				continue;
+			while (running && (value = in.next(value)) != null) {
+				
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
+		
+				// do the actual sorting, combining, and data writing
+				sortAndCombine();
+				this.sorter.reset();
+				
+				// write the value again
+				if (!this.sorter.write(value)) {
+					throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+				}
 			}
-	
-			// do the actual sorting, combining, and data writing
-			sortAndCombine();
-			this.sorter.reset();
-			
-			// write the value again
-			if (!this.sorter.write(value)) {
-				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+		}
+		else {
+			T value;
+			while (running && (value = in.next()) != null) {
+
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
+
+				// do the actual sorting, combining, and data writing
+				sortAndCombine();
+				this.sorter.reset();
+
+				// write the value again
+				if (!this.sorter.write(value)) {
+					throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+				}
 			}
 		}
 		
@@ -175,11 +195,8 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 			
 			final TypeSerializer<T> serializer = this.serializer;
 			final TypeComparator<T> comparator = this.comparator;
-			
 			final ReduceFunction<T> function = this.reducer;
-			
 			final Collector<T> output = this.output;
-			
 			final MutableObjectIterator<T> input = sorter.getIterator();
 
 			if (objectReuseEnabled) {
@@ -215,7 +232,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 					}
 				}
 			} else {
-				T value = input.next(serializer.createInstance());
+				T value = input.next();
 
 				// iterate over key groups
 				while (this.running && value != null) {
@@ -223,7 +240,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 					T res = value;
 
 					// iterate within a key group
-					while ((value = input.next(serializer.createInstance())) != null) {
+					while ((value = input.next()) != null) {
 						if (comparator.equalToReference(value)) {
 							// same group, reduce
 							res = function.reduce(res, value);
@@ -241,12 +258,21 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 
 	@Override
 	public void cleanup() {
-		this.memManager.release(this.sorter.dispose());
+		this.sorter.dispose();
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 
 	@Override
 	public void cancel() {
 		this.running = false;
-		this.memManager.release(this.sorter.dispose());
+		
+		try {
+			this.sorter.dispose();
+		}
+		catch (Exception e) {
+			// may happen during concurrent modifications
+		}
+
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 }

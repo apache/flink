@@ -20,11 +20,10 @@ package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -80,17 +79,8 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	}
 
 	public JobExecutionResult toJobExecutionResult(ClassLoader loader) throws IOException, ClassNotFoundException {
-		Map<String, Object> accumulators = null;
-		if (accumulatorResults != null) {
-			accumulators = accumulatorResults.isEmpty() ?
-									Collections.<String, Object>emptyMap() :
-									new HashMap<String, Object>(this.accumulatorResults.size());
-
-			for (Map.Entry<String, SerializedValue<Object>> entry : this.accumulatorResults.entrySet()) {
-				Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
-				accumulators.put(entry.getKey(), o);
-			}
-		}
+		Map<String, Object> accumulators =
+				AccumulatorHelper.deserializeAccumulators(accumulatorResults, loader);
 
 		return new JobExecutionResult(jobId, netRuntime, accumulators);
 	}

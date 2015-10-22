@@ -40,19 +40,19 @@ import org.slf4j.LoggerFactory;
  * @param <OT> The mapper's output data type.
  */
 @SuppressWarnings("deprecation")
-public class CollectorMapDriver<IT, OT> implements PactDriver<GenericCollectorMap<IT, OT>, OT> {
+public class CollectorMapDriver<IT, OT> implements Driver<GenericCollectorMap<IT, OT>, OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CollectorMapDriver.class);
 
 
-	private PactTaskContext<GenericCollectorMap<IT, OT>, OT> taskContext;
+	private TaskContext<GenericCollectorMap<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
 
 	private boolean objectReuseEnabled = false;
 
 	@Override
-	public void setup(PactTaskContext<GenericCollectorMap<IT, OT>, OT> context) {
+	public void setup(TaskContext<GenericCollectorMap<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

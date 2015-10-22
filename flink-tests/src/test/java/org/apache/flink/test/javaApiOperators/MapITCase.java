@@ -19,21 +19,17 @@
 package org.apache.flink.test.javaApiOperators;
 
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.apache.flink.api.java.DataSet;
@@ -44,22 +40,6 @@ public class MapITCase extends MultipleProgramsTestBase {
 
 	public MapITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -74,10 +54,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<String> identityMapDs = ds.
 				map(new Mapper1());
 
-		identityMapDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = identityMapDs.collect();
 
-		expected = "Hi\n" +
+		String expected = "Hi\n" +
 				"Hello\n" +
 				"Hello world\n" +
 				"Hello world, how are you?\n" +
@@ -85,6 +64,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"Luke Skywalker\n" +
 				"Random comment\n" +
 				"LOL\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class Mapper1 implements MapFunction<String, String> {
@@ -108,10 +89,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds.
 				map(new Mapper2());
 
-		identityMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"2,2,Hello\n" +
 				"3,2,Hello world\n" +
 				"4,3,Hello world, how are you?\n" +
@@ -132,6 +112,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"19,6,Comment#13\n" +
 				"20,6,Comment#14\n" +
 				"21,6,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class Mapper2 implements MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
@@ -139,7 +121,7 @@ public class MapITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value)
-		throws Exception {
+				throws Exception {
 			return value;
 		}
 	}
@@ -156,10 +138,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> typeConversionMapDs = ds.
 				map(new Mapper3());
 
-		typeConversionMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = typeConversionMapDs.collect();
 
-		expected = "1,0,Hi\n" +
+		String expected = "1,0,Hi\n" +
 				"2,1,Hello\n" +
 				"2,2,Hello world\n" +
 				"3,3,Hello world, how are you?\n" +
@@ -180,6 +161,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"6,18,Comment#13\n" +
 				"6,19,Comment#14\n" +
 				"6,20,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class Mapper3 implements MapFunction<CustomType, Tuple3<Integer, Long, String>> {
@@ -207,10 +190,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<String> typeConversionMapDs = ds.
 				map(new Mapper4());
 
-		typeConversionMapDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = typeConversionMapDs.collect();
 
-		expected = "Hi\n" + "Hello\n" + "Hello world\n" +
+		String expected = "Hi\n" + "Hello\n" + "Hello world\n" +
 				"Hello world, how are you?\n" +
 				"I am fine.\n" + "Luke Skywalker\n" +
 				"Comment#1\n" +	"Comment#2\n" +
@@ -221,6 +203,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"Comment#11\n" + "Comment#12\n" +
 				"Comment#13\n" + "Comment#14\n" +
 				"Comment#15\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class Mapper4 implements MapFunction<Tuple3<Integer, Long, String>, String> {
@@ -234,7 +218,7 @@ public class MapITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testMapperOnTupleIncrementIntegerFieldReorderSecondAndThirdFields() throws
-			Exception {
+	Exception {
 		/*
 		 * Test mapper on tuple - Increment Integer field, reorder second and third fields
 		 */
@@ -245,10 +229,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, String, Long>> tupleMapDs = ds.
 				map(new Mapper5());
 
-		tupleMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, String, Long>> result = tupleMapDs.collect();
 
-		expected = "2,Hi,1\n" +
+		String expected = "2,Hi,1\n" +
 				"3,Hello,2\n" +
 				"4,Hello world,2\n" +
 				"5,Hello world, how are you?,3\n" +
@@ -269,6 +252,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"20,Comment#13,6\n" +
 				"21,Comment#14,6\n" +
 				"22,Comment#15,6\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class Mapper5 implements MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, String, Long>> {
@@ -277,7 +262,7 @@ public class MapITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple3<Integer, String, Long> map(Tuple3<Integer, Long, String> value)
-		throws Exception {
+				throws Exception {
 			Integer incr = Integer.valueOf(value.f0.intValue() + 1);
 			out.setFields(incr, value.f2, value.f1);
 			return out;
@@ -296,10 +281,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> customMapDs = ds.
 				map(new Mapper6());
 
-		customMapDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = customMapDs.collect();
 
-		expected = "1,0,hi\n" +
+		String expected = "1,0,hi\n" +
 				"2,1,hello\n" +
 				"2,2,hello world\n" +
 				"3,3,hello world, how are you?\n" +
@@ -320,6 +304,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"6,18,comment#13\n" +
 				"6,19,comment#14\n" +
 				"6,20,comment#15\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class Mapper6 implements MapFunction<CustomType, CustomType> {
@@ -347,10 +333,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> inputObjMapDs = ds.
 				map(new Mapper7());
 
-		inputObjMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = inputObjMapDs.collect();
 
-		expected = "2,1,Hi\n" +
+		String expected = "2,1,Hi\n" +
 				"3,2,Hello\n" +
 				"4,2,Hello world\n" +
 				"5,3,Hello world, how are you?\n" +
@@ -371,6 +356,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"20,6,Comment#13\n" +
 				"21,6,Comment#14\n" +
 				"22,6,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class Mapper7 implements MapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
@@ -378,7 +365,7 @@ public class MapITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value)
-		throws Exception {
+				throws Exception {
 			Integer incr = Integer.valueOf(value.f0.intValue() + 1);
 			value.setField(incr, 0);
 			return value;
@@ -398,10 +385,9 @@ public class MapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> bcMapDs = ds.
 				map(new RichMapper1()).withBroadcastSet(ints, "ints");
-		bcMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = bcMapDs.collect();
 
-		expected = "55,1,Hi\n" +
+		String expected = "55,1,Hi\n" +
 				"55,2,Hello\n" +
 				"55,2,Hello world\n" +
 				"55,3,Hello world, how are you?\n" +
@@ -422,6 +408,8 @@ public class MapITCase extends MultipleProgramsTestBase {
 				"55,6,Comment#13\n" +
 				"55,6,Comment#14\n" +
 				"55,6,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class RichMapper1 extends RichMapFunction<Tuple3<Integer,Long,String>,
@@ -442,7 +430,7 @@ public class MapITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value)
-		throws Exception {
+				throws Exception {
 			out.setFields(f2Replace, value.f1, value.f2);
 			return out;
 		}
@@ -464,12 +452,13 @@ public class MapITCase extends MultipleProgramsTestBase {
 		conf.setInteger(testKey, testValue);
 		DataSet<Tuple3<Integer, Long, String>> bcMapDs = ds.
 				map(new RichMapper2()).withParameters(conf);
-		bcMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = bcMapDs.collect();
 
-		expected = "1,1,Hi\n"
+		String expected = "1,1,Hi\n"
 				+ "2,2,Hello\n"
 				+ "3,2,Hello world";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class RichMapper2 extends RichMapFunction<Tuple3<Integer,Long,String>,

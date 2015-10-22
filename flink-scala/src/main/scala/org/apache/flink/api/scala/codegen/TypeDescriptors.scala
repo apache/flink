@@ -18,11 +18,7 @@
 package org.apache.flink.api.scala.codegen
 
 import scala.language.postfixOps
-
 import scala.reflect.macros.Context
-import scala.reflect.classTag
-import scala.reflect.ClassTag
-import scala.Option.option2Iterable
 
 // These are only used internally while analyzing Scala types in TypeAnalyzer and TypeInformationGen
 
@@ -43,10 +39,14 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
   case class PrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type)
     extends UDTDescriptor
 
-  case class NothingDesciptor(id: Int, tpe: Type) extends UDTDescriptor
+  case class NothingDescriptor(id: Int, tpe: Type) extends UDTDescriptor
+
+  case class UnitDescriptor(id: Int, tpe: Type) extends UDTDescriptor
 
   case class EitherDescriptor(id: Int, tpe: Type, left: UDTDescriptor, right: UDTDescriptor)
     extends UDTDescriptor
+
+  case class EnumValueDescriptor(id: Int, tpe: Type, enum: ModuleSymbol) extends UDTDescriptor
 
   case class TryDescriptor(id: Int, tpe: Type, elem: UDTDescriptor) extends UDTDescriptor
 

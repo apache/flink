@@ -18,107 +18,22 @@
 
 package org.apache.flink.runtime.testutils;
 
-import static org.junit.Assert.fail;
+import org.apache.flink.runtime.util.FileUtils;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import java.util.UUID;
 
 /**
  * This class contains auxiliary methods for unit tests.
  */
 public class CommonTestUtils {
-
-	/**
-	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
-	 * deserialization.
-	 * 
-	 * @param original
-	 *        the original object to be copied
-	 * @return the copy of original object created by the original object's serialization/deserialization methods
-	 * @throws IOException
-	 *         thrown if an error occurs while creating the copy of the object
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends IOReadableWritable> T createCopyWritable(final T original) throws IOException {
-
-		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		final DataOutputStream dos = new DataOutputStream(baos);
-
-		original.write(new OutputViewDataOutputStreamWrapper(dos));
-
-		final String className = original.getClass().getName();
-
-		Class<T> clazz = null;
-
-		try {
-			clazz = (Class<T>) Class.forName(className);
-		} catch (ClassNotFoundException e) {
-			fail(e.getMessage());
-		}
-
-		T copy = null;
-		try {
-			copy = clazz.newInstance();
-		} catch (Throwable t) {
-			t.printStackTrace();
-			fail(t.getMessage());
-		}
-
-		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		final DataInputStream dis = new DataInputStream(bais);
-
-		copy.read(new InputViewDataInputStreamWrapper(dis));
-		if (dis.available() > 0) {
-			throw new IOException("The coped result was not fully consumed.");
-		}
-
-		return copy;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public static <T extends java.io.Serializable> T createCopySerializable(T original) throws IOException {
-		if (original == null) {
-			throw new IllegalArgumentException();
-		}
-		
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
-		oos.writeObject(original);
-		oos.close();
-		baos.close();
-		
-		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		ObjectInputStream ois = new ObjectInputStream(bais);
-		
-		T copy;
-		try {
-			copy = (T) ois.readObject();
-		}
-		catch (ClassNotFoundException e) {
-			throw new IOException(e);
-		}
-		
-		ois.close();
-		bais.close();
-		
-		return copy;
-	}
 
 	/**
 	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
@@ -150,6 +65,18 @@ public class CommonTestUtils {
 	public static String getCurrentClasspath() {
 		RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
 		return bean.getClassPath();
+	}
+
+	/**
+	 * Create a temporary log4j configuration for the test.
+	 */
+	public static File createTemporaryLog4JProperties() throws IOException {
+		File log4jProps = File.createTempFile(FileUtils.getRandomFilename(""), "-log4j" +
+				".properties");
+		log4jProps.deleteOnExit();
+		CommonTestUtils.printLog4jDebugConfig(log4jProps);
+
+		return log4jProps;
 	}
 
 	/**
@@ -226,6 +153,52 @@ public class CommonTestUtils {
 		}
 		finally {
 			fw.close();
+		}
+	}
+
+	public static File createTempDirectory() throws IOException {
+		File tempDir = new File(System.getProperty("java.io.tmpdir"));
+
+		for (int i = 0; i < 10; i++) {
+			File dir = new File(tempDir, UUID.randomUUID().toString());
+			if (!dir.exists() && dir.mkdirs()) {
+				return dir;
+			}
+			System.err.println("Could not use temporary directory " + dir.getAbsolutePath());
+		}
+
+		throw new IOException("Could not create temporary file directory");
+	}
+
+	/**
+	 * Utility class to read the output of a process stream and forward it into a StringWriter.
+	 */
+	public static class PipeForwarder extends Thread {
+
+		private final StringWriter target;
+		private final InputStream source;
+
+		public PipeForwarder(InputStream source, StringWriter target) {
+			super("Pipe Forwarder");
+			setDaemon(true);
+
+			this.source = source;
+			this.target = target;
+
+			start();
+		}
+
+		@Override
+		public void run() {
+			try {
+				int next;
+				while ((next = source.read()) != -1) {
+					target.write(next);
+				}
+			}
+			catch (IOException e) {
+				// terminate
+			}
 		}
 	}
 }

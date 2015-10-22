@@ -20,9 +20,9 @@ package org.apache.flink.core.memory;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.Arrays;
 
 public class OutputViewObjectOutputStreamWrapper implements DataOutputView {
+	
 	private final ObjectOutputStream out;
 
 	public OutputViewObjectOutputStreamWrapper(ObjectOutputStream out){
@@ -31,10 +31,7 @@ public class OutputViewObjectOutputStreamWrapper implements DataOutputView {
 
 	@Override
 	public void skipBytesToWrite(int numBytes) throws IOException {
-		byte[] buffer = new byte[numBytes];
-		Arrays.fill(buffer, (byte) 0);
-
-		out.write(buffer);
+		out.write(new byte[numBytes]);
 	}
 
 	@Override

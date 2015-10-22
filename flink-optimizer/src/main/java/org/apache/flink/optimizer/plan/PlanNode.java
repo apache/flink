@@ -513,7 +513,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 	@Override
 	public String toString() {
-		return this.template.getName() + " \"" + getProgramOperator().getName() + "\" : " + this.driverStrategy +
+		return this.template.getOperatorName() + " \"" + getProgramOperator().getName() + "\" : " + this.driverStrategy +
 				" [[ " + this.globalProps + " ]] [[ " + this.localProps + " ]]";
 	}
 	

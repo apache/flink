@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.runtime.StreamingMode;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * The command line parameters passed to the TaskManager.
  */
@@ -30,6 +32,10 @@ public class JobManagerCliOptions {
 	private JobManagerMode jobManagerMode;
 	
 	private StreamingMode streamingMode = StreamingMode.BATCH_ONLY;
+
+	private String host;
+
+	private int webUIPort = -1;
 
 	// ------------------------------------------------------------------------
 
@@ -73,5 +79,21 @@ public class JobManagerCliOptions {
 			throw new IllegalArgumentException(
 					"Unknown streaming mode. Streaming mode must be one of 'BATCH' or 'STREAMING'.");
 		}
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public void setHost(String host) {
+		this.host = checkNotNull(host);
+	}
+
+	public int getWebUIPort() {
+		return webUIPort;
+	}
+
+	public void setWebUIPort(int webUIPort) {
+		this.webUIPort = webUIPort;
 	}
 }

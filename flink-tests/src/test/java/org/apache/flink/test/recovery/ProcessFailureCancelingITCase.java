@@ -34,9 +34,10 @@ import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.NetUtils;
 
 import org.junit.Test;
 
@@ -100,7 +101,12 @@ public class ProcessFailureCancelingITCase {
 			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "10 s");
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));
-			ActorRef jmActor = JobManager.startJobManagerActors(jmConfig, jmActorSystem, StreamingMode.BATCH_ONLY)._1();
+			ActorRef jmActor = JobManager.startJobManagerActors(
+				jmConfig,
+				jmActorSystem,
+				StreamingMode.BATCH_ONLY,
+				JobManager.class,
+				MemoryArchivist.class)._1();
 
 			// the TaskManager java command
 			String[] command = new String[] {
@@ -109,17 +115,17 @@ public class ProcessFailureCancelingITCase {
 					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
 					"-Xms80m", "-Xmx80m",
 					"-classpath", getCurrentClasspath(),
-					AbstractProcessFailureRecoveryTest.TaskManagerProcessEntryPoint.class.getName(),
+					AbstractTaskManagerProcessFailureRecoveryTest.TaskManagerProcessEntryPoint.class.getName(),
 					String.valueOf(jobManagerPort)
 			};
 
 			// start the first two TaskManager processes
 			taskManagerProcess = new ProcessBuilder(command).start();
-			new AbstractProcessFailureRecoveryTest.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
+			new CommonTestUtils.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
 			
 			// we wait for the JobManager to have the two TaskManagers available
-			// wait for at most 30 seconds
-			waitUntilNumTaskManagersAreRegistered(jmActor, 1, 30000);
+			// since some of the CI environments are very hostile, we need to give this a lot of time (2 minutes)
+			waitUntilNumTaskManagersAreRegistered(jmActor, 1, 120000);
 			
 			final Throwable[] errorRef = new Throwable[1];
 

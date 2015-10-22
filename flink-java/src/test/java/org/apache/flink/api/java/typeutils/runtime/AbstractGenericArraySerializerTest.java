@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.typeutils.runtime;
 
 import java.lang.reflect.Array;
@@ -36,7 +35,7 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-abstract public class AbstractGenericArraySerializerTest {
+public abstract class AbstractGenericArraySerializerTest {
 	
 	private final Random rnd = new Random(349712539451944123L);
 	
@@ -144,7 +143,8 @@ abstract public class AbstractGenericArraySerializerTest {
 		}
 	}
 
-	private <T> void runTests(T[]... instances) {
+	@SafeVarargs
+	private final <T> void runTests(T[]... instances) {
 		try {
 			@SuppressWarnings("unchecked")
 			Class<T> type = (Class<T>) instances[0][0].getClass();
@@ -158,14 +158,15 @@ abstract public class AbstractGenericArraySerializerTest {
 		}
 	}
 	
-	private <T> void runTests(Class<T> type, TypeSerializer<T> componentSerializer, T[]... instances) {
+	@SafeVarargs
+	private final <T> void runTests(Class<T> type, TypeSerializer<T> componentSerializer, T[]... instances) {
 		try {
 			if (type == null || componentSerializer == null || instances == null || instances.length == 0) {
 				throw new IllegalArgumentException();
 			}
 			
 			@SuppressWarnings("unchecked")
-			Class<T[]> arrayClass = (Class<T[]>) Array.newInstance(type, 0).getClass();
+			Class<T[]> arrayClass = (Class<T[]>) (Class<?>) Array.newInstance(type, 0).getClass();
 			
 			GenericArraySerializer<T> serializer = createSerializer(type, componentSerializer);
 			SerializerTestInstance<T[]> test = new SerializerTestInstance<T[]>(serializer, arrayClass, -1, instances);

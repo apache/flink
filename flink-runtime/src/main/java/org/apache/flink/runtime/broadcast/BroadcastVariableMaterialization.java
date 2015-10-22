@@ -28,7 +28,7 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.slf4j.Logger;
@@ -44,7 +44,7 @@ public class BroadcastVariableMaterialization<T, C> {
 	private static final Logger LOG = LoggerFactory.getLogger(BroadcastVariableMaterialization.class);
 	
 	
-	private final Set<RegularPactTask<?, ?>> references = new HashSet<RegularPactTask<?,?>>();
+	private final Set<BatchTask<?, ?>> references = new HashSet<BatchTask<?,?>>();
 	
 	private final Object materializationMonitor = new Object();
 	
@@ -65,7 +65,7 @@ public class BroadcastVariableMaterialization<T, C> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void materializeVariable(MutableReader<?> reader, TypeSerializerFactory<?> serializerFactory, RegularPactTask<?, ?> referenceHolder)
+	public void materializeVariable(MutableReader<?> reader, TypeSerializerFactory<?> serializerFactory, BatchTask<?, ?> referenceHolder)
 			throws MaterializationExpiredException, IOException
 	{
 		Preconditions.checkNotNull(reader);
@@ -156,15 +156,15 @@ public class BroadcastVariableMaterialization<T, C> {
 		}
 	}
 	
-	public boolean decrementReference(RegularPactTask<?, ?> referenceHolder) {
+	public boolean decrementReference(BatchTask<?, ?> referenceHolder) {
 		return decrementReferenceInternal(referenceHolder, true);
 	}
 	
-	public boolean decrementReferenceIfHeld(RegularPactTask<?, ?> referenceHolder) {
+	public boolean decrementReferenceIfHeld(BatchTask<?, ?> referenceHolder) {
 		return decrementReferenceInternal(referenceHolder, false);
 	}
 	
-	private boolean decrementReferenceInternal(RegularPactTask<?, ?> referenceHolder, boolean errorIfNoReference) {
+	private boolean decrementReferenceInternal(BatchTask<?, ?> referenceHolder, boolean errorIfNoReference) {
 		synchronized (references) {
 			if (disposed || references.isEmpty()) {
 				if (errorIfNoReference) {

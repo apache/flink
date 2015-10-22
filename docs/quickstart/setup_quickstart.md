@@ -28,9 +28,9 @@ Get Flink up and running in a few simple steps.
 ## Requirements
 
 Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the
-only requirement is to have a working __Java 6.x__ (or higher)
+only requirement is to have a working __Java 7.x__ (or higher)
 installation. Windows users, please take a look at the
-[Flink on Windows](local_setup.html#flink-on-windows) guide which describes
+[Flink on Windows]({{ site.baseurl }}/setup/local_setup.html#flink-on-windows) guide which describes
 how to run Flink on Windows for local setups.
 
 ## Download
@@ -86,7 +86,7 @@ Run the __Word Count example__ to see Flink at work.
 * __Start the example program__:
   
   ~~~bash
-  $ bin/flink run ./examples/flink-java-examples-{{site.version}}-WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+  $ bin/flink run ./examples/WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
   ~~~
 
 * You will find a file called __wordcount-result.txt__ in your current directory.
@@ -136,7 +136,7 @@ configuration files, which need to be accessible at the same path on all machine
 </div>
 </div>
 
-Have a look at the [Configuration](config.html) section of the documentation to see other available configuration options.
+Have a look at the [Configuration]({{ site.baseurl }}/setup/config.html) section of the documentation to see other available configuration options.
 For Flink to run efficiently, a few configuration values need to be set.
 
 In particular, 

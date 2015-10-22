@@ -31,7 +31,7 @@ Go to the [downloads page]({{ site.download_url}}) and get the ready to run pack
 
 ## Requirements
 
-Flink runs on **Linux**, **Mac OS X** and **Windows**. The only requirement for a local setup is **Java 1.6.x** or higher. The following manual assumes a *UNIX-like environment*, for Windows see [Flink on Windows](#flink-on-windows).
+Flink runs on **Linux**, **Mac OS X** and **Windows**. The only requirement for a local setup is **Java 1.7.x** or higher. The following manual assumes a *UNIX-like environment*, for Windows see [Flink on Windows](#flink-on-windows).
 
 You can check the correct installation of Java by issuing the following command:
 

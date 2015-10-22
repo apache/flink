@@ -16,6 +16,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+{% capture quickstart %}{{site.baseurl}}/quickstart{% endcapture %}
 {% capture setup %}{{site.baseurl}}/setup{% endcapture %}
 {% capture apis %}{{site.baseurl}}/apis{% endcapture %}
 {% capture libs %}{{site.baseurl}}/libs{% endcapture %}
@@ -40,11 +41,22 @@ under the License.
           <ul class="nav navbar-nav">
             <li{% if page.url == '/index.html' %} class="active"{% endif %}><a href="{{ site.baseurl}}/index.html">Overview<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
 
+            <!-- Quickstart -->
+            <li class="dropdown{% if page.url contains '/quickstart/' %} active{% endif %}">
+              <a href="{{ quickstart }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Quickstart <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li><a href="{{ quickstart }}/setup_quickstart.html">Setup</a></li>
+                <li><a href="{{ quickstart }}/java_api_quickstart.html">Java API</a></li>
+                <li><a href="{{ quickstart }}/scala_api_quickstart.html">Scala API</a></li>
+                <li><a href="{{ quickstart }}/run_example_quickstart.html">Run Step-by-Step Example</a></li>
+              </ul>
+            </li>
+
             <!-- Setup -->
-            <li class="dropdown{% if page.url contains setup %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/setup/' %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ setup }}/building.html">Get Flink 0.9-SNAPSHOT</a></li>
+                <li><a href="{{ setup }}/building.html">Build Flink {{ site.version }}</a></li>
 
                 <li class="divider"></li>
                 <li role="presentation" class="dropdown-header"><strong>Deployment</strong></li>
@@ -53,6 +65,7 @@ under the License.
                 <li><a href="{{ setup }}/yarn_setup.html">YARN</a></li>
                 <li><a href="{{ setup }}/gce_setup.html">GCloud</a></li>
                 <li><a href="{{ setup }}/flink_on_tez.html">Flink on Tez <span class="badge">Beta</span></a></li>
+                <li><a href="{{ setup }}/jobmanager_high_availability.html">JobManager High Availability</a></li>
 
                 <li class="divider"></li>
                 <li><a href="{{ setup }}/config.html">Configuration</a></li>
@@ -60,42 +73,43 @@ under the License.
             </li>
 
             <!-- Programming Guides -->
-            <li class="dropdown{% if page.url contains apis %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/apis/' %} active{% endif %}">
               <a href="{{ apis }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Programming Guides <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ apis }}/programming_guide.html"><strong>Batch: DataSet API</strong></a></li>
-                <li><a href="{{ apis }}/streaming_guide.html"><strong>Streaming: DataStream API</strong> <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/programming_guide.html"><strong>DataSet API</strong></a></li>
+                <li><a href="{{ apis }}/streaming_guide.html"><strong>DataStream API</strong></a></li>
                 <li><a href="{{ apis }}/python.html">Python API <span class="badge">Beta</span></a></li>
 
                 <li class="divider"></li>
-                <li><a href="scala_shell.html">Interactive Scala Shell</a></li>
-                <li><a href="{{ apis }}/dataset_transformations.html">Dataset Transformations</a></li>
+                <li><a href="{{ apis }}/scala_shell.html">Interactive Scala Shell</a></li>
+                <li><a href="{{ apis }}/dataset_transformations.html">DataSet Transformations</a></li>
                 <li><a href="{{ apis }}/best_practices.html">Best Practices</a></li>
-                <li><a href="{{ apis }}/example_connectors.html">Connectors</a></li>
+                <li><a href="{{ apis }}/example_connectors.html">Connectors (DataSet API)</a></li>
+                <!--<li><a href="{{ apis }}/kafka.html">Kafka Connector <span class="badge">Beta</span></a></li>-->
                 <li><a href="{{ apis }}/examples.html">Examples</a></li>
                 <li><a href="{{ apis }}/local_execution.html">Local Execution</a></li>
                 <li><a href="{{ apis }}/cluster_execution.html">Cluster Execution</a></li>
                 <li><a href="{{ apis }}/cli.html">Command Line Interface</a></li>
                 <li><a href="{{ apis }}/web_client.html">Web Client</a></li>
-                <li><a href="{{ apis }}/iterations.html">Iterations</a></li>
+                <li><a href="{{ apis }}/iterations.html">Iterations (DataSet API)</a></li>
                 <li><a href="{{ apis }}/java8.html">Java 8</a></li>
-                <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatability <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatibility <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/storm_compatibility.html">Storm Compatibility <span class="badge">Beta</span></a></li>
               </ul>
             </li>
 
             <!-- Libraries -->
-            <li class="dropdown{% if page.url contains libs %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %}">
               <a href="{{ libs }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Libraries <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
-                  <li><a href="{{ libs }}/spargel_guide.html">Graphs: Spargel</a></li>
-                  <li><a href="{{ libs }}/gelly_guide.html">Graphs: Gelly <span class="badge">Beta</span></a></li>
+                  <li><a href="{{ libs }}/gelly_guide.html">Graphs: Gelly</a></li>
                   <li><a href="{{ libs }}/ml/">Machine Learning <span class="badge">Beta</span></a></li>
                   <li><a href="{{ libs }}/table.html">Relational: Table <span class="badge">Beta</span></a></li>
               </ul>
             </li>
 
             <!-- Internals -->
-            <li class="dropdown{% if page.url contains internals %} active{% endif %}">
+            <li class="dropdown{% if page.url contains '/internals/' %} active{% endif %}">
               <a href="{{ internals }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Internals <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li role="presentation" class="dropdown-header"><strong>Contribute</strong></li>
@@ -106,7 +120,9 @@ under the License.
                 <li class="divider"></li>
                 <li role="presentation" class="dropdown-header"><strong>Internals</strong></li>
                 <li><a href="{{ internals }}/general_arch.html">Architecture &amp; Process Model</a></li>
+                <li><a href="{{ internals }}/stream_checkpointing.html">Fault Tolerance for Data Streaming</a></li>
                 <li><a href="{{ internals }}/types_serialization.html">Type Extraction &amp; Serialization</a></li>
+                <li><a href="{{ internals }}/monitoring_rest_api.html">Monitoring REST API</a></li>
                 <li><a href="{{ internals }}/job_scheduling.html">Jobs &amp; Scheduling</a></li>
                 <li><a href="{{ internals }}/add_operator.html">How-To: Add an Operator</a></li>
               </ul>

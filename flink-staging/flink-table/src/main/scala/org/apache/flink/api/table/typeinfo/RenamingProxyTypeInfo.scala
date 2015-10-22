@@ -21,8 +21,9 @@ import java.util
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor
-import org.apache.flink.api.common.typeutils.{CompositeType, TypeComparator, TypeSerializer}
+import org.apache.flink.api.common.typeutils.CompositeType.{TypeComparatorBuilder,
+FlatFieldDescriptor}
+import org.apache.flink.api.common.typeutils.{CompositeType, TypeSerializer}
 
 /**
  * A TypeInformation that is used to rename fields of an underlying CompositeType. This
@@ -30,8 +31,9 @@ import org.apache.flink.api.common.typeutils.{CompositeType, TypeComparator, Typ
  * that does not get translated to a runtime operator.
  */
 class RenamingProxyTypeInfo[T](
-    tpe: CompositeType[T],
-    fieldNames: Array[String]) extends CompositeType[T](tpe.getTypeClass) {
+    val tpe: CompositeType[T],
+    val fieldNames: Array[String])
+  extends CompositeType[T](tpe.getTypeClass) {
 
   def getUnderlyingType: CompositeType[T] = tpe
 
@@ -86,16 +88,6 @@ class RenamingProxyTypeInfo[T](
         executionConfig: ExecutionConfig) =
     tpe.createComparator(logicalKeyFields, orders, logicalFieldOffset, executionConfig)
 
-  // These are never called since we override create comparator
-  override protected def initializeNewComparator(localKeyCount: Int): Unit =
-    throw new RuntimeException("Cannot happen.")
-
-  override protected def getNewComparator(executionConfig: ExecutionConfig): TypeComparator[T] =
-    throw new RuntimeException("Cannot happen.")
-
-  override protected def addCompareField(fieldId: Int, comparator: TypeComparator[_]): Unit =
-    throw new RuntimeException("Cannot happen.")
-
   override def getFlatFields(
       fieldExpression: String,
       offset: Int,
@@ -105,5 +97,28 @@ class RenamingProxyTypeInfo[T](
 
   override def getTypeAt[X](fieldExpression: String): TypeInformation[X] = {
     tpe.getTypeAt(fieldExpression)
+  }
+
+  override protected def createTypeComparatorBuilder(): TypeComparatorBuilder[T] = {
+    throw new RuntimeException("This method should never be called because createComparator is " +
+      "overwritten.")
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case renamingProxy: RenamingProxyTypeInfo[_] =>
+        renamingProxy.canEqual(this) &&
+        tpe.equals(renamingProxy.tpe) &&
+        fieldNames.sameElements(renamingProxy.fieldNames)
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    31 * tpe.hashCode() + util.Arrays.hashCode(fieldNames.asInstanceOf[Array[AnyRef]])
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[RenamingProxyTypeInfo[_]]
   }
 }

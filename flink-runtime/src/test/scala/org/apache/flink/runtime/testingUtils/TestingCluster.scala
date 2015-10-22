@@ -18,13 +18,21 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.util.concurrent.TimeoutException
+
+import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.StreamingMode
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
-import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
+
+import scala.concurrent.{Await, Future}
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
@@ -34,19 +42,29 @@ import org.apache.flink.runtime.taskmanager.TaskManager
  * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],
  *                          otherwise false
  */
-class TestingCluster(userConfiguration: Configuration,
-                     singleActorSystem: Boolean,
-                     streamingMode: StreamingMode)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
-  
+class TestingCluster(
+                      userConfiguration: Configuration,
+                      singleActorSystem: Boolean,
+                      synchronousDispatcher: Boolean,
+                      streamingMode: StreamingMode)
+  extends FlinkMiniCluster(
+    userConfiguration,
+    singleActorSystem,
+    streamingMode) {
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-        = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
 
-  def this(userConfiguration: Configuration) = this(userConfiguration, true)
-  
+  def this(userConfiguration: Configuration,
+           singleActorSystem: Boolean,
+           synchronousDispatcher: Boolean)
+  = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
+
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
+  = this(userConfiguration, singleActorSystem, false)
+
+  def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
+
   // --------------------------------------------------------------------------
-  
+
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
@@ -58,38 +76,123 @@ class TestingCluster(userConfiguration: Configuration,
     cfg
   }
 
-  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
+  override def startJobManager(index: Int, actorSystem: ActorSystem): ActorRef = {
+    val config = configuration.clone()
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager,
-    executionRetries, delayBetweenRetries,
-    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
-    
-    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
-    val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
-    
-    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archive, accumulatorManager, executionRetries,
-      delayBetweenRetries, timeout, streamingMode) with TestingJobManager)
+    val jobManagerName = if(singleActorSystem) {
+      JobManager.JOB_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      JobManager.JOB_MANAGER_NAME
+    }
 
-    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+    val archiveName = if(singleActorSystem) {
+      JobManager.ARCHIVE_NAME + "_" + (index + 1)
+    } else {
+      JobManager.ARCHIVE_NAME
+    }
+
+    val jobManagerPort = config.getInteger(
+      ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+    if(jobManagerPort > 0) {
+      config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort + index)
+    }
+
+    val (executionContext,
+    instanceManager,
+    scheduler,
+    libraryCacheManager,
+    executionRetries,
+    delayBetweenRetries,
+    timeout,
+    archiveCount,
+    leaderElectionService,
+    submittedJobsGraphs,
+    checkpointRecoveryFactory) = JobManager.createJobManagerComponents(
+      config,
+      createLeaderElectionService())
+
+    val testArchiveProps = Props(new TestingMemoryArchivist(archiveCount))
+    val archive = actorSystem.actorOf(testArchiveProps, archiveName)
+
+    val jobManagerProps = Props(
+      new TestingJobManager(
+        configuration,
+        executionContext,
+        instanceManager,
+        scheduler,
+        libraryCacheManager,
+        archive,
+        executionRetries,
+        delayBetweenRetries,
+        timeout,
+        streamingMode,
+        leaderElectionService,
+        submittedJobsGraphs,
+        checkpointRecoveryFactory))
+
+    val dispatcherJobManagerProps = if (synchronousDispatcher) {
+      // disable asynchronous futures (e.g. accumulator update in Heartbeat)
+      jobManagerProps.withDispatcher(CallingThreadDispatcher.Id)
+    } else {
+      jobManagerProps
+    }
+
+    actorSystem.actorOf(dispatcherJobManagerProps, jobManagerName)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem) = {
 
     val tmActorName = TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
 
-    val jobManagerPath: Option[String] = if (singleActorSystem) {
-      Some(jobManagerActor.path.toString)
-    } else {
-      None
-    }
-    
-    TaskManager.startTaskManagerComponentsAndActor(configuration, system,
-                                                   hostname,
-                                                   Some(tmActorName),
-                                                   jobManagerPath,
-                                                   numTaskManagers == 1,
-                                                   streamingMode,
-                                                   classOf[TestingTaskManager])
+    TaskManager.startTaskManagerComponentsAndActor(
+      configuration,
+      system,
+      hostname,
+      Some(tmActorName),
+      Some(createLeaderRetrievalService),
+      numTaskManagers == 1,
+      streamingMode,
+      classOf[TestingTaskManager])
+  }
+
+
+  def createLeaderElectionService(): Option[LeaderElectionService] = {
+    None
+  }
+
+  @throws(classOf[TimeoutException])
+  @throws(classOf[InterruptedException])
+  def waitForTaskManagersToBeAlive(): Unit = {
+    val aliveFutures = taskManagerActors map {
+      _ map {
+        tm => (tm ? Alive)(timeout)
+      }
+    } getOrElse(Seq())
+
+    val combinedFuture = Future.sequence(aliveFutures)
+
+    Await.ready(combinedFuture, timeout)
+  }
+
+  @throws(classOf[TimeoutException])
+  @throws(classOf[InterruptedException])
+  def waitForActorsToBeAlive(): Unit = {
+    val tmsAliveFutures = taskManagerActors map {
+      _ map {
+        tm => (tm ? Alive)(timeout)
+      }
+    } getOrElse(Seq())
+
+    val jmsAliveFutures = jobManagerActors map {
+      _ map {
+        tm => (tm ? Alive)(timeout)
+      }
+    } getOrElse(Seq())
+
+    val combinedFuture = Future.sequence(tmsAliveFutures ++ jmsAliveFutures)
+
+    Await.ready(combinedFuture, timeout)
   }
 }

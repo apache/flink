@@ -222,7 +222,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Workset Iteration";
 	}
 
@@ -454,7 +454,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					}
 					
 					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(this,
-							"WorksetIteration ("+this.getOperator().getName()+")", solutionSetIn,
+							this.getOperator().getName(), solutionSetIn,
 							worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
 					wsNode.setImmediateSolutionSetUpdate(immediateDeltaUpdate);
 					wsNode.initProperties(gp, lp);
@@ -572,7 +572,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 		
 		@Override
-		public String getName() {
+		public String getOperatorName() {
 			return "Internal Utility Node";
 		}
 

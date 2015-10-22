@@ -77,4 +77,15 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	public void close() throws IOException {
 		fos.close();
 	}
+
+
+	@Override
+	public void flush() throws IOException {
+		fos.flush();
+	}
+
+	@Override
+	public void sync() throws IOException {
+		fos.getFD().sync();
+	}
 }

@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -211,6 +217,15 @@ public class ExecutionJobVertex implements Serializable {
 	
 	public boolean isInFinalState() {
 		return numSubtasksInFinalState == parallelism;
+	}
+	
+	public ExecutionState getAggregateState() {
+		int[] num = new int[ExecutionState.values().length];
+		for (ExecutionVertex vertex : this.taskVertices) {
+			num[vertex.getExecutionState().ordinal()]++;
+		}
+		
+		return getAggregateJobVertexState(num, parallelism);
 	}
 	
 	//---------------------------------------------------------------------------------------------
@@ -451,13 +466,65 @@ public class ExecutionJobVertex implements Serializable {
 					stateMonitor.notifyAll();
 					
 					// tell the graph
-					graph.jobVertexInFinalState(this);
+					graph.jobVertexInFinalState();
 				} else {
 					numSubtasksInFinalState++;
 				}
 			}
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Accumulators / Metrics
+	// --------------------------------------------------------------------------------------------
+	
+	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getAggregatedMetricAccumulators() {
+		// some specialized code to speed things up
+		long bytesRead = 0;
+		long bytesWritten = 0;
+		long recordsRead = 0;
+		long recordsWritten = 0;
+		
+		for (ExecutionVertex v : getTaskVertices()) {
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> metrics = v.getCurrentExecutionAttempt().getFlinkAccumulators();
+			
+			if (metrics != null) {
+				LongCounter br = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_IN);
+				LongCounter bw = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_BYTES_OUT);
+				LongCounter rr = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_IN);
+				LongCounter rw = (LongCounter) metrics.get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT);
+				
+				bytesRead += br != null ? br.getLocalValuePrimitive() : 0;
+				bytesWritten += bw != null ? bw.getLocalValuePrimitive() : 0;
+				recordsRead += rr != null ? rr.getLocalValuePrimitive() : 0;
+				recordsWritten += rw != null ? rw.getLocalValuePrimitive() : 0;
+			}
+		}
+
+		HashMap<AccumulatorRegistry.Metric, Accumulator<?, ?>> agg = new HashMap<>();
+		agg.put(AccumulatorRegistry.Metric.NUM_BYTES_IN, new LongCounter(bytesRead));
+		agg.put(AccumulatorRegistry.Metric.NUM_BYTES_OUT, new LongCounter(bytesWritten));
+		agg.put(AccumulatorRegistry.Metric.NUM_RECORDS_IN, new LongCounter(recordsRead));
+		agg.put(AccumulatorRegistry.Metric.NUM_RECORDS_OUT, new LongCounter(recordsWritten));
+		return agg;
+	}
+
+	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
+		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+
+		for (ExecutionVertex vertex : taskVertices) {
+			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
+			if (next != null) {
+				AccumulatorHelper.mergeInto(userAccumulators, next);
+			}
+		}
+
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Static / pre-assigned input splits
+	// --------------------------------------------------------------------------------------------
 
 	private List<LocatableInputSplit>[] computeLocalInputSplitsPerTask(InputSplit[] splits) throws JobException {
 		
@@ -562,10 +629,10 @@ public class ExecutionJobVertex implements Serializable {
 		return subTaskSplitAssignment;
 	}
 	
-	//---------------------------------------------------------------------------------------------
-	//  Predetermined InputSplitAssigner
-	//---------------------------------------------------------------------------------------------
 
+	/**
+	 * An InputSplitAssigner that assigns to pre-determined hosts.
+	 */
 	public static class PredeterminedInputSplitAssigner implements InputSplitAssigner {
 
 		private List<LocatableInputSplit>[] inputSplitsPerSubtask;
@@ -573,7 +640,7 @@ public class ExecutionJobVertex implements Serializable {
 		@SuppressWarnings("unchecked")
 		public PredeterminedInputSplitAssigner(List<LocatableInputSplit>[] inputSplitsPerSubtask) {
 			// copy input split assignment
-			this.inputSplitsPerSubtask = (List<LocatableInputSplit>[]) new List[inputSplitsPerSubtask.length];
+			this.inputSplitsPerSubtask = (List<LocatableInputSplit>[]) new List<?>[inputSplitsPerSubtask.length];
 			for (int i = 0; i < inputSplitsPerSubtask.length; i++) {
 				List<LocatableInputSplit> next = inputSplitsPerSubtask[i];
 				
@@ -590,6 +657,33 @@ public class ExecutionJobVertex implements Serializable {
 			} else {
 				return inputSplitsPerSubtask[taskId].remove(inputSplitsPerSubtask[taskId].size() - 1);
 			}
+		}
+	}
+
+	public static ExecutionState getAggregateJobVertexState(int[] verticesPerState, int parallelism) {
+		if (verticesPerState == null || verticesPerState.length != ExecutionState.values().length) {
+			throw new IllegalArgumentException("Must provide an array as large as there are execution states.");
+		}
+
+		if (verticesPerState[ExecutionState.FAILED.ordinal()] > 0) {
+			return ExecutionState.FAILED;
+		}
+		if (verticesPerState[ExecutionState.CANCELING.ordinal()] > 0) {
+			return ExecutionState.CANCELING;
+		}
+		else if (verticesPerState[ExecutionState.CANCELED.ordinal()] > 0) {
+			return ExecutionState.CANCELED;
+		}
+		else if (verticesPerState[ExecutionState.RUNNING.ordinal()] > 0) {
+			return ExecutionState.RUNNING;
+		}
+		else if (verticesPerState[ExecutionState.FINISHED.ordinal()] > 0) {
+			return verticesPerState[ExecutionState.FINISHED.ordinal()] == parallelism ?
+					ExecutionState.FINISHED : ExecutionState.RUNNING;
+		}
+		else {
+			// all else collapses under created
+			return ExecutionState.CREATED;
 		}
 	}
 }

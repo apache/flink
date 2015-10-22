@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.Channel;
+
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.util.NetUtils;
+
 import scala.Tuple2;
 
 import java.net.InetAddress;
@@ -48,10 +50,7 @@ public class NettyTestUtil {
 			server.init(protocol);
 		}
 		catch (Exception e) {
-			if (server != null) {
-				server.shutdown();
-			}
-
+			server.shutdown();
 			throw e;
 		}
 
@@ -65,10 +64,7 @@ public class NettyTestUtil {
 			client.init(protocol);
 		}
 		catch (Exception e) {
-			if (client != null) {
-				client.shutdown();
-			}
-
+			client.shutdown();
 			throw e;
 		}
 

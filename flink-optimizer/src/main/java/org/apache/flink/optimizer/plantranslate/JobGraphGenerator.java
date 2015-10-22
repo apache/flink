@@ -18,7 +18,10 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
+import com.fasterxml.jackson.core.JsonFactory;
+
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -48,35 +51,38 @@ import org.apache.flink.optimizer.plan.WorksetPlanNode;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
-import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
-import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
+import org.apache.flink.runtime.iterative.task.IterationHeadTask;
+import org.apache.flink.runtime.iterative.task.IterationIntermediateTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
-import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.iterative.task.IterationTailTask;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.CoGroupDriver;
 import org.apache.flink.runtime.operators.CoGroupWithSolutionSetFirstDriver;
 import org.apache.flink.runtime.operators.CoGroupWithSolutionSetSecondDriver;
 import org.apache.flink.runtime.operators.DataSinkTask;
 import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.runtime.operators.JoinDriver;
 import org.apache.flink.runtime.operators.JoinWithSolutionSetFirstDriver;
 import org.apache.flink.runtime.operators.JoinWithSolutionSetSecondDriver;
-import org.apache.flink.runtime.operators.MatchDriver;
 import org.apache.flink.runtime.operators.NoOpDriver;
-import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
 
 import java.io.IOException;
@@ -106,7 +112,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
 	
-	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null);
+	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null, null);
 	
 	// ------------------------------------------------------------------------
 
@@ -144,7 +150,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	public JobGraphGenerator(Configuration config) {
 		this.defaultMaxFan = config.getInteger(ConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY, 
-				ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
+			ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
 		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
 			ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
 	}
@@ -154,9 +160,21 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	 * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
 	 * 
 	 * @param program Optimized plan that is translated into a JobGraph.
-	 * @return JobGraph generated frmo the plan.
+	 * @return JobGraph generated from the plan.
 	 */
 	public JobGraph compileJobGraph(OptimizedPlan program) {
+		return compileJobGraph(program, null);
+	}
+	
+	public JobGraph compileJobGraph(OptimizedPlan program, JobID jobId) {
+		if (program == null) {
+			throw new NullPointerException();
+		}
+		
+		if (jobId == null) {
+			jobId = JobID.generate();
+		}
+
 		this.vertices = new HashMap<PlanNode, JobVertex>();
 		this.chainedTasks = new HashMap<PlanNode, TaskInChain>();
 		this.chainedTasksInSequence = new ArrayList<TaskInChain>();
@@ -192,29 +210,37 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			t.addChainedTask(tic.getChainedTask(), tic.getTaskConfig(), tic.getTaskName());
 		}
 		
-		// create the job graph object
-		JobGraph graph = new JobGraph(program.getJobName());
-		graph.setNumberOfExecutionRetries(program.getOriginalPactPlan().getNumberOfExecutionRetries());
-		graph.setAllowQueuedScheduling(false);
+		// ----- attach the additional info to the job vertices, for display in the runtime monitor
 		
+		attachOperatorNamesAndDescriptions();
+
+		// ----------- finalize the job graph -----------
+		
+		// create the job graph object
+		JobGraph graph = new JobGraph(jobId, program.getJobName());
+		graph.setNumberOfExecutionRetries(program.getOriginalPlan().getNumberOfExecutionRetries());
+		graph.setExecutionRetryDelay(program.getOriginalPlan().getExecutionRetryDelay());
+		graph.setAllowQueuedScheduling(false);
+		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
+
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
 			graph.addVertex(vertex);
 		}
-		
+
 		for (JobVertex vertex : this.auxVertices) {
 			graph.addVertex(vertex);
 			vertex.setSlotSharingGroup(sharingGroup);
 		}
-		
+
 		// add registered cache file into job configuration
-		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPactPlan().getCachedFiles()) {
+		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPlan().getCachedFiles()) {
 			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), graph.getJobConfiguration());
 		}
 
 		try {
 			InstantiationUtil.writeObjectToConfig(
-					program.getOriginalPactPlan().getExecutionConfig(),
+					program.getOriginalPlan().getExecutionConfig(),
 					graph.getJobConfiguration(),
 					ExecutionConfig.CONFIG_KEY);
 		} catch (IOException e) {
@@ -332,7 +358,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					}
 					
 					// adjust the driver
-					if (conf.getDriver().equals(MatchDriver.class)) {
+					if (conf.getDriver().equals(JoinDriver.class)) {
 						conf.setDriver(inputNum == 0 ? JoinWithSolutionSetFirstDriver.class : JoinWithSolutionSetSecondDriver.class);
 					}
 					else if (conf.getDriver().equals(CoGroupDriver.class)) {
@@ -503,10 +529,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					
 					// update name of container task
 					String containerTaskName = container.getName();
-					if(containerTaskName.startsWith("CHAIN ")) {
-						container.setName(containerTaskName+" -> "+chainedTask.getTaskName());
+					if (containerTaskName.startsWith("CHAIN ")) {
+						container.setName(containerTaskName + " -> " + chainedTask.getTaskName());
 					} else {
-						container.setName("CHAIN "+containerTaskName+" -> "+chainedTask.getTaskName());
+						container.setName("CHAIN " + containerTaskName + " -> " + chainedTask.getTaskName());
 					}
 					
 					this.chainedTasksInSequence.add(chainedTask);
@@ -577,7 +603,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 		} catch (Exception e) {
 			throw new CompilerException(
-				"An error occurred while translating the optimized plan to a nephele JobGraph: " + e.getMessage(), e);
+				"An error occurred while translating the optimized plan to a JobGraph: " + e.getMessage(), e);
 		}
 	}
 	
@@ -589,6 +615,16 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		if (inputPlanNode instanceof NAryUnionPlanNode) {
 			allInChannels = ((NAryUnionPlanNode) inputPlanNode).getListOfInputs().iterator();
+
+			// If the union node has a batch data exchange, we have to adopt the exchange mode of
+			// the inputs of the union as well, because the optimizer has a separate union
+			// node, which does not exist in the JobGraph. Otherwise, this can result in
+			// deadlocks when closing a branching flow at runtime.
+			if (input.getDataExchangeMode().equals(DataExchangeMode.BATCH)) {
+				for (Channel in : inputPlanNode.getInputs()) {
+					in.setDataExchangeMode(DataExchangeMode.BATCH);
+				}
+			}
 		}
 		else if (inputPlanNode instanceof BulkPartialSolutionPlanNode) {
 			if (this.vertices.get(inputPlanNode) == null) {
@@ -598,7 +634,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				
 				// check if the iteration's input is a union
 				if (iterationNode.getInput().getSource() instanceof NAryUnionPlanNode) {
-					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput().getSource()).getInputs().iterator();
+					allInChannels = (iterationNode.getInput().getSource()).getInputs().iterator();
 				} else {
 					allInChannels = Collections.singletonList(iterationNode.getInput()).iterator();
 				}
@@ -617,7 +653,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				
 				// check if the iteration's input is a union
 				if (iterationNode.getInput2().getSource() instanceof NAryUnionPlanNode) {
-					allInChannels = ((NAryUnionPlanNode) iterationNode.getInput2().getSource()).getInputs().iterator();
+					allInChannels = (iterationNode.getInput2().getSource()).getInputs().iterator();
 				} else {
 					allInChannels = Collections.singletonList(iterationNode.getInput2()).iterator();
 				}
@@ -746,7 +782,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		
 		// check, whether chaining is possible
-		boolean chaining = false;
+		boolean chaining;
 		{
 			Channel inConn = node.getInput();
 			PlanNode pred = inConn.getSource();
@@ -790,11 +826,11 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		if (chaining) {
 			vertex = null;
 			config = new TaskConfig(new Configuration());
-			this.chainedTasks.put(node, new TaskInChain(ds.getPushChainDriverClass(), config, taskName));
+			this.chainedTasks.put(node, new TaskInChain(node, ds.getPushChainDriverClass(), config, taskName));
 		} else {
 			// create task vertex
 			vertex = new JobVertex(taskName);
-			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
+			vertex.setInvokableClass((this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 			
 			config = new TaskConfig(vertex.getConfiguration());
 			config.setDriver(ds.getDriverClass());
@@ -806,7 +842,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		// set the driver strategy
 		config.setDriverStrategy(ds);
-		for(int i=0;i<ds.getNumRequiredComparators();i++) {
+		for (int i = 0; i < ds.getNumRequiredComparators(); i++) {
 			config.setDriverComparator(node.getComparator(i), i);
 		}
 		// assign memory, file-handles, etc.
@@ -819,7 +855,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final DriverStrategy ds = node.getDriverStrategy();
 		final JobVertex vertex = new JobVertex(taskName);
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
-		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
+		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediateTask.class : BatchTask.class);
 		
 		// set user code
 		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
@@ -908,15 +944,15 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig headConfig;
 		if (merge) {
 			final PlanNode successor = pspn.getOutgoingChannels().get(0).getTarget();
-			headVertex = (JobVertex) this.vertices.get(successor);
+			headVertex = this.vertices.get(successor);
 			
 			if (headVertex == null) {
 				throw new CompilerException(
-					"Bug: Trying to merge solution set with its sucessor, but successor has not been created.");
+					"Bug: Trying to merge solution set with its successor, but successor has not been created.");
 			}
 			
 			// reset the vertex type to iteration head
-			headVertex.setInvokableClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			toReturn = null;
 		} else {
@@ -924,7 +960,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobVertex("PartialSolution ("+iteration.getNodeName()+")");
-			headVertex.setInvokableClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
@@ -976,7 +1012,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig headConfig;
 		if (merge) {
 			final PlanNode successor = wspn.getOutgoingChannels().get(0).getTarget();
-			headVertex = (JobVertex) this.vertices.get(successor);
+			headVertex = this.vertices.get(successor);
 			
 			if (headVertex == null) {
 				throw new CompilerException(
@@ -984,7 +1020,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			// reset the vertex type to iteration head
-			headVertex.setInvokableClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			toReturn = null;
 		} else {
@@ -992,7 +1028,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// everything else happens in the post visit, after the input (the initial partial solution)
 			// is connected.
 			headVertex = new JobVertex("IterationHead("+iteration.getNodeName()+")");
-			headVertex.setInvokableClass(IterationHeadPactTask.class);
+			headVertex.setInvokableClass(IterationHeadTask.class);
 			headConfig = new TaskConfig(headVertex.getConfiguration());
 			headConfig.setDriver(NoOpDriver.class);
 			toReturn = headVertex;
@@ -1036,13 +1072,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	 * channel is then the channel into the union node, the local strategy channel the one from the union to the
 	 * actual target operator.
 	 *
-	 * @param channel
-	 * @param inputNumber
-	 * @param sourceVertex
-	 * @param sourceConfig
-	 * @param targetVertex
-	 * @param targetConfig
-	 * @param isBroadcast
 	 * @throws CompilerException
 	 */
 	private DistributionPattern connectJobVertices(Channel channel, int inputNumber,
@@ -1095,7 +1124,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		}
 
-		targetVertex.connectNewDataSetAsInput(sourceVertex, distributionPattern, resultType);
+		JobEdge edge = targetVertex.connectNewDataSetAsInput(sourceVertex, distributionPattern, resultType);
 
 		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
@@ -1132,6 +1161,35 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		} else {
 			targetConfig.addInputToGroup(inputNumber);
 		}
+		
+		// ---------------- attach the additional infos to the job edge -------------------
+		
+		String shipStrategy = JsonMapper.getShipStrategyString(channel.getShipStrategy());
+		if (channel.getShipStrategyKeys() != null && channel.getShipStrategyKeys().size() > 0) {
+			shipStrategy += " on " + (channel.getShipStrategySortOrder() == null ?
+					channel.getShipStrategyKeys().toString() :
+					Utils.createOrdering(channel.getShipStrategyKeys(), channel.getShipStrategySortOrder()).toString());
+		}
+		
+		String localStrategy;
+		if (channel.getLocalStrategy() == null || channel.getLocalStrategy() == LocalStrategy.NONE) {
+			localStrategy = null;
+		}
+		else {
+			localStrategy = JsonMapper.getLocalStrategyString(channel.getLocalStrategy());
+			if (localStrategy != null && channel.getLocalStrategyKeys() != null && channel.getLocalStrategyKeys().size() > 0) {
+				localStrategy += " on " + (channel.getLocalStrategySortOrder() == null ?
+						channel.getLocalStrategyKeys().toString() :
+						Utils.createOrdering(channel.getLocalStrategyKeys(), channel.getLocalStrategySortOrder()).toString());
+			}
+		}
+		
+		String caching = channel.getTempMode() == TempMode.NONE ? null : channel.getTempMode().toString();
+
+		edge.setShipStrategyName(shipStrategy);
+		edge.setPreProcessingOperationName(localStrategy);
+		edge.setOperatorLevelCachingDescription(caching);
+		
 		return distributionPattern;
 	}
 	
@@ -1177,7 +1235,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			
 			if (needsMemory) {
 				// sanity check
-				if (tm == null || tm == TempMode.NONE || channel.getRelativeTempMemory() <= 0) {
+				if (tm == TempMode.NONE || channel.getRelativeTempMemory() <= 0) {
 					throw new CompilerException("Bug in compiler: Inconsistent description of input materialization.");
 				}
 				config.setRelativeInputMaterializationMemory(inputNum, channel.getRelativeTempMemory());
@@ -1233,14 +1291,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final PlanNode rootOfStepFunction = bulkNode.getRootOfStepFunction();
 		final TaskConfig tailConfig;
 		
-		JobVertex rootOfStepFunctionVertex = (JobVertex) this.vertices.get(rootOfStepFunction);
+		JobVertex rootOfStepFunctionVertex = this.vertices.get(rootOfStepFunction);
 		if (rootOfStepFunctionVertex == null) {
 			// last op is chained
 			final TaskInChain taskInChain = this.chainedTasks.get(rootOfStepFunction);
 			if (taskInChain == null) {
 				throw new CompilerException("Bug: Tail of step function not found as vertex or chained task.");
 			}
-			rootOfStepFunctionVertex = (JobVertex) taskInChain.getContainingVertex();
+			rootOfStepFunctionVertex = taskInChain.getContainingVertex();
 
 			// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
 			tailConfig = taskInChain.getTaskConfig();
@@ -1253,7 +1311,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// No following termination criterion
 		if (rootOfStepFunction.getOutgoingChannels().isEmpty()) {
 			
-			rootOfStepFunctionVertex.setInvokableClass(IterationTailPactTask.class);
+			rootOfStepFunctionVertex.setInvokableClass(IterationTailTask.class);
 			
 			tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
 		}
@@ -1263,7 +1321,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig tailConfigOfTerminationCriterion;
 		// If we have a termination criterion and it is not an intermediate node
 		if(rootOfTerminationCriterion != null && rootOfTerminationCriterion.getOutgoingChannels().isEmpty()) {
-			JobVertex rootOfTerminationCriterionVertex = (JobVertex) this.vertices.get(rootOfTerminationCriterion);
+			JobVertex rootOfTerminationCriterionVertex = this.vertices.get(rootOfTerminationCriterion);
 			
 			
 			if (rootOfTerminationCriterionVertex == null) {
@@ -1272,7 +1330,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				if (taskInChain == null) {
 					throw new CompilerException("Bug: Tail of termination criterion not found as vertex or chained task.");
 				}
-				rootOfTerminationCriterionVertex = (JobVertex) taskInChain.getContainingVertex();
+				rootOfTerminationCriterionVertex = taskInChain.getContainingVertex();
 
 				// the fake channel is statically typed to pact record. no data is sent over this channel anyways.
 				tailConfigOfTerminationCriterion = taskInChain.getTaskConfig();
@@ -1280,7 +1338,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				tailConfigOfTerminationCriterion = new TaskConfig(rootOfTerminationCriterionVertex.getConfiguration());
 			}
 			
-			rootOfTerminationCriterionVertex.setInvokableClass(IterationTailPactTask.class);
+			rootOfTerminationCriterionVertex.setInvokableClass(IterationTailTask.class);
 			// Hack
 			tailConfigOfTerminationCriterion.setIsSolutionSetUpdate();
 			tailConfigOfTerminationCriterion.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
@@ -1382,14 +1440,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			{
 				// get the vertex for the workset update
 				final TaskConfig worksetTailConfig;
-				JobVertex nextWorksetVertex = (JobVertex) this.vertices.get(nextWorksetNode);
+				JobVertex nextWorksetVertex = this.vertices.get(nextWorksetNode);
 				if (nextWorksetVertex == null) {
 					// nextWorksetVertex is chained
 					TaskInChain taskInChain = this.chainedTasks.get(nextWorksetNode);
 					if (taskInChain == null) {
 						throw new CompilerException("Bug: Next workset node not found as vertex or chained task.");
 					}
-					nextWorksetVertex = (JobVertex) taskInChain.getContainingVertex();
+					nextWorksetVertex = taskInChain.getContainingVertex();
 					worksetTailConfig = taskInChain.getTaskConfig();
 				} else {
 					worksetTailConfig = new TaskConfig(nextWorksetVertex.getConfiguration());
@@ -1400,21 +1458,21 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				worksetTailConfig.setIsWorksetUpdate();
 				
 				if (hasWorksetTail) {
-					nextWorksetVertex.setInvokableClass(IterationTailPactTask.class);
+					nextWorksetVertex.setInvokableClass(IterationTailTask.class);
 					
 					worksetTailConfig.setOutputSerializer(iterNode.getWorksetSerializer());
 				}
 			}
 			{
 				final TaskConfig solutionDeltaConfig;
-				JobVertex solutionDeltaVertex = (JobVertex) this.vertices.get(solutionDeltaNode);
+				JobVertex solutionDeltaVertex = this.vertices.get(solutionDeltaNode);
 				if (solutionDeltaVertex == null) {
 					// last op is chained
 					TaskInChain taskInChain = this.chainedTasks.get(solutionDeltaNode);
 					if (taskInChain == null) {
 						throw new CompilerException("Bug: Solution Set Delta not found as vertex or chained task.");
 					}
-					solutionDeltaVertex = (JobVertex) taskInChain.getContainingVertex();
+					solutionDeltaVertex = taskInChain.getContainingVertex();
 					solutionDeltaConfig = taskInChain.getTaskConfig();
 				} else {
 					solutionDeltaConfig = new TaskConfig(solutionDeltaVertex.getConfiguration());
@@ -1424,7 +1482,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				solutionDeltaConfig.setIsSolutionSetUpdate();
 				
 				if (hasSolutionSetTail) {
-					solutionDeltaVertex.setInvokableClass(IterationTailPactTask.class);
+					solutionDeltaVertex.setInvokableClass(IterationTailTask.class);
 					
 					solutionDeltaConfig.setOutputSerializer(iterNode.getSolutionSetSerializer());
 					
@@ -1467,7 +1525,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
 	}
 	
-	private static String getDescriptionForUserCode(UserCodeWrapper<?> wrapper) {
+	private String getDescriptionForUserCode(UserCodeWrapper<?> wrapper) {
 		try {
 			if (wrapper.hasObject()) {
 				try {
@@ -1483,6 +1541,113 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		}
 		catch (Throwable t) {
 			return null;
+		}
+	}
+	
+	private void attachOperatorNamesAndDescriptions() {
+		JsonFactory jsonFactory = new JsonFactory();
+
+		// we go back to front
+
+		// start with the in chains 
+		for (int i = chainedTasksInSequence.size() - 1; i >= 0; i--) {
+			TaskInChain next = chainedTasksInSequence.get(i);
+			PlanNode planNode = next.getPlanNode();
+
+			JobVertex vertex = next.getContainingVertex();
+
+			// operator
+			String opName = planNode.getOptimizerNode().getOperatorName();
+			if (vertex.getOperatorName() == null) {
+				vertex.setOperatorName(opName);
+			}
+			else {
+				vertex.setOperatorName(opName + " -> " + vertex.getOperatorName());
+			}
+
+			// operator description 
+			String opDescription = JsonMapper.getOperatorStrategyString(planNode.getDriverStrategy());
+			if (vertex.getOperatorDescription() == null) {
+				vertex.setOperatorDescription(opDescription);
+			}
+			else {
+				vertex.setOperatorDescription(opDescription + "\n -> " + vertex.getOperatorDescription());
+			}
+
+			// pretty name
+			String prettyName = StringUtils.showControlCharacters(planNode.getNodeName());
+			if (vertex.getOperatorPrettyName() == null) {
+				vertex.setOperatorPrettyName(prettyName);
+			}
+			else {
+				vertex.setOperatorPrettyName(prettyName + "\n -> " + vertex.getOperatorPrettyName());
+			}
+
+			// optimizer output properties
+			if (vertex.getResultOptimizerProperties() == null) {
+				// since we go backwards, this must be the last in its chain
+				String outputProps =
+						JsonMapper.getOptimizerPropertiesJson(jsonFactory, planNode);
+				vertex.setResultOptimizerProperties(outputProps);
+			}
+		}
+
+		// finish back-to-front traversal by going over the head vertices
+		for (Map.Entry<PlanNode, JobVertex> entry : vertices.entrySet()) {
+			PlanNode node = entry.getKey();
+			JobVertex vertex = entry.getValue();
+
+			// get the predecessors
+
+			String input1name = null;
+			String input2name = null;
+			int num = 0;
+			for (Channel c : node.getInputs()) {
+				if (num == 0) {
+					input1name = c.getSource().getNodeName();
+				}
+				else if (num == 1) {
+					input2name = c.getSource().getNodeName();
+				}
+				num++;
+			}
+
+			// operator
+			String opName = node.getOptimizerNode().getOperatorName();
+			if (vertex.getOperatorName() == null) {
+				vertex.setOperatorName(opName);
+			}
+			else {
+				vertex.setOperatorName(opName + " -> " + vertex.getOperatorName());
+			}
+
+			// operator description
+			String opStrategy = JsonMapper.getOperatorStrategyString(
+					node.getDriverStrategy(),
+					input1name != null ? input1name : "(unnamed)",
+					input2name != null ? input2name : "(unnamed)");
+
+			if (vertex.getOperatorDescription() == null) {
+				vertex.setOperatorDescription(opStrategy);
+			}
+			else {
+				vertex.setOperatorDescription(opStrategy + "\n -> " + vertex.getOperatorDescription());
+			}
+
+			// pretty name
+			String prettyName = StringUtils.showControlCharacters(node.getNodeName());
+			if (vertex.getOperatorPrettyName() == null) {
+				vertex.setOperatorPrettyName(prettyName);
+			}
+			else {
+				vertex.setOperatorPrettyName(prettyName + "\n -> " + vertex.getOperatorPrettyName());
+			}
+
+			// if there is not yet an output from a chained task, we set this output
+			if (vertex.getResultOptimizerProperties() == null) {
+				vertex.setResultOptimizerProperties(
+						JsonMapper.getOptimizerPropertiesJson(jsonFactory, node));
+			}
 		}
 	}
 
@@ -1502,15 +1667,24 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		private final String taskName;
 		
+		private final PlanNode planNode;
+		
 		private JobVertex containingVertex;
 
-		TaskInChain(Class<? extends ChainedDriver<?, ?>> chainedTask, TaskConfig taskConfig,
-					String taskName) {
+		TaskInChain(PlanNode planNode, Class<? extends ChainedDriver<?, ?>> chainedTask,
+					TaskConfig taskConfig, String taskName) {
+			
+			this.planNode = planNode;
 			this.chainedTask = chainedTask;
 			this.taskConfig = taskConfig;
 			this.taskName = taskName;
 		}
-		
+
+
+		public PlanNode getPlanNode() {
+			return planNode;
+		}
+
 		public Class<? extends ChainedDriver<?, ?>> getChainedTask() {
 			return this.chainedTask;
 		}

@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred;
 
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopInputSplit;
@@ -34,7 +33,10 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.RecordReader;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +46,26 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, HadoopInputSplit> {
+/**
+ * Common base for Java and Scala API for using Hadoop input formats with Flink.
+ *
+ * @param <K> Type of key
+ * @param <V> Type of value
+ * @param <T> The type iself
+ */
+public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatBase.class);
+
+	// Mutexes to avoid concurrent operations on Hadoop InputFormats.
+	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
+	// In contrast, Flink parallelizes using Threads, so multiple Hadoop InputFormat instances
+	// might be used in the same JVM.
+	private static final Object OPEN_MUTEX = new Object();
+	private static final Object CONFIGURE_MUTEX = new Object();
+	private static final Object CLOSE_MUTEX = new Object();
 
 	private org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat;
 	protected Class<K> keyClass;
@@ -63,7 +80,7 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 	protected transient boolean hasNext;
 
 	public HadoopInputFormatBase(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
-		super();
+		super(job.getCredentials());
 		this.mapredInputFormat = mapredInputFormat;
 		this.keyClass = key;
 		this.valueClass = value;
@@ -82,7 +99,16 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 	
 	@Override
 	public void configure(Configuration parameters) {
-		// nothing to do
+
+		// enforce sequential configuration() calls
+		synchronized (CONFIGURE_MUTEX) {
+			// configure MR InputFormat if necessary
+			if (this.mapredInputFormat instanceof Configurable) {
+				((Configurable) this.mapredInputFormat).setConf(this.jobConf);
+			} else if (this.mapredInputFormat instanceof JobConfigurable) {
+				((JobConfigurable) this.mapredInputFormat).configure(this.jobConf);
+			}
+		}
 	}
 	
 	@Override
@@ -133,13 +159,18 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 	
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
-		this.recordReader = this.mapredInputFormat.getRecordReader(split.getHadoopInputSplit(), jobConf, new HadoopDummyReporter());
-		if (this.recordReader instanceof Configurable) {
-			((Configurable) this.recordReader).setConf(jobConf);
+
+		// enforce sequential open() calls
+		synchronized (OPEN_MUTEX) {
+
+			this.recordReader = this.mapredInputFormat.getRecordReader(split.getHadoopInputSplit(), jobConf, new HadoopDummyReporter());
+			if (this.recordReader instanceof Configurable) {
+				((Configurable) this.recordReader).setConf(jobConf);
+			}
+			key = this.recordReader.createKey();
+			value = this.recordReader.createValue();
+			this.fetched = false;
 		}
-		key = this.recordReader.createKey();
-		value = this.recordReader.createValue();
-		this.fetched = false;
 	}
 	
 	@Override
@@ -157,7 +188,11 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 
 	@Override
 	public void close() throws IOException {
-		this.recordReader.close();
+
+		// enforce sequential close() calls
+		synchronized (CLOSE_MUTEX) {
+			this.recordReader.close();
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -218,6 +253,7 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 	// --------------------------------------------------------------------------------------------
 	
 	private void writeObject(ObjectOutputStream out) throws IOException {
+		super.write(out);
 		out.writeUTF(mapredInputFormat.getClass().getName());
 		out.writeUTF(keyClass.getName());
 		out.writeUTF(valueClass.getName());
@@ -226,6 +262,8 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 	
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		super.read(in);
+
 		String hadoopInputFormatClassName = in.readUTF();
 		String keyClassName = in.readUTF();
 		String valueClassName = in.readUTF();
@@ -249,5 +287,12 @@ public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, H
 			throw new RuntimeException("Unable to find value class.", e);
 		}
 		ReflectionUtils.setConf(mapredInputFormat, jobConf);
+
+		jobConf.getCredentials().addAll(this.credentials);
+		Credentials currentUserCreds = getCredentialsFromUGI(UserGroupInformation.getCurrentUser());
+		if(currentUserCreds != null) {
+			jobConf.getCredentials().addAll(currentUserCreds);
+		}
 	}
+
 }

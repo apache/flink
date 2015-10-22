@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{DataSet, _}
 import org.apache.flink.ml.common.{LabeledVector, Parameter, ParameterMap}
 import org.apache.flink.ml.math.{Vector, VectorBuilder}
-import org.apache.flink.ml.pipeline.{FitOperation, TransformOperation, Transformer}
+import org.apache.flink.ml.pipeline.{FitOperation, TransformDataSetOperation, Transformer}
 import org.apache.flink.ml.preprocessing.PolynomialFeatures.Degree
 
 import scala.reflect.ClassTag
@@ -96,8 +96,8 @@ object PolynomialFeatures{
     }
   }
 
-  /** [[org.apache.flink.ml.pipeline.TransformOperation]] to map a [[Vector]] into the polynomial
-    * feature space.
+  /** [[org.apache.flink.ml.pipeline.TransformDataSetOperation]] to map a [[Vector]] into the
+    * polynomial feature space.
     *
     * @tparam T Subclass of [[Vector]]
     * @return
@@ -105,8 +105,8 @@ object PolynomialFeatures{
   implicit def transformVectorIntoPolynomialBase[
       T <: Vector : VectorBuilder: TypeInformation: ClassTag
     ] = {
-    new TransformOperation[PolynomialFeatures, T, T] {
-      override def transform(
+    new TransformDataSetOperation[PolynomialFeatures, T, T] {
+      override def transformDataSet(
           instance: PolynomialFeatures,
           transformParameters: ParameterMap,
           input: DataSet[T])
@@ -124,13 +124,13 @@ object PolynomialFeatures{
     }
   }
 
-  /** [[org.apache.flink.ml.pipeline.TransformOperation]] to map a [[LabeledVector]] into the
+  /** [[org.apache.flink.ml.pipeline.TransformDataSetOperation]] to map a [[LabeledVector]] into the
     * polynomial feature space
     */
   implicit val transformLabeledVectorIntoPolynomialBase =
-    new TransformOperation[PolynomialFeatures, LabeledVector, LabeledVector] {
+    new TransformDataSetOperation[PolynomialFeatures, LabeledVector, LabeledVector] {
 
-    override def transform(
+    override def transformDataSet(
         instance: PolynomialFeatures,
         transformParameters: ParameterMap,
         input: DataSet[LabeledVector])

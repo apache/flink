@@ -78,4 +78,9 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeFloat(source.readFloat());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof FloatValueSerializer;
+	}
 }

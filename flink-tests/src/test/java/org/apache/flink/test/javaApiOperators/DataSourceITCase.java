@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -30,44 +31,35 @@ import org.junit.Assert;
 /**
  * Tests for the DataSource
  */
-
 public class DataSourceITCase extends JavaProgramTestBase {
 
-	private String resultPath;
 	private String inputPath;
-	private String expectedResult;
-
 
 	@Override
 	protected void preSubmit() throws Exception {
 		inputPath = createTempFile("input", "ab\n"
 				+ "cd\n"
 				+ "ef\n");
-		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
 		/*
-				 * Test passing a configuration object to an input format
-				 */
+		 * Test passing a configuration object to an input format
+		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Configuration ifConf = new Configuration();
 		ifConf.setString("prepend", "test");
 
 		DataSet<String> ds = env.createInput(new TestInputFormat(new Path(inputPath))).withParameters(ifConf);
-		ds.writeAsText(resultPath);
-		env.execute();
+		List<String> result = ds.collect();
 
-		expectedResult= "ab\n"
+		String expectedResult = "ab\n"
 				+ "cd\n"
 				+ "ef\n";
-	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+
+		compareResultAsText(result, expectedResult);
 	}
 
 	private static class TestInputFormat extends TextInputFormat {

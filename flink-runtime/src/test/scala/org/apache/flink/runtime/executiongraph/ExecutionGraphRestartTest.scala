@@ -18,36 +18,38 @@
 
 package org.apache.flink.runtime.executiongraph
 
-import akka.actor.{Props, ActorSystem}
-import akka.testkit.TestKit
+import java.util.concurrent.TimeUnit
+
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.execution.ExecutionState
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class ExecutionGraphRestartTest(_system: ActorSystem) extends TestKit(_system) with WordSpecLike
-with Matchers with BeforeAndAfterAll {
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{Matchers, WordSpecLike}
 
-  def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
+import scala.collection.JavaConverters._
+import scala.concurrent.duration.FiniteDuration
 
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+@RunWith(classOf[JUnitRunner])
+class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
 
   val NUM_TASKS = 31
 
   "The execution graph" must {
     "be manually restartable" in {
       try {
-        val tm = system.actorOf(Props(classOf[ExecutionGraphTestUtils
-        .SimpleAcknowledgingTaskManager], "TaskManager"))
-        val instance = ExecutionGraphTestUtils.getInstance(tm)
+        val instance = ExecutionGraphTestUtils.getInstance(
+          new SimpleActorGateway(TestingUtils.directExecutionContext),
+            NUM_TASKS)
 
-        val scheduler = new Scheduler
+        val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
 
         val sender = new JobVertex("Task")
@@ -56,7 +58,11 @@ with Matchers with BeforeAndAfterAll {
 
         val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+        val eg = new ExecutionGraph(
+          TestingUtils.defaultExecutionContext,
+          new JobID(),
+          "test job",
+          new Configuration(),
           AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(0)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
@@ -67,14 +73,18 @@ with Matchers with BeforeAndAfterAll {
         eg.getState should equal(JobStatus.RUNNING)
 
         eg.getAllExecutionVertices.iterator().next().fail(new Exception("Test Exception"))
+        
+        for (vertex <- eg.getAllExecutionVertices().asScala) {
+          vertex.getCurrentExecutionAttempt().cancelingComplete()
+        }
+        
         eg.getState should equal(JobStatus.FAILED)
 
         eg.restart()
         eg.getState should equal(JobStatus.RUNNING)
-
-        import collection.JavaConverters._
+        
         for (vertex <- eg.getAllExecutionVertices.asScala) {
-          vertex.executionFinished()
+          vertex.getCurrentExecutionAttempt().markFinished()
         }
 
         eg.getState should equal(JobStatus.FINISHED)
@@ -87,11 +97,11 @@ with Matchers with BeforeAndAfterAll {
 
     "restart itself automatically" in {
       try {
-        val tm = system.actorOf(Props
-          (classOf[ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager], "TaskManager"))
-        val instance = ExecutionGraphTestUtils.getInstance(tm)
+        val instance = ExecutionGraphTestUtils.getInstance(
+          new SimpleActorGateway(TestingUtils.directExecutionContext),
+          NUM_TASKS)
 
-        val scheduler = new Scheduler
+        val scheduler = new Scheduler(TestingUtils.defaultExecutionContext)
         scheduler.newInstanceAvailable(instance)
 
         val sender = new JobVertex("Task")
@@ -100,7 +110,11 @@ with Matchers with BeforeAndAfterAll {
 
         val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(new JobID(), "Test job", new Configuration(),
+        val eg = new ExecutionGraph(
+          TestingUtils.defaultExecutionContext,
+          new JobID(),
+          "Test job",
+          new Configuration(),
           AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(1)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
@@ -111,21 +125,43 @@ with Matchers with BeforeAndAfterAll {
         eg.getState should equal(JobStatus.RUNNING)
 
         eg.getAllExecutionVertices.iterator().next().fail(new Exception("Test Exception"))
+        eg.getState should equal(JobStatus.FAILING)
+        
+        for (vertex <- eg.getAllExecutionVertices.asScala) {
+          vertex.getCurrentExecutionAttempt().cancelingComplete()
+        }
+
+        val timeout = new FiniteDuration(2, TimeUnit.MINUTES)
+
+        // Wait for async restart
+        var deadline = timeout.fromNow
+        while (deadline.hasTimeLeft() && eg.getState != JobStatus.RUNNING) {
+          Thread.sleep(100)
+        }
 
         eg.getState should equal(JobStatus.RUNNING)
 
-        import collection.JavaConverters._
-        for (vertex <- eg.getAllExecutionVertices.asScala) {
-          vertex.executionFinished()
+        // Wait for deploying after async restart
+        deadline = timeout.fromNow
+        while (deadline.hasTimeLeft() && eg.getAllExecutionVertices.asScala.exists(
+          _.getCurrentExecutionAttempt.getAssignedResource == null)) {
+          Thread.sleep(100)
         }
 
-        eg.getState should equal(JobStatus.FINISHED)
-      }catch{
+        if (deadline.hasTimeLeft()) {
+          for (vertex <- eg.getAllExecutionVertices.asScala) {
+            vertex.getCurrentExecutionAttempt().markFinished()
+          }
+
+          eg.getState() should equal(JobStatus.FINISHED)
+        } else {
+          fail("Failed to wait until all execution attempts left the state DEPLOYING.")
+        }
+      } catch {
         case t: Throwable =>
           t.printStackTrace()
           fail(t.getMessage)
       }
     }
   }
-
 }

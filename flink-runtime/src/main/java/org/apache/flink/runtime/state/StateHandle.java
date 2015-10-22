@@ -28,12 +28,14 @@ import java.io.Serializable;
 public interface StateHandle<T> extends Serializable {
 
 	/**
-	 * This retrieves and return the state represented by the handle. 
-	 * 
+	 * This retrieves and return the state represented by the handle.
+	 *
+	 * @param userCodeClassLoader Class loader for deserializing user code specific classes
+	 *
 	 * @return The state represented by the handle.
 	 * @throws java.lang.Exception Thrown, if the state cannot be fetched.
 	 */
-	T getState() throws Exception;
+	T getState(ClassLoader userCodeClassLoader) throws Exception;
 	
 	/**
 	 * Discards the state referred to by this handle, to free up resources in

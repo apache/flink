@@ -38,8 +38,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -64,6 +66,8 @@ import org.apache.flink.util.Collector;
 import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
+
+import javax.xml.bind.TypeConstraintException;
 
 
 public class TypeExtractorTest {
@@ -267,6 +271,27 @@ public class TypeExtractorTest {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
+	public void testTuple0() {
+		// use getFlatMapReturnTypes()
+		RichFlatMapFunction<?, ?> function = new RichFlatMapFunction<Tuple0, Tuple0>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void flatMap(Tuple0 value, Collector<Tuple0> out) throws Exception {
+				// nothing to do
+			}
+		};
+
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function,
+				(TypeInformation) TypeInfoParser.parse("Tuple0"));
+
+		Assert.assertTrue(ti.isTupleType());
+		Assert.assertEquals(0, ti.getArity());
+		Assert.assertTrue(ti instanceof TupleTypeInfo);
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
 	public void testSubclassOfTuple() {
 		// use getJoinReturnTypes()
 		RichFlatJoinFunction<?, ?, ?> function = new RichFlatJoinFunction<CustomTuple, String, CustomTuple>() {
@@ -313,6 +338,11 @@ public class TypeExtractorTest {
 		}
 	}
 
+	public static class PojoWithNonPublicDefaultCtor {
+		public int foo, bar;
+		PojoWithNonPublicDefaultCtor() {}
+	}
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testPojo() {
@@ -345,6 +375,8 @@ public class TypeExtractorTest {
 		Assert.assertFalse(ti2.isTupleType());
 		Assert.assertTrue(ti2 instanceof PojoTypeInfo);
 		Assert.assertEquals(ti2.getTypeClass(), CustomType.class);
+
+		Assert.assertFalse(TypeExtractor.getForClass(PojoWithNonPublicDefaultCtor.class) instanceof PojoTypeInfo);
 	}
 	
 
@@ -817,6 +849,25 @@ public class TypeExtractorTest {
 		}
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Test
+	public void testFunctionWithMissingGenericsAndReturns() {
+		RichMapFunction function = new RichMapFunction() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Object map(Object value) throws Exception {
+				return null;
+			}
+		};
+
+		TypeInformation info = ExecutionEnvironment.getExecutionEnvironment()
+				.fromElements("arbitrary", "data")
+				.map(function).returns("String").getResultType();
+
+		Assert.assertEquals(TypeInfoParser.parse("String"), info);
+	}
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingOnInputAsSuperclass() {
@@ -1208,7 +1259,7 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
-		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentType());
+		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })

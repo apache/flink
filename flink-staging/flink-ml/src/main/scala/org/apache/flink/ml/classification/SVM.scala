@@ -18,7 +18,9 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, PredictDataSetOperation,
+Predictor}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -29,13 +31,16 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml._
 import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.ml.math.{DenseVector, Vector}
 import org.apache.flink.ml.math.Breeze._
 
 import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
 
 /** Implements a soft-margin SVM using the communication-efficient distributed dual coordinate
   * ascent algorithm (CoCoA) with hinge-loss function.
+  *
+  * It can be used for binary classification problems, with the labels set as +1.0 to indiciate a
+  * positive example and -1.0 to indicate a negative example.
   *
   * The algorithm solves the following minimization problem:
   *
@@ -67,20 +72,17 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *
   * @example
   *          {{{
-  *             val trainingDS: DataSet[LabeledVector] = env.readSVMFile(pathToTrainingFile)
+  *             val trainingDS: DataSet[LabeledVector] = env.readLibSVM(pathToTrainingFile)
   *
   *             val svm = SVM()
   *               .setBlocks(10)
-  *               .setIterations(10)
-  *               .setLocalIterations(10)
-  *               .setRegularization(0.5)
-  *               .setStepsize(0.5)
   *
   *             svm.fit(trainingDS)
   *
-  *             val testingDS: DataSet[Vector] = env.readVectorFile(pathToTestingFile)
+  *             val testingDS: DataSet[Vector] = env.readLibSVM(pathToTestingFile)
+  *               .map(lv => lv.vector)
   *
-  *             val predictionDS: DataSet[LabeledVector] = svm.predict(testingDS)
+  *             val predictionDS: DataSet[(Vector, Double)] = svm.predict(testingDS)
   *          }}}
   *
   * =Parameters=
@@ -118,13 +120,26 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *  - [[org.apache.flink.ml.classification.SVM.Seed]]:
   *  Defines the seed to initialize the random number generator. The seed directly controls which
   *  data points are chosen for the SDCA method. (Default value: '''0''')
+  *
+  *  - [[org.apache.flink.ml.classification.SVM.ThresholdValue]]:
+  *  Defines the limiting value for the decision function above which examples are labeled as
+  *  positive (+1.0). Examples with a decision function value below this value are classified as
+  *  negative(-1.0). In order to get the raw decision function values you need to indicate it by
+  *  using the [[org.apache.flink.ml.classification.SVM.OutputDecisionFunction]].
+  *  (Default value: '''0.0''')
+  *
+  *  - [[org.apache.flink.ml.classification.SVM.OutputDecisionFunction]]:
+  *  Determines whether the predict and evaluate functions of the SVM should return the distance
+  *  to the separating hyperplane, or binary class labels. Setting this to true will return the raw
+  *  distance to the hyperplane for each example. Setting it to false will return the binary
+  *  class label (+1.0, -1.0) (Default value: '''false''')
   */
 class SVM extends Predictor[SVM] {
 
   import SVM._
 
   /** Stores the learned weight vector after the fit operation */
-  var weightsOption: Option[DataSet[BreezeDenseVector[Double]]] = None
+  var weightsOption: Option[DataSet[DenseVector]] = None
 
   /** Sets the number of data blocks/partitions
     *
@@ -185,6 +200,34 @@ class SVM extends Predictor[SVM] {
     parameters.add(Seed, seed)
     this
   }
+
+  /** Sets the threshold above which elements are classified as positive.
+    *
+    * The [[predict ]] and [[evaluate]] functions will return +1.0 for items with a decision
+    * function value above this threshold, and -1.0 for items below it.
+    * @param threshold
+    * @return
+    */
+  def setThreshold(threshold: Double): SVM = {
+    parameters.add(ThresholdValue, threshold)
+    this
+  }
+
+  /** Sets whether the predictions should return the raw decision function value or the
+    * thresholded binary value.
+    *
+    * When setting this to true, predict and evaluate return the raw decision value, which is
+    * the distance from the separating hyperplane.
+    * When setting this to false, they return thresholded (+1.0, -1.0) values.
+    *
+    * @param outputDecisionFunction When set to true, [[predict ]] and [[evaluate]] return the raw
+    *                               decision function values. When set to false, they return the
+    *                               thresholded binary values (+1.0, -1.0).
+    */
+  def setOutputDecisionFunction(outputDecisionFunction: Boolean): SVM = {
+    parameters.add(OutputDecisionFunction, outputDecisionFunction)
+    this
+  }
 }
 
 /** Companion object of SVM. Contains convenience functions and the parameter type definitions
@@ -217,7 +260,15 @@ object SVM{
   }
 
   case object Seed extends Parameter[Long] {
-    val defaultValue = Some(0L)
+    val defaultValue = Some(Random.nextLong())
+  }
+
+  case object ThresholdValue extends Parameter[Double] {
+    val defaultValue = Some(0.0)
+  }
+
+  case object OutputDecisionFunction extends Parameter[Boolean] {
+    val defaultValue = Some(false)
   }
 
   // ========================================== Factory methods ====================================
@@ -228,69 +279,37 @@ object SVM{
 
   // ========================================== Operations =========================================
 
-  /** [[org.apache.flink.ml.pipeline.PredictOperation]] for vector types. The result type is a
-    * [[LabeledVector]]
+  /** Provides the operation that makes the predictions for individual examples.
     *
-    * @tparam T Subtype of [[Vector]]
-    * @return
+    * @tparam T
+    * @return A PredictOperation, through which it is possible to predict a value, given a
+    *         feature vector
     */
-  implicit def predictValues[T <: Vector] = {
-    new PredictOperation[SVM, T, LabeledVector]{
-      override def predict(
-          instance: SVM,
-          predictParameters: ParameterMap,
-          input: DataSet[T])
-        : DataSet[LabeledVector] = {
+  implicit def predictVectors[T <: Vector] = {
+    new PredictOperation[SVM, DenseVector, T, Double](){
 
-        instance.weightsOption match {
-          case Some(weights) => {
-            input.mapWithBcVariable(weights){
-              (vector, weights) => {
-                val dotProduct = weights dot vector.asBreeze
+      var thresholdValue: Double = _
+      var outputDecisionFunction: Boolean = _
 
-                LabeledVector(dotProduct, vector)
-              }
-            }
-          }
-
+      override def getModel(self: SVM, predictParameters: ParameterMap): DataSet[DenseVector] = {
+        thresholdValue = predictParameters(ThresholdValue)
+        outputDecisionFunction = predictParameters(OutputDecisionFunction)
+        self.weightsOption match {
+          case Some(model) => model
           case None => {
             throw new RuntimeException("The SVM model has not been trained. Call first fit" +
               "before calling the predict operation.")
           }
         }
       }
-    }
-  }
 
-  /** [[org.apache.flink.ml.pipeline.PredictOperation]] for [[LabeledVector ]]types. The result type
-    * is a [[(Double, Double)]] tuple, corresponding to (truth, prediction)
-    *
-    * @return A DataSet[(Double, Double)] where each tuple is a (truth, prediction) pair.
-    */
-  implicit def predictLabeledValues = {
-    new PredictOperation[SVM, LabeledVector, (Double, Double)]{
-      override def predict(
-          instance: SVM,
-          predictParameters: ParameterMap,
-          input: DataSet[LabeledVector])
-        : DataSet[(Double, Double)] = {
+      override def predict(value: T, model: DenseVector): Double = {
+        val rawValue = value.asBreeze dot model.asBreeze
 
-        instance.weightsOption match {
-          case Some(weights) => {
-            input.mapWithBcVariable(weights){
-              (labeledVector, weights) => {
-                val prediction = weights dot labeledVector.vector.asBreeze
-                val truth = labeledVector.label
-
-                (truth, prediction)
-              }
-            }
-          }
-
-          case None => {
-            throw new RuntimeException("The SVM model has not been trained. Call first fit" +
-              "before calling the predict operation.")
-          }
+        if (outputDecisionFunction) {
+          rawValue
+        } else {
+          if (rawValue > thresholdValue) 1.0 else -1.0
         }
       }
     }
@@ -368,7 +387,7 @@ object SVM{
         }
 
         // Store the learned weight vector in hte given instance
-        instance.weightsOption = Some(resultingWeights)
+        instance.weightsOption = Some(resultingWeights.map(_.fromBreeze[DenseVector]))
       }
     }
   }

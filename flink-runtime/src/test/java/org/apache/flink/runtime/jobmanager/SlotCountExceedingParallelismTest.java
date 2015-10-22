@@ -54,7 +54,9 @@ public class SlotCountExceedingParallelismTest {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		flink.stop();
+		if (flink != null) {
+			flink.stop();
+		}
 	}
 
 	@Test

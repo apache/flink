@@ -130,8 +130,15 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 			if (elem == null) {
 				throw new IllegalArgumentException("The collection must not contain null elements.");
 			}
-			
-			if (!viewedAs.isAssignableFrom(elem.getClass())) {
+
+			// The second part of the condition is a workaround for the situation that can arise from eg.
+			// "env.fromElements((),(),())"
+			// In this situation, UnitTypeInfo.getTypeClass returns void.class (when we are in the Java world), but
+			// the actual objects that we will be working with, will be BoxedUnits.
+			// Note: TypeInformationGenTest.testUnit tests this condition.
+			if (!viewedAs.isAssignableFrom(elem.getClass()) &&
+					!(elem.getClass().toString().equals("class scala.runtime.BoxedUnit") && viewedAs.equals(void.class))) {
+
 				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " + 
 							viewedAs.getCanonicalName());
 			}

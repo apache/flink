@@ -48,7 +48,7 @@ Once the session has been started, you can submit jobs to the cluster using the 
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
-./bin/flink -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/flink-java-examples-{{ site.version }}-WordCount.jar
+./bin/flink run -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/WordCount.jar
 ~~~
 
 ## Apache Flink on Hadoop YARN using a YARN Session
@@ -57,7 +57,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 
 **Requirements**
 
-- Apache Hadoop 2.2
+- at least Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
 If you have troubles using the Flink YARN client, have a look in the [FAQ section]({{ site.baseurl }}/faq.html).
@@ -79,7 +79,8 @@ tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{site.version }}/
 ~~~
 
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). You can find the result of the build in `flink-dist/target/flink-{{ site.version }}-bin/flink-{{ site.version }}/` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). 
+You can find the result of the build in `flink-dist/target/flink-{{ site.version }}-bin/flink-{{ site.version }}/` (*Note: The version might be different for you* ).
 
 
 #### Start a Session
@@ -100,11 +101,13 @@ Usage:
      -D <arg>                        Dynamic properties
      -d,--detached                   Start detached
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container [in MB]
+     -nm,--name                      Set a custom name for the application on YARN
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
      -st,--streaming                 Start Flink in streaming mode
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
+
 ~~~
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.
@@ -175,10 +178,10 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 **Example**
 
 ~~~bash
-wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
+wget -O LICENSE-2.0.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
-./bin/flink run ./examples/flink-java-examples-{{site.version }}-WordCount.jar \
-        hdfs:///..../apache-license-v2.txt hdfs:///.../wordcount-result.txt
+./bin/flink run ./examples/WordCount.jar \
+        hdfs:///..../LICENSE-2.0.txt hdfs:///.../wordcount-result.txt
 ~~~
 
 If there is the following error, make sure that all TaskManagers started:
@@ -203,10 +206,17 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 ***Example:***
 
 ~~~bash
-./bin/flink run -m yarn-cluster -yn 2 ./examples/flink-java-examples-{{site.version }}-WordCount.jar 
+./bin/flink run -m yarn-cluster -yn 2 ./examples/WordCount.jar 
 ~~~
 
-The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
+The command line options of the YARN session are also available with the `./bin/flink` tool. 
+They are prefixed with a `y` or `yarn` (for the long argument options).
+
+Note: You can use a different configuration directory per job by setting the environment variable `FLINK_CONF_DIR`. 
+To use this copy the `conf` directory from the Flink distribution and modify, for example, the logging settings on a per-job basis.
+
+Note: It is possible to combine `-m yarn-cluster` with a detached YARN submission (`-yd`) to "fire and forget" a Flink job
+to the YARN cluster. In this case, your application will not get any accumulator results or exceptions from the ExecutionEnvironment.execute() call!
 
 
 ## Recovery behavior of Flink on YARN

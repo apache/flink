@@ -18,26 +18,38 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import akka.actor.UntypedActor;
+import com.google.common.base.Preconditions;
+import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+
+import java.util.UUID;
 
 /**
  * This actor listens to changes in the JobStatus and activates or deactivates the periodic
  * checkpoint scheduler.
  */
-public class CheckpointCoordinatorDeActivator extends UntypedActor {
+public class CheckpointCoordinatorDeActivator extends FlinkUntypedActor {
 
 	private final CheckpointCoordinator coordinator;
 	private final long interval;
+	private final UUID leaderSessionID;
 	
-	public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator, long interval) {
-		this.coordinator = coordinator;
+	public CheckpointCoordinatorDeActivator(
+			CheckpointCoordinator coordinator,
+			long interval,
+			UUID leaderSessionID) {
+
+		LOG.info("Create CheckpointCoordinatorDeActivator");
+
+		this.coordinator = Preconditions.checkNotNull(coordinator, "The checkpointCoordinator must not be null.");
+
 		this.interval = interval;
+		this.leaderSessionID = leaderSessionID;
 	}
 
 	@Override
-	public void onReceive(Object message) {
+	public void handleMessage(Object message) {
 		if (message instanceof ExecutionGraphMessages.JobStatusChanged) {
 			JobStatus status = ((ExecutionGraphMessages.JobStatusChanged) message).newJobStatus();
 			
@@ -52,5 +64,10 @@ public class CheckpointCoordinatorDeActivator extends UntypedActor {
 		}
 		
 		// we ignore all other messages
+	}
+
+	@Override
+	public UUID getLeaderSessionID() {
+		return leaderSessionID;
 	}
 }

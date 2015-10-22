@@ -35,12 +35,12 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>${shading-artifact.name}</module>
+		<module>${shading-artifact-module.name}</module>
 	</modules>
 
 	<profiles>
 		<profile>
-			<id>include-yarn</id>
+			<id>include-yarn-tests</id>
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
@@ -61,7 +61,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
 				<executions>
 					<execution>
 						<id>shade-hadoop</id>
@@ -74,10 +73,26 @@ under the License.
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<filters>
+								<!-- Exclude signatures -->
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
 								<filter>
 									<artifact>org.slf4j:*</artifact>
 									<excludes>
-										<exclude>org/slf4j/impl/StaticLoggerBinder*</exclude>
+										<exclude>org/slf4j/impl/**</exclude>
+									</excludes>
+								</filter>
+								<!-- Exclude Hadoop's log4j. Hadoop can use Flink's log4j dependency -->
+								<filter>
+									<artifact>log4j:*</artifact>
+									<excludes>
+										<exclude>org/apache/log4j/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -101,6 +116,10 @@ under the License.
 								<relocation>
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.curator</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

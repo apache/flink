@@ -76,12 +76,6 @@ under the License.
 			<version>${scala.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>jline</artifactId>
-			<version>2.10.4</version>
-		</dependency>
-
 		<!-- tests -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -180,6 +174,7 @@ under the License.
 						<configuration>
 							<sources>
 								<source>src/main/scala</source>
+								<source>src/main/scala-${scala.binary.version}</source>
 							</sources>
 						</configuration>
 					</execution>
@@ -194,39 +189,6 @@ under the License.
 							<sources>
 								<source>src/test/scala</source>
 							</sources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.scalatest</groupId>
-				<artifactId>scalatest-maven-plugin</artifactId>
-				<version>1.0</version>
-				<configuration>
-					<reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-					<stdout>W</stdout> <!-- Skip coloring output -->
-				</configuration>
-				<executions>
-					<execution>
-						<id>scala-test</id>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<suffixes>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffixes>
-							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
-						</configuration>
-					</execution>
-					<execution>
-						<id>integration-test</id>
-						<phase>integration-test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<suffixes>(IT|Integration)(Test|Suite|Case)</suffixes>
-							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 				</executions>
@@ -273,6 +235,12 @@ under the License.
 					<groupId>org.scalamacros</groupId>
 					<artifactId>quasiquotes_${scala.binary.version}</artifactId>
 					<version>${scala.macros.version}</version>
+				</dependency>
+
+				<dependency>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>jline</artifactId>
+					<version>2.10.4</version>
 				</dependency>
 			</dependencies>
 		</profile>

@@ -76,4 +76,9 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeDouble(source.readDouble());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof DoubleSerializer;
+	}
 }

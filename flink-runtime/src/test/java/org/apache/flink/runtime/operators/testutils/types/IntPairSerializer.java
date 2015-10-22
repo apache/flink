@@ -88,6 +88,27 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 		target.write(source, 8);
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof IntPairSerializer) {
+			IntPairSerializer other = (IntPairSerializer) obj;
+
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof IntPairSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return IntPairSerializer.class.hashCode();
+	}
+
 	public static final class IntPairSerializerFactory implements TypeSerializerFactory<IntPair> {
 
 		@Override

@@ -18,9 +18,11 @@
 package org.apache.flink.api.java.utils;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,6 +35,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+/**
+ * This class provides simple utility methods for reading and parsing program arguments from different sources
+ */
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 
@@ -42,6 +47,16 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// ------------------ Constructors ------------------------
 
+	/**
+	 * Returns {@link ParameterTool} for the given arguments. The arguments are keys followed by values.
+	 * Keys have to start with '-' or '--'
+	 * <p>
+	 * <strong>Example arguments:</strong>
+	 * --key1 value1 --key2 value2 -key3 value3
+	 *
+	 * @param args Input array arguments
+	 * @return A {@link ParameterTool}
+	 */
 	public static ParameterTool fromArgs(String[] args) {
 		Map<String, String> map = new HashMap<String, String>(args.length / 2);
 
@@ -122,23 +137,65 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return fromMap(map);
 	}
 
+	/**
+	 * Returns {@link ParameterTool} for the given {@link Properties} file
+	 *
+	 * @param path Path to the properties file
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If the file does not exist
+	 *
+	 * @see Properties
+	 */
 	public static ParameterTool fromPropertiesFile(String path) throws IOException {
 		File propertiesFile = new File(path);
 		if(!propertiesFile.exists()) {
 			throw new FileNotFoundException("Properties file "+path+" does not exist");
 		}
 		Properties props = new Properties();
-		props.load(new FileInputStream(propertiesFile));
+		FileInputStream fis = new FileInputStream(propertiesFile);
+		props.load(fis);
+		fis.close();
 		return fromMap((Map)props);
 	}
 
+	/**
+	 * Returns {@link ParameterTool} for the given map
+	 *
+	 * @param map A map of arguments. Both Key and Value have to be Strings
+	 * @return A {@link ParameterTool}
+	 */
 	public static ParameterTool fromMap(Map<String, String> map) {
 		Preconditions.checkNotNull(map, "Unable to initialize from empty map");
 		return new ParameterTool(map);
 	}
 
+	/**
+	 * Returns {@link ParameterTool} from the system properties.
+	 * Example on how to pass system properties:
+	 * -Dkey1=value1 -Dkey2=value2
+	 *
+	 * @return A {@link ParameterTool}
+	 */
 	public static ParameterTool fromSystemProperties() {
 		return fromMap((Map) System.getProperties());
+	}
+
+	/**
+	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}
+	 *
+	 * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
+	 * @see GenericOptionsParser
+	 */
+	public static ParameterTool fromGenericOptionsParser(String[] args) throws IOException {
+		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
+		Map<String, String> map = new HashMap<String, String>();
+		for (Option option : options) {
+			String[] split = option.getValue().split("=");
+			map.put(split[0], split[1]);
+		}
+		return fromMap(map);
 	}
 
 	// ------------------ ParameterUtil  ------------------------
@@ -152,15 +209,26 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// ------------------ Get data from the util ----------------
 
+	/**
+	 * Returns number of parameters in {@link ParameterTool}.
+	 */
 	public int getNumberOfParameters() {
 		return data.size();
 	}
 
+	/**
+	 * Returns the String value for the given key.
+	 * If the key does not exist it will return null.
+	 */
 	public String get(String key) {
 		addToDefaults(key, null);
 		return data.get(key);
 	}
 
+	/**
+	 * Returns the String value for the given key.
+	 * If the key does not exist it will throw a {@link RuntimeException}.
+	 */
 	public String getRequired(String key) {
 		addToDefaults(key, null);
 		String value = get(key);
@@ -171,6 +239,10 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 
+	/**
+	 * Returns the String value for the given key.
+	 * If the key does not exist it will return the given default value.
+	 */
 	public String get(String key, String defaultValue) {
 		addToDefaults(key, defaultValue);
 		String value = get(key);
@@ -182,7 +254,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	/**
-	 * Check if value is set
+	 * Check if value is set.
 	 */
 	public boolean has(String value) {
 		addToDefaults(value, null);
@@ -191,13 +263,21 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// -------------- Integer
 
+	/**
+	 * Returns the Integer value for the given key.
+	 * The method fails if the key does not exist or the value is not an Integer.
+	 */
 	public int getInt(String key) {
 		addToDefaults(key, null);
 		String value = getRequired(key);
 		return Integer.valueOf(value);
 	}
 
-	public int getLong(String key, int defaultValue) {
+	/**
+	 * Returns the Integer value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not an Integer.
+	 */
+	public int getInt(String key, int defaultValue) {
 		addToDefaults(key, Integer.toString(defaultValue));
 		String value = get(key);
 		if(value == null) {
@@ -208,11 +288,10 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	}
 
 	// -------------- LONG
+
 	/**
-	 * Get long value.
-	 * The method fails if the key is not specified.
-	 * @param key Name of the key
-	 * @return
+	 * Returns the Long value for the given key.
+	 * The method fails if the key does not exist.
 	 */
 	public long getLong(String key) {
 		addToDefaults(key, null);
@@ -220,6 +299,10 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return Long.valueOf(value);
 	}
 
+	/**
+	 * Returns the Long value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Long.
+	 */
 	public long getLong(String key, long defaultValue) {
 		addToDefaults(key, Long.toString(defaultValue));
 		String value = get(key);
@@ -232,12 +315,20 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// -------------- FLOAT
 
+	/**
+	 * Returns the Float value for the given key.
+	 * The method fails if the key does not exist.
+	 */
 	public float getFloat(String key) {
 		addToDefaults(key, null);
 		String value = getRequired(key);
 		return Float.valueOf(value);
 	}
 
+	/**
+	 * Returns the Float value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Float.
+	 */
 	public float getFloat(String key, float defaultValue) {
 		addToDefaults(key, Float.toString(defaultValue));
 		String value = get(key);
@@ -250,12 +341,20 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// -------------- DOUBLE
 
+	/**
+	 * Returns the Double value for the given key.
+	 * The method fails if the key does not exist.
+	 */
 	public double getDouble(String key) {
 		addToDefaults(key, null);
 		String value = getRequired(key);
 		return Double.valueOf(value);
 	}
 
+	/**
+	 * Returns the Double value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Double.
+	 */
 	public double getDouble(String key, double defaultValue) {
 		addToDefaults(key, Double.toString(defaultValue));
 		String value = get(key);
@@ -263,6 +362,84 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 			return defaultValue;
 		} else {
 			return Double.valueOf(value);
+		}
+	}
+
+	// -------------- BOOLEAN
+
+	/**
+	 * Returns the Boolean value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public boolean getBoolean(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Boolean.valueOf(value);
+	}
+
+	/**
+	 * Returns the Boolean value for the given key. If the key does not exists it will return the default value given.
+	 * The method returns whether the string of the value is "true" ignoring cases.
+	 */
+	public boolean getBoolean(String key, boolean defaultValue) {
+		addToDefaults(key, Boolean.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Boolean.valueOf(value);
+		}
+	}
+
+	// -------------- SHORT
+
+	/**
+	 * Returns the Short value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public short getShort(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Short.valueOf(value);
+	}
+
+	/**
+	 * Returns the Short value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Short.
+	 */
+	public short getShort(String key, short defaultValue) {
+		addToDefaults(key, Short.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Short.valueOf(value);
+		}
+	}
+
+	// -------------- BYTE
+
+	/**
+	 * Returns the Byte value for the given key.
+	 * The method fails if the key does not exist.
+	 */
+	public byte getByte(String key) {
+		addToDefaults(key, null);
+		String value = getRequired(key);
+		return Byte.valueOf(value);
+	}
+
+	/**
+	 * Returns the Byte value for the given key. If the key does not exists it will return the default value given.
+	 * The method fails if the value is not a Byte.
+	 */
+	public byte getByte(String key, byte defaultValue) {
+		addToDefaults(key, Byte.toString(defaultValue));
+		String value = get(key);
+		if(value == null) {
+			return defaultValue;
+		} else {
+			return Byte.valueOf(value);
 		}
 	}
 
@@ -286,6 +463,11 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// ------------------------- Export to different targets -------------------------
 
+	/**
+	 * Returns a {@link Configuration} object from this {@link ParameterTool}
+	 *
+	 * @return A {@link Configuration}
+	 */
 	public Configuration getConfiguration() {
 		Configuration conf = new Configuration();
 		for(Map.Entry<String, String> entry: data.entrySet()) {
@@ -294,6 +476,11 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return conf;
 	}
 
+	/**
+	 * Returns a {@link Properties} object from this {@link ParameterTool}
+	 *
+	 * @return A {@link Properties}
+	 */
 	public Properties getProperties() {
 		Properties props = new Properties();
 		props.putAll(this.data);
@@ -313,6 +500,14 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		createPropertiesFile(pathToFile, true);
 	}
 
+	/**
+	 * Create a properties file with all the known parameters (call after the last get*() call).
+	 * Set the default value, if overwrite is true.
+	 *
+	 * @param pathToFile Location of the default properties file.
+	 * @param overwrite Boolean flag indicating whether or not to overwrite the file
+	 * @throws IOException If overwrite is not allowed and the file exists
+	 */
 	public void createPropertiesFile(String pathToFile, boolean overwrite) throws IOException {
 		File file = new File(pathToFile);
 		if(file.exists()) {
@@ -336,6 +531,12 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// ------------------------- Interaction with other ParameterUtils -------------------------
 
+	/**
+	 * Merges two {@link ParameterTool}
+	 *
+	 * @param other Other {@link ParameterTool} object
+	 * @return The Merged {@link ParameterTool}
+	 */
 	public ParameterTool mergeWith(ParameterTool other) {
 		ParameterTool ret = new ParameterTool(this.data);
 		ret.data.putAll(other.data);

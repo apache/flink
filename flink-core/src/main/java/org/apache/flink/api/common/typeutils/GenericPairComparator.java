@@ -20,9 +20,6 @@ package org.apache.flink.api.common.typeutils;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypePairComparator;
-
 
 public class GenericPairComparator<T1, T2> extends TypePairComparator<T1, T2>
 		implements Serializable {

@@ -109,7 +109,7 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj.getClass() == DoubleValue.class) {
+		if (obj instanceof DoubleValue) {
 			final DoubleValue other = (DoubleValue) obj;
 			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
 		}
@@ -122,10 +122,15 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 	public int getBinaryLength() {
 		return 8;
 	}
-	
+
 	@Override
 	public void copyTo(DoubleValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public DoubleValue copy() {
+		return new DoubleValue(this.value);
 	}
 
 	@Override

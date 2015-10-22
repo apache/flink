@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -44,25 +45,14 @@ public class TypeHintITCase extends JavaProgramTestBase {
 	private static int NUM_PROGRAMS = 3;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
-	private String resultPath;
-	private String expectedResult;
 
 	public TypeHintITCase(Configuration config) {
 		super(config);
 	}
 
 	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
-	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = TypeHintProgs.runProgram(curProgId, resultPath);
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		TypeHintProgs.runProgram(curProgId);
 	}
 
 	@Parameters
@@ -81,7 +71,7 @@ public class TypeHintITCase extends JavaProgramTestBase {
 
 	private static class TypeHintProgs {
 
-		public static String runProgram(int progId, String resultPath) throws Exception {
+		public static void runProgram(int progId) throws Exception {
 			switch(progId) {
 			// Test identity map with missing types and string type hint
 			case 1: {
@@ -91,13 +81,14 @@ public class TypeHintITCase extends JavaProgramTestBase {
 				DataSet<Tuple3<Integer, Long, String>> identityMapDs = ds
 						.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
 						.returns("Tuple3<Integer, Long, String>");
-				identityMapDs.writeAsText(resultPath);
-				env.execute();
+				List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
 
-				// return expected result
-				return "(2,2,Hello)\n" +
-				"(3,2,Hello world)\n" +
-				"(1,1,Hi)\n";
+				String expectedResult = "(2,2,Hello)\n" +
+						"(3,2,Hello world)\n" +
+						"(1,1,Hi)\n";
+
+				compareResultAsText(result, expectedResult);
+				break;
 			}
 			// Test identity map with missing types and type information type hint
 			case 2: {
@@ -108,32 +99,34 @@ public class TypeHintITCase extends JavaProgramTestBase {
 						// all following generics get erased during compilation
 						.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
 						.returns(new TupleTypeInfo<Tuple3<Integer, Long, String>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
-				identityMapDs.writeAsText(resultPath);
-				env.execute();
+				List<Tuple3<Integer, Long, String>> result = identityMapDs
+						.collect();
 
-				// return expected result
-				return "(2,2,Hello)\n" +
-				"(3,2,Hello world)\n" +
-				"(1,1,Hi)\n";
+				String expectedResult = "(2,2,Hello)\n" +
+						"(3,2,Hello world)\n" +
+						"(1,1,Hi)\n";
+
+				compareResultAsText(result, expectedResult);
+				break;
 			}
 			// Test flat map with class type hint
 			case 3: {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				@SuppressWarnings({ "rawtypes", "unchecked" })
 				DataSet<Integer> identityMapDs = ds.
 				flatMap(new FlatMapper<Tuple3<Integer, Long, String>, Integer>())
-				.returns((Class) Integer.class);
-				identityMapDs.writeAsText(resultPath);
-				env.execute();
+				.returns(Integer.class);
+				List<Integer> result = identityMapDs.collect();
 
-				// return expected result
-				return "2\n" +
-				"3\n" +
-				"1\n";
+				String expectedResult = "2\n" +
+						"3\n" +
+						"1\n";
+
+				compareResultAsText(result, expectedResult);
+				break;
 			}
-			default: 
+			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}
 		}
@@ -150,7 +143,7 @@ public class TypeHintITCase extends JavaProgramTestBase {
 			return (V) value;
 		}
 	}
-	
+
 	public static class FlatMapper<T, V> implements FlatMapFunction<T, V> {
 		private static final long serialVersionUID = 1L;
 

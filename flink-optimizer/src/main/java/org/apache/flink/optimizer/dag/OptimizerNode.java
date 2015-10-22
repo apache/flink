@@ -152,7 +152,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return The node name.
 	 */
-	public abstract String getName();
+	public abstract String getOperatorName();
 
 	/**
 	 * This function connects the predecessors to this operator.
@@ -1119,7 +1119,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
 
-		bld.append(getName());
+		bld.append(getOperatorName());
 		bld.append(" (").append(getOperator().getName()).append(") ");
 
 		int i = 1; 

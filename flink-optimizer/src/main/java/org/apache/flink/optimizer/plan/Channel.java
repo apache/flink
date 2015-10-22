@@ -36,6 +36,8 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * A Channel represents the result produced by an operator and the data exchange
  * before the consumption by the target operator.
@@ -181,7 +183,17 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	}
 
 	/**
-	 * Gets the data exchange mode (batch / streaming) to use for the data
+	 * Sets the data exchange mode (batch / pipelined) to use for the data
+	 * exchange of this channel.
+	 *
+	 * @return The data exchange mode of this channel.
+	 */
+	public void setDataExchangeMode(DataExchangeMode dataExchangeMode) {
+		this.dataExchangeMode = checkNotNull(dataExchangeMode);
+	}
+
+	/**
+	 * Gets the data exchange mode (batch / pipelined) to use for the data
 	 * exchange of this channel.
 	 *
 	 * @return The data exchange mode of this channel.

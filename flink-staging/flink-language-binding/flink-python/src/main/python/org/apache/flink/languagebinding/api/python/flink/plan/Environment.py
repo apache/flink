@@ -15,14 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import inspect
 from flink.connection import Connection
 from flink.connection import Collector
 from flink.plan.DataSet import DataSet
 from flink.plan.Constants import _Fields, _Identifier
 from flink.utilities import Switch
-import dill
 import copy
+import sys
 
 
 def get_environment():
@@ -34,15 +33,9 @@ def get_environment():
     return Environment()
 
 
-def _dump(function):
-    return dill.dumps(function, protocol=0, byref=True)
-
-
 class Environment(object):
     def __init__(self):
         # util
-        self._connection = Connection.OneWayBusyBufferingMappedFileConnection()
-        self._collector = Collector.TypedCollector(self._connection)
         self._counter = 0
 
         #parameters
@@ -128,8 +121,41 @@ class Environment(object):
         self._parameters.append(("mode", local))
         self._parameters.append(("debug", debug))
         self._optimize_plan()
-        self._send_plan()
-        self._connection._write_buffer()
+
+        plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
+
+        if plan_mode:
+            output_path = sys.stdin.readline().rstrip('\n')
+            self._connection = Connection.OneWayBusyBufferingMappedFileConnection(output_path)
+            self._collector = Collector.TypedCollector(self._connection)
+            self._send_plan()
+            self._connection._write_buffer()
+        else:
+            import struct
+            operator = None
+            try:
+                port = int(sys.stdin.readline().rstrip('\n'))
+
+                id = int(sys.stdin.readline().rstrip('\n'))
+                input_path = sys.stdin.readline().rstrip('\n')
+                output_path = sys.stdin.readline().rstrip('\n')
+
+                operator = None
+                for set in self._sets:
+                    if set[_Fields.ID] == id:
+                        operator = set[_Fields.OPERATOR]
+                    if set[_Fields.ID] == -id:
+                        operator = set[_Fields.COMBINEOP]
+                operator._configure(input_path, output_path, port)
+                operator._go()
+                sys.stdout.flush()
+                sys.stderr.flush()
+            except:
+                sys.stdout.flush()
+                sys.stderr.flush()
+                if operator is not None:
+                    operator._connection._socket.send(struct.pack(">i", -2))
+                raise
 
     def _optimize_plan(self):
         self._find_chains()
@@ -157,8 +183,7 @@ class Environment(object):
                             if parent_type in udf and len(parent[_Fields.CHILDREN]) == 1:
                                 if parent[_Fields.OPERATOR] is not None:
                                     function = child[_Fields.COMBINEOP]
-                                    meta = str(inspect.getmodule(function)) + "|" + str(function.__class__.__name__)
-                                    parent[_Fields.OPERATOR]._chain(_dump(function), meta)
+                                    parent[_Fields.OPERATOR]._chain(function)
                                     child[_Fields.COMBINE] = False
                                     parent[_Fields.NAME] += " -> PythonCombine"
                                     for bcvar in child[_Fields.BCVARS]:
@@ -170,8 +195,7 @@ class Environment(object):
                             parent_op = parent[_Fields.OPERATOR]
                             if parent_op is not None:
                                 function = child[_Fields.OPERATOR]
-                                meta = str(inspect.getmodule(function)) + "|" + str(function.__class__.__name__)
-                                parent_op._chain(_dump(function), meta)
+                                parent_op._chain(function)
                                 parent[_Fields.NAME] += " -> " + child[_Fields.NAME]
                                 parent[_Fields.TYPES] = child[_Fields.TYPES]
                                 for grand_child in child[_Fields.CHILDREN]:
@@ -233,7 +257,6 @@ class Environment(object):
 
     def _send_operations(self):
         collect = self._collector.collect
-        collectBytes = self._collector.collectBytes
         for set in self._sets:
             identifier = set.get(_Fields.IDENTIFIER)
             collect(set[_Fields.IDENTIFIER])
@@ -251,18 +274,11 @@ class Environment(object):
                     collect(set[_Fields.OTHER][_Fields.ID])
                     collect(set[_Fields.KEY1])
                     collect(set[_Fields.KEY2])
-                    collectBytes(_dump(set[_Fields.OPERATOR]))
-                    collect(set[_Fields.META])
                     collect(set[_Fields.TYPES])
                     collect(set[_Fields.NAME])
                     break
                 if case(_Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST):
                     collect(set[_Fields.OTHER][_Fields.ID])
-                    if set[_Fields.OPERATOR] is None:
-                        collect(set[_Fields.OPERATOR])
-                    else:
-                        collectBytes(_dump(set[_Fields.OPERATOR]))
-                    collect(set[_Fields.META])
                     collect(set[_Fields.TYPES])
                     collect(len(set[_Fields.PROJECTIONS]))
                     for p in set[_Fields.PROJECTIONS]:
@@ -271,9 +287,6 @@ class Environment(object):
                     collect(set[_Fields.NAME])
                     break
                 if case(_Identifier.REDUCE, _Identifier.GROUPREDUCE):
-                    collectBytes(_dump(set[_Fields.OPERATOR]))
-                    collectBytes(_dump(set[_Fields.COMBINEOP]))
-                    collect(set[_Fields.META])
                     collect(set[_Fields.TYPES])
                     collect(set[_Fields.COMBINE])
                     collect(set[_Fields.NAME])
@@ -282,11 +295,6 @@ class Environment(object):
                     collect(set[_Fields.KEY1])
                     collect(set[_Fields.KEY2])
                     collect(set[_Fields.OTHER][_Fields.ID])
-                    if set[_Fields.OPERATOR] is None:
-                        collect(set[_Fields.OPERATOR])
-                    else:
-                        collectBytes(_dump(set[_Fields.OPERATOR]))
-                    collect(set[_Fields.META])
                     collect(set[_Fields.TYPES])
                     collect(len(set[_Fields.PROJECTIONS]))
                     for p in set[_Fields.PROJECTIONS]:
@@ -295,8 +303,6 @@ class Environment(object):
                     collect(set[_Fields.NAME])
                     break
                 if case(_Identifier.MAP, _Identifier.MAPPARTITION, _Identifier.FLATMAP, _Identifier.FILTER):
-                    collectBytes(_dump(set[_Fields.OPERATOR]))
-                    collect(set[_Fields.META])
                     collect(set[_Fields.TYPES])
                     collect(set[_Fields.NAME])
                     break

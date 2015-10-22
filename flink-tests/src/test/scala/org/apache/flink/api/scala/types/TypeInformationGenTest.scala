@@ -20,13 +20,14 @@ package org.apache.flink.api.scala.types
 import java.io.{DataInput, DataOutput}
 
 import org.apache.flink.api.java.`type`.extractor.TypeExtractorTest.CustomTuple
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.hadoop.io.Writable
 import org.junit.{Assert, Test}
 
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.scala.typeutils.{UnitTypeInfo, CaseClassTypeInfo}
 import org.apache.flink.types.{IntValue, StringValue}
 
 class MyWritable extends Writable {
@@ -340,7 +341,7 @@ class TypeInformationGenTest {
     Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
     Assert.assertEquals(
       classOf[CustomType],
-      ti.asInstanceOf[ObjectArrayTypeInfo[_, _]].getComponentType)
+      ti.asInstanceOf[ObjectArrayTypeInfo[_, _]].getComponentInfo.getTypeClass)
   }
 
   @Test
@@ -575,6 +576,33 @@ class TypeInformationGenTest {
     Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("1"))
     Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("_2"))
 
+  }
+
+  /**
+   * Tests the "implicit val scalaNothingTypeInfo" in
+   * flink-scala/src/main/scala/org/apache/flink/api/scala/package.scala
+   * This does not compile without that line.
+   */
+  @Test
+  def testNothingTypeInfoIsAvailableImplicitly() : Unit = {
+    def g() = {
+
+      def f[O: TypeInformation](x: O): Unit = {}
+
+      f(???) // O will be Nothing
+    }
+    // (Do not call g, because it throws NotImplementedError. This is a compile time test.)
+  }
+
+  @Test
+  def testUnit(): Unit = {
+    val ti = createTypeInformation[Unit]
+    Assert.assertTrue(ti.isInstanceOf[UnitTypeInfo])
+
+    // This checks the condition in checkCollection. If this fails with IllegalArgumentException,
+    // then things like "env.fromElements((),(),())" won't work.
+    import scala.collection.JavaConversions._
+    CollectionInputFormat.checkCollection(Seq((),(),()), (new UnitTypeInfo).getTypeClass)
   }
 }
 

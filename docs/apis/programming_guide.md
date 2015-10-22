@@ -1,5 +1,5 @@
 ---
-title: "Flink Programming Guide"
+title: "Flink DataSet API Programming Guide"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,14 +22,14 @@ under the License.
 
 <a href="#top"></a>
 
-Analysis programs in Flink are regular programs that implement transformations on data sets
+DataSet programs in Flink are regular programs that implement transformations on data sets
 (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain
 sources (e.g., by reading files, or from local collections). Results are returned via sinks, which may for
 example write the data to (distributed) files, or to standard output (for example the command line
 terminal). Flink programs run in a variety of contexts, standalone, or embedded in other programs.
 The execution can happen in a local JVM, or on clusters of many machines.
 
-In order to create your own Flink program, we encourage you to start with the
+In order to create your own Flink DataSet program, we encourage you to start with the
 [program skeleton](#program-skeleton) and gradually add your own
 [transformations](#transformations). The remaining sections act as references for additional
 operations and advanced features.
@@ -120,23 +120,23 @@ manually create the project, you can use the archetype and create a project by c
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight bash %}
-mvn archetype:generate /
-    -DarchetypeGroupId=org.apache.flink/
-    -DarchetypeArtifactId=flink-quickstart-java /
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-quickstart-java \
     -DarchetypeVersion={{site.version }}
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight bash %}
-mvn archetype:generate /
-    -DarchetypeGroupId=org.apache.flink/
-    -DarchetypeArtifactId=flink-quickstart-scala /
+mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-quickstart-scala \
     -DarchetypeVersion={{site.version }}
 {% endhighlight %}
 </div>
 </div>
 
-The archetypes are working for stable releases and preview versions (`-SNAPSHOT`)
+The archetypes are working for stable releases and preview versions (`-SNAPSHOT`).
 
 If you want to add Flink to an existing Maven project, add the following entry to your
 *dependencies* section in the *pom.xml* file of your project:
@@ -187,7 +187,17 @@ that creates the type information for Flink operations.
 </div>
 </div>
 
+#### Scala Dependency Versions
 
+Because Scala 2.10 binary is not compatible with Scala 2.11 binary, we provide multiple artifacts
+to support both Scala versions.
+
+Starting from the 0.10 line, we cross-build all Flink modules for both 2.10 and 2.11. If you want
+to run your program on Flink with Scala 2.11, you need to add a `_2.11` suffix to the `artifactId`
+values of the Flink modules in your dependencies section.
+
+If you are looking for building Flink with Scala 2.11, please check
+[build guide](../setup/building.html#build-flink-for-a-specific-scala-version).
 
 #### Hadoop Dependency Versions
 
@@ -211,25 +221,25 @@ Program Skeleton
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-As we already saw in the example, Flink programs look like regular Java
+As we already saw in the example, Flink DataSet programs look like regular Java
 programs with a `main()` method. Each program consists of the same basic parts:
 
 1. Obtain an `ExecutionEnvironment`,
 2. Load/create the initial data,
 3. Specify transformations on this data,
-4. Specify where to put the results of your computations, and
+4. Specify where to put the results of your computations,
 5. Trigger the program execution
 
 We will now give an overview of each of those steps, please refer to the respective sections for
-more details. Note that all
-{% gh_link /flink-java/src/main/java/org/apache/flink/api/java "core classes of the Java API" %}
-are found in the package `org.apache.flink.api.java`.
+more details. Note that all core classes of the Java API are found in the package {% gh_link /flink-java/src/main/java/org/apache/flink/api/java "org.apache.flink.api.java" %}.
 
-The `ExecutionEnvironment` is the basis for all Flink programs. You can
+The `ExecutionEnvironment` is the basis for all Flink DataSet programs. You can
 obtain one using these static methods on class `ExecutionEnvironment`:
 
 {% highlight java %}
 getExecutionEnvironment()
+
+createCollectionsEnvironment()
 
 createLocalEnvironment()
 createLocalEnvironment(int parallelism)
@@ -243,7 +253,7 @@ Typically, you only need to use `getExecutionEnvironment()`, since this
 will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
-you created a JAR file from you program, and invoke it through the [command line](cli.html)
+you created a JAR file from your program, and invoke it through the [command line](cli.html)
 or the [web interface](web_client.html),
 the Flink cluster manager will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
@@ -266,13 +276,13 @@ more information on data sources and input formats, please refer to
 Once you have a DataSet you can apply transformations to create a new
 DataSet which you can then write to a file, transform again, or
 combine with other DataSets. You apply transformations by calling
-methods on DataSet with your own custom transformation function. For example,
+methods on DataSet with your own custom transformation functions. For example,
 a map transformation looks like this:
 
 {% highlight java %}
 DataSet<String> input = ...;
 
-DataSet<Integer> tokenized = text.map(new MapFunction<String, Integer>() {
+DataSet<Integer> tokenized = input.map(new MapFunction<String, Integer>() {
     @Override
     public Integer map(String value) {
         return Integer.parseInt(value);
@@ -284,7 +294,7 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can either write the result
+Once you have a DataSet containing your final results, you can either write the result 
 to a file system (HDFS or local) or print it.
 
 {% highlight java %}
@@ -307,10 +317,10 @@ programs with a `main()` method. Each program consists of the same basic parts:
 1. Obtain an `ExecutionEnvironment`,
 2. Load/create the initial data,
 3. Specify transformations on this data,
-4. Specify where to put the results of your computations, and
+4. Specify where to put the results of your computations,
 5. Trigger the program execution
 
-We will now give an overview of each of those steps but please refer to the respective sections for
+We will now give an overview of each of those steps, please refer to the respective sections for
 more details. Note that all core classes of the Scala API are found in the package 
 {% gh_link /flink-scala/src/main/scala/org/apache/flink/api/scala "org.apache.flink.api.scala" %}.
 
@@ -321,11 +331,13 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 {% highlight scala %}
 def getExecutionEnvironment
 
-def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors()))
+def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors())
 def createLocalEnvironment(customConfiguration: Configuration)
 
-def createRemoteEnvironment(host: String, port: String, jarFiles: String*)
-def createRemoteEnvironment(host: String, port: String, parallelism: Int, jarFiles: String*)
+def createCollectionsEnvironment
+
+def createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
+def createRemoteEnvironment(host: String, port: Int, parallelism: Int, jarFiles: String*)
 {% endhighlight %}
 
 Typically, you only need to use `getExecutionEnvironment()`, since this
@@ -361,7 +373,7 @@ a map transformation looks like this:
 {% highlight scala %}
 val input: DataSet[String] = ...
 
-val mapped = text.map { x => x.toInt }
+val mapped = input.map { x => x.toInt }
 {% endhighlight %}
 
 This will create a new DataSet by converting every String in the original
@@ -435,18 +447,14 @@ accessed from the `getLastJobExecutionResult()` method.
 DataSet abstraction
 ---------------
 
-The batch processing APIs of Flink are centered around the `DataSet` abstraction. A `DataSet` is only
-an abstract representation of a set of data that can contain duplicates.
+A `DataSet` is an abstract representation of a finite immutable collection of data of the same type that may contain duplicates.
 
-Also note that Flink is not always physically creating (materializing) each DataSet at runtime. This 
-depends on the used runtime, the configuration and optimizer decisions.
+Note that Flink is not always physically creating (materializing) each DataSet at runtime. This
+depends on the used runtime, the configuration and optimizer decisions. DataSets may be "streamed through" 
+operations during execution, as under the hood Flink uses a streaming data processing engine.
 
-The Flink runtime does not need to always materialize the DataSets because it is using a streaming runtime model.
-
-DataSets are only materialized to avoid distributed deadlocks (at points where the data flow graph branches out and joins again later) or if the execution mode has explicitly been set to a batched execution.
-
-When using Flink on Tez, all DataSets are materialized.
-
+Some DataSets are materialized automatically to avoid distributed deadlocks (at points where the data flow graph branches
+out and joins again later) or if the execution mode has explicitly been set to blocking execution.
 
 [Back to top](#top)
 
@@ -454,7 +462,7 @@ When using Flink on Tez, all DataSets are materialized.
 Lazy Evaluation
 ---------------
 
-All Flink programs are executed lazily: When the program's main method is executed, the data loading
+All Flink DataSet programs are executed lazily: When the program's main method is executed, the data loading
 and transformations do not happen directly. Rather, each operation is created and added to the
 program's plan. The operations are actually executed when the execution is explicitly triggered by 
 an `execute()` call on the ExecutionEnvironment object. Also, `collect()` and `print()` will trigger
@@ -606,13 +614,24 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
       </td>
     </tr>
 
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
+    {% highlight java %}
+        data.distinct(); 
+    {% endhighlight %}
+      </td>
     </tr>
+    
+    <tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
         Optionally uses a JoinFunction to turn the pair of elements into a single element, or a
-        FlatJoinFunction to turn the pair of elements into arbitararily many (including none)
-        elements. See <a href="#specifying-keys">keys</a> on how to define join keys.
+        FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)
+        elements. See the <a href="#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight java %}
 result = input1.join(input2)
                .where(0)       // key of the first input (tuple field 0)
@@ -631,7 +650,27 @@ result = input1.join(input2)
 result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                .where(0).equalTo(1);
 {% endhighlight %}
-        Note that the join transformation works only for equi-joins. Other join types, for example outer-joins need to be expressed using CoGroup.
+        Note that the join transformation works only for equi-joins. Other join types need to be expressed using OuterJoin or CoGroup.
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>OuterJoin</strong></td>
+      <td>
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="#specifying-keys">keys section</a> to learn how to define join keys.
+{% highlight java %}
+input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or full outer joins
+      .where(0)              // key of the first input (tuple field 0)
+      .equalTo(1)            // key of the second input (tuple field 1)
+      .with(new JoinFunction<String, String, String>() {
+          public String join(String v1, String v2) {
+             // NOTE: 
+             // - v2 might be null for leftOuterJoin
+             // - v1 might be null for rightOuterJoin
+             // - v1 OR v2 might be null for fullOuterJoin
+          }
+      });
+{% endhighlight %}
       </td>
     </tr>
 
@@ -640,7 +679,7 @@ result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
-        See <a href="#specifying-keys">keys</a> on how to define coGroup keys.</p>
+        See the <a href="#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
 {% highlight java %}
 data1.coGroup(data2)
      .where(0)
@@ -870,14 +909,25 @@ val output: DataSet[(Int, String, Doublr)] = input.sum(0).min(2)
 {% endhighlight %}
       </td>
     </tr>
+    
+    <tr>
+      <td><strong>Distinct</strong></td>
+      <td>
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
+      {% highlight scala %}
+         data.distinct() 
+      {% endhighlight %}
+      </td> 
+    </tr>
 
     </tr>
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
         Optionally uses a JoinFunction to turn the pair of elements into a single element, or a
-        FlatJoinFunction to turn the pair of elements into arbitararily many (including none)
-        elements. See <a href="#specifying-keys">keys</a> on how to define join keys.
+        FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)
+        elements. See the <a href="#specifying-keys">keys section</a> to learn how to define join keys.
 {% highlight scala %}
 // In this case tuple fields are used as keys. "0" is the join field on the first tuple
 // "1" is the join field on the second tuple.
@@ -896,7 +946,21 @@ val result = input1.join(input2).where(0).equalTo(1)
 val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                    .where(0).equalTo(1)
 {% endhighlight %}
-          Note that the join transformation works only for equi-joins. Other join types, for example outer-joins need to be expressed using CoGroup.
+          Note that the join transformation works only for equi-joins. Other join types need to be expressed using OuterJoin or CoGroup.
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>OuterJoin</strong></td>
+      <td>
+        Performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pairs of elements (or one element and a `null` value for the other input) are given to a JoinFunction to turn the pair of elements into a single element, or to a FlatJoinFunction to turn the pair of elements into arbitrarily many (including none)         elements. See the <a href="#specifying-keys">keys section</a> to learn how to define join keys.
+{% highlight scala %}
+val joined = left.leftOuterJoin(right).where(0).equalTo(1) {
+   (left, right) =>
+     val a = if (left == null) "none" else left._1
+     (a, right)
+  }
+{% endhighlight %}
       </td>
     </tr>
 
@@ -905,7 +969,7 @@ val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
       <td>
         <p>The two-dimensional variant of the reduce operation. Groups each input on one or more
         fields and then joins the groups. The transformation function is called per pair of groups.
-        See <a href="#specifying-keys">keys</a> on how to define coGroup keys.</p>
+        See the <a href="#specifying-keys">keys section</a> to learn how to define coGroup keys.</p>
 {% highlight scala %}
 data1.coGroup(data2).where(0).equalTo(1)
 {% endhighlight %}
@@ -956,6 +1020,19 @@ val result = in.partitionByHash(0).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
+    </tr>
+    <tr>
+      <td><strong>Custom Partitioning</strong></td>
+      <td>
+        <p>Manually specify a partitioning over the data.
+          <br/>
+          <i>Note</i>: This method works only on single field keys.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in
+  .partitionCustom(partitioner: Partitioner[K], key)
+{% endhighlight %}
+      </td>
     </tr>
     <tr>
       <td><strong>Sort Partition</strong></td>
@@ -1276,7 +1353,7 @@ data.map (new MyMapFunction());
 
 #### Anonymous classes
 
-You can pass a function as an anonmymous class:
+You can pass a function as an anonymous class:
 {% highlight java %}
 data.map(new MapFunction<String, Integer> () {
   public Integer map(String value) { return Integer.parseInt(value); }
@@ -1404,7 +1481,7 @@ for a complete example.
 Data Types
 ----------
 
-Flink places some restrictions on the type of elements that are used in DataSets and as results
+Flink places some restrictions on the type of elements that are used in DataSets and in results
 of transformations. The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
@@ -1426,7 +1503,7 @@ Tuples are composite types that contain a fixed number of fields with various ty
 The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple
 can be an arbitrary Flink type including further tuples, resulting in nested tuples. Fields of a
 tuple can be accessed directly using the field's name as `tuple.f4`, or using the generic getter method
-`tuple.getField(int position)`. The field indicies start at 0. Note that this stands in contrast
+`tuple.getField(int position)`. The field indices start at 0. Note that this stands in contrast
 to the Scala tuples, but it is more consistent with Java's general indexing.
 
 {% highlight java %}
@@ -1485,7 +1562,7 @@ Java and Scala classes are treated by Flink as a special POJO data type if they 
 
 - The type of a field must be supported by Flink. At the moment, Flink uses [Avro](http://avro.apache.org) to serialize arbitrary objects (such as `Date`).
 
-Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, they Flink can process POJOs more efficiently than general types.  
+Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
 
 The following example shows a simple POJO with two public fields.
 
@@ -1644,7 +1721,11 @@ File-based:
   Returns a DataSet of tuples or POJOs. Supports the basic java types and their Value counterparts as field
   types.
 
-- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`. 
+- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+  delimited primitive data types such as `String` or `Integer`.
+   
+- `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+   delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
 Collection-based:
 
@@ -1730,7 +1811,7 @@ Flink offers a number of configuration options for CSV parsing:
 
 - `includeFields(boolean ... flag)`, `includeFields(String mask)`, or `includeFields(long bitMask)` defines which fields to read from the input file (and which to ignore). By default the first *n* fields (as defined by the number of types in the `types()` call) are parsed.
 
-- `parseQuotedStrings(char quoteChar)` enables quoted string parsing. Strings are parsed as quoted strings if the first character of the string field is the quote character (leading or tailing whitespaces are *not* trimmed). Field delimiters within quoted strings are ignored. Quoted string parsing fails if the last character of a quoted string field is not the quote character. If quoted string parsing is enabled and the first character of the field is *not* the quoting string, the string is parsed as unquoted string. By default, quoted string parsing is disabled.
+- `parseQuotedStrings(char quoteChar)` enables quoted string parsing. Strings are parsed as quoted strings if the first character of the string field is the quote character (leading or tailing whitespaces are *not* trimmed). Field delimiters within quoted strings are ignored. Quoted string parsing fails if the last character of a quoted string field is not the quote character or if the quote character appears at some point which is not the start or the end of the quoted string field (unless the quote character is escaped using '\'). If quoted string parsing is enabled and the first character of the field is *not* the quoting string, the string is parsed as unquoted string. By default, quoted string parsing is disabled.
 
 - `ignoreComments(String commentPrefix)` specifies a comment prefix. All lines that start with the specified comment prefix are not parsed and ignored. By default, no lines are ignored.
 
@@ -1778,6 +1859,9 @@ File-based:
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
   Returns a DataSet of tuples, case class objects, or POJOs. Supports the basic java types and their Value counterparts as field
   types.
+
+- `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
+  delimited primitive data types such as `String` or `Integer` using the given delimiter.
 
 Collection-based:
 
@@ -1944,6 +2028,8 @@ With the closure cleaner disabled, it might happen that an anonymous user functi
 - `getParallelism()` / `setParallelism(int parallelism)` Set the default parallelism for the job.
 
 - `getNumberOfExecutionRetries()` / `setNumberOfExecutionRetries(int numberOfExecutionRetries)` Sets the number of times that failed tasks are re-executed. A value of zero effectively disables fault tolerance. A value of `-1` indicates that the system default value (as defined in the configuration) should be used.
+
+- `getExecutionRetryDelay()` / `setExecutionRetryDelay(long executionRetryDelay)` Sets the delay in milliseconds that the system waits after a job has failed, before re-executing it. The delay starts after all tasks have been successfully been stopped on the TaskManagers, and once the delay is past, the tasks are re-started. This parameter is useful to delay re-execution in order to let certain time-out related failures surface fully (like broken connections that have not fully timed out), before attempting a re-execution and immediately failing again due to the same problem. This parameter only has an effect if the number of execution re-tries is one or more.
 
 - `getExecutionMode()` / `setExecutionMode()`. The default execution mode is PIPELINED. Sets the execution mode to execute the program. The execution mode defines whether data exchanges are performed in a batch or on a pipelined manner. 
 
@@ -2190,7 +2276,7 @@ result data. This section give some hints how to ease the development of Flink p
 ### Local Execution Environment
 
 A `LocalEnvironment` starts a Flink system within the same JVM process it was created in. If you
-start the LocalEnvironement from an IDE, you can set breakpoint in your code and easily debug your
+start the LocalEnvironement from an IDE, you can set breakpoints in your code and easily debug your
 program.
 
 A LocalEnvironment is created and used as follows:
@@ -2908,7 +2994,7 @@ public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<S
 
 [Back to top](#top)
 
-Program Packaging & Distributed Execution
+Program Packaging and Distributed Execution
 -----------------------------------------
 
 As described in the [program skeleton](#program-skeleton) section, Flink programs can be executed on

@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.IOException;
-import java.util.List;
 
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -43,11 +41,10 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	boolean isEmpty();
 	
 	/**
-	 * Collects all memory segments from this sorter.
-	 * 
-	 * @return All memory segments from this sorter.
+	 * Disposes the sorter.
+	 * This method does not release the memory segments used by the sorter.
 	 */
-	List<MemorySegment> dispose();
+	void dispose();
 	
 	/**
 	 * Gets the total capacity of this sorter, in bytes.
@@ -62,13 +59,14 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	 * @return The number of bytes occupied.
 	 */
 	long getOccupancy();
-	
+
 	/**
-	 * Gets the number of bytes occupied by records only.
-	 * 
-	 * @return The number of bytes occupied by records.
+	 * Gets the record at the given logical position.
+	 *
+	 * @param logicalPosition The logical position of the record.
+	 * @throws IOException Thrown, if an exception occurred during deserialization.
 	 */
-	long getNumRecordBytes();
+	T getRecord(int logicalPosition) throws IOException;
 	
 	/**
 	 * Gets the record at the given logical position.
@@ -114,5 +112,5 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	 * @param num The number of elements to write.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(final ChannelWriterOutputView output, final int start, int num) throws IOException;
+	public void writeToOutput(ChannelWriterOutputView output, int start, int num) throws IOException;
 }

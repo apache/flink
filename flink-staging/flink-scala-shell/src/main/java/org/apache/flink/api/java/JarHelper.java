@@ -123,11 +123,14 @@ public class JarHelper
 		}
 		FileOutputStream fos = new FileOutputStream(destFile);
 		dest = new BufferedOutputStream(fos, BUFFER_SIZE);
-		while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
-		dest.write(data, 0, count);
+		try {
+			while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
+				dest.write(data, 0, count);
+			}
+			dest.flush();
+		} finally {
+			dest.close();
 		}
-		dest.flush();
-		dest.close();
 		if (entry.getTime() != -1) {destFile.setLastModified(entry.getTime());}
 	}
 	jis.close();

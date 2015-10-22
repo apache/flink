@@ -30,6 +30,9 @@ import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -40,12 +43,9 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -70,7 +70,7 @@ public class PackagedProgram {
 
 	// --------------------------------------------------------------------------------------------
 
-	private final File jarFile;
+	private final URL jarFile;
 
 	private final String[] args;
 	
@@ -79,6 +79,8 @@ public class PackagedProgram {
 	private final Class<?> mainClass;
 	
 	private final List<File> extractedTempLibraries;
+
+	private final List<URL> classpaths;
 	
 	private ClassLoader userCodeClassLoader;
 	
@@ -87,7 +89,7 @@ public class PackagedProgram {
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
 	 * argument.
-	 * 
+	 *
 	 * @param jarFile
 	 *        The jar file which contains the plan and a Manifest which defines
 	 *        the program-class
@@ -99,7 +101,27 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, String... args) throws ProgramInvocationException {
-		this(jarFile, null, args);
+		this(jarFile, Collections.<URL>emptyList(), null, args);
+	}
+
+	/**
+	 * Creates an instance that wraps the plan defined in the jar file using the given
+	 * argument.
+	 * 
+	 * @param jarFile
+	 *        The jar file which contains the plan and a Manifest which defines
+	 *        the program-class
+	 * @param classpaths
+	 *        Additional classpath URLs needed by the Program.
+	 * @param args
+	 *        Optional. The arguments used to create the pact plan, depend on
+	 *        implementation of the pact plan. See getDescription().
+	 * @throws ProgramInvocationException
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
+	 */
+	public PackagedProgram(File jarFile, List<URL> classpaths, String... args) throws ProgramInvocationException {
+		this(jarFile, classpaths, null, args);
 	}
 
 	/**
@@ -120,23 +142,54 @@ public class PackagedProgram {
 	 *         may be a missing / wrong class or manifest files.
 	 */
 	public PackagedProgram(File jarFile, String entryPointClassName, String... args) throws ProgramInvocationException {
+		this(jarFile, Collections.<URL>emptyList(), entryPointClassName, args);
+	}
+
+	/**
+	 * Creates an instance that wraps the plan defined in the jar file using the given
+	 * arguments. For generating the plan the class defined in the className parameter
+	 * is used.
+	 * 
+	 * @param jarFile
+	 *        The jar file which contains the plan.
+	 * @param classpaths
+	 *        Additional classpath URLs needed by the Program.
+	 * @param entryPointClassName
+	 *        Name of the class which generates the plan. Overrides the class defined
+	 *        in the jar file manifest
+	 * @param args
+	 *        Optional. The arguments used to create the pact plan, depend on
+	 *        implementation of the pact plan. See getDescription().
+	 * @throws ProgramInvocationException
+	 *         This invocation is thrown if the Program can't be properly loaded. Causes
+	 *         may be a missing / wrong class or manifest files.
+	 */
+	public PackagedProgram(File jarFile, List<URL> classpaths, String entryPointClassName, String... args) throws ProgramInvocationException {
 		if (jarFile == null) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
 		
-		checkJarFile(jarFile);
+		URL jarFileUrl;
+		try {
+			jarFileUrl = jarFile.getAbsoluteFile().toURI().toURL();
+		} catch (MalformedURLException e1) {
+			throw new IllegalArgumentException("The jar file path is invalid.");
+		}
 		
-		this.jarFile = jarFile;
+		checkJarFile(jarFileUrl);
+		
+		this.jarFile = jarFileUrl;
 		this.args = args == null ? new String[0] : args;
 		
 		// if no entryPointClassName name was given, we try and look one up through the manifest
 		if (entryPointClassName == null) {
-			entryPointClassName = getEntryPointClassNameFromJar(jarFile);
+			entryPointClassName = getEntryPointClassNameFromJar(jarFileUrl);
 		}
 		
 		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = extractContainedLibaries(jarFile);
-		this.userCodeClassLoader = buildUserCodeClassLoader(jarFile, extractedTempLibraries, getClass().getClassLoader());
+		this.extractedTempLibraries = extractContainedLibaries(jarFileUrl);
+		this.classpaths = classpaths;
+		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 		
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -166,11 +219,12 @@ public class PackagedProgram {
 		}
 	}
 	
-	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
+	PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
 		this.jarFile = null;
 		this.args = args == null ? new String[0] : args;
 		
 		this.extractedTempLibraries = Collections.emptyList();
+		this.classpaths = Collections.emptyList();
 		this.userCodeClassLoader = entryPointClass.getClassLoader();
 		
 		// load the entry point class
@@ -227,14 +281,7 @@ public class PackagedProgram {
 	 */
 	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
 		if (isUsingProgramEntryPoint()) {
-			List<File> allJars = new ArrayList<File>();
-			
-			if (this.jarFile != null) {
-				allJars.add(jarFile);
-			}
-			allJars.addAll(extractedTempLibraries);
-			
-			return new JobWithJars(getPlan(), allJars, userCodeClassLoader);
+			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
 		} else {
 			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() + 
 					" for a program that is using the interactive mode.");
@@ -262,7 +309,6 @@ public class PackagedProgram {
 			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 			env.setAsContext();
 			try {
-				ContextEnvironment.enableLocalExecution(false);
 				invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
@@ -279,7 +325,7 @@ public class PackagedProgram {
 				}
 			}
 			finally {
-				ContextEnvironment.enableLocalExecution(true);
+				env.unsetAsContext();
 			}
 			
 			if (env.previewPlan != null) {
@@ -295,12 +341,8 @@ public class PackagedProgram {
 
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		StringWriter string = new StringWriter(1024);
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(string);
+		try (PrintWriter pw = new PrintWriter(string)) {
 			jsonGen.dumpPactPlanAsJSON(previewPlan, pw);
-		} finally {
-			pw.close();
 		}
 		return string.toString();
 
@@ -355,7 +397,16 @@ public class PackagedProgram {
 			throw new ProgramInvocationException("Cannot invoke a plan-based program directly.");
 		}
 	}
-	
+
+	/**
+	 * Returns the classpaths that are required by the program.
+	 *
+	 * @return List of {@link java.net.URL}s.
+	 */
+	public List<URL> getClasspaths() {
+		return this.classpaths;
+	}
+
 	/**
 	 * Gets the {@link java.lang.ClassLoader} that must be used to load user code classes.
 	 * 
@@ -365,15 +416,24 @@ public class PackagedProgram {
 		return this.userCodeClassLoader;
 	}
 
-	public List<File> getAllLibraries() {
-		List<File> libs = new ArrayList<File>(this.extractedTempLibraries.size() + 1);
+	public List<URL> getAllLibraries() {
+		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+
 		if (jarFile != null) {
 			libs.add(jarFile);
 		}
-		libs.addAll(this.extractedTempLibraries);
+		for (File tmpLib : this.extractedTempLibraries) {
+			try {
+				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
+			}
+			catch (MalformedURLException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+
 		return libs;
 	}
-	
+
 	/**
 	 * Deletes all temporary files created for contained packaged libraries.
 	 */
@@ -457,14 +517,16 @@ public class PackagedProgram {
 		}
 	}
 
-	private static String getEntryPointClassNameFromJar(File jarFile) throws ProgramInvocationException {
-		JarFile jar = null;
-		Manifest manifest = null;
-		String className = null;
+	private static String getEntryPointClassNameFromJar(URL jarFile) throws ProgramInvocationException {
+		JarFile jar;
+		Manifest manifest;
+		String className;
 
 		// Open jar file
 		try {
-			jar = new JarFile(jarFile);
+			jar = new JarFile(new File(jarFile.toURI()));
+		} catch (URISyntaxException use) {
+			throw new ProgramInvocationException("Invalid file path '" + jarFile.getPath() + "'", use);
 		} catch (IOException ioex) {
 			throw new ProgramInvocationException("Error while opening jar file '" + jarFile.getPath() + "'. "
 				+ ioex.getMessage(), ioex);
@@ -561,13 +623,13 @@ public class PackagedProgram {
 	 * @return The file names of the extracted temporary files.
 	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
 	 */
-	private static List<File> extractContainedLibaries(File jarFile) throws ProgramInvocationException {
+	private static List<File> extractContainedLibaries(URL jarFile) throws ProgramInvocationException {
 		
 		Random rnd = new Random();
 		
 		JarFile jar = null;
 		try {
-			jar = new JarFile(jarFile);
+			jar = new JarFile(new File(jarFile.toURI()));
 			final List<JarEntry> containedJarFileEntries = new ArrayList<JarEntry>();
 			
 			Enumeration<JarEntry> entries = jar.entries();
@@ -666,15 +728,7 @@ public class PackagedProgram {
 		}
 	}
 	
-	private static ClassLoader buildUserCodeClassLoader(File mainJar, List<File> nestedJars, ClassLoader parent) throws ProgramInvocationException {
-		ArrayList<File> allJars = new ArrayList<File>(nestedJars.size() + 1);
-		allJars.add(mainJar);
-		allJars.addAll(nestedJars);
-		
-		return JobWithJars.buildUserCodeClassLoader(allJars, parent);
-	}
-	
-	private static void checkJarFile(File jarfile) throws ProgramInvocationException {
+	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
 			JobWithJars.checkJarFile(jarfile);
 		}
@@ -685,51 +739,5 @@ public class PackagedProgram {
 			throw new ProgramInvocationException("Cannot access jar file" + (t.getMessage() == null ? "." : ": " + t.getMessage()), t);
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
-		private List<DataSinkNode> previewPlan;
-		private Plan plan;
-		
-		private String preview = null;
-		
-		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			this.plan = createProgramPlan(jobName);
-			this.previewPlan = Optimizer.createPreOptimizedPlan((Plan) plan);
-			
-			// do not go on with anything now!
-			throw new Client.ProgramAbortException();
-		}
-
-		@Override
-		public String getExecutionPlan() throws Exception {
-			Plan plan = createProgramPlan("unused");
-			this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
-			
-			// do not go on with anything now!
-			throw new Client.ProgramAbortException();
-		}
-		
-		public void setAsContext() {
-			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-				@Override
-				public ExecutionEnvironment createExecutionEnvironment() {
-					return PreviewPlanEnvironment.this;
-				}
-			};
-			initializeContextEnvironment(factory);
-		}
-
-		public Plan getPlan() {
-			return this.plan;
-		}
-		
-		public void setPreview(String preview) {
-			this.preview = preview;
-		}
-
-	}
 }

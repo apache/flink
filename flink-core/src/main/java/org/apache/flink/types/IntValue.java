@@ -139,7 +139,7 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 			}
 		}
 		else {
-			target.putIntBigEndian(offset, value  - Integer.MIN_VALUE);
+			target.putIntBigEndian(offset, value - Integer.MIN_VALUE);
 			for (int i = 4; i < len; i++) {
 				target.put(offset + i, (byte) 0);
 			}
@@ -152,10 +152,15 @@ public class IntValue implements NormalizableKey<IntValue>, ResettableValue<IntV
 	public int getBinaryLength() {
 		return 4;
 	}
-	
+
 	@Override
 	public void copyTo(IntValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public IntValue copy() {
+		return new IntValue(this.value);
 	}
 
 	@Override

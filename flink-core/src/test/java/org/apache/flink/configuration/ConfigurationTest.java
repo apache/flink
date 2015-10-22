@@ -23,20 +23,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of {@link Configuration}
  * objects is tested.
  */
-public class ConfigurationTest {
+public class ConfigurationTest extends TestLogger {
 	
 	private static final byte[] EMPTY_BYTES = new byte[0];
 	private static final long TOO_LONG = Integer.MAX_VALUE + 10L;
 	private static final double TOO_LONG_DOUBLE = Double.MAX_VALUE;
-	
 
 	/**
 	 * This test checks the serialization/deserialization of configuration objects.
@@ -54,7 +54,7 @@ public class ConfigurationTest {
 			orig.setBytes("bytes sequence", new byte[] { 1, 2, 3, 4, 5 } );
 			orig.setClass("myclass", this.getClass());
 	
-			final Configuration copy = (Configuration) CommonTestUtils.createCopy(orig);
+			final Configuration copy = CommonTestUtils.createCopyWritable(orig);
 			assertEquals("myvalue", copy.getString("mykey", "null"));
 			assertEquals(100, copy.getInteger("mynumber", 0));
 			assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));
@@ -169,6 +169,25 @@ public class ConfigurationTest {
 			assertEquals(true, pc.getBoolean("boolean", false));
 			assertEquals("true", pc.getString("boolean", "0"));
 			assertArrayEquals(EMPTY_BYTES, pc.getBytes("boolean", EMPTY_BYTES));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCopyConstructor() {
+		try {
+			final String key = "theKey";
+			
+			Configuration cfg1 = new Configuration();
+			cfg1.setString(key, "value");
+			
+			Configuration cfg2 = new Configuration(cfg1);
+			cfg2.setString(key, "another value");
+			
+			assertEquals("value", cfg1.getString(key, ""));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

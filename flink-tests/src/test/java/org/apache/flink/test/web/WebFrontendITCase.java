@@ -20,19 +20,25 @@ package org.apache.flink.test.web;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.webmonitor.WebMonitor;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Assert;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(Parameterized.class)
 public class WebFrontendITCase extends MultipleProgramsTestBase {
@@ -41,7 +47,16 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	static {
 		startWebServer = true;
 	}
-	
+
+	private static int port = -1;
+
+	@BeforeClass
+	public static void initialize() {
+		WebMonitor webMonitor = cluster.webMonitor().get();
+		port = webMonitor.getServerPort();
+	}
+
+	static final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
 	public WebFrontendITCase(TestExecutionMode m) {
 		super(m);
@@ -55,9 +70,25 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void getFrontPage() {
+		try {
+			String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/index.html");
+			String text = "Apache Flink Dashboard";
+			Assert.assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	@Test
 	public void getNumberOfTaskManagers() {
 		try {
-			Assert.assertEquals("{\"taskmanagers\": "+cluster.getTaskManagers().size()+", \"slots\": 4}", TestBaseUtils.getFromHTTP("http://localhost:8081/jobsInfo?get=taskmanagers"));
+			String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+			JSONObject response = new JSONObject(json);
+			JSONArray taskManagers = response.getJSONArray("taskmanagers");
+			Assert.assertNotNull(taskManagers);
+			Assert.assertEquals(cluster.numTaskManagers(), taskManagers.length());
 		}catch(Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
@@ -67,17 +98,14 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getTaskmanagers() {
 		try {
-			String json = getFromHTTP("http://localhost:8081/setupInfo?get=taskmanagers");
+			String json = getFromHTTP("http://localhost:" + port + "/taskmanagers/");
 			JSONObject parsed = new JSONObject(json);
-			Object taskManagers = parsed.get("taskmanagers");
+			JSONArray taskManagers = parsed.getJSONArray("taskmanagers");
 			Assert.assertNotNull(taskManagers);
-			Assert.assertTrue(taskManagers instanceof JSONArray);
-			JSONArray tma = (JSONArray) taskManagers;
-			Assert.assertEquals(cluster.numTaskManagers(), tma.length());
-			Object taskManager = tma.get(0);
+			Assert.assertEquals(cluster.numTaskManagers(), taskManagers.length());
+			JSONObject taskManager = taskManagers.getJSONObject(0);
 			Assert.assertNotNull(taskManager);
-			Assert.assertTrue(taskManager instanceof JSONObject);
-			Assert.assertEquals(4, ((JSONObject) taskManager).getInt("freeSlots"));
+			Assert.assertEquals(4, taskManager.getInt("freeSlots"));
 		}catch(Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
@@ -85,14 +113,17 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void getLogfiles() {
+	public void getLogAndStdoutFiles() {
 		try {
-			String logPath = cluster.configuration().getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
-			Assert.assertNotNull(logPath);
-			FileUtils.writeStringToFile(new File(logPath, "jobmanager-main.log"), "test content");
+			WebMonitorUtils.LogFiles logFiles = WebMonitorUtils.LogFiles.find(cluster.configuration());
 
-			String logs = getFromHTTP("http://localhost:8081/logInfo");
-			Assert.assertTrue(logs.contains("test content"));
+			FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
+			String logs = getFromHTTP("http://localhost:" + port + "/jobmanager/log");
+			Assert.assertTrue(logs.contains("job manager log"));
+
+			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
+			logs = getFromHTTP("http://localhost:" + port + "/jobmanager/stdout");
+			Assert.assertTrue(logs.contains("job manager out"));
 		}catch(Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
@@ -102,11 +133,15 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getConfiguration() {
 		try {
-			String config = getFromHTTP("http://localhost:8081/setupInfo?get=globalC");
-			JSONObject parsed = new JSONObject(config);
-			Assert.assertEquals(logDir.toString(), parsed.getString("jobmanager.web.logpath"));
-			Assert.assertEquals(cluster.configuration().getString("taskmanager.numberOfTaskSlots", null), parsed.getString("taskmanager.numberOfTaskSlots"));
-		}catch(Throwable e) {
+			String config = getFromHTTP("http://localhost:" + port + "/jobmanager/config");
+			JSONArray array = new JSONArray(config);
+
+			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(array);
+			Assert.assertTrue(conf.get(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY).startsWith(logDir.toString()));
+			Assert.assertEquals(
+					cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
+					conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
+		} catch(Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}

@@ -28,7 +28,7 @@ import org.apache.flink.util.SimpleStringUtils.WhitespaceTokenizer;
 import org.junit.Test;
 
 
-public class SimpleStringUtilsTest {
+public class SimpleStringUtilsTest extends TestLogger {
 
 	@Test
 	public void testToLowerCaseConverting() {

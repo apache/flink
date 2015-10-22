@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.operators.Driver;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -37,11 +38,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.PactDriver;
-import org.apache.flink.runtime.operators.PactTaskContext;
-import org.apache.flink.runtime.operators.ResettablePactDriver;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.TaskContext;
+import org.apache.flink.runtime.operators.ResettableDriver;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
@@ -52,7 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class DriverTestBase<S extends Function> implements PactTaskContext<S, Record> {
+public class DriverTestBase<S extends Function> extends TestLogger implements TaskContext<S, Record> {
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 	
@@ -61,7 +60,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final IOManager ioManager;
 	
 	private final MemoryManager memManager;
-	
+
 	private final List<MutableObjectIterator<Record>> inputs;
 	
 	private final List<TypeComparator<Record>> comparators;
@@ -69,10 +68,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private final List<UnilateralSortMerger<Record>> sorters;
 	
 	private final AbstractInvokable owner;
-	
-	private final Configuration config;
-	
+
 	private final TaskConfig taskConfig;
+	
+	private final TaskManagerRuntimeInfo taskManageInfo;
 	
 	protected final long perSortMem;
 
@@ -84,9 +83,9 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	
 	private S stub;
 	
-	private PactDriver<S, Record> driver;
+	private Driver<S, Record> driver;
 	
-	private volatile boolean running;
+	private volatile boolean running = true;
 
 	private ExecutionConfig executionConfig;
 	
@@ -104,22 +103,20 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.perSortMem = perSortMemory;
 		this.perSortFractionMem = (double)perSortMemory/totalMem;
 		this.ioManager = new IOManagerAsync();
-		this.memManager = totalMem > 0 ? new DefaultMemoryManager(totalMem,1) : null;
-		
+		this.memManager = totalMem > 0 ? new MemoryManager(totalMem,1) : null;
+
 		this.inputs = new ArrayList<MutableObjectIterator<Record>>();
 		this.comparators = new ArrayList<TypeComparator<Record>>();
 		this.sorters = new ArrayList<UnilateralSortMerger<Record>>();
 		
 		this.owner = new DummyInvokable();
-		
-		this.config = new Configuration();
-		this.taskConfig = new TaskConfig(this.config);
-
+		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
+		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
 	}
 
 	@Parameterized.Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() {
 
 		LinkedList<Object[]> configs = new LinkedList<Object[]>();
 
@@ -145,7 +142,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp) throws Exception {
 		UnilateralSortMerger<Record> sorter = new UnilateralSortMerger<Record>(
 				this.memManager, this.ioManager, input, this.owner, RecordSerializerFactory.get(), comp,
-				this.perSortFractionMem, 32, 0.8f);
+				this.perSortFractionMem, 32, 0.8f, true);
 		this.sorters.add(sorter);
 		this.inputs.add(null);
 	}
@@ -171,12 +168,12 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	}
 
 	@SuppressWarnings("rawtypes")
-	public void testDriver(PactDriver driver, Class stubClass) throws Exception {
+	public void testDriver(Driver driver, Class stubClass) throws Exception {
 		testDriverInternal(driver, stubClass);
 	}
 
 	@SuppressWarnings({"unchecked","rawtypes"})
-	public void testDriverInternal(PactDriver driver, Class stubClass) throws Exception {
+	public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
 		this.driver = driver;
 		driver.setup(this);
@@ -184,7 +181,6 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.stub = (S)stubClass.newInstance();
 
 		// regular running logic
-		this.running = true;
 		boolean stubOpen = false;
 
 		try {
@@ -205,6 +201,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
 			}
 
+			if (!running) {
+				return;
+			}
+			
 			// run the user code
 			driver.run();
 
@@ -222,12 +222,12 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 				try {
 					FunctionUtils.closeFunction(this.stub);
 				}
-				catch (Throwable t) {}
+				catch (Throwable ignored) {}
 			}
 
-			// if resettable driver invoke treardown
-			if (this.driver instanceof ResettablePactDriver) {
-				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
+			// if resettable driver invoke tear down
+			if (this.driver instanceof ResettableDriver) {
+				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
 				try {
 					resDriver.teardown();
 				} catch (Throwable t) {
@@ -247,7 +247,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	}
 
 	@SuppressWarnings({"unchecked","rawtypes"})
-	public void testResettableDriver(ResettablePactDriver driver, Class stubClass, int iterations) throws Exception {
+	public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations) throws Exception {
 
 		driver.setup(this);
 		
@@ -269,6 +269,13 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	
 	public void cancel() throws Exception {
 		this.running = false;
+		
+		// compensate for races, where cancel is called before the driver is set
+		// not that this is an artifact of a bad design of this test base, where the setup
+		// of the basic properties is not separated from the invocation of the execution logic 
+		while (this.driver == null) {
+			Thread.sleep(200);
+		}
 		this.driver.cancel();
 	}
 
@@ -279,7 +286,10 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		return this.taskConfig;
 	}
 
-
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return this.taskManageInfo;
+	}
 
 	@Override
 	public ExecutionConfig getExecutionConfig() {
@@ -295,7 +305,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	public IOManager getIOManager() {
 		return this.ioManager;
 	}
-	
+
 	@Override
 	public MemoryManager getMemoryManager() {
 		return this.memManager;

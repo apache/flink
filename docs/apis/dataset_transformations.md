@@ -23,6 +23,8 @@ under the License.
 This document gives a deep-dive into the available transformations on DataSets. For a general introduction to the
 Flink Java API, please refer to the [Programming Guide](programming_guide.html).
 
+For zipping elements in a data set with a dense index, please refer to the [Zip Elements Guide](zip_elements_guide.html).
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -238,6 +240,16 @@ This problem can be overcome by hinting the return type of `project` operator li
 DataSet<Tuple1<String>> ds2 = ds.<Tuple1<String>>project(0).distinct(0);
 ~~~
 
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+out = in.project(2,0);
+~~~
+
+</div>
+</div>
+
 ### Transformations on Grouped DataSet
 
 The reduce operations can operate on grouped data sets. Specifying the key to
@@ -249,23 +261,6 @@ be used for grouping can be done in many ways:
 - Case Class fields (Case Classes only)
 
 Please look at the reduce examples to see how the grouping keys are specified.
-
-</div>
-<div data-lang="python" markdown="1">
-
-~~~python
-out = in.project(2,0);
-~~~
-
-### Transformations on Grouped DataSet
-
-The reduce operations can operate on grouped data sets. Specifying the key to
-be used for grouping can be done using one or more field position keys (Tuple DataSet only).
-
-Please look at the reduce examples to see how the grouping keys are specified.
-
-</div>
-</div>
 
 ### Reduce on Grouped DataSet
 
@@ -677,9 +672,10 @@ an alternative WordCount implementation. In the implementation,
 
 ~~~java
 DataSet<String> input = [..] // The words received as input
-DataSet<String> groupedInput = input.groupBy(0); // group identical words
 
-DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
+DataSet<Tuple2<String, Integer>> combinedWords = input
+  .groupBy(0); // group identical words
+  .combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
 
     public void combine(Iterable<String> words, Collector<Tuple2<String, Integer>>) { // combine
         int count = 0;
@@ -690,9 +686,9 @@ DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new G
     }
 });
 
-DataSet<Tuple2<String, Integer>> groupedCombinedWords = combinedWords.groupBy(0); // group by words again
-
-DataSet<Tuple2<String, Integer>> output = combinedWords.reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
+DataSet<Tuple2<String, Integer>> output = combinedWords
+  .groupBy(0);                             // group by words again
+  .reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
 
     public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {
         int count = 0;
@@ -709,9 +705,10 @@ DataSet<Tuple2<String, Integer>> output = combinedWords.reduceGroup(new GroupRed
 
 ~~~scala
 val input: DataSet[String] = [..] // The words received as input
-val groupedInput: DataSet[String] = input.groupBy(0)
 
-val combinedWords: DataSet[(String, Int)] = groupedInput.combineGroup {
+val combinedWords: DataSet[(String, Int)] = input
+  .groupBy(0)
+  .combineGroup {
     (words, out: Collector[(String, Int)]) =>
         var count = 0
         for (word <- words) {
@@ -720,9 +717,9 @@ val combinedWords: DataSet[(String, Int)] = groupedInput.combineGroup {
         out.collect(word, count)
 }
 
-val groupedCombinedWords: DataSet[(String, Int)] = combinedWords.groupBy(0)
-
-val output: DataSet[(String, Int)] = groupedInput.reduceGroup {
+val output: DataSet[(String, Int)] = combinedWords
+  .groupBy(0)
+  .reduceGroup {
     (words, out: Collector[(String, Int)]) =>
         var count = 0
         for ((word, Int) <- words) {
@@ -922,11 +919,188 @@ Not supported.
 
 **Note:** Extending the set of supported aggregation functions is on our roadmap.
 
+### Distinct
+
+The Distinct transformation computes the DataSet of the distinct elements of the source DataSet.
+The following code removes all duplicate elements from the DataSet:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple2<Integer, Double>> input = // [...]
+DataSet<Tuple2<Integer, Double>> output = input.distinct();
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, String, Double)] = // [...]
+val output = input.distinct()
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+It is also possible to change how the distinction of the elements in the DataSet is decided, using:
+
+- one or more field position keys (Tuple DataSets only),
+- a key-selector function, or
+- a key expression.
+
+#### Distinct with field position keys
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple2<Integer, Double, String>> input = // [...]
+DataSet<Tuple2<Integer, Double, String>> output = input.distinct(0,2);
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, Double, String)] = // [...]
+val output = input.distinct(0,2)
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+#### Distinct with KeySelector function
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+private static class AbsSelector implements KeySelector<Integer, Integer> {
+private static final long serialVersionUID = 1L;
+	@Override
+	public Integer getKey(Integer t) {
+    	return Math.abs(t);
+	}
+}
+DataSet<Integer> input = // [...]
+DataSet<Integer> output = input.distinct(new AbsSelector());
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[Int] = // [...]
+val output = input.distinct {x => Math.abs(x)}
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+#### Distinct with key expression
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+// some ordinary POJO
+public class CustomType {
+  public String aName;
+  public int aNumber;
+  // [...]
+}
+
+DataSet<CustomType> input = // [...]
+DataSet<CustomType> output = input.distinct("aName", "aNumber");
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// some ordinary POJO
+case class CustomType(aName : String, aNumber : Int) { }
+
+val input: DataSet[CustomType] = // [...]
+val output = input.distinct("aName", "aNumber")
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+It is also possible to indicate to use all the fields by the wildcard character:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<CustomType> input = // [...]
+DataSet<CustomType> output = input.distinct("*");
+                                     
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// some ordinary POJO
+val input: DataSet[CustomType] = // [...]
+val output = input.distinct("_")
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
 ### Join
 
 The Join transformation joins two DataSets into one DataSet. The elements of both DataSets are joined on one or more keys which can be specified using
 
-- a kex expression
+- a key expression
 - a key-selector function
 - one or more field position keys (Tuple DataSet only).
 - Case Class Fields
@@ -973,7 +1147,7 @@ val result = input1.join(input2).where(0).equalTo(1)
 </div>
 </div>
 
-#### Join with Join-Function
+#### Join with Join Function
 
 A Join transformation can also call a user-defined join function to process joining tuples.
 A join function receives one element of the first input DataSet and one element of the second input DataSet and returns exactly one element.
@@ -1201,7 +1375,7 @@ DataSet<SomeType> input1 = // [...]
 DataSet<AnotherType> input2 = // [...]
 
 DataSet<Tuple2<SomeType, AnotherType> result =
-      input1.join(input2, BROADCAST_HASH_FIRST)
+      input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
             .where("id").equalTo("key");
 ~~~
 
@@ -1213,7 +1387,7 @@ val input1: DataSet[SomeType] = // [...]
 val input2: DataSet[AnotherType] = // [...]
 
 // hint that the second DataSet is very small
-val result1 = input1.join(input2, BROADCAST_HASH_FIRST).where("id").equalTo("key")
+val result1 = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST).where("id").equalTo("key")
 
 ~~~
 
@@ -1229,28 +1403,229 @@ Not supported.
 
 The following hints are available:
 
-* OPTIMIZER_CHOOSES: Equivalent to not giving a hint at all, leaves the choice to the system.
+* `OPTIMIZER_CHOOSES`: Equivalent to not giving a hint at all, leaves the choice to the system.
 
-* BROADCAST_HASH_FIRST: Broadcasts the first input and builds a hash table from it, which is
+* `BROADCAST_HASH_FIRST`: Broadcasts the first input and builds a hash table from it, which is
   probed by the second input. A good strategy if the first input is very small.
 
-* BROADCAST_HASH_SECOND: Broadcasts the second input and builds a hash table from it, which is
+* `BROADCAST_HASH_SECOND`: Broadcasts the second input and builds a hash table from it, which is
   probed by the first input. A good strategy if the second input is very small.
 
-* REPARTITION_HASH_FIRST: The system partitions (shuffles) each input (unless the input is already
+* `REPARTITION_HASH_FIRST`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the first input. This strategy is good if the first
   input is smaller than the second, but both inputs are still large.
   *Note:* This is the default fallback strategy that the system uses if no size estimates can be made
   and no pre-existing partitiongs and sort-orders can be re-used.
 
-* REPARTITION_HASH_SECOND: The system partitions (shuffles) each input (unless the input is already
+* `REPARTITION_HASH_SECOND`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the second input. This strategy is good if the second
   input is smaller than the first, but both inputs are still large.
 
-* REPARTITION_SORT_MERGE: The system partitions (shuffles) each input (unless the input is already
+* `REPARTITION_SORT_MERGE`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and sorts each input (unless it is already sorted). The inputs are joined by
   a streamed merge of the sorted inputs. This strategy is good if one or both of the inputs are
   already sorted.
+
+
+### OuterJoin
+
+The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitararily many (including none) elements. 
+
+The elements of both DataSets are joined on one or more keys which can be specified using
+
+- a key expression
+- a key-selector function
+- one or more field position keys (Tuple DataSet only).
+- Case Class Fields
+
+**OuterJoins are only supported for the Java and Scala DataSet API.**
+
+
+#### OuterJoin with Join Function
+
+A OuterJoin transformation calls a user-defined join function to process joining tuples.
+A join function receives one element of the first input DataSet and one element of the second input DataSet and returns exactly one element. Depending on the type of the outer join (left, right, full) one of both input elements of the join function can be `null`.
+
+The following code performs a left outer join of DataSet with custom java objects and a Tuple DataSet using key-selector functions and shows how to use a user-defined join function:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+// some POJO
+public class Rating {
+  public String name;
+  public String category;
+  public int points;
+}
+
+// Join function that joins a custom POJO with a Tuple
+public class PointAssigner
+         implements JoinFunction<Tuple2<String, String>, Rating, Tuple2<String, Integer>> {
+
+  @Override
+  public Tuple2<String, Integer> join(Tuple2<String, String> movie, Rating rating) {
+    // Assigns the rating points to the movie.
+    // NOTE: rating might be null
+    return new Tuple2<String, Double>(movie.f0, rating == null ? -1 : rating.points;
+  }
+}
+
+DataSet<Tuple2<String, String>> movies = // [...]
+DataSet<Rating> ratings = // [...]
+DataSet<Tuple2<String, Integer>>
+            moviesWithPoints =
+            movies.leftOuterJoin(ratings)
+
+                   // key of the first input
+                   .where("f0")
+
+                   // key of the second input
+                   .equalTo("name")
+
+                   // applying the JoinFunction on joining pairs
+                   .with(new PointAssigner());
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+case class Rating(name: String, category: String, points: Int)
+
+val movies: DataSet[(String, String)] = // [...]
+val ratings: DataSet[Ratings] = // [...]
+
+val moviesWithPoints = movies.leftOuterJoin(ratings).where(0).equalTo("name") {
+  (movie, rating) => (movie._1, if (rating == null) -1 else rating.points)
+}
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+#### OuterJoin with Flat-Join Function
+
+Analogous to Map and FlatMap, an OuterJoin with flat-join function behaves in the same
+way as an OuterJoin with join function, but instead of returning one element, it can
+return (collect), zero, one, or more elements.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+public class PointAssigner
+         implements FlatJoinFunction<Tuple2<String, String>, Rating, Tuple2<String, Integer>> {
+  @Override
+  public void join(Tuple2<String, String> movie, Rating rating
+    Collector<Tuple2<String, Integer>> out) {
+  if (rating == null ) {
+    out.collect(new Tuple2<String, Integer>(movie.f0, -1));
+  } else if (rating.points < 10) {
+    out.collect(new Tuple2<String, Integer>(movie.f0, rating.points));
+  } else {
+    // do not emit
+  }
+}
+
+DataSet<Tuple2<String, Integer>>
+            moviesWithPoints =
+            movies.leftOuterJoin(ratings) // [...]
+~~~
+
+#### Join Algorithm Hints
+
+The Flink runtime can execute outer joins in various ways. Each possible way outperforms the others under
+different circumstances. The system tries to pick a reasonable way automatically, but allows you
+to manually pick a strategy, in case you want to enforce a specific way of executing the outer join.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<SomeType> input1 = // [...]
+DataSet<AnotherType> input2 = // [...]
+
+DataSet<Tuple2<SomeType, AnotherType> result1 =
+      input1.leftOuterJoin(input2, JoinHint.REPARTITION_SORT_MERGE)
+            .where("id").equalTo("key");
+
+DataSet<Tuple2<SomeType, AnotherType> result2 =
+      input1.rightOuterJoin(input2, JoinHint.BROADCAST_HASH_FIRST)
+            .where("id").equalTo("key");
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input1: DataSet[SomeType] = // [...]
+val input2: DataSet[AnotherType] = // [...]
+
+// hint that the second DataSet is very small
+val result1 = input1.leftOuterJoin(input2, JoinHint.REPARTITION_SORT_MERGE).where("id").equalTo("key")
+
+val result2 = input1.rightOuterJoin(input2, JoinHint.BROADCAST_HASH_FIRST).where("id").equalTo("key")
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
+The following hints are available.
+
+* `OPTIMIZER_CHOOSES`: Equivalent to not giving a hint at all, leaves the choice to the system.
+
+* `BROADCAST_HASH_FIRST`: Broadcasts the first input and builds a hash table from it, which is
+  probed by the second input. A good strategy if the first input is very small.
+
+* `BROADCAST_HASH_SECOND`: Broadcasts the second input and builds a hash table from it, which is
+  probed by the first input. A good strategy if the second input is very small.
+
+* `REPARTITION_HASH_FIRST`: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and builds a hash table from the first input. This strategy is good if the first
+  input is smaller than the second, but both inputs are still large.
+  
+* `REPARTITION_HASH_SECOND`: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and builds a hash table from the second input. This strategy is good if the second
+  input is smaller than the first, but both inputs are still large.
+
+* `REPARTITION_SORT_MERGE`: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and sorts each input (unless it is already sorted). The inputs are joined by
+  a streamed merge of the sorted inputs. This strategy is good if one or both of the inputs are
+  already sorted.
+
+**NOTE:** Not all execution strategies are supported by every outer join type, yet.
+
+* `LeftOuterJoin` supports:
+  * `OPTIMIZER_CHOOSES`
+  * `BROADCAST_HASH_SECOND`
+  * `REPARTITION_HASH_SECOND`
+  * `REPARTITION_SORT_MERGE`
+
+* `RightOuterJoin` supports:
+  * `OPTIMIZER_CHOOSES`
+  * `BROADCAST_HASH_FIRST`
+  * `REPARTITION_HASH_FIRST`
+  * `REPARTITION_SORT_MERGE`
+
+* `FullOuterJoin` supports:
+  * `OPTIMIZER_CHOOSES`
+  * `REPARTITION_SORT_MERGE`
 
 
 ### Cross

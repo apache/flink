@@ -22,7 +22,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.types.Value;
 
 /**
- *
+ * 
  */
 public interface IterationRuntimeContext extends RuntimeContext {
 	

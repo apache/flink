@@ -17,6 +17,8 @@
  */
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
@@ -35,9 +37,9 @@ public class UtilsTest {
 
 	@Test
 	public void testUberjarLocator() {
-		File dir = YarnTestBase.findFile(".", new YarnTestBase.RootDirFilenameFilter());
-		Assert.assertTrue(dir.getName().endsWith(".jar"));
+		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
 		Assert.assertNotNull(dir);
+		Assert.assertTrue(dir.getName().endsWith(".jar"));
 		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
 		Assert.assertTrue(dir.exists());
 		Assert.assertTrue(dir.isDirectory());
@@ -45,6 +47,54 @@ public class UtilsTest {
 		Assert.assertTrue(files.contains("lib"));
 		Assert.assertTrue(files.contains("bin"));
 		Assert.assertTrue(files.contains("conf"));
+	}
+
+	/**
+	 * Remove 15% of the heap, at least 384MB.
+	 *
+	 */
+	@Test
+	public void testHeapCutoff() {
+		Configuration conf = new Configuration();
+		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
+		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
+
+		// test different configuration
+		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf) );
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "1000");
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.1");
+		Assert.assertEquals(3000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.5");
+		Assert.assertEquals(2000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgument() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "1.1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgumentNegative() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "-0.01");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void tooMuchCutoff() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "6000");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 
 
@@ -63,16 +113,7 @@ public class UtilsTest {
 	}
 
 	public static void checkForLogString(String expected) {
-		if(testAppender == null) {
-			throw new NullPointerException("Initialize it first");
-		}
-		LoggingEvent found = null;
-		for(LoggingEvent event: testAppender.events) {
-			if(event.getMessage().toString().contains(expected)) {
-				found = event;
-				break;
-			}
-		}
+		LoggingEvent found = getEventContainingString(expected);
 		if(found != null) {
 			LOG.info("Found expected string '"+expected+"' in log message "+found);
 			return;
@@ -80,13 +121,32 @@ public class UtilsTest {
 		Assert.fail("Unable to find expected string '" + expected + "' in log messages");
 	}
 
+	public static LoggingEvent getEventContainingString(String expected) {
+		if(testAppender == null) {
+			throw new NullPointerException("Initialize test appender first");
+		}
+		LoggingEvent found = null;
+		// make sure that different threads are not logging while the logs are checked
+		synchronized (testAppender.events) {
+			for (LoggingEvent event : testAppender.events) {
+				if (event.getMessage().toString().contains(expected)) {
+					found = event;
+					break;
+				}
+			}
+		}
+		return found;
+	}
+
 	public static class TestAppender extends AppenderSkeleton {
-		public List<LoggingEvent> events = new ArrayList<LoggingEvent>();
+		public final List<LoggingEvent> events = new ArrayList<>();
 		public void close() {}
 		public boolean requiresLayout() {return false;}
 		@Override
 		protected void append(LoggingEvent event) {
-			events.add(event);
+			synchronized (events){
+				events.add(event);
+			}
 		}
 	}
 }

@@ -17,6 +17,8 @@
 # limitations under the License.
 ################################################################################
 
+# Start/stop a Flink JobManager.
+USAGE="Usage: taskmanager.sh (start [batch|streaming])|stop|stop-all)"
 
 STARTSTOP=$1
 STREAMINGMODE=$2
@@ -26,78 +28,73 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [ "$FLINK_IDENT_STRING" = "" ]; then
-    FLINK_IDENT_STRING="$USER"
-fi
+if [[ $STARTSTOP == "start" ]]; then
 
-FLINK_TM_CLASSPATH=`constructFlinkClassPath`
-
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-taskmanager-$HOSTNAME.log
-out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-taskmanager-$HOSTNAME.out
-pid=$FLINK_PID_DIR/flink-$FLINK_IDENT_STRING-taskmanager.pid
-log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
-
-JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-
-# Only set JVM 8 arguments if we have correctly extracted the version
-if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
-    if [ "$JAVA_VERSION" -lt 18 ]; then
-        JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+    # Use batch mode as default
+    if [ -z $STREAMINGMODE ]; then
+        echo "Missing streaming mode (batch|streaming). Using 'batch'."
+        STREAMINGMODE="batch"
     fi
+    
+    # if mode is streaming and no other JVM options are set, set the 'Concurrent Mark Sweep GC'
+    if [[ $STREAMINGMODE == "streaming" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
+    
+        JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+    
+        # set the GC to G1 in Java 8 and to CMS in Java 7
+        if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
+            if [ "$JAVA_VERSION" -lt 18 ]; then
+                export JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled"
+            else
+                export JVM_ARGS="$JVM_ARGS -XX:+UseG1GC"
+            fi
+        fi
+    fi
+
+    if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]] || [[ "${FLINK_TM_HEAP}" -lt "0" ]]; then
+        echo "[ERROR] Configured TaskManager JVM heap size is not a number. Please set '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
+        exit 1
+    fi
+
+    if [ "${FLINK_TM_HEAP}" -gt "0" ]; then
+
+        TM_HEAP_SIZE=${FLINK_TM_HEAP}
+        # Long.MAX_VALUE in TB: This is an upper bound, much less direct memory will be used
+        #
+        TM_MAX_OFFHEAP_SIZE="8388607T"
+
+        if [[ "${STREAMINGMODE}" == "batch" ]] && useOffHeapMemory; then
+            if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
+                # We split up the total memory in heap and off-heap memory
+                if [[ "${FLINK_TM_HEAP}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then
+                    echo "[ERROR] Configured TaskManager memory size ('${KEY_TASKM_MEM_SIZE}') must be larger than the managed memory size ('${KEY_TASKM_MEM_MANAGED_SIZE}')."
+                    exit 1
+                fi
+                TM_HEAP_SIZE=$((FLINK_TM_HEAP - FLINK_TM_MEM_MANAGED_SIZE))
+            else
+                # Bash only performs integer arithmetic so floating point computation is performed using bc
+                command -v bc >/dev/null 2>&1
+                if [[ $? -ne 0 ]]; then
+                    echo "[ERROR] Program 'bc' not found. Please install bc or define '${KEY_TASKM_MEM_MANAGED_SIZE}' instead of '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                    exit 1
+                fi
+                # We calculate the memory using a fraction of the total memory
+                if [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} >= 1.0"` != "0" ]] || [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} <= 0.0"` != "0" ]]; then
+                    echo "[ERROR] Configured TaskManager managed memory fraction is not a valid value. Please set '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                    exit 1
+                fi
+                # recalculate the JVM heap memory by taking the off-heap ratio into account
+                OFFHEAP_MANAGED_MEMORY_SIZE=`printf '%.0f\n' $(bc -l <<< "${FLINK_TM_HEAP} * ${FLINK_TM_MEM_MANAGED_FRACTION}")`
+                TM_HEAP_SIZE=$((FLINK_TM_HEAP - OFFHEAP_MANAGED_MEMORY_SIZE))
+            fi
+        fi
+
+        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
+
+    fi
+
+    # Startup parameters
+    args=("--configDir" "${FLINK_CONF_DIR}" "--streamingMode" "${STREAMINGMODE}")
 fi
 
-case $STARTSTOP in
-
-    (start)
-
-        # Use batch mode as default
-        if [ -z $STREAMINGMODE ]; then
-            echo "Did not specify [batch|streaming] mode. Falling back to batch mode as default."
-            STREAMINGMODE="batch"
-        fi
-
-        if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
-            echo "ERROR: Configured task manager heap size is not a number. Cancelling task manager startup."
-            exit 1
-        fi
-
-        if [ "$FLINK_TM_HEAP" -gt 0 ]; then
-            JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
-        fi
-
-        mkdir -p "$FLINK_PID_DIR"
-        if [ -f $pid ]; then
-            if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Task manager running as process `cat $pid` on host $HOSTNAME.  Stop it first.
-                exit 1
-            fi
-        fi
-
-        # Rotate log files
-        rotateLogFile $log
-        rotateLogFile $out
-
-        echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.taskmanager.TaskManager --configDir "$FLINK_CONF_DIR" --streamingMode "$STREAMINGMODE" > "$out" 2>&1 < /dev/null &
-        echo $! > $pid
-
-    ;;
-
-    (stop)
-        if [ -f $pid ]; then
-            if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping task manager on host $HOSTNAME
-                kill `cat $pid`
-            else
-                echo No task manager to stop on host $HOSTNAME
-            fi
-        else
-            echo No task manager to stop on host $HOSTNAME
-        fi
-    ;;
-
-    (*)
-        echo "Please specify 'start [batch|streaming]' or 'stop'"
-    ;;
-
-esac
+"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"

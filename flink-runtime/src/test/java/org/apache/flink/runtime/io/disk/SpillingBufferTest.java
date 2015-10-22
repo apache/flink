@@ -16,33 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk;
 
-import java.io.EOFException;
-import java.util.ArrayList;
-
-import org.junit.Assert;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.SpillingBuffer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.ListMemorySegmentSource;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Value;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
-import org.apache.flink.types.Record;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.EOFException;
+import java.util.ArrayList;
 
 public class SpillingBufferTest {
 	
@@ -70,7 +66,7 @@ public class SpillingBufferTest {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
 	}
 
@@ -92,9 +88,9 @@ public class SpillingBufferTest {
 	// --------------------------------------------------------------------------------------------
 	
 	@Test
-	public void testWriteReadInMemory() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadInMemory() throws Exception {
+		final TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+		final TypeSerializer<Tuple2<Integer, String>> serializer = TestData.getIntStringTupleSerializer();
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
@@ -103,10 +99,10 @@ public class SpillingBufferTest {
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final Record rec = new Record();
+		final Tuple2<Integer, String> rec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
-			rec.write(outView);
+			serializer.serialize(rec, outView);
 		}
 		
 		// create the reader input view
@@ -114,18 +110,18 @@ public class SpillingBufferTest {
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final Record readRec = new Record();
+		final Tuple2<Integer, String> readRec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
-			readRec.read(inView);
+			serializer.deserialize(readRec, inView);
 			
-			Key k1 = rec.getField(0, Key.class);
-			Value v1 = rec.getField(1, Value.class);
+			int k1 = rec.f0;
+			String v1 = rec.f1;
 			
-			Key k2 = readRec.getField(0, Key.class);
-			Value v2 = readRec.getField(1, Value.class);
+			int k2 = readRec.f0;
+			String v2 = readRec.f1;
 			
-			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+			Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 		}
 		
 		// re-read the data
@@ -135,15 +131,15 @@ public class SpillingBufferTest {
 		// read and re-generate all records and compare them
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
-			readRec.read(inView);
+			serializer.deserialize(readRec, inView);
 			
-			Key k1 = rec.getField(0, Key.class);
-			Value v1 = rec.getField(1, Value.class);
+			int k1 = rec.f0;
+			String v1 = rec.f1;
 			
-			Key k2 = readRec.getField(0, Key.class);
-			Value v2 = readRec.getField(1, Value.class);
+			int k2 = readRec.f0;
+			String v2 = readRec.f1;
 			
-			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+			Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 		}
 		
 		this.memoryManager.release(outView.close());
@@ -151,9 +147,10 @@ public class SpillingBufferTest {
 	}
 	
 	@Test
-	public void testWriteReadTooMuchInMemory() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadTooMuchInMemory() throws Exception {
+		final TestData.TupleGenerator generator = new TestData.TupleGenerator(
+				SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+		final TypeSerializer<Tuple2<Integer, String>> serializer = TestData.getIntStringTupleSerializer();
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
@@ -162,10 +159,10 @@ public class SpillingBufferTest {
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final Record rec = new Record();
+		final Tuple2<Integer, String> rec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
-			rec.write(outView);
+			serializer.serialize(rec, outView);
 		}
 		
 		// create the reader input view
@@ -173,19 +170,19 @@ public class SpillingBufferTest {
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final Record readRec = new Record();
+		final Tuple2<Integer, String> readRec = new Tuple2<>();
 		try {
 			for (int i = 0; i < NUM_PAIRS_INMEM + 1; i++) {
 				generator.next(rec);
-				readRec.read(inView);
+				serializer.deserialize(readRec, inView);
 				
-				Key k1 = rec.getField(0, Key.class);
-				Value v1 = rec.getField(1, Value.class);
+				int k1 = rec.f0;
+				String v1 = rec.f1;
 				
-				Key k2 = readRec.getField(0, Key.class);
-				Value v2 = readRec.getField(1, Value.class);
+				int k2 = readRec.f0;
+				String v2 = readRec.f1;
 				
-				Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+				Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 			}
 			Assert.fail("Read too much, expected EOFException.");
 		}
@@ -200,15 +197,15 @@ public class SpillingBufferTest {
 		// read and re-generate all records and compare them
 		for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
 			generator.next(rec);
-			readRec.read(inView);
+			serializer.deserialize(readRec, inView);
 			
-			Key k1 = rec.getField(0, Key.class);
-			Value v1 = rec.getField(1, Value.class);
+			int k1 = rec.f0;
+			String v1 = rec.f1;
 			
-			Key k2 = readRec.getField(0, Key.class);
-			Value v2 = readRec.getField(1, Value.class);
+			int k2 = readRec.f0;
+			String v2 = readRec.f1;
 			
-			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+			Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 		}
 		
 		this.memoryManager.release(outView.close());
@@ -218,9 +215,10 @@ public class SpillingBufferTest {
 	// --------------------------------------------------------------------------------------------
 	
 	@Test
-	public void testWriteReadExternal() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadExternal() throws Exception {
+		final TestData.TupleGenerator generator = new TestData.TupleGenerator(
+				SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+		final TypeSerializer<Tuple2<Integer, String>> serializer = TestData.getIntStringTupleSerializer();
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
@@ -229,10 +227,10 @@ public class SpillingBufferTest {
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final Record rec = new Record();
+		final Tuple2<Integer, String> rec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
-			rec.write(outView);
+			serializer.serialize(rec, outView);
 		}
 		
 		// create the reader input view
@@ -240,18 +238,18 @@ public class SpillingBufferTest {
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final Record readRec = new Record();
+		final Tuple2<Integer, String> readRec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
-			readRec.read(inView);
+			serializer.deserialize(readRec, inView);
 			
-			Key k1 = rec.getField(0, Key.class);
-			Value v1 = rec.getField(1, Value.class);
+			int k1 = rec.f0;
+			String v1 = rec.f1;
 			
-			Key k2 = readRec.getField(0, Key.class);
-			Value v2 = readRec.getField(1, Value.class);
+			int k2 = readRec.f0;
+			String v2 = readRec.f1;
 			
-			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+			Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 		}
 		
 		// re-read the data
@@ -261,15 +259,15 @@ public class SpillingBufferTest {
 		// read and re-generate all records and compare them
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
-			readRec.read(inView);
+			serializer.deserialize(readRec, inView);
 			
-			Key k1 = rec.getField(0, Key.class);
-			Value v1 = rec.getField(1, Value.class);
+			int k1 = rec.f0;
+			String v1 = rec.f1;
 			
-			Key k2 = readRec.getField(0, Key.class);
-			Value v2 = readRec.getField(1, Value.class);
+			int k2 = readRec.f0;
+			String v2 = readRec.f1;
 			
-			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+			Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 		}
 		
 		this.memoryManager.release(outView.close());
@@ -277,9 +275,10 @@ public class SpillingBufferTest {
 	}
 
 	@Test
-	public void testWriteReadTooMuchExternal() throws Exception
-	{
-		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+	public void testWriteReadTooMuchExternal() throws Exception {
+		final TestData.TupleGenerator generator = new TestData.TupleGenerator(
+				SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+		final TypeSerializer<Tuple2<Integer, String>> serializer = TestData.getIntStringTupleSerializer();
 		
 		// create the writer output view
 		final ArrayList<MemorySegment> memory = new ArrayList<MemorySegment>(NUM_MEMORY_SEGMENTS);
@@ -288,10 +287,10 @@ public class SpillingBufferTest {
 							new ListMemorySegmentSource(memory), this.memoryManager.getPageSize());
 		
 		// write a number of pairs
-		final Record rec = new Record();
+		final Tuple2<Integer, String> rec = new Tuple2<>();
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
-			rec.write(outView);
+			serializer.serialize(rec, outView);
 		}
 		
 		// create the reader input view
@@ -299,19 +298,19 @@ public class SpillingBufferTest {
 		generator.reset();
 		
 		// read and re-generate all records and compare them
-		final Record readRec = new Record();
+		final Tuple2<Integer, String> readRec = new Tuple2<>();
 		try {
 			for (int i = 0; i < NUM_PAIRS_EXTERNAL + 1; i++) {
 				generator.next(rec);
-				readRec.read(inView);
+				serializer.deserialize(readRec, inView);
 				
-				Key k1 = rec.getField(0, Key.class);
-				Value v1 = rec.getField(1, Value.class);
+				int k1 = rec.f0;
+				String v1 = rec.f1;
 				
-				Key k2 = readRec.getField(0, Key.class);
-				Value v2 = readRec.getField(1, Value.class);
+				int k2 = readRec.f0;
+				String v2 = readRec.f1;
 				
-				Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+				Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 			}
 			Assert.fail("Read too much, expected EOFException.");
 		}
@@ -326,15 +325,15 @@ public class SpillingBufferTest {
 		// read and re-generate all records and compare them
 		for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
 			generator.next(rec);
-			readRec.read(inView);
+			serializer.deserialize(readRec, inView);
 			
-			Key k1 = rec.getField(0, Key.class);
-			Value v1 = rec.getField(1, Value.class);
+			int k1 = rec.f0;
+			String v1 = rec.f1;
 			
-			Key k2 = readRec.getField(0, Key.class);
-			Value v2 = readRec.getField(1, Value.class);
+			int k2 = readRec.f0;
+			String v2 = readRec.f1;
 			
-			Assert.assertTrue("The re-generated and the read record do not match.", k1.equals(k2) && v1.equals(v2));
+			Assert.assertTrue("The re-generated and the read record do not match.", k1 == k2 && v1.equals(v2));
 		}
 		
 		this.memoryManager.release(outView.close());

@@ -40,6 +40,8 @@ under the License.
 
 			<includes>
 				<include>org.apache.flink:flink-python</include>
+				<include>org.slf4j:slf4j-log4j12</include>
+				<include>log4j:log4j</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
@@ -60,33 +62,36 @@ under the License.
 	</files>
 
 	<fileSets>
+		<!-- copy start scripts -->
 		<fileSet>
-			<!-- copy start scripts -->
 			<directory>src/main/flink-bin/bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+		
 		<!-- flink scala shell-->
 		<fileSet>
 			<directory>../flink-staging/flink-scala-shell/start-script/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>755</fileMode>
 		</fileSet>
+
+		<!-- copy yarn start scripts -->
 		<fileSet>
-			<!-- copy yarn start scripts -->
 			<directory>src/main/flink-bin/yarn-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+		
+		<!-- copy default configuration -->
 		<fileSet>
-			<!-- copy default configuration -->
 			<directory>src/main/flink-bin/conf</directory>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>
 
+		<!-- create an empty log directory -->
 		<fileSet>
-			<!-- create an empty log directory -->
 			<directory>src/main/flink-bin/</directory>
 			<outputDirectory>log</outputDirectory>
 			<fileMode>0644</fileMode>
@@ -95,8 +100,8 @@ under the License.
 			</excludes>
 		</fileSet>
 
+		<!-- copy *.txt files -->
 		<fileSet>
-			<!-- copy *.txt files -->
 			<directory>src/main/flink-bin/</directory>
 			<outputDirectory></outputDirectory>
 			<fileMode>0644</fileMode>
@@ -107,8 +112,8 @@ under the License.
 			</includes>
 		</fileSet>
 
+		<!-- copy JavaDocs -->
 		<fileSet>
-			<!-- copy JavaDocs -->
 			<!-- <directory>../target/apidocs</directory -->
 			<directory>../target</directory>
 			<includes>
@@ -136,9 +141,8 @@ under the License.
 			</excludes>
 		</fileSet>
 
-
+		<!-- copy jar files of java examples -->
 		<fileSet>
-			<!-- copy jar files of java examples -->
 			<directory>../flink-examples/flink-java-examples/target</directory>
 			<outputDirectory>examples</outputDirectory>
 			<fileMode>0644</fileMode>
@@ -146,17 +150,19 @@ under the License.
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>flink-java-examples-${project.version}.jar</exclude>
-				<exclude>original-flink-java-examples-${project.version}.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-sources.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-tests.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}.jar</exclude>
+				<exclude>original-flink-java-examples*-${project.version}.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-sources.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-tests.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-*.jar</exclude>
 			</excludes>
 		</fileSet>
+
+		<!-- copy python package -->
 		<fileSet>
-			<!-- copy python package -->
 			<directory>../flink-staging/flink-language-binding/flink-python/src/main/python/org/apache/flink/languagebinding/api/python</directory>
-			<outputDirectory>resources/python/</outputDirectory>
+			<outputDirectory>resources/python</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 	</fileSets>

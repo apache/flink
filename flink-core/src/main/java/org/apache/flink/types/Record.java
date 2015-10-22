@@ -763,6 +763,11 @@ public final class Record implements Value, CopyableValue<Record> {
 	}
 
 	@Override
+	public Record copy() {
+		return createCopy();
+	}
+
+	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		int val = source.readUnsignedByte();
 		target.writeByte(val);

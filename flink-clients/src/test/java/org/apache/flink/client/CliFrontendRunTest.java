@@ -22,10 +22,12 @@ package org.apache.flink.client;
 import static org.apache.flink.client.CliFrontendTestUtils.*;
 import static org.junit.Assert.*;
 
+import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 
 public class CliFrontendRunTest {
@@ -44,35 +46,42 @@ public class CliFrontendRunTest {
 				String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
 				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				int retCode = testFrontend.run(parameters);
-				assertTrue(retCode != 0);
+				assertNotEquals(0, retCode);
 			}
-			
+
 			// test without parallelism
 			{
 				String[] parameters = {"-v", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
-			
+
 			// test configure parallelism
 			{
 				String[] parameters = {"-v", "-p", "42",  getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
-			
+
+			// test configure sysout logging
+			{
+				String[] parameters = {"-p", "2", "-q", getTestJarPath()};
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false);
+				assertEquals(0, testFrontend.run(parameters));
+			}
+
 			// test configure parallelism with non integer value
 			{
 				String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
 				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-				assertTrue(0 != testFrontend.run(parameters));
+				assertNotEquals(0, testFrontend.run(parameters));
 			}
-			
+
 			// test configure parallelism with overflow integer value
 			{
 				String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
 				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-				assertTrue(0 != testFrontend.run(parameters));
+				assertNotEquals(0, testFrontend.run(parameters));
 			}
 		}
 		catch (Exception e) {
@@ -80,22 +89,35 @@ public class CliFrontendRunTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class RunTestingCliFrontend extends CliFrontend {
 		
-		private final int expectedParallelim;
+		private final int expectedParallelism;
+		private final boolean sysoutLogging;
 		
-		public RunTestingCliFrontend(int expectedParallelim) throws Exception {
+		public RunTestingCliFrontend(int expectedParallelism, boolean logging) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
-			this.expectedParallelim = expectedParallelim;
+			this.expectedParallelism = expectedParallelism;
+			this.sysoutLogging = logging;
 		}
 
 		@Override
-		protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait) {
-			assertEquals(this.expectedParallelim, parallelism);
+		protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
+			assertEquals(this.expectedParallelism, parallelism);
+			assertEquals(this.sysoutLogging, client.getPrintStatusDuringExecution());
 			return 0;
+		}
+
+		@Override
+		protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
+			return 0;
+		}
+
+		@Override
+		protected Client getClient(CommandLineOptions options, String programName, int userParallelism) throws Exception {
+			return Mockito.mock(Client.class);
 		}
 	}
 }
