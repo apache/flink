@@ -151,7 +151,7 @@ public class OutputEmitterTest extends TestCase {
 		assertTrue(chans.length == 1);
 		assertTrue(chans[0] >= 0 && chans[0] <= numChans-1);
 	}
-	
+
 	@Test
 	public void testForward() {
 		// Test for IntValue
@@ -159,17 +159,74 @@ public class OutputEmitterTest extends TestCase {
 		final TypeComparator<Record> intComp = new RecordComparatorFactory(new int[] {0}, new Class[] {IntValue.class}).createComparator();
 		final ChannelSelector<SerializationDelegate<Record>> oe1 = new OutputEmitter<Record>(ShipStrategyType.FORWARD, intComp);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<Record>(new RecordSerializerFactory().getSerializer());
-		
+
 		int numChannels = 100;
-		int numRecords = 50000;
-		
+		int numRecords = 50000 + numChannels / 2;
+
 		int[] hit = new int[numChannels];
 
 		for (int i = 0; i < numRecords; i++) {
 			IntValue k = new IntValue(i);
 			Record rec = new Record(k);
 			delegate.setInstance(rec);
-			
+
+			int[] chans = oe1.selectChannels(delegate, hit.length);
+			for(int j=0; j < chans.length; j++) {
+				hit[chans[j]]++;
+			}
+		}
+
+		assertTrue(hit[0] == numRecords);
+		for (int i = 1; i < hit.length; i++) {
+			assertTrue(hit[i] == 0);
+		}
+
+		// Test for StringValue
+		@SuppressWarnings("unchecked")
+		final TypeComparator<Record> stringComp = new RecordComparatorFactory(new int[] {0}, new Class[] {StringValue.class}).createComparator();
+		final ChannelSelector<SerializationDelegate<Record>> oe2 = new OutputEmitter<Record>(ShipStrategyType.FORWARD, stringComp);
+
+		numChannels = 100;
+		numRecords = 10000 + numChannels / 2;
+
+		hit = new int[numChannels];
+
+		for (int i = 0; i < numRecords; i++) {
+			StringValue k = new StringValue(i + "");
+			Record rec = new Record(k);
+			delegate.setInstance(rec);
+
+			int[] chans = oe2.selectChannels(delegate, hit.length);
+			for(int j=0; j < chans.length; j++) {
+				hit[chans[j]]++;
+			}
+		}
+
+		assertTrue(hit[0] == numRecords);
+		for (int i = 1; i < hit.length; i++) {
+			assertTrue(hit[i] == 0);
+		}
+	}
+
+	@Test
+	public void testForcedRebalance() {
+		// Test for IntValue
+		int numChannels = 100;
+		int toTaskIndex = numChannels * 6/7;
+		int fromTaskIndex = toTaskIndex + numChannels;
+		int extraRecords = numChannels * 1/3;
+		int numRecords = 50000 + extraRecords;
+
+		final ChannelSelector<SerializationDelegate<Record>> oe1 = new OutputEmitter<Record>(ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
+		final SerializationDelegate<Record> delegate = new SerializationDelegate<Record>(new RecordSerializerFactory().getSerializer());
+
+		int[] hit = new int[numChannels];
+
+		for (int i = 0; i < numRecords; i++) {
+			IntValue k = new IntValue(i);
+			Record rec = new Record(k);
+			delegate.setInstance(rec);
+
 			int[] chans = oe1.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
@@ -178,26 +235,31 @@ public class OutputEmitterTest extends TestCase {
 
 		int cnt = 0;
 		for (int i = 0; i < hit.length; i++) {
-			assertTrue(hit[i] == (numRecords/numChannels) || hit[i] == (numRecords/numChannels)-1);
+			if (toTaskIndex <= i || i < toTaskIndex+extraRecords-numChannels) {
+				assertTrue(hit[i] == (numRecords/numChannels)+1);
+			} else {
+				assertTrue(hit[i] == numRecords/numChannels);
+			}
 			cnt += hit[i];
 		}
 		assertTrue(cnt == numRecords);
 
 		// Test for StringValue
-		@SuppressWarnings("unchecked")
-		final TypeComparator<Record> stringComp = new RecordComparatorFactory(new int[] {0}, new Class[] {StringValue.class}).createComparator();
-		final ChannelSelector<SerializationDelegate<Record>> oe2 = new OutputEmitter<Record>(ShipStrategyType.FORWARD, stringComp);
-
 		numChannels = 100;
-		numRecords = 10000;
-		
+		toTaskIndex = numChannels / 5;
+		fromTaskIndex = toTaskIndex + 2 * numChannels;
+		extraRecords = numChannels * 2/9;
+		numRecords = 10000 + extraRecords;
+
+		final ChannelSelector<SerializationDelegate<Record>> oe2 = new OutputEmitter<Record>(ShipStrategyType.PARTITION_FORCED_REBALANCE, fromTaskIndex);
+
 		hit = new int[numChannels];
 
 		for (int i = 0; i < numRecords; i++) {
 			StringValue k = new StringValue(i + "");
 			Record rec = new Record(k);
 			delegate.setInstance(rec);
-				
+
 			int[] chans = oe2.selectChannels(delegate, hit.length);
 			for(int j=0; j < chans.length; j++) {
 				hit[chans[j]]++;
@@ -206,11 +268,14 @@ public class OutputEmitterTest extends TestCase {
 
 		cnt = 0;
 		for (int i = 0; i < hit.length; i++) {
-			assertTrue(hit[i] == (numRecords/numChannels) || hit[i] == (numRecords/numChannels)-1);
+			if (toTaskIndex <= i && i < toTaskIndex+extraRecords) {
+				assertTrue(hit[i] == (numRecords/numChannels)+1);
+			} else {
+				assertTrue(hit[i] == numRecords/numChannels);
+			}
 			cnt += hit[i];
 		}
 		assertTrue(cnt == numRecords);
-		
 	}
 	
 	@Test

@@ -1256,18 +1256,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			{
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
+				final int indexInSubtaskGroup = task.getIndexInSubtaskGroup();
 				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
 
 				final ChannelSelector<SerializationDelegate<T>> oe;
 				if (compFactory == null) {
-					oe = new OutputEmitter<T>(strategy);
+					oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup);
 				}
 				else {
 					final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
 					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
 
 					final TypeComparator<T> comparator = compFactory.createComparator();
-					oe = new OutputEmitter<T>(strategy, comparator, partitioner, dataDist);
+					oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup, comparator, partitioner, dataDist);
 				}
 
 				final RecordWriter<SerializationDelegate<T>> recordWriter =
