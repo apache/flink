@@ -20,33 +20,25 @@
 package org.apache.flink.test.iterative;
 
 import java.io.BufferedReader;
-import java.io.Serializable;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
-import org.apache.flink.api.java.record.io.CsvInputFormat;
-import org.apache.flink.api.java.record.io.CsvOutputFormat;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.MinimumComponentIDReduce;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.Record;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
 /**
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.
  */
 @SuppressWarnings("deprecation")
-public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITestBase {
+public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	
@@ -59,11 +51,6 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 	protected String edgesPath;
 	protected String resultPath;
 
-	public ConnectedComponentsWithSolutionSetFirstITCase(){
-		setTaskManagerNumSlots(parallelism);
-	}
-	
-	
 	@Override
 	protected void preSubmit() throws Exception {
 		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
@@ -72,10 +59,40 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 	}
 	
 	@Override
-	protected Plan getTestJob() {
-		return getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(parallelism, verticesPath, edgesPath,
-				resultPath, 100);
+	protected void testProgram() throws Exception {
+		// set up execution environment
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// read vertex and edge data
+		DataSet<Tuple1<Long>> vertices = env.readCsvFile(verticesPath).types(Long.class);
+
+		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class)
+				.flatMap(new ConnectedComponents.UndirectEdge());
+
+		// assign the initial components (equal to the vertex id)
+		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new ConnectedComponentsITCase.DuplicateValue<Long>());
+
+		// open a delta iteration
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+				verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
+
+		// apply the step logic: join with the edges, select the minimum neighbor, update if the component of the candidate is smaller
+		DataSet<Tuple2<Long, Long>> minNeighbor = iteration.getWorkset()
+				.join(edges).where(0).equalTo(0).with(new ConnectedComponents.NeighborWithComponentIDJoin())
+				.groupBy(0).aggregate(Aggregations.MIN, 1);
+
+		DataSet<Tuple2<Long, Long>> updatedIds = iteration.getSolutionSet()
+				.join(minNeighbor).where(0).equalTo(0).with(new UpdateComponentIdMatchMirrored());
+
+		// close the delta iteration (delta and new workset are identical)
+		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(updatedIds, updatedIds);
+
+		result.writeAsCsv(resultPath, "\n", " ");
+
+		// execute program
+		env.execute("Connected Components Example");
 	}
+
 
 	@Override
 	protected void postSubmit() throws Exception {
@@ -83,79 +100,26 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 			ConnectedComponentsData.checkOddEvenResult(reader);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Classes and methods for the test program
 	// --------------------------------------------------------------------------------------------
-	
-	@ConstantFieldsSecondExcept({})
-	public static final class UpdateComponentIdMatchMirrored extends JoinFunction implements Serializable {
-		
+
+	@FunctionAnnotation.ForwardedFieldsSecond("*")
+	public static final class UpdateComponentIdMatchMirrored
+			implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void join(Record currentVertexWithComponent, Record newVertexWithComponent, Collector<Record> out){
-	
-			long candidateComponentID = newVertexWithComponent.getField(1, LongValue.class).getValue();
-			long currentComponentID = currentVertexWithComponent.getField(1, LongValue.class).getValue();
-	
-			if (candidateComponentID < currentComponentID) {
-				out.collect(newVertexWithComponent);
+		public void join(
+				Tuple2<Long, Long> current,
+				Tuple2<Long, Long> candidate,
+				Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			if(candidate.f1 < current.f1) {
+				out.collect(candidate);
 			}
+
 		}
-	}
-	
-	@SuppressWarnings("unchecked")
-	private static Plan getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(
-			int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations)
-	{
-		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
-		
-		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
-		
-		DeltaIteration iteration = new DeltaIteration(0, "Connected Components Iteration");
-		iteration.setInitialSolutionSet(verticesWithId);
-		iteration.setInitialWorkset(verticesWithId);
-		iteration.setMaximumNumberOfIterations(maxIterations);
-		
-		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
-
-		// create CrossOperator for distance computation
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
-				.input1(iteration.getWorkset())
-				.input2(edges)
-				.name("Join Candidate Id With Neighbor")
-				.build();
-
-		// create ReduceOperator for finding the nearest cluster centers
-		ReduceOperator minCandidateId = ReduceOperator.builder(new MinimumComponentIDReduce(), LongValue.class, 0)
-				.input(joinWithNeighbors)
-				.name("Find Minimum Candidate Id")
-				.build();
-		
-		// create CrossOperator for distance computation
-		JoinOperator updateComponentId = JoinOperator.builder(new UpdateComponentIdMatchMirrored(), LongValue.class, 0, 0)
-				.input1(iteration.getSolutionSet())
-				.input2(minCandidateId)
-				.name("Update Component Id")
-				.build();
-		
-		iteration.setNextWorkset(updateComponentId);
-		iteration.setSolutionSetDelta(updateComponentId);
-
-		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, iteration, "Result");
-		CsvOutputFormat.configureRecordFormat(result)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(LongValue.class, 0)
-			.field(LongValue.class, 1);
-
-		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
-		plan.setDefaultParallelism(numSubTasks);
-		return plan;
 	}
 }
