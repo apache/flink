@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.test.operators.io;
+package org.apache.flink.test.util;
 
 import java.io.IOException;
 
@@ -33,39 +33,39 @@ import org.apache.flink.types.StringValue;
 public class ContractITCaseIOFormats {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContractITCaseIOFormats.class);
-	
+
 	public static class ContractITCaseInputFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;
 
 		private final StringValue keyString = new StringValue();
 		private final StringValue valueString = new StringValue();
-		
+
 		@Override
 		public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
 			this.keyString.setValueAscii(bytes, offset, 1);
 			this.valueString.setValueAscii(bytes, offset + 2, 1);
 			target.setField(0, keyString);
 			target.setField(1, valueString);
-			
+
 			if (LOG.isDebugEnabled())
 				LOG.debug("Read in: [" + keyString.getValue() + "," + valueString.getValue() + "]");
-			
+
 			return target;
 		}
 	}
 
 	public static class ContractITCaseOutputFormat extends FileOutputFormat {
 		private static final long serialVersionUID = 1L;
-		
+
 		private final StringBuilder buffer = new StringBuilder();
 		private final StringValue keyString = new StringValue();
 		private final IntValue valueInteger = new IntValue();
-		
-		
+
+
 		public ContractITCaseOutputFormat() {
 			setWriteMode(WriteMode.OVERWRITE);
 		}
-		
+
 		@Override
 		public void writeRecord(Record record) throws IOException {
 			this.buffer.setLength(0);
@@ -73,12 +73,12 @@ public class ContractITCaseIOFormats {
 			this.buffer.append(' ');
 			this.buffer.append(record.getField(1, valueInteger).getValue());
 			this.buffer.append('\n');
-			
+
 			byte[] bytes = this.buffer.toString().getBytes();
-			
+
 			if (LOG.isDebugEnabled())
 				LOG.debug("Writing out: [" + keyString.toString() + "," + valueInteger.getValue() + "]");
-			
+
 			this.stream.write(bytes);
 		}
 	}
