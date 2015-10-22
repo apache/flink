@@ -46,8 +46,9 @@ public class FileSerializableStateHandle<T> extends AbstractFileState implements
 	@Override
 	@SuppressWarnings("unchecked")
 	public T getState(ClassLoader classLoader) throws Exception {
-		FSDataInputStream inStream = getFileSystem().open(getFilePath());
-		ObjectInputStream ois = new InstantiationUtil.ClassLoaderObjectInputStream(inStream, classLoader);
-		return (T) ois.readObject();
+		try (FSDataInputStream inStream = getFileSystem().open(getFilePath())) {
+			ObjectInputStream ois = new InstantiationUtil.ClassLoaderObjectInputStream(inStream, classLoader);
+			return (T) ois.readObject();
+		}
 	}
 }
