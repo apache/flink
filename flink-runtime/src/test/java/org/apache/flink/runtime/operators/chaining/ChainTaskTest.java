@@ -21,17 +21,17 @@ package org.apache.flink.runtime.operators.chaining;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GenericCollectorMap;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
 import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.runtime.operators.MapTaskTest.MockMapStub;
+import org.apache.flink.runtime.operators.FlatMapDriver;
+import org.apache.flink.runtime.operators.FlatMapTaskTest.MockMapStub;
 import org.apache.flink.runtime.operators.ReduceTaskTest.MockReduceStub;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -49,14 +49,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Task.class, ResultPartitionWriter.class})
-@SuppressWarnings("deprecation")
 public class ChainTaskTest extends TaskTestBase {
 	
 	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
 	
-	private final List<Record> outList = new ArrayList<Record>();
+	private final List<Record> outList = new ArrayList<>();
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
@@ -95,16 +94,16 @@ public class ChainTaskTest extends TaskTestBase {
 				combineConfig.setRelativeMemoryDriver(memoryFraction);
 				
 				// udf
-				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockReduceStub>(MockReduceStub.class));
+				combineConfig.setStubWrapper(new UserCodeClassWrapper<>(MockReduceStub.class));
 				
 				getTaskConfig().addChainedTask(SynchronousChainedCombineDriver.class, combineConfig, "combine");
 			}
 			
 			// chained map+combine
 			{
-				BatchTask<GenericCollectorMap<Record, Record>, Record> testTask =
-											new BatchTask<GenericCollectorMap<Record, Record>, Record>();
-				registerTask(testTask, CollectorMapDriver.class, MockMapStub.class);
+				BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
+											new BatchTask<>();
+				registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
 				
 				try {
 					testTask.invoke();
@@ -156,17 +155,17 @@ public class ChainTaskTest extends TaskTestBase {
 				combineConfig.setRelativeMemoryDriver(memoryFraction);
 				
 				// udf
-				combineConfig.setStubWrapper(new UserCodeClassWrapper<MockFailingCombineStub>(MockFailingCombineStub.class));
+				combineConfig.setStubWrapper(new UserCodeClassWrapper<>(MockFailingCombineStub.class));
 				
 				getTaskConfig().addChainedTask(SynchronousChainedCombineDriver.class, combineConfig, "combine");
 			}
 			
 			// chained map+combine
 			{
-				final BatchTask<GenericCollectorMap<Record, Record>, Record> testTask =
-											new BatchTask<GenericCollectorMap<Record, Record>, Record>();
+				final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
+											new BatchTask<>();
 				
-				super.registerTask(testTask, CollectorMapDriver.class, MockMapStub.class);
+				super.registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
 	
 				boolean stubFailed = false;
 				
