@@ -66,10 +66,10 @@ fi
 GPG_PASSPHRASE=${GPG_PASSPHRASE:-XXX}
 GPG_KEY=${GPG_KEY:-XXX}
 GIT_AUTHOR=${GIT_AUTHOR:-"Your name <you@apache.org>"}
-GIT_BRANCH=${GIT_BRANCH:-branch-1.0}
-OLD_VERSION=${OLD_VERSION:-0.6-incubating-SNAPSHOT}
+OLD_VERSION=${OLD_VERSION:-0.10-SNAPSHOT}
 RELEASE_VERSION=${NEW_VERSION}
 RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc1}
+RELEASE_BRANCH=${RELEASE_BRANCH:-master}
 NEW_VERSION_HADOOP1=${NEW_VERSION_HADOOP1:-"$RELEASE_VERSION-hadoop1"}
 USER_NAME=${USER_NAME:-yourapacheidhere}
 MVN=${MVN:-mvn}
@@ -79,11 +79,11 @@ sonatype_pw=${sonatype_pw:-XXX}
 
 
 if [ "$(uname)" == "Darwin" ]; then
-    SHASUM=shasum -a 512
-    MD5SUM=md5 -r
+    SHASUM="shasum -a 512"
+    MD5SUM="md5 -r"
 else
-    SHASUM=sha512sum
-    MD5SUM=md5sum
+    SHASUM="sha512sum"
+    MD5SUM="md5sum"
 fi
 
 
@@ -91,7 +91,7 @@ prepare() {
   # prepare
   git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
   cd flink
-  git checkout -b "$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
+  git checkout -b "release-$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
   rm -f .gitignore
   rm -f .travis.yml
   rm -f deploysettings.xml
@@ -129,40 +129,31 @@ make_source_release() {
 make_binary_release() {
   NAME=$1
   FLAGS=$2
-  echo "Creating binary release name: $NAME, flags: $FLAGS"
-  rsync -a --exclude "flink/.git" flink/ flink-$RELEASE_VERSION-bin-$NAME
+  SCALA_VERSION=$3
 
-  cd flink-$RELEASE_VERSION-bin-$NAME
+  echo "Creating binary release name: $NAME, flags: $FLAGS, SCALA_VERSION: ${SCALA_VERSION}"
+  dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
+  rsync -a --exclude "flink/.git" flink/ "${dir_name}"
+
   # make distribution
+  cd "${dir_name}"
+  ./tools/change-scala-version.sh ${SCALA_VERSION}
+
   $MVN clean package $FLAGS -DskipTests
 
-  # Check that the uberjar is not too big
-  UBERJAR=`find flink-dist -name "flink-dist-${RELEASE_VERSION}.jar" | head -n 1`
-  if [ -z "$UBERJAR" ] ; then
-    echo "Uberjar not found. Assuming failed build";
-  else
-    jar tf $UBERJAR | wc -l > num_files_in_uberjar
-    NUM_FILES_IN_UBERJAR=`cat num_files_in_uberjar`
-    echo "Files in uberjar: $NUM_FILES_IN_UBERJAR. Uberjar: $UBERJAR"
-    if [ "$NUM_FILES_IN_UBERJAR" -ge "65536" ] ; then
-      echo "The number of files in the uberjar ($NUM_FILES_IN_UBERJAR) exceeds the maximum number of possible files for Java 6 (65536)"
-    #  exit 1
-    fi
-  fi
   cd flink-dist/target/flink-$RELEASE_VERSION-bin/
-  tar czf flink-$RELEASE_VERSION-bin-$NAME.tgz flink-$RELEASE_VERSION
+  tar czf "${dir_name}.tgz" flink-$RELEASE_VERSION
 
   cp flink-*.tgz ../../../../
   cd ../../../../
-  rm -rf flink-$RELEASE_VERSION
 
   # Sign md5 and sha the tgz
   echo $GPG_PASSPHRASE | $GPG --batch --default-key $GPG_KEY \
     --passphrase-fd 0 --armour \
-    --output flink-$RELEASE_VERSION-bin-$NAME.tgz.asc \
-    --detach-sig flink-$RELEASE_VERSION-bin-$NAME.tgz
-  $MD5SUM flink-$RELEASE_VERSION-bin-$NAME.tgz > flink-$RELEASE_VERSION-bin-$NAME.tgz.md5
-  $SHASUM flink-$RELEASE_VERSION-bin-$NAME.tgz > flink-$RELEASE_VERSION-bin-$NAME.tgz.sha
+    --output "${dir_name}.tgz.asc" \
+    --detach-sig "${dir_name}.tgz"
+  $MD5SUM "${dir_name}.tgz" > "${dir_name}.tgz.md5"
+  $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha"
 
 }
 
@@ -191,20 +182,22 @@ prepare
 
 make_source_release
 
-make_binary_release "hadoop1" "-Dhadoop.profile=1"
-#make_binary_release "hadoop200alpha" "-P!include-yarn -Dhadoop.version=2.0.0-alpha"
-make_binary_release "hadoop2" ""
-make_binary_release "hadoop24" "-Dhadoop.version=2.4.1"
-make_binary_release "hadoop26" "-Dhadoop.version=2.6.0"
-make_binary_release "hadoop27" "-Dhadoop.version=2.7.0"
+make_binary_release "hadoop1" "-Dhadoop.profile=1" 2.10
+make_binary_release "hadoop2" "" 2.10
+make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.10
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.0" 2.10
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.0" 2.10
+## make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
+
+make_binary_release "hadoop2" "" 2.11
+make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.11
+make_binary_release "hadoop26" "-Dhadoop.version=2.6.0" 2.11
+make_binary_release "hadoop27" "-Dhadoop.version=2.7.0" 2.11
 # make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
 
 copy_data
 
 deploy_to_maven
-
-
-
 
 
 echo "Done. Don't forget to commit the release version"
