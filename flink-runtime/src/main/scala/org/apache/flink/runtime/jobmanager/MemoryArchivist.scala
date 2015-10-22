@@ -188,21 +188,7 @@ class MemoryArchivist(private val max_entries: Int)
   // --------------------------------------------------------------------------
   
   private def createJobsOverview() : JobsOverview = {
-    var runningOrPending = 0
-    var finished = 0
-    var canceled = 0
-    var failed = 0
-    
-    graphs.values.foreach {
-      _.getState() match {
-        case JobStatus.FINISHED => finished += 1
-        case JobStatus.CANCELED => canceled += 1
-        case JobStatus.FAILED => failed += 1
-        case _ => runningOrPending += 1
-      }
-    }
-    
-    new JobsOverview(runningOrPending, finished, canceled, failed)
+    new JobsOverview(0, finishedCnt, canceledCnt, failedCnt)
   }
 
   private def createJobsWithIDsOverview() : JobsWithIDsOverview = {
