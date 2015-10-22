@@ -433,31 +433,31 @@ public final class ConfigConstants {
 	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
-	public static final String ZOOKEEPER_QUORUM_KEY = "ha.zookeeper.quorum";
+	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
 
 	/** ZooKeeper root path. */
-	public static final String ZOOKEEPER_DIR_KEY = "ha.zookeeper.dir";
+	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.dir";
 
-	public static final String ZOOKEEPER_LATCH_PATH = "ha.zookeeper.dir.latch";
+	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.dir.latch";
 
-	public static final String ZOOKEEPER_LEADER_PATH = "ha.zookeeper.dir.leader";
+	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.dir.leader";
 
 	/** ZooKeeper root path (ZNode) for job graphs. */
-	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "ha.zookeeper.dir.jobgraphs";
+	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.dir.jobgraphs";
 
 	/** ZooKeeper root path (ZNode) for completed checkpoints. */
-	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "ha.zookeeper.dir.checkpoints";
+	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.dir.checkpoints";
 
 	/** ZooKeeper root path (ZNode) for checkpoint counters. */
-	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "ha.zookeeper.dir.checkpoint-counter";
+	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.dir.checkpoint-counter";
 
-	public static final String ZOOKEEPER_SESSION_TIMEOUT = "ha.zookeeper.client.session-timeout";
+	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
-	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "ha.zookeeper.client.connection-timeout";
+	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "recovery.zookeeper.client.connection-timeout";
 
-	public static final String ZOOKEEPER_RETRY_WAIT = "ha.zookeeper.client.retry-wait";
+	public static final String ZOOKEEPER_RETRY_WAIT = "recovery.zookeeper.client.retry-wait";
 
-	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "ha.zookeeper.client.max-retry-attempts";
+	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
 
 	// ------------------------------------------------------------------------
 	//                            Default Values

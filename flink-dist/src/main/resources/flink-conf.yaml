@@ -137,4 +137,4 @@ webclient.port: 8080
 #
 # recovery.mode: zookeeper
 #
-# ha.zookeeper.quorum: localhost
+# recovery.zookeeper.quorum: localhost
