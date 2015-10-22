@@ -1671,14 +1671,14 @@ public class Graph<K, VV, EV> {
 						.join(this.vertices).where(0).equalTo(0);
 				return vertices.coGroup(edgesWithSources)
 						.where(0).equalTo("f0.f1")
-						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction, typeInfo)).returns(typeInfo);
 			case OUT:
 				// create <edge-targetVertex> pairs
 				DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
 						.join(this.vertices).where(1).equalTo(0);
 				return vertices.coGroup(edgesWithTargets)
 						.where(0).equalTo("f0.f0")
-						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction)).returns(typeInfo);
+						.with(new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction, typeInfo)).returns(typeInfo);
 			case ALL:
 				// create <edge-sourceOrTargetVertex> pairs
 				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
@@ -1869,10 +1869,17 @@ public class Graph<K, VV, EV> {
 	private static final class ApplyNeighborCoGroupFunction<K, VV, EV, T> implements CoGroupFunction<
 		Vertex<K, VV>, Tuple2<Edge<K, EV>, Vertex<K, VV>>, T>, ResultTypeQueryable<T> {
 
+		private final TypeInformation<T> typeInfo;
 		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
 
 		public ApplyNeighborCoGroupFunction(NeighborsFunctionWithVertexValue<K, VV, EV, T> fun) {
 			this.function = fun;
+			typeInfo = null;
+		}
+
+		public ApplyNeighborCoGroupFunction(NeighborsFunctionWithVertexValue<K, VV, EV, T> fun, TypeInformation<T> typeInfo) {
+			this.function = fun;
+			this.typeInfo = typeInfo;
 		}
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors,
@@ -1882,6 +1889,11 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public TypeInformation<T> getProducedType() {
+
+			if (typeInfo != null) {
+				return typeInfo;
+			}
+
 			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class,	function.getClass(), 3, null, null);
 		}
 	}
