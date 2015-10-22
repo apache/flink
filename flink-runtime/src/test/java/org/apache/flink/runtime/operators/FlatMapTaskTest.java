@@ -22,11 +22,10 @@ package org.apache.flink.runtime.operators;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.functions.GenericCollectorMap;
-import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -38,15 +37,14 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-@SuppressWarnings("deprecation")
-public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Record>> {
+public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>> {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(MapTaskTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlatMapTaskTest.class);
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	
-	public MapTaskTest(ExecutionConfig config) {
+	public FlatMapTaskTest(ExecutionConfig config) {
 		super(config, 0, 0);
 	}
 	
@@ -58,7 +56,7 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(this.output);
 		
-		final CollectorMapDriver<Record, Record> testDriver = new CollectorMapDriver<Record, Record>();
+		final FlatMapDriver<Record, Record> testDriver = new FlatMapDriver<>();
 		
 		try {
 			testDriver(testDriver, MockMapStub.class);
@@ -78,7 +76,7 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(new DiscardingOutputCollector<Record>());
 		
-		final CollectorMapDriver<Record, Record> testTask = new CollectorMapDriver<Record, Record>();
+		final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
 		try {
 			testDriver(testTask, MockFailingMapStub.class);
 			Assert.fail("Function exception was not forwarded.");
@@ -95,7 +93,7 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 		addInput(new InfiniteInputIterator());
 		setOutput(new DiscardingOutputCollector<Record>());
 		
-		final CollectorMapDriver<Record, Record> testTask = new CollectorMapDriver<Record, Record>();
+		final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -125,23 +123,23 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockMapStub extends MapFunction {
+	public static class MockMapStub extends RichFlatMapFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void map(Record record, Collector<Record> out) throws Exception {
+		public void flatMap(Record record, Collector<Record> out) throws Exception {
 			out.collect(record);
 		}
 		
 	}
 	
-	public static class MockFailingMapStub extends MapFunction {
+	public static class MockFailingMapStub extends RichFlatMapFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 		
 		@Override
-		public void map(Record record, Collector<Record> out) throws Exception {
+		public void flatMap(Record record, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}

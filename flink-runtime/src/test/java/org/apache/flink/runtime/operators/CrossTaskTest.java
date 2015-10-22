@@ -31,7 +31,6 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 import org.junit.Test;
 
-@SuppressWarnings("deprecation")
 public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>> {
 	
 	private static final long CROSS_MEM = 1024 * 1024;
@@ -65,7 +64,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -95,7 +94,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -123,7 +122,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -153,7 +152,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -184,7 +183,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -215,7 +214,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -243,7 +242,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -272,7 +271,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockFailingCrossStub.class);
@@ -303,7 +302,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -333,7 +332,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -363,7 +362,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -393,7 +392,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		try {
 			testDriver(testTask, MockCrossStub.class);
@@ -420,7 +419,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -463,7 +462,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_BLOCKED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -485,7 +484,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
@@ -506,7 +505,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -549,7 +548,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		getTaskConfig().setDriverStrategy(DriverStrategy.NESTEDLOOP_STREAMED_OUTER_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(cross_frac);
 		
-		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<Record, Record, Record>();
+		final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -571,7 +570,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
@@ -579,7 +578,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
-	public static final class MockCrossStub extends org.apache.flink.api.java.record.functions.CrossFunction {
+	public static final class MockCrossStub implements CrossFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -588,7 +587,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		}
 	}
 	
-	public static final class MockFailingCrossStub extends org.apache.flink.api.java.record.functions.CrossFunction {
+	public static final class MockFailingCrossStub implements CrossFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
