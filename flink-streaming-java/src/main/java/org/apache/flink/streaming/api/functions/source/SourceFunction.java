@@ -48,7 +48,7 @@ import java.io.Serializable;
  *      private long count = 0L;
  *      private volatile boolean isRunning = true;
  *
- *      @Override
+ *      {@literal @}Override
  *      public void run(SourceContext<T> ctx) {
  *          while (isRunning && count < 1000) {
  *              synchronized (ctx.getCheckpointLock()) {
@@ -58,15 +58,15 @@ import java.io.Serializable;
  *          }
  *      }
  *
- *      @Override
+ *      {@literal @}Override
  *      public void cancel() {
  *          isRunning = false;
  *      }
  *
- *      @Override
+ *      {@literal @}Override
  *      public Long snapshotState(long checkpointId, long checkpointTimestamp) { return count; }
  *
- *      @Override
+ *      {@literal @}Override
  *      public void restoreState(Long state) { this.count = state; }
  * }
  * </pre>
