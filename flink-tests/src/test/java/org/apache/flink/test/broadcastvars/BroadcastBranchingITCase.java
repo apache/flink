@@ -29,7 +29,7 @@ import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.JoinOperator;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
+import org.apache.flink.test.util.ContractITCaseIOFormats.ContractITCaseOutputFormat;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
