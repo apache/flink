@@ -21,14 +21,11 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
-import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.junit.Test;
 
@@ -273,6 +270,30 @@ public class MemoryStateBackendTest {
 			} catch (Exception e) {
 				fail("wrong exception");
 			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCopyDefaultValue() {
+		try {
+			MemoryStateBackend backend = new MemoryStateBackend();
+			KvState<Integer, IntValue, MemoryStateBackend> kv =
+					backend.createKvState(IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
+
+			kv.setCurrentKey(1);
+			IntValue default1 = kv.value();
+
+			kv.setCurrentKey(2);
+			IntValue default2 = kv.value();
+			
+			assertNotNull(default1);
+			assertNotNull(default2);
+			assertEquals(default1, default2);
+			assertFalse(default1 == default2);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
