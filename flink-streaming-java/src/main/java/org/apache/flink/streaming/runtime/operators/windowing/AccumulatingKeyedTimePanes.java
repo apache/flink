@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.util.UnionIterator;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -57,16 +58,21 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	}
 
 	@Override
-	public void evaluateWindow(Collector<Result> out, TimeWindow window) throws Exception {
+	public void evaluateWindow(Collector<Result> out, TimeWindow window, 
+								AbstractStreamOperator<Result> operator) throws Exception
+	{
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case (tumbling window)
 			for (KeyMap.Entry<Key, ArrayList<Type>> entry : latestPane) {
+				Key key = entry.getKey();
+				operator.setKeyContext(key);
 				function.apply(entry.getKey(), window, entry.getValue(), out);
 			}
 		}
 		else {
 			// general code path for multi-pane case
-			WindowFunctionTraversal<Key, Type, Result> evaluator = new WindowFunctionTraversal<>(function, window, out);
+			WindowFunctionTraversal<Key, Type, Result> evaluator = new WindowFunctionTraversal<>(
+					function, window, out, operator);
 			traverseAllPanes(evaluator, evaluationPass);
 		}
 		
@@ -84,16 +90,21 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 		private final UnionIterator<Type> unionIterator;
 		
 		private final Collector<Result> out;
+
+		private final TimeWindow window;
+		
+		private final AbstractStreamOperator<Result> contextOperator;
 		
 		private Key currentKey;
+		
 
-		private TimeWindow window;
-
-		WindowFunctionTraversal(WindowFunction<Type, Result, Key, Window> function, TimeWindow window, Collector<Result> out) {
+		WindowFunctionTraversal(WindowFunction<Type, Result, Key, Window> function, TimeWindow window, 
+								Collector<Result> out, AbstractStreamOperator<Result> contextOperator) {
 			this.function = function;
 			this.out = out;
 			this.unionIterator = new UnionIterator<>();
 			this.window = window;
+			this.contextOperator = contextOperator;
 		}
 
 
@@ -110,6 +121,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 		@Override
 		public void keyDone() throws Exception {
+			contextOperator.setKeyContext(currentKey);
 			function.apply(currentKey, window, unionIterator, out);
 		}
 	}

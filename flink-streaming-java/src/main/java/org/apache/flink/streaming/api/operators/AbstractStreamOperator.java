@@ -343,6 +343,15 @@ public abstract class AbstractStreamOperator<OUT>
 			}
 		}
 	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public void setKeyContext(Object key) {
+		if (keyValueStates != null) {
+			for (KvState kv : keyValueStates) {
+				kv.setCurrentKey(key);
+			}
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//  Context and chaining properties

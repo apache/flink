@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
@@ -50,7 +51,8 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 	}
 
 	@Override
-	public void evaluateWindow(Collector<Type> out, TimeWindow window) throws Exception {
+	public void evaluateWindow(Collector<Type> out, TimeWindow window, 
+								AbstractStreamOperator<Type> operator) throws Exception {
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case
 			for (KeyMap.Entry<Key, Type> entry : latestPane) {
@@ -59,7 +61,7 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 		}
 		else {
 			// general code path for multi-pane case
-			AggregatingTraversal<Key, Type> evaluator = new AggregatingTraversal<>(reducer, out);
+			AggregatingTraversal<Key, Type> evaluator = new AggregatingTraversal<>(reducer, out, operator);
 			traverseAllPanes(evaluator, evaluationPass);
 		}
 		
@@ -76,16 +78,21 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 		
 		private final Collector<Type> out;
 		
+		private final AbstractStreamOperator<Type> operator;
+		
 		private Type currentValue;
 
-		AggregatingTraversal(ReduceFunction<Type> function, Collector<Type> out) {
+		AggregatingTraversal(ReduceFunction<Type> function, Collector<Type> out,
+								AbstractStreamOperator<Type> operator) {
 			this.function = function;
 			this.out = out;
+			this.operator = operator;
 		}
 
 		@Override
 		public void startNewKey(Key key) {
 			currentValue = null;
+			operator.setKeyContext(key);
 		}
 
 		@Override
