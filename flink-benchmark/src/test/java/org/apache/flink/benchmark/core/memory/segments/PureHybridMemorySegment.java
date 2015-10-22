@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.memory.benchmarks;
+package org.apache.flink.benchmark.core.memory.segments;
 
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryUtils;
 
 import java.io.DataInput;
@@ -30,16 +29,24 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public final class PureOffHeapMemorySegment {
+public final class PureHybridMemorySegment {
 
 	/** Constant that flags the byte order. Because this is a boolean constant,
 	 * the JIT compiler can use this well to aggressively eliminate the non-applicable code paths */
 	private static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
 	
-	/** The direct byte buffer that allocated the memory */
-	private ByteBuffer buffer;
+	/** The direct byte buffer that allocated the off-heap memory. This memory segment holds a reference
+	 * to that buffer, so as long as this memory segment lives, the memory will not be released. */
+	private final ByteBuffer offHeapMemory;
+	
+	/** The heap byte array object relative to which we access the memory. Is non-null if the
+	 *  memory is on the heap, is null, if the memory if off the heap. If we have this buffer, we
+	 *  must never void this reference, or the memory segment will point to undefined addresses 
+	 *  outside the heap and may in out-of-order execution cases cause segmentation faults. */
+	private final byte[] heapMemory;
 
-	/** The address to the off-heap data */
+	/** The address to the data, relative to the heap memory byte array. If the heap memory byte array
+	 * is null, this becomes an absolute memory address outside the heap. */
 	private long address;
 
 	/** The address one byte after the last addressable byte.
@@ -56,78 +63,151 @@ public final class PureOffHeapMemorySegment {
 	/**
 	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
 	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
-	 * otherwise this method with throw an IllegalArgumentException. data in the given byte array.
+	 * otherwise this method with throw an IllegalArgumentException.
 	 *
 	 * @param buffer The byte buffer whose memory is represented by this memory segment.
 	 * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
 	 */
-	public PureOffHeapMemorySegment(ByteBuffer buffer) {
+	public PureHybridMemorySegment(ByteBuffer buffer) {
 		if (buffer == null || !buffer.isDirect()) {
 			throw new IllegalArgumentException("Can't initialize from non-direct ByteBuffer.");
 		}
 
-		this.buffer = buffer;
+		this.offHeapMemory = buffer;
+		this.heapMemory = null;
 		this.size = buffer.capacity();
 		this.address = getAddress(buffer);
 		this.addressLimit = this.address + size;
 
 		if (address >= Long.MAX_VALUE - Integer.MAX_VALUE) {
-			throw new RuntimeException("Segment initialized with too large address: " + address);
+			throw new RuntimeException("Segment initialized with too large address: " + address
+					+ " ; Max allowed address is " + (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
 		}
 	}
 
+	/**
+	 * Creates a new memory segment that represents the memory of the byte array.
+	 *
+	 * @param buffer The byte array whose memory is represented by this memory segment.
+	 */
+	public PureHybridMemorySegment(byte[] buffer) {
+		if (buffer == null) {
+			throw new NullPointerException("buffer");
+		}
+		
+		this.offHeapMemory = null;
+		this.heapMemory = buffer;
+		this.address = BYTE_ARRAY_BASE_OFFSET;
+		this.addressLimit = BYTE_ARRAY_BASE_OFFSET + buffer.length;
+		this.size = buffer.length;
+	}
+	
 	// -------------------------------------------------------------------------
-	//                      Direct Memory Segment Specifics
+	//                      Memory Segment Specifics
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Gets the size of the memory segment, in bytes.
+	 * @return The size of the memory segment.
+	 */
+	public final int size() {
+		return size;
+	}
+
+	/**
+	 * Checks whether the memory segment was freed.
+	 * @return True, if the memory segment has been freed, false otherwise.
+	 */
+	public final boolean isFreed() {
+		return this.address > this.addressLimit;
+	}
+
+	/**
+	 * Frees this memory segment. After this operation has been called, no further operations are
+	 * possible on the memory segment and will fail. The actual memory (heap or off-heap) will only
+	 * be released after this memory segment object has become garbage collected. 
+	 */
+	public final void free() {
+		// this ensures we can place no more data and trigger
+		// the checks for the freed segment
+		address = addressLimit + 1;
+	}
+	
+	/**
+	 * Checks whether this memory segment is backed by off-heap memory.
+	 * @return True, if the memory segment is backed by off-heap memory, false if it is backed
+	 *         by heap memory.
+	 */
+	public final boolean isOffHeap() {
+		return heapMemory == null;
+	}
+
+	public byte[] getArray() {
+		if (heapMemory != null) {
+			return heapMemory;
+		} else {
+			throw new IllegalStateException("Memory segment does not represent heap memory");
+		}
+	}
+	
 	/**
 	 * Gets the buffer that owns the memory of this memory segment.
 	 *
 	 * @return The byte buffer that owns the memory of this memory segment.
 	 */
-	public ByteBuffer getBuffer() {
-		return this.buffer;
-	}
-
-	/**
-	 * Gets the memory address of the memory backing this memory segment.
-	 *
-	 * @return The memory start address of the memory backing this memory segment. 
-	 */
-	public long getAddress() {
-		return address;
-	}
-
-	// -------------------------------------------------------------------------
-	//                        MemorySegment Accessors
-	// -------------------------------------------------------------------------
-	
-	public final boolean isFreed() {
-		return this.address > this.addressLimit;
+	public ByteBuffer getOffHeapBuffer() {
+		if (offHeapMemory != null) {
+			return offHeapMemory;
+		} else {
+			throw new IllegalStateException("Memory segment does not represent off heap memory");
+		}
 	}
 	
-	public final void free() {
-		// this ensures we can place no more data and trigger
-		// the checks for the freed segment
-		this.address = this.addressLimit + 1;
-		this.buffer = null;
-	}
-	
-	public final int size() {
-		return this.size;
-	}
-
 	public ByteBuffer wrap(int offset, int length) {
 		if (offset < 0 || offset > this.size || offset > this.size - length) {
 			throw new IndexOutOfBoundsException();
 		}
 
-		this.buffer.limit(offset + length);
-		this.buffer.position(offset);
-
-		return this.buffer;
+		if (heapMemory != null) {
+			return ByteBuffer.wrap(heapMemory, offset, length);
+		}
+		else {
+			ByteBuffer wrapper = offHeapMemory.duplicate();
+			wrapper.limit(offset + length);
+			wrapper.position(offset);
+			return wrapper;
+		}
 	}
 
+	/**
+	 * Gets this memory segment as a pure heap memory segment.
+	 * 
+	 * @return A heap memory segment variant of this memory segment.
+	 * @throws UnsupportedOperationException Thrown, if this memory segment is not
+	 *                                       backed by heap memory.
+	 */
+	public final PureHeapMemorySegment asHeapSegment() {
+		if (heapMemory != null) {
+			return new PureHeapMemorySegment(heapMemory);
+		} else {
+			throw new UnsupportedOperationException("Memory segment is not backed by heap memory");
+		}
+	}
+
+	/**
+	 * Gets this memory segment as a pure off-heap memory segment.
+	 *
+	 * @return An off-heap memory segment variant of this memory segment.
+	 * @throws UnsupportedOperationException Thrown, if this memory segment is not
+	 *                                       backed by off-heap memory.
+	 */
+	public final PureOffHeapMemorySegment asOffHeapSegment() {
+		if (offHeapMemory != null) {
+			return new PureOffHeapMemorySegment(offHeapMemory);
+		} else {
+			throw new UnsupportedOperationException("Memory segment is not backed by off-heap memory");
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//                    Random Access get() and put() methods
@@ -135,10 +215,9 @@ public final class PureOffHeapMemorySegment {
 	
 	@SuppressWarnings("restriction")
 	public final byte get(int index) {
-
 		final long pos = address + index;
 		if (index >= 0 && pos < addressLimit) {
-			return UNSAFE.getByte(pos);
+			return UNSAFE.getByte(heapMemory, pos);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -151,10 +230,9 @@ public final class PureOffHeapMemorySegment {
 	
 	@SuppressWarnings("restriction")
 	public final void put(int index, byte b) {
-
 		final long pos = address + index;
 		if (index >= 0 && pos < addressLimit) {
-			UNSAFE.putByte(pos, b);
+			UNSAFE.putByte(heapMemory, pos, b);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -175,7 +253,6 @@ public final class PureOffHeapMemorySegment {
 	
 	@SuppressWarnings("restriction")
 	public final void get(int index, byte[] dst, int offset, int length) {
-
 		// check the byte array offset and length
 		if ((offset | length | (offset + length) | (dst.length - (offset + length))) < 0) {
 			throw new IndexOutOfBoundsException();
@@ -189,14 +266,14 @@ public final class PureOffHeapMemorySegment {
 			// the copy must proceed in batches not too large, because the JVM may
 			// poll for points that are safe for GC (moving the array and changing its address)
 			while (length > 0) {
-				long toCopy = (length > COPY_PER_BATCH) ? COPY_PER_BATCH : length;
-				UNSAFE.copyMemory(null, pos, dst, arrayAddress, toCopy);
+				long toCopy = Math.min(length, COPY_PER_BATCH);
+				UNSAFE.copyMemory(heapMemory, pos, dst, arrayAddress, toCopy);
 				length -= toCopy;
 				pos += toCopy;
 				arrayAddress += toCopy;
 			}
 		}
-		else if (address <= 0) {
+		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
@@ -215,17 +292,16 @@ public final class PureOffHeapMemorySegment {
 		long pos = address + index;
 
 		if (index >= 0 && pos <= addressLimit - length) {
-
 			long arrayAddress = BYTE_ARRAY_BASE_OFFSET + offset;
 			while (length > 0) {
-				long toCopy = (length > COPY_PER_BATCH) ? COPY_PER_BATCH : length;
-				UNSAFE.copyMemory(src, arrayAddress, null, pos, toCopy);
+				long toCopy = Math.min(length, COPY_PER_BATCH);
+				UNSAFE.copyMemory(src, arrayAddress, heapMemory, pos, toCopy);
 				length -= toCopy;
 				pos += toCopy;
 				arrayAddress += toCopy;
 			}
 		}
-		else if (address <= 0) {
+		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
@@ -246,7 +322,7 @@ public final class PureOffHeapMemorySegment {
 	public final char getChar(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
-			return UNSAFE.getChar(pos);
+			return UNSAFE.getChar(heapMemory, pos);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -277,7 +353,7 @@ public final class PureOffHeapMemorySegment {
 	public final void putChar(int index, char value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
-			UNSAFE.putChar(pos, value);
+			UNSAFE.putChar(heapMemory, pos, value);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -308,7 +384,7 @@ public final class PureOffHeapMemorySegment {
 	public final short getShort(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
-			return UNSAFE.getShort(pos);
+			return UNSAFE.getShort(heapMemory, pos);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -339,7 +415,7 @@ public final class PureOffHeapMemorySegment {
 	public final void putShort(int index, short value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 2) {
-			UNSAFE.putShort(pos, value);
+			UNSAFE.putShort(heapMemory, pos, value);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -370,7 +446,7 @@ public final class PureOffHeapMemorySegment {
 	public final int getInt(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 4) {
-			return UNSAFE.getInt(pos);
+			return UNSAFE.getInt(heapMemory, pos);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -401,7 +477,7 @@ public final class PureOffHeapMemorySegment {
 	public final void putInt(int index, int value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 4) {
-			UNSAFE.putInt(pos, value);
+			UNSAFE.putInt(heapMemory, pos, value);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -432,7 +508,7 @@ public final class PureOffHeapMemorySegment {
 	public final long getLong(int index) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 8) {
-			return UNSAFE.getLong(pos);
+			return UNSAFE.getLong(heapMemory, pos);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -463,7 +539,7 @@ public final class PureOffHeapMemorySegment {
 	public final void putLong(int index, long value) {
 		final long pos = address + index;
 		if (index >= 0 && pos <= addressLimit - 8) {
-			UNSAFE.putLong(pos, value);
+			UNSAFE.putLong(heapMemory, pos, value);
 		}
 		else if (address > addressLimit) {
 			throw new IllegalStateException("This segment has been freed.");
@@ -543,141 +619,162 @@ public final class PureOffHeapMemorySegment {
 	// -------------------------------------------------------------------------
 
 	public final void get(DataOutput out, int offset, int length) throws IOException {
-		while (length >= 8) {
-			out.writeLong(getLongBigEndian(offset));
-			offset += 8;
-			length -= 8;
+		if (heapMemory != null) {
+			out.write(heapMemory, offset, length);
 		}
-
-		while(length > 0) {
-			out.writeByte(get(offset));
-			offset++;
-			length--;
+		else {
+			while (length >= 8) {
+				out.writeLong(getLongBigEndian(offset));
+				offset += 8;
+				length -= 8;
+			}
+	
+			while (length > 0) {
+				out.writeByte(get(offset));
+				offset++;
+				length--;
+			}
 		}
 	}
 
 	public final void put(DataInput in, int offset, int length) throws IOException {
-		while (length >= 8) {
-			putLongBigEndian(offset, in.readLong());
-			offset += 8;
-			length -= 8;
+		if (heapMemory != null) {
+			in.readFully(heapMemory, offset, length);
 		}
-		while(length > 0) {
-			put(offset, in.readByte());
-			offset++;
-			length--;
+		else {
+			while (length >= 8) {
+				putLongBigEndian(offset, in.readLong());
+				offset += 8;
+				length -= 8;
+			}
+			while(length > 0) {
+				put(offset, in.readByte());
+				offset++;
+				length--;
+			}
 		}
 	}
 
 	@SuppressWarnings("restriction")
 	public final void get(int offset, ByteBuffer target, int numBytes) {
-
-		// check the byte array offset and length
-		if ((offset | numBytes | (offset + numBytes) | (size - (offset + numBytes))) < 0) {
-			throw new IndexOutOfBoundsException();
-		}
-
-		final int targetOffset = target.position();
-		final int remaining = target.remaining();
-
-		if (remaining < numBytes) {
-			throw new BufferOverflowException();
-		}
-
-		if (target.isDirect()) {
-			// copy to the target memory directly
-			final long targetPointer = getAddress(target) + targetOffset;
-			final long sourcePointer = address + offset;
-
-			if (sourcePointer <= addressLimit - numBytes) {
-				UNSAFE.copyMemory(sourcePointer, targetPointer, numBytes);
-			}
-			else if (address > addressLimit) {
-				throw new IllegalStateException("This segment has been freed.");
-			}
-			else {
-				throw new IndexOutOfBoundsException();
-			}
-		}
-		else if (target.hasArray()) {
-			// move directly into the byte array
-			get(offset, target.array(), targetOffset + target.arrayOffset(), numBytes);
-
-			// this must be after the get() call to ensue that the byte buffer is not
-			// modified in case the call fails
-			target.position(targetOffset + numBytes);
+		if (heapMemory != null) {
+			// ByteBuffer performs the boundary checks
+			target.put(heapMemory, offset, numBytes);
 		}
 		else {
-			// neither heap buffer nor direct buffer
-			while (target.hasRemaining()) {
-				target.put(get(offset++));
+			// check the byte array offset and length
+			if ((offset | numBytes | (offset + numBytes) | (size - (offset + numBytes))) < 0) {
+				throw new IndexOutOfBoundsException();
+			}
+	
+			final int targetOffset = target.position();
+			final int remaining = target.remaining();
+	
+			if (remaining < numBytes) {
+				throw new BufferOverflowException();
+			}
+	
+			if (target.isDirect()) {
+				// copy to the target memory directly
+				final long targetPointer = getAddress(target) + targetOffset;
+				final long sourcePointer = address + offset;
+	
+				if (sourcePointer <= addressLimit - numBytes) {
+					UNSAFE.copyMemory(sourcePointer, targetPointer, numBytes);
+				}
+				else if (address > addressLimit) {
+					throw new IllegalStateException("This segment has been freed.");
+				}
+				else {
+					throw new IndexOutOfBoundsException();
+				}
+			}
+			else if (target.hasArray()) {
+				// move directly into the byte array
+				get(offset, target.array(), targetOffset + target.arrayOffset(), numBytes);
+	
+				// this must be after the get() call to ensue that the byte buffer is not
+				// modified in case the call fails
+				target.position(targetOffset + numBytes);
+			}
+			else {
+				// neither heap buffer nor direct buffer
+				while (target.hasRemaining()) {
+					target.put(get(offset++));
+				}
 			}
 		}
 	}
 
 	@SuppressWarnings("restriction")
 	public final void put(int offset, ByteBuffer source, int numBytes) {
-
-		// check the byte array offset and length
-		if ((offset | numBytes | (offset + numBytes) | (size - (offset + numBytes))) < 0) {
-			throw new IndexOutOfBoundsException();
-		}
-
-		final int sourceOffset = source.position();
-		final int remaining = source.remaining();
-
-		if (remaining < numBytes) {
-			throw new BufferUnderflowException();
-		}
-
-		if (source.isDirect()) {
-			// copy to the target memory directly
-			final long sourcePointer = getAddress(source) + sourceOffset;
-			final long targetPointer = address + offset;
-
-			if (sourcePointer <= addressLimit - numBytes) {
-				UNSAFE.copyMemory(sourcePointer, targetPointer, numBytes);
-			}
-			else if (address > addressLimit) {
-				throw new IllegalStateException("This segment has been freed.");
-			}
-			else {
-				throw new IndexOutOfBoundsException();
-			}
-		}
-		else if (source.hasArray()) {
-			// move directly into the byte array
-			put(offset, source.array(), sourceOffset + source.arrayOffset(), numBytes);
-
-			// this must be after the get() call to ensue that the byte buffer is not
-			// modified in case the call fails
-			source.position(sourceOffset + numBytes);
+		if (heapMemory != null) {
+			source.get(heapMemory, offset, numBytes);
 		}
 		else {
-			// neither heap buffer nor direct buffer
-			while (source.hasRemaining()) {
-				put(offset++, source.get());
+			// check the byte array offset and length
+			if ((offset | numBytes | (offset + numBytes) | (size - (offset + numBytes))) < 0) {
+				throw new IndexOutOfBoundsException();
+			}
+	
+			final int sourceOffset = source.position();
+			final int remaining = source.remaining();
+	
+			if (remaining < numBytes) {
+				throw new BufferUnderflowException();
+			}
+	
+			if (source.isDirect()) {
+				// copy to the target memory directly
+				final long sourcePointer = getAddress(source) + sourceOffset;
+				final long targetPointer = address + offset;
+	
+				if (sourcePointer <= addressLimit - numBytes) {
+					UNSAFE.copyMemory(sourcePointer, targetPointer, numBytes);
+				}
+				else if (address > addressLimit) {
+					throw new IllegalStateException("This segment has been freed.");
+				}
+				else {
+					throw new IndexOutOfBoundsException();
+				}
+			}
+			else if (source.hasArray()) {
+				// move directly into the byte array
+				put(offset, source.array(), sourceOffset + source.arrayOffset(), numBytes);
+	
+				// this must be after the get() call to ensue that the byte buffer is not
+				// modified in case the call fails
+				source.position(sourceOffset + numBytes);
+			}
+			else {
+				// neither heap buffer nor direct buffer
+				while (source.hasRemaining()) {
+					put(offset++, source.get());
+				}
 			}
 		}
 	}
 
 	@SuppressWarnings("restriction")
-	public final void copyTo(int offset, PureOffHeapMemorySegment target, int targetOffset, int numBytes) {
-		final long thisPointer = address + offset;
+	public final void copyTo(int offset, PureHybridMemorySegment target, int targetOffset, int numBytes) {
+		final byte[] thisHeapRef = this.heapMemory;
+		final byte[] otherHeapRef = target.heapMemory;
+		final long thisPointer = this.address + offset;
 		final long otherPointer = target.address + targetOffset;
 
-		if (numBytes >= 0 && thisPointer <= addressLimit - numBytes && otherPointer <= target.addressLimit - numBytes) {
-			UNSAFE.copyMemory(thisPointer, otherPointer, numBytes);
+		if (numBytes >= 0 & thisPointer <= this.addressLimit - numBytes & otherPointer <= target.addressLimit - numBytes) {
+			UNSAFE.copyMemory(thisHeapRef, thisPointer, otherHeapRef, otherPointer, numBytes);
 		}
-		else if (address > addressLimit || target.address > target.addressLimit) {
-			throw new IllegalStateException("This segment has been freed.");
+		else if (address > addressLimit | target.address > target.addressLimit) {
+			throw new IllegalStateException("segment has been freed.");
 		}
 		else {
 			throw new IndexOutOfBoundsException();
 		}
 	}
 
-	public int compare(MemorySegment seg2, int offset1, int offset2, int len) {
+	public int compare(PureHybridMemorySegment seg2, int offset1, int offset2, int len) {
 		while (len >= 8) {
 			long l1 = this.getLongBigEndian(offset1);
 			long l2 = seg2.getLongBigEndian(offset2);
@@ -704,7 +801,7 @@ public final class PureOffHeapMemorySegment {
 		return 0;
 	}
 
-	public void swapBytes(byte[] tempBuffer, PureOffHeapMemorySegment seg2, int offset1, int offset2, int len) {
+	public void swapBytes(byte[] tempBuffer, PureHybridMemorySegment seg2, int offset1, int offset2, int len) {
 		if (len < 32) {
 			// fast path for short copies
 			while (len >= 8) {
@@ -737,13 +834,13 @@ public final class PureOffHeapMemorySegment {
 				final long arrayAddress = BYTE_ARRAY_BASE_OFFSET;
 
 				// this -> temp buffer
-				UNSAFE.copyMemory(null, thisPos, tempBuffer, arrayAddress, len);
+				UNSAFE.copyMemory(this.heapMemory, thisPos, tempBuffer, arrayAddress, len);
 
 				// other -> this
-				UNSAFE.copyMemory(null, otherPos, null, thisPos, len);
+				UNSAFE.copyMemory(seg2.heapMemory, otherPos, this.heapMemory, thisPos, len);
 
 				// temp buffer -> other
-				UNSAFE.copyMemory(tempBuffer, arrayAddress, null, otherPos, len);
+				UNSAFE.copyMemory(tempBuffer, arrayAddress, seg2.heapMemory, otherPos, len);
 			}
 			else if (this.address <= 0 || seg2.address <= 0) {
 				throw new IllegalStateException("Memory segment has been freed.");

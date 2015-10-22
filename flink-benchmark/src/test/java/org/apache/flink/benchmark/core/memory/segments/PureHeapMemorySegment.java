@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.memory.benchmarks;
+package org.apache.flink.benchmark.core.memory.segments;
 
 import org.apache.flink.core.memory.MemoryUtils;
 

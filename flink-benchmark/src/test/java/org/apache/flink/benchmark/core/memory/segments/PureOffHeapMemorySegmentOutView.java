@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.memory.benchmarks;
+package org.apache.flink.benchmark.core.memory.segments;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -26,24 +26,24 @@ import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.util.List;
 
-public final class PureHeapMemorySegmentOutView implements DataOutputView {
+public final class PureOffHeapMemorySegmentOutView implements DataOutputView {
 
-	private PureHeapMemorySegment currentSegment;	// the current memory segment to write to
+	private PureOffHeapMemorySegment currentSegment;	// the current memory segment to write to
 
 	private int positionInSegment;					// the offset in the current segment
 	
 	private final int segmentSize;				// the size of the memory segments
 
-	private final  List<PureHeapMemorySegment> memorySource;
+	private final  List<PureOffHeapMemorySegment> memorySource;
 	
-	private final List<PureHeapMemorySegment> fullSegments;
+	private final List<PureOffHeapMemorySegment> fullSegments;
 	
 
 	private byte[] utfBuffer;		// the reusable array for UTF encodings
 
 
-	public PureHeapMemorySegmentOutView(List<PureHeapMemorySegment> emptySegments,
-										List<PureHeapMemorySegment> fullSegmentTarget, int segmentSize) {
+	public PureOffHeapMemorySegmentOutView(List<PureOffHeapMemorySegment> emptySegments,
+										   List<PureOffHeapMemorySegment> fullSegmentTarget, int segmentSize) {
 		this.segmentSize = segmentSize;
 		this.currentSegment = emptySegments.remove(emptySegments.size() - 1);
 
@@ -71,10 +71,10 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 	//                                  Page Management
 	// --------------------------------------------------------------------------------------------
 
-	public PureHeapMemorySegment nextSegment(PureHeapMemorySegment current, int positionInCurrent) throws EOFException {
+	public PureOffHeapMemorySegment nextSegment(PureOffHeapMemorySegment current, int positionInCurrent) throws EOFException {
 		int size = this.memorySource.size();
 		if (size > 0) {
-			final PureHeapMemorySegment next = this.memorySource.remove(size - 1);
+			final PureOffHeapMemorySegment next = this.memorySource.remove(size - 1);
 			this.fullSegments.add(next);
 			return next;
 		} else {
@@ -82,7 +82,7 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 		}
 	}
 	
-	public PureHeapMemorySegment getCurrentSegment() {
+	public PureOffHeapMemorySegment getCurrentSegment() {
 		return this.currentSegment;
 	}
 
@@ -99,7 +99,7 @@ public final class PureHeapMemorySegmentOutView implements DataOutputView {
 		this.positionInSegment = 0;
 	}
 	
-	protected void seekOutput(PureHeapMemorySegment seg, int position) {
+	protected void seekOutput(PureOffHeapMemorySegment seg, int position) {
 		this.currentSegment = seg;
 		this.positionInSegment = position;
 	}
