@@ -133,7 +133,8 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 
 	/**
 	 * Turns off chaining for this operator so thread co-location will not be
-	 * used as an optimization. </p> Chaining can be turned off for the whole
+	 * used as an optimization.
+	 * <p> Chaining can be turned off for the whole
 	 * job by {@link StreamExecutionEnvironment#disableOperatorChaining()}
 	 * however it is not advised for performance considerations.
 	 * 
@@ -279,7 +280,8 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * maximum parallelism operator in that group. Task chaining is only
 	 * possible within one resource group. By calling this method, this
 	 * operators starts a new resource group and all subsequent operators will
-	 * be added to this group unless specified otherwise. </p> Please note that
+	 * be added to this group unless specified otherwise.
+	 * <p> Please note that
 	 * local executions have by default as many available task slots as the
 	 * environment parallelism, so in order to start a new resource group the
 	 * degree of parallelism for the operators must be decreased from the
@@ -296,7 +298,8 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * Isolates the operator in its own resource group. This will cause the
 	 * operator to grab as many task slots as its degree of parallelism. If
 	 * there are no free resources available, the job will fail to start. It
-	 * also disables chaining for this operator </p>All subsequent operators are
+	 * also disables chaining for this operator.
+	 * <p>All subsequent operators are
 	 * assigned to the default resource group.
 	 * 
 	 * @return The operator with isolated resource group.

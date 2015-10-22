@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  * incremental Alternating Least Squares model while also providing the
  * predictions.
  *
- * <p/>
+ * <p>
  * This example shows how to use:
  * <ul>
  *   <li>Connected streams
@@ -188,7 +188,6 @@ public class IncrementalLearningSkeleton {
 	/**
 	 * Creates newData using the model produced in batch-processing and the
 	 * up-to-date partial model.
-	 * <p/>
 	 * <p>
 	 * By defaults emits the Integer 0 for every newData and the Integer 1
 	 * for every model update.

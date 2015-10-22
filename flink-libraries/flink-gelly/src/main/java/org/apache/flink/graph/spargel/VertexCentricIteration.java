@@ -46,7 +46,7 @@ import com.google.common.base.Preconditions;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
- * It is a special case of <i>Bulk Synchronous Parallel<i> computation. The paradigm has also been
+ * It is a special case of <i>Bulk Synchronous Parallel</i> computation. The paradigm has also been
  * implemented by Google's <i>Pregel</i> system and by <i>Apache Giraph</i>.
  * <p>
  * Vertex centric algorithms operate on graphs, which are defined through vertices and edges. The 

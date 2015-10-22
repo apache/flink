@@ -35,7 +35,7 @@ import java.io.Serializable;
 
 /**
  * This example shows how to use Gelly's {@link Graph#getTriplets()} and
- * {@link Graph#joinWithEdges(DataSet, MapFunction)} methods.
+ * {@link Graph#joinWithEdges(DataSet, EdgeJoinFunction)} methods.
  * 
  * Given a directed, unweighted graph, with vertex values representing points in a plan,
  * return a weighted graph where the edge weights are equal to the Euclidean distance between the
@@ -51,7 +51,6 @@ import java.io.Serializable;
  * 	Edges themselves are separated by newlines.
  * 	For example: <code>1,2\n1,3\n</code> defines two edges 1-2 and 1-3.
  * </ul>
- * </p>
  *
  * Usage <code>EuclideanGraphWeighing &lt;vertex path&gt; &lt;edge path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from

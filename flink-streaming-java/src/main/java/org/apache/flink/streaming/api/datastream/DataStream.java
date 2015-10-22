@@ -598,7 +598,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br/>
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br>
 	 * <b>Note: Only Tuple DataStreams can be projected.</b>
 	 *
 	 * <p>

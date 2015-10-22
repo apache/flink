@@ -107,8 +107,8 @@ public class Serializers {
 	}
 
 	/**
-	 * Register these serializers for using Avro's {@see GenericData.Record} and classes
-	 * implementing {@see org.apache.avro.specific.SpecificRecordBase}
+	 * Register these serializers for using Avro's {@link GenericData.Record} and classes
+	 * implementing {@link org.apache.avro.specific.SpecificRecordBase}
 	 */
 	public static void registerGenericAvro(ExecutionConfig reg) {
 		// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type

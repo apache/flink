@@ -39,7 +39,7 @@ public interface DataDistribution extends IOReadableWritable, Serializable {
 	 * <p>
 	 * Note: The last bucket's upper bound is actually discarded by many algorithms.
 	 * The last bucket is assumed to hold all values <i>v</i> such that
-	 * {@code v &gt; getBucketBoundary(n-1, n)}, where <i>n</i> is the number of buckets.
+	 * {@code v > getBucketBoundary(n-1, n)}, where <i>n</i> is the number of buckets.
 	 * 
 	 * @param bucketNum The number of the bucket for which to get the upper bound.
 	 * @param totalNumBuckets The number of buckets to split the data into.

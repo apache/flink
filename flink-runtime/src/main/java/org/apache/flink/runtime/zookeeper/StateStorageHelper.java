@@ -23,7 +23,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import java.io.Serializable;
 
 /**
- * State storage helper which is used by {@ZooKeeperStateHandleStore} to persiste state before
+ * State storage helper which is used by {@link ZooKeeperStateHandleStore} to persiste state before
  * the state handle is written to ZooKeeper.
  *
  * @param <T>

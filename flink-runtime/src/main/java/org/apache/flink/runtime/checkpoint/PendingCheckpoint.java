@@ -149,7 +149,6 @@ public class PendingCheckpoint {
 	
 	/**
 	 * Discards the pending checkpoint, releasing all held resources.
-	 * @throws Exception 
 	 */
 	public void discard(ClassLoader userClassLoader, boolean discardStateHandle) {
 		synchronized (lock) {

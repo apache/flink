@@ -29,8 +29,8 @@ import java.util.List;
 /**
  * Special type information to generate a special AvroTypeInfo for Avro POJOs (implementing SpecificRecordBase, the typed Avro POJOs)
  *
- * Proceeding: It uses a regular pojo type analysis and replaces all GenericType<CharSequence>
- *     with a GenericType<avro.Utf8>.
+ * Proceeding: It uses a regular pojo type analysis and replaces all {@code GenericType<CharSequence>}
+ *     with a {@code GenericType<avro.Utf8>}.
  * All other types used by Avro are standard Java types.
  * Only strings are represented as CharSequence fields and represented as Utf8 classes at runtime.
  * CharSequence is not comparable. To make them nicely usable with field expressions, we replace them here

@@ -52,7 +52,6 @@ public interface BlobService {
 
 	/**
 	 * Shutdown method which is called to terminate the blob service.
-	 * @throws IOException
 	 */
 	void shutdown();
 }

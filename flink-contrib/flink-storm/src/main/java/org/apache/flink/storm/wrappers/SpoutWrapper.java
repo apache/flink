@@ -38,15 +38,15 @@ import com.google.common.collect.Sets;
 /**
  * A {@link SpoutWrapper} wraps an {@link IRichSpout} in order to execute it within a Flink Streaming program. It
  * takes the spout's output tuples and transforms them into Flink tuples of type {@code OUT} (see
- * {@link SpoutCollector} for supported types).<br />
- * <br />
+ * {@link SpoutCollector} for supported types).<br>
+ * <br>
  * Per default, {@link SpoutWrapper} calls the wrapped spout's {@link IRichSpout#nextTuple() nextTuple()} method in
- * an infinite loop.<br />
+ * an infinite loop.<br>
  * Alternatively, {@link SpoutWrapper} can call {@link IRichSpout#nextTuple() nextTuple()} for a finite number of
  * times and terminate automatically afterwards (for finite input streams). The number of {@code nextTuple()} calls can
  * be specified as a certain number of invocations or can be undefined. In the undefined case, {@link SpoutWrapper}
  * terminates if no record was emitted to the output collector for the first time during a call to
- * {@link IRichSpout#nextTuple() nextTuple()}.<br />
+ * {@link IRichSpout#nextTuple() nextTuple()}.<br>
  * If the given spout implements {@link FiniteSpout} interface and {@link #numberOfInvocations} is not provided or
  * is {@code null}, {@link SpoutWrapper} calls {@link IRichSpout#nextTuple() nextTuple()} method until
  * {@link FiniteSpout#reachedEnd()} returns true.
@@ -258,7 +258,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 
 	/**
 	 * {@inheritDoc}
-	 * <p/>
+	 * <p>
 	 * Sets the {@link #isRunning} flag to {@code false}.
 	 */
 	@Override

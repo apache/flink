@@ -19,7 +19,7 @@ package org.apache.flink.contrib.tweetinputformat.model.tweet.entities;
 
 /**
  * Represents URLs included in the text of a Tweet or within textual fields of a
- * {@link package org.apache.flink.contrib.tweetinputformat.model.tweet.User.Users} object.
+ * {@link org.apache.flink.contrib.tweetinputformat.model.tweet.entities.UserMention} object.
  */
 public class URL {
 

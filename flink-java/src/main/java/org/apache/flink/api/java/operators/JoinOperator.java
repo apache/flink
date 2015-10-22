@@ -184,7 +184,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * A Join transformation that applies a {@link JoinFunction} on each pair of joining elements.<br/>
+	 * A Join transformation that applies a {@link JoinFunction} on each pair of joining elements.<br>
 	 * It also represents the {@link DataSet} that is the result of a Join transformation. 
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Join transformation.
@@ -525,7 +525,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	}
 	
 	/**
-	 * A Join transformation that wraps pairs of joining elements into {@link Tuple2}.<br/>
+	 * A Join transformation that wraps pairs of joining elements into {@link Tuple2}.<br>
 	 * It also represents the {@link DataSet} that is the result of a Join transformation. 
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Join transformation.
@@ -545,7 +545,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		/**
-		 * Finalizes a Join transformation by applying a {@link org.apache.flink.api.common.functions.RichFlatJoinFunction} to each pair of joined elements.<br/>
+		 * Finalizes a Join transformation by applying a {@link org.apache.flink.api.common.functions.RichFlatJoinFunction} to each pair of joined elements.<br>
 		 * Each JoinFunction call returns exactly one element. 
 		 * 
 		 * @param function The JoinFunction that is called for each pair of joined elements.
@@ -587,9 +587,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		/**
-		 * Applies a ProjectJoin transformation and projects the first join input<br/>
+		 * Applies a ProjectJoin transformation and projects the first join input<br>
 		 * If the first join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br>
 		 * 
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
@@ -613,9 +613,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		/**
-		 * Applies a ProjectJoin transformation and projects the second join input<br/>
+		 * Applies a ProjectJoin transformation and projects the second join input<br>
 		 * If the second join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br>
 		 * 
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
@@ -657,7 +657,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	
 	/**
 	 * A Join transformation that projects joining elements or fields of joining {@link Tuple Tuples} 
-	 * into result {@link Tuple Tuples}. <br/>
+	 * into result {@link Tuple Tuples}. <br>
 	 * It also represents the {@link DataSet} that is the result of a Join transformation. 
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Join transformation.
@@ -693,9 +693,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		/**
-		 * Continues a ProjectJoin transformation and adds fields of the first join input to the projection.<br/>
+		 * Continues a ProjectJoin transformation and adds fields of the first join input to the projection.<br>
 		 * If the first join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Additional fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
@@ -720,9 +720,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		/**
-		 * Continues a ProjectJoin transformation and adds fields of the second join input to the projection.<br/>
+		 * Continues a ProjectJoin transformation and adds fields of the second join input to the projection.<br>
 		 * If the second join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Additional fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
@@ -846,7 +846,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //	}
 
 	/**
-	 * Intermediate step of a Join transformation. <br/>
+	 * Intermediate step of a Join transformation. <br>
 	 * To continue the Join transformation, select the join key of the first input {@link DataSet} by calling
 	 * {@link JoinOperatorSets#where(int...)} or
 	 * {@link JoinOperatorSets#where(org.apache.flink.api.java.functions.KeySelector)}.
@@ -906,7 +906,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 
 		/**
-		 * Intermediate step of a Join transformation. <br/>
+		 * Intermediate step of a Join transformation. <br>
 		 * To continue the Join transformation, select the join key of the second input {@link DataSet} by calling
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}.
@@ -919,9 +919,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			/**
 			 * Continues a Join transformation and defines the {@link Tuple} fields of the second join
-			 * {@link DataSet} that should be used as join keys.<br/>
-			 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br/>
-			 * <p/>
+			 * {@link DataSet} that should be used as join keys.<br>
+			 * <b>Note: Fields can only be selected as join keys on Tuple DataSets.</b><br>
+			 * <p>
 			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
 			 * the element of the first input being the first field of the tuple and the element of the
 			 * second input being the second field of the tuple.
@@ -936,8 +936,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			/**
 			 * Continues a Join transformation and defines the fields of the second join
-			 * {@link DataSet} that should be used as join keys.<br/>
-			 * <p/>
+			 * {@link DataSet} that should be used as join keys.<br>
+			 * <p>
 			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
 			 * the element of the first input being the first field of the tuple and the element of the
 			 * second input being the second field of the tuple.
@@ -951,10 +951,10 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 
 			/**
-			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.</br>
+			 * Continues a Join transformation and defines a {@link KeySelector} function for the second join {@link DataSet}.<br>
 			 * The KeySelector function is called for each element of the second DataSet and extracts a single
-			 * key value on which the DataSet is joined. </br>
-			 * <p/>
+			 * key value on which the DataSet is joined. <br>
+			 * <p>
 			 * The resulting {@link DefaultJoin} wraps each pair of joining elements into a {@link Tuple2}, with
 			 * the element of the first input being the first field of the tuple and the element of the
 			 * second input being the second field of the tuple.
@@ -1143,9 +1143,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		/**
-		 * Continues a ProjectJoin transformation and adds fields of the first join input.<br/>
+		 * Continues a ProjectJoin transformation and adds fields of the first join input.<br>
 		 * If the first join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br>
 		 * 
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#projectFirst(int...)} and 
@@ -1207,9 +1207,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		/**
-		 * Continues a ProjectJoin transformation and adds fields of the second join input.<br/>
+		 * Continues a ProjectJoin transformation and adds fields of the second join input.<br>
 		 * If the second join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br>
 		 * 
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#projectFirst(int...)} and

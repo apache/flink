@@ -32,10 +32,11 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Example illustrating iterations in Flink streaming. <p/> <p> The program sums up random numbers and counts additions
+ * Example illustrating iterations in Flink streaming.
+ * <p> The program sums up random numbers and counts additions
  * it performs to reach a specific threshold in an iterative streaming fashion. </p>
- * <p/>
- * <p/>
+ *
+ * <p>
  * This example shows how to use: <ul> <li>streaming iterations, <li>buffer timeout to enhance latency, <li>directed
  * outputs. </ul>
  */

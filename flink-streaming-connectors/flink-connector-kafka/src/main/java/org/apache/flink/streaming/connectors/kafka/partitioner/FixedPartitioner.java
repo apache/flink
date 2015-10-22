@@ -28,24 +28,24 @@ import java.io.Serializable;
  * 	# More Flink partitions than kafka partitions
  * <pre>
  * 		Flink Sinks:		Kafka Partitions
- * 			1	---------------->	1
+ * 			1	----------------&gt;	1
  * 			2   --------------/
  * 			3   -------------/
  * 			4	------------/
  * </pre>
- * 	--> Some (or all) kafka partitions contain the output of more than one flink partition
+ * Some (or all) kafka partitions contain the output of more than one flink partition
  *
  *# Fewer Flink partitions than Kafka
  * <pre>
  * 		Flink Sinks:		Kafka Partitions
- * 			1	---------------->	1
- * 			2	---------------->	2
- * 									3
- * 									4
- * 									5
+ * 			1	----------------&gt;	1
+ * 			2	----------------&gt;	2
+ * 										3
+ * 										4
+ * 										5
  * </pre>
  *
- *  --> Not all Kafka partitions contain data
+ *  Not all Kafka partitions contain data
  *  To avoid such an unbalanced partitioning, use a round-robin kafka partitioner. (note that this will
  *  cause a lot of network connections between all the Flink instances and all the Kafka brokers
  *

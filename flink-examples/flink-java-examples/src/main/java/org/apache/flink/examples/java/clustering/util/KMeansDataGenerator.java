@@ -66,6 +66,8 @@ public class KMeansDataGenerator {
 	 * <li><b>Optional</b> Double: Value range of cluster centers
 	 * <li><b>Optional</b> Long: Random seed
 	 * </ol>
+	 *
+	 * @throws IOException
 	 */
 	public static void main(String[] args) throws IOException {
 

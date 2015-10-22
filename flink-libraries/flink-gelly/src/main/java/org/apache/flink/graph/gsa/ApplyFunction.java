@@ -45,7 +45,7 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	/**
 	 * Retrieves the number of vertices in the graph.
-	 * @return the number of vertices if the {@link IterationConfigurationion#setOptNumVertices(boolean)}
+	 * @return the number of vertices if the {@link org.apache.flink.graph.IterationConfiguration#setOptNumVertices(boolean)}
 	 * option has been set; -1 otherwise.
 	 */
 	public long getNumberOfVertices() {
@@ -80,15 +80,11 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	/**
 	 * This method is executed once per superstep before the vertex update function is invoked for each vertex.
-	 *
-	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
 	public void preSuperstep() {}
 
 	/**
 	 * This method is executed once per superstep after the vertex update function has been invoked for each vertex.
-	 *
-	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
 	public void postSuperstep() {}
 

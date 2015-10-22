@@ -29,18 +29,15 @@ import org.apache.flink.storm.api.FlinkTopologyBuilder;
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The program is constructed as a regular {@link StormTopology} and submitted to Flink for execution in the
  * same way as to a Storm {@link LocalCluster}.
- * <p/>
+ * <p>
  * This example shows how to run program directly within Java, thus it cannot be used to submit a {@link StormTopology}
  * via Flink command line clients (ie, bin/flink).
- * <p/>
- * <p/>
+ * <p>
  * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
+ * <p>
  * Usage: <code>WordCountLocal &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p/>
- * <p/>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>run a regular Storm program locally on Flink</li>

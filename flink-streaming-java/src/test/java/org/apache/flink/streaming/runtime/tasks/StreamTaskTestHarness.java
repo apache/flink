@@ -60,7 +60,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * <p>
  * When using this you need to add the following line to your test class to setup Powermock:
- * {@code @PrepareForTest({ResultPartitionWriter.class})}
+ * {@code {@literal @}PrepareForTest({ResultPartitionWriter.class})}
  */
 public class StreamTaskTestHarness<OUT> {
 

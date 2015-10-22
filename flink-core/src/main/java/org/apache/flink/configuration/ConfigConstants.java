@@ -600,7 +600,7 @@ public final class ConfigConstants {
 	public static final boolean DEFAULT_FILESYSTEM_OVERWRITE = false;
 
 	/**
-	 * The default behavior for output directory creating (create only directory when parallelism > 1).
+	 * The default behavior for output directory creating (create only directory when parallelism &gt; 1).
 	 */
 	public static final boolean DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY = false;
 	

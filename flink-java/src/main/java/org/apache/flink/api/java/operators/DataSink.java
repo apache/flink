@@ -95,8 +95,8 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a {@link org.apache.flink.api.java.tuple.Tuple} data set
-	 * on the specified field in the specified {@link Order} before it is emitted by the output format.</br>
-	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br/>
+	 * on the specified field in the specified {@link Order} before it is emitted by the output format.<br>
+	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br>
 	 * The tuple data set can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(int, Order)} calls.
 	 *
@@ -149,9 +149,9 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a data set on the field(s) specified by the field expression
-	 * in the specified {@link Order} before it is emitted by the output format.</br>
+	 * in the specified {@link Order} before it is emitted by the output format.<br>
 	 * <b>Note: Non-composite types can only be sorted on the full element which is specified by
-	 * a wildcard expression ("*" or "_").</b><br/>
+	 * a wildcard expression ("*" or "_").</b><br>
 	 * Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(String, Order)} calls.
 	 *
