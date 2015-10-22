@@ -556,7 +556,7 @@ public class ChaosMonkeyITCase {
 					0, files.length);
 		}
 
-		File fsRecovery = new File(config.getString(ConfigConstants.STATE_BACKEND_FS_RECOVERY_PATH, ""));
+		File fsRecovery = new File(config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, ""));
 
 		LOG.info("Checking " + fsRecovery);
 
