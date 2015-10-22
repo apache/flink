@@ -42,7 +42,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 
 	private final double combine_frac;
 	
-	private final ArrayList<Record> outList = new ArrayList<Record>();
+	private final ArrayList<Record> outList = new ArrayList<>();
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator = new RecordComparator(
@@ -69,7 +69,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
+		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<>();
 		
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -85,7 +85,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
-		final HashMap<IntValue, IntValue> aggMap = new HashMap<IntValue, IntValue>();
+		final HashMap<IntValue, IntValue> aggMap = new HashMap<>();
 		for (Record record : this.outList) {
 			IntValue key = new IntValue();
 			IntValue value = new IntValue();
@@ -123,7 +123,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
+		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<>();
 
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -139,7 +139,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		
 		// wee need to do the final aggregation manually in the test, because the
 		// combiner is not guaranteed to do that
-		final HashMap<IntValue, IntValue> aggMap = new HashMap<IntValue, IntValue>();
+		final HashMap<IntValue, IntValue> aggMap = new HashMap<>();
 		for (Record record : this.outList) {
 			IntValue key = new IntValue();
 			IntValue value = new IntValue();

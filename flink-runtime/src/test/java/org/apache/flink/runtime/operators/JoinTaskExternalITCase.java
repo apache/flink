@@ -32,7 +32,6 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-@SuppressWarnings("deprecation")
 public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 	
 	private static final long HASH_MEM = 4*1024*1024;
@@ -79,7 +78,7 @@ public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Reco
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -112,7 +111,7 @@ public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Reco
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -143,7 +142,7 @@ public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Reco
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 import org.junit.After;
 import org.junit.Assert;
@@ -81,7 +80,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 			super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-			DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+			DataSinkTask<Record> testTask = new DataSinkTask<>();
 
 			super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
@@ -94,7 +93,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
 			while (br.ready()) {
 				String line = br.readLine();
@@ -144,7 +143,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
 		readers[3] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 3, 0, false), 0, false);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
@@ -171,7 +170,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
 			while(br.ready()) {
 				String line = br.readLine();
@@ -219,12 +218,12 @@ public class DataSinkTaskTest extends TaskTestBase
 
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})), 0);
+				new RecordComparatorFactory(new int[]{1},(new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
@@ -248,7 +247,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			Set<Integer> keys = new HashSet<Integer>();
+			Set<Integer> keys = new HashSet<>();
 
 			int curVal = -1;
 			while(br.ready()) {
@@ -297,7 +296,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -323,21 +322,20 @@ public class DataSinkTaskTest extends TaskTestBase
 	public void testFailingSortingDataSinkTask() {
 
 		int keyCnt = 100;
-		int valCnt = 20;;
+		int valCnt = 20;
 		double memoryFraction = 1.0;
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1}, ((Class<? extends Key<?>>[]) new Class[]{IntValue.class})),
-				0);
+				new RecordComparatorFactory(new int[]{1}, ( new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
@@ -365,7 +363,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new InfiniteInputIterator(), 0);
 
-		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -407,15 +405,14 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new InfiniteInputIterator(), 0);
 
-		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})),
-				0);
+				new RecordComparatorFactory(new int[]{1},(new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);

@@ -37,7 +37,6 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-@SuppressWarnings("deprecation")
 public class MapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(MapTaskTest.class);
@@ -57,7 +56,7 @@ public class MapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>>
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(this.output);
 		
-		final FlatMapDriver<Record, Record> testDriver = new FlatMapDriver<Record, Record>();
+		final FlatMapDriver<Record, Record> testDriver = new FlatMapDriver<>();
 		
 		try {
 			testDriver(testDriver, MockMapStub.class);
@@ -77,7 +76,7 @@ public class MapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>>
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		setOutput(new DiscardingOutputCollector<Record>());
 		
-		final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<Record, Record>();
+		final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
 		try {
 			testDriver(testTask, MockFailingMapStub.class);
 			Assert.fail("Function exception was not forwarded.");
@@ -94,7 +93,7 @@ public class MapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>>
 		addInput(new InfiniteInputIterator());
 		setOutput(new DiscardingOutputCollector<Record>());
 		
-		final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<Record, Record>();
+		final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		

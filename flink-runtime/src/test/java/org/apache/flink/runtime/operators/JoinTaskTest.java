@@ -43,7 +43,6 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-@SuppressWarnings("deprecation")
 public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 	
 	private static final long HASH_MEM = 6*1024*1024;
@@ -66,7 +65,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 	private final RecordComparator comparator2 = new RecordComparator(
 		new int[]{0}, (Class<? extends Key<?>>[])new Class<?>[]{ IntValue.class });
 	
-	private final List<Record> outList = new ArrayList<Record>();
+	private final List<Record> outList = new ArrayList<>();
 	
 	
 	public JoinTaskTest(ExecutionConfig config) {
@@ -92,7 +91,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -126,7 +125,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -162,7 +161,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -198,7 +197,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -234,7 +233,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -270,7 +269,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
@@ -306,7 +305,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
@@ -341,7 +340,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
@@ -377,7 +376,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 		setNumFileHandlesForSort(4);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
@@ -407,7 +406,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 			setNumFileHandlesForSort(4);
 			
-			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 			
 			try {
 				addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
@@ -467,7 +466,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 			setNumFileHandlesForSort(4);
 			
-			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 			
 			try {
 				addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
@@ -527,7 +526,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
 			setNumFileHandlesForSort(4);
 			
-			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 			
 			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 			addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
@@ -585,7 +584,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -616,7 +615,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -647,7 +646,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -678,7 +677,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -709,7 +708,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockMatchStub.class);
@@ -740,7 +739,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
@@ -770,7 +769,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		try {
 			testDriver(testTask, MockFailingMatchStub.class);
@@ -802,7 +801,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 			getTaskConfig().setRelativeMemoryDriver(hash_frac);
 
-			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 
 			final AtomicBoolean success = new AtomicBoolean(false);
 
@@ -856,7 +855,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 			getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 			getTaskConfig().setRelativeMemoryDriver(hash_frac);
 
-			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+			final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 
 			final AtomicBoolean success = new AtomicBoolean(false);
 
@@ -905,7 +904,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
@@ -949,7 +948,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
 		getTaskConfig().setRelativeMemoryDriver(hash_frac);
 		
-		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<Record, Record, Record>();
+		final JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 		
 		final AtomicBoolean success = new AtomicBoolean(false);
 		
