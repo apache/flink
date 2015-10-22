@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
@@ -47,7 +48,7 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 
 	public abstract void addElementToLatestPane(Type element) throws Exception;
 
-	public abstract void evaluateWindow(Collector<Result> out, TimeWindow window) throws Exception;
+	public abstract void evaluateWindow(Collector<Result> out, TimeWindow window, AbstractStreamOperator<Result> operator) throws Exception;
 	
 	
 	public void dispose() {
