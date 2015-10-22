@@ -148,7 +148,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 				}
 			}
 		} else {
-			T value = input.next(serializer.createInstance());
+			T value = input.next();
 
 			// iterate over key groups
 			while (this.running && value != null) {
@@ -156,7 +156,7 @@ public class ReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 				T res = value;
 
 				// iterate within a key group
-				while ((value = input.next(serializer.createInstance())) != null) {
+				while ((value = input.next()) != null) {
 					if (comparator.equalToReference(value)) {
 						// same group, reduce
 						res = function.reduce(res, value);
