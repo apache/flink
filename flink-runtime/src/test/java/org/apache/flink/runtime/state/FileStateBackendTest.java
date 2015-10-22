@@ -23,20 +23,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Test;
 
@@ -382,6 +378,36 @@ public class FileStateBackendTest {
 			deleteDirectorySilently(tempDir);
 		}
 	}
+
+	@Test
+	public void testCopyDefaultValue() {
+		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+		try {
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
+			backend.initializeForJob(new JobID());
+			
+			KvState<Integer, IntValue, FsStateBackend> kv =
+					backend.createKvState(IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
+
+			kv.setCurrentKey(1);
+			IntValue default1 = kv.value();
+
+			kv.setCurrentKey(2);
+			IntValue default2 = kv.value();
+
+			assertNotNull(default1);
+			assertNotNull(default2);
+			assertEquals(default1, default2);
+			assertFalse(default1 == default2);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			deleteDirectorySilently(tempDir);
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//  Utilities
@@ -411,7 +437,7 @@ public class FileStateBackendTest {
 	}
 	
 	private static String localFileUri(File path) {
-		return (OperatingSystem.isWindows() ? "file:/" : "file://") + path.getAbsolutePath();
+		return path.toURI().toString();
 	}
 	
 	private static void validateBytesInStream(InputStream is, byte[] data) throws IOException {
