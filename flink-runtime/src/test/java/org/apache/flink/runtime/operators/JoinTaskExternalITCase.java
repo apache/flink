@@ -24,7 +24,6 @@ import org.junit.Assert;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
-import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
@@ -34,7 +33,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 @SuppressWarnings("deprecation")
-public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+public class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 	
 	private static final long HASH_MEM = 4*1024*1024;
 	
@@ -56,7 +55,7 @@ public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Rec
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
-	public MatchTaskExternalITCase(ExecutionConfig config) {
+	public JoinTaskExternalITCase(ExecutionConfig config) {
 		super(config, HASH_MEM, 2, SORT_MEM);
 		bnljn_frac = (double)BNLJN_MEM/this.getMemoryManager().getMemorySize();
 		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
@@ -156,7 +155,7 @@ public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Rec
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockMatchStub extends JoinFunction {
+	public static final class MockMatchStub implements FlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override

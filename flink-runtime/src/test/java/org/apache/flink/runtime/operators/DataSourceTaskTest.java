@@ -28,11 +28,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.junit.Assert;
 
-import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -232,7 +232,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockInputFormat extends DelimitedInputFormat {
+	public static class MockInputFormat extends DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -257,7 +257,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockDelayingInputFormat extends DelimitedInputFormat {
+	public static class MockDelayingInputFormat extends DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -289,7 +289,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		
 	}
 	
-	public static class MockFailingInputFormat extends DelimitedInputFormat {
+	public static class MockFailingInputFormat extends DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();

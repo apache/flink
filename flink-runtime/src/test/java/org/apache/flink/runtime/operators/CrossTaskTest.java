@@ -579,7 +579,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
 	}
 	
-	public static final class MockCrossStub extends org.apache.flink.api.java.record.functions.CrossFunction {
+	public static final class MockCrossStub implements CrossFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -588,7 +588,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 		}
 	}
 	
-	public static final class MockFailingCrossStub extends org.apache.flink.api.java.record.functions.CrossFunction {
+	public static final class MockFailingCrossStub implements CrossFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;

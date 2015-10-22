@@ -22,11 +22,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -166,7 +166,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
 
-	@ReduceOperator.Combinable
+	@Combinable
 	public static class MockCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 
@@ -194,7 +194,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		}
 	}
 
-	@ReduceOperator.Combinable
+	@Combinable
 	public static final class MockFailingCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 

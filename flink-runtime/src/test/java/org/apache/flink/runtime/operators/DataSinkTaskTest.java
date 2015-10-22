@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
-import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -447,7 +447,7 @@ public class DataSinkTaskTest extends TaskTestBase
 
 	}
 
-	public static class MockOutputFormat extends DelimitedOutputFormat {
+	public static class MockOutputFormat extends FileOutputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 
 		final StringBuilder bld = new StringBuilder();
@@ -458,8 +458,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 
 		@Override
-		public int serializeRecord(Record rec, byte[] target) throws Exception
-		{
+		public void writeRecord(Record rec) throws IOException {
 			IntValue key = rec.getField(0, IntValue.class);
 			IntValue value = rec.getField(1, IntValue.class);
 
@@ -467,14 +466,11 @@ public class DataSinkTaskTest extends TaskTestBase
 			this.bld.append(key.getValue());
 			this.bld.append('_');
 			this.bld.append(value.getValue());
+			this.bld.append('\n');
 
 			byte[] bytes = this.bld.toString().getBytes();
-			if (bytes.length <= target.length) {
-				System.arraycopy(bytes, 0, target, 0, bytes.length);
-				return bytes.length;
-			}
-			// else
-			return -bytes.length;
+
+			this.stream.write(bytes);
 		}
 
 	}
@@ -490,12 +486,11 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 
 		@Override
-		public int serializeRecord(Record rec, byte[] target) throws Exception
-		{
+		public void writeRecord(Record rec) throws IOException {
 			if (++this.cnt >= 10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			return super.serializeRecord(rec, target);
+			super.writeRecord(rec);
 		}
 	}
 	

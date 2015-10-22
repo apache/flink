@@ -27,7 +27,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
-import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -45,7 +44,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("deprecation")
-public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 	
 	private static final long HASH_MEM = 6*1024*1024;
 	
@@ -70,7 +69,7 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 	private final List<Record> outList = new ArrayList<Record>();
 	
 	
-	public MatchTaskTest(ExecutionConfig config) {
+	public JoinTaskTest(ExecutionConfig config) {
 		super(config, HASH_MEM, NUM_SORTER, SORT_MEM);
 		bnljn_frac = (double)BNLJN_MEM/this.getMemoryManager().getMemorySize();
 		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
@@ -982,7 +981,7 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 	
 	// =================================================================================================
 	
-	public static final class MockMatchStub extends JoinFunction {
+	public static final class MockMatchStub implements FlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -991,7 +990,7 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 		}
 	}
 	
-	public static final class MockFailingMatchStub extends JoinFunction {
+	public static final class MockFailingMatchStub implements FlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
@@ -1005,7 +1004,7 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 		}
 	}
 	
-	public static final class MockDelayingMatchStub extends JoinFunction {
+	public static final class MockDelayingMatchStub implements FlatJoinFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
