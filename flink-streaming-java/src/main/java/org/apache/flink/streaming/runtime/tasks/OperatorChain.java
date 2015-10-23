@@ -301,22 +301,19 @@ public class OperatorChain<OUT> {
 		
 		private final TypeSerializer<T> serializer;
 		
-		private final StreamRecord<T> copyRecord;
-
 		public CopyingChainingOutput(OneInputStreamOperator<T, ?> operator, TypeSerializer<T> serializer) {
 			super(operator);
 			this.serializer = serializer;
-			this.copyRecord = new StreamRecord<T>(null, 0L);
 		}
 
 		@Override
 		public void collect(StreamRecord<T> record) {
 			try {
-				T copy = serializer.copy(record.getValue());
-				copyRecord.replace(copy, record.getTimestamp());
-				
-				operator.setKeyContextElement(copyRecord);
-				operator.processElement(copyRecord);
+
+				StreamRecord<T> copy = new StreamRecord<>(serializer.copy(record.getValue()), record.getTimestamp());
+
+				operator.setKeyContextElement(copy);
+				operator.processElement(copy);
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Could not forward element to next operator", e);
