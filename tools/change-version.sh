@@ -17,8 +17,8 @@
 # limitations under the License.
 ################################################################################
 
-OLD="0.9-SNAPSHOT"
-NEW="0.10-SNAPSHOT"
+OLD="0.10-SNAPSHOT"
+NEW="1.0-SNAPSHOT"
 
 
 HERE=` basename "$PWD"`

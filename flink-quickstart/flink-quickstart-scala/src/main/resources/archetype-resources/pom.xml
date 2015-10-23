@@ -45,7 +45,7 @@ under the License.
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<flink.version>0.10-SNAPSHOT</flink.version>
+		<flink.version>1.0-SNAPSHOT</flink.version>
 	</properties>
 
 	<!-- 
