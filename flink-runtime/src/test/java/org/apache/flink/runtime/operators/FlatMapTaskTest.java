@@ -37,14 +37,14 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class MapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>> {
+public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>> {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(MapTaskTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlatMapTaskTest.class);
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	
-	public MapTaskTest(ExecutionConfig config) {
+	public FlatMapTaskTest(ExecutionConfig config) {
 		super(config, 0, 0);
 	}
 	
