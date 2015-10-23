@@ -81,7 +81,13 @@ public abstract class Tuple implements java.io.Serializable {
 	 * @return The number of fields in the tuple.
 	 */
 	public abstract int getArity();
-	
+
+	/**
+	 * Shallow tuple copy.
+	 * @return A new Tuple with the same fields as this.
+	 */
+	public abstract <T extends Tuple> T copy();
+
 	// --------------------------------------------------------------------------------------------
 	
 	/**
