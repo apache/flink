@@ -25,35 +25,39 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	public Comparator comparator;
-	public boolean byAggregate;
-	public boolean first;
-	FieldAccessor<T, Object> fieldAccessor;
+	private Comparator comparator;
+	private boolean byAggregate;
+	private boolean first;
+	private final FieldAccessor<T, Object> fieldAccessor;
 	
-	private ComparableAggregator(int pos, AggregationType aggregationType, boolean first) {
-		super(pos);
+	private ComparableAggregator(AggregationType aggregationType, FieldAccessor<T, Object> fieldAccessor, boolean first) {
 		this.comparator = Comparator.getForAggregation(aggregationType);
 		this.byAggregate = (aggregationType == AggregationType.MAXBY) || (aggregationType == AggregationType.MINBY);
 		this.first = first;
+		this.fieldAccessor = fieldAccessor;
 	}
 
-	public ComparableAggregator(int positionToAggregate, TypeInformation<T> typeInfo, AggregationType aggregationType
-			, ExecutionConfig config) {
+	public ComparableAggregator(int positionToAggregate,
+			TypeInformation<T> typeInfo,
+			AggregationType aggregationType,
+			ExecutionConfig config) {
 		this(positionToAggregate, typeInfo, aggregationType, false, config);
 	}
 
-	public ComparableAggregator(int positionToAggregate, TypeInformation<T> typeInfo, AggregationType aggregationType,
-								boolean first, ExecutionConfig config) {
-		this(positionToAggregate, aggregationType, first);
-		this.fieldAccessor = FieldAccessor.create(positionToAggregate, typeInfo, config);
-		this.first = first;
+	public ComparableAggregator(int positionToAggregate,
+			TypeInformation<T> typeInfo,
+			AggregationType aggregationType,
+			boolean first,
+			ExecutionConfig config) {
+		this(aggregationType, FieldAccessor.create(positionToAggregate, typeInfo, config), first);
 	}
 
 	public ComparableAggregator(String field,
-			TypeInformation<T> typeInfo, AggregationType aggregationType, boolean first, ExecutionConfig config) {
-		this(0, aggregationType, first);
-		this.fieldAccessor = FieldAccessor.create(field, typeInfo, config);
-		this.first = first;
+			TypeInformation<T> typeInfo,
+			AggregationType aggregationType,
+			boolean first,
+			ExecutionConfig config) {
+		this(aggregationType, FieldAccessor.create(field, typeInfo, config), first);
 	}
 
 
@@ -66,16 +70,13 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 		int c = comparator.isExtremal(o1, o2);
 
 		if (byAggregate) {
-			if (c == 1) {
-				return value1;
-			}
-			if (first) {
-				if (c == 0) {
-					return value1;
-				}
+			// if they are the same we choose based on whether we want to first or last
+			// element with the min/max.
+			if (c == 0) {
+				return first ? value1 : value2;
 			}
 
-			return value2;
+			return c == 1 ? value1 : value2;
 
 		} else {
 			if (c == 0) {
