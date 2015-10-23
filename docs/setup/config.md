@@ -145,6 +145,31 @@ this can improve the efficiency of the operations performed on the memory
 - `taskmanager.memory.segment-size`: The size of memory buffers used by the 
 memory manager and the network stack in bytes (DEFAULT: 32768 (= 32 KiBytes)).
 
+
+### Kerberos
+
+Flink supports Kerberos authentication of Hadoop services such as HDFS, YARN,
+or HBase.
+
+While Hadoop uses Kerberos tickets to authenticate users with services
+initially, the authentication process continues differently afterwards. Instead
+of saving the ticket to authenticate on a later access, Hadoop creates its own
+security tockens (DelegationToken) that it passes around. These are
+authenticated to Kerberos periodically but are independent of the token renewal
+time. The tokens have a maximum life span identical to the Kerberos ticket maximum life
+span.
+
+Please make sure to set the maximum ticket life span high long running
+jobs. The renewal time of the ticket, on the other hand, is not important
+because Hadoop abstracts this away using its own security tocken renewal
+system. Hadoop makes sure that tickets are renewed in time and you can be sure
+to be authenticated until the end of the ticket life time.
+
+If you are on YARN, then it is sufficient to authenticate the client with
+Kerberos. On a Flink standalone cluster you need to ensure that, initially, all
+nodes are authenticated with Kerberos using the `kinit` tool.
+
+
 ### Other
 
 - `taskmanager.tmp.dirs`: The directory for temporary files, or a list of

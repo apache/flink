@@ -53,8 +53,8 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
-	public TriggerResult onEventTime(long time, TriggerContext ctx) throws Exception {
-		TriggerResult triggerResult = nestedTrigger.onEventTime(time, ctx);
+	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception {
+		TriggerResult triggerResult = nestedTrigger.onEventTime(time, window, ctx);
 		switch (triggerResult) {
 			case FIRE:
 				return TriggerResult.FIRE_AND_PURGE;
@@ -66,8 +66,8 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
-	public TriggerResult onProcessingTime(long time, TriggerContext ctx) throws Exception {
-		TriggerResult triggerResult = nestedTrigger.onProcessingTime(time, ctx);
+	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
+		TriggerResult triggerResult = nestedTrigger.onProcessingTime(time, window, ctx);
 		switch (triggerResult) {
 			case FIRE:
 				return TriggerResult.FIRE_AND_PURGE;

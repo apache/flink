@@ -49,13 +49,12 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	}
 
 	@Override
-	public TriggerResult onEventTime(long time, TriggerContext ctx) {
+	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public TriggerResult onProcessingTime(long time,
-			TriggerContext ctx) throws Exception {
+	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		return TriggerResult.CONTINUE;
 	}
 

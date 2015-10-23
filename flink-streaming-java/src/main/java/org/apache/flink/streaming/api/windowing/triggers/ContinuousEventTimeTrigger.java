@@ -57,14 +57,13 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 	}
 
 	@Override
-	public TriggerResult onEventTime(long time, TriggerContext ctx) {
+	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
 		ctx.registerEventTimeTimer(time + interval);
 		return TriggerResult.FIRE;
 	}
 
 	@Override
-	public TriggerResult onProcessingTime(long time,
-			TriggerContext ctx) throws Exception {
+	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		return TriggerResult.CONTINUE;
 	}
 

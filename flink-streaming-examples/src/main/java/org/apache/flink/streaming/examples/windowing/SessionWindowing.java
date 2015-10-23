@@ -126,7 +126,7 @@ public class SessionWindowing {
 		}
 
 		@Override
-		public TriggerResult onEventTime(long time, TriggerContext ctx) throws Exception {
+		public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
 			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
 			Long lastSeen = lastSeenState.value();
 
@@ -137,8 +137,7 @@ public class SessionWindowing {
 		}
 
 		@Override
-		public TriggerResult onProcessingTime(long time,
-				TriggerContext ctx) throws Exception {
+		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
 			return TriggerResult.CONTINUE;
 		}
 	}

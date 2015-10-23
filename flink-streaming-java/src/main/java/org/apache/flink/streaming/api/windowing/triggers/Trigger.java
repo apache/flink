@@ -60,7 +60,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onProcessingTime(long time, TriggerContext ctx) throws Exception;
+	TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Called when an event-time timer that was set using the trigger context fires.
@@ -68,7 +68,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onEventTime(long time, TriggerContext ctx) throws Exception;
+	TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
 
 
 	/**
@@ -77,10 +77,51 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * <p>
 	 * On {@code FIRE} the pane is evaluated and results are emitted. The contents of the window
 	 * are kept. {@code FIRE_AND_PURGE} acts like {@code FIRE} but the contents of the pane
-	 * are purged. On {@code CONTINUE} nothing happens, processing continues.
+	 * are purged. On {@code CONTINUE} nothing happens, processing continues. On {@code PURGE}
+	 * the contents of the window are discarded and now result is emitted for the window.
 	 */
 	enum TriggerResult {
-		CONTINUE, FIRE_AND_PURGE, FIRE
+		CONTINUE(false, false), FIRE_AND_PURGE(true, true), FIRE(true, false), PURGE(false, true);
+
+		private final boolean fire;
+		private final boolean purge;
+
+		TriggerResult(boolean fire, boolean purge) {
+			this.purge = purge;
+			this.fire = fire;
+		}
+
+		public boolean isFire() {
+			return fire;
+		}
+
+		public boolean isPurge() {
+			return purge;
+		}
+
+		/**
+		 * Merges two {@code TriggerResults}. This specifies what should happen if we have
+		 * two results from a Trigger, for example as a result from
+		 * {@link #onElement(Object, long, Window, TriggerContext)} and
+		 * {@link #onEventTime(long, Window, TriggerContext)}.
+		 *
+		 * <p>
+		 * For example, if one result says {@code CONTINUE} while the other says {@code FIRE}
+		 * then {@code FIRE} is the combined result;
+		 */
+		public static TriggerResult merge(TriggerResult a, TriggerResult b) {
+			if (a.purge || b.purge) {
+				if (a.fire || b.fire) {
+					return FIRE_AND_PURGE;
+				} else {
+					return PURGE;
+				}
+			} else if (a.fire || b.fire) {
+				return FIRE;
+			} else {
+				return CONTINUE;
+			}
+		}
 	}
 
 	/**
@@ -91,19 +132,19 @@ public interface Trigger<T, W extends Window> extends Serializable {
 
 		/**
 		 * Register a system time callback. When the current system time passes the specified
-		 * time {@link #onProcessingTime(long, TriggerContext)} is called with the time specified here.
+		 * time {@link #onProcessingTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
-		 * @param time The time at which to invoke {@link #onProcessingTime(long, TriggerContext)}
+		 * @param time The time at which to invoke {@link #onProcessingTime(long, Window, TriggerContext)}
 		 */
 		void registerProcessingTimeTimer(long time);
 
 		/**
 		 * Register an event-time callback. When the current watermark passes the specified
-		 * time {@link #onEventTime(long, TriggerContext)} is called with the time specified here.
+		 * time {@link #onEventTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
 		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 *
-		 * @param time The watermark at which to invoke {@link #onEventTime(long, TriggerContext)}
+		 * @param time The watermark at which to invoke {@link #onEventTime(long, Window, TriggerContext)}
 		 */
 		void registerEventTimeTimer(long time);
 
