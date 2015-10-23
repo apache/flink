@@ -365,9 +365,10 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		Set<Long> toRemove = new HashSet<>();
 
 		for (Map.Entry<Long, Set<Context>> triggers: processingTimeTimers.entrySet()) {
-			if (triggers.getKey() < time) {
+			long actualTime = triggers.getKey();
+			if (actualTime <= time) {
 				for (Context context: triggers.getValue()) {
-					Trigger.TriggerResult triggerResult = context.onProcessingTime(time);
+					Trigger.TriggerResult triggerResult = context.onProcessingTime(actualTime);
 					processTriggerResult(triggerResult, context.key, context.window);
 				}
 				toRemove.add(triggers.getKey());
