@@ -276,9 +276,8 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 				context = new Context(key, window, windowBuffer);
 				keyWindows.put(window, context);
 			}
-			StreamRecord<IN> elementCopy = new StreamRecord<>(inputSerializer.copy(element.getValue()), element.getTimestamp());
-			context.windowBuffer.storeElement(elementCopy);
-			Trigger.TriggerResult triggerResult = trigger.onElement(elementCopy.getValue(), elementCopy.getTimestamp(), window, context);
+			context.windowBuffer.storeElement(element);
+			Trigger.TriggerResult triggerResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, context);
 			processTriggerResult(triggerResult, key, window);
 		}
 	}
