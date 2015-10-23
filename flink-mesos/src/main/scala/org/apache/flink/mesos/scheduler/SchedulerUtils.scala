@@ -63,14 +63,14 @@ trait SchedulerUtils {
     }).toMap
   }
 
-  def createJavaExecCommand(jvmArgs: String = "", classPath: String = "flink-*.jar",
+  def createJavaExecCommand(jvmArgs: String = "", classPath: String = "lib/flink-dist*.jar",
                             classToExecute: String, args: String = ""): String = {
     s"env; java $jvmArgs -cp $classPath $classToExecute $args"
   }
 
-  def createExecutorInfo(id: String, role: String, artifactURIs: Set[String], command: String,
+  def createExecutorInfo(id: String, role: String, artifactURI: String, command: String,
                          nativeLibPath: String): ExecutorInfo = {
-    val uris = artifactURIs.map(uri => URI.newBuilder().setValue(uri).build())
+    val uri = URI.newBuilder().setValue(artifactURI).build()
     ExecutorInfo.newBuilder()
       .setExecutorId(ExecutorID
         .newBuilder()
@@ -78,7 +78,7 @@ trait SchedulerUtils {
       .setName(s"Apache Flink Mesos Executor - $id")
       .setCommand(CommandInfo.newBuilder()
         .setValue(s"env; $command")
-        .addAllUris(uris)
+        .addUris(uri)
         .setEnvironment(Environment.newBuilder()
           .addVariables(Environment.Variable.newBuilder()
             .setName("MESOS_NATIVE_JAVA_LIBRARY").setValue(nativeLibPath)))

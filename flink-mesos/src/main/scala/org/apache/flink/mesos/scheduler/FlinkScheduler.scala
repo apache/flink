@@ -37,8 +37,6 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
   var currentConfiguration: Option[Configuration] = None
   var taskManagers: Set[RunningTaskManager] = Set()
   var taskManagerCount = 0
-  // http port where http server is hosting the configuration files
-  var httpConfigServerAddress: Option[String] = None
 
   override def offerRescinded(driver: SchedulerDriver, offerId: OfferID): Unit = { }
 
@@ -101,7 +99,7 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
       TASK_MANAGER_OFFER_ATTRIBUTES_KEY, DEFAULT_TASK_MANAGER_OFFER_ATTRIBUTES))
     val role = GlobalConfiguration.getString(
       MESOS_FRAMEWORK_ROLE_KEY, DEFAULT_MESOS_FRAMEWORK_ROLE)
-    val uberJarLocation = GlobalConfiguration.getString(
+    val uri = GlobalConfiguration.getString(
       FLINK_UBERJAR_LOCATION_KEY, null)
     val nativeLibPath = GlobalConfiguration.getString(
       MESOS_NATIVE_JAVA_LIBRARY_KEY, DEFAULT_MESOS_NATIVE_JAVA_LIBRARY)
@@ -150,11 +148,13 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
       // create task Id
       taskManagerCount += 1
 
+      // get flink base dir
+      val basename = uri.split('/').last.split('.').head
+
       // create executor
-      val command = createTaskManagerCommand(requiredMem.toInt)
-      val log4jUrl = s"${httpConfigServerAddress.get}/log4j.properties"
+      val command = s"cd ${basename}*;" + createTaskManagerCommand(requiredMem.toInt)
       val executorInfo = createExecutorInfo(s"$taskManagerCount", role,
-        Set(uberJarLocation, log4jUrl), command, nativeLibPath)
+        uri, command, nativeLibPath)
 
       // create task
       val taskId = TaskID.newBuilder().setValue(s"TaskManager_$taskManagerCount").build()
@@ -175,11 +175,6 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
       head("Flink Mesos Framework")
       opt[File]('c', "confDir") required() valueName "<directory path>" action { (path, conf) =>
         conf.copy(confDir = path.toPath.toAbsolutePath.toString) } text "confDir is required"
-      opt[String]('h', "host") valueName "hostname override for the scheduler" action { (h, c) =>
-        c.copy(host = h) } text "hostname to use for the scheduler (if not same as localhost)"
-      opt[Int]('p', "port") valueName "port to use for serving configuration" action { (p,c) =>
-        c.copy(port = p)
-      }
     }
 
     // parse the config
@@ -193,16 +188,6 @@ object FlinkScheduler extends Scheduler with SchedulerUtils {
 
     LOG.info(s"Loading configuration from ${cliConf.confDir}")
     GlobalConfiguration.loadConfiguration(cliConf.confDir)
-
-    // start the local http server for service the configuration
-    val server = new HttpServer(cliConf)
-
-    // start the http server is a separate thread
-    new Thread { override def run: Unit = { server.start() } }.start()
-
-    // save the http config server address
-    httpConfigServerAddress = Some(s"http://${server.host}:${server.port}")
-    LOG.debug(s"Serving configuration via: $httpConfigServerAddress")
 
     // start job manager thread
     val jobManagerThread = createJobManagerThread(cliConf.host)
