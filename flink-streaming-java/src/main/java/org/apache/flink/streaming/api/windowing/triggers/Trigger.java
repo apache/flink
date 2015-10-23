@@ -77,10 +77,51 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * <p>
 	 * On {@code FIRE} the pane is evaluated and results are emitted. The contents of the window
 	 * are kept. {@code FIRE_AND_PURGE} acts like {@code FIRE} but the contents of the pane
-	 * are purged. On {@code CONTINUE} nothing happens, processing continues.
+	 * are purged. On {@code CONTINUE} nothing happens, processing continues. On {@code PURGE}
+	 * the contents of the window are discarded and now result is emitted for the window.
 	 */
 	enum TriggerResult {
-		CONTINUE, FIRE_AND_PURGE, FIRE
+		CONTINUE(false, false), FIRE_AND_PURGE(true, true), FIRE(true, false), PURGE(false, true);
+
+		private final boolean fire;
+		private final boolean purge;
+
+		TriggerResult(boolean fire, boolean purge) {
+			this.purge = purge;
+			this.fire = fire;
+		}
+
+		public boolean isFire() {
+			return fire;
+		}
+
+		public boolean isPurge() {
+			return purge;
+		}
+
+		/**
+		 * Merges two {@code TriggerResults}. This specifies what should happen if we have
+		 * two results from a Trigger, for example as a result from
+		 * {@link #onElement(Object, long, Window, TriggerContext)} and
+		 * {@link #onEventTime(long, Window, TriggerContext)}.
+		 *
+		 * <p>
+		 * For example, if one result says {@code CONTINUE} while the other says {@code FIRE}
+		 * then {@code FIRE} is the combined result;
+		 */
+		public static TriggerResult merge(TriggerResult a, TriggerResult b) {
+			if (a.purge || b.purge) {
+				if (a.fire || b.fire) {
+					return FIRE_AND_PURGE;
+				} else {
+					return PURGE;
+				}
+			} else if (a.fire || b.fire) {
+				return FIRE;
+			} else {
+				return CONTINUE;
+			}
+		}
 	}
 
 	/**
