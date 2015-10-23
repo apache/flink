@@ -30,7 +30,7 @@ import org.apache.hadoop.mapred.JobConf;
 /**
  * Wrapper for using HadoopInputFormats (mapred-variant) with Flink.
  *
- * The IF is returning a Tuple2<K,V>.
+ * The IF is returning a {@code Tuple2<K,V>}.
  *
  * @param <K> Type of the key
  * @param <V> Type of the value.

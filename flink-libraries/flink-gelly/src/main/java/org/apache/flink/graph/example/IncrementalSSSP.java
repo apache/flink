@@ -52,7 +52,7 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
  * The edge is simply removed from the graph.
  * - If the removed edge is an SP-edge, then all nodes, whose shortest path contains the removed edge,
  * potentially require re-computation.
- * When the edge <u, v> is removed, v checks if it has another out-going SP-edge.
+ * When the edge {@code <u, v>} is removed, v checks if it has another out-going SP-edge.
  * If yes, no further computation is required.
  * If v has no other out-going SP-edge, it invalidates its current value, by setting it to INF.
  * Then, it informs all its SP-in-neighbors by sending them an INVALIDATE message.

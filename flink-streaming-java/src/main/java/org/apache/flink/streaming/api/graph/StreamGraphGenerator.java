@@ -61,7 +61,7 @@ import java.util.Map;
  * in the graph with the desired property. For example, if you have this graph:
  *
  * <pre>
- *     Map-1 -> HashPartition-2 -> Map-3
+ *     Map-1 -&gt; HashPartition-2 -&gt; Map-3
  * </pre>
  *
  * where the numbers represent transformation IDs. We first recurse all the way down. {@code Map-1}

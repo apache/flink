@@ -50,13 +50,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <p>ZooKeeper holds the ground truth about state handles, i.e. the following holds:
  *
  * <pre>
- * State handle in ZooKeeper => State handle exists
+ * State handle in ZooKeeper =&gt; State handle exists
  * </pre>
  *
  * But not:
  *
  * <pre>
- * State handle exists => State handle in ZooKeeper
+ * State handle exists =&gt; State handle in ZooKeeper
  * </pre>
  *
  * There can be lingering state handles when failures happen during operation. They
@@ -316,7 +316,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	/**
 	 * Removes a state handle from ZooKeeper.
 	 *
-	 * <p><stong>Important</stong>: this does not discard the state handle. If you want to
+	 * <p><strong>Important</strong>: this does not discard the state handle. If you want to
 	 * discard the state handle call {@link #removeAndDiscardState(String)}.
 	 *
 	 * @param pathInZooKeeper Path of state handle to remove (expected to start with a '/')
@@ -331,7 +331,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	/**
 	 * Removes a state handle from ZooKeeper asynchronously.
 	 *
-	 * <p><stong>Important</stong>: this does not discard the state handle. If you want to
+	 * <p><strong>Important</strong>: this does not discard the state handle. If you want to
 	 * discard the state handle call {@link #removeAndDiscardState(String)}.
 	 *
 	 * @param pathInZooKeeper Path of state handle to remove (expected to start with a '/')

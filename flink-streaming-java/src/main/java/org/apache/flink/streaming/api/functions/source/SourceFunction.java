@@ -43,7 +43,7 @@ import java.io.Serializable;
  * This is the basic pattern one should follow when implementing a (checkpointed) source:
  * </p>
  *
- * {@code
+ * <pre>{@code
  *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
  *      private long count = 0L;
  *      private volatile boolean isRunning = true;
@@ -69,7 +69,7 @@ import java.io.Serializable;
  *      {@literal @}Override
  *      public void restoreState(Long state) { this.count = state; }
  * }
- * </pre>
+ * }</pre>
  *
  *
  * <p>

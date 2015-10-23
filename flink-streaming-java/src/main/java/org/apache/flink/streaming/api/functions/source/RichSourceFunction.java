@@ -36,7 +36,6 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  *     <li>Use {@link org.apache.flink.api.common.functions.RuntimeContext#getIndexOfThisSubtask()} to
  *         determine which subtask the current instance of the function executes.</li>
  * </ul>
- * </p>
  *
  * @param <OUT> The type of the records produced by this source.
  */

@@ -206,7 +206,7 @@ public final class DataSetUtils {
 	 * <p>
 	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * <p/>
+	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSample       The expected sample size.
@@ -225,7 +225,7 @@ public final class DataSetUtils {
 	 * <p>
 	 * <strong>NOTE:</strong> Sample with fixed size is not as efficient as sample with fraction, use sample with
 	 * fraction unless you need exact precision.
-	 * <p/>
+	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
 	 * @param numSample       The expected sample size.

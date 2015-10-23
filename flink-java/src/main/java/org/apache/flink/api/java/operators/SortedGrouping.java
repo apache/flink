@@ -38,7 +38,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import com.google.common.base.Preconditions;
 
 /**
- * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
+ * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br>
  * The following transformation can be applied on sorted groups:
  * <ul>
  * 	<li>{@link SortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)},</li>
@@ -145,7 +145,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Applies a GroupReduce transformation on a grouped and sorted {@link DataSet}.<br/>
+	 * Applies a GroupReduce transformation on a grouped and sorted {@link DataSet}.<br>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} for each group of the DataSet.
 	 * A GroupReduceFunction can iterate over all elements of a group and emit any
 	 *   number of output elements including none.
@@ -189,7 +189,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 
 	
 	/**
-	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br/>
+	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br>
 	 * @param n The desired number of elements for each group.
 	 * @return A GroupReduceOperator that represents the DataSet containing the elements.
 	*/
@@ -206,8 +206,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group on the specified field in the specified {@link Order}.</br>
-	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br/>
+	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group on the specified field in the specified {@link Order}.<br>
+	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br>
 	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(int, Order)} calls.
 	 * 
 	 * @param field The Tuple field on which the group is sorted.
@@ -235,8 +235,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} or POJO elements within a group on the specified field in the specified {@link Order}.</br>
-	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br/>
+	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} or POJO elements within a group on the specified field in the specified {@link Order}.<br>
+	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br>
 	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(String, Order)} calls.
 	 *
 	 * @param field The Tuple or Pojo field on which the group is sorted.

@@ -29,17 +29,14 @@ import org.apache.flink.storm.util.BoltPrintSink;
 
 /**
  * Implements the "Exclamation" program that attaches two exclamation marks to every line of a text files in a streaming
- * fashion. The program is constructed as a regular {@link StormTopology}.
- * <p/>
- * <p/>
+ * fashion. The program is constructed as a regular {@link backtype.storm.generated.StormTopology}.
+ * <p>
  * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
+ * <p>
  * Usage: <code>Exclamation[Local|RemoteByClient|RemoteBySubmitter] &lt;text path&gt;
- * &lt;result path&gt;</code><br/>
+ * &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p/>
- * <p/>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>construct a regular Storm topology as Flink program</li>

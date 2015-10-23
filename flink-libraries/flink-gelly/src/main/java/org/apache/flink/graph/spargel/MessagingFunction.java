@@ -53,7 +53,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 
 	/**
 	 * Retrieves the number of vertices in the graph.
-	 * @return the number of vertices if the {@link IterationConfiguration#setOptNumVertices(boolean)}
+	 * @return the number of vertices if the {@link org.apache.flink.graph.IterationConfiguration#setOptNumVertices(boolean)}
 	 * option has been set; -1 otherwise.
 	 */
 	public long getNumberOfVertices() {
@@ -314,7 +314,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 
 	/**
 	 * Retrieves the vertex in-degree (number of in-coming edges).
-	 * @return The in-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
+	 * @return The in-degree of this vertex
 	 * option has been set; -1 otherwise. 
 	 */
 	public long getInDegree() {
@@ -327,7 +327,7 @@ public abstract class MessagingFunction<K, VV, Message, EV> implements Serializa
 
 	/**
 	 * Retrieve the vertex out-degree (number of out-going edges).
-	 * @return The out-degree of this vertex if the {@link IterationConfiguration#setOptDegrees(boolean)}
+	 * @return The out-degree of this vertex
 	 * option has been set; -1 otherwise. 
 	 */
 	public long getOutDegree() {

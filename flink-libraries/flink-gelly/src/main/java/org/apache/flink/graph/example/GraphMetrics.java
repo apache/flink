@@ -42,7 +42,7 @@ import org.apache.flink.types.NullValue;
  *
  * The input file is expected to contain one edge per line,
  * with long IDs and no values, in the following format:
- * "<sourceVertexID>\t<targetVertexID>".
+ * "&lt;sourceVertexID&gt;\t&lt;targetVertexID&gt;".
  * If no arguments are provided, the example runs with a random graph of 100 vertices.
  *
  */

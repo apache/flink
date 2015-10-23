@@ -182,7 +182,7 @@ public class LinearRegression {
 	//     USER FUNCTIONS
 	// *************************************************************************
 
-	/** Converts a Tuple2<Double,Double> into a Data. */
+	/** Converts a {@code Tuple2<Double,Double>} into a Data. */
 	@ForwardedFields("0->x; 1->y")
 	public static final class TupleDataConverter implements MapFunction<Tuple2<Double, Double>, Data> {
 
@@ -192,7 +192,7 @@ public class LinearRegression {
 		}
 	}
 
-	/** Converts a Tuple2<Double,Double> into a Params. */
+	/** Converts a {@code Tuple2<Double,Double>} into a Params. */
 	@ForwardedFields("0->theta0; 1->theta1")
 	public static final class TupleParamsConverter implements MapFunction<Tuple2<Double, Double>,Params> {
 

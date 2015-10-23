@@ -61,7 +61,7 @@ public class GSAPageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet
 	/**
 	 * Creates an instance of the GSA PageRank algorithm.
 	 * If the number of vertices of the input graph is known,
-	 * use the {@link GSAPageRank#GSAPageRank(double, long)} constructor instead.
+	 * use the {@link GSAPageRank#GSAPageRank(double, int)} constructor instead.
 	 * 
 	 * The implementation assumes that each page has at least one incoming and one outgoing link.
 	 * 

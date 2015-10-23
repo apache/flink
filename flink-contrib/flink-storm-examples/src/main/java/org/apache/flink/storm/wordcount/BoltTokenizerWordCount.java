@@ -30,15 +30,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The tokenizer step is performed by a {@link IRichBolt Bolt}.
- * <p/>
- * <p/>
+ * <p>
  * The input is a plain text file with lines separated by newline characters.
- * <p/>
- * <p/>
+ * <p>
  * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
- * <p/>
- * <p/>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>use a Bolt within a Flink Streaming program.</li>

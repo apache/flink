@@ -54,8 +54,7 @@ public final class Time extends AbstractTime {
 	 * Creates a new {@link Time} of the given duration and {@link TimeUnit}.
 	 *
 	 * <p>The {@code Time} refers to the time characteristic that is set on the dataflow via
-	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#
-	 * setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}.
+	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}.
 	 *
 	 * @param size The duration of time.
 	 * @param unit The unit of time of the duration, for example {@code TimeUnit.SECONDS}.

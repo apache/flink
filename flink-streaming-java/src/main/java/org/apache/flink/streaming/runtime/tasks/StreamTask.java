@@ -63,7 +63,7 @@ import org.slf4j.LoggerFactory;
  * thus have multiple ends.
  *
  * The life cycle of the task is set up as follows: 
- * <pre>
+ * <pre>{@code
  *  -- registerInputOutput()
  *         |
  *         +----> Create basic utils (config, etc) and load the chain of operators
@@ -80,7 +80,7 @@ import org.slf4j.LoggerFactory;
  *        +----> dispose-operators()
  *        +----> common cleanup
  *        +----> task specific cleanup()
- * </pre>
+ * }</pre>
  *
  * <p> The {@code StreamTask} has a lock object called {@code lock}. All calls to methods on a
  * {@code StreamOperator} must be synchronized on this lock object to ensure that no methods
