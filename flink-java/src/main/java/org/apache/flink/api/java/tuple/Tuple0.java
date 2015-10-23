@@ -50,6 +50,16 @@ public class Tuple0 extends Tuple {
 		throw new IndexOutOfBoundsException(String.valueOf(pos));
 	}
 
+	/**
+	 * Shallow tuple copy.
+	 * @return A new Tuple with the same fields as this.
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	public Tuple0 copy(){
+		return new Tuple0();
+	}
+
 	// -------------------------------------------------------------------------------------------------
 	// standard utilities
 	// -------------------------------------------------------------------------------------------------

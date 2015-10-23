@@ -134,6 +134,8 @@ public class Tuple1<T0> extends Tuple {
 	* Shallow tuple copy.
 	* @return A new Tuple with the same fields as this.
 	*/
+	@Override
+	@SuppressWarnings("unchecked")
 	public Tuple1<T0> copy(){ 
 		return new Tuple1<T0>(this.f0);
 	}
