@@ -727,6 +727,8 @@ class TupleGenerator {
 		w.println("\t* Shallow tuple copy.");
 		w.println("\t* @return A new Tuple with the same fields as this.");
 		w.println("\t*/");
+		w.println("\t@Override");
+		w.println("\t@SuppressWarnings(\"unchecked\")");
 		w.println("\tpublic " + className + tupleTypes + " copy(){ ");
 
 		w.print("\t\treturn new " + className + tupleTypes + "(this.f0");
