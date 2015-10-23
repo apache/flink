@@ -410,6 +410,13 @@ under the License.
 		</profile>
 		
 		<profile>
+			<id>include-mesos</id>
+			<modules>
+				<module>flink-mesos</module>
+			</modules>
+		</profile>
+
+		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
 			<repositories>
