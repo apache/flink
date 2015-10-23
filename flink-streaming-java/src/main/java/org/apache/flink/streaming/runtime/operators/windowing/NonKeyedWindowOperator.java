@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -122,6 +123,12 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	 */
 	protected transient TimestampedCollector<OUT> timestampedCollector;
 
+	/**
+	 * To keep track of the current watermark so that we can immediately fire if a trigger
+	 * registers an event time callback for a timestamp that lies in the past.
+	 */
+	protected transient long currentWatermark = -1L;
+
 	// ------------------------------------------------------------------------
 	// State that needs to be checkpointed
 	// ------------------------------------------------------------------------
@@ -150,6 +157,11 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		this.trigger = requireNonNull(trigger);
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
+	}
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		currentWatermark = -1;
 	}
 
 	@Override
@@ -232,7 +244,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				windows.put(window, context);
 			}
 			context.windowBuffer.storeElement(element);
-			Trigger.TriggerResult triggerResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, context);
+			Trigger.TriggerResult triggerResult = context.onElement(element);
 			processTriggerResult(triggerResult, window);
 		}
 	}
@@ -249,46 +261,51 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	}
 
 	private void processTriggerResult(Trigger.TriggerResult triggerResult, W window) throws Exception {
-		switch (triggerResult) {
-			case FIRE: {
-				Context context = windows.get(window);
-				if (context == null) {
-					LOG.debug("Window {} already gone.", window);
-					return;
-				}
+		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
+			// do nothing
+			return;
+		}
+		Context context;
 
+		if (triggerResult.isPurge()) {
+			context = windows.remove(window);
+		} else {
+			context = windows.get(window);
+		}
+		if (context == null) {
+			LOG.debug("Window {} already gone.", window);
+			return;
+		}
 
-				emitWindow(context);
-				break;
-			}
-
-			case FIRE_AND_PURGE: {
-				Context context = windows.remove(window);
-				if (context == null) {
-					LOG.debug("Window {} already gone.", window);
-					return;
-				}
-
-				emitWindow(context);
-				break;
-			}
-
-			case CONTINUE:
-				// ingore
+		if (triggerResult.isFire()) {
+			emitWindow(context);
 		}
 	}
 
 	@Override
 	public final void processWatermark(Watermark mark) throws Exception {
 		Set<Long> toRemove = new HashSet<>();
+		Set<Context> toTrigger = new HashSet<>();
 
+		// we cannot call the Trigger in here because trigger methods might register new triggers.
+		// that would lead to concurrent modification errors.
 		for (Map.Entry<Long, Set<Context>> triggers: watermarkTimers.entrySet()) {
 			if (triggers.getKey() <= mark.getTimestamp()) {
 				for (Context context: triggers.getValue()) {
-					Trigger.TriggerResult triggerResult = context.onEventTime(triggers.getKey());
-					processTriggerResult(triggerResult, context.window);
+					toTrigger.add(context);
 				}
 				toRemove.add(triggers.getKey());
+			}
+		}
+
+		for (Context context: toTrigger) {
+			// double check the time. it can happen that the trigger registers a new timer,
+			// in that case the entry is left in the watermarkTimers set for performance reasons.
+			// We have to check here whether the entry in the set still reflects the
+			// currently set timer in the Context.
+			if (context.watermarkTimer <= mark.getTimestamp()) {
+				Trigger.TriggerResult triggerResult = context.onEventTime(context.watermarkTimer);
+				processTriggerResult(triggerResult, context.window);
 			}
 		}
 
@@ -296,6 +313,8 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			watermarkTimers.remove(l);
 		}
 		output.emitWatermark(mark);
+
+		this.currentWatermark = mark.getTimestamp();
 	}
 
 	@Override
@@ -318,8 +337,14 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	}
 
 	/**
-	 * A context object that is given to {@code Trigger} functions to allow them to register
-	 * timer/watermark callbacks.
+	 * The {@code Context} is responsible for keeping track of the state of one pane.
+	 *
+	 * <p>
+	 * A pane is the bucket of elements that have the same key (assigned by the
+	 * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
+	 * be in multiple panes of it was assigned to multiple windows by the
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
+	 * have their own instance of the {@code Trigger}.
 	 */
 	protected class Context implements Trigger.TriggerContext {
 		protected W window;
@@ -435,8 +460,20 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			triggers.add(this);
 		}
 
+		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
+			Trigger.TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
+			if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
+				// fire now and don't wait for the next watermark update
+				Trigger.TriggerResult onEventTimeResult = onEventTime(watermarkTimer);
+				return Trigger.TriggerResult.merge(onElementResult, onEventTimeResult);
+			} else {
+				return onElementResult;
+			}
+		}
+
 		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
 			if (time == processingTimeTimer) {
+				processingTimeTimer = -1;
 				return trigger.onProcessingTime(time, window, this);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
@@ -445,7 +482,17 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		public Trigger.TriggerResult onEventTime(long time) throws Exception {
 			if (time == watermarkTimer) {
-				return trigger.onEventTime(time, window, this);
+				watermarkTimer = -1;
+				Trigger.TriggerResult firstTriggerResult = trigger.onEventTime(time, window, this);
+
+				if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
+					// fire now and don't wait for the next watermark update
+					Trigger.TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
+					return Trigger.TriggerResult.merge(firstTriggerResult, secondTriggerResult);
+				} else {
+					return firstTriggerResult;
+				}
+
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}

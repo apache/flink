@@ -17,11 +17,14 @@
  */
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.junit.Assert;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -72,8 +75,34 @@ public class TestHarnessUtil {
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
 	public static void assertOutputEqualsSorted(String message, Queue<Object> expected, Queue<Object> actual, Comparator<Object> comparator) {
-		Object[] sortedExpected = expected.toArray();
-		Object[] sortedActual = actual.toArray();
+		// first, compare only watermarks, their position should be deterministic
+		Iterator<Object> exIt = expected.iterator();
+		Iterator<Object> actIt = actual.iterator();
+		while (exIt.hasNext()) {
+			Object nextEx = exIt.next();
+			Object nextAct = actIt.next();
+			if (nextEx instanceof Watermark) {
+				Assert.assertEquals(nextEx, nextAct);
+			}
+		}
+
+		List<Object> expectedRecords = new ArrayList<>();
+		List<Object> actualRecords = new ArrayList<>();
+
+		for (Object ex: expected) {
+			if (ex instanceof StreamRecord) {
+				expectedRecords.add(ex);
+			}
+		}
+
+		for (Object act: actual) {
+			if (act instanceof StreamRecord) {
+				actualRecords.add(act);
+			}
+		}
+
+		Object[] sortedExpected = expectedRecords.toArray();
+		Object[] sortedActual = actualRecords.toArray();
 
 		Arrays.sort(sortedExpected, comparator);
 		Arrays.sort(sortedActual, comparator);
