@@ -60,7 +60,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onProcessingTime(long time, TriggerContext ctx) throws Exception;
+	TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Called when an event-time timer that was set using the trigger context fires.
@@ -68,7 +68,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onEventTime(long time, TriggerContext ctx) throws Exception;
+	TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
 
 
 	/**
@@ -91,19 +91,19 @@ public interface Trigger<T, W extends Window> extends Serializable {
 
 		/**
 		 * Register a system time callback. When the current system time passes the specified
-		 * time {@link #onProcessingTime(long, TriggerContext)} is called with the time specified here.
+		 * time {@link #onProcessingTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
-		 * @param time The time at which to invoke {@link #onProcessingTime(long, TriggerContext)}
+		 * @param time The time at which to invoke {@link #onProcessingTime(long, Window, TriggerContext)}
 		 */
 		void registerProcessingTimeTimer(long time);
 
 		/**
 		 * Register an event-time callback. When the current watermark passes the specified
-		 * time {@link #onEventTime(long, TriggerContext)} is called with the time specified here.
+		 * time {@link #onEventTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
 		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 *
-		 * @param time The watermark at which to invoke {@link #onEventTime(long, TriggerContext)}
+		 * @param time The watermark at which to invoke {@link #onEventTime(long, Window, TriggerContext)}
 		 */
 		void registerEventTimeTimer(long time);
 

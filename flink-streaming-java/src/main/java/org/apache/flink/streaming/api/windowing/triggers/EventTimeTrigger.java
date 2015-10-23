@@ -37,13 +37,12 @@ public class EventTimeTrigger implements Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public TriggerResult onEventTime(long time, TriggerContext ctx) {
+	public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) {
 		return TriggerResult.FIRE_AND_PURGE;
 	}
 
 	@Override
-	public TriggerResult onProcessingTime(long time,
-			TriggerContext ctx) throws Exception {
+	public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
 		return TriggerResult.CONTINUE;
 	}
 
@@ -53,10 +52,13 @@ public class EventTimeTrigger implements Trigger<Object, TimeWindow> {
 	}
 
 	/**
-	 * Creates trigger that fires once the watermark passes the end of the window.
+	 * Creates an event-time trigger that fires once the watermark passes the end of the window.
+	 *
+	 * <p>
+	 * Once the trigger fires all elements are discarded. Elements that arrive late immediately
+	 * trigger window evaluation with just this one element.
 	 */
 	public static EventTimeTrigger create() {
 		return new EventTimeTrigger();
 	}
-
 }

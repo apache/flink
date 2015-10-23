@@ -437,7 +437,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
 			if (time == processingTimeTimer) {
-				return trigger.onProcessingTime(time, this);
+				return trigger.onProcessingTime(time, window, this);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}
@@ -445,7 +445,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 		public Trigger.TriggerResult onEventTime(long time) throws Exception {
 			if (time == watermarkTimer) {
-				return trigger.onEventTime(time, this);
+				return trigger.onEventTime(time, window, this);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}
