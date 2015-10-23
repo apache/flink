@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.io.DelimitedInputFormat;
+import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
-import org.apache.flink.api.java.record.io.DelimitedInputFormat;
-import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
@@ -94,7 +94,7 @@ public abstract class TaskTestBase extends TestLogger {
 		
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
-		config.setStubWrapper(new UserCodeClassWrapper<RichFunction>(stubClass));
+		config.setStubWrapper(new UserCodeClassWrapper<>(stubClass));
 		
 		task.setEnvironment(this.mockEnv);
 
@@ -116,17 +116,17 @@ public abstract class TaskTestBase extends TestLogger {
 		}
 	}
 
-	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat> stubClass, String outPath) {
+	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat<Record>> stubClass, String outPath) {
 		registerFileOutputTask(outTask, InstantiationUtil.instantiate(stubClass, FileOutputFormat.class), outPath);
 	}
 	
-	public void registerFileOutputTask(AbstractInvokable outTask, FileOutputFormat outputFormat, String outPath) {
+	public void registerFileOutputTask(AbstractInvokable outTask, FileOutputFormat<Record> outputFormat, String outPath) {
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		
 		outputFormat.setOutputFilePath(new Path(outPath));
 		outputFormat.setWriteMode(WriteMode.OVERWRITE);
 
-		dsConfig.setStubWrapper(new UserCodeObjectWrapper<FileOutputFormat>(outputFormat));
+		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(outputFormat));
 
 		outTask.setEnvironment(this.mockEnv);
 
@@ -139,9 +139,9 @@ public abstract class TaskTestBase extends TestLogger {
 	}
 
 	public void registerFileInputTask(AbstractInvokable inTask,
-			Class<? extends DelimitedInputFormat> stubClass, String inPath, String delimiter)
+			Class<? extends DelimitedInputFormat<Record>> stubClass, String inPath, String delimiter)
 	{
-		DelimitedInputFormat format;
+		DelimitedInputFormat<Record> format;
 		try {
 			format = stubClass.newInstance();
 		}
@@ -153,7 +153,7 @@ public abstract class TaskTestBase extends TestLogger {
 		format.setDelimiter(delimiter);
 		
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
-		dsConfig.setStubWrapper(new UserCodeObjectWrapper<DelimitedInputFormat>(format));
+		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(format));
 		
 		this.inputSplitProvider.addInputSplits(inPath, 5);
 

@@ -108,7 +108,6 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
 
-
 		if (objectReuseEnabled) {
 			T val1 = serializer.createInstance();
 
@@ -123,14 +122,13 @@ public class AllReduceDriver<T> implements Driver<ReduceFunction<T>, T> {
 
 			this.taskContext.getOutputCollector().collect(val1);
 		} else {
-			T val1 = serializer.createInstance();
-
-			if ((val1 = input.next(val1)) == null) {
+			T val1;
+			if ((val1 = input.next()) == null) {
 				return;
 			}
 
 			T val2;
-			while (running && (val2 = input.next(serializer.createInstance())) != null) {
+			while (running && (val2 = input.next()) != null) {
 				val1 = stub.reduce(val1, val2);
 			}
 

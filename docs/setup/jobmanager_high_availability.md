@@ -50,13 +50,13 @@ In high availabliity mode, all Flink components try to connect to a JobManager v
 
 - **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
   
-  <pre>ha.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
+  <pre>recovery.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
 - The following configuration keys are optional:
 
-  - `ha.zookeeper.dir: /flink [default]`: ZooKeeper directory to use for coordination
+  - `recovery.zookeeper.path.root: /flink [default]`: ZooKeeper directory to use for coordination
   - TODO Add client configuration keys
 
 ## Starting an HA-cluster
@@ -93,7 +93,7 @@ The script `bin/start-zookeeper-quorum.sh` will start a ZooKeeper server on each
    
    <pre>
 recovery.mode: zookeeper
-ha.zookeeper.quorum: localhost</pre>
+recovery.zookeeper.quorum: localhost</pre>
 
 2. **Configure masters** in `conf/masters`:
 

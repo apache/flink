@@ -19,30 +19,53 @@ package org.apache.flink.streaming.api.functions.aggregation;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.util.FieldAccessor;
 
 public class SumAggregator<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	FieldAccessor<T, Object> fieldAccessor;
-	SumFunction adder;
+	private final FieldAccessor<T, Object> fieldAccessor;
+	private final SumFunction adder;
+	private final TypeSerializer<T> serializer;
+	private final boolean isTuple;
 
 	public SumAggregator(int pos, TypeInformation<T> typeInfo, ExecutionConfig config) {
-		super(pos);
 		fieldAccessor = FieldAccessor.create(pos, typeInfo, config);
 		adder = SumFunction.getForClass(fieldAccessor.getFieldType().getTypeClass());
+		if (typeInfo instanceof TupleTypeInfo) {
+			isTuple = true;
+			serializer = null;
+		} else {
+			isTuple = false;
+			this.serializer = typeInfo.createSerializer(config);
+		}
 	}
 
 	public SumAggregator(String field, TypeInformation<T> typeInfo, ExecutionConfig config) {
-		super(0);
 		fieldAccessor = FieldAccessor.create(field, typeInfo, config);
 		adder = SumFunction.getForClass(fieldAccessor.getFieldType().getTypeClass());
+		if (typeInfo instanceof TupleTypeInfo) {
+			isTuple = true;
+			serializer = null;
+		} else {
+			isTuple = false;
+			this.serializer = typeInfo.createSerializer(config);
+		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
+	@SuppressWarnings("unchecked")
 	public T reduce(T value1, T value2) throws Exception {
-		return fieldAccessor.set(value1, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
+		if (isTuple) {
+			Tuple result = ((Tuple)value1).copy();
+			return fieldAccessor.set((T) result, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
+		} else {
+			T result = serializer.copy(value1);
+			return fieldAccessor.set(result, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
+		}
 	}
 }

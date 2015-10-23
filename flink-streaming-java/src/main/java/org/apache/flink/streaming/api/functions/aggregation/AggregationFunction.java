@@ -22,13 +22,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 public abstract class AggregationFunction<T> extends RichReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
-	public int position;
-
-	public AggregationFunction(int pos) {
-		this.position = pos;
-	}
-
-	public static enum AggregationType {
+	public enum AggregationType {
 		SUM, MIN, MAX, MINBY, MAXBY,
 	}
 

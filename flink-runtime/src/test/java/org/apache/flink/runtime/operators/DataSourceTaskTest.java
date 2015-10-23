@@ -28,11 +28,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.junit.Assert;
 
-import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -83,7 +83,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
 		
-		DataSourceTask<Record> testTask = new DataSourceTask<Record>();
+		DataSourceTask<Record> testTask = new DataSourceTask<>();
 		
 		super.registerFileInputTask(testTask, MockInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
@@ -97,7 +97,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		Assert.assertTrue("Invalid output size. Expected: "+(keyCnt*valCnt)+" Actual: "+this.outList.size(),
 			this.outList.size() == keyCnt * valCnt);
 		
-		HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+		HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 		
 		for (Record kvp : this.outList) {
 			
@@ -138,7 +138,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
 		
-		DataSourceTask<Record> testTask = new DataSourceTask<Record>();
+		DataSourceTask<Record> testTask = new DataSourceTask<>();
 
 		super.registerFileInputTask(testTask, MockFailingInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
@@ -172,7 +172,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 			Assert.fail("Unable to set-up test input file");
 		}
 		
-		final DataSourceTask<Record> testTask = new DataSourceTask<Record>();
+		final DataSourceTask<Record> testTask = new DataSourceTask<>();
 
 		super.registerFileInputTask(testTask, MockDelayingInputFormat.class,  new File(tempTestPath).toURI().toString(), "\n");
 		
@@ -232,7 +232,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockInputFormat extends DelimitedInputFormat {
+	public static class MockInputFormat extends DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -257,7 +257,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static class MockDelayingInputFormat extends DelimitedInputFormat {
+	public static class MockDelayingInputFormat extends DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();
@@ -289,7 +289,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 		
 	}
 	
-	public static class MockFailingInputFormat extends DelimitedInputFormat {
+	public static class MockFailingInputFormat extends DelimitedInputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();

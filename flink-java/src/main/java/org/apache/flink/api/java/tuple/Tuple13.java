@@ -302,6 +302,8 @@ public class Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> exte
 	* Shallow tuple copy.
 	* @return A new Tuple with the same fields as this.
 	*/
+	@Override
+	@SuppressWarnings("unchecked")
 	public Tuple13<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12> copy(){ 
 		return new Tuple13<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12>(this.f0,
 			this.f1,
