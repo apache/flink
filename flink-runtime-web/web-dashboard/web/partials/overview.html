@@ -92,7 +92,7 @@ limitations under the License.
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="job in runningJobs" ui-sref="single-job.plan.overview({ jobid: job.jid })">
+          <tr ng-repeat="job in runningJobs|orderBy:&quot;'start-time'&quot;" ui-sref="single-job.plan.overview({ jobid: job.jid })">
             <td>{{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
             <td>{{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
             <td>{{job.duration}} ms</td>
@@ -127,7 +127,7 @@ limitations under the License.
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="job in finishedJobs" ui-sref="single-job.plan.overview({ jobid: job.jid })">
+          <tr ng-repeat="job in finishedJobs|orderBy:&quot;'end-time'&quot;:true" ui-sref="single-job.plan.overview({ jobid: job.jid })">
             <td>{{job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
             <td>{{job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss'}}</td>
             <td>{{job.duration}} ms</td>
