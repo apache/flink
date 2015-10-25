@@ -64,7 +64,6 @@ import static org.junit.Assert.fail;
  * Test specialized hash join that keeps the build side data (in memory and on hard disk)
  * This is used for iterative tasks.
  */
-@SuppressWarnings("deprecation")
 public class NonReusingReOpenableHashTableITCase {
 
 	private static final int PAGE_SIZE = 8 * 1024;

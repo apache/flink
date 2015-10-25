@@ -62,7 +62,7 @@ import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIterator
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.collectTupleData;
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.collectIntPairData;
 
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class ReusingHashJoinIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
