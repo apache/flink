@@ -42,6 +42,10 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
 		super(mapredInputFormat, key, value, job);
 	}
+
+	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value) {
+		super(mapredInputFormat, key, value, new JobConf());
+	}
 	
 	@Override
 	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
@@ -59,6 +63,6 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 	
 	@Override
 	public TypeInformation<Tuple2<K,V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
+		return new TupleTypeInfo<>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }
