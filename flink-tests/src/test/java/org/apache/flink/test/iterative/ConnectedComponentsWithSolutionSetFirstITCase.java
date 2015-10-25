@@ -37,7 +37,6 @@ import org.apache.flink.util.Collector;
 /**
  * Tests a bug that prevented that the solution set can be on both sides of the match/cogroup function.
  */
-@SuppressWarnings("deprecation")
 public class ConnectedComponentsWithSolutionSetFirstITCase extends JavaProgramTestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
