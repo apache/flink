@@ -41,6 +41,10 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 		super(mapreduceInputFormat, key, value, job);
 	}
 
+	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value) throws IOException {
+		super(mapreduceInputFormat, key, value, Job.getInstance());
+	}
+
 	@Override
 	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
 		if(!this.fetched) {

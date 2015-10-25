@@ -1726,6 +1726,13 @@ File-based:
    
 - `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
    delimited primitive data types such as `String` or `Integer` using the given delimiter.
+   
+- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified 
+   path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+   
+- `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
+   type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+ 
 
 Collection-based:
 
@@ -1741,7 +1748,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator, Class)` - Creates a data set from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the squence of numbers in the given interval, in
+- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Generic:
@@ -1772,9 +1779,16 @@ DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file
 
 // read a CSV file with three fields into a POJO (Person.class) with corresponding fields
 DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
-                         .pojoType(Person.class, "name", "age", "zipcode");                         
+                         .pojoType(Person.class, "name", "age", "zipcode");  
+                                                 
 
-// create a set from some given elements
+// read a file from the specified path of type TextInputFormat 
+DataSet<Tuple2<LongWritable, Text>> tuples = env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
+                         
+// read a file from the specified path of type SequenceFileInputFormat
+DataSet<Tuple2<IntWritable, Text>> tuples = env.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
+
+// creates a set from some given elements
 DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
 
 // generate a number sequence
@@ -1862,6 +1876,12 @@ File-based:
 
 - `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
   delimited primitive data types such as `String` or `Integer` using the given delimiter.
+  
+- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified 
+   path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
+   
+- `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
+   type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.  
 
 Collection-based:
 
@@ -1922,6 +1942,12 @@ val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 // generate a number sequence
 val numbers = env.generateSequence(1, 10000000);
 {% endhighlight %}
+
+// read a file from the specified path of type TextInputFormat 
+val tuples = env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], "hdfs://nnHost:nnPort/path/to/file")
+                         
+// read a file from the specified path of type SequenceFileInputFormat
+val tuples = env.readSequenceFile(classOf[IntWritable], classOf[Text], "hdfs://nnHost:nnPort/path/to/file")
 
 
 #### Configuring CSV Parsing

@@ -17,14 +17,12 @@
  */
 package org.apache.flink.api.scala
 
-import java.util.UUID
-
 import com.esotericsoftware.kryo.Serializer
 import com.google.common.base.Preconditions
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.{JobID, ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -291,7 +289,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setCommentPrefix(ignoreComments)
 
     if (quoteCharacter != null) {
-      inputFormat.enableQuotedStringParsing(quoteCharacter);
+      inputFormat.enableQuotedStringParsing(quoteCharacter)
     }
 
     val classesBuf: ArrayBuffer[Class[_]] = new ArrayBuffer[Class[_]]
@@ -305,12 +303,12 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
           throw new IllegalArgumentException(
             "POJO fields must be specified (not null) if output type is a POJO.")
         } else {
-          for (i <- 0 until pojoFields.length) {
+          for (i <- pojoFields.indices) {
             val pos = info.getFieldIndex(pojoFields(i))
             if (pos < 0) {
               throw new IllegalArgumentException(
                 "Field \"" + pojoFields(i) + "\" not part of POJO type " +
-                  info.getTypeClass.getCanonicalName);
+                  info.getTypeClass.getCanonicalName)
             }
             classesBuf += info.getPojoFieldAt(pos).getTypeInformation().getTypeClass
           }
@@ -421,6 +419,19 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       inputPath: String)
       (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
     readHadoopFile(mapredInputFormat, key, value, inputPath, new JobConf)
+  }
+
+  /**
+   * Creates a [[DataSet]] from [[org.apache.hadoop.mapred.SequenceFileInputFormat]]
+   * A [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+   */
+  def readSequenceFile[K, V](
+      key: Class[K],
+      value: Class[V],
+      inputPath: String)
+      (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
+    readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat[K, V],
+      key, value, inputPath)
   }
 
   /**
