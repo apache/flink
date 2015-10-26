@@ -36,7 +36,7 @@ under the License.
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jmh.version>1.4.1</jmh.version>
+    <jmh.version>1.11</jmh.version>
     <uberjar.name>benchmarks</uberjar.name>
   </properties>
 
