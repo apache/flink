@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.ByteArrayOutputStream;
@@ -31,15 +31,15 @@ import java.io.Serializable;
 /**
  * A {@link StateBackend} that stores all its data and checkpoints in memory and has no
  * capabilities to spill to disk. Checkpoints are serialized and the serialized data is
- * transferred 
+ * transferred
  */
 public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 
 	private static final long serialVersionUID = 4109305377809414635L;
-	
+
 	/** The default maximal size that the snapshotted memory state may have (5 MiBytes) */
 	private static final int DEFAULT_MAX_STATE_SIZE = 5 * 1024 * 1024;
-	
+
 	/** The maximal size that the snapshotted memory state may have */
 	private final int maxStateSize;
 
@@ -54,7 +54,7 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	/**
 	 * Creates a new memory state backend that accepts states whose serialized forms are
 	 * up to the given number of bytes.
-	 * 
+	 *
 	 * @param maxStateSize The maximal size of the serialized state
 	 */
 	public MemoryStateBackend(int maxStateSize) {
@@ -66,7 +66,7 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(JobID job) {
+	public void initializeForJob(Environment env) {
 		// nothing to do here
 	}
 
@@ -81,22 +81,22 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 	//  State backend operations
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public <K, V> MemHeapKvState<K, V> createKvState(
+	public <K, V> MemHeapKvState<K, V> createKvState(int operatorId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) {
 		return new MemHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue);
 	}
-	
+
 	/**
 	 * Serialized the given state into bytes using Java serialization and creates a state handle that
 	 * can re-create that state.
-	 * 
+	 *
 	 * @param state The state to checkpoint.
 	 * @param checkpointID The ID of the checkpoint.
 	 * @param timestamp The timestamp of the checkpoint.
 	 * @param <S> The type of the state.
-	 * 
+	 *
 	 * @return A state handle that contains the given state serialized as bytes.
 	 * @throws Exception Thrown, if the serialization fails.
 	 */
@@ -119,7 +119,7 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "MemoryStateBackend (data in heap memory / checkpoints to JobManager)";
@@ -133,18 +133,18 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 							+ " . Consider using a different state backend, like the File System State backend.");
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * A CheckpointStateOutputStream that writes into a byte array.
 	 */
 	public static final class MemoryCheckpointOutputStream extends CheckpointStateOutputStream {
-		
+
 		private final ByteArrayOutputStream os = new ByteArrayOutputStream();
-		
+
 		private final int maxSize;
-		
+
 		private boolean closed;
 
 		public MemoryCheckpointOutputStream(int maxSize) {
@@ -177,7 +177,7 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 		/**
 		 * Closes the stream and returns the byte array containing the stream's data.
 		 * @return The byte array containing the stream's data.
-		 * @throws IOException Thrown if the size of the data exceeds the maximal 
+		 * @throws IOException Thrown if the size of the data exceeds the maximal
 		 */
 		public byte[] closeAndGetBytes() throws IOException {
 			if (!closed) {
@@ -191,11 +191,11 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Static default instance
 	// ------------------------------------------------------------------------
-	
+
 	/** The default instance of this state backend, using the default maximal state size */
 	private static final MemoryStateBackend DEFAULT_INSTANCE = new MemoryStateBackend();
 

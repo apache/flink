@@ -40,7 +40,7 @@ import static org.junit.Assert.*;
  * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
  */
 public class MemoryStateBackendTest {
-	
+
 	@Test
 	public void testSerializableState() {
 		try {
@@ -49,10 +49,10 @@ public class MemoryStateBackendTest {
 			HashMap<String, Integer> state = new HashMap<>();
 			state.put("hey there", 2);
 			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
-			
+
 			StateHandle<HashMap<String, Integer>> handle = backend.checkpointStateSerializable(state, 12, 459);
 			assertNotNull(handle);
-			
+
 			HashMap<String, Integer> restored = handle.getState(getClass().getClassLoader());
 			assertEquals(state, restored);
 		}
@@ -99,7 +99,7 @@ public class MemoryStateBackendTest {
 			oos.writeObject(state);
 			oos.flush();
 			StreamStateHandle handle = os.closeAndGetHandle();
-			
+
 			assertNotNull(handle);
 
 			ObjectInputStream ois = new ObjectInputStream(handle.getState(getClass().getClassLoader()));
@@ -124,7 +124,7 @@ public class MemoryStateBackendTest {
 
 			StateBackend.CheckpointStateOutputStream os = backend.createCheckpointStateOutputStream(1, 2);
 			ObjectOutputStream oos = new ObjectOutputStream(os);
-			
+
 			try {
 				oos.writeObject(state);
 				oos.flush();
@@ -140,17 +140,17 @@ public class MemoryStateBackendTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testKeyValueState() {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend();
-			
-			KvState<Integer, String, MemoryStateBackend> kv = 
-					backend.createKvState(IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
-			
+
+			KvState<Integer, String, MemoryStateBackend> kv =
+					backend.createKvState(0, "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
+
 			assertEquals(0, kv.size());
-			
+
 			// some modifications to the state
 			kv.setCurrentKey(1);
 			assertNull(kv.value());
@@ -163,7 +163,7 @@ public class MemoryStateBackendTest {
 			kv.setCurrentKey(1);
 			assertEquals("1", kv.value());
 			assertEquals(2, kv.size());
-			
+
 			// draw a snapshot
 			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot1 = 
 					kv.snapshot(682375462378L, System.currentTimeMillis());
@@ -188,9 +188,9 @@ public class MemoryStateBackendTest {
 			assertEquals("u2", kv.value());
 			kv.setCurrentKey(3);
 			assertEquals("u3", kv.value());
-			
+
 			// restore the first snapshot and validate it
-			KvState<Integer, String, MemoryStateBackend> restored1 = snapshot1.restoreState(backend, 
+			KvState<Integer, String, MemoryStateBackend> restored1 = snapshot1.restoreState(backend,
 							IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader());
 
 			assertEquals(2, restored1.size());
@@ -216,29 +216,29 @@ public class MemoryStateBackendTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testRestoreWithWrongSerializers() {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend();
 			KvState<Integer, String, MemoryStateBackend> kv =
-					backend.createKvState(IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
-			
+					backend.createKvState(0, "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
+
 			kv.setCurrentKey(1);
 			kv.update("1");
 			kv.setCurrentKey(2);
 			kv.update("2");
-			
+
 			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot =
 					kv.snapshot(682375462378L, System.currentTimeMillis());
 
 
 			@SuppressWarnings("unchecked")
-			TypeSerializer<Integer> fakeIntSerializer = 
+			TypeSerializer<Integer> fakeIntSerializer =
 					(TypeSerializer<Integer>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
 			@SuppressWarnings("unchecked")
-			TypeSerializer<String> fakeStringSerializer = 
+			TypeSerializer<String> fakeStringSerializer =
 					(TypeSerializer<String>) (TypeSerializer<?>) new ValueSerializer<StringValue>(StringValue.class);
 
 			try {
@@ -276,20 +276,20 @@ public class MemoryStateBackendTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testCopyDefaultValue() {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend();
 			KvState<Integer, IntValue, MemoryStateBackend> kv =
-					backend.createKvState(IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
+					backend.createKvState(0, "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
 
 			kv.setCurrentKey(1);
 			IntValue default1 = kv.value();
 
 			kv.setCurrentKey(2);
 			IntValue default2 = kv.value();
-			
+
 			assertNotNull(default1);
 			assertNotNull(default2);
 			assertEquals(default1, default2);

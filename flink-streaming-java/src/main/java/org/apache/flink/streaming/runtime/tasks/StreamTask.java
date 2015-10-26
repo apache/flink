@@ -169,7 +169,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			accumulatorMap = accumulatorRegistry.getUserMap();
 
 			stateBackend = createStateBackend();
-			stateBackend.initializeForJob(getEnvironment().getJobID());
+			stateBackend.initializeForJob(getEnvironment());
 
 			headOperator = configuration.getStreamOperator(userClassLoader);
 			operatorChain = new OperatorChain<>(this, headOperator, accumulatorRegistry.getReadWriteReporter());

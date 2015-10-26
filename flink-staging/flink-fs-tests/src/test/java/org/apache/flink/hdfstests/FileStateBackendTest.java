@@ -20,7 +20,6 @@ package org.apache.flink.hdfstests;
 
 import org.apache.commons.io.FileUtils;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -29,7 +28,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.hadoop.conf.Configuration;
@@ -63,7 +62,7 @@ public class FileStateBackendTest {
 	private static MiniDFSCluster HDFS_CLUSTER;
 	
 	private static FileSystem FS;
-
+	
 	// ------------------------------------------------------------------------
 	//  startup / shutdown
 	// ------------------------------------------------------------------------
@@ -127,7 +126,7 @@ public class FileStateBackendTest {
 				// supreme!
 			}
 
-			backend.initializeForJob(new JobID());
+			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 			assertNotNull(backend.getCheckpointDirectory());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -150,7 +149,7 @@ public class FileStateBackendTest {
 		
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri()));
-			backend.initializeForJob(new JobID());
+			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -186,7 +185,7 @@ public class FileStateBackendTest {
 	public void testStateOutputStream() {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri()));
-			backend.initializeForJob(new JobID());
+			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 

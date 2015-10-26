@@ -322,7 +322,7 @@ public abstract class AbstractStreamOperator<OUT>
 		
 		if (kvstate == null) {
 			// create a new blank key/value state
-			kvstate = stateBackend.createKvState(keySerializer, valueSerializer, defaultValue);
+			kvstate = stateBackend.createKvState(getOperatorConfig().getVertexID() ,name , keySerializer, valueSerializer, defaultValue);
 		}
 
 		if (keyValueStatesByName == null) {

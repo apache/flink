@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.StateBackend;
-
+import org.apache.flink.runtime.state.StateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,27 +37,27 @@ import java.util.UUID;
 
 /**
  * The file state backend is a state backend that stores the state of streaming jobs in a file system.
- * 
+ *
  * <p>The state backend has one core directory into which it puts all checkpoint data. Inside that
  * directory, it creates a directory per job, inside which each checkpoint gets a directory, with
  * files for each state, for example:
- * 
+ *
  * {@code hdfs://namenode:port/flink-checkpoints/<job-id>/chk-17/6ba7b810-9dad-11d1-80b4-00c04fd430c8 }
  */
 public class FsStateBackend extends StateBackend<FsStateBackend> {
 
 	private static final long serialVersionUID = -8191916350224044011L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(FsStateBackend.class);
-	
-	
+
+
 	/** The path to the directory for the checkpoint data, including the file system
 	 * description via scheme and optional authority */
 	private final Path basePath;
-	
+
 	/** The directory (job specific) into this initialized instance of the backend stores its data */
 	private transient Path checkpointDirectory;
-	
+
 	/** Cached handle to the file system for file operations */
 	private transient FileSystem filesystem;
 
@@ -104,14 +103,14 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
 	 * defined by the given URI.
-	 * 
+	 *
 	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
 	 * must be accessible via {@link FileSystem#get(URI)}.
-	 * 
+	 *
 	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
 	 * (host and port), or that the Hadoop configuration that describes that information must be in the
 	 * classpath.
-	 * 
+	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
 	 *                          and the path to teh checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
@@ -119,7 +118,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	public FsStateBackend(URI checkpointDataUri) throws IOException {
 		final String scheme = checkpointDataUri.getScheme();
 		final String path = checkpointDataUri.getPath();
-		
+
 		// some validity checks
 		if (scheme == null) {
 			throw new IllegalArgumentException("The scheme (hdfs://, file://, etc) is null. " +
@@ -132,12 +131,12 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		if (path.length() == 0 || path.equals("/")) {
 			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
 		}
-		
+
 		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
 		// (distributed) filesystem on all hosts and includes full host/port information, even if the
 		// original URI did not include that. We count on the filesystem loading from the configuration
 		// to fill in the missing data.
-		
+
 		// try to grab the file system for this path/URI
 		this.filesystem = FileSystem.get(checkpointDataUri);
 		if (this.filesystem == null) {
@@ -151,7 +150,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		}
 		catch (URISyntaxException e) {
 			throw new IOException(
-					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s", 
+					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
 							checkpointDataUri, fsURI), e);
 		}
 	}
@@ -159,7 +158,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	/**
 	 * Gets the base directory where all state-containing files are stored.
 	 * The job specific directory is created inside this directory.
-	 * 
+	 *
 	 * @return The base directory.
 	 */
 	public Path getBasePath() {
@@ -169,7 +168,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	/**
 	 * Gets the directory where this state backend stores its checkpoint data. Will be null if
 	 * the state backend has not been initialized.
-	 * 
+	 *
 	 * @return The directory where this state backend stores its checkpoint data.
 	 */
 	public Path getCheckpointDirectory() {
@@ -179,16 +178,16 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	/**
 	 * Checks whether this state backend is initialized. Note that initialization does not carry
 	 * across serialization. After each serialization, the state backend needs to be initialized.
-	 * 
+	 *
 	 * @return True, if the file state backend has been initialized, false otherwise.
 	 */
 	public boolean isInitialized() {
-		return filesystem != null && checkpointDirectory != null; 
+		return filesystem != null && checkpointDirectory != null;
 	}
 
 	/**
 	 * Gets the file system handle for the file system that stores the state for this backend.
-	 * 
+	 *
 	 * @return This backend's file system handle.
 	 */
 	public FileSystem getFileSystem() {
@@ -203,13 +202,13 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 	//  initialization and cleanup
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public void initializeForJob(JobID jobId) throws Exception {
-		Path dir = new Path(basePath, jobId.toString());
-		
+	public void initializeForJob(Environment env) throws Exception {
+		Path dir = new Path(basePath, env.getJobID().toString());
+
 		LOG.info("Initializing file state backend to URI " + dir);
-		
+
 		filesystem = basePath.getFileSystem();
 		filesystem.mkdirs(dir);
 
@@ -220,7 +219,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	public void disposeAllStateForCurrentJob() throws Exception {
 		FileSystem fs = this.filesystem;
 		Path dir = this.checkpointDirectory;
-		
+
 		if (fs != null && dir != null) {
 			this.filesystem = null;
 			this.checkpointDirectory = null;
@@ -237,9 +236,9 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public <K, V> FsHeapKvState<K, V> createKvState(
+	public <K, V> FsHeapKvState<K, V> createKvState(int operatorId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws Exception {
 		return new FsHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue, this);
 	}
@@ -254,7 +253,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		final Path checkpointDir = createCheckpointDirPath(checkpointID);
 		filesystem.mkdirs(checkpointDir);
 
-		
+
 		Exception latestException = null;
 
 		for (int attempt = 0; attempt < 10; attempt++) {
@@ -273,19 +272,19 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			}
 			return new FileSerializableStateHandle<S>(targetPath);
 		}
-		
+
 		throw new Exception("Could not open output stream for state backend", latestException);
 	}
-	
+
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
 		checkFileSystemInitialized();
-		
+
 		final Path checkpointDir = createCheckpointDirPath(checkpointID);
 		filesystem.mkdirs(checkpointDir);
-		
+
 		Exception latestException = null;
-		
+
 		for (int attempt = 0; attempt < 10; attempt++) {
 			Path targetPath = new Path(checkpointDir, UUID.randomUUID().toString());
 			try {
@@ -298,7 +297,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		}
 		throw new Exception("Could not open output stream for state backend", latestException);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
@@ -308,18 +307,18 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			throw new IllegalStateException("filesystem has not been re-initialized after deserialization");
 		}
 	}
-	
+
 	private Path createCheckpointDirPath(long checkpointID) {
 		return new Path(checkpointDirectory, "chk-" + checkpointID);
 	}
-	
+
 	@Override
 	public String toString() {
 		return checkpointDirectory == null ?
-			"File State Backend @ " + basePath : 
+			"File State Backend @ " + basePath :
 			"File State Backend (initialized) @ " + checkpointDirectory;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Output stream for state checkpointing
 	// ------------------------------------------------------------------------
@@ -331,11 +330,11 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	public static final class FsCheckpointStateOutputStream extends CheckpointStateOutputStream {
 
 		private final FSDataOutputStream outStream;
-		
+
 		private final Path filePath;
-		
+
 		private final FileSystem fs;
-		
+
 		private boolean closed;
 
 		FsCheckpointStateOutputStream(FSDataOutputStream outStream, Path filePath, FileSystem fs) {
@@ -373,7 +372,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 					try {
 						outStream.close();
 						fs.delete(filePath, false);
-						
+
 						// attempt to delete the parent (will fail and be ignored if the parent has more files)
 						try {
 							fs.delete(filePath.getParent(), false);

@@ -50,10 +50,11 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTestBase {
 
 	final long NUM_STRINGS = 10_000_000L;
+	final static int NUM_KEYS = 40;
 
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
-		assertTrue("Broken test setup", (NUM_STRINGS/2) % 40 == 0);
+		assertTrue("Broken test setup", (NUM_STRINGS/2) % NUM_KEYS == 0);
 
 		DataStream<Integer> stream1 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
 		DataStream<Integer> stream2 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
@@ -69,14 +70,14 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 	public void postSubmit() {
 		// verify that we counted exactly right
 		for (Entry<Integer, Long> sum : OnceFailingPartitionedSum.allSums.entrySet()) {
-			assertEquals(new Long(sum.getKey() * NUM_STRINGS / 40), sum.getValue());
+			assertEquals(new Long(sum.getKey() * NUM_STRINGS / NUM_KEYS), sum.getValue());
 		}
 		for (Long count : CounterSink.allCounts.values()) {
-			assertEquals(new Long(NUM_STRINGS / 40), count);
+			assertEquals(new Long(NUM_STRINGS / NUM_KEYS), count);
 		}
 
-		assertEquals(40, CounterSink.allCounts.size());
-		assertEquals(40, OnceFailingPartitionedSum.allSums.size());
+		assertEquals(NUM_KEYS, CounterSink.allCounts.size());
+		assertEquals(NUM_KEYS, OnceFailingPartitionedSum.allSums.size());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -120,7 +121,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 				synchronized (lockingObject) {
 					index += step;
-					ctx.collect(index % 40);
+					ctx.collect(index % NUM_KEYS);
 				}
 			}
 		}
@@ -160,9 +161,9 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			long failurePosMin = (long) (0.4 * numElements / getRuntimeContext()
+			long failurePosMin = (long) (0.6 * numElements / getRuntimeContext()
 					.getNumberOfParallelSubtasks());
-			long failurePosMax = (long) (0.7 * numElements / getRuntimeContext()
+			long failurePosMax = (long) (0.8 * numElements / getRuntimeContext()
 					.getNumberOfParallelSubtasks());
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
@@ -213,7 +214,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 		}
 	}
 	
-	private static class NonSerializableLong {
+	public static class NonSerializableLong {
 		public Long value;
 
 		private NonSerializableLong(long value) {
@@ -225,7 +226,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 		}
 	}
 	
-	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
+	public static class IdentityKeySelector<T> implements KeySelector<T, T> {
 
 		@Override
 		public T getKey(T value) throws Exception {
