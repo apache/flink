@@ -15,14 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java.typeutils.runtime;
+package org.apache.flink.benchmark.api.java.typeutils.runtime;
+
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.results.RunResult;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
+@State(Scope.Thread)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class FieldAccessMinibenchmark {
 
+	private final long RUNS = 1000000000L;
 	static Field wordDescField;
 	static Field wordField;
 	static {
@@ -31,6 +44,17 @@ public class FieldAccessMinibenchmark {
 			wordField = ComplexWordDescriptor.class.getField("word");
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+
+	@Setup
+	public void warmUp() throws NoSuchFieldException,IllegalAccessException{
+		WC word0 = new WC(14, "Hallo");
+		WC word1 = new WC(3, "Hola");
+		for (long i = 0; i < 100000000; i++) {
+			compareCodeGenPublicFields(word0, word1);
+			compareCodeGenMethods(word0, word1);
+			compareReflective(word0, word1);
 		}
 	}
 
@@ -80,71 +104,67 @@ public class FieldAccessMinibenchmark {
 		return word2cmp1.compareTo(word2cmp2);
 	}
 
-	/**
-	 * results on Core i7 2600k
-	 * 
-	 * 
-	 * warming up Code gen 5019 Reflection 20364 Factor = 4.057382
-	 */
-	public static void main(String[] args) throws NoSuchFieldException,
-			SecurityException, IllegalArgumentException, IllegalAccessException {
-		final long RUNS = 1000000000L;
-
-		final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
-		String jvm = bean.getVmName() + " - " + bean.getVmVendor() + " - "
-				+ bean.getSpecVersion() + '/' + bean.getVmVersion();
-		System.err.println("Jvm info : " + jvm);
-
+	@Benchmark
+	public void codeGenPublicFields() throws NoSuchFieldException {
 		WC word0 = new WC(14, "Hallo");
 		WC word1 = new WC(3, "Hola");
-
-		System.err.println("warming up");
-		for (long i = 0; i < 100000000; i++) {
-			compareCodeGenPublicFields(word0, word1);
-			compareCodeGenMethods(word0, word1);
-			compareReflective(word0, word1);
-		}
-
-		System.err.println("Code gen public fields");
-		long startTime = System.currentTimeMillis();
 		for (long i = 0; i < RUNS; i++) {
 			int a = compareCodeGenPublicFields(word0, word1);
 			if (a == 0) {
 				System.err.println("hah");
 			}
 		}
-		long stopTime = System.currentTimeMillis();
-		long elapsedTimeGen = stopTime - startTime;
-		System.err.println(elapsedTimeGen);
+	}
 
-		System.err.println("Code gen methods");
-		startTime = System.currentTimeMillis();
+	@Benchmark
+	public void codeGenMethods() throws NoSuchFieldException{
+		WC word0 = new WC(14, "Hallo");
+		WC word1 = new WC(3, "Hola");
 		for (long i = 0; i < RUNS; i++) {
 			int a = compareCodeGenPublicFields(word0, word1);
 			if (a == 0) {
 				System.err.println("hah");
 			}
 		}
-		stopTime = System.currentTimeMillis();
-		long elapsedTimeGenMethods = stopTime - startTime;
-		System.err.println(elapsedTimeGenMethods);
+	}
 
-		System.err.println("Reflection");
-
-		startTime = System.currentTimeMillis();
+	@Benchmark
+	public void reflection() throws NoSuchFieldException,IllegalAccessException {
+		WC word0 = new WC(14, "Hallo");
+		WC word1 = new WC(3, "Hola");
 		for (long i = 0; i < RUNS; i++) {
 			int a = compareReflective(word0, word1);
 			if (a == 0) {
 				System.err.println("hah");
 			}
 		}
-		stopTime = System.currentTimeMillis();
-		long elapsedTimeRef = stopTime - startTime;
-		System.err.println(elapsedTimeRef);
+	}
 
-		System.err.println("Factor vs public = "
-				+ (elapsedTimeRef / (float) elapsedTimeGen));
-		System.err.println("Factor vs methods = "
-				+ (elapsedTimeRef / (float) elapsedTimeGenMethods));
+	/**
+	 * results on Core i7 2600k
+	 *
+	 *
+	 * warming up Code gen 5019 Reflection 20364 Factor = 4.057382
+	 */
+	public static void main(String[] args) throws RunnerException {
+
+		Options opt = new OptionsBuilder()
+				.include(FieldAccessMinibenchmark.class.getSimpleName())
+				.warmupIterations(2)
+				.measurementIterations(2)
+				.forks(1)
+				.build();
+		Collection<RunResult> results = new Runner(opt).run();
+		double[] score = new double[3];
+		int count = 0;
+		final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+		String jvm = bean.getVmName() + " - " + bean.getVmVendor() + " - "
+				+ bean.getSpecVersion() + '/' + bean.getVmVersion();
+		System.err.println("Jvm info : " + jvm);
+		for (RunResult r : results) {
+			score[count++] = r.getPrimaryResult().getScore();
+		}
+		System.err.println("Factor vs public = " + score[2] / score[1]);
+		System.err.println("Factor vs methods = " + score[2] / score[0]);
 	}
 }
