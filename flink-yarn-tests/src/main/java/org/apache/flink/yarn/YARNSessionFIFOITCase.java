@@ -119,7 +119,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testDefaultNumberOfTaskManagers() {
 		LOG.info("Starting testDefaultNumberOfTaskManagers()");
 		String configDir = YarnTestBase.getConfigDir();
-		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 						"-jm", "768",
 						"-tm", "1024",
 				},
