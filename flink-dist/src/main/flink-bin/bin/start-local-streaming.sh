@@ -21,4 +21,4 @@ bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 # Start a local Flink cluster in streaming mode
-${bin}/start-local.sh streaming
+"${bin}"/start-local.sh streaming
