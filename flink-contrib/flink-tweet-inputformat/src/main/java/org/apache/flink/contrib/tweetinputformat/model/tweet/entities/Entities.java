@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * entities which have been parsed out of the text of the
+ * Entities which have been parsed out of the text of the
  * {@link org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet}.
  */
 public class Entities {
