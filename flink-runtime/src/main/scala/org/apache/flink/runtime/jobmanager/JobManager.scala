@@ -818,8 +818,16 @@ class JobManager(
         } else {
           defaultExecutionRetries
         }
+
+        val executionRetryDelay = if (jobGraph.getExecutionRetryDelay() >= 0) {
+          jobGraph.getExecutionRetryDelay()
+        }
+        else {
+          delayBetweenRetries
+        }
+
         executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
-        executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
+        executionGraph.setDelayBeforeRetrying(executionRetryDelay)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode())
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling())
 
