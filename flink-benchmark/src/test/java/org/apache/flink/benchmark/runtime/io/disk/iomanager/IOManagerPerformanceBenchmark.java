@@ -611,4 +611,3 @@ public class IOManagerPerformanceBenchmark {
 		new Runner(opt).run();
 	}
 }
-
