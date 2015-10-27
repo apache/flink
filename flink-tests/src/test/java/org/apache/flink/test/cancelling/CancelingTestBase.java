@@ -49,9 +49,9 @@ import scala.concurrent.duration.FiniteDuration;
 /**
  * 
  */
-public abstract class CancellingTestBase extends TestLogger {
+public abstract class CancelingTestBase extends TestLogger {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(CancellingTestBase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CancelingTestBase.class);
 
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 	

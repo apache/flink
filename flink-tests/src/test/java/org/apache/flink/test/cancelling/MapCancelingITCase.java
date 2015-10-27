@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
 import org.junit.Test;
 
-public class MapCancelingITCase extends CancellingTestBase {
+public class MapCancelingITCase extends CancelingTestBase {
 	private static final int parallelism = 4;
 
 	public MapCancelingITCase() {

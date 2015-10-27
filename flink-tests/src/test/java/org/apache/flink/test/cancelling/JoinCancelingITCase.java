@@ -30,12 +30,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
-import org.junit.Test;
 
-public class MatchJoinCancelingITCase extends CancellingTestBase {
+public class JoinCancelingITCase extends CancelingTestBase {
 	private static final int parallelism = 4;
 
-	public MatchJoinCancelingITCase() {
+	public JoinCancelingITCase() {
 		setTaskManagerNumSlots(parallelism);
 	}
 	
