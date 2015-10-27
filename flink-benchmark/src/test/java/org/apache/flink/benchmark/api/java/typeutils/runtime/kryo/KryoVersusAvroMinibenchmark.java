@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime.kryo;
+package org.apache.flink.benchmark.api.java.typeutils.runtime.kryo;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -26,6 +26,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -36,7 +37,14 @@ import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TestDataOutputSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemoryUtils;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
+@State(Scope.Thread)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class KryoVersusAvroMinibenchmark {
 
 	private static final long SEED = 94762389741692387L;
@@ -44,80 +52,68 @@ public class KryoVersusAvroMinibenchmark {
 	private static final Random rnd = new Random(SEED);
 	
 	private static final int NUM_ELEMENTS = 100000;
-	
-	private static final int NUM_RUNS = 10;
-	
-	
-	
-	public static void main(String[] args) throws Exception {
-		
-		final MyType[] elements = new MyType[NUM_ELEMENTS];
-		for (int i = 0; i < NUM_ELEMENTS; i++) {
-			elements[i] = MyType.getRandom();
-		}
-		
-		final MyType dummy = new MyType();
-		
-		long[] timesAvro = new long[NUM_RUNS];
-		long[] timesKryo = new long[NUM_RUNS];
-		
-		for (int i = 0; i < NUM_RUNS; i++) {
-			System.out.println("----------------- Starting run " + i + " ---------------------");
-			
-			System.out.println("Avro serializer");
-			{
-				final TestDataOutputSerializer outView = new TestDataOutputSerializer(100000000);
-				final AvroSerializer<MyType> serializer = new AvroSerializer<MyType>(MyType.class);
-				
-				long start = System.nanoTime();
-				
-				for (int k = 0; k < NUM_ELEMENTS; k++) {
-					serializer.serialize(elements[k], outView);
-				}
-				
-				final DataInputDeserializer inView = new DataInputDeserializer(outView.wrapAsByteBuffer());
-				for (int k = 0; k < NUM_ELEMENTS; k++) {
-					serializer.deserialize(dummy, inView);
-				}
-				
-				long elapsed = System.nanoTime() - start;
-				System.out.println("Took: " + (elapsed / 1000000) + " msecs");
-				timesAvro[i] = elapsed;
-			}
-			
-			System.gc();
-			
-			System.out.println("Kryo serializer");
-			{
-				final TestDataOutputSerializer outView = new TestDataOutputSerializer(100000000);
-				ExecutionConfig conf = new ExecutionConfig();
-				conf.registerKryoType(MyType.class);
-				conf.enableForceKryo();
-				TypeInformation<MyType> typeInfo = new GenericTypeInfo<MyType>(MyType.class);
-				final TypeSerializer<MyType> serializer = typeInfo.createSerializer(conf);
 
-				long start = System.nanoTime();
-				
-				for (int k = 0; k < NUM_ELEMENTS; k++) {
-					serializer.serialize(elements[k], outView);
-				}
-				
-				final DataInputDeserializer inView = new DataInputDeserializer(outView.wrapAsByteBuffer());
-				for (int k = 0; k < NUM_ELEMENTS; k++) {
-					serializer.deserialize(dummy, inView);
-				}
-				
-				long elapsed = System.nanoTime() - start;
-				System.out.println("Took: " + (elapsed / 1000000) + " msecs");
-				timesKryo[i] = elapsed;
-			}
+	@Param({"1","2","3","4","5","6","7","8","9","10"})
+	private static int runTime;
+
+	private MyType[] elements ;
+
+	private MyType dummy;
+
+	@Setup
+	public void init() {
+		this.elements = new MyType[NUM_ELEMENTS];
+		for (int i = 0; i < NUM_ELEMENTS; i++) {
+			this.elements[i] = MyType.getRandom();
+		}
+		this.dummy = new MyType();
+	}
+
+	@Benchmark
+	public void avroSerializer() throws IOException {
+		final TestDataOutputSerializer outView = new TestDataOutputSerializer(10000000);
+		final AvroSerializer<MyType> serializer = new AvroSerializer<MyType>(MyType.class);
+
+		for (int k = 0; k < NUM_ELEMENTS; k++) {
+			serializer.serialize(elements[k], outView);
+		}
+
+		final DataInputDeserializer inView = new DataInputDeserializer(outView.wrapAsByteBuffer());
+		for (int k = 0; k < NUM_ELEMENTS; k++) {
+			serializer.deserialize(dummy, inView);
 		}
 	}
-	
-	
-	
-	
-	
+
+	@Benchmark
+	public void kryoSerializer() throws IOException {
+		final TestDataOutputSerializer outView = new TestDataOutputSerializer(10000000);
+		ExecutionConfig conf = new ExecutionConfig();
+		conf.registerKryoType(MyType.class);
+		conf.enableForceKryo();
+		TypeInformation<MyType> typeInfo = new GenericTypeInfo<MyType>(MyType.class);
+		final TypeSerializer<MyType> serializer = typeInfo.createSerializer(conf);
+
+		for (int k = 0; k < NUM_ELEMENTS; k++) {
+			serializer.serialize(elements[k], outView);
+		}
+
+		final DataInputDeserializer inView = new DataInputDeserializer(outView.wrapAsByteBuffer());
+		for (int k = 0; k < NUM_ELEMENTS; k++) {
+			serializer.deserialize(dummy, inView);
+		}
+	}
+
+	public static void main(String[] args) throws Exception {
+
+		Options opt = new OptionsBuilder()
+				.include(KryoVersusAvroMinibenchmark.class.getSimpleName())
+				.warmupIterations(2)
+				.measurementIterations(2)
+				.forks(1)
+				.build();
+		new Runner(opt).run();
+	}
+
 	public static class MyType {
 		
 		private String theString;
