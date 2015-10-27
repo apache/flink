@@ -248,7 +248,7 @@ public class ExecutionConfig implements Serializable {
 	}
 	
 	/**
-	 * @return The delay between retires.
+	 * Returns the delay between execution retries.
 	 */
 	public long getExecutionRetryDelay() {
 		return executionRetryDelay;

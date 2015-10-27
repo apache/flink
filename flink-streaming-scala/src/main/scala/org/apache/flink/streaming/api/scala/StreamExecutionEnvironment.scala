@@ -233,23 +233,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
-  /**
-   * Sets the delay that failed tasks are re-executed. A value of
-   * zero effectively disables fault tolerance. A value of "-1"
-   * indicates that the system default value (as defined in the configuration)
-   * should be used.
-   */
-  def setExecutionRetryDelay(executionRetryDelay: Long): Unit = {
-    javaEnv.setExecutionRetryDelay(executionRetryDelay)
-  }
-
-  /**
-   * Gets the delay time in milliseconds the system will wait to re-execute failed tasks.
-   * A value of "-1" indicates that the system default value (as defined
-   * in the configuration) should be used.
-   */
-  def getExecutionRetryDelay = javaEnv.getExecutionRetryDelay
-
   // --------------------------------------------------------------------------------------------
   // Registry for types and serializers
   // --------------------------------------------------------------------------------------------

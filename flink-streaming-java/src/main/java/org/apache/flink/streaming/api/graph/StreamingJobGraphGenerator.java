@@ -99,7 +99,7 @@ public class StreamingJobGraphGenerator {
 		configureCheckpointing();
 
 		configureExecutionRetries();
-		
+
 		configureExecutionRetryDelay();
 
 		try {
@@ -416,10 +416,6 @@ public class StreamingJobGraphGenerator {
 			if(executionRetries == -1) {
 				streamGraph.getExecutionConfig().setNumberOfExecutionRetries(Integer.MAX_VALUE);
 			}
-			long executionRetryDelay = streamGraph.getExecutionConfig().getExecutionRetryDelay();
-			if(executionRetryDelay == -1) {
-				streamGraph.getExecutionConfig().setExecutionRetryDelay(100 * 1000);
-			}
 		}
 	}
 
@@ -432,13 +428,9 @@ public class StreamingJobGraphGenerator {
 			jobGraph.setNumberOfExecutionRetries(0);
 		}
 	}
-	
+
 	private void configureExecutionRetryDelay() {
 		long executionRetryDelay = streamGraph.getExecutionConfig().getExecutionRetryDelay();
-		if (executionRetryDelay != -1) {
-			jobGraph.setExecutionRetryDelay(executionRetryDelay);
-		} else {
-			jobGraph.setExecutionRetryDelay(100 * 1000);
-		}
+		jobGraph.setExecutionRetryDelay(executionRetryDelay);
 	}
 }
