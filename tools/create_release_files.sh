@@ -101,11 +101,18 @@ prepare() {
 # create source package
 make_source_release() {
 
-  #find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
+  #change version in all pom files
   if [ "$(uname)" == "Darwin" ]; then
       find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
   else
       find . -name 'pom.xml' -type f -exec sed -i    's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+  fi
+
+  #change version in quickstart archetypes
+  if [ "$(uname)" == "Darwin" ]; then
+      find . -name 'pom.xml' -type f -exec sed -i "" 's#<flink.version>'$OLD_VERSION'</flink.version>#<flink.version>'$NEW_VERSION'</flink.version>#' {} \;
+  else
+      find . -name 'pom.xml' -type f -exec sed -i    's#<flink.version>'$OLD_VERSION'</flink.version>#<flink.version>'$NEW_VERSION'</flink.version>#' {} \;
   fi
 
   git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
