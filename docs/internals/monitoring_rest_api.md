@@ -86,7 +86,7 @@ Sample Result:
   "refresh-interval": 3000,
   "timezone-offset": 3600000,
   "timezone-name": "Central European Time",
-  "flink-version": "0.10-SNAPSHOT",
+  "flink-version": "{{ site.version }}",
   "flink-revision": "8124545 @ 16.09.2015 @ 15:38:42 CEST"
 }
 ~~~

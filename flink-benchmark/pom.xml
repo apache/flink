@@ -60,7 +60,7 @@ under the License.
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-runtime</artifactId>
-      <version>0.10-SNAPSHOT</version>
+      <version>1.0-SNAPSHOT</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
