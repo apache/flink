@@ -328,7 +328,7 @@ Change your projects `pom.xml` file like this:
 	<dependency>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-java</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>
 				<groupId>log4j</groupId>
@@ -343,7 +343,7 @@ Change your projects `pom.xml` file like this:
 	<dependency>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-streaming-java</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>
 				<groupId>log4j</groupId>
@@ -358,7 +358,7 @@ Change your projects `pom.xml` file like this:
 	<dependency>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-clients</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>
 				<groupId>log4j</groupId>
