@@ -19,233 +19,135 @@
 
 package org.apache.flink.test.cancelling;
 
-//import org.junit.Test;
-
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.api.java.record.operators.GenericDataSink;
-import org.apache.flink.api.java.record.operators.GenericDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.RichJoinFunction;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.recordJobs.util.DiscardingOutputFormat;
-import org.apache.flink.test.recordJobs.util.InfiniteIntegerInputFormat;
-import org.apache.flink.test.recordJobs.util.InfiniteIntegerInputFormatWithDelay;
-import org.apache.flink.test.recordJobs.util.UniformIntInput;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
+import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
+import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
+import org.junit.Test;
 
-@SuppressWarnings("deprecation")
 public class MatchJoinCancelingITCase extends CancellingTestBase {
 	private static final int parallelism = 4;
 
-	public MatchJoinCancelingITCase(){
+	public MatchJoinCancelingITCase() {
 		setTaskManagerNumSlots(parallelism);
 	}
 	
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
+	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow) throws Exception {
+		executeTask(joiner, slow, parallelism);
+	}
+
+	private void executeTask(JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner, boolean slow, int parallelism) throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<Integer, Integer>> input1 = env.createInput(new InfiniteIntegerTupleInputFormat(slow));
+		DataSet<Tuple2<Integer, Integer>> input2 = env.createInput(new InfiniteIntegerTupleInputFormat(slow));
+
+		input1.join(input2, JoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE)
+				.where(0)
+				.equalTo(0)
+				.with(joiner)
+				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+
+		env.setParallelism(parallelism);
+
+		runAndCancelJob(env.createProgramPlan(), 5 * 1000, 10 * 1000);
+	}
+
 //	@Test
 	public void testCancelSortMatchWhileReadingSlowInputs() throws Exception {
-		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(new InfiniteIntegerInputFormatWithDelay(), "Source 1");
-
-		GenericDataSource<InfiniteIntegerInputFormatWithDelay> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormatWithDelay>(new InfiniteIntegerInputFormatWithDelay(), "Source 2");
-		
-		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Sort Join")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(parallelism);
-		
-		runAndCancelJob(p, 3000, 10*1000);
+		executeTask(new SimpleMatcher<Integer>(), true);
 	}
 
 //	@Test
 	public void testCancelSortMatchWhileReadingFastInputs() throws Exception {
-		GenericDataSource<InfiniteIntegerInputFormat> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
-
-		GenericDataSource<InfiniteIntegerInputFormat> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
-		
-		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Sort Join")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(parallelism);
-		
-		runAndCancelJob(p, 5000, 10*1000);
+		executeTask(new SimpleMatcher<Integer>(), false);
 	}
 	
 //	@Test
 	public void testCancelSortMatchPriorToFirstRecordReading() throws Exception {
-		GenericDataSource<InfiniteIntegerInputFormat> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
+		executeTask(new StuckInOpenMatcher<Integer>(), false);
+	}
 
-		GenericDataSource<InfiniteIntegerInputFormat> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
-		
-		JoinOperator matcher = JoinOperator.builder(StuckInOpenMatcher.class, IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Stuc-In-Open Match")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(parallelism);
-		
-		runAndCancelJob(p, 5000);
-		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+	private void executeTaskWithGenerator(
+			JoinFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> joiner,
+			int keys, int vals, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
+		UniformIntTupleGenerator g = new UniformIntTupleGenerator(keys, vals, false);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<Integer, Integer>> input1 = env.createInput(new UniformIntTupleGeneratorInputFormat(keys, vals));
+		DataSet<Tuple2<Integer, Integer>> input2 = env.createInput(new UniformIntTupleGeneratorInputFormat(keys, vals));
+
+		input1.join(input2, JoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE)
+				.where(0)
+				.equalTo(0)
+				.with(joiner)
+				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+
+		env.setParallelism(parallelism);
+
+		runAndCancelJob(env.createProgramPlan(), msecsTillCanceling, maxTimeTillCanceled);
 	}
 	
 //	@Test
 	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception {
-		GenericDataSource<UniformIntInput> source1 =
-			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
-		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
-		source1.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
-
-		GenericDataSource<UniformIntInput> source2 =
-			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 2");
-		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 50000);
-		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 100);
-		
-		JoinOperator matcher = JoinOperator.builder(SimpleMatcher.class, IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Long Cancelling Sort Join")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(parallelism);
-		
-		runAndCancelJob(p, 30 * 1000, 30 * 1000);
+		executeTaskWithGenerator(new SimpleMatcher<Integer>(), 50000, 100, 30 * 1000, 30 * 1000);
 	}
-	
-	
+
 	// --------------- Test Sort Matches that are canceled while in the Matching Phase -----------------
 	
 //	@Test
 	public void testCancelSortMatchWhileJoining() throws Exception {
-		GenericDataSource<UniformIntInput> source1 =
-			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
-		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
-		source1.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
-
-		GenericDataSource<UniformIntInput> source2 =
-			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 2");
-		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
-		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
-		
-		JoinOperator matcher = JoinOperator.builder(DelayingMatcher.class, IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Long Cancelling Sort Join")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(parallelism);
-		
-		runAndCancelJob(p, 10 * 1000, 20 * 1000);
+		executeTaskWithGenerator(new DelayingMatcher<Integer>(), 500, 3, 10 * 1000, 20 * 1000);
 	}
 	
 //	@Test
 	public void testCancelSortMatchWithLongCancellingResponse() throws Exception {
-		
-		GenericDataSource<UniformIntInput> source1 =
-			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 1");
-		source1.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
-		source1.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
-
-		GenericDataSource<UniformIntInput> source2 =
-			new GenericDataSource<UniformIntInput>(new UniformIntInput(), "Source 2");
-		source2.setParameter(UniformIntInput.NUM_KEYS_KEY, 500);
-		source2.setParameter(UniformIntInput.NUM_VALUES_KEY, 3);
-		
-		JoinOperator matcher = JoinOperator.builder(LongCancelTimeMatcher.class, IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Long Cancelling Sort Join")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(parallelism);
-		
-		runAndCancelJob(p, 10 * 1000, 10 * 1000);
+		executeTaskWithGenerator(new LongCancelTimeMatcher<Integer>(), 500, 3, 10 * 1000, 10 * 1000);
 	}
 
 	// -------------------------------------- Test System corner cases ---------------------------------
 	
 //	@Test
 	public void testCancelSortMatchWithHighparallelism() throws Exception {
-		
-		GenericDataSource<InfiniteIntegerInputFormat> source1 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");
-
-		GenericDataSource<InfiniteIntegerInputFormat> source2 =
-			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 2");
-		
-		JoinOperator matcher = JoinOperator.builder(new SimpleMatcher(), IntValue.class, 0, 0)
-			.input1(source1)
-			.input2(source2)
-			.name("Sort Join")
-			.build();
-		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
-		
-		Plan p = new Plan(sink);
-		p.setDefaultParallelism(64);
-		
-		runAndCancelJob(p, 3000, 20*1000);
+		executeTask(new SimpleMatcher<Integer>(), false, 64);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class SimpleMatcher extends JoinFunction {
+	public static final class SimpleMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
-			value1.setField(1, value2.getField(0, IntValue.class));
-			out.collect(value1);
+		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
+			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
 	
-	public static final class DelayingMatcher extends JoinFunction {
+	public static final class DelayingMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 		
 		private static final int WAIT_TIME_PER_RECORD = 10 * 1000; // 10 sec.
 
 		@Override
-		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
+		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
 			Thread.sleep(WAIT_TIME_PER_RECORD);
-			value1.setField(1, value2.getField(0, IntValue.class));
-			out.collect(value1);
+			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
 	
-	public static final class LongCancelTimeMatcher extends JoinFunction {
+	public static final class LongCancelTimeMatcher<IN> implements JoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 		
 		private static final int WAIT_TIME_PER_RECORD = 5 * 1000; // 5 sec.
 		
 		@Override
-		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
-			value1.setField(1, value2.getField(0, IntValue.class));
-			
+		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
 			final long start = System.currentTimeMillis();
 			long remaining = WAIT_TIME_PER_RECORD;
 			do {
@@ -253,12 +155,11 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 					Thread.sleep(remaining);
 				} catch (InterruptedException iex) {}
 			} while ((remaining = WAIT_TIME_PER_RECORD - System.currentTimeMillis() + start) > 0);
-			
-			out.collect(value1);
+			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
 	
-	public static final class StuckInOpenMatcher extends JoinFunction {
+	public static final class StuckInOpenMatcher<IN> extends RichJoinFunction<Tuple2<IN, IN>, Tuple2<IN, IN>, Tuple2<IN, IN>> {
 		private static final long serialVersionUID = 1L;
 		
 		@Override
@@ -269,9 +170,8 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		}
 
 		@Override
-		public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
-			value1.setField(1, value2.getField(0, IntValue.class));
-			out.collect(value1);
+		public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
+			return new Tuple2<>(first.f0, second.f0);
 		}
 	}
 }

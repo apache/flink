@@ -22,10 +22,23 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
+import org.apache.flink.api.common.operators.DualInputOperator;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.client.program.OptimizerPlanEnvironment;
+import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
@@ -35,23 +48,25 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.optimizer.util.OperatorResolver;
-import org.apache.flink.test.recordJobs.relational.TPCHQuery3;
+import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
  * Tests TPCH Q3 (simplified) under various input conditions.
  */
-@SuppressWarnings("deprecation")
+@SuppressWarnings("serial")
 public class RelationalQueryCompilerTest extends CompilerTestBase {
 	
 	private static final String ORDERS = "Orders";
 	private static final String LINEITEM = "LineItems";
 	private static final String MAPPER_NAME = "FilterO";
 	private static final String JOIN_NAME = "JoinLiO";
+	private static final String REDUCE_NAME = "AggLiO";
+	private static final String SINK = "Output";
 	
 	private final FieldList set0 = new FieldList(0);
-	private final FieldList set01 = new FieldList(new int[] {0,1});
+	private final FieldList set01 = new FieldList(0,1);
 	private final ExecutionConfig defaultExecutionConfig = new ExecutionConfig();
 	
 	// ------------------------------------------------------------------------
@@ -63,8 +78,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	@Test
 	public void testQueryNoStatistics() {
 		try {
-			TPCHQuery3 query = new TPCHQuery3();
-			Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+			Plan p = getTPCH3Plan();
 			p.setExecutionConfig(defaultExecutionConfig);
 			// compile
 			final OptimizedPlan plan = compileNoStats(p);
@@ -72,12 +86,12 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			final OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);
 			
 			// get the nodes from the final plan
-			final SinkPlanNode sink = or.getNode("Output");
-			final SingleInputPlanNode reducer = or.getNode("AggLio");
+			final SinkPlanNode sink = or.getNode(SINK);
+			final SingleInputPlanNode reducer = or.getNode(REDUCE_NAME);
 			final SingleInputPlanNode combiner = reducer.getPredecessor() instanceof SingleInputPlanNode ?
 					(SingleInputPlanNode) reducer.getPredecessor() : null;
-			final DualInputPlanNode join = or.getNode("JoinLiO");
-			final SingleInputPlanNode filteringMapper = or.getNode("FilterO");
+			final DualInputPlanNode join = or.getNode(JOIN_NAME);
+			final SingleInputPlanNode filteringMapper = or.getNode(MAPPER_NAME);
 			
 			// verify the optimizer choices
 			checkStandardStrategies(filteringMapper, join, combiner, reducer, sink);
@@ -95,7 +109,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryAnyValidPlan() {
-		testQueryGeneric(1024*1024*1024L, 8*1024*1024*1024L, 0.05f, true, true, true, false, true);
+		testQueryGeneric(1024*1024*1024L, 8*1024*1024*1024L, 0.05f, 0.05f, true, true, true, false, true);
 	}
 	
 	/**
@@ -103,7 +117,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithSizeZeroInputs() {
-		testQueryGeneric(0, 0, 0.5f, true, true, true, false, true);
+		testQueryGeneric(0, 0, 0.1f, 0.5f, true, true, true, false, true);
 	}
 	
 	/**
@@ -111,7 +125,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForBroadcastHash() {
-		testQueryGeneric(1024l*1024*1024*1024, 1024l*1024*1024*1024, 0.05f, true, false, true, false, false);
+		testQueryGeneric(1024l*1024*1024*1024, 1024l*1024*1024*1024, 0.01f, 0.05f, true, false, true, false, false);
 	}
 	
 	/**
@@ -119,7 +133,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForRepartitionAny() {
-		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.5f, false, true, true, true, true);
+		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.1f, 0.5f, false, true, true, true, true);
 	}
 	
 	/**
@@ -128,34 +142,23 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForRepartitionMerge() {
-		TPCHQuery3 query = new TPCHQuery3();
-		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+		Plan p = getTPCH3Plan();
 		p.setExecutionConfig(defaultExecutionConfig);
 		// set compiler hints
 		OperatorResolver cr = getContractResolver(p);
-		JoinOperator match = cr.getNode("JoinLiO");
+		DualInputOperator<?,?,?,?> match = cr.getNode(JOIN_NAME);
 		match.getCompilerHints().setFilterFactor(100f);
 		
-		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.05f, 100f, false, true, false, false, true);
+		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.01f, 100f, false, true, false, false, true);
 	}
 	
 	// ------------------------------------------------------------------------
-	
-	private void testQueryGeneric(long orderSize, long lineItemSize, 
-			float ordersFilterFactor, 
-			boolean broadcastOkay, boolean partitionedOkay,
-			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
-	{
-		testQueryGeneric(orderSize, lineItemSize, ordersFilterFactor, ordersFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
-	}
-	
 	private void testQueryGeneric(long orderSize, long lineItemSize, 
 			float ordersFilterFactor, float joinFilterFactor,
 			boolean broadcastOkay, boolean partitionedOkay,
 			boolean hashJoinFirstOkay, boolean hashJoinSecondOkay, boolean mergeJoinOkay)
 	{
-		TPCHQuery3 query = new TPCHQuery3();
-		Plan p = query.getPlan(DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE);
+		Plan p = getTPCH3Plan();
 		p.setExecutionConfig(defaultExecutionConfig);
 		testQueryGeneric(p, orderSize, lineItemSize, ordersFilterFactor, joinFilterFactor, broadcastOkay, partitionedOkay, hashJoinFirstOkay, hashJoinSecondOkay, mergeJoinOkay);
 	}
@@ -168,10 +171,10 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		try {
 			// set statistics
 			OperatorResolver cr = getContractResolver(p);
-			FileDataSource ordersSource = cr.getNode(ORDERS);
-			FileDataSource lineItemSource = cr.getNode(LINEITEM);
-			MapOperator mapper = cr.getNode(MAPPER_NAME);
-			JoinOperator joiner = cr.getNode(JOIN_NAME);
+			GenericDataSourceBase<?,?> ordersSource = cr.getNode(ORDERS);
+			GenericDataSourceBase<?,?> lineItemSource = cr.getNode(LINEITEM);
+			SingleInputOperator<?,?,?> mapper = cr.getNode(MAPPER_NAME);
+			DualInputOperator<?,?,?,?> joiner = cr.getNode(JOIN_NAME);
 			setSourceStatistics(ordersSource, orderSize, 100f);
 			setSourceStatistics(lineItemSource, lineitemSize, 140f);
 			mapper.getCompilerHints().setAvgOutputRecordSize(16f);
@@ -183,12 +186,12 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			final OptimizerPlanNodeResolver or = getOptimizerPlanNodeResolver(plan);
 			
 			// get the nodes from the final plan
-			final SinkPlanNode sink = or.getNode("Output");
-			final SingleInputPlanNode reducer = or.getNode("AggLio");
+			final SinkPlanNode sink = or.getNode(SINK);
+			final SingleInputPlanNode reducer = or.getNode(REDUCE_NAME);
 			final SingleInputPlanNode combiner = reducer.getPredecessor() instanceof SingleInputPlanNode ?
 					(SingleInputPlanNode) reducer.getPredecessor() : null;
-			final DualInputPlanNode join = or.getNode("JoinLiO");
-			final SingleInputPlanNode filteringMapper = or.getNode("FilterO");
+			final DualInputPlanNode join = or.getNode(JOIN_NAME);
+			final SingleInputPlanNode filteringMapper = or.getNode(MAPPER_NAME);
 			
 			checkStandardStrategies(filteringMapper, join, combiner, reducer, sink);
 			
@@ -230,7 +233,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	// ------------------------------------------------------------------------
 	//  Checks for special conditions
 	// ------------------------------------------------------------------------
-	
+
 	private void checkStandardStrategies(SingleInputPlanNode map, DualInputPlanNode join, SingleInputPlanNode combiner,
 			SingleInputPlanNode reducer, SinkPlanNode sink)
 	{
@@ -239,7 +242,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
 		
 		// check the driver strategies that are always fix
-		Assert.assertEquals(DriverStrategy.COLLECTOR_MAP, map.getDriverStrategy());
+		Assert.assertEquals(DriverStrategy.FLAT_MAP, map.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
 		Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
 		if (combiner != null) {
@@ -346,6 +349,75 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			return true;
 		} else {
 			return false;
+		}
+	}
+
+	public static Plan getTPCH3Plan() {
+		// prepare the test environment
+		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		env.setAsContext();
+		try {
+			TCPH3(new String[]{DEFAULT_PARALLELISM_STRING, IN_FILE, IN_FILE, OUT_FILE});
+		} catch (OptimizerPlanEnvironment.ProgramAbortException pae) {
+			// all good.
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("TCPH3 failed with an exception");
+		}
+		return env.getPlan();
+	}
+
+	public static void TCPH3(String[] args) throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(Integer.parseInt(args[0]));
+
+		//order id, order status, order data, order prio, ship prio
+		DataSet<Tuple5<Long, String, String, String, Integer>> orders
+				= env.readCsvFile(args[1])
+				.fieldDelimiter("|").lineDelimiter("\n")
+				.includeFields("101011001").types(Long.class, String.class, String.class, String.class, Integer.class)
+				.name(ORDERS);
+
+		//order id, extended price
+		DataSet<Tuple2<Long, Double>> lineItems
+				= env.readCsvFile(args[2])
+				.fieldDelimiter("|").lineDelimiter("\n")
+				.includeFields("100001").types(Long.class, Double.class)
+				.name(LINEITEM);
+
+		DataSet<Tuple2<Long, Integer>> filterO = orders.flatMap(new FilterO()).name(MAPPER_NAME);
+
+		DataSet<Tuple3<Long, Integer, Double>> joinLiO = filterO.join(lineItems).where(0).equalTo(0).with(new JoinLiO()).name(JOIN_NAME);
+
+		DataSet<Tuple3<Long, Integer, Double>> aggLiO = joinLiO.groupBy(0, 1).reduceGroup(new AggLiO()).name(REDUCE_NAME);
+
+		aggLiO.writeAsCsv(args[3], "\n", "|").name(SINK);
+
+		env.execute();
+	}
+
+	@ForwardedFields("f0; f4->f1")
+	public static class FilterO implements FlatMapFunction<Tuple5<Long, String, String, String, Integer>, Tuple2<Long, Integer>> {
+		@Override
+		public void flatMap(Tuple5<Long, String, String, String, Integer> value, Collector<Tuple2<Long, Integer>> out) throws Exception {
+			// not going to be executed
+		}
+	}
+
+	@ForwardedFieldsFirst("f0; f1")
+	public static class JoinLiO implements FlatJoinFunction<Tuple2<Long, Integer>, Tuple2<Long, Double>, Tuple3<Long, Integer, Double>> {
+		@Override
+		public void join(Tuple2<Long, Integer> first, Tuple2<Long, Double> second, Collector<Tuple3<Long, Integer, Double>> out) throws Exception {
+			// not going to be executed
+		}
+	}
+
+	@ForwardedFields("f0; f1")
+	@Combinable
+	public static class AggLiO extends RichGroupReduceFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>> {
+		@Override
+		public void reduce(Iterable<Tuple3<Long, Integer, Double>> values, Collector<Tuple3<Long, Integer, Double>> out) throws Exception {
+			// not going to be executed
 		}
 	}
 }

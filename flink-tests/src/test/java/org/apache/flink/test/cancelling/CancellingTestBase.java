@@ -19,12 +19,9 @@
 
 package org.apache.flink.test.cancelling;
 
-import java.util.concurrent.atomic.AtomicReference;
-
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobCancellationException;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
@@ -38,11 +35,16 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import static org.apache.flink.runtime.taskmanager.TaskCancelTest.awaitRunning;
+import static org.apache.flink.runtime.taskmanager.TaskCancelTest.cancelJob;
+import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.junit.After;
 import org.junit.Before;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * 
@@ -80,8 +82,14 @@ public abstract class CancellingTestBase extends TestLogger {
 		verifyJvmOptions();
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, 4096);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 2048);
 
-		this.executor = new ForkableFlinkMiniCluster(config);
+		this.executor = new ForkableFlinkMiniCluster(config, false);
+		this.executor.start();
 	}
 
 	@After
@@ -104,43 +112,27 @@ public abstract class CancellingTestBase extends TestLogger {
 		try {
 			// submit job
 			final JobGraph jobGraph = getJobGraph(plan);
-			
-			final Thread currentThread = Thread.currentThread();
-			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-			
-			boolean jobSuccessfullyCancelled = false;
 
-			// trigger the cancelling asynchronous
-			new Thread() {
-				@Override
-				public void run() {
-					try {
-						Thread.sleep(msecsTillCanceling);
-						executor.getLeaderGateway(TestingUtils.TESTING_DURATION())
-							.tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
-					}
-					catch (Throwable t) {
-						error.set(t);
-						currentThread.interrupt();
-					}
-				}
-			}.run();
+			executor.submitJobDetached(jobGraph);
 
-			try {
-				executor.submitJobAndWait(jobGraph, false);
-			}
-			catch (JobCancellationException exception) {
-				jobSuccessfullyCancelled = true;
-			}
-			catch (Exception e) {
-				throw new IllegalStateException("Job failed.", e);
-			}
+			// Wait for the job to make some progress and then cancel
+			awaitRunning(
+					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
+					jobGraph.getJobID(),
+					TestingUtils.TESTING_DURATION());
 
-			if (!jobSuccessfullyCancelled) {
-				throw new IllegalStateException("Job was not successfully cancelled.");
-			}
-		}
-		catch(Exception e) {
+			Thread.sleep(msecsTillCanceling);
+
+			cancelJob(
+					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
+					jobGraph.getJobID(),
+					new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS));
+
+			// Wait for the job to be cancelled
+			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.CANCELED,
+					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
+					TestingUtils.TESTING_DURATION());
+		} catch (Exception e) {
 			LOG.error("Exception found in runAndCancelJob.", e);
 			Assert.fail(StringUtils.stringifyException(e));
 		}
@@ -154,7 +146,11 @@ public abstract class CancellingTestBase extends TestLogger {
 		return jgg.compileJobGraph(op);
 	}
 
-	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
+		this.taskManagerNumSlots = taskManagerNumSlots;
+	}
 
-	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
+	public int getTaskManagerNumSlots() {
+		return this.taskManagerNumSlots;
+	}
 }

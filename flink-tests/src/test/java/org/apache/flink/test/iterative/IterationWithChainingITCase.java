@@ -18,42 +18,24 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
-
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.recordJobs.kmeans.udfs.PointInFormat;
-import org.apache.flink.test.recordJobs.kmeans.udfs.PointOutFormat;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.test.util.PointFormatter;
+import org.apache.flink.test.util.PointInFormat;
+import org.apache.flink.test.util.CoordVector;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
-@SuppressWarnings("deprecation")
-@RunWith(Parameterized.class)
-public class IterationWithChainingITCase extends RecordAPITestBase {
+public class IterationWithChainingITCase extends JavaProgramTestBase {
 
 	private static final String DATA_POINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
 	private String dataPath;
 	private String resultPath;
-
-	public IterationWithChainingITCase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(parallelism);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {
@@ -62,63 +44,35 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 	}
 
 	@Override
-	protected void postSubmit() throws Exception {
+	protected void testProgram() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple2<Integer, CoordVector>> initialInput
+				= env.readFile(new PointInFormat(), dataPath).setParallelism(1).name("Input");
+
+		IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2).name("Loop");
+
+		DataSet<Tuple2<Integer, CoordVector>> identity
+				= iteration.groupBy(0).reduceGroup(new GroupReduceFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>() {
+					@Override
+					public void reduce(Iterable<Tuple2<Integer, CoordVector>> values, Collector<Tuple2<Integer, CoordVector>> out) throws Exception {
+						for (Tuple2<Integer, CoordVector> value : values) {
+							out.collect(value);
+						}
+					}
+				}).map(new MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>() {
+					@Override
+					public Tuple2<Integer, CoordVector> map(Tuple2<Integer, CoordVector> value) throws Exception {
+						return value;
+					}
+
+				});
+
+		iteration.closeWith(identity).writeAsFormattedText(resultPath, new PointFormatter());
+
+		env.execute("Iteration with chained map test");
+
 		compareResultsByLinesInMemory(DATA_POINTS, resultPath);
-	}
-
-	@Override
-	protected Plan getTestJob() {
-		return getTestPlan(config.getInteger("ChainedMapperITCase#NoSubtasks", 1), dataPath, resultPath);
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("ChainedMapperITCase#NoSubtasks", parallelism);
-		return toParameterList(config1);
-	}
-
-	public static final class IdentityMapper extends MapFunction implements Serializable {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void map(Record rec, Collector<Record> out) {
-			out.collect(rec);
-		}
-	}
-
-	public static final class DummyReducer extends ReduceFunction implements Serializable {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
-			while (it.hasNext()) {
-				out.collect(it.next());
-			}
-		}
-	}
-
-	static Plan getTestPlan(int numSubTasks, String input, String output) {
-
-		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
-		initialInput.setParallelism(1);
-
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(initialInput);
-		iteration.setMaximumNumberOfIterations(2);
-
-		ReduceOperator dummyReduce = ReduceOperator.builder(new DummyReducer(), IntValue.class, 0).input(iteration.getPartialSolution())
-				.name("Reduce something").build();
-
-		MapOperator dummyMap = MapOperator.builder(new IdentityMapper()).input(dummyReduce).build();
-		iteration.setNextPartialSolution(dummyMap);
-
-		FileDataSink finalResult = new FileDataSink(new PointOutFormat(), output, iteration, "Output");
-
-		Plan plan = new Plan(finalResult, "Iteration with chained map test");
-		plan.setDefaultParallelism(numSubTasks);
-		return plan;
 	}
 }
