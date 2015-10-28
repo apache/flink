@@ -145,7 +145,7 @@ Execute the following commands:
 2. Setup a new Flink project using the quickstarts:
 
    ~~~bash
-   curl http://flink.apache.org/q/quickstart.sh | bash
+   curl https://flink.apache.org/q/quickstart.sh | bash
    ~~~
 
 3. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
