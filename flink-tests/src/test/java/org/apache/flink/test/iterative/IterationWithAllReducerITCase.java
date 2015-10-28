@@ -18,91 +18,34 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.Serializable;
-import java.util.Iterator;
+import java.util.List;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.io.CsvOutputFormat;
-import org.apache.flink.api.java.record.io.TextInputFormat;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
-import org.apache.flink.util.Collector;
-import org.junit.Assert;
-
-@SuppressWarnings("deprecation")
-public class IterationWithAllReducerITCase extends RecordAPITestBase {
-
-	private static final String INPUT = "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
+public class IterationWithAllReducerITCase extends JavaProgramTestBase {
 	private static final String EXPECTED = "1\n";
 
-	protected String dataPath;
-	protected String resultPath;
-
-	public IterationWithAllReducerITCase(){
-		setTaskManagerNumSlots(4);
-	}
-
 	@Override
-	protected void preSubmit() throws Exception {
-		dataPath = createTempFile("datapoints.txt", INPUT);
-		resultPath = getTempFilePath("result");
-	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(EXPECTED, resultPath);
-	}
+	protected void testProgram() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
 
-	@Override
-	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(parallelism, dataPath, resultPath);
-		return plan;
-	}
+		DataSet<String> initialInput = env.fromElements("1", "1", "1", "1", "1", "1", "1", "1");
 
-	
-	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
+		IterativeDataSet<String> iteration = initialInput.iterate(5).name("Loop");
 
-		FileDataSource initialInput = new FileDataSource(TextInputFormat.class, input, "input");
-		
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(initialInput);
-		iteration.setMaximumNumberOfIterations(5);
-		
-		Assert.assertTrue(iteration.getMaximumNumberOfIterations() > 1);
+		DataSet<String> sumReduce = iteration.reduce(new ReduceFunction<String>(){
+			@Override
+			public String reduce(String value1, String value2) throws Exception {
+				return value1;
+			}
+		}).name("Compute sum (Reduce)");
 
-		ReduceOperator sumReduce = ReduceOperator.builder(new PickOneReducer())
-				.input(iteration.getPartialSolution())
-				.name("Compute sum (Reduce)")
-				.build();
-		
-		iteration.setNextPartialSolution(sumReduce);
+		List<String> result = iteration.closeWith(sumReduce).collect();
 
-		FileDataSink finalResult = new FileDataSink(CsvOutputFormat.class, output, iteration, "Output");
-		CsvOutputFormat.configureRecordFormat(finalResult)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(StringValue.class, 0);
-
-		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
-		
-		plan.setDefaultParallelism(numSubTasks);
-		Assert.assertTrue(plan.getDefaultParallelism() > 1);
-		
-		return plan;
-	}
-	
-	public static final class PickOneReducer extends ReduceFunction implements Serializable {
-		private static final long serialVersionUID = 1L;
-		
-		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
-			out.collect(it.next());
-		}
+		compareResultAsText(result, EXPECTED);
 	}
 }

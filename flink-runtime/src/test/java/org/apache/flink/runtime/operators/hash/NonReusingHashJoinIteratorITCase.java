@@ -54,7 +54,7 @@ import java.util.Map.Entry;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class NonReusingHashJoinIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory

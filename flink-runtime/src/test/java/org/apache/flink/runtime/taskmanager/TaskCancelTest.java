@@ -173,7 +173,7 @@ public class TaskCancelTest {
 		}
 	}
 
-	private void awaitRunning(ActorGateway jobManager, JobID jobId, FiniteDuration timeout)
+	public static void awaitRunning(ActorGateway jobManager, JobID jobId, FiniteDuration timeout)
 			throws Exception {
 
 		checkNotNull(jobManager);

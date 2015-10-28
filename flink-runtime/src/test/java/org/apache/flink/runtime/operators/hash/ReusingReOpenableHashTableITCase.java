@@ -66,7 +66,6 @@ import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIterator
  * Test specialized hash join that keeps the build side data (in memory and on hard disk)
  * This is used for iterative tasks.
  */
-@SuppressWarnings("deprecation")
 public class ReusingReOpenableHashTableITCase {
 	
 	private static final int PAGE_SIZE = 8 * 1024;
