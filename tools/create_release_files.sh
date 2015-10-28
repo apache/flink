@@ -96,10 +96,13 @@ prepare() {
   rm -f .travis.yml
   rm -f deploysettings.xml
   rm -f CHANGELOG
+  cd ..
 }
 
 # create source package
 make_source_release() {
+
+  cd flink
 
   #change version in all pom files
   if [ "$(uname)" == "Darwin" ]; then
@@ -114,6 +117,19 @@ make_source_release() {
   else
       find . -name 'pom.xml' -type f -exec sed -i    's#<flink.version>'$OLD_VERSION'</flink.version>#<flink.version>'$NEW_VERSION'</flink.version>#' {} \;
   fi
+
+  #change version of documentation
+  cd docs
+  if [ "$(uname)" == "Darwin" ]; then
+      sed -i "" "s#version: .*#version: ${NEW_VERSION}#" _config.yml
+      sed -i "" "s#version_hadoop1: .*#version_hadoop1: ${NEW_VERSION}-hadoop1#" _config.yml
+      sed -i "" "s#version_short: .*#version_short: ${NEW_VERSION}#" _config.yml
+  else
+      sed -i   "s#version: .*#version: ${NEW_VERSION}#" _config.yml
+      sed -i    "s#version_hadoop1: .*#version_hadoop1: ${NEW_VERSION}-hadoop1#" _config.yml
+      sed -i    "s#version_short: .*#version_short: ${NEW_VERSION}#" _config.yml
+  fi
+  cd ..
 
   git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
   git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
