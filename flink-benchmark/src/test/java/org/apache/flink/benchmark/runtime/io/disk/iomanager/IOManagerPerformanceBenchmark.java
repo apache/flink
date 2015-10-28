@@ -87,18 +87,23 @@ public class IOManagerPerformanceBenchmark {
 	public void startup() throws Exception {
 		memManager = new MemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
-		this.testChannelWriteWithSegments(numSegment);
-		ioManagerTempFile1 = this.createReadTempFile(segmentSizesAligned);
-		ioManagerTempFile2 = this.createReadTempFile(segmentSizesUnaligned);
-		speedTestNIOTempFile1 = creatSpeedTestNIOTempFile(segmentSizesAligned, true);
-		speedTestNIOTempFile2 = creatSpeedTestNIOTempFile(segmentSizesAligned, false);
-		speedTestNIOTempFile3 = creatSpeedTestNIOTempFile(segmentSizesUnaligned, true);
-		speedTestNIOTempFile4 = creatSpeedTestNIOTempFile(segmentSizesUnaligned, false);
-		
+		testChannelWriteWithSegments(numSegment);
+		ioManagerTempFile1 = createReadTempFile(segmentSizesAligned);
+		ioManagerTempFile2 = createReadTempFile(segmentSizesUnaligned);
+		speedTestNIOTempFile1 = createSpeedTestNIOTempFile(segmentSizesAligned, true);
+		speedTestNIOTempFile2 = createSpeedTestNIOTempFile(segmentSizesAligned, false);
+		speedTestNIOTempFile3 = createSpeedTestNIOTempFile(segmentSizesUnaligned, true);
+		speedTestNIOTempFile4 = createSpeedTestNIOTempFile(segmentSizesUnaligned, false);
 	}
 
 	@TearDown
 	public void afterTest() throws Exception {
+		ioManagerTempFile1.delete();
+		ioManagerTempFile2.delete();
+		speedTestNIOTempFile1.delete();
+		speedTestNIOTempFile2.delete();
+		speedTestNIOTempFile3.delete();
+		speedTestNIOTempFile4.delete();
 		ioManager.shutdown();
 		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
 
@@ -140,7 +145,7 @@ public class IOManagerPerformanceBenchmark {
 	}
 
 	@SuppressWarnings("resource")
-	private File creatSpeedTestNIOTempFile(int bufferSize, boolean direct) throws IOException
+	private File createSpeedTestNIOTempFile(int bufferSize, boolean direct) throws IOException
 	{
 		final FileIOChannel.ID tmpChannel = ioManager.createChannel();
 
@@ -235,13 +240,10 @@ public class IOManagerPerformanceBenchmark {
 	private void testChannelReadWithSegments(int numSegments) throws Exception
 	{
 		final List<MemorySegment> memory = this.memManager.allocatePages(memoryOwner, numSegments);
-		//final FileIOChannel.ID channel = this.ioManager.createChannel();
 
 		BlockChannelReader<MemorySegment> reader = null;
 
 		try {
-			// ----------------------------------------------------------------
-
 			reader = ioManager.createBlockChannelReader(fileIOChannel);
 			final ChannelReaderInputView in = new ChannelReaderInputView(reader, memory, numBlocks, false);
 
@@ -403,7 +405,6 @@ public class IOManagerPerformanceBenchmark {
 		}
 
 		try {
-
 			FileInputStream fis = new FileInputStream(tempFile);
 			dais = new DataInputStream(new BufferedInputStream(fis, bufferSize));
 
@@ -540,8 +541,6 @@ public class IOManagerPerformanceBenchmark {
 	@SuppressWarnings("resource")
 	private void speedReadTestNIO(int bufferSize, boolean direct) throws IOException
 	{
-		final FileIOChannel.ID tmpChannel = ioManager.createChannel();
-
 		File tempFile = null;
 		FileChannel fs = null;
 
@@ -563,11 +562,7 @@ public class IOManagerPerformanceBenchmark {
 		}
 		
 		try {
-			//tempFile = new File(tmpChannel.getPath());
-
 			ByteBuffer buf = direct ? ByteBuffer.allocateDirect(bufferSize) : ByteBuffer.allocate(bufferSize);
-
-			// ----------------------------------------------------------------
 
 			RandomAccessFile raf = new RandomAccessFile(tempFile, "r");
 			fs = raf.getChannel();
