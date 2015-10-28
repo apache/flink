@@ -167,7 +167,8 @@ under the License.
 					<!-- Add src/main/scala to eclipse build path -->
 					<execution>
 						<id>add-source</id>
-						<phase>generate-sources</phase>
+                                                <!-- phase should be initialize for successful javadoc generation -->
+                                                <phase>initialize</phase>
 						<goals>
 							<goal>add-source</goal>
 						</goals>
