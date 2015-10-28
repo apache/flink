@@ -67,19 +67,19 @@ public class IOManagerPerformanceBenchmark {
 	private MemoryManager memManager;
 
 	private IOManager ioManager;
-	
+
 	private static FileIOChannel.ID fileIOChannel;
-	
+
 	private static File ioManagerTempFile1;
-	
+
 	private static File ioManagerTempFile2;
-	
+
 	private static File speedTestNIOTempFile1;
-	
+
 	private static File speedTestNIOTempFile2;
-	
+
 	private static File speedTestNIOTempFile3;
-	
+
 	private static File speedTestNIOTempFile4;
 
 
@@ -188,12 +188,12 @@ public class IOManagerPerformanceBenchmark {
 		}
 		return tempFile;
 	}
-	
+
 	@Benchmark
 	public void speedTestOutputManager() throws Exception
 	{
 		LOG.info("Starting speed test with IO Manager...");
-		
+
 		testChannelWriteWithSegments(numSegment);
 	}
 
@@ -201,7 +201,7 @@ public class IOManagerPerformanceBenchmark {
 	public void speedTestInputManager() throws Exception
 	{
 		LOG.info("Starting speed test with IO Manager...");
-		
+
 		testChannelReadWithSegments(numSegment);
 	}
 
@@ -224,7 +224,7 @@ public class IOManagerPerformanceBenchmark {
 			fileIOChannel = channel;
 			out.close();
 			numBlocks = out.getBlockCount();
-			
+
 			writer.close();
 			writer = null;
 
@@ -269,19 +269,19 @@ public class IOManagerPerformanceBenchmark {
 //	@Test
 //	public void speedTestRandomAccessFile() throws IOException {
 //		LOG.info("Starting speed test with java random access file ...");
-//		
+//
 //		Channel.ID tmpChannel = ioManager.createChannel();
 //		File tempFile = null;
 //		RandomAccessFile raf = null;
-//		
+//
 //		try {
-//			tempFile = new File(tmpChannel.getPath()); 
+//			tempFile = new File(tmpChannel.getPath());
 //			raf = new RandomAccessFile(tempFile, "rw");
-//			
+//
 //			IntegerRecord rec = new IntegerRecord(0);
-//			
+//
 //			long writeStart = System.currentTimeMillis();
-//			
+//
 //			int valsLeft = NUM_INTS_WRITTEN;
 //			while (valsLeft-- > 0) {
 //				rec.setValue(valsLeft);
@@ -289,25 +289,25 @@ public class IOManagerPerformanceBenchmark {
 //			}
 //			raf.close();
 //			raf = null;
-//			
+//
 //			long writeElapsed = System.currentTimeMillis() - writeStart;
-//			
+//
 //			// ----------------------------------------------------------------
-//			
+//
 //			raf = new RandomAccessFile(tempFile, "r");
-//			
+//
 //			long readStart = System.currentTimeMillis();
-//			
+//
 //			valsLeft = NUM_INTS_WRITTEN;
 //			while (valsLeft-- > 0) {
 //				rec.read(raf);
 //			}
 //			raf.close();
 //			raf = null;
-//			
+//
 //			long readElapsed = System.currentTimeMillis() - readStart;
-//			
-//			
+//
+//
 //			LOG.info("Random Access File: write " + (writeElapsed / 1000) + " secs, read " + (readElapsed / 1000) + " secs.");
 //		}
 //		finally {
@@ -315,7 +315,7 @@ public class IOManagerPerformanceBenchmark {
 //			if (raf != null) {
 //				raf.close();
 //			}
-//			
+//
 //			// try to delete the file
 //			if (tempFile != null) {
 //				tempFile.delete();
@@ -327,7 +327,7 @@ public class IOManagerPerformanceBenchmark {
 	public void speedOutputStreamWithBufferAligned() throws Exception
 	{
 		LOG.info("Starting speed test with java io file stream and ALIGNED buffer sizes ...");
-		
+
 		speedOutputTestStream(segmentSizesAligned);
 	}
 
@@ -335,23 +335,23 @@ public class IOManagerPerformanceBenchmark {
 	public void speedOutputStreamWithBufferUnaligned() throws Exception
 	{
 		LOG.info("Starting speed test with java io file stream and UNALIGNED buffer sizes ...");
-		
+
 		speedOutputTestStream(segmentSizesUnaligned);
 	}
 
 	@Benchmark
-	public void speedInputStreamWithBufferAligned() throws Exception 
+	public void speedInputStreamWithBufferAligned() throws Exception
 	{
 		LOG.info("Starting speed test with java io file stream and ALIGNED buffer sizes ...");
-		
+
 		speedInputTestStream(segmentSizesAligned);
 	}
 
 	@Benchmark
-	public void speedInputStreamWithBufferUnaligned() throws Exception 
+	public void speedInputStreamWithBufferUnaligned() throws Exception
 	{
 		LOG.info("Starting speed test with java io file stream and UNALIGNED buffer sizes ...");
-		
+
 		speedInputTestStream(segmentSizesUnaligned);
 	}
 
@@ -391,8 +391,8 @@ public class IOManagerPerformanceBenchmark {
 	private void speedInputTestStream(int bufferSize) throws IOException {
 		final FileIOChannel.ID tmpChannel = ioManager.createChannel();
 		final IntValue rec = new IntValue(0);
-		
-		File tempFile = null; 
+
+		File tempFile = null;
 		DataInputStream dais = null;
 
 		if (((bufferSize == 4096)||(bufferSize == 16384)||(bufferSize == 524288)))
@@ -560,7 +560,7 @@ public class IOManagerPerformanceBenchmark {
 		{
 			tempFile = speedTestNIOTempFile4;
 		}
-		
+
 		try {
 			ByteBuffer buf = direct ? ByteBuffer.allocateDirect(bufferSize) : ByteBuffer.allocate(bufferSize);
 
