@@ -113,17 +113,20 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
       var count = 0
       for (i <- 0 to obj.size - 1) {
         if (obj(i) > center(i)) {
-          count += Math.pow(2, i).toInt
+          count += Math.pow(2, obj.size -1 - i).toInt
+          //count += Math.pow(2,i).toInt
         }
       }
       count
     }
 
     def makeChildren() {
+      println("center before partitioning =  " + center)
       val cPart = partitionBox(center, width)
-
+      println("cPart =  " + cPart)
       val mappedWidth = 0.5*width.asBreeze
       children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
+      println("center after partitioning =  " + center)
     }
 
     /**
@@ -135,8 +138,8 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
      * @return
      */
     def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
+
       def partitionHelper(box: Seq[Vector], dim: Int): Seq[Vector] = {
-        println("hello")
         if (dim >= width.size) {
           box
         } else {
@@ -146,7 +149,7 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
               up.update(dim, up(dim) - width(dim) / 4)
               down.update(dim, down(dim) + width(dim) / 4)
 
-              Seq(up, down)
+              Seq(up,down)
           }
           partitionHelper(newBox, dim + 1)
         }
@@ -154,9 +157,6 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
       partitionHelper(Seq(center), 0)
     }
   }
-
- // val root = new Node( (minVec., maxVec).zipped.map(_ + _).map(x => 0.5 * x),
- //   (maxVec, minVec).zipped.map(_ - _),null)
 
   val root = new Node( ((minVec.asBreeze + maxVec.asBreeze)*0.5).fromBreeze,
     (maxVec.asBreeze - minVec.asBreeze).fromBreeze, null)
