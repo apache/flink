@@ -128,13 +128,18 @@ webclient.port: 8080
 
 
 #==============================================================================
-# High Availability
+# Master High Availability (required configuration)
 #==============================================================================
 
 # The list of ZooKepper quorum peers that coordinate the high-availability
-# setup. This must be a list of the form
-# "host_1[:peerPort[:leaderPort]],host_2[:peerPort[:leaderPort]],..."
+# setup. This must be a list of the form:
+# "host1:clientPort,host2[:clientPort],..." (default clientPort: 2181)
 #
 # recovery.mode: zookeeper
 #
-# recovery.zookeeper.quorum: localhost
+# recovery.zookeeper.quorum: localhost:2181,...
+#
+# Note: You need to set the state backend to 'filesystem' and the checkpoint
+# directory (see above) before configuring the storageDir.
+#
+# recovery.zookeeper.storageDir: hdfs:///recovery
