@@ -197,12 +197,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobs/job.timeline.vertex.html"
         controller: 'JobTimelineVertexController'
 
-  .state "single-job.statistics",
-    url: "/statistics"
-    views:
-      details:
-        templateUrl: "partials/jobs/job.statistics.html"
-
   .state "single-job.exceptions",
     url: "/exceptions"
     views:
@@ -242,18 +236,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
     views:
       details:
         templateUrl: "partials/taskmanager/taskmanager.metrics.html"
-
-  .state "single-manager.log",
-    url: "/logfile"
-    views:
-      details:
-        templateUrl: "partials/taskmanager/taskmanager.logfile.html"
-
-  .state "single-manager.stdout",
-    url: "/stdout"
-    views:
-      details:
-        templateUrl: "partials/taskmanager/taskmanager.stdout.html"
 
   .state "jobmanager",
       url: "/jobmanager"
