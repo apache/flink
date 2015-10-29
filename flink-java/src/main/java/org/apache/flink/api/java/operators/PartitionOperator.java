@@ -74,8 +74,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		Preconditions.checkNotNull(pMethod);
 		Preconditions.checkArgument(pKeys != null || pMethod == PartitionMethod.REBALANCE, "Partitioning requires keys");
 		Preconditions.checkArgument(pMethod != PartitionMethod.CUSTOM || customPartitioner != null, "Custom partioning requires a partitioner.");
-		Preconditions.checkArgument(pMethod != PartitionMethod.RANGE, "Range partitioning is not yet supported");
-		
+
 		if (pKeys instanceof Keys.ExpressionKeys<?> && !(input.getType() instanceof CompositeType) ) {
 			throw new IllegalArgumentException("Hash Partitioning with key fields only possible on Tuple or POJO DataSets");
 		}
@@ -122,7 +121,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 			
 			return noop;
 		} 
-		else if (pMethod == PartitionMethod.HASH || pMethod == PartitionMethod.CUSTOM) {
+		else if (pMethod == PartitionMethod.HASH || pMethod == PartitionMethod.CUSTOM || pMethod == PartitionMethod.RANGE) {
 			
 			if (pKeys instanceof Keys.ExpressionKeys) {
 				
@@ -148,9 +147,6 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 			}
 			
 		} 
-		else if (pMethod == PartitionMethod.RANGE) {
-			throw new UnsupportedOperationException("Range partitioning not yet supported");
-		}
 		else {
 			throw new UnsupportedOperationException("Unsupported partitioning method: " + pMethod.name());
 		}

@@ -21,11 +21,21 @@ package org.apache.flink.optimizer.util;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import org.apache.flink.optimizer.CompilerException;
+import org.apache.flink.optimizer.plan.Channel;
+import org.apache.flink.optimizer.plan.PlanNode;
 
 
 /**
@@ -70,6 +80,39 @@ public final class Utils {
 		} else {
 			throw new CompilerException();
 		}
+	}
+
+	public static TypeComparatorFactory<?> getShipComparator(Channel channel, ExecutionConfig executionConfig) {
+		PlanNode source = channel.getSource();
+		Operator<?> javaOp = source.getProgramOperator();
+		TypeInformation<?> type = javaOp.getOperatorInfo().getOutputType();
+		return createComparator(type, channel.getShipStrategyKeys(),
+			getSortOrders(channel.getShipStrategyKeys(), channel.getShipStrategySortOrder()), executionConfig);
+	}
+
+	private static <T> TypeComparatorFactory<?> createComparator(TypeInformation<T> typeInfo, FieldList keys, boolean[] sortOrder, ExecutionConfig executionConfig) {
+
+		TypeComparator<T> comparator;
+		if (typeInfo instanceof CompositeType) {
+			comparator = ((CompositeType<T>) typeInfo).createComparator(keys.toArray(), sortOrder, 0, executionConfig);
+		}
+		else if (typeInfo instanceof AtomicType) {
+			// handle grouping of atomic types
+			comparator = ((AtomicType<T>) typeInfo).createComparator(sortOrder[0], executionConfig);
+		}
+		else {
+			throw new RuntimeException("Unrecognized type: " + typeInfo);
+		}
+
+		return new RuntimeComparatorFactory<T>(comparator);
+	}
+
+	private static final boolean[] getSortOrders(FieldList keys, boolean[] orders) {
+		if (orders == null) {
+			orders = new boolean[keys.size()];
+			Arrays.fill(orders, true);
+		}
+		return orders;
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -21,16 +21,24 @@ package org.apache.flink.optimizer.java;
 import static org.junit.Assert.*;
 
 import java.util.Collections;
+import java.util.List;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.PartitionOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
+import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -40,7 +48,7 @@ import org.junit.Test;
 public class PartitionOperatorTest extends CompilerTestBase {
 
 	@Test
-	public void testPartitionOperatorPreservesFields() {
+	public void testHashPartitionOperatorPreservesFields() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
@@ -50,7 +58,7 @@ public class PartitionOperatorTest extends CompilerTestBase {
 					public int partition(Long key, int numPartitions) { return key.intValue(); }
 				}, 1)
 				.groupBy(1)
-					.reduceGroup(new IdentityGroupReducerCombinable<Tuple2<Long,Long>>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple2<Long, Long>>())
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
@@ -62,6 +70,113 @@ public class PartitionOperatorTest extends CompilerTestBase {
 
 			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput().getShipStrategy());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testRangePartitionOperatorPreservesFields() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			DataSet<Tuple2<Long, Long>> data = env.fromCollection(Collections.singleton(new Tuple2<Long, Long>(0L, 0L)));
+
+			data.partitionByRange(1)
+				.groupBy(1)
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple2<Long,Long>>())
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+
+			SinkPlanNode sink = op.getDataSinks().iterator().next();
+			SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
+			SingleInputPlanNode partitionIDRemover = (SingleInputPlanNode) reducer.getInput().getSource();
+			Iterable<Channel> inputs = partitionIDRemover.getInputs();
+			SingleInputPlanNode partitionNode = (SingleInputPlanNode)inputs.iterator().next().getSource();
+
+			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, partitionIDRemover.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionNode.getInput().getShipStrategy());
+
+			SourcePlanNode sourcePlanNode = op.getDataSources().iterator().next();
+			List<Channel> sourceOutgoingChannels = sourcePlanNode.getOutgoingChannels();
+			assertEquals(2, sourceOutgoingChannels.size());
+			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(0).getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(1).getShipStrategy());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testRangePartitionOperatorPreservesFields2() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			DataSet<Tuple2<Long, Long>> data = env.fromCollection(Collections.singleton(new Tuple2<Long, Long>(0L, 0L)));
+
+			PartitionOperator<Tuple2<Long, Long>> rangePartitioned = data.partitionByRange(1);
+
+			rangePartitioned
+				.groupBy(1)
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple2<Long,Long>>())
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+
+			data
+				.groupBy(0)
+				.aggregate(Aggregations.SUM, 1)
+				.map(new MapFunction<Tuple2<Long, Long>, Long>() {
+					@Override
+					public Long map(Tuple2<Long, Long> value) throws Exception {
+						return value.f1;
+					}
+				})
+				.output(new DiscardingOutputFormat<Long>());
+
+			rangePartitioned
+				.filter(new FilterFunction<Tuple2<Long, Long>>() {
+					@Override
+					public boolean filter(Tuple2<Long, Long> value) throws Exception {
+						if (value.f0 % 2 == 0) {
+							return true;
+						} else {
+							return false;
+						}
+					}
+				})
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+
+
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+
+			SinkPlanNode sink = op.getDataSinks().iterator().next();
+			SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
+			SingleInputPlanNode partitionIDRemover = (SingleInputPlanNode) reducer.getInput().getSource();
+			Iterable<Channel> inputs = partitionIDRemover.getInputs();
+			SingleInputPlanNode partitionNode = (SingleInputPlanNode)inputs.iterator().next().getSource();
+
+			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, partitionIDRemover.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionNode.getInput().getShipStrategy());
+
+			SourcePlanNode sourcePlanNode = op.getDataSources().iterator().next();
+			List<Channel> sourceOutgoingChannels = sourcePlanNode.getOutgoingChannels();
+			assertEquals(3, sourceOutgoingChannels.size());
+			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(0).getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(1).getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(2).getShipStrategy());
+
+			List<Channel> idRemoverOutputChannels = partitionIDRemover.getOutgoingChannels();
+			assertEquals(2, idRemoverOutputChannels.size());
+			assertEquals(ShipStrategyType.FORWARD, idRemoverOutputChannels.get(0).getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, idRemoverOutputChannels.get(1).getShipStrategy());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
