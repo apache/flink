@@ -21,9 +21,12 @@ package org.apache.flink.graph.test.operations;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -31,6 +34,7 @@ import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -302,7 +306,6 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expectedResult);
 	}
 
-
 	@Test
 	public void testDifferenceVertices() throws Exception{
 		/*Test  difference() method  by checking    the output  for getVertices()   on  the resultant   graph
@@ -353,6 +356,91 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 				"5,1,51\n" ;
 
 		compareResultAsTuples(result, expectedResult);
+	}
+
+	@Test
+	public final void testIntersect() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		List<Edge<Long, Long>> edges1 = Lists.newArrayList(
+				new Edge<>(1L, 3L, 12L),
+				new Edge<>(1L, 3L, 13L), // needs to be in the output
+				new Edge<>(1L, 3L, 14L)
+		);
+
+		@SuppressWarnings("unchecked")
+		List<Edge<Long, Long>> edges2 = Lists.newArrayList(
+				new Edge<>(1L, 3L, 13L)
+		);
+
+		Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
+		Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
+
+		Graph<Long, NullValue, Long> intersect = graph1.intersect(graph2, true);
+
+		List<Vertex<Long, NullValue>> vertices = Lists.newArrayList();
+		List<Edge<Long, Long>> edges = Lists.newArrayList();
+
+		intersect.getVertices().output(new LocalCollectionOutputFormat<>(vertices));
+		intersect.getEdges().output(new LocalCollectionOutputFormat<>(edges));
+
+		env.execute();
+
+		String expectedVertices = "1,(null)\n" +
+				"3,(null)\n";
+
+		String expectedEdges = "1,3,13\n";
+
+		compareResultAsTuples(vertices, expectedVertices);
+		compareResultAsTuples(edges, expectedEdges);
+	}
+
+	@Test
+	public final void testIntersectWithPairs() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		List<Edge<Long, Long>> edges1 = Lists.newArrayList(
+				new Edge<>(1L, 3L, 12L),
+				new Edge<>(1L, 3L, 13L),
+				new Edge<>(1L, 3L, 13L), // output
+				new Edge<>(1L, 3L, 13L), // output
+				new Edge<>(1L, 3L, 14L)  // output
+		);
+
+		@SuppressWarnings("unchecked")
+		List<Edge<Long, Long>> edges2 = Lists.newArrayList(
+				new Edge<>(1L, 3L, 13L), // output
+				new Edge<>(1L, 3L, 13L), // output
+				new Edge<>(1L, 3L, 14L)  // output
+		);
+
+		Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
+		Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
+
+		Graph<Long, NullValue, Long> intersect = graph1.intersect(graph2, false);
+
+		List<Vertex<Long, NullValue>> vertices = Lists.newArrayList();
+		List<Edge<Long, Long>> edges = Lists.newArrayList();
+
+		intersect.getVertices().output(new LocalCollectionOutputFormat<>(vertices));
+		intersect.getEdges().output(new LocalCollectionOutputFormat<>(edges));
+
+		env.execute();
+
+		String expectedVertices = "1,(null)\n" +
+				"3,(null)\n";
+
+		String expectedEdges = "1,3,13\n" +
+				"1,3,13\n" +
+				"1,3,13\n" +
+				"1,3,13\n" +
+				"1,3,14\n" +
+				"1,3,14";
+
+		compareResultAsTuples(vertices, expectedVertices);
+		compareResultAsTuples(edges, expectedEdges);
 	}
 
 	@Test

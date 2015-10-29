@@ -485,13 +485,66 @@ val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Do
 
 * <strong>Undirected</strong>: In Gelly, a `Graph` is always directed. Undirected graphs can be represented by adding all opposite-direction edges to a graph. For this purpose, Gelly provides the `getUndirected()` method.
 
-* <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
+* <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and the current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exist, these will be preserved.
 
 <p class="text-center">
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
 
-* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and specified graph.
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and the specified graph.
+
+* <strong>Intersect</strong>: Gelly's `intersect()` method performs an intersect on the edge
+ sets of the current graph and the specified graph. The result is a new `Graph` that contains all 
+ edges that exist in both input graphs. Two edges are considered equal, if they have the same source
+ identifier, target identifier and edge value. Vertices in the resulting graph have no 
+ value. If vertex values are required, one can for example retrieve them from one of the input graphs using 
+ the `joinWithVertices()` method.
+ Depending on the parameter `distinct`, equal edges are either contained once in the resulting 
+ `Graph` or as often as there are pairs of equal edges in the input graphs.
+ 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+// create first graph from edges {(1, 3, 12) (1, 3, 13), (1, 3, 13)}
+List<Edge<Long, Long>> edges1 = ...
+Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
+
+// create second graph from edges {(1, 3, 13)}
+List<Edge<Long, Long>> edges2 = ...
+Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
+
+// Using distinct = true results in {(1,3,13)}
+Graph<Long, NullValue, Long> intersect1 = graph1.intersect(graph2, true);
+
+// Using distinct = false results in {(1,3,13),(1,3,13)} as there is one edge pair
+Graph<Long, NullValue, Long> intersect2 = graph1.intersect(graph2, false);
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+// create first graph from edges {(1, 3, 12) (1, 3, 13), (1, 3, 13)}
+val edges1: List[Edge[Long, Long]] = ...
+val graph1 = Graph.fromCollection(edges1, env)
+
+// create second graph from edges {(1, 3, 13)}
+val edges2: List[Edge[Long, Long]] = ...
+val graph2 = Graph.fromCollection(edges2, env)
+
+
+// Using distinct = true results in {(1,3,13)}
+val intersect1 = graph1.intersect(graph2, true)
+
+// Using distinct = false results in {(1,3,13),(1,3,13)} as there is one edge pair
+val intersect2 = graph1.intersect(graph2, false)
+{% endhighlight %}
+</div>
+</div>
 
 -[Back to top](#top)
 

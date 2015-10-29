@@ -60,8 +60,8 @@ import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.graph.validation.GraphValidator;
-import org.apache.flink.util.Collector;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Collector;
 
 /**
  * Represents a Graph consisting of {@link Edge edges} and {@link Vertex
@@ -174,7 +174,7 @@ public class Graph<K, VV, EV> {
 	}
 
 	private static final class EmitSrcAndTarget<K, EV> implements FlatMapFunction<
-		Edge<K, EV>, Vertex<K, NullValue>> {
+			Edge<K, EV>, Vertex<K, NullValue>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Vertex<K, NullValue>> out) {
 			out.collect(new Vertex<K, NullValue>(edge.f0, NullValue.getInstance()));
@@ -1477,7 +1477,6 @@ public class Graph<K, VV, EV> {
 	 * @return a new graph
 	 */
 	public Graph<K, VV, EV> union(Graph<K, VV, EV> graph) {
-
 		DataSet<Vertex<K, VV>> unionedVertices = graph.getVertices().union(this.getVertices()).distinct();
 		DataSet<Edge<K, EV>> unionedEdges = graph.getEdges().union(this.getEdges());
 		return new Graph<K, VV, EV>(unionedVertices, unionedEdges, this.context);
@@ -1494,6 +1493,95 @@ public class Graph<K, VV, EV> {
 	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) {
 		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
 		return this.removeVertices(removeVerticesData);
+	}
+
+	/**
+	 * Performs intersect on the edge sets of the input graphs. Edges are considered equal, if they
+	 * have the same source identifier, target identifier and edge value.
+	 * <p>
+	 * The method computes pairs of equal edges from the input graphs. If the same edge occurs
+	 * multiple times in the input graphs, there will be multiple edge pairs to be considered. Each
+	 * edge instance can only be part of one pair. If the given parameter {@code distinctEdges} is set
+	 * to {@code true}, there will be exactly one edge in the output graph representing all pairs of
+	 * equal edges. If the parameter is set to {@code false}, both edges of each pair will be in the
+	 * output.
+	 * <p>
+	 * Vertices in the output graph will have no vertex values.
+	 *
+	 * @param graph the graph to perform intersect with
+	 * @param distinctEdges if set to {@code true}, there will be exactly one edge in the output graph
+	 *                      representing all pairs of equal edges, otherwise, for each pair, both
+	 *                      edges will be in the output graph
+	 * @return a new graph which contains only common vertices and edges from the input graphs
+	 */
+	public Graph<K, NullValue, EV> intersect(Graph<K, VV, EV> graph, boolean distinctEdges) {
+		DataSet<Edge<K, EV>> intersectEdges;
+		if (distinctEdges) {
+			intersectEdges = getDistinctEdgeIntersection(graph.getEdges());
+		} else {
+			intersectEdges = getPairwiseEdgeIntersection(graph.getEdges());
+		}
+
+		return Graph.fromDataSet(intersectEdges, getContext());
+	}
+
+	/**
+	 * Computes the intersection between the edge set and the given edge set. For all matching pairs,
+	 * only one edge will be in the resulting data set.
+	 *
+	 * @param edges edges to compute intersection with
+	 * @return edge set containing one edge for all matching pairs of the same edge
+	 */
+	private DataSet<Edge<K, EV>> getDistinctEdgeIntersection(DataSet<Edge<K, EV>> edges) {
+		return this.getEdges()
+				.join(edges)
+				.where(0, 1, 2)
+				.equalTo(0, 1, 2)
+				.with(new JoinFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>>() {
+					@Override
+					public Edge<K, EV> join(Edge<K, EV> first, Edge<K, EV> second) throws Exception {
+						return first;
+					}
+				}).withForwardedFieldsFirst("*")
+				.distinct();
+	}
+
+	/**
+	 * Computes the intersection between the edge set and the given edge set. For all matching pairs, both edges will be
+	 * in the resulting data set.
+	 *
+	 * @param edges edges to compute intersection with
+	 * @return edge set containing both edges from all matching pairs of the same edge
+	 */
+	private DataSet<Edge<K, EV>> getPairwiseEdgeIntersection(DataSet<Edge<K, EV>> edges) {
+		return this.getEdges()
+				.coGroup(edges)
+				.where(0, 1, 2)
+				.equalTo(0, 1, 2)
+				.with(new MatchingEdgeReducer<K, EV>());
+	}
+
+	/**
+	 * As long as both input iterables have more edges, the reducer outputs each edge of a pair.
+	 *
+	 * @param <K> 	vertex identifier type
+	 * @param <EV> 	edge value type
+	 */
+	private static final class MatchingEdgeReducer<K, EV>
+			implements CoGroupFunction<Edge<K,EV>, Edge<K,EV>, Edge<K, EV>> {
+
+		@Override
+		public void coGroup(Iterable<Edge<K, EV>> edgesLeft, Iterable<Edge<K, EV>> edgesRight, Collector<Edge<K, EV>> out)
+				throws Exception {
+			Iterator<Edge<K, EV>> leftIt = edgesLeft.iterator();
+			Iterator<Edge<K, EV>> rightIt = edgesRight.iterator();
+
+			// collect pairs once
+			while(leftIt.hasNext() && rightIt.hasNext()) {
+				out.collect(leftIt.next());
+				out.collect(rightIt.next());
+			}
+		}
 	}
 
 	/**
