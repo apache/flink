@@ -38,14 +38,14 @@ import java.util.Collection;
  *
  * <pre>{@code
  *
- *   @Test
+ *   {@literal @}Test
  *   public void someTest() {
  *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
  *       // test code
  *       env.execute();
  *   }
  *
- *   @Test
+ *   {@literal @}Test
  *   public void anotherTest() {
  *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
  *       // test code

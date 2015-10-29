@@ -50,7 +50,7 @@ import org.apache.hadoop.mapred.TextInputFormat;
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file. 
  * 
- * <br /><br />
+ * <br><br>
  * 
  * <b>Note</b>: This example uses the out-dated Record API.
  * It is recommended to use the new Java API.

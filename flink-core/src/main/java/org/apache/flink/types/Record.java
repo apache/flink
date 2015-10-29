@@ -803,7 +803,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	 * Bin-copies fields from a source record to this record. The following caveats apply:
 	 * 
 	 * If the source field is in a modified state, no binary representation will exist yet.
-	 * In that case, this method is equivalent to setField(..., source.getField(..., <class>)). 
+	 * In that case, this method is equivalent to {@code setField(..., source.getField(..., <class>))}.
 	 * In particular, if setValue is called on the source field Value instance, that change 
 	 * will propagate to this record.
 	 * 

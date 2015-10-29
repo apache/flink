@@ -352,10 +352,10 @@ public class Graph<K, VV, EV> {
 	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader}, 
 	* on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
 	* 
-	* @see {@link org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)},
-	* {@link org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)},
-	* {@link org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)} and
-	* {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
+	* @see org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)
+	* @see org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)
+	* @see org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)
+	* @see org.apache.flink.graph.GraphCsvReader#keyType(Class)
 	*/
 	public static GraphCsvReader fromCsvReader(String verticesPath, String edgesPath, ExecutionEnvironment context) {
 		return new GraphCsvReader(verticesPath, edgesPath, context);
@@ -369,10 +369,10 @@ public class Graph<K, VV, EV> {
 	* @return An instance of {@link org.apache.flink.graph.GraphCsvReader},
 	* on which calling methods to specify types of the Vertex ID, Vertex value and Edge value returns a Graph.
 	* 
-	* @see {@link org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)},
-	* {@link org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)},
-	* {@link org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)} and
-	* {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
+	* @see org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)
+	* @see org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)
+	* @see org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)
+	* @see org.apache.flink.graph.GraphCsvReader#keyType(Class)
 	*/
 	public static GraphCsvReader fromCsvReader(String edgesPath, ExecutionEnvironment context) {
 		return new GraphCsvReader(edgesPath, context);
@@ -389,10 +389,10 @@ public class Graph<K, VV, EV> {
 	 * @return An instance of {@link org.apache.flink.graph.GraphCsvReader},
 	 * on which calling methods to specify types of the Vertex ID, Vertex Value and Edge value returns a Graph.
 	 * 
-	 * @see {@link org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)},
-	 * {@link org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)},
-	 * {@link org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)} and
-	 * {@link org.apache.flink.graph.GraphCsvReader#keyType(Class)}.
+	 * @see org.apache.flink.graph.GraphCsvReader#types(Class, Class, Class)
+	 * @see org.apache.flink.graph.GraphCsvReader#vertexTypes(Class, Class)
+	 * @see org.apache.flink.graph.GraphCsvReader#edgeTypes(Class, Class)
+	 * @see org.apache.flink.graph.GraphCsvReader#keyType(Class)
 	 */
 	public static <K, VV> GraphCsvReader fromCsvReader(String edgesPath,
 			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
@@ -821,7 +821,7 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Return the out-degree of all vertices in the graph
 	 * 
-	 * @return A DataSet of Tuple2<vertexId, outDegree>
+	 * @return A DataSet of {@code Tuple2<vertexId, outDegree>}
 	 */
 	public DataSet<Tuple2<K, Long>> outDegrees() {
 
@@ -851,7 +851,7 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Return the in-degree of all vertices in the graph
 	 * 
-	 * @return A DataSet of Tuple2<vertexId, inDegree>
+	 * @return A DataSet of {@code Tuple2<vertexId, inDegree>}
 	 */
 	public DataSet<Tuple2<K, Long>> inDegrees() {
 
@@ -861,7 +861,7 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Return the degree of all vertices in the graph
 	 * 
-	 * @return A DataSet of Tuple2<vertexId, degree>
+	 * @return A DataSet of {@code Tuple2<vertexId, degree>}
 	 */
 	public DataSet<Tuple2<K, Long>> getDegrees() {
 		return outDegrees().union(inDegrees()).groupBy(0).sum(1);

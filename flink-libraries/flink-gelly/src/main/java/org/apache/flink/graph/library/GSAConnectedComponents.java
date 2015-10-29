@@ -34,7 +34,7 @@ import org.apache.flink.types.NullValue;
  * This implementation assumes that the vertices of the input Graph are initialized with unique, Long component IDs.
  * The result is a DataSet of vertices, where the vertex value corresponds to the assigned component ID.
  * 
- * @see {@link org.apache.flink.graph.library.ConnectedComponents}
+ * @see org.apache.flink.graph.library.ConnectedComponents
  */
 public class GSAConnectedComponents<K, EV> implements GraphAlgorithm<K, Long, EV, DataSet<Vertex<K, Long>>> {
 

@@ -62,7 +62,7 @@ public class PageRank<K> implements GraphAlgorithm<K, Double, Double, DataSet<Ve
 	/**
 	 * Creates an instance of the PageRank algorithm.
 	 * If the number of vertices of the input graph is known,
-	 * use the {@link PageRank#PageRank(double, long)} constructor instead.
+	 * use the {@link PageRank#PageRank(double, int)} constructor instead.
 	 * 
 	 * The implementation assumes that each page has at least one incoming and one outgoing link.
 	 * 

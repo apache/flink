@@ -138,7 +138,7 @@ public class FlinkClient {
 
 	/**
 	 * Return a reference to itself.
-	 * <p/>
+	 * <p>
 	 * {@link FlinkClient} mimics both, {@link NimbusClient} and {@link Nimbus}{@code .Client}, at once.
 	 *
 	 * @return A reference to itself.

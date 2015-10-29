@@ -45,10 +45,10 @@ import org.apache.flink.util.Collector;
 
 /**
  * This example demonstrates how to mix the DataSet Flink API with the Gelly API.
- * The input is a set <userId - songId - playCount> triplets and
+ * The input is a set &lt;userId - songId - playCount&gt; triplets and
  * a set of bad records, i.e. song ids that should not be trusted.
  * Initially, we use the DataSet API to filter out the bad records.
- * Then, we use Gelly to create a user -> song weighted bipartite graph and compute
+ * Then, we use Gelly to create a user -&gt; song weighted bipartite graph and compute
  * the top song (most listened) per user.
  * Then, we use the DataSet API again, to create a user-user similarity graph,
  * based on common songs, where users that are listeners of the same song
@@ -58,11 +58,11 @@ import org.apache.flink.util.Collector;
  * the similarity graph.
  *
  * The triplets input is expected to be given as one triplet per line,
- * in the following format: "<userID>\t<songID>\t<playcount>".
+ * in the following format: "&lt;userID&gt;\t&lt;songID&gt;\t&lt;playcount&gt;".
  *
  * The mismatches input file is expected to contain one mismatch record per line,
  * in the following format:
- * "ERROR: <songID trackID> song_title"
+ * "ERROR: &lt;songID trackID&gt; song_title"
  *
  * If no arguments are provided, the example runs with default data from {@link MusicProfilesData}.
  */

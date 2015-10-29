@@ -183,7 +183,7 @@ public abstract class StreamExecutionEnvironment {
 	 * output buffers. By default the output buffers flush frequently to provide
 	 * low latency and to aid smooth developer experience. Setting the parameter
 	 * can result in three logical modes:
-	 * <p/>
+	 * <p>
 	 * <ul>
 	 * <li>
 	 * A positive integer triggers flushing periodically by that integer</li>
@@ -466,7 +466,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
-	 * <p/>
+	 * <p>
 	 * Note that the serializer instance must be serializable (as defined by
 	 * java.io.Serializable), because it may be distributed to the worker nodes
 	 * by java serialization.
@@ -495,7 +495,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Registers the given type with a Kryo Serializer.
-	 * <p/>
+	 * <p>
 	 * Note that the serializer instance must be serializable (as defined by
 	 * java.io.Serializable), because it may be distributed to the worker nodes
 	 * by java serialization.
@@ -851,7 +851,7 @@ public abstract class StreamExecutionEnvironment {
 	 * objects,
 	 * rather than Java Strings. StringValues can be used to tune implementations to be less object and garbage
 	 * collection heavy.
-	 * <p/>
+	 * <p>
 	 * The file will be read with the system's default character set.
 	 *
 	 * @param filePath
@@ -873,7 +873,7 @@ public abstract class StreamExecutionEnvironment {
 	 * objects, rather than Java Strings. StringValues can be used to tune implementations to be less object and
 	 * garbage
 	 * collection heavy.
-	 * <p/>
+	 * <p>
 	 * The {@link java.nio.charset.Charset} with the given name will be used to read the files.
 	 *
 	 * @param filePath
@@ -992,7 +992,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a new data stream that contains the strings received infinitely from a socket. Received strings are
 	 * decoded by the system's default character set. On the termination of the socket server connection retries can be
 	 * initiated.
-	 * <p/>
+	 * <p>
 	 * Let us note that the socket itself does not report on abort and as a consequence retries are only initiated when
 	 * the socket was gracefully terminated.
 	 *
@@ -1050,7 +1050,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Generic method to create an input data stream with {@link org.apache.flink.api.common.io.InputFormat}.
-	 * <p/>
+	 * <p>
 	 * Since all data streams need specific information about their types, this method needs to determine the type of
 	 * the data produced by the input format. It will attempt to determine the data type by reflection, unless the
 	 * input
@@ -1194,7 +1194,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
-	 * <p/>
+	 * <p>
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
 	 *
@@ -1209,7 +1209,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
-	 * <p/>
+	 * <p>
 	 * The program execution will be logged and displayed with the provided name
 	 *
 	 * @param jobName

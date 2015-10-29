@@ -186,7 +186,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 * Sets the data exchange mode (batch / pipelined) to use for the data
 	 * exchange of this channel.
 	 *
-	 * @return The data exchange mode of this channel.
 	 */
 	public void setDataExchangeMode(DataExchangeMode dataExchangeMode) {
 		this.dataExchangeMode = checkNotNull(dataExchangeMode);

@@ -37,7 +37,7 @@ import java.util.jar.JarInputStream;
  *
  * Copied from http://grepcode.com/file_/repo1.maven.org/maven2/org.apache.xmlbeans/xmlbeans/2.4.0/org/apache/xmlbeans/impl/common/JarHelper.java/?v=source
  *
- * @author Patrick Calahan <pcal@bea.com>
+ * @author Patrick Calahan <a href="mailto:pcal@bea.com">pcal@bea.com</a>
  */
 public class JarHelper
 {

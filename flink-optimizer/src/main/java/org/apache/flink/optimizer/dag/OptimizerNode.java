@@ -50,7 +50,7 @@ import org.apache.flink.util.Visitor;
  * The OptimizerNode is the base class of all nodes in the optimizer DAG. The optimizer DAG is the
  * optimizer's representation of a program, created before the actual optimization (which creates different
  * candidate plans and computes their cost).
- * <p>>
+ * <p>
  * Nodes in the DAG correspond (almost) one-to-one to the operators in a program. The optimizer DAG is constructed
  * to hold the additional information that the optimizer needs:
  * <ul>

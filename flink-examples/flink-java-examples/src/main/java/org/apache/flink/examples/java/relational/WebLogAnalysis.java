@@ -35,7 +35,7 @@ import org.apache.flink.examples.java.relational.util.WebLogDataGenerator;
  * This program processes web logs and relational data. 
  * It implements the following relational query:
  *
- * <code><pre>
+ * <pre>{@code
  * SELECT 
  *       r.pageURL, 
  *       r.pageRank, 
@@ -50,13 +50,13 @@ import org.apache.flink.examples.java.relational.util.WebLogDataGenerator;
  *              WHERE v.destUrl = d.url 
  *                    AND v.visitDate < [date]
  *           );
- * </pre></code>
+ * }</pre>
  *
  * <p>
  * Input files are plain text CSV files using the pipe character ('|') as field separator.
  * The tables referenced in the query can be generated using the {@link WebLogDataGenerator} and 
  * have the following schemas
- * <code><pre>
+ * <pre>{@code
  * CREATE TABLE Documents (
  *                url VARCHAR(100) PRIMARY KEY,
  *                contents TEXT );
@@ -76,7 +76,7 @@ import org.apache.flink.examples.java.relational.util.WebLogDataGenerator;
  *                languageCode VARCHAR(6),
  *                searchWord VARCHAR(32),
  *                duration INT );
- * </pre></code>
+ * }</pre>
  * 
  * <p>
  * Usage: <code>WebLogAnalysis &lt;documents path&gt; &lt;ranks path&gt; &lt;visits path&gt; &lt;result path&gt;</code><br>

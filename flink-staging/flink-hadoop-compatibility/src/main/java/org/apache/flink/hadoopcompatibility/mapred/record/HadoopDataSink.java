@@ -33,10 +33,10 @@ import org.apache.hadoop.mapred.OutputFormat;
  * The HadoopDataSink is a generic wrapper for all Hadoop OutputFormats.
  *
  * Example usage:
- * <pre>
+ * <pre>{@code
  * 		HadoopDataSink out = new HadoopDataSink(new org.apache.hadoop.mapred.TextOutputFormat<Text, IntWritable>(), new JobConf(), "Hadoop TextOutputFormat",reducer, Text.class,IntWritable.class);
  *		org.apache.hadoop.mapred.TextOutputFormat.setOutputPath(out.getJobConf(), new Path(output));
- * </pre>
+ * }</pre>
  *
  * Note that it is possible to provide custom data type converter.
  *

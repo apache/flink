@@ -33,14 +33,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
  * Implements a simple example with two declared output streams for the embedded spout.
- * <p/>
+ * <p>
  * This example shows how to:
  * <ul>
  * <li>handle multiple output stream of a spout</li>
  * <li>accessing each stream by .split(...) and .select(...)</li>
  * <li>strip wrapper data type SplitStreamType for further processing in Flink</li>
  * </ul>
- * <p/>
+ * <p>
  * This example would work the same way for multiple bolt output streams.
  */
 public class SpoutSplitExample {

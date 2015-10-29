@@ -47,7 +47,7 @@ import java.util.Collection;
  * <p>
  * The following graph of {@code StreamTransformations}:
  *
- * <pre>
+ * <pre>{@code
  *   Source              Source        
  *      +                   +           
  *      |                   |           
@@ -72,11 +72,11 @@ import java.util.Collection;
  *                |                     
  *                v                     
  *              Sink 
- * </pre>
+ * }</pre>
  *
  * Would result in this graph of operations at runtime:
  *
- * <pre>
+ * <pre>{@code
  *  Source              Source
  *    +                   +
  *    |                   |
@@ -86,7 +86,7 @@ import java.util.Collection;
  *              |
  *              v
  *             Sink
- * </pre>
+ * }</pre>
  *
  * The information about partitioning, union, split/select end up being encoded in the edges
  * that connect the sources to the map operation.
@@ -233,8 +233,7 @@ public abstract class StreamTransformation<T> {
 	/**
 	 * Returns the buffer timeout of this {@code StreamTransformation}.
 	 *
-	 * <p>
-	 * {@see #setBufferTimeout}
+	 * @see #setBufferTimeout(long)
 	 */
 	public long getBufferTimeout() {
 		return bufferTimeout;
@@ -253,8 +252,7 @@ public abstract class StreamTransformation<T> {
 	/**
 	 * Returns the {@code ResourceStrategy} of this {@code StreamTransformation}.
 	 *
-	 * <p>
-	 * {@see #setResourceStrategy}
+	 * @see #setResourceStrategy(StreamGraph.ResourceStrategy)
 	 */
 	public StreamGraph.ResourceStrategy getResourceStrategy() {
 		return resourceStrategy;

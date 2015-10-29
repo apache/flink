@@ -33,8 +33,8 @@ import org.apache.flink.api.common.InvalidProgramException;
  * Semantic annotations can help the Flink optimizer to generate more efficient execution plans for Flink programs.
  * For example, a <i>ForwardedFields</i> assertion for a map-type function can be declared as:
  *
- * <pre><blockquote>
- * \@ForwardedFields({"f0; f1->f2"})
+ * <pre>{@code
+ * {@literal @}ForwardedFields({"f0; f1->f2"})
  * public class MyMapper extends MapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>>
  * {
  *     public Tuple3<String, Integer, Integer> map(Tuple3<String, String, Integer> val) {
@@ -42,7 +42,7 @@ import org.apache.flink.api.common.InvalidProgramException;
  *         return new Tuple3<String, Integer, Integer>(val.f0, val.f2, 1);
  *     }
  * }
- * </blockquote></pre>
+ * }</pre>
  *
  * <p>
  * All annotations take Strings with expressions that refer to (nested) value fields of the input and output types of a function.
@@ -84,17 +84,17 @@ public class FunctionAnnotation {
 	 *
 	 * Fields that are forwarded at the same position can be specified by their position.
 	 * The specified position must be valid for the input and output data type and have the same type.
-	 * For example <code>\@ForwardedFields({"f2"})</code> declares that the third field of a Java input tuple is
+	 * For example {@code {@literal @}ForwardedFields({"f2"})} declares that the third field of a Java input tuple is
 	 * copied to the third field of an output tuple.
 	 *
 	 * Fields which are unchanged copied to another position in the output are declared by specifying the
 	 * source field expression in the input and the target field expression in the output.
-	 * <code>\@ForwardedFields({"f0->f2"})</code> denotes that the first field of the Java input tuple is
+	 * {@code {@literal @}ForwardedFields({"f0->f2"})} denotes that the first field of the Java input tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using the wildcard ("*") ensure that
 	 * the number of declared fields and their types in input and output type match.
 	 *
-	 * Multiple forwarded fields can be annotated in one (<code>\@ForwardedFields({"f2; f3->f0; f4"})</code>)
-	 * or separate Strings (<code>\@ForwardedFields({"f2", "f3->f0", "f4"})</code>).
+	 * Multiple forwarded fields can be annotated in one ({@code {@literal @}ForwardedFields({"f2; f3->f0; f4"})})
+	 * or separate Strings ({@code {@literal @}ForwardedFields({"f2", "f3->f0", "f4"})}).
 	 *
 	 * <b>NOTE: The use of the ForwardedFields annotation is optional.
 	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
@@ -119,17 +119,17 @@ public class FunctionAnnotation {
 	 *
 	 * Fields that are forwarded from the first input at the same position in the output can be
 	 * specified by their position. The specified position must be valid for the input and output data type and have the same type.
-	 * For example <code>\@ForwardedFieldsFirst({"f2"})</code> declares that the third field of a Java input tuple at the first input is
+	 * For example {@code {@literal @}ForwardedFieldsFirst({"f2"})} declares that the third field of a Java input tuple at the first input is
 	 * copied to the third field of an output tuple.
 	 *
 	 * Fields which are unchanged copied to another position in the output are declared by specifying the
 	 * source field expression in the input and the target field expression in the output.
-	 * <code>\@ForwardedFieldsFirst({"f0->f2"})</code> denotes that the first field of the Java input tuple at the first input is
+	 * {@code {@literal @}ForwardedFieldsFirst({"f0->f2"})} denotes that the first field of the Java input tuple at the first input is
 	 * unchanged copied to the third field of the Java output tuple. When using the wildcard ("*") ensure that
 	 * the number of declared fields and their types in input and output type match.
 	 *
-	 * Multiple forwarded fields can be annotated in one (<code>\@ForwardedFieldsFirst({"f2; f3->f0; f4"})</code>)
-	 * or separate Strings (<code>\@ForwardedFieldsFirst({"f2", "f3->f0", "f4"})</code>).
+	 * Multiple forwarded fields can be annotated in one ({@code {@literal @}ForwardedFieldsFirst({"f2; f3->f0; f4"})})
+	 * or separate Strings ({@code {@literal @}ForwardedFieldsFirst({"f2", "f3->f0", "f4"})}).
 	 *
 	 * <b>NOTE: The use of the ForwardedFieldsFirst annotation is optional.
 	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
@@ -157,17 +157,17 @@ public class FunctionAnnotation {
 	 *
 	 * Fields that are forwarded from the second input at the same position in the output can be
 	 * specified by their position. The specified position must be valid for the input and output data type and have the same type.
-	 * For example <code>\@ForwardedFieldsSecond({"f2"})</code> declares that the third field of a Java input tuple at the second input is
+	 * For example {@code {@literal @}ForwardedFieldsSecond({"f2"})} declares that the third field of a Java input tuple at the second input is
 	 * copied to the third field of an output tuple.
 	 *
 	 * Fields which are unchanged copied to another position in the output are declared by specifying the
 	 * source field expression in the input and the target field expression in the output.
-	 * <code>\@ForwardedFieldsSecond({"f0->f2"})</code> denotes that the first field of the Java input tuple at the second input is
+	 * {@code {@literal @}ForwardedFieldsSecond({"f0->f2"})} denotes that the first field of the Java input tuple at the second input is
 	 * unchanged copied to the third field of the Java output tuple. When using the wildcard ("*") ensure that
 	 * the number of declared fields and their types in input and output type match.
 	 *
-	 * Multiple forwarded fields can be annotated in one (<code>\@ForwardedFieldsSecond({"f2; f3->f0; f4"})</code>)
-	 * or separate Strings (<code>\@ForwardedFieldsSecond({"f2", "f3->f0", "f4"})</code>).
+	 * Multiple forwarded fields can be annotated in one ({@code {@literal @}ForwardedFieldsSecond({"f2; f3->f0; f4"})})
+	 * or separate Strings ({@code {@literal @}ForwardedFieldsSecond({"f2", "f3->f0", "f4"})}).
 	 *
 	 * <b>NOTE: The use of the ForwardedFieldsSecond annotation is optional.
 	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.

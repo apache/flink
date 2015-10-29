@@ -100,7 +100,9 @@ public abstract class AbstractFlinkYarnCluster {
 
 	/**
 	 * Disconnect from the ApplicationMaster without stopping the session
-	 * (therefore, use the {@see shutdown()} method.
+	 * (therefore, use the {@link AbstractFlinkYarnCluster#shutdown(boolean)} method.
+	 *
+	 * @see AbstractFlinkYarnCluster#shutdown(boolean)
 	 */
 	public abstract void disconnect();
 

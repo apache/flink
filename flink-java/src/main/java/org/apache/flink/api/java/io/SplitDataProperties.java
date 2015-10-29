@@ -95,7 +95,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * </b>
 	 *
 	 * @param partitionFields The field positions of the partitioning keys.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsPartitionedBy(int... partitionFields) {
 		return this.splitsPartitionedBy(null, partitionFields);
@@ -112,7 +112,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 *
 	 * @param partitionMethodId An ID for the method that was used to partition the data across splits.
 	 * @param partitionFields The field positions of the partitioning keys.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsPartitionedBy(String partitionMethodId, int... partitionFields) {
 
@@ -142,7 +142,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * </b>
 	 *
 	 * @param partitionFields The field expressions of the partitioning keys.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsPartitionedBy(String partitionFields) {
 		return this.splitsPartitionedBy(null, partitionFields);
@@ -160,7 +160,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 *
 	 * @param partitionMethodId An ID for the method that was used to partition the data across splits.
 	 * @param partitionFields The field expressions of the partitioning keys.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsPartitionedBy(String partitionMethodId, String partitionFields) {
 
@@ -194,7 +194,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * </b>
 	 *
 	 * @param groupFields The field positions of the grouping keys.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsGroupedBy(int... groupFields) {
 
@@ -224,7 +224,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * </b>
 	 *
 	 * @param groupFields The field expressions of the grouping keys.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsGroupedBy(String groupFields) {
 
@@ -257,7 +257,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 *
 	 * @param orderFields The field positions of the grouping keys.
 	 * @param orders The orders of the fields.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsOrderedBy(int[] orderFields, Order[] orders) {
 
@@ -306,7 +306,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 *
 	 * @param orderFields The field expressions of the grouping key.
 	 * @param orders The orders of the fields.
-	 * @result This SplitDataProperties object.
+	 * @return This SplitDataProperties object.
 	 */
 	public SplitDataProperties<T> splitsOrderedBy(String orderFields, Order[] orders) {
 

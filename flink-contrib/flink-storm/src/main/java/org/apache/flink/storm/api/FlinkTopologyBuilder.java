@@ -55,8 +55,8 @@ import java.util.Set;
 /**
  * {@link FlinkTopologyBuilder} mimics a {@link TopologyBuilder}, but builds a Flink program instead of a Storm
  * topology. Most methods (except {@link #createTopology()} are copied from the original {@link TopologyBuilder}
- * implementation to ensure equal behavior.<br />
- * <br />
+ * implementation to ensure equal behavior.<br>
+ * <br>
  * <strong>CAUTION: {@link IRichStateSpout StateSpout}s are currently not supported.</strong>
  */
 public class FlinkTopologyBuilder {

@@ -42,8 +42,8 @@ import com.google.common.collect.Sets;
  * A {@link BoltWrapper} wraps an {@link IRichBolt} in order to execute the Storm bolt within a Flink Streaming
  * program. It takes the Flink input tuples of type {@code IN} and transforms them into {@link StormTuple}s that the
  * bolt can process. Furthermore, it takes the bolt's output tuples and transforms them into Flink tuples of type
- * {@code OUT} (see {@link AbstractStormCollector} for supported types).<br />
- * <br />
+ * {@code OUT} (see {@link AbstractStormCollector} for supported types).<br>
+ * <br>
  * <strong>CAUTION: currently, only simple bolts are supported! (ie, bolts that do not use the Storm configuration
  * <code>Map</code> or <code>TopologyContext</code> that is provided by the bolt's <code>open(..)</code> method.
  * Furthermore, acking and failing of tuples as well as accessing tuple attributes by field names is not supported so

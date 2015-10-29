@@ -44,8 +44,8 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  * annotation for a map-type function that realizes a simple absolute function,
  * use it the following way:
  * 
- * <pre><blockquote>
- * \@ConstantFieldsExcept(fields={2})
+ * <pre>{@code
+ * {@literal @}ConstantFieldsExcept(fields={2})
  * public class MyMapper extends MapFunction
  * {
  *     public void map(Record record, Collector out)
@@ -56,7 +56,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 		out.collect(record);
  *     }
  * }
- * </blockquote></pre>
+ * }</pre>
  * 
  * Be aware that some annotations should only be used for functions with as single input 
  * ({@link MapFunction}, {@link ReduceFunction}) and some only for stubs with two inputs 

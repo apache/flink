@@ -51,7 +51,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 		/** A directory is always created, regardless of number of write tasks. */
 		ALWAYS,	
 		
-		/** A directory is only created for parallel output tasks, i.e., number of output tasks > 1.
+		/** A directory is only created for parallel output tasks, i.e., number of output tasks &gt; 1.
 		 * If number of output tasks = 1, the output is written to a single file. */
 		PARONLY
 	}

@@ -62,7 +62,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Applies an Aggregate transformation on a grouped {@link org.apache.flink.api.java.tuple.Tuple} {@link DataSet}.<br/>
+	 * Applies an Aggregate transformation on a grouped {@link org.apache.flink.api.java.tuple.Tuple} {@link DataSet}.<br>
 	 * <b>Note: Only Tuple DataSets can be aggregated.</b>
 	 * The transformation applies a built-in {@link Aggregations Aggregation} on a specified field 
 	 *   of a Tuple group. Additional aggregation functions can be added to the resulting 
@@ -120,7 +120,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 	
 	/**
-	 * Applies a Reduce transformation on a grouped {@link DataSet}.<br/>
+	 * Applies a Reduce transformation on a grouped {@link DataSet}.<br>
 	 * For each group, the transformation consecutively calls a {@link org.apache.flink.api.common.functions.RichReduceFunction}
 	 *   until only a single element for each group remains. 
 	 * A ReduceFunction combines two elements into one new element of the same type.
@@ -140,7 +140,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 	
 	/**
-	 * Applies a GroupReduce transformation on a grouped {@link DataSet}.<br/>
+	 * Applies a GroupReduce transformation on a grouped {@link DataSet}.<br>
 	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} for each group of the DataSet.
 	 * A GroupReduceFunction can iterate over all elements of a group and emit any
 	 *   number of output elements including none.
@@ -183,7 +183,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Returns a new set containing the first n elements in this grouped {@link DataSet}.<br/>
+	 * Returns a new set containing the first n elements in this grouped {@link DataSet}.<br>
 	 * @param n The desired number of elements for each group.
 	 * @return A GroupReduceOperator that represents the DataSet containing the elements.
 	*/
@@ -196,7 +196,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Applies a special case of a reduce transformation (minBy) on a grouped {@link DataSet}.<br/>
+	 * Applies a special case of a reduce transformation (minBy) on a grouped {@link DataSet}.<br>
 	 * The transformation consecutively calls a {@link ReduceFunction} 
 	 * until only a single element remains which is the result of the transformation.
 	 * A ReduceFunction combines two elements into one new element of the same type.
@@ -217,7 +217,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 	
 	/**
-	 * Applies a special case of a reduce transformation (maxBy) on a grouped {@link DataSet}.<br/>
+	 * Applies a special case of a reduce transformation (maxBy) on a grouped {@link DataSet}.<br>
 	 * The transformation consecutively calls a {@link ReduceFunction} 
 	 * until only a single element remains which is the result of the transformation.
 	 * A ReduceFunction combines two elements into one new element of the same type.
@@ -241,8 +241,8 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group on the specified field in the specified {@link Order}.</br>
-	 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br/>
+	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group on the specified field in the specified {@link Order}.<br>
+	 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br>
 	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(int, Order)} calls.
 	 * 
 	 * @param field The Tuple field on which the group is sorted.
@@ -263,8 +263,8 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 	
 	/**
-	 * Sorts Pojos within a group on the specified field in the specified {@link Order}.</br>
-	 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br/>
+	 * Sorts Pojos within a group on the specified field in the specified {@link Order}.<br>
+	 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br>
 	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(String, Order)} calls.
 	 * 
 	 * @param field The Tuple or Pojo field on which the group is sorted.
@@ -285,7 +285,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 
 	/**
 	 * Sorts elements within a group on a key extracted by the specified {@link org.apache.flink.api.java.functions.KeySelector}
-	 * in the specified {@link Order}.</br>
+	 * in the specified {@link Order}.<br>
 	 * Chaining {@link #sortGroup(KeySelector, Order)} calls is not supported.
 	 *
 	 * @param keySelector The KeySelector with which the group is sorted.

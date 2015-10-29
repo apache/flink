@@ -113,7 +113,7 @@ public final class WebMonitorUtils {
 	/**
 	 * Starts the web runtime monitor. Because the actual implementation of the runtime monitor is
 	 * in another project, we load the runtime monitor dynamically.
-	 * <p/>
+	 * <p>
 	 * Because failure to start the web runtime monitor is not considered fatal, this method does
 	 * not throw any exceptions, but only logs them.
 	 *

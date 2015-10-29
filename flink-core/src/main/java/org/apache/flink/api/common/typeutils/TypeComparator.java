@@ -76,7 +76,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * of the fields from the record, this method may extract those fields.
 	 * <p>
 	 * A typical example for checking the equality of two elements is the following:
-	 * <pre>
+	 * <pre>{@code
 	 * E e1 = ...;
 	 * E e2 = ...;
 	 * 
@@ -84,7 +84,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * 
 	 * acc.setReference(e1);
 	 * boolean equal = acc.equalToReference(e2);
-	 * </pre>
+	 * }</pre>
 	 * 
 	 * The rational behind this method is that elements are typically compared using certain features that
 	 * are extracted from them, (such de-serializing as a subset of fields). When setting the
@@ -113,7 +113,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * elements {@code e1} and {@code e2} via a comparator, this method can be used the
 	 * following way.
 	 * 
-	 * <pre>
+	 * <pre>{@code
 	 * E e1 = ...;
 	 * E e2 = ...;
 	 * 
@@ -124,7 +124,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * acc2.setReference(e2);
 	 * 
 	 * int comp = acc1.compareToReference(acc2);
-	 * </pre>
+	 * }</pre>
 	 * 
 	 * The rational behind this method is that elements are typically compared using certain features that
 	 * are extracted from them, (such de-serializing as a subset of fields). When setting the
