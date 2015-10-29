@@ -485,13 +485,15 @@ val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Do
 
 * <strong>Undirected</strong>: In Gelly, a `Graph` is always directed. Undirected graphs can be represented by adding all opposite-direction edges to a graph. For this purpose, Gelly provides the `getUndirected()` method.
 
-* <strong>Union</strong>: Gelly's `union()` method performs a union operation on the vertex and edge sets of the specified graph and current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
+* <strong>Union</strong>: Gelly's `union()` method performs an union operation on the vertex and edge sets of the specified graph and the current graph. Duplicate vertices are removed from the resulting `Graph`, while if duplicate edges exists, these will be maintained.
 
 <p class="text-center">
     <img alt="Union Transformation" width="50%" src="fig/gelly-union.png"/>
 </p>
 
-* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and specified graph.
+* <strong>Difference</strong>: Gelly's `difference()` method performs a difference on the vertex and edge sets of the current graph and the specified graph.
+
+* <strong>Intersect</strong>: Gelly's `intersect()` method performs an intersect on the edge sets of the current graph and the specified graph. Edges are considered equal, if they have the same source identifier, target identifier and edge value. Vertex values are replaced with `NullValue` and, depending on a parameter, matching edges are either contained once in the resulting `Graph` or as often as there are matching edge pairs between the input graphs.
 
 -[Back to top](#top)
 
