@@ -1349,6 +1349,62 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         getCallLocationName())
     wrap(op)
   }
+
+  /**
+   * Range-partitions a DataSet on the specified tuple field positions.
+   *
+   * '''important:''' This operation requires an extra pass over the DataSet to compute the range
+   * boundaries and shuffles the whole DataSet over the network.
+   * This can take significant amount of time.
+   *
+   */
+  def partitionByRange(fields: Int*): DataSet[T] = {
+    val op = new PartitionOperator[T](
+      javaSet,
+      PartitionMethod.RANGE,
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, false),
+      getCallLocationName())
+    wrap(op)
+  }
+
+  /**
+   * Range-partitions a DataSet on the specified fields.
+   *
+  '''important:''' This operation requires an extra pass over the DataSet to compute the range
+   * boundaries and shuffles the whole DataSet over the network.
+   * This can take significant amount of time.
+   */
+  def partitionByRange(firstField: String, otherFields: String*): DataSet[T] = {
+    val op = new PartitionOperator[T](
+      javaSet,
+      PartitionMethod.RANGE,
+      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
+      getCallLocationName())
+    wrap(op)
+  }
+
+  /**
+   * Range-partitions a DataSet using the specified key selector function.
+   *
+  '''important:''' This operation requires an extra pass over the DataSet to compute the range
+   * boundaries and shuffles the whole DataSet over the network.
+   * This can take significant amount of time.
+   */
+  def partitionByRange[K: TypeInformation](fun: T => K): DataSet[T] = {
+    val keyExtractor = new KeySelector[T, K] {
+      val cleanFun = clean(fun)
+      def getKey(in: T) = cleanFun(in)
+    }
+    val op = new PartitionOperator[T](
+      javaSet,
+      PartitionMethod.RANGE,
+      new Keys.SelectorFunctionKeys[T, K](
+        keyExtractor,
+        javaSet.getType,
+        implicitly[TypeInformation[K]]),
+      getCallLocationName())
+    wrap(op)
+  }
   
   /**
    * Partitions a tuple DataSet on the specified key fields using a custom partitioner.

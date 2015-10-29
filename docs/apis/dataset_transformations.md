@@ -1950,7 +1950,7 @@ Not supported.
 ### Hash-Partition
 
 Hash-partitions a DataSet on a given key.
-Keys can be specified as key expressions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+Keys can be specified as position keys, expression keys, and key selector functions (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1980,6 +1980,41 @@ Not supported.
 
 </div>
 </div>
+
+### Range-Partition
+
+Range-partitions a DataSet on a given key.
+Keys can be specified as position keys, expression keys, and key selector functions (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple2<String, Integer>> in = // [...]
+// range-partition DataSet by String value and apply a MapPartition transformation.
+DataSet<Tuple2<String, String>> out = in.partitionByRange(0)
+                                        .mapPartition(new PartitionMapper());
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val in: DataSet[(String, Int)] = // [...]
+// range-partition DataSet by String value and apply a MapPartition transformation.
+val out = in.partitionByRange(0).mapPartition { ... }
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
+</div>
+
 
 ### Sort Partition
 

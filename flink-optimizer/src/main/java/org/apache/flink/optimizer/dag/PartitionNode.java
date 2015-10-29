@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
@@ -119,7 +121,14 @@ public class PartitionNode extends SingleInputNode {
 				rgps.setCustomPartitioned(this.keys, this.customPartitioner);
 				break;
 			case RANGE:
-				throw new UnsupportedOperationException("Not yet supported");
+				// Initiate Ordering as ascending here as no order parameter in API level,
+				// we could revisit this while order is required in future optimization.
+				Ordering ordering = new Ordering();
+				for (int field : this.keys) {
+					ordering.appendOrdering(field, null, Order.ASCENDING);
+				}
+				rgps.setRangePartitioned(ordering);
+				break;
 			default:
 				throw new IllegalArgumentException("Invalid partition method");
 			}

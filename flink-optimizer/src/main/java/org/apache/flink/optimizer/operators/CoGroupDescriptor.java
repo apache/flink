@@ -151,9 +151,9 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		else if(produced1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
 				produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 
-			// both are range partitioned, check that partitioning fields are equivalently chosen
-			return checkEquivalentFieldPositionsInKeyFields(
-					produced1.getPartitioningFields(), produced2.getPartitioningFields());
+			// Return false anyway now, we need both the partition key and data distribution
+			// information to make sure whether the range partitions are equivalent.
+			return false;
 
 		}
 		else if(produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&

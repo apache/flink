@@ -1246,7 +1246,49 @@ public abstract class DataSet<T> {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
 		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
 	}
-	
+
+	/**
+	 * Range-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 * shuffles the whole DataSet over the network. This can take significant amount of time.
+	 *
+	 * @param fields The field indexes on which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByRange(int... fields) {
+		return new PartitionOperator<T>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<T>(fields, getType(), false), Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 * shuffles the whole DataSet over the network. This can take significant amount of time.
+	 *
+	 * @param fields The field expressions on which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByRange(String... fields) {
+		return new PartitionOperator<T>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<T>(fields, getType()), Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet using the specified KeySelector.
+	 * <p>
+	 * <b>Important:</b>This operation requires an extra pass over the DataSet to compute the range boundaries and
+	 * shuffles the whole DataSet over the network. This can take significant amount of time.
+	 *
+	 * @param keyExtractor The KeyExtractor with which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 *
+	 * @see KeySelector
+	 */
+	public <K extends Comparable<K>> PartitionOperator<T> partitionByRange(KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new PartitionOperator<T>(this, PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
+	}
+
 	/**
 	 * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
@@ -1393,7 +1435,7 @@ public abstract class DataSet<T> {
 	public DataSink<T> writeAsText(String filePath) {
 		return output(new TextOutputFormat<T>(new Path(filePath)));
 	}
-	
+
 	/**
 	 * Writes a DataSet as text file(s) to the specified location.<br>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.  
@@ -1410,7 +1452,7 @@ public abstract class DataSet<T> {
 		tof.setWriteMode(writeMode);
 		return output(tof);
 	}
-	
+
 	/**
 	 * Writes a DataSet as text file(s) to the specified location.<br>
 	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
@@ -1441,7 +1483,7 @@ public abstract class DataSet<T> {
 	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, TextFormatter<T> formatter) {
 		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
 	}
-	
+
 	/**
 	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location.<br>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
@@ -1459,7 +1501,7 @@ public abstract class DataSet<T> {
 	public DataSink<T> writeAsCsv(String filePath) {
 		return writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
-	
+
 	/**
 	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location.<br>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
@@ -1478,7 +1520,7 @@ public abstract class DataSet<T> {
 	public DataSink<T> writeAsCsv(String filePath, WriteMode writeMode) {
 		return internalWriteAsCsv(new Path(filePath),CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER, writeMode);
 	}
-	
+
 	/**
 	 * Writes a {@link Tuple} DataSet as CSV file(s) to the specified location with the specified field and line delimiters.<br>
 	 * <b>Note: Only a Tuple DataSet can written as a CSV file.</b><br>
@@ -1687,5 +1729,6 @@ public abstract class DataSet<T> {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
 	}
+
 
 }

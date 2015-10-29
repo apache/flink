@@ -22,7 +22,6 @@ package org.apache.flink.api.common.distributions;
 import java.io.Serializable;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.types.Key;
 
 public interface DataDistribution extends IOReadableWritable, Serializable {
 	
@@ -46,7 +45,7 @@ public interface DataDistribution extends IOReadableWritable, Serializable {
 	 * 
 	 * @return A record whose values act as bucket boundaries for the specified bucket.
 	 */
-	Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets);
+	Object[] getBucketBoundary(int bucketNum, int totalNumBuckets);
 	
 	/**
 	 * The number of fields in the (composite) key. This determines how many fields in the records define
