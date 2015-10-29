@@ -85,7 +85,7 @@ val mlr = MultipleLinearRegression()
   .setIterations(100)
   .setConvergenceThreshold(0.001)
 
-mlr.fit(trainingData, parameters)
+mlr.fit(trainingData)
 
 // The fitted model can now be used to make predictions
 val predictions: DataSet[LabeledVector] = mlr.predict(testingData)
