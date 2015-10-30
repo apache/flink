@@ -18,8 +18,9 @@
 
 package org.apache.flink.ml.regression
 
+import org.apache.flink.ml._
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.ml.common.{WeightVector, ParameterMap}
+import org.apache.flink.ml.common.{LabeledVector, WeightVector, ParameterMap}
 import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.scalatest.{Matchers, FlatSpec}
 

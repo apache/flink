@@ -85,7 +85,7 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *  Threshold for relative change of sum of squared residuals until convergence.
   *
   */
-class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
+class MultipleLinearRegression extends Regressor[MultipleLinearRegression]{
   import org.apache.flink.ml._
   import MultipleLinearRegression._
 

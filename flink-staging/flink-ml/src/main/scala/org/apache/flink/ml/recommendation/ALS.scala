@@ -25,10 +25,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
+import org.apache.flink.ml.evaluation.RegressionScores
+import org.apache.flink.ml.math.{DenseVector, BLAS}
+import org.apache.flink.ml.pipeline._
 import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, GroupReduceFunction, CoGroupFunction}
+import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner,
+  GroupReduceFunction, CoGroupFunction}
 
 import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
@@ -147,7 +150,7 @@ class ALS extends Predictor[ALS] {
   }
 
   /** Sets the number of iterations of the ALS algorithm
-    * 
+    *
     * @param iterations
     * @return
     */
@@ -157,7 +160,7 @@ class ALS extends Predictor[ALS] {
   }
 
   /** Sets the number of blocks into which the user and item matrix shall be partitioned
-    * 
+    *
     * @param blocks
     * @return
     */
@@ -167,7 +170,7 @@ class ALS extends Predictor[ALS] {
   }
 
   /** Sets the random seed for the initial item matrix initialization
-    * 
+    *
     * @param seed
     * @return
     */
@@ -178,7 +181,7 @@ class ALS extends Predictor[ALS] {
 
   /** Sets the temporary path into which intermediate results are written in order to increase
     * performance.
-    * 
+    *
     * @param temporaryPath
     * @return
     */
@@ -407,14 +410,38 @@ object ALS {
               val uFactorsVector = uFactors.factors
               val iFactorsVector = iFactors.factors
 
-              val prediction = blas.ddot(
-                uFactorsVector.length,
-                uFactorsVector,
-                1,
-                iFactorsVector,
-                1)
+              val prediction = BLAS.dot(DenseVector(uFactorsVector), DenseVector(iFactorsVector))
 
               (uID, iID, prediction)
+            }
+          }
+        }
+
+        case None => throw new RuntimeException("The ALS model has not been fitted to data. " +
+          "Prior to predicting values, it has to be trained on data.")
+      }
+    }
+  }
+
+  implicit val evaluateRatings = new EvaluateDataSetOperation[ALS, (Int, Int, Double), Double] {
+    override def evaluateDataSet(
+        instance: ALS,
+        evaluateParameters: ParameterMap,
+        testing: DataSet[(Int, Int, Double)])
+      : DataSet[(Double, Double)] = {
+      instance.factorsOption match {
+        case Some((userFactors, itemFactors)) => {
+          testing.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(0)
+            .join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2").equalTo(0).map {
+            tuple => {
+              val (((_, _, truth), uFactors), iFactors) = tuple
+
+              val uFactorsVector = uFactors.factors
+              val iFactorsVector = iFactors.factors
+
+              val prediction = BLAS.dot(DenseVector(uFactorsVector), DenseVector(iFactorsVector))
+
+              (truth, prediction)
             }
           }
         }

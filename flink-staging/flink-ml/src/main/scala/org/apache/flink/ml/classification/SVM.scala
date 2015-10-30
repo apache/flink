@@ -134,7 +134,7 @@ import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
   *  distance to the hyperplane for each example. Setting it to false will return the binary
   *  class label (+1.0, -1.0) (Default value: '''false''')
   */
-class SVM extends Predictor[SVM] {
+class SVM extends Classifier[SVM] {
 
   import SVM._
 

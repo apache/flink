@@ -37,7 +37,7 @@ import org.apache.flink.ml.common.ParameterMap
   * @tparam P Type of the trailing [[Predictor]]
   */
 case class ChainedPredictor[T <: Transformer[T], P <: Predictor[P]](transformer: T, predictor: P)
-  extends Predictor[ChainedPredictor[T, P]]{}
+  extends Predictor[ChainedPredictor[T, P]] {}
 
 object ChainedPredictor{
 
