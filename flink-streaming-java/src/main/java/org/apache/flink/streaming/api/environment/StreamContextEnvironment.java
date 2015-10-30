@@ -20,15 +20,15 @@ package org.apache.flink.streaming.api.environment;
 import java.net.URL;
 import java.util.List;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,33 +69,23 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute() throws Exception {
-		return execute(null);
+		return execute(DEFAULT_JOB_NAME);
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		Preconditions.checkNotNull("Streaming Job name should not be null.");
 
-		JobGraph jobGraph;
-		if (jobName == null) {
-			jobGraph = this.getStreamGraph().getJobGraph();
-		} else {
-			jobGraph = this.getStreamGraph().getJobGraph(jobName);
-		}
+		StreamGraph streamGraph = this.getStreamGraph();
+		streamGraph.setJobName(jobName);
 
 		transformations.clear();
 
-		// attach all necessary jar files to the JobGraph
-		for (URL file : jars) {
-			jobGraph.addJar(new Path(file.toURI()));
-		}
-
-		jobGraph.setClasspaths(classpaths);
-
 		// execute the programs
 		if (wait) {
-			return client.runBlocking(jobGraph, userCodeClassLoader);
+			return client.runBlocking(streamGraph, jars, classpaths, userCodeClassLoader);
 		} else {
-			JobSubmissionResult result = client.runDetached(jobGraph, userCodeClassLoader);
+			JobSubmissionResult result = client.runDetached(streamGraph, jars, classpaths, userCodeClassLoader);
 			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
 			return JobExecutionResult.fromJobSubmissionResult(result);
 		}

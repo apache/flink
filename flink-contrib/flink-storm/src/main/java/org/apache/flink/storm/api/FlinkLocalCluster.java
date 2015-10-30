@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.storm.util.StormConfig;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +74,10 @@ public class FlinkLocalCluster {
 			topology.getConfig().setGlobalJobParameters(new StormConfig(conf));
 		}
 
-		JobGraph jobGraph = topology.getStreamGraph().getJobGraph(topologyName);
+		StreamGraph streamGraph = topology.getStreamGraph();
+		streamGraph.setJobName(topologyName);
+
+		JobGraph jobGraph = streamGraph.getJobGraph();
 		this.flink.submitJobDetached(jobGraph);
 	}
 

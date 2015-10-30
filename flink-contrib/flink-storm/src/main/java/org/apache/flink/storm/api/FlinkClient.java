@@ -49,6 +49,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
 
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -185,7 +186,10 @@ public class FlinkClient {
 			topology.getConfig().setGlobalJobParameters(new StormConfig(this.conf));
 		}
 
-		final JobGraph jobGraph = topology.getStreamGraph().getJobGraph(name);
+		final StreamGraph streamGraph = topology.getStreamGraph();
+		streamGraph.setJobName(name);
+
+		final JobGraph jobGraph = streamGraph.getJobGraph();
 		jobGraph.addJar(new Path(uploadedJarUri));
 
 		final Configuration configuration = jobGraph.getJobConfiguration();

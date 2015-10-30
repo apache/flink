@@ -126,6 +126,10 @@ public class StreamGraph extends StreamingPlan {
 		return executionConfig;
 	}
 
+	public String getJobName() {
+		return jobName;
+	}
+
 	public void setJobName(String jobName) {
 		this.jobName = jobName;
 	}
@@ -554,20 +558,9 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
-	 * Gets the assembled {@link JobGraph} and adds a default name for it.
+	 * Gets the assembled {@link JobGraph}.
 	 */
 	public JobGraph getJobGraph() {
-		return getJobGraph(jobName);
-	}
-
-	/**
-	 * Gets the assembled {@link JobGraph} and adds a user specified name for
-	 * it.
-	 * 
-	 * @param jobGraphName
-	 *            name of the jobGraph
-	 */
-	public JobGraph getJobGraph(String jobGraphName) {
 		// temporarily forbid checkpointing for iterative jobs
 		if (isIterative() && isCheckpointingEnabled() && !forceCheckpoint) {
 			throw new UnsupportedOperationException(
@@ -576,11 +569,9 @@ public class StreamGraph extends StreamingPlan {
 							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
-		setJobName(jobGraphName);
-
 		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
 
-		return jobgraphGenerator.createJobGraph(jobGraphName);
+		return jobgraphGenerator.createJobGraph(jobName);
 	}
 
 	@Override

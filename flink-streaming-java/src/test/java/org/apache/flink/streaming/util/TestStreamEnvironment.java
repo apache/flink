@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
 /**
@@ -41,7 +42,9 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		final JobGraph jobGraph = getStreamGraph().getJobGraph(jobName);
+		final StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
+		final JobGraph jobGraph = streamGraph.getJobGraph();
 		return executor.submitJobAndWait(jobGraph, false);
 	}
 

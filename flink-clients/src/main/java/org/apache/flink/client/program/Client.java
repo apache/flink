@@ -341,14 +341,14 @@ public class Client {
 	}
 	
 
-	public JobExecutionResult runBlocking(OptimizedPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
+	public JobExecutionResult runBlocking(FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
 			ClassLoader classLoader) throws ProgramInvocationException
 	{
 		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
 		return runBlocking(job, classLoader);
 	}
 
-	public JobSubmissionResult runDetached(OptimizedPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
+	public JobSubmissionResult runDetached(FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
 			ClassLoader classLoader) throws ProgramInvocationException
 	{
 		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);

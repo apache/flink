@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,9 +34,8 @@ import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,36 +164,28 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
-		JobGraph jobGraph = getStreamGraph().getJobGraph(jobName);
+		StreamGraph streamGraph = getStreamGraph();
+		streamGraph.setJobName(jobName);
 		transformations.clear();
-		return executeRemotely(jobGraph);
+		return executeRemotely(streamGraph);
 	}
 
 	/**
 	 * Executes the remote job.
 	 * 
-	 * @param jobGraph
-	 *            jobGraph to execute
+	 * @param streamGraph
+	 *            Stream Graph to execute
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	private JobExecutionResult executeRemotely(JobGraph jobGraph) throws ProgramInvocationException {
+	private JobExecutionResult executeRemotely(StreamGraph streamGraph) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
-		}
-
-		for (URL jarFile : jarFiles) {
-			try {
-				jobGraph.addJar(new Path(jarFile.toURI()));
-			} catch (URISyntaxException e) {
-				throw new ProgramInvocationException("URL is invalid", e);
-			}
 		}
 
 		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
 			getClass().getClassLoader());
 		
 		Configuration configuration = new Configuration();
-		configuration.addAll(jobGraph.getJobConfiguration());
 		configuration.addAll(this.config);
 		
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
@@ -211,7 +201,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		try {
-			return client.runBlocking(jobGraph, usercodeClassLoader);
+			return client.runBlocking(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader);
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
