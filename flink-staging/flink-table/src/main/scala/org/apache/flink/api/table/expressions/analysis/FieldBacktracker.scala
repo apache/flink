@@ -31,13 +31,13 @@ object FieldBacktracker {
    *
    * @param op start operator
    * @param fieldName field name at start operator
-   * @return original field name with corresponding AdaptiveTableSource or null
+   * @return original field name with corresponding AdaptiveTableSource
    */
   def resolveFieldNameAndTableSource(op: PlanNode, fieldName: String):
-      (AdaptiveTableSource, String) = {
+      Option[(AdaptiveTableSource, String)] = {
     op match {
       case s@Select(input, selection) =>
-        var resolvedField: (AdaptiveTableSource, String) = null
+        var resolvedField: Option[(AdaptiveTableSource, String)] = None
         // only follow unmodified fields
         selection.foreach {
           case ResolvedFieldReference(name, _) if name == fieldName =>
@@ -57,7 +57,7 @@ object FieldBacktracker {
           resolveFieldNameAndTableSource(rightPlanNode, fieldName)
         }
         else {
-          null
+          None
         }
       case As(input, newFieldNames) =>
         val oldName = input.outputFields(newFieldNames.indexOf(fieldName))._1
@@ -68,8 +68,8 @@ object FieldBacktracker {
       // original AdaptiveTableSource name can be resolved
       case r@Root(tableSource: AdaptiveTableSource, outputFields) if outputFields.map(_._1)
           .contains(fieldName) =>
-        (tableSource, fieldName)
-      case _ => null
+        Some((tableSource, fieldName))
+      case _ => None
     }
   }
 }

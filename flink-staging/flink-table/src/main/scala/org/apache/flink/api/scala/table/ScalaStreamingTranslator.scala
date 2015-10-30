@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, javaToScalaStream}
  * This is very limited right now. Only select and filter are implemented. Also, the expression
  * operations must be extended to allow windowing operations.
  */
-class ScalaStreamingTranslator(javaEnv: StreamExecutionEnvironment = null)
+class ScalaStreamingTranslator(javaEnv: Option[StreamExecutionEnvironment])
   extends PlanTranslator {
 
   private val javaTranslator = new JavaStreamingTranslator(javaEnv)
@@ -61,7 +61,7 @@ class ScalaStreamingTranslator(javaEnv: StreamExecutionEnvironment = null)
 
   override def createTable(tableSource: TableSource): Table = {
     // a TableSource requires an StreamExecutionEnvironment
-    if (javaEnv == null) {
+    if (javaEnv.isEmpty) {
       throw new ExpressionException("This operation requires a StreamExecutionEnvironment." +
         "Scala implicit conversions can not be used in this case. Use a TableEnvironment instead.")
     }

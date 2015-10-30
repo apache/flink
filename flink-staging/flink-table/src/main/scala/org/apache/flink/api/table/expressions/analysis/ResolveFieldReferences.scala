@@ -56,10 +56,11 @@ class ResolveFieldReferences(inputFields: Seq[(String, TypeInformation[_])],
         inputOperation.outputFields.find { _._1 == fieldName } match {
           case Some((_, tpe)) =>
 
-            val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldName)
+            val resolvedFieldOption = resolveFieldNameAndTableSource(inputOperation, fieldName)
 
             // notify AdaptiveTableSource about field access
-            if (resolvedField != null) {
+            if (resolvedFieldOption.isDefined) {
+              val resolvedField = resolvedFieldOption.get
               resolvedField._1.notifyResolvedField(resolvedField._2, filtering)
             }
 

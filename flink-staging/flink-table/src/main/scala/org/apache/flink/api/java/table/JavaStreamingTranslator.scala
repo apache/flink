@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.operators.StreamMap
  * operations must be extended to allow windowing operations.
  */
 
-class JavaStreamingTranslator(env: StreamExecutionEnvironment = null) extends PlanTranslator {
+class JavaStreamingTranslator(env: Option[StreamExecutionEnvironment]) extends PlanTranslator {
 
   type Representation[A] = DataStream[A]
 
@@ -57,14 +57,14 @@ class JavaStreamingTranslator(env: StreamExecutionEnvironment = null) extends Pl
 
   override def createTable(tableSource: TableSource): Table = {
     // a TableSource requires an StreamExecutionEnvironment
-    if (env == null) {
+    if (env.isEmpty) {
       throw new ExpressionException("This operation requires a StreamExecutionEnvironment.")
     }
     tableSource match {
       case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
 
       case static: StaticTableSource =>
-        createTable(static.createStaticDataStream(env), static.getOutputFieldNames().mkString(","))
+        createTable(static.createStaticDataStream(env.get), static.getOutputFieldNames().mkString(","))
 
       case _ => throw new ExpressionException("Unknown TableSource type.")
     }
@@ -134,10 +134,10 @@ class JavaStreamingTranslator(env: StreamExecutionEnvironment = null) extends Pl
         dataStream
 
       case Root(tableSource: AdaptiveTableSource, resultFields) =>
-        if (env == null) {
+        if (env.isEmpty) {
           throw new ExpressionException("This operation requires a TableEnvironment.")
         }
-        tableSource.createAdaptiveDataStream(env)
+        tableSource.createAdaptiveDataStream(env.get)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaStreamingTranslator: " + op + ". " +

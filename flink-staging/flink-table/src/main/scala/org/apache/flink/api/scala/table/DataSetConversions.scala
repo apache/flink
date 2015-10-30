@@ -41,7 +41,7 @@ class DataSetConversions[T](set: DataSet[T], inputType: CompositeType[T]) {
    * of type `Int`.
    */
   def as(fields: Expression*): Table = {
-     new ScalaBatchTranslator(set.getExecutionEnvironment.getJavaEnv)
+     new ScalaBatchTranslator(Some(set.getExecutionEnvironment.getJavaEnv))
        .createTable(set, fields.toArray)
   }
 

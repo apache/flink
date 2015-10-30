@@ -164,19 +164,19 @@ class TableSourceTest {
 
   @Test(expected = classOf[ExpressionException])
   def testScalaImplicitConversions(): Unit = {
-    getTableJava(new DummyTableSourceWithPushdown())
+    getTableScala(new DummyTableSourceWithPushdown())
         .toDataSet[MyResult]
   }
 
   // ----------------------------------------------------------------------------------------------
 
   def getTableJava(tableSource: TableSource): Table = {
-    val translator = new JavaBatchTranslator(JavaEnv.getExecutionEnvironment)
+    val translator = new JavaBatchTranslator(Some(JavaEnv.getExecutionEnvironment))
     translator.createTable(tableSource)
   }
 
   def getTableScala(tableSource: TableSource): Table = {
-    val translator = new JavaBatchTranslator(JavaEnv.getExecutionEnvironment)
+    val translator = new ScalaBatchTranslator(Some(JavaEnv.getExecutionEnvironment))
     translator.createTable(tableSource)
   }
 

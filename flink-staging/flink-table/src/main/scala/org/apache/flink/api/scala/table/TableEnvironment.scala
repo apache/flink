@@ -34,9 +34,9 @@ class TableEnvironment(environment: AbstractExecutionEnvironment) {
   private def translatorFromEnv = {
     environment match {
       case batchEnv: ExecutionEnvironment =>
-        new ScalaBatchTranslator(batchEnv.getJavaEnv)
+        new ScalaBatchTranslator(Some(batchEnv.getJavaEnv))
       case streamEnv: StreamExecutionEnvironment =>
-        new ScalaStreamingTranslator(streamEnv.getJavaEnv)
+        new ScalaStreamingTranslator(Some(streamEnv.getJavaEnv))
       case _ =>
         throw new IllegalArgumentException("ExecutionEnvironment is invalid for the " +
           "Scala TableEnvironment.")

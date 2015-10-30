@@ -40,7 +40,7 @@ import org.apache.flink.api.table.{ExpressionException, Row, Table}
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
  * translating them back to Java [[org.apache.flink.api.java.DataSet]]s.
  */
-class JavaBatchTranslator(env: ExecutionEnvironment = null) extends PlanTranslator {
+class JavaBatchTranslator(env: Option[ExecutionEnvironment]) extends PlanTranslator {
 
   type Representation[A] = JavaDataSet[A]
 
@@ -57,14 +57,14 @@ class JavaBatchTranslator(env: ExecutionEnvironment = null) extends PlanTranslat
 
   override def createTable(tableSource: TableSource): Table = {
     // a TableSource requires an ExecutionEnvironment
-    if (env == null) {
+    if (env.isEmpty) {
       throw new ExpressionException("This operation requires an ExecutionEnvironment.")
     }
     tableSource match {
       case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
 
       case static: StaticTableSource =>
-        createTable(static.createStaticDataSet(env), static.getOutputFieldNames().mkString(","))
+        createTable(static.createStaticDataSet(env.get), static.getOutputFieldNames().mkString(","))
 
       case _ => throw new ExpressionException("Unknown TableSource type.")
     }
@@ -135,10 +135,10 @@ class JavaBatchTranslator(env: ExecutionEnvironment = null) extends PlanTranslat
         dataSet
 
       case Root(tableSource: AdaptiveTableSource, resultFields) =>
-        if (env == null) {
+        if (env.isEmpty) {
           throw new ExpressionException("This operation requires a TableEnvironment.")
         }
-        tableSource.createAdaptiveDataSet(env)
+        tableSource.createAdaptiveDataSet(env.get)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op + ". " +

@@ -34,14 +34,14 @@ class TableConversions(table: Table) {
    * Converts the [[Table]] to a [[DataSet]].
    */
   def toDataSet[T: TypeInformation]: DataSet[T] = {
-     new ScalaBatchTranslator().translate[T](table.operation)
+     new ScalaBatchTranslator(None).translate[T](table.operation)
   }
 
   /**
    * Converts the [[Table]] to a [[DataStream]].
    */
   def toDataStream[T: TypeInformation]: DataStream[T] = {
-    new ScalaStreamingTranslator().translate[T](table.operation)
+    new ScalaStreamingTranslator(None).translate[T](table.operation)
   }
 }
 

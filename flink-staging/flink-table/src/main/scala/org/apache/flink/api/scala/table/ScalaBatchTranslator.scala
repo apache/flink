@@ -36,7 +36,7 @@ import scala.reflect.ClassTag
  * [[PlanTranslator]] for creating [[Table]]s from Scala [[DataSet]]s and
  * translating them back to Scala [[DataSet]]s.
  */
-class ScalaBatchTranslator(javaEnv: ExecutionEnvironment = null) extends PlanTranslator {
+class ScalaBatchTranslator(javaEnv: Option[ExecutionEnvironment]) extends PlanTranslator {
 
   private val javaTranslator = new JavaBatchTranslator(javaEnv)
 
@@ -69,7 +69,7 @@ class ScalaBatchTranslator(javaEnv: ExecutionEnvironment = null) extends PlanTra
 
   override def createTable(tableSource: TableSource): Table = {
     // a TableSource requires an ExecutionEnvironment
-    if (javaEnv == null) {
+    if (javaEnv.isEmpty) {
       throw new ExpressionException("This operation requires an ExecutionEnvironment." +
         "Scala implicit conversions can not be used in this case. Use a TableEnvironment instead.")
     }

@@ -49,7 +49,7 @@ class PredicatePushdown(val inputOperation: PlanNode) extends Rule[Expression] {
       val result = tsExpr.transformPost {
         case rfr@ResolvedFieldReference(fieldName, typeInfo) =>
           ResolvedFieldReference(
-            resolveFieldNameAndTableSource(inputOperation, fieldName)._2,
+            resolveFieldNameAndTableSource(inputOperation, fieldName).get._2,
             typeInfo
           )
       }
@@ -105,15 +105,15 @@ class PredicatePushdown(val inputOperation: PlanNode) extends Rule[Expression] {
       case bc: BinaryComparison if bc.right.isInstanceOf[ResolvedFieldReference] =>
         val fieldRef = bc.right.asInstanceOf[ResolvedFieldReference]
         val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldRef.name)
-        resolvedField != null && resolvedField._1 == ts
+        resolvedField.isDefined && resolvedField.get._1 == ts
       case bc: BinaryComparison if bc.left.isInstanceOf[ResolvedFieldReference] =>
         val fieldRef = bc.left.asInstanceOf[ResolvedFieldReference]
         val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldRef.name)
-        resolvedField != null && resolvedField._1 == ts
+        resolvedField.isDefined && resolvedField.get._1 == ts
       case ue@(IsNotNull(_) | IsNull(_)) =>
         val fieldRef = ue.asInstanceOf[UnaryExpression].child.asInstanceOf[ResolvedFieldReference]
         val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldRef.name)
-        resolvedField != null && resolvedField._1 == ts
+        resolvedField.isDefined && resolvedField.get._1 == ts
       case _ => false
     }
   }

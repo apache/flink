@@ -31,7 +31,7 @@ object PredicatePruner {
    * @param expr expression to be copied and pruned
    * @return new pruned expression
    */
-  def pruneExpr(filter: (Expression) => Boolean, expr: Expression): Expression = {
+  def pruneExpr(filter: Expression => Boolean, expr: Expression): Expression = {
     expr match {
       case And(left, right) =>
         val prunedLeft = pruneExpr(filter, left)
