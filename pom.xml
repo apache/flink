@@ -825,7 +825,7 @@ under the License.
 				</executions>
 				<configuration>
 					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<suppressionsFileExpression>/checkstyle.suppressions.file</suppressionsFileExpression>
+					<suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
 					<configLocation>/tools/maven/checkstyle.xml</configLocation>
 					<logViolationsToConsole>true</logViolationsToConsole>
 				</configuration>

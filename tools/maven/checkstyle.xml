@@ -22,6 +22,11 @@ under the License.
           "http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
 
 <module name="Checker">
+
+	<module name="SuppressionFilter">
+		<property name="file" value="${checkstyle.suppressions.file}" />
+	</module>
+
 	<!-- Syntax:    //CHECKSTYLE.OFF: CheckstyleModuleToDisable - Reason for deactivation. -->
 	<!--            //CHECKSTYLE.ON: CheckstyleModuleToReEnable                            -->
 	<module name="SuppressionCommentFilter">
