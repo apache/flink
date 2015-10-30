@@ -80,6 +80,9 @@ find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
 find "$BASEDIR/flink-dist" -name 'bin.xml' -not -path '*target*' -print \
   -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
 
+# fix for shading curator with Scala 2.11
+find "$BASEDIR/flink-runtime" -name 'pom.xml' -not -path '*target*' -print \
+     -exec bash -c "sed_i 's/\(<include>org\.apache\.flink:flink-shaded-curator.*\)'$FROM_SUFFIX'<\/include>/\1'$TO_SUFFIX'<\/include>/g' {}" \;
 
 if [ "$TO_VERSION" == "2.11" ]; then
   # set the profile activation to !scala-2.11 in parent pom, so that it activates by default
