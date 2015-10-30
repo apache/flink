@@ -15,9 +15,9 @@ language: java
 matrix:
   include:
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.5.0 -Dmaven.javadoc.skip=true -Pinclude-yarn-tests"
+      env: PROFILE="-Dhadoop.version=2.5.0 -Pinclude-yarn-tests"
     - jdk: "openjdk7"
       env: PROFILE="-Dhadoop.version=2.4.0 -Dscala-2.11 -Pinclude-yarn-tests"
     - jdk: "oraclejdk7" # this uploads the Hadoop 2 build to Maven and S3
