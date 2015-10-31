@@ -67,8 +67,9 @@ public class GroupingTest {
 
 	private final List<Tuple4<Integer, Long, CustomType, Long[]>> tupleWithCustomData =
 			new ArrayList<Tuple4<Integer, Long, CustomType, Long[]>>();
-
 	
+	private final List<Tuple2<byte[], byte[]>> byteArrayData = new ArrayList<Tuple2<byte[], byte[]>>();
+
 	@Test  
 	public void testGroupByKeyFields1() {
 		
@@ -124,6 +125,15 @@ public class GroupingTest {
 
 		// should not work, negative field position
 		tupleDs.groupBy(-1);
+	}
+
+	@Test
+	public void testGroupByKeyFieldsOnPrimitiveArray() {
+		this.byteArrayData.add(new Tuple2(new byte[]{0}, new byte[]{1}));
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple2<byte[], byte[]>> tupleDs = env.fromCollection(byteArrayData);
+		tupleDs.groupBy(0);
 	}
 
 	@Test
@@ -613,7 +623,7 @@ public class GroupingTest {
 	public static class CustomType2 implements Serializable {
 
 		public int myInt;
-		public int[] myIntArray;
+		public Integer[] myIntArray;
 
 	}
 }

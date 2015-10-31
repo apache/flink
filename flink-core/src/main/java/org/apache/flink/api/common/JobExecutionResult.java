@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -29,7 +30,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
 
-	private Map<String, Object> accumulatorResults;
+	private Map<String, Object> accumulatorResults = Collections.emptyMap();
 
 	/**
 	 * Creates a new JobExecutionResult.
@@ -41,7 +42,10 @@ public class JobExecutionResult extends JobSubmissionResult {
 	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, Object> accumulators) {
 		super(jobID);
 		this.netRuntime = netRuntime;
-		this.accumulatorResults = accumulators;
+
+		if (accumulators != null) {
+			this.accumulatorResults = accumulators;
+		}
 	}
 
 	/**
@@ -105,5 +109,14 @@ public class JobExecutionResult extends JobSubmissionResult {
 							+ "' should be Integer but has type " + result.getClass());
 		}
 		return (Integer) result;
+	}
+
+	/**
+	 * Returns a dummy object for wrapping a JobSubmissionResult
+	 * @param result The SubmissionResult
+	 * @return a JobExecutionResult
+	 */
+	public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
+		return new JobExecutionResult(result.getJobID(), -1, null);
 	}
 }

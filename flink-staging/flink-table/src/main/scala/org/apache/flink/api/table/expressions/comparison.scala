@@ -91,11 +91,3 @@ case class IsNotNull(child: Expression) extends UnaryExpression {
 
   override def toString = s"($child).isNotNull"
 }
-
-case class NumericIsNotNull(child: Expression) extends UnaryExpression {
-  def typeInfo = {
-    BasicTypeInfo.INT_TYPE_INFO
-  }
-
-  override def toString = s"($child).numericIsNotNull"
-}

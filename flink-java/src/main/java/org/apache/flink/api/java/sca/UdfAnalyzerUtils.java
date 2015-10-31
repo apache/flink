@@ -43,6 +43,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Utility class to work with {@link UdfAnalyzer}
+ */
 public final class UdfAnalyzerUtils {
 
 	public static TaggedValue convertTypeInfoToTaggedValue(TaggedValue.Input input, TypeInformation<?> typeInfo,
@@ -75,7 +78,7 @@ public final class UdfAnalyzerUtils {
 			final PojoTypeInfo<?> pojoTypeInfo = (PojoTypeInfo<?>) typeInfo;
 			HashMap<String, TaggedValue> containerMapping = new HashMap<String, TaggedValue>();
 			for (int i = 0; i < pojoTypeInfo.getArity(); i++) {
-				final String fieldName = pojoTypeInfo.getPojoFieldAt(i).field.getName();
+				final String fieldName = pojoTypeInfo.getPojoFieldAt(i).getField().getName();
 				containerMapping.put(fieldName,
 						convertTypeInfoToTaggedValue(input,
 								pojoTypeInfo.getTypeAt(i),
@@ -338,5 +341,12 @@ public final class UdfAnalyzerUtils {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private UdfAnalyzerUtils() {
+		throw new RuntimeException();
 	}
 }

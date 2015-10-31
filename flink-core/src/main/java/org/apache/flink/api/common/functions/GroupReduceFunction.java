@@ -32,11 +32,11 @@ import org.apache.flink.util.Collector;
  * {@link ReduceFunction}.
  * <p>
  * The basic syntax for using a grouped GroupReduceFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  * 
  * DataSet<X> result = input.groupBy(<key-definition>).reduceGroup(new MyGroupReduceFunction());
- * </blockquote></pre>
+ * }</pre>
  * 
  * @param <T> Type of the elements that this function processes.
  * @param <O> The type of the elements returned by the user-defined function.

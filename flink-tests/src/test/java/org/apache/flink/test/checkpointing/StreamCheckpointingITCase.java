@@ -18,21 +18,9 @@
 
 package org.apache.flink.test.checkpointing;
 
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Map;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -40,56 +28,24 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
  * 
  * The test triggers a failure after a while and verifies that, after completion, the
- * state reflects the "exactly once" semantics.
+ * state defined with the {@link Checkpointed} interface reflects the "exactly once" semantics.
  */
 @SuppressWarnings("serial")
-public class StreamCheckpointingITCase {
+public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-	private static final int NUM_TASK_MANAGERS = 2;
-	private static final int NUM_TASK_SLOTS = 3;
-	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
-
-	private static ForkableFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-			
-			cluster = new ForkableFlinkMiniCluster(config, false);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
-	}
-
-	@AfterClass
-	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
-	}
-
+	final long NUM_STRINGS = 10_000_000L;
 
 	/**
 	 * Runs the following program:
@@ -98,99 +54,86 @@ public class StreamCheckpointingITCase {
 	 *     [ (source)->(filter) ]-s->[ (map) ] -> [ (map) ] -> [ (groupBy/count)->(sink) ]
 	 * </pre>
 	 */
-	@Test
-	public void runCheckpointedProgram() {
+	@Override
+	public void testProgram(StreamExecutionEnvironment env) {
+		DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
 
-		final long NUM_STRINGS = 10000000L;
-		assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
-		
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-																	"localhost", cluster.getJobManagerRPCPort());
-			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
+		stream
+				// -------------- first vertex, chained to the source ----------------
+				.filter(new StringRichFilterFunction())
+				.shuffle()
 
-			DataStream<String> stream = env.addSource(new StringGeneratingSourceFunction(NUM_STRINGS));
-			
-			stream
-					// -------------- first vertex, chained to the source ----------------
-					.filter(new StringRichFilterFunction()).shuffle()
+				// -------------- seconds vertex - the stateful one that also fails ----------------
+				.map(new StringPrefixCountRichMapFunction())
+				.startNewChain()
+				.map(new StatefulCounterFunction())
 
-					// -------------- seconds vertex - the stateful one that also fails ----------------
-					.map(new StringPrefixCountRichMapFunction())
-					.startNewChain()
-					.map(new StatefulCounterFunction())
+				// -------------- third vertex - counter and the sink ----------------
+				.keyBy("prefix")
+				.map(new OnceFailingPrefixCounter(NUM_STRINGS))
+				.addSink(new SinkFunction<PrefixCount>() {
 
-					// -------------- third vertex - counter and the sink ----------------
-					.groupBy("prefix")
-					.map(new OnceFailingPrefixCounter(NUM_STRINGS))
-					.addSink(new SinkFunction<PrefixCount>() {
+					@Override
+					public void invoke(PrefixCount value) throws Exception {
+						// Do nothing here
+					}
+				});
+	}
 
-						@Override
-						public void invoke(PrefixCount value) throws Exception {
-							// Do nothing here
-						}
-					});
-
-			env.execute();
-			
-			long filterSum = 0;
-			for (long l : StringRichFilterFunction.counts) {
-				filterSum += l;
-			}
-
-			long mapSum = 0;
-			for (long l : StringPrefixCountRichMapFunction.counts) {
-				mapSum += l;
-			}
-
-			long countSum = 0;
-			for (long l : StatefulCounterFunction.counts) {
-				countSum += l;
-			}
-			
-			long reduceInputCount = 0;
-			for(long l: OnceFailingPrefixCounter.counts){
-				reduceInputCount += l;
-			}
-			
-			assertEquals(NUM_STRINGS, filterSum);
-			assertEquals(NUM_STRINGS, mapSum);
-			assertEquals(NUM_STRINGS, countSum);
-			assertEquals(NUM_STRINGS, reduceInputCount);
-			// verify that we counted exactly right
-			for (Long count : OnceFailingPrefixCounter.prefixCounts.values()) {
-				assertEquals(new Long(NUM_STRINGS / 40), count);
-			}
+	@Override
+	public void postSubmit() {
+		long filterSum = 0;
+		for (long l : StringRichFilterFunction.counts) {
+			filterSum += l;
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+
+		long mapSum = 0;
+		for (long l : StringPrefixCountRichMapFunction.counts) {
+			mapSum += l;
+		}
+
+		long countSum = 0;
+		for (long l : StatefulCounterFunction.counts) {
+			countSum += l;
+		}
+
+		long reduceInputCount = 0;
+		for(long l: OnceFailingPrefixCounter.counts){
+			reduceInputCount += l;
+		}
+
+		assertEquals(NUM_STRINGS, filterSum);
+		assertEquals(NUM_STRINGS, mapSum);
+		assertEquals(NUM_STRINGS, countSum);
+		assertEquals(NUM_STRINGS, reduceInputCount);
+		// verify that we counted exactly right
+		for (Long count : OnceFailingPrefixCounter.prefixCounts.values()) {
+			assertEquals(new Long(NUM_STRINGS / 40), count);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom Functions
 	// --------------------------------------------------------------------------------------------
 	
 	private static class StringGeneratingSourceFunction extends RichSourceFunction<String>
-			implements  ParallelSourceFunction<String> {
+			implements ParallelSourceFunction<String>, Checkpointed<Integer> {
 
 		private final long numElements;
 		
-		private Random rnd;
-		private StringBuilder stringBuilder;
+		private final Random rnd = new Random();
+		private final StringBuilder stringBuilder = new StringBuilder();
 
-		private OperatorState<Integer> index;
+		private int index;
 		private int step;
 
-		private volatile boolean isRunning;
+		private volatile boolean isRunning = true;
 
 		static final long[] counts = new long[PARALLELISM];
+		
 		@Override
 		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = index.value();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = index;
 		}
 
 
@@ -200,22 +143,18 @@ public class StreamCheckpointingITCase {
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			rnd = new Random();
-			stringBuilder = new StringBuilder();
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
-			
-			
-			index = getRuntimeContext().getOperatorState("index", getRuntimeContext().getIndexOfThisSubtask(), false);
-			
-			isRunning = true;
+			if (index == 0) {
+				index = getRuntimeContext().getIndexOfThisSubtask();
+			}
 		}
 
 		@Override
 		public void run(SourceContext<String> ctx) throws Exception {
 			final Object lockingObject = ctx.getCheckpointLock();
 
-			while (isRunning && index.value() < numElements) {
-				char first = (char) ((index.value() % 40) + 40);
+			while (isRunning && index < numElements) {
+				char first = (char) ((index % 40) + 40);
 
 				stringBuilder.setLength(0);
 				stringBuilder.append(first);
@@ -223,7 +162,7 @@ public class StreamCheckpointingITCase {
 				String result = randomString(stringBuilder, rnd);
 
 				synchronized (lockingObject) {
-					index.update(index.value() + step);
+					index += step;
 					ctx.collect(result);
 				}
 			}
@@ -244,120 +183,31 @@ public class StreamCheckpointingITCase {
 
 			return bld.toString();
 		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
+			return index;
+		}
+
+		@Override
+		public void restoreState(Integer state) {
+			index = state;
+		}
 	}
 	
-	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> {
+	private static class StatefulCounterFunction extends RichMapFunction<PrefixCount, PrefixCount> implements Checkpointed<Long> {
 
-		private OperatorState<Long> count;
-		static final long[] counts = new long[PARALLELISM];
-
-		@Override
-		public PrefixCount map(PrefixCount value) throws Exception {
-			count.update(count.value() + 1);
-			return value;
-		}
-
-		@Override
-		public void open(Configuration conf) throws IOException {
-			count = getRuntimeContext().getOperatorState("count", 0L, false);
-		}
-
-		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
-		}
-		
-	}
-	
-	private static class OnceFailingPrefixCounter extends RichMapFunction<PrefixCount, PrefixCount> {
-		
-		private static Map<String, Long> prefixCounts = new ConcurrentHashMap<String, Long>();
-		static final long[] counts = new long[PARALLELISM];
-
-		private static volatile boolean hasFailed = false;
-
-		private final long numElements;
-		
-		private long failurePos;
 		private long count;
-		
-		private OperatorState<Long> pCount;
-		private OperatorState<Long> inputCount;
-
-		OnceFailingPrefixCounter(long numElements) {
-			this.numElements = numElements;
-		}
-		
-		@Override
-		public void open(Configuration parameters) throws IOException {
-			long failurePosMin = (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
-			long failurePosMax = (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
-
-			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
-			count = 0;
-			pCount = getRuntimeContext().getOperatorState("prefix-count", 0L, true);
-			inputCount = getRuntimeContext().getOperatorState("input-count", 0L, false);
-		}
-		
-		@Override
-		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = inputCount.value();
-		}
+		static final long[] counts = new long[PARALLELISM];
 
 		@Override
 		public PrefixCount map(PrefixCount value) throws Exception {
 			count++;
-			if (!hasFailed && count >= failurePos) {
-				hasFailed = true;
-				throw new Exception("Test Failure");
-			}
-			inputCount.update(inputCount.value() + 1);
-		
-			long currentPrefixCount = pCount.value() + value.count;
-			pCount.update(currentPrefixCount);
-			prefixCounts.put(value.prefix, currentPrefixCount);
-			value.count = currentPrefixCount;
 			return value;
 		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Custom Type Classes
-	// --------------------------------------------------------------------------------------------
-
-	public static class PrefixCount implements Serializable {
-
-		public String prefix;
-		public String value;
-		public long count;
-
-		public PrefixCount() {}
-
-		public PrefixCount(String prefix, String value, long count) {
-			this.prefix = prefix;
-			this.value = value;
-			this.count = count;
-		}
 
 		@Override
-		public String toString() {
-			return prefix + " / " + value;
-		}
-	}
-
-	private static class StringRichFilterFunction extends RichFilterFunction<String> implements Checkpointed<Long> {
-
-		Long count = 0L;
-		static final long[] counts = new long[PARALLELISM];
-		
-		@Override
-		public boolean filter(String value) {
-			count++;
-			return value.length() < 100;
-		}
-
-		@Override
-		public void close() {
+		public void close() throws IOException {
 			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
 		}
 
@@ -372,37 +222,125 @@ public class StreamCheckpointingITCase {
 		}
 	}
 
-	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
-			implements Checkpointed<Integer> {
-
-		OperatorState<Long> count;
-		static final long[] counts = new long[PARALLELISM];
+	/**
+	 * This function uses simultaneously the key/value state and is checkpointed.
+	 */
+	private static class OnceFailingPrefixCounter extends RichMapFunction<PrefixCount, PrefixCount> 
+			implements Checkpointed<Long> {
 		
-		@Override
-		public PrefixCount map(String value) throws IOException {
-			count.update(count.value() + 1);
-			return new PrefixCount(value.substring(0, 1), value, 1L);
+		private static Map<String, Long> prefixCounts = new ConcurrentHashMap<String, Long>();
+		static final long[] counts = new long[PARALLELISM];
+
+		private static volatile boolean hasFailed = false;
+
+		private final long numElements;
+		
+		private long failurePos;
+		private long count;
+		
+		private OperatorState<Long> pCount;
+		private long inputCount;
+
+		OnceFailingPrefixCounter(long numElements) {
+			this.numElements = numElements;
 		}
 		
 		@Override
-		public void open(Configuration conf) throws IOException {
-			this.count = getRuntimeContext().getOperatorState("count", 0L, false);
+		public void open(Configuration parameters) throws IOException {
+			long failurePosMin = (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+			long failurePosMax = (long) (0.7 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
+
+			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
+			count = 0;
+			pCount = getRuntimeContext().getKeyValueState("pCount", Long.class, 0L);
+		}
+		
+		@Override
+		public void close() throws IOException {
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = inputCount;
+		}
+
+		@Override
+		public PrefixCount map(PrefixCount value) throws Exception {
+			count++;
+			if (!hasFailed && count >= failurePos) {
+				hasFailed = true;
+//				throw new Exception("Test Failure");
+			}
+			inputCount++;
+		
+			long currentPrefixCount = pCount.value() + value.count;
+			pCount.update(currentPrefixCount);
+			prefixCounts.put(value.prefix, currentPrefixCount);
+			value.count = currentPrefixCount;
+			return value;
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return inputCount;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			inputCount = state;
+		}
+	}
+
+	private static class StringRichFilterFunction extends RichFilterFunction<String> implements Checkpointed<Long> {
+		
+		static final long[] counts = new long[PARALLELISM];
+
+		private long count;
+		
+		@Override
+		public boolean filter(String value) {
+			count++;
+			return value.length() < 100;
+		}
+
+		@Override
+		public void close() {
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+		}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return count;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			count = state;
+		}
+	}
+
+	private static class StringPrefixCountRichMapFunction extends RichMapFunction<String, PrefixCount>
+			implements Checkpointed<Long> {
+		
+		static final long[] counts = new long[PARALLELISM];
+
+		private long count;
+		
+		@Override
+		public PrefixCount map(String value) throws IOException {
+			count++;
+			return new PrefixCount(value.substring(0, 1), value, 1L);
 		}
 
 		@Override
 		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = count.value();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return null;
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+			return count;
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			// verify that we never store/restore null state
-			fail();
+		public void restoreState(Long state) {
+			count = state;
 		}
 	}
 }

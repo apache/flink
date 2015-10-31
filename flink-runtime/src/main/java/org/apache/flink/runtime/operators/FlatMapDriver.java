@@ -39,18 +39,18 @@ import org.slf4j.LoggerFactory;
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
-public class FlatMapDriver<IT, OT> implements PactDriver<FlatMapFunction<IT, OT>, OT> {
+public class FlatMapDriver<IT, OT> implements Driver<FlatMapFunction<IT, OT>, OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlatMapDriver.class);
 
-	private PactTaskContext<FlatMapFunction<IT, OT>, OT> taskContext;
+	private TaskContext<FlatMapFunction<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
 
 	private boolean objectReuseEnabled = false;
 
 	@Override
-	public void setup(PactTaskContext<FlatMapFunction<IT, OT>, OT> context) {
+	public void setup(TaskContext<FlatMapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

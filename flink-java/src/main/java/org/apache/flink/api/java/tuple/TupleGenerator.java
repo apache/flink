@@ -304,7 +304,7 @@ class TupleGenerator {
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(this.ds, this.fieldIndexes, tType, this);\n");
+			sb.append(">>(this.ds, this.fieldIndexes, tType);\n");
 
 			// method end
 			sb.append("\t\t}\n");
@@ -402,12 +402,9 @@ class TupleGenerator {
 	private static void modifyTupleType(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\t");
+		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\tTuple0.class");
 		for (int i = FIRST; i <= LAST; i++) {
-			if (i > FIRST) {
-				sb.append(", ");
-			}
-			sb.append("Tuple" + i + ".class");
+			sb.append(", Tuple" + i + ".class");
 		}
 		sb.append("\n\t};");
 
@@ -460,7 +457,7 @@ class TupleGenerator {
 			// get TupleTypeInfo
 			sb.append("\t\tTupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> types = TupleTypeInfo.getBasicTupleTypeInfo(");
+			sb.append(">> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(");
 			for (int i = 0; i < numFields; i++) {
 				if (i > 0) {
 					sb.append(", ");
@@ -730,6 +727,8 @@ class TupleGenerator {
 		w.println("\t* Shallow tuple copy.");
 		w.println("\t* @return A new Tuple with the same fields as this.");
 		w.println("\t*/");
+		w.println("\t@Override");
+		w.println("\t@SuppressWarnings(\"unchecked\")");
 		w.println("\tpublic " + className + tupleTypes + " copy(){ ");
 
 		w.print("\t\treturn new " + className + tupleTypes + "(this.f0");
@@ -802,7 +801,7 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
-		w.println("import java.util.LinkedList;");
+		w.println("import java.util.ArrayList;");
 		w.println("import java.util.List;");
 		w.println();
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
@@ -817,7 +816,7 @@ class TupleGenerator {
 		// Class-Attributes - a list of tuples
 		w.print("\tprivate List<Tuple" + numFields);
 		printGenericsString(w, numFields);
-		w.print("> tuples = new LinkedList<Tuple" + numFields );
+		w.print("> tuples = new ArrayList<Tuple" + numFields );
 		printGenericsString(w, numFields);
 		w.println(">();");
 		w.println();

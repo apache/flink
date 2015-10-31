@@ -112,7 +112,9 @@ public class ExecutionGraphTestUtils {
 		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
 	}
 
+	@SuppressWarnings("serial")
 	public static class SimpleActorGateway extends BaseTestingActorGateway {
+		
 		public TaskDeploymentDescriptor lastTDD;
 
 		public SimpleActorGateway(ExecutionContext executionContext){
@@ -139,7 +141,9 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static class SimpleFailingActorGateway extends BaseTestingActorGateway {
+
 		public SimpleFailingActorGateway(ExecutionContext executionContext) {
 			super(executionContext);
 		}

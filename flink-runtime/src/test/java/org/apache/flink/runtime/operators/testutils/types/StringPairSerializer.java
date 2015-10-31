@@ -83,4 +83,25 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 		StringValue.writeString(StringValue.readString(source), target);
 		StringValue.writeString(StringValue.readString(source), target);
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof StringPairSerializer) {
+			StringPairSerializer other = (StringPairSerializer) obj;
+
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StringPairSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return StringPairSerializer.class.hashCode();
+	}
 }

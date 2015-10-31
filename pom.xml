@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>0.10-SNAPSHOT</version>
+	<version>1.0-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -51,28 +51,38 @@ under the License.
 
 	<modules>
 		<module>flink-shaded-hadoop</module>
+		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
+		<module>flink-streaming-java</module>
+		<module>flink-streaming-scala</module>
+		<module>flink-streaming-examples</module>
+		<module>flink-streaming-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>
 		<module>flink-test-utils</module>
 		<module>flink-staging</module>
+		<module>flink-libraries</module>
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
+		<module>flink-benchmark</module>
 	</modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<!-- Mutable name of the hadoop shading artifact. The module name can contain a scala version suffix. -->
 		<shading-artifact.name>error</shading-artifact.name>
+		<!-- The shading artifact module name can be used as a module name. it does not get a scala version suffix -->
+		<shading-artifact-module.name>error</shading-artifact-module.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
-		<hadoop-two.version>2.2.0</hadoop-two.version>
+		<hadoop-two.version>2.3.0</hadoop-two.version>
 		<!-- Need to use a user property here because the surefire/failsafe
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -83,12 +93,14 @@ under the License.
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3.7</akka.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
-		<kryoserialization.version>0.3.2</kryoserialization.version>
+		<!-- Default scala versions, may be overwritten by build profiles -->
+		<scala.version>2.10.4</scala.version>
+		<scala.binary.version>2.10</scala.binary.version>
 		<chill.version>0.5.2</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<tez.version>0.6.1</tez.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
-		<curatorrecipes.version>2.8.0</curatorrecipes.version>
+		<curator.version>2.8.0</curator.version>
 	</properties>
 
 	<dependencies>
@@ -170,28 +182,6 @@ under the License.
 		-->
 		<dependencies>
 
-			<!-- Make sure we use a consistent jetty version throughout the project -->
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-server</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-security</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-servlet</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-util</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-
 			<!-- Make sure we use a consistent avro version throughout the project -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
@@ -224,6 +214,12 @@ under the License.
 				<version>3.2.1</version>
 			</dependency>
 
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-math3</artifactId>
+				<version>3.5</version>
+			</dependency>
+
 			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
@@ -238,6 +234,12 @@ under the License.
 				<version>2.5</version>
 			</dependency>
 
+			<dependency>
+				<groupId>org.joda</groupId>
+				<artifactId>joda-convert</artifactId>
+				<version>1.7</version>
+			</dependency>
+			
 			<!-- stax is pulled in different versions by different transitive dependencies-->
 			<dependency>
 				<groupId>stax</groupId>
@@ -333,27 +335,28 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.curator</groupId>
-				<artifactId>curator-recipes</artifactId>
-				<version>${curatorrecipes.version}</version>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-all</artifactId>
+				<version>4.0.31.Final</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpcore</artifactId>
+				<version>4.2</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.2</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<profiles>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-			<properties>
-				<scala.version>2.10.4</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-		</profile>
+		
+		<!-- Profile to switch to Scala Version 2.11 -->
 		<profile>
 			<id>scala-2.11</id>
 			<activation>
@@ -362,11 +365,12 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<scala.version>2.11.4</scala.version>
+				<scala.version>2.11.7</scala.version>
 				<scala.binary.version>2.11</scala.binary.version>
 			</properties>
 		</profile>
 
+		<!-- Profile to switch to Hadoop 1 -->
 		<profile>
 			<id>hadoop-1</id>
 			<activation>
@@ -378,8 +382,11 @@ under the License.
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
 				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
+				<shading-artifact-module.name>flink-shaded-hadoop1</shading-artifact-module.name>
 			</properties>
 		</profile>
+
+		<!-- Default profile, which builds for Hadoop 2 -->
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -391,32 +398,29 @@ under the License.
 			<properties>
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 				<shading-artifact.name>flink-shaded-hadoop2</shading-artifact.name>
+				<shading-artifact-module.name>flink-shaded-hadoop2</shading-artifact-module.name>
 			</properties>
+			<modules>
+				<module>flink-yarn</module>
+			</modules>
 		</profile>
 
+		<!-- Profile to deactivate the YARN tests -->
+		<profile>
+			<id>include-yarn-tests</id>
+			<modules>
+				<module>flink-yarn-tests</module>
+			</modules>
+		</profile>
+
+		<!-- Profile to set the Hadoop 2 version properly for TEZ -->
 		<profile>
 			<id>include-tez</id>
 			<properties>
 				<hadoop.version>2.6.0</hadoop.version>
 			</properties>
 		</profile>
-		<profile>
-			<id>include-yarn</id>
-			<activation>
-				<property>
-				<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-				<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<properties>
-				<shading-artifact.name>flink-shaded-include-yarn</shading-artifact.name>
-			</properties>
-			<modules>
-				<module>flink-yarn</module>
-				<module>flink-yarn-tests</module>
-			</modules>
-		</profile>
-
+		
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
@@ -434,20 +438,18 @@ under the License.
 				</repository>
 				<!-- Hortonworks -->
 				<repository>
-					<releases>
-						<enabled>true</enabled>
-						<updatePolicy>always</updatePolicy>
-						<checksumPolicy>warn</checksumPolicy>
-					</releases>
-					<snapshots>
-						<enabled>false</enabled>
-						<updatePolicy>never</updatePolicy>
-						<checksumPolicy>fail</checksumPolicy>
-					</snapshots>
 					<id>HDPReleases</id>
 					<name>HDP Releases</name>
 					<url>http://repo.hortonworks.com/content/repositories/releases/</url>
-					<layout>default</layout>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
+				</repository>
+				<repository>
+					<id>HortonworksJettyHadoop</id>
+					<name>HDP Jetty</name>
+					<url>http://repo.hortonworks.com/content/repositories/jetty-hadoop</url>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
 				</repository>
 				<!-- MapR -->
 				<repository>
@@ -462,7 +464,23 @@ under the License.
 		<profile>
 			<!-- used for aggregating  ScalaDoc with JavaDoc -->
 			<id>aggregate-scaladoc</id>
+                        <dependencies>
+				<dependency>
+					<!--
+					This is necessary for building the java docs using Java 8. Otherwise the javadoc
+					plugin will fail with "javadoc: error -
+						com.sun.tools.doclets.internal.toolkit.util.DocletAbortException:
+							com.sun.tools.javac.code.Symbol$CompletionFailure:
+								class file for akka.testkit.TestKit not found"
+					-->
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<version>${akka.version}</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
 			<build>
+
 				<plugins>
 
 					<!-- We need to clean compiled classes to make sure that genjavadoc
@@ -575,6 +593,21 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+			<dependencies>
+				<dependency>
+					<!--
+					This is necessary for building the java docs using Java 8. Otherwise the javadoc
+					plugin will fail with "javadoc: error -
+						com.sun.tools.doclets.internal.toolkit.util.DocletAbortException:
+							com.sun.tools.javac.code.Symbol$CompletionFailure:
+								class file for akka.testkit.TestKit not found"
+					-->
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+					<version>${akka.version}</version>
+					<scope>provided</scope>
+				</dependency>
+			</dependencies>
 		</profile>
 		
 		<profile>
@@ -723,14 +756,6 @@ under the License.
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/sb-admin.css</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/flot/*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.layout.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/rickshaw.*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/rickshaw.*</exclude>
 
 						<!-- web dashboard config JSON files -->
 						<exclude>flink-runtime-web/web-dashboard/package.json</exclude>
@@ -740,11 +765,9 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/vendor-local/d3-timeline.js</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/FontAwesome.otf</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/css/vendor.css</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/fonts/FontAwesome.otf</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/fonts/fontawesome*</exclude>
-						<exclude>flink-runtime-web/web-dashboard/web/js/index.js</exclude>
-                        <exclude>flink-runtime-web/web-dashboard/web/js/vendor.js</exclude>
+
+                        <!-- generated contents -->
+						<exclude>flink-runtime-web/web-dashboard/web/**</exclude>
 
 						<!-- downloaded and generated web libraries. -->
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
@@ -790,7 +813,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.12.1</version>
+				<version>2.16</version>
 				<executions>
 					<execution>
 						<id>validate</id>
@@ -813,16 +836,16 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-					<!-- The output of Xlint is not show by default, but we activate it for the QA bot
+					<source>1.7</source>
+					<target>1.7</target>
+					<!-- The output of Xlint is not shown by default, but we activate it for the QA bot
 					to be able to get more warnings -->
 					<compilerArgument>-Xlint:all</compilerArgument>
 				</configuration>
 			</plugin>
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -845,7 +868,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
@@ -900,7 +923,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
@@ -956,6 +978,12 @@ under the License.
 		-->
 		<pluginManagement>
 			<plugins>
+				<!--set maven shade plugin version-->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<version>2.4.1</version>
+				</plugin>
 				<!--This plugin's configuration is used to store Eclipse m2e settings
 					only. It has no influence on the Maven build itself. -->
 				<plugin>

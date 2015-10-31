@@ -37,7 +37,7 @@ import java.util.jar.JarInputStream;
  *
  * Copied from http://grepcode.com/file_/repo1.maven.org/maven2/org.apache.xmlbeans/xmlbeans/2.4.0/org/apache/xmlbeans/impl/common/JarHelper.java/?v=source
  *
- * @author Patrick Calahan <pcal@bea.com>
+ * @author Patrick Calahan <a href="mailto:pcal@bea.com">pcal@bea.com</a>
  */
 public class JarHelper
 {
@@ -123,11 +123,14 @@ public class JarHelper
 		}
 		FileOutputStream fos = new FileOutputStream(destFile);
 		dest = new BufferedOutputStream(fos, BUFFER_SIZE);
-		while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
-		dest.write(data, 0, count);
+		try {
+			while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
+				dest.write(data, 0, count);
+			}
+			dest.flush();
+		} finally {
+			dest.close();
 		}
-		dest.flush();
-		dest.close();
 		if (entry.getTime() != -1) {destFile.setLastModified(entry.getTime());}
 	}
 	jis.close();

@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.Map;
@@ -32,16 +31,12 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
@@ -52,102 +47,57 @@ import org.junit.Test;
  * It is designed to check partitioned states.
  */
 @SuppressWarnings("serial")
-public class PartitionedStateCheckpointingITCase {
+public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTestBase {
 
-	private static final int NUM_TASK_MANAGERS = 2;
-	private static final int NUM_TASK_SLOTS = 3;
-	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
+	final long NUM_STRINGS = 10_000_000L;
 
-	private static ForkableFlinkMiniCluster cluster;
-
-	@BeforeClass
-	public static void startCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TASK_MANAGERS);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_TASK_SLOTS);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 12);
-
-			cluster = new ForkableFlinkMiniCluster(config, false);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to start test cluster: " + e.getMessage());
-		}
-	}
-
-	@AfterClass
-	public static void shutdownCluster() {
-		try {
-			cluster.shutdown();
-			cluster = null;
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Failed to stop test cluster: " + e.getMessage());
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Test
-	public void runCheckpointedProgram() {
-
-		final long NUM_STRINGS = 10000000L;
+	@Override
+	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", (NUM_STRINGS/2) % 40 == 0);
 
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost",
-					cluster.getJobManagerRPCPort());
-			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(500);
-			env.getConfig().disableSysoutLogging();
+		DataStream<Integer> stream1 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
+		DataStream<Integer> stream2 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
 
-			DataStream<Integer> stream1 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
-			DataStream<Integer> stream2 = env.addSource(new IntGeneratingSourceFunction(NUM_STRINGS / 2));
+		stream1.union(stream2)
+				.keyBy(new IdentityKeySelector<Integer>())
+				.map(new OnceFailingPartitionedSum(NUM_STRINGS))
+				.keyBy(0)
+				.addSink(new CounterSink());
+	}
 
-			stream1.union(stream2)
-					.groupBy(new IdentityKeySelector<Integer>())
-					.map(new OnceFailingPartitionedSum(NUM_STRINGS))
-					.keyBy(0)
-					.addSink(new CounterSink());
-
-			env.execute();
-
-			// verify that we counted exactly right
-			for (Entry<Integer, Long> sum : OnceFailingPartitionedSum.allSums.entrySet()) {
-				assertEquals(new Long(sum.getKey() * NUM_STRINGS / 40), sum.getValue());
-			}
-			System.out.println("new");
-			for (Long count : CounterSink.allCounts.values()) {
-				assertEquals(new Long(NUM_STRINGS / 40), count);
-			}
-			
-			assertEquals(40, CounterSink.allCounts.size());
-			assertEquals(40, OnceFailingPartitionedSum.allSums.size());
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+	@Override
+	public void postSubmit() {
+		// verify that we counted exactly right
+		for (Entry<Integer, Long> sum : OnceFailingPartitionedSum.allSums.entrySet()) {
+			assertEquals(new Long(sum.getKey() * NUM_STRINGS / 40), sum.getValue());
 		}
+		for (Long count : CounterSink.allCounts.values()) {
+			assertEquals(new Long(NUM_STRINGS / 40), count);
+		}
+
+		assertEquals(40, CounterSink.allCounts.size());
+		assertEquals(40, OnceFailingPartitionedSum.allSums.size());
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Custom Functions
 	// --------------------------------------------------------------------------------------------
 
-	private static class IntGeneratingSourceFunction extends RichParallelSourceFunction<Integer> {
+	private static class IntGeneratingSourceFunction extends RichParallelSourceFunction<Integer> 
+		implements Checkpointed<Integer> {
 
 		private final long numElements;
 
-		private OperatorState<Integer> index;
+		private int index;
 		private int step;
 
-		private volatile boolean isRunning;
+		private volatile boolean isRunning = true;
 
 		static final long[] counts = new long[PARALLELISM];
 
 		@Override
 		public void close() throws IOException {
-			counts[getRuntimeContext().getIndexOfThisSubtask()] = index.value();
+			counts[getRuntimeContext().getIndexOfThisSubtask()] = index;
 		}
 
 		IntGeneratingSourceFunction(long numElements) {
@@ -157,22 +107,20 @@ public class PartitionedStateCheckpointingITCase {
 		@Override
 		public void open(Configuration parameters) throws IOException {
 			step = getRuntimeContext().getNumberOfParallelSubtasks();
-
-			index = getRuntimeContext().getOperatorState("index",
-					getRuntimeContext().getIndexOfThisSubtask(), false);
-
-			isRunning = true;
+			if (index == 0) {
+				index = getRuntimeContext().getIndexOfThisSubtask();
+			}
 		}
 
 		@Override
 		public void run(SourceContext<Integer> ctx) throws Exception {
 			final Object lockingObject = ctx.getCheckpointLock();
 
-			while (isRunning && index.value() < numElements) {
+			while (isRunning && index < numElements) {
 
 				synchronized (lockingObject) {
-					index.update(index.value() + step);
-					ctx.collect(index.value() % 40);
+					index += step;
+					ctx.collect(index % 40);
 				}
 			}
 		}
@@ -181,11 +129,22 @@ public class PartitionedStateCheckpointingITCase {
 		public void cancel() {
 			isRunning = false;
 		}
+
+		@Override
+		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
+			return index;
+		}
+
+		@Override
+		public void restoreState(Integer state) {
+			index = state;
+		}
 	}
 
 	private static class OnceFailingPartitionedSum extends RichMapFunction<Integer, Tuple2<Integer, Long>> {
 
 		private static Map<Integer, Long> allSums = new ConcurrentHashMap<Integer, Long>();
+		
 		private static volatile boolean hasFailed = false;
 
 		private final long numElements;
@@ -208,7 +167,7 @@ public class PartitionedStateCheckpointingITCase {
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			sum = getRuntimeContext().getOperatorState("sum", 0L, true);
+			sum = getRuntimeContext().getKeyValueState("my_state", Long.class, 0L);
 		}
 
 		@Override
@@ -230,19 +189,39 @@ public class PartitionedStateCheckpointingITCase {
 
 		private static Map<Integer, Long> allCounts = new ConcurrentHashMap<Integer, Long>();
 
-		private OperatorState<Long> counts;
+		private OperatorState<NonSerializableLong> aCounts;
+		private OperatorState<Long> bCounts;
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			counts = getRuntimeContext().getOperatorState("count", 0L, true);
+			aCounts = getRuntimeContext().getKeyValueState(
+					"a", NonSerializableLong.class, NonSerializableLong.of(0L));
+			bCounts = getRuntimeContext().getKeyValueState("b", Long.class, 0L);
 		}
 
 		@Override
 		public void invoke(Tuple2<Integer, Long> value) throws Exception {
-			long currentCount = counts.value() + 1;
-			counts.update(currentCount);
+			long ac = aCounts.value().value;
+			long bc = bCounts.value();
+			assertEquals(ac, bc);
+			
+			long currentCount = ac + 1;
+			aCounts.update(NonSerializableLong.of(currentCount));
+			bCounts.update(currentCount);
+			
 			allCounts.put(value.f0, currentCount);
+		}
+	}
+	
+	private static class NonSerializableLong {
+		public Long value;
 
+		private NonSerializableLong(long value) {
+			this.value = value;
+		}
+
+		public static NonSerializableLong of(long value) {
+			return new NonSerializableLong(value);
 		}
 	}
 	

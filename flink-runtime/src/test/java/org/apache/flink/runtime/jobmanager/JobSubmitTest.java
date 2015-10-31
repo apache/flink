@@ -20,19 +20,26 @@ package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.NetUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -54,26 +61,37 @@ public class JobSubmitTest {
 	private static final FiniteDuration timeout = new FiniteDuration(5000, TimeUnit.MILLISECONDS);
 
 	private static ActorSystem jobManagerSystem;
-	private static ActorGateway jobManager;
+	private static ActorGateway jmGateway;
 
 	@BeforeClass
 	public static void setupJobManager() {
 		Configuration config = new Configuration();
 
-		scala.Option<Tuple2<String, Object>> listeningAddress = scala.Option.empty();
+		int port = NetUtils.getAvailablePort();
+
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+
+		scala.Option<Tuple2<String, Object>> listeningAddress = scala.Option.apply(new Tuple2<String, Object>("localhost", port));
 		jobManagerSystem = AkkaUtils.createActorSystem(config, listeningAddress);
 		ActorRef jobManagerActorRef = JobManager.startJobManagerActors(
 				config,
 				jobManagerSystem,
-				StreamingMode.BATCH_ONLY)._1();
+				StreamingMode.BATCH_ONLY,
+				JobManager.class,
+				MemoryArchivist.class)._1();
 
 		try {
-			jobManager = JobManager.getJobManagerGateway(jobManagerActorRef, timeout);
+			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+
+			jmGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
+					lrs,
+					jobManagerSystem,
+					timeout
+			);
 		} catch (Exception e) {
 			fail("Could not retrieve the JobManager gateway. " + e.getMessage());
 		}
-
-
 	}
 
 	@AfterClass
@@ -92,7 +110,7 @@ public class JobSubmitTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// request the blob port from the job manager
-			Future<Object> future = jobManager.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
+			Future<Object> future = jmGateway.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
 			int blobPort = (Integer) Await.result(future, timeout);
 
 			// upload two dummy bytes and add their keys to the job graph as dependencies
@@ -113,7 +131,11 @@ public class JobSubmitTest {
 			jg.addBlob(key2);
 
 			// submit the job
-			Future<Object> submitFuture = jobManager.ask(new JobManagerMessages.SubmitJob(jg, false), timeout);
+			Future<Object> submitFuture = jmGateway.ask(
+					new JobManagerMessages.SubmitJob(
+							jg,
+							ListeningBehaviour.EXECUTION_RESULT),
+					timeout);
 			try {
 				Await.result(submitFuture, timeout);
 			}
@@ -152,7 +174,11 @@ public class JobSubmitTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// submit the job
-			Future<Object> submitFuture = jobManager.ask(new JobManagerMessages.SubmitJob(jg, false), timeout);
+			Future<Object> submitFuture = jmGateway.ask(
+					new JobManagerMessages.SubmitJob(
+							jg,
+							ListeningBehaviour.EXECUTION_RESULT),
+					timeout);
 			try {
 				Await.result(submitFuture, timeout);
 			}

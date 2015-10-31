@@ -16,14 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.fs;
 
+import java.io.IOException;
 import java.io.OutputStream;
 
 /**
  * Interface for a data output stream to a file on a {@link FileSystem}.
- * 
  */
 public abstract class FSDataOutputStream extends OutputStream {
+
+	public abstract void flush() throws IOException;
+
+	public abstract void sync() throws IOException;
 }

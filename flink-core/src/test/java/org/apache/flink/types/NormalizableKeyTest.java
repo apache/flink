@@ -16,18 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
-import org.junit.Assert;
-
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.types.CharValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.NormalizableKey;
-import org.apache.flink.types.NullValue;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+
+import org.junit.Assert;
 import org.junit.Test;
 
 public class NormalizableKeyTest {
@@ -124,9 +118,9 @@ public class NormalizableKeyTest {
 		
 		for (int i = 0; i < 5; i++) {
 			// self checks
-			for (int x = 0; x < allChars.length; x++) {
-				for (int y = 0; y < allChars.length; y++) {
-					assertNormalizableKey(allChars[x], allChars[y], i);
+			for (CharValue allChar1 : allChars) {
+				for (CharValue allChar : allChars) {
+					assertNormalizableKey(allChar1, allChar, i);
 				}
 			}
 		}
@@ -135,8 +129,8 @@ public class NormalizableKeyTest {
 	@SuppressWarnings("unchecked")
 	private <T extends Comparable<T>> void assertNormalizableKey(NormalizableKey<T> key1, NormalizableKey<T> key2, int len) {
 		
-		byte[] normalizedKeys = new byte[2*len];
-		MemorySegment wrapper = new MemorySegment(normalizedKeys);
+		byte[] normalizedKeys = new byte[32];
+		MemorySegment wrapper = MemorySegmentFactory.wrap(normalizedKeys);
 		
 		key1.copyNormalizedKey(wrapper, 0, len);
 		key2.copyNormalizedKey(wrapper, len, len);
@@ -147,13 +141,13 @@ public class NormalizableKeyTest {
 			int normKey2 = normalizedKeys[len + i] & 0xFF;
 			
 			if ((comp = (normKey1 - normKey2)) != 0) {
-				if (Math.signum(((T) key1).compareTo((T) key2)) != Math.signum(comp)) {
+				if (Math.signum(key1.compareTo((T) key2)) != Math.signum(comp)) {
 					Assert.fail("Normalized key comparison differs from actual key comparision");
 				}
 				return;
 			}
 		}
-		if (((T) key1).compareTo((T) key2) != 0 && key1.getMaxNormalizedKeyLen() <= len) {
+		if (key1.compareTo((T) key2) != 0 && key1.getMaxNormalizedKeyLen() <= len) {
 			Assert.fail("Normalized key was not able to distinguish keys, " +
 					"although it should as the length of it sufficies to uniquely identify them");
 		}

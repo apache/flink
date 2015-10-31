@@ -575,7 +575,7 @@ env.execute()
 ### System Level
 
 A system-wide default parallelism for all execution environments can be defined by setting the
-`parallelization.degree.default` property in `./conf/flink-conf.yaml`. See the
+`parallelism.default` property in `./conf/flink-conf.yaml`. See the
 [Configuration](config.html) documentation for details.
 
 [Back to top](#top)

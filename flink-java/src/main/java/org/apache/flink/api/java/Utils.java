@@ -28,14 +28,20 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Random;
+
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
-
-public class Utils {
+/**
+ * Utility class that contains helper methods to work with Java APIs.
+ */
+public final class Utils {
+	
+	public static final Random RNG = new Random();
 
 	public static String getCallLocationName() {
 		return getCallLocationName(4);
@@ -57,7 +63,6 @@ public class Utils {
 	 * Returns all GenericTypeInfos contained in a composite type.
 	 *
 	 * @param typeInfo
-	 * @return
 	 */
 	public static void getContainedGenericTypes(CompositeType typeInfo, List<GenericTypeInfo<?>> target) {
 		for(int i = 0; i < typeInfo.getArity(); i++) {
@@ -172,5 +177,12 @@ public class Utils {
 			}
 		}
 		return ret;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private Utils() {
+		throw new RuntimeException();
 	}
 }

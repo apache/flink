@@ -29,11 +29,13 @@ svg.graph
     font-size 14px
 
   .node
+    cursor: pointer
     > rect
       stroke #999
       stroke-width 5px
       fill #fff
       margin: 0
+      padding: 0
       
     &[active]
       > rect
@@ -79,14 +81,10 @@ svg.graph
     margin: 0
 
   .edge-label
-    padding: 5px
+    // padding: 5px
     font-size: 14px
-    // border: 2px solid
     
   .node-label
     display: block
-    // border-width: 4px
-    // border-style: solid
-    // padding: 10px
     margin: 0
     text-decoration: none

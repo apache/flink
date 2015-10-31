@@ -65,7 +65,7 @@ public class JobVertex implements java.io.Serializable {
 	/** Optionally, a source of input splits */
 	private InputSplitSource<?> inputSplitSource;
 	
-	/** The name of the vertex */
+	/** The name of the vertex. This will be shown in runtime logs and will be in the runtime environment */
 	private String name;
 	
 	/** Optionally, a sharing group that allows subtasks from different job vertices to run concurrently in one slot */
@@ -73,6 +73,20 @@ public class JobVertex implements java.io.Serializable {
 	
 	/** The group inside which the vertex subtasks share slots */
 	private CoLocationGroup coLocationGroup;
+
+	/** Optional, the name of the operator, such as 'Flat Map' or 'Join', to be included in the JSON plan */
+	private String operatorName;
+
+	/** Optional, the description of the operator, like 'Hash Join', or 'Sorted Group Reduce',
+	 * to be included in the JSON plan */
+	private String operatorDescription;
+
+	/** Optional, pretty name of the operator, to be displayed in the JSON plan */
+	private String operatorPrettyName;
+	
+	/** Optional, the JSON for the optimizer properties of the operator result,
+	 * to be included in the JSON plan */
+	private String resultOptimizerProperties;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -314,7 +328,7 @@ public class JobVertex implements java.io.Serializable {
 	public void updateCoLocationGroup(CoLocationGroup group) {
 		this.coLocationGroup = group;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	public IntermediateDataSet createAndAddResultDataSet(ResultPartitionType partitionType) {
@@ -330,17 +344,18 @@ public class JobVertex implements java.io.Serializable {
 		return result;
 	}
 
-	public void connectDataSetAsInput(IntermediateDataSet dataSet, DistributionPattern distPattern) {
+	public JobEdge connectDataSetAsInput(IntermediateDataSet dataSet, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSet, this, distPattern);
 		this.inputs.add(edge);
 		dataSet.addConsumer(edge);
+		return edge;
 	}
 
-	public void connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern) {
-		connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
+	public JobEdge connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern) {
+		return connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
 	}
 
-	public void connectNewDataSetAsInput(
+	public JobEdge connectNewDataSetAsInput(
 			JobVertex input,
 			DistributionPattern distPattern,
 			ResultPartitionType partitionType) {
@@ -349,6 +364,7 @@ public class JobVertex implements java.io.Serializable {
 		JobEdge edge = new JobEdge(dataSet, this, distPattern);
 		this.inputs.add(edge);
 		dataSet.addConsumer(edge);
+		return edge;
 	}
 
 	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
@@ -395,9 +411,43 @@ public class JobVertex implements java.io.Serializable {
 	 * @throws Exception The method may throw exceptions which cause the job to fail immediately.
 	 */
 	public void finalizeOnMaster(ClassLoader loader) throws Exception {}
-	
+
 	// --------------------------------------------------------------------------------------------
 
+	public String getOperatorName() {
+		return operatorName;
+	}
+
+	public void setOperatorName(String operatorName) {
+		this.operatorName = operatorName;
+	}
+
+	public String getOperatorDescription() {
+		return operatorDescription;
+	}
+
+	public void setOperatorDescription(String operatorDescription) {
+		this.operatorDescription = operatorDescription;
+	}
+
+	public void setOperatorPrettyName(String operatorPrettyName) {
+		this.operatorPrettyName = operatorPrettyName;
+	}
+
+	public String getOperatorPrettyName() {
+		return operatorPrettyName;
+	}
+
+	public String getResultOptimizerProperties() {
+		return resultOptimizerProperties;
+	}
+
+	public void setResultOptimizerProperties(String resultOptimizerProperties) {
+		this.resultOptimizerProperties = resultOptimizerProperties;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public String toString() {
 		return this.name + " (" + this.invokableClassName + ')';

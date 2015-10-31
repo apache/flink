@@ -18,21 +18,27 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.types.ByteValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.ShortValue;
 
 public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public String toString() {
 		return "SUM";
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class ByteSumAgg extends SumAggregationFunction<Byte> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private long agg;
 
 		@Override
@@ -50,10 +56,31 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 			return (byte) agg;
 		}
 	}
-	
+
+	public static final class ByteValueSumAgg extends SumAggregationFunction<ByteValue> {
+		private static final long serialVersionUID = 1L;
+
+		private long agg;
+
+		@Override
+		public void initializeAggregate() {
+			agg = 0;
+		}
+
+		@Override
+		public void aggregate(ByteValue value) {
+			agg += value.getValue();
+		}
+
+		@Override
+		public ByteValue getAggregate() {
+			return new ByteValue((byte) agg);
+		}
+	}
+
 	public static final class ShortSumAgg extends SumAggregationFunction<Short> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private long agg;
 
 		@Override
@@ -71,10 +98,31 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 			return (short) agg;
 		}
 	}
-	
+
+	public static final class ShortValueSumAgg extends SumAggregationFunction<ShortValue> {
+		private static final long serialVersionUID = 1L;
+
+		private long agg;
+
+		@Override
+		public void initializeAggregate() {
+			agg = 0;
+		}
+
+		@Override
+		public void aggregate(ShortValue value) {
+			agg += value.getValue();
+		}
+
+		@Override
+		public ShortValue getAggregate() {
+			return new ShortValue((short) agg);
+		}
+	}
+
 	public static final class IntSumAgg extends SumAggregationFunction<Integer> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private long agg;
 
 		@Override
@@ -92,10 +140,31 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 			return (int) agg;
 		}
 	}
-	
+
+	public static final class IntValueSumAgg extends SumAggregationFunction<IntValue> {
+		private static final long serialVersionUID = 1L;
+
+		private long agg;
+
+		@Override
+		public void initializeAggregate() {
+			agg = 0;
+		}
+
+		@Override
+		public void aggregate(IntValue value) {
+			agg += value.getValue();
+		}
+
+		@Override
+		public IntValue getAggregate() {
+			return new IntValue((int) agg);
+		}
+	}
+
 	public static final class LongSumAgg extends SumAggregationFunction<Long> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private long agg;
 
 		@Override
@@ -113,11 +182,32 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 			return agg;
 		}
 	}
-	
+
+	public static final class LongValueSumAgg extends SumAggregationFunction<LongValue> {
+		private static final long serialVersionUID = 1L;
+
+		private long agg;
+
+		@Override
+		public void initializeAggregate() {
+			agg = 0L;
+		}
+
+		@Override
+		public void aggregate(LongValue value) {
+			agg += value.getValue();
+		}
+
+		@Override
+		public LongValue getAggregate() {
+			return new LongValue(agg);
+		}
+	}
+
 	public static final class FloatSumAgg extends SumAggregationFunction<Float> {
 		private static final long serialVersionUID = 1L;
-		
-		private float agg;
+
+		private double agg;
 
 		@Override
 		public void initializeAggregate() {
@@ -131,13 +221,34 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public Float getAggregate() {
-			return agg;
+			return (float) agg;
 		}
 	}
-	
+
+	public static final class FloatValueSumAgg extends SumAggregationFunction<FloatValue> {
+		private static final long serialVersionUID = 1L;
+
+		private double agg;
+
+		@Override
+		public void initializeAggregate() {
+			agg = 0.0f;
+		}
+
+		@Override
+		public void aggregate(FloatValue value) {
+			agg += value.getValue();
+		}
+
+		@Override
+		public FloatValue getAggregate() {
+			return new FloatValue((float) agg);
+		}
+	}
+
 	public static final class DoubleSumAgg extends SumAggregationFunction<Double> {
 		private static final long serialVersionUID = 1L;
-		
+
 		private double agg;
 
 		@Override
@@ -155,36 +266,75 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 			return agg;
 		}
 	}
-	
+
+	public static final class DoubleValueSumAgg extends SumAggregationFunction<DoubleValue> {
+		private static final long serialVersionUID = 1L;
+
+		private double agg;
+
+		@Override
+		public void initializeAggregate() {
+			agg = 0.0;
+		}
+
+		@Override
+		public void aggregate(DoubleValue value) {
+			agg += value.getValue();
+		}
+
+		@Override
+		public DoubleValue getAggregate() {
+			return new DoubleValue(agg);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static final class SumAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
-		
+
 		@SuppressWarnings("unchecked")
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
 			if (type == Long.class) {
 				return (AggregationFunction<T>) new LongSumAgg();
 			}
+			else if (type == LongValue.class) {
+				return (AggregationFunction<T>) new LongValueSumAgg();
+			}
 			else if (type == Integer.class) {
 				return (AggregationFunction<T>) new IntSumAgg();
+			}
+			else if (type == IntValue.class) {
+				return (AggregationFunction<T>) new IntValueSumAgg();
 			}
 			else if (type == Double.class) {
 				return (AggregationFunction<T>) new DoubleSumAgg();
 			}
+			else if (type == DoubleValue.class) {
+				return (AggregationFunction<T>) new DoubleValueSumAgg();
+			}
 			else if (type == Float.class) {
 				return (AggregationFunction<T>) new FloatSumAgg();
+			}
+			else if (type == FloatValue.class) {
+				return (AggregationFunction<T>) new FloatValueSumAgg();
 			}
 			else if (type == Byte.class) {
 				return (AggregationFunction<T>) new ByteSumAgg();
 			}
+			else if (type == ByteValue.class) {
+				return (AggregationFunction<T>) new ByteValueSumAgg();
+			}
 			else if (type == Short.class) {
 				return (AggregationFunction<T>) new ShortSumAgg();
 			}
+			else if (type == ShortValue.class) {
+				return (AggregationFunction<T>) new ShortValueSumAgg();
+			}
 			else {
 				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
-					" has currently not supported for built-in sum aggregations.");
+					" is currently not supported for built-in sum aggregations.");
 			}
 		}
 	}

@@ -23,6 +23,7 @@ import akka.dispatch.OnFailure;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -46,9 +47,12 @@ import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.slf4j.Logger;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -137,7 +141,7 @@ public class Execution implements Serializable {
 	private ExecutionContext executionContext;
 
 	/* Lock for updating the accumulators atomically. */
-	private final Object accumulatorLock = new Object();
+	private final SerializableObject accumulatorLock = new SerializableObject();
 
 	/* Continuously updated map of user-defined accumulators */
 	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
@@ -497,8 +501,6 @@ public class Execution implements Serializable {
 					@Override
 					public Boolean call() throws Exception {
 						try {
-							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
-
 							consumerVertex.scheduleForExecution(
 									consumerVertex.getExecutionGraph().getScheduler(),
 									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
@@ -555,7 +557,9 @@ public class Execution implements Serializable {
 							partitionId, partitionLocation);
 
 					final UpdatePartitionInfo updateTaskMessage = new UpdateTaskSinglePartitionInfo(
-							consumer.getAttemptId(), partition.getIntermediateResult().getId(), descriptor);
+						consumer.getAttemptId(),
+						partition.getIntermediateResult().getId(),
+						descriptor);
 
 					sendUpdatePartitionInfoRpcCall(consumerSlot, updateTaskMessage);
 				}
@@ -956,6 +960,10 @@ public class Execution implements Serializable {
 		return vertex.getSimpleName() + " - execution #" + attemptNumber;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Accumulators
+	// ------------------------------------------------------------------------
+	
 	/**
 	 * Update accumulators (discarded when the Execution has already been terminated).
 	 * @param flinkAccumulators the flink internal accumulators
@@ -970,14 +978,23 @@ public class Execution implements Serializable {
 			}
 		}
 	}
+	
 	public Map<String, Accumulator<?, ?>> getUserAccumulators() {
 		return userAccumulators;
+	}
+
+	public StringifiedAccumulatorResult[] getUserAccumulatorsStringified() {
+		return StringifiedAccumulatorResult.stringifyAccumulatorResults(userAccumulators);
 	}
 
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
 		return flinkAccumulators;
 	}
 
+	// ------------------------------------------------------------------------
+	//  Standard utilities
+	// ------------------------------------------------------------------------
+	
 	@Override
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),

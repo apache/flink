@@ -20,6 +20,7 @@ package org.apache.flink.tez.test;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.tez.client.LocalTezEnvironment;
 import org.junit.Assert;
@@ -40,11 +41,11 @@ public abstract class TezProgramTestBase extends AbstractTestBase {
     }
 
     public TezProgramTestBase(Configuration config) {
-        super (config);
+        super (config, StreamingMode.BATCH_ONLY);
     }
 
 
-    public void setDegreeOfParallelism(int degreeOfParallelism) {
+    public void setParallelism(int degreeOfParallelism) {
         this.degreeOfParallelism = degreeOfParallelism;
     }
 

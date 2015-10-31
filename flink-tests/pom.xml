@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -57,7 +57,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime-web</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
@@ -81,7 +88,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core</artifactId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -141,6 +148,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-curator-test</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.scalatest</groupId>
 			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
@@ -163,7 +177,6 @@ under the License.
 			<version>${guava.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
 	</dependencies>
 
 	<build>
@@ -313,6 +326,11 @@ under the License.
 					<excludes>
 						<exclude>**/*TestBase*.class</exclude>
 					</excludes>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
@@ -323,6 +341,11 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 				</configuration>
 			</plugin>
 			
@@ -384,6 +407,25 @@ under the License.
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>src/test/assembly/test-streamingclassloader-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-streaming-state-checkpointed-classloader-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>streaming-checkpointed-classloader</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-streaming-state-checkpointed-classloader-assembly.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>

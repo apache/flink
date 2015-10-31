@@ -31,7 +31,7 @@ import org.apache.flink.util.ReflectionUtil;
 
 /**
  * Generic map base type for PACT programs that implements the Value and Map interfaces.
- * PactMap encapsulates a Java HashMap object.
+ * The {@link MapValue} encapsulates a Java {@link HashMap} object.
  * 
  * @see org.apache.flink.types.Value
  * @see java.util.Map
@@ -56,10 +56,10 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 	 * Initializes the encapsulated map with an empty HashMap.
 	 */
 	public MapValue() {
-		this.keyClass = ReflectionUtil.<K> getTemplateType1(this.getClass());
-		this.valueClass = ReflectionUtil.<V> getTemplateType2(this.getClass());
+		this.keyClass = ReflectionUtil.getTemplateType1(this.getClass());
+		this.valueClass = ReflectionUtil.getTemplateType2(this.getClass());
 
-		this.map = new HashMap<K, V>();
+		this.map = new HashMap<>();
 	}
 
 	/**
@@ -68,10 +68,10 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 	 * @param map Map holding all entries with which the new encapsulated map is filled.
 	 */
 	public MapValue(Map<K, V> map) {
-		this.keyClass = ReflectionUtil.<K> getTemplateType1(this.getClass());
-		this.valueClass = ReflectionUtil.<V> getTemplateType2(this.getClass());
+		this.keyClass = ReflectionUtil.getTemplateType1(this.getClass());
+		this.valueClass = ReflectionUtil.getTemplateType2(this.getClass());
 
-		this.map = new HashMap<K, V>(map);
+		this.map = new HashMap<>(map);
 	}
 
 	@Override
@@ -87,9 +87,7 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 				val.read(in);
 				this.map.put(key, val);
 			}
-		} catch (final InstantiationException e) {
-			throw new RuntimeException(e);
-		} catch (final IllegalAccessException e) {
+		} catch (final InstantiationException | IllegalAccessException e) {
 			throw new RuntimeException(e);
 		}
 	}

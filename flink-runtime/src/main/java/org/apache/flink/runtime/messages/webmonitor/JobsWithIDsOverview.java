@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * An overview of how many jobs are in which status.
  */
@@ -38,10 +40,10 @@ public class JobsWithIDsOverview implements InfoMessage {
 	public JobsWithIDsOverview(List<JobID> jobsRunningOrPending, List<JobID> jobsFinished, 
 								List<JobID> jobsCancelled, List<JobID> jobsFailed) {
 		
-		this.jobsRunningOrPending = jobsRunningOrPending;
-		this.jobsFinished = jobsFinished;
-		this.jobsCancelled = jobsCancelled;
-		this.jobsFailed = jobsFailed;
+		this.jobsRunningOrPending = checkNotNull(jobsRunningOrPending);
+		this.jobsFinished = checkNotNull(jobsFinished);
+		this.jobsCancelled = checkNotNull(jobsCancelled);
+		this.jobsFailed = checkNotNull(jobsFailed);
 	}
 
 	public JobsWithIDsOverview(JobsWithIDsOverview first, JobsWithIDsOverview second) {
@@ -69,6 +71,32 @@ public class JobsWithIDsOverview implements InfoMessage {
 	
 	// ------------------------------------------------------------------------
 
+
+	@Override
+	public int hashCode() {
+		return jobsRunningOrPending.hashCode() ^
+				jobsFinished.hashCode() ^
+				jobsCancelled.hashCode() ^
+				jobsFailed.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+		else if (obj instanceof JobsWithIDsOverview) {
+			JobsWithIDsOverview that = (JobsWithIDsOverview) obj;
+			return this.jobsRunningOrPending.equals(that.jobsRunningOrPending) &&
+					this.jobsFinished.equals(that.jobsFinished) &&
+					this.jobsCancelled.equals(that.jobsCancelled) &&
+					this.jobsFailed.equals(that.jobsFailed);
+		}
+		else {
+			return false;
+		}
+	}
+
 	@Override
 	public String toString() {
 		return "JobsOverview {" +
@@ -82,6 +110,8 @@ public class JobsWithIDsOverview implements InfoMessage {
 	// ------------------------------------------------------------------------
 
 	private static ArrayList<JobID> combine(List<JobID> first, List<JobID> second) {
+		checkNotNull(first);
+		checkNotNull(second);
 		ArrayList<JobID> result = new ArrayList<JobID>(first.size() + second.size());
 		result.addAll(first);
 		result.addAll(second);

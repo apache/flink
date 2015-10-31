@@ -41,8 +41,6 @@ object TestingTaskManagerMessages {
 
   case object RequestNumActiveConnections
   case class ResponseNumActiveConnections(number: Int)
-
-  case class CheckIfJobRemoved(jobID: JobID)
   
   case object RequestRunningTasks
   
@@ -51,6 +49,8 @@ object TestingTaskManagerMessages {
   case class NotifyWhenJobManagerTerminated(jobManager: ActorRef)
 
   case class JobManagerTerminated(jobManager: ActorRef)
+
+  case class NotifyWhenRegisteredAtJobManager(jobManager: ActorRef)
 
   /**
    * Message to give a hint to the task manager that accumulator values were updated in the task.

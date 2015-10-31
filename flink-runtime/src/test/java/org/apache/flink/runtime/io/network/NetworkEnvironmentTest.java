@@ -21,14 +21,17 @@ package org.apache.flink.runtime.io.network;
 import static org.junit.Assert.*;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.NetUtils;
+
 import org.junit.Test;
+
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
@@ -55,7 +58,8 @@ public class NetworkEnvironmentTest {
 		try {
 			NettyConfig nettyConf = new NettyConfig(InetAddress.getLocalHost(), port, BUFFER_SIZE, new Configuration());
 			NetworkEnvironmentConfiguration config = new NetworkEnvironmentConfiguration(
-					NUM_BUFFERS, BUFFER_SIZE, IOManager.IOMode.SYNC, new Some<NettyConfig>(nettyConf),
+					NUM_BUFFERS, BUFFER_SIZE, MemoryType.HEAP,
+					IOManager.IOMode.SYNC, new Some<NettyConfig>(nettyConf),
 					new Tuple2<Integer, Integer>(0, 0));
 
 			NetworkEnvironment env = new NetworkEnvironment(

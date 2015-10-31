@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -37,15 +37,13 @@ under the License.
 	<modules>
 		<module>flink-avro</module>
 		<module>flink-jdbc</module>
-		<module>flink-spargel</module>
 		<module>flink-hadoop-compatibility</module>
-		<module>flink-streaming</module>
 		<module>flink-hbase</module>
-		<module>flink-gelly</module>
 		<module>flink-hcatalog</module>
 		<module>flink-table</module>
 		<module>flink-ml</module>
 		<module>flink-language-binding</module>
+		<module>flink-scala-shell</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
@@ -59,33 +57,16 @@ under the License.
 				</property>
 			</activation>
 			<modules>
-				<!-- Include the Flink-tachyon project only for HD2.
+				<!-- Include the flink-fs-tests project only for HD2.
 				 	The HDFS minicluster interfaces changed between the two versions.
 				 -->
-				<module>flink-tachyon</module>
+				<module>flink-fs-tests</module>
 			</modules>
 		</profile>
 		<profile>
 			<id>include-tez</id>
 			<modules>
 				<module>flink-tez</module>
-			</modules>
-		</profile>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-
-				<property>
-					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
-				</property>
-			</activation>
-			<properties>
-				<scala.version>2.10.4</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-			<modules>
-				<module>flink-scala-shell</module>
 			</modules>
 		</profile>
 	</profiles>

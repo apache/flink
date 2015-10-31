@@ -92,7 +92,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Data Sink";
 	}
 

@@ -40,6 +40,8 @@ under the License.
 
 			<includes>
 				<include>org.apache.flink:flink-python</include>
+				<include>org.slf4j:slf4j-log4j12</include>
+				<include>log4j:log4j</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
@@ -121,13 +123,6 @@ under the License.
 			<fileMode>0644</fileMode>
 		</fileSet>
 
-		<!-- copy the web documents -->
-		<fileSet>
-			<directory>../flink-runtime-web/web-dashboard/web</directory>
-			<outputDirectory>resources/web-runtime-monitor</outputDirectory>
-			<fileMode>0644</fileMode>
-		</fileSet>
-		
 		<!-- copy the tools -->
 		<fileSet>
 			<directory>src/main/flink-bin/tools</directory>
@@ -155,11 +150,12 @@ under the License.
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>flink-java-examples-${project.version}.jar</exclude>
-				<exclude>original-flink-java-examples-${project.version}.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-sources.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-tests.jar</exclude>
-				<exclude>flink-java-examples-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}.jar</exclude>
+				<exclude>original-flink-java-examples*-${project.version}.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-sources.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-tests.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-javadoc.jar</exclude>
+				<exclude>flink-java-examples*-${project.version}-*.jar</exclude>
 			</excludes>
 		</fileSet>
 

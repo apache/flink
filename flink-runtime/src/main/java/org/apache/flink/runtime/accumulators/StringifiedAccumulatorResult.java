@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.accumulators;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
+
+import java.util.Map;
+
 /**
  * Container class that transports the result of an accumulator as set of strings.
  */
@@ -45,5 +49,32 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 
 	public String getValue() {
 		return value;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	public static StringifiedAccumulatorResult[] stringifyAccumulatorResults(Map<String, Accumulator<?, ?>> accs) {
+		if (accs == null || accs.isEmpty()) {
+			return new StringifiedAccumulatorResult[0];
+		}
+		else {
+			StringifiedAccumulatorResult[] results = new StringifiedAccumulatorResult[accs.size()];
+			
+			int i = 0;
+			for (Map.Entry<String, Accumulator<?, ?>> entry : accs.entrySet()) {
+				StringifiedAccumulatorResult result;
+				Accumulator<?, ?> value = entry.getValue();
+				if (value != null) {
+					result = new StringifiedAccumulatorResult(entry.getKey(), value.getClass().getSimpleName(), value.toString());
+				} else {
+					result = new StringifiedAccumulatorResult(entry.getKey(), "null", "null");
+				}
+	
+				results[i++] = result;
+			}
+			return results;
+		}
 	}
 }

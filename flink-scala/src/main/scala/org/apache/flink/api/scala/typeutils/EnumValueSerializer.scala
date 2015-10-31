@@ -51,15 +51,18 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   override def deserialize(reuse: T, source: DataInputView): T = deserialize(source)
 
   override def equals(obj: Any): Boolean = {
-    if (obj != null && obj.isInstanceOf[EnumValueSerializer[_]]) {
-      val other = obj.asInstanceOf[EnumValueSerializer[_]]
-      this.enum == other.enum
-    } else {
-      false
+    obj match {
+      case enumValueSerializer: EnumValueSerializer[_] =>
+        enumValueSerializer.canEqual(this) && enum == enumValueSerializer.enum
+      case _ => false
     }
   }
 
   override def hashCode(): Int = {
     enum.hashCode()
+  }
+
+  override def canEqual(obj: scala.Any): Boolean = {
+    obj.isInstanceOf[EnumValueSerializer[_]]
   }
 }

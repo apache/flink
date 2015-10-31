@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.functions.util;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
@@ -35,7 +34,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.api.common.state.StateCheckpointer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -57,17 +56,6 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final DistributedCache distributedCache;
 
-
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
-										ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulators)
-	{
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
-				accumulators, Collections.<String, Future<Path>>emptyMap());
-	}
-
 	public AbstractRuntimeUDFContext(String name,
 										int numParallelSubtasks, int subtaskIndex,
 										ClassLoader userCodeClassLoader,
@@ -79,7 +67,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
-		this.distributedCache = new DistributedCache(cpTasks);
+		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
 		this.accumulators = Preconditions.checkNotNull(accumulators);
 	}
 
@@ -175,16 +163,16 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		}
 		return (Accumulator<V, A>) accumulator;
 	}
-	
+
 	@Override
-	public <S, C extends Serializable> OperatorState<S> getOperatorState(String name,
-			S defaultState, boolean partitioned, StateCheckpointer<S, C> checkpointer) throws IOException {
-	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
+		throw new UnsupportedOperationException(
+				"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Override
-	public <S extends Serializable> OperatorState<S> getOperatorState(String name, S defaultState,
-			boolean partitioned) throws IOException{
-	throw new UnsupportedOperationException("Operator state is only accessible for streaming operators.");
+	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
+		throw new UnsupportedOperationException(
+				"This state is only accessible by functions executed on a KeyedStream");
 	}
 }

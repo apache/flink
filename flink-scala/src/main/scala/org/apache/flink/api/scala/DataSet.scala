@@ -23,8 +23,8 @@ import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
@@ -33,6 +33,7 @@ import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
 import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
@@ -641,9 +642,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   *  Applies a CombineFunction on a grouped [[DataSet]].  A
-   *  CombineFunction is similar to a GroupReduceFunction but does not
-   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  Applies a GroupCombineFunction on a grouped [[DataSet]].  A
+   *  GroupCombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the GroupCombineFunction calls
    *  the combine method once per partition for combining a group of
    *  results. This operator is suitable for combining values into an
    *  intermediate format before doing a proper groupReduce where the
@@ -651,7 +652,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *  GroupReduce operator can also be supplied with a combiner by
    *  implementing the RichGroupReduce function. The combine method of
    *  the RichGroupReduce function demands input and output type to be
-   *  the same. The CombineFunction, on the other side, can have an
+   *  the same. The GroupCombineFunction, on the other side, can have an
    *  arbitrary output type.
    */
   def combineGroup[R: TypeInformation: ClassTag](
@@ -666,9 +667,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   *  Applies a CombineFunction on a grouped [[DataSet]].  A
-   *  CombineFunction is similar to a GroupReduceFunction but does not
-   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  Applies a GroupCombineFunction on a grouped [[DataSet]].  A
+   *  GroupCombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the GroupCombineFunction calls
    *  the combine method once per partition for combining a group of
    *  results. This operator is suitable for combining values into an
    *  intermediate format before doing a proper groupReduce where the
@@ -676,7 +677,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *  GroupReduce operator can also be supplied with a combiner by
    *  implementing the RichGroupReduce function. The combine method of
    *  the RichGroupReduce function demands input and output type to be
-   *  the same. The CombineFunction, on the other side, can have an
+   *  the same. The GroupCombineFunction, on the other side, can have an
    *  arbitrary output type.
    */
   def combineGroup[R: TypeInformation: ClassTag](
@@ -840,11 +841,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Creates a new DataSet by joining `this` DataSet with the `other` DataSet. To specify the join
-   * keys the `where` and `isEqualTo` methods must be used. For example:
+   * keys the `where` and `equalTo` methods must be used. For example:
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
-   *   val joined = left.join(right).where(0).isEqualTo(1)
+   *   val joined = left.join(right).where(0).equalTo(1)
    * }}}
    *
    * The default join result is a DataSet with 2-Tuples of the joined values. In the above example
@@ -854,7 +855,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
-   *   val joined = left.join(right).where(0).isEqualTo(1) { (l, r) =>
+   *   val joined = left.join(right).where(0).equalTo(1) { (l, r) =>
    *     (l._1, r._2)
    *   }
    * }}}
@@ -864,7 +865,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
-   *   val joined = left.join(right).where(0).isEqualTo(1) {
+   *   val joined = left.join(right).where(0).equalTo(1) {
    *     (l, r, out: Collector[(String, Int)]) =>
    *       if (l._2 > 4) {
    *         out.collect((l._1, r._3))
@@ -898,6 +899,118 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def joinWithHuge[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
     new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
+
+  /**
+   * Creates a new DataSet by performing a full outer join of `this` DataSet
+   * with the `other` DataSet, by combining two elements of two DataSets on
+   * key equality.
+   * Elements of both DataSets that do not have a matching element on the
+   * opposing side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * To specify the join keys the `where` and `equalTo` methods must be used. For example:
+   * {{{
+   *   val left: DataSet[(String, Int, Int)] = ...
+   *   val right: DataSet[(Int, String, Int)] = ...
+   *   val joined = left.fullOuterJoin(right).where(0).equalTo(1)
+   * }}}
+   *
+   * When using an outer join you are required to specify a join function. For example:
+   * {{{
+   *   val joined = left.fullOuterJoin(right).where(0).equalTo(1) {
+   *     (left, right) =>
+   *       val a = if (left == null) null else left._1
+   *       val b = if (right == null) null else right._3
+   *       (a, b)
+   *  }
+   * }}}
+   */
+  def fullOuterJoin[O](other: DataSet[O]): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.FULL_OUTER)
+
+  /**
+   * Special [[fullOuterJoin]] operation for explicitly telling the system what join strategy to
+   * use. If null is given as the join strategy, then the optimizer will pick the strategy.
+   */
+  def fullOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
+    strategy match {
+      case JoinHint.OPTIMIZER_CHOOSES |
+           JoinHint.REPARTITION_SORT_MERGE =>
+        new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.FULL_OUTER)
+      case _ =>
+        throw new InvalidProgramException("Invalid JoinHint for FullOuterJoin: " + strategy)
+    }
+
+  /**
+   * An outer join on the left side.
+   *
+   * Elements of the left side (i.e. `this`) that do not have a matching element on the other
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def leftOuterJoin[O](other: DataSet[O]): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.LEFT_OUTER)
+
+  /**
+   * An outer join on the left side.
+   *
+   * Elements of the left side (i.e. `this`) that do not have a matching element on the other
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @param strategy The strategy that should be used execute the join. If { @code null} is given,
+   *                 then the optimizer will pick the join strategy.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def leftOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
+    strategy match {
+      case JoinHint.OPTIMIZER_CHOOSES |
+           JoinHint.REPARTITION_SORT_MERGE |
+           JoinHint.REPARTITION_HASH_SECOND |
+      JoinHint.BROADCAST_HASH_SECOND =>
+        new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.LEFT_OUTER)
+      case _ =>
+        throw new InvalidProgramException("Invalid JoinHint for LeftOuterJoin: " + strategy)
+    }
+
+  /**
+   * An outer join on the right side.
+   *
+   * Elements of the right side (i.e. `other`) that do not have a matching element on `this`
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def rightOuterJoin[O](other: DataSet[O]): UnfinishedOuterJoinOperation[T, O] =
+    new UnfinishedOuterJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES, JoinType.RIGHT_OUTER)
+
+  /**
+   * An outer join on the right side.
+   *
+   * Elements of the right side (i.e. `other`) that do not have a matching element on `this`
+   * side are joined with `null` and emitted to the resulting DataSet.
+   *
+   * @param other The other DataSet with which this DataSet is joined.
+   * @param strategy The strategy that should be used execute the join. If { @code null} is given,
+   *                 then the optimizer will pick the join strategy.
+   * @return An UnfinishedJoinOperation to continue with the definition of the join transformation
+   * @see #fullOuterJoin
+   */
+  def rightOuterJoin[O](other: DataSet[O], strategy: JoinHint): UnfinishedOuterJoinOperation[T, O] =
+    strategy match {
+      case JoinHint.OPTIMIZER_CHOOSES |
+           JoinHint.REPARTITION_SORT_MERGE |
+           JoinHint.REPARTITION_HASH_FIRST |
+      JoinHint.BROADCAST_HASH_FIRST =>
+        new UnfinishedOuterJoinOperation(this, other, strategy, JoinType.RIGHT_OUTER)
+      case _ =>
+        throw new InvalidProgramException("Invalid JoinHint for RightOuterJoin: " + strategy)
+    }
 
   // --------------------------------------------------------------------------------------------
   //  Co-Group
@@ -1075,6 +1188,36 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *
    * Note: The syntax of delta iterations are very likely going to change soon.
    */
+  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int],
+                                 solutionSetUnManaged: Boolean)(
+    stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
+
+    val iterativeSet = new DeltaIteration[T, R](
+      javaSet.getExecutionEnvironment,
+      javaSet.getType,
+      javaSet,
+      workset.javaSet,
+      key,
+      maxIterations)
+
+    iterativeSet.setSolutionSetUnManaged(solutionSetUnManaged)
+
+    val (newSolution, newWorkset) = stepFunction(
+      wrap(iterativeSet.getSolutionSet),
+      wrap(iterativeSet.getWorkset))
+    val result = iterativeSet.closeWith(newSolution.javaSet, newWorkset.javaSet)
+    wrap(result)
+  }
+
+  /**
+   * Creates a new DataSet by performing delta (or workset) iterations using the given step
+   * function. At the beginning `this` DataSet is the solution set and `workset` is the Workset.
+   * The iteration step function gets the current solution set and workset and must output the
+   * delta for the solution set and the workset for the next iteration.
+   *
+   * Note: The syntax of delta iterations are very likely going to change soon.
+   */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String])(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
 
@@ -1086,6 +1229,36 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       workset.javaSet,
       key,
       maxIterations)
+
+    val (newSolution, newWorkset) = stepFunction(
+      wrap(iterativeSet.getSolutionSet),
+      wrap(iterativeSet.getWorkset))
+    val result = iterativeSet.closeWith(newSolution.javaSet, newWorkset.javaSet)
+    wrap(result)
+  }
+
+  /**
+   * Creates a new DataSet by performing delta (or workset) iterations using the given step
+   * function. At the beginning `this` DataSet is the solution set and `workset` is the Workset.
+   * The iteration step function gets the current solution set and workset and must output the
+   * delta for the solution set and the workset for the next iteration.
+   *
+   * Note: The syntax of delta iterations are very likely going to change soon.
+   */
+  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String],
+                                 solutionSetUnManaged: Boolean)(
+    stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
+
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
+    val iterativeSet = new DeltaIteration[T, R](
+      javaSet.getExecutionEnvironment,
+      javaSet.getType,
+      javaSet,
+      workset.javaSet,
+      key,
+      maxIterations)
+
+    iterativeSet.setSolutionSetUnManaged(solutionSetUnManaged)
 
     val (newSolution, newWorkset) = stepFunction(
       wrap(iterativeSet.getSolutionSet),

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
@@ -32,18 +31,18 @@ import org.slf4j.LoggerFactory;
  * 
  * @param <T> The data type.
  */
-public class NoOpDriver<T> implements PactDriver<AbstractRichFunction, T> {
+public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
 
-	private PactTaskContext<AbstractRichFunction, T> taskContext;
+	private TaskContext<AbstractRichFunction, T> taskContext;
 	
 	private volatile boolean running;
 
 	private boolean objectReuseEnabled = false;
 
 	@Override
-	public void setup(PactTaskContext<AbstractRichFunction, T> context) {
+	public void setup(TaskContext<AbstractRichFunction, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -87,8 +86,7 @@ public class NoOpDriver<T> implements PactDriver<AbstractRichFunction, T> {
 			}
 		} else {
 			T record;
-			TypeSerializer<T> serializer = this.taskContext.<T>getInputSerializer(0).getSerializer();
-			while (this.running && ((record = input.next(serializer.createInstance())) != null)) {
+			while (this.running && ((record = input.next()) != null)) {
 				output.collect(record);
 			}
 

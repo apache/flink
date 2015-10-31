@@ -51,17 +51,50 @@ if [[ $STARTSTOP == "start" ]]; then
         fi
     fi
 
-    if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
-        echo "[ERROR] Configured TaskManager JVM heap size is not a number. Please set '$KEY_TASKM_HEAP_MB' in $FLINK_CONF_FILE."
+    if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]] || [[ "${FLINK_TM_HEAP}" -lt "0" ]]; then
+        echo "[ERROR] Configured TaskManager JVM heap size is not a number. Please set '${KEY_TASKM_MEM_SIZE}' in ${FLINK_CONF_FILE}."
         exit 1
     fi
 
-    if [ "$FLINK_TM_HEAP" -gt 0 ]; then
-        export JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
+    if [ "${FLINK_TM_HEAP}" -gt "0" ]; then
+
+        TM_HEAP_SIZE=${FLINK_TM_HEAP}
+        # Long.MAX_VALUE in TB: This is an upper bound, much less direct memory will be used
+        #
+        TM_MAX_OFFHEAP_SIZE="8388607T"
+
+        if [[ "${STREAMINGMODE}" == "batch" ]] && useOffHeapMemory; then
+            if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
+                # We split up the total memory in heap and off-heap memory
+                if [[ "${FLINK_TM_HEAP}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then
+                    echo "[ERROR] Configured TaskManager memory size ('${KEY_TASKM_MEM_SIZE}') must be larger than the managed memory size ('${KEY_TASKM_MEM_MANAGED_SIZE}')."
+                    exit 1
+                fi
+                TM_HEAP_SIZE=$((FLINK_TM_HEAP - FLINK_TM_MEM_MANAGED_SIZE))
+            else
+                # Bash only performs integer arithmetic so floating point computation is performed using bc
+                command -v bc >/dev/null 2>&1
+                if [[ $? -ne 0 ]]; then
+                    echo "[ERROR] Program 'bc' not found. Please install bc or define '${KEY_TASKM_MEM_MANAGED_SIZE}' instead of '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                    exit 1
+                fi
+                # We calculate the memory using a fraction of the total memory
+                if [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} >= 1.0"` != "0" ]] || [[ `bc -l <<< "${FLINK_TM_MEM_MANAGED_FRACTION} <= 0.0"` != "0" ]]; then
+                    echo "[ERROR] Configured TaskManager managed memory fraction is not a valid value. Please set '${KEY_TASKM_MEM_MANAGED_FRACTION}' in ${FLINK_CONF_FILE}"
+                    exit 1
+                fi
+                # recalculate the JVM heap memory by taking the off-heap ratio into account
+                OFFHEAP_MANAGED_MEMORY_SIZE=`printf '%.0f\n' $(bc -l <<< "${FLINK_TM_HEAP} * ${FLINK_TM_MEM_MANAGED_FRACTION}")`
+                TM_HEAP_SIZE=$((FLINK_TM_HEAP - OFFHEAP_MANAGED_MEMORY_SIZE))
+            fi
+        fi
+
+        export JVM_ARGS="${JVM_ARGS} -Xms${TM_HEAP_SIZE}M -Xmx${TM_HEAP_SIZE}M -XX:MaxDirectMemorySize=${TM_MAX_OFFHEAP_SIZE}"
+
     fi
 
     # Startup parameters
-    args="--configDir ${FLINK_CONF_DIR} --streamingMode ${STREAMINGMODE}"
+    args=("--configDir" "${FLINK_CONF_DIR}" "--streamingMode" "${STREAMINGMODE}")
 fi
 
-${bin}/flink-daemon.sh $STARTSTOP taskmanager "${args}"
+"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"

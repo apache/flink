@@ -78,4 +78,9 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeShort(source.readShort());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof ShortValueSerializer;
+	}
 }

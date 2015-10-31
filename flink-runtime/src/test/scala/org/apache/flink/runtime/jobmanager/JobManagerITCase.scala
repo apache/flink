@@ -18,20 +18,23 @@
 
 package org.apache.flink.runtime.jobmanager
 
+
 import Tasks._
 import akka.actor.ActorSystem
 import akka.actor.Status.{Success, Failure}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph, ScheduleMode}
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.apache.flink.runtime.testingUtils.{TestingUtils, ScalaTestingUtils}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
+
+import org.junit.runner.RunWith
+import org.scalatest.{Matchers, BeforeAndAfterAll, WordSpecLike}
+import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -65,30 +68,27 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Test Job", vertex)
 
       val cluster = TestingUtils.startTestingCluster(1)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
-        val response = (jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration)).mapTo[Int]
+        val response = jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration).mapTo[Int]
 
         val availableSlots = Await.result(response, duration)
 
         availableSlots should equal(1)
 
         within(2 second) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-
-          val success = expectMsgType[Success]
-
-          jobGraph.getJobID should equal(success.status)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
         }
 
         within(2 second) {
-          val response = expectMsgType[Failure]
-          val exception = response.cause
+          val response = expectMsgType[JobResultFailure]
+          val exception = response.cause.deserializeError(getClass.getClassLoader())
           exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
-              new NoResourceAvailableException(1,1,0) should equal(e.getCause)
+              new NoResourceAvailableException(1,1,0) should equal(e.getCause())
             case e => fail(s"Received wrong exception of type $e.")
           }
         }
@@ -110,21 +110,21 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Test Job", vertex)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
-        val response = (jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration)).mapTo[Int]
+        val response = jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration).mapTo[Int]
 
         val availableSlots = Await.result(response, duration)
 
         availableSlots should equal(num_tasks)
 
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+          
           val result = expectMsgType[JobResultSuccess]
-
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
 
@@ -146,13 +146,13 @@ class JobManagerITCase(_system: ActorSystem)
       jobGraph.setAllowQueuedScheduling(true)
 
       val cluster = TestingUtils.startTestingCluster(10)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -181,13 +181,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -216,13 +216,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
@@ -253,16 +253,17 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
 
-          failure.cause match {
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -297,12 +298,12 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
@@ -341,13 +342,13 @@ class JobManagerITCase(_system: ActorSystem)
       jobGraph.setScheduleMode(ScheduleMode.ALL)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
 
@@ -375,7 +376,7 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
@@ -384,12 +385,12 @@ class JobManagerITCase(_system: ActorSystem)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -423,7 +424,7 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
@@ -432,11 +433,12 @@ class JobManagerITCase(_system: ActorSystem)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -467,15 +469,16 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -506,18 +509,19 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
 
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -553,18 +557,19 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
 
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -595,13 +600,13 @@ class JobManagerITCase(_system: ActorSystem)
       val jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition", source, sink)
 
       val cluster = TestingUtils.startTestingCluster(2*num_tasks)
-      val jmGateway = cluster.getJobManagerGateway
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jmGateway.tell(SubmitJob(jobGraph, false), self)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }
 
@@ -613,6 +618,121 @@ class JobManagerITCase(_system: ActorSystem)
         cluster.stop()
       }
     }
+
+    "remove execution graphs when the client ends the session explicitly" in {
+      val vertex = new JobVertex("Test Vertex")
+      vertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph1 = new JobGraph("Test Job", vertex)
+
+      val slowVertex = new WaitingOnFinalizeJobVertex("Long running Vertex", 2000)
+      slowVertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph2 = new JobGraph("Long running Job", slowVertex)
+
+      val cluster = TestingUtils.startTestingCluster(1)
+      val jm = cluster.getLeaderGateway(1 seconds)
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          /* jobgraph1 is removed after being terminated */
+          jobGraph1.setSessionTimeout(9999)
+          jm.tell(SubmitJob(jobGraph1, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph1.getJobID))
+          expectMsgType[JobResultSuccess]
+
+          // should not be archived yet
+          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), self)
+          var cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(!cachedGraph.isArchived)
+
+          jm.tell(RemoveCachedJob(jobGraph1.getJobID), self)
+
+          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), self)
+          cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(cachedGraph.isArchived)
+
+          /* jobgraph2 is removed while running */
+          jobGraph2.setSessionTimeout(9999)
+          jm.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph2.getJobID))
+
+          // job still running
+          jm.tell(RemoveCachedJob(jobGraph2.getJobID), self)
+
+          expectMsgType[JobResultSuccess]
+
+          // should be archived!
+          jm.tell(RequestExecutionGraph(jobGraph2.getJobID), self)
+          cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(cachedGraph.isArchived)
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
+
+    "remove execution graphs when when the client's session times out" in {
+      val vertex = new JobVertex("Test Vertex")
+      vertex.setParallelism(1)
+      vertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph = new JobGraph("Test Job", vertex)
+
+      val cluster = TestingUtils.startTestingCluster(1)
+      val jm = cluster.getLeaderGateway(1 seconds)
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          // try multiple times in case of flaky environments
+          var testSucceeded = false
+          var numTries = 0
+          while(!testSucceeded && numTries < 10) {
+            try {
+              // should be removed immediately
+              jobGraph.setSessionTimeout(0)
+              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+              expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              val cachedGraph2 = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(cachedGraph2.isArchived)
+
+              // removed after 2 seconds
+              jobGraph.setSessionTimeout(2)
+
+              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+              expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+
+              // should not be archived yet
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              val cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(!cachedGraph.isArchived)
+
+              // wait until graph is archived
+              Thread.sleep(3000)
+
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              val graph = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(graph.isArchived)
+
+              testSucceeded = true
+            } catch {
+              case e: Throwable =>
+                numTries += 1
+            }
+          }
+          if(!testSucceeded) {
+            fail("Test case failed after " + numTries + " probes.")
+          }
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
+
   }
 
   class WaitingOnFinalizeJobVertex(name: String, val waitingTime: Long) extends JobVertex(name){

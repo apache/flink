@@ -84,7 +84,7 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Bulk Partial Solution";
 	}
 

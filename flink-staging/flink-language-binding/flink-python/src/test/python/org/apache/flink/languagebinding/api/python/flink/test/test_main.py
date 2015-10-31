@@ -232,7 +232,7 @@ if __name__ == "__main__":
         .map_partition(Verify([((1, 0.5, "hello", True), ("hello",)), ((2, 0.4, "world", False), ("world",))], "Default Join"), STRING).output()
 
     d2 \
-        .project(0, 1).project(2) \
+        .project(0, 1, 2) \
         .map_partition(Verify([(1, 0.5, "hello"), (2, 0.4, "world")], "Project"), STRING).output()
 
     d2 \

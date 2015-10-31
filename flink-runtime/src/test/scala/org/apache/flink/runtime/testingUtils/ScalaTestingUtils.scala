@@ -26,12 +26,12 @@ import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
   */
 trait ScalaTestingUtils {
 
-  /** Converts an [[ActorRef]] into a new [[AkkaActorGateway]] with None leader session ID
+  /** Converts an [[ActorRef]] into a new [[AkkaActorGateway]] with null leader session ID
     *
     * @param actor ActorRef for which the ActorGateway is constructed
     * @return [[ActorGateway]] encapsulating the given [[ActorRef]]
     */
   implicit def actorRef2InstanceGateway(actor: ActorRef): ActorGateway = {
-    new AkkaActorGateway(actor, None)
+    new AkkaActorGateway(actor, null)
   }
 }

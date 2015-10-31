@@ -72,7 +72,10 @@ public enum DriverStrategy {
 	ALL_GROUP_COMBINE(AllGroupCombineDriver.class, null, PIPELINED, 0),
 
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
-	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+	INNER_MERGE(JoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+	LEFT_OUTER_MERGE(LeftOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+	RIGHT_OUTER_MERGE(RightOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+	FULL_OUTER_MERGE(FullOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
 
 	// co-grouping inputs
 	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, 2),
@@ -81,13 +84,18 @@ public enum DriverStrategy {
 	
 	
 	// the first input is build side, the second side is probe side of a hybrid hash table
-	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	HYBRIDHASH_BUILD_FIRST(JoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
 	// the second input is build side, the first side is probe side of a hybrid hash table
-	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+	HYBRIDHASH_BUILD_SECOND(JoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 	// a cached variant of HYBRIDHASH_BUILD_FIRST, that can only be used inside of iterations
-	HYBRIDHASH_BUILD_FIRST_CACHED(BuildFirstCachedMatchDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	HYBRIDHASH_BUILD_FIRST_CACHED(BuildFirstCachedJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
 	//  cached variant of HYBRIDHASH_BUILD_SECOND, that can only be used inside of iterations
-	HYBRIDHASH_BUILD_SECOND_CACHED(BuildSecondCachedMatchDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+	HYBRIDHASH_BUILD_SECOND_CACHED(BuildSecondCachedJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+
+	// right outer join, the first input is build side, the second side is probe side of a hybrid hash table
+	RIGHT_HYBRIDHASH_BUILD_FIRST(RightOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	// left outer join, the second input is build side, the first side is probe side of a hybrid hash table
+	LEFT_HYBRIDHASH_BUILD_SECOND(LeftOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 	
 	// the second input is inner loop, the first input is outer loop and block-wise processed
 	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, MATERIALIZING, FULL_DAM, 0),
@@ -98,14 +106,18 @@ public enum DriverStrategy {
 	// the first input is inner loop, the second input is outer loop and stream-processed
 	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, FULL_DAM, PIPELINED, 0),
 	
-	// union utility op. unions happen implicitly on the network layer (in the readers) when bundeling streams
+	// union utility op. unions happen implicitly on the network layer (in the readers) when bundling streams
 	UNION(null, null, PIPELINED, PIPELINED, 0),
 	// explicit binary union between a streamed and a cached input
-	UNION_WITH_CACHED(UnionWithTempOperator.class, null, FULL_DAM, PIPELINED, 0);
+	UNION_WITH_CACHED(UnionWithTempOperator.class, null, FULL_DAM, PIPELINED, 0),
+	
+	// some enumeration constants to mark sources and sinks
+	SOURCE(null, null, PIPELINED, 0),
+	SINK(null, null, PIPELINED, 0);
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final Class<? extends PactDriver<?, ?>> driverClass;
+	private final Class<? extends Driver<?, ?>> driverClass;
 	
 	private final Class<? extends ChainedDriver<?, ?>> pushChainDriver;
 	
@@ -119,11 +131,11 @@ public enum DriverStrategy {
 
 	@SuppressWarnings("unchecked")
 	private DriverStrategy(
-			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
+			@SuppressWarnings("rawtypes") Class<? extends Driver> driverClass,
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
 			DamBehavior dam, int numComparator)
 	{
-		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
+		this.driverClass = (Class<? extends Driver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 1;
 		this.dam1 = dam;
@@ -133,11 +145,11 @@ public enum DriverStrategy {
 	
 	@SuppressWarnings("unchecked")
 	private DriverStrategy(
-			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
+			@SuppressWarnings("rawtypes") Class<? extends Driver> driverClass,
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
 			DamBehavior firstDam, DamBehavior secondDam, int numComparator)
 	{
-		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
+		this.driverClass = (Class<? extends Driver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 2;
 		this.dam1 = firstDam;
@@ -147,7 +159,7 @@ public enum DriverStrategy {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public Class<? extends PactDriver<?, ?>> getDriverClass() {
+	public Class<? extends Driver<?, ?>> getDriverClass() {
 		return this.driverClass;
 	}
 	

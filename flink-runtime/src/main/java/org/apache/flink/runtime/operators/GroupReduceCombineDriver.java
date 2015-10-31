@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
@@ -50,19 +50,19 @@ import java.util.List;
  * to have the same input and output type to be able to reduce the elements after the combine from 
  * {@code IN} to {@code OUT}.
  *
- * <p>The CombineTask uses a combining iterator over its input. The output of the iterator is emitted.</p>
+ * <p>The GroupReduceCombineDriver uses a combining iterator over its input. The output of the iterator is emitted.</p>
  * 
  * @param <IN> The data type consumed by the combiner.
  * @param <OUT> The data type produced by the combiner.
  */
-public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombineFunction<IN, OUT>, OUT> {
+public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFunction<IN, OUT>, OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceCombineDriver.class);
 
 	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
-	private PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
+	private TaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
 
 	private InMemorySorter<IN> sorter;
 
@@ -74,9 +74,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 
 	private QuickSort sortAlgo = new QuickSort();
 
-	private MemoryManager memManager;
-
 	private Collector<OUT> output;
+
+	private List<MemorySegment> memory;
 
 	private long oversizedRecordCount;
 
@@ -87,7 +87,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
+	public void setup(TaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -115,9 +115,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		if (driverStrategy != DriverStrategy.SORTED_GROUP_COMBINE){
 			throw new Exception("Invalid strategy " + driverStrategy + " for group reduce combiner.");
 		}
-
-		this.memManager = this.taskContext.getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
+		
+		
 
 		final TypeSerializerFactory<IN> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
@@ -128,8 +127,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		this.combiner = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();
 
-		final List<MemorySegment> memory = this.memManager.allocatePages(this.taskContext.getOwningNepheleTask(),
-				numMemoryPages);
+		MemoryManager memManager = this.taskContext.getMemoryManager();
+		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
+		this.memory = memManager.allocatePages(this.taskContext.getOwningNepheleTask(), numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
 		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
@@ -157,34 +157,36 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 		final MutableObjectIterator<IN> in = this.taskContext.getInput(0);
 		final TypeSerializer<IN> serializer = this.serializer;
 
-		IN value = serializer.createInstance();
-
-		while (running && (value = in.next(value)) != null) {
-
-			// try writing to the sorter first
-			if (this.sorter.write(value)) {
-				continue;
+		if (objectReuseEnabled) {
+			IN value = serializer.createInstance();
+	
+			while (running && (value = in.next(value)) != null) {
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
+	
+				// do the actual sorting, combining, and data writing
+				sortAndCombineAndRetryWrite(value);
 			}
+		}
+		else {
+			IN value;
+			while (running && (value = in.next()) != null) {
+				// try writing to the sorter first
+				if (this.sorter.write(value)) {
+					continue;
+				}
 
-			// do the actual sorting, combining, and data writing
-			sortAndCombine();
-			this.sorter.reset();
-
-			// write the value again
-			if (!this.sorter.write(value)) {
-				
-				++oversizedRecordCount;
-				LOG.debug("Cannot write record to fresh sort buffer, record is too large. " +
-								"Oversized record count: {}", oversizedRecordCount);
-				
-				// simply forward the record. We need to pass it through the combine function to convert it
-				Iterable<IN> input = Collections.singleton(value);
-				this.combiner.combine(input, this.output);
+				// do the actual sorting, combining, and data writing
+				sortAndCombineAndRetryWrite(value);
 			}
 		}
 
 		// sort, combine, and send the final batch
-		sortAndCombine();
+		if (running) {
+			sortAndCombine();
+		}
 	}
 
 	private void sortAndCombine() throws Exception {
@@ -212,20 +214,48 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombin
 			}
 		}
 	}
+	
+	private void sortAndCombineAndRetryWrite(IN value) throws Exception {
+		sortAndCombine();
+		this.sorter.reset();
+
+		// write the value again
+		if (!this.sorter.write(value)) {
+
+			++oversizedRecordCount;
+			LOG.debug("Cannot write record to fresh sort buffer, record is too large. " +
+					"Oversized record count: {}", oversizedRecordCount);
+
+			// simply forward the record. We need to pass it through the combine function to convert it
+			Iterable<IN> input = Collections.singleton(value);
+			this.combiner.combine(input, this.output);
+			this.sorter.reset();
+		}
+	}
 
 	@Override
 	public void cleanup() throws Exception {
 		if (this.sorter != null) {
-			this.memManager.release(this.sorter.dispose());
+			this.sorter.dispose();
 		}
+
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 
 	@Override
 	public void cancel() {
 		this.running = false;
+		
 		if (this.sorter != null) {
-			this.memManager.release(this.sorter.dispose());
+			try {
+				this.sorter.dispose();
+			}
+			catch (Exception e) {
+				// may happen during concurrent modification
+			}
 		}
+
+		this.taskContext.getMemoryManager().release(this.memory);
 	}
 
 	/**

@@ -38,14 +38,14 @@ import java.util.Collection;
  *
  * <pre>{@code
  *
- *   @Test
+ *   {@literal @}Test
  *   public void someTest() {
  *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
  *       // test code
  *       env.execute();
  *   }
  *
- *   @Test
+ *   {@literal @}Test
  *   public void anotherTest() {
  *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
  *       // test code
@@ -101,7 +101,13 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	@BeforeClass
 	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, StreamingMode.BATCH_ONLY, startWebServer, true);
+		cluster = TestBaseUtils.startCluster(
+			1,
+			DEFAULT_PARALLELISM,
+			StreamingMode.BATCH_ONLY,
+			startWebServer,
+			false,
+			true);
 	}
 
 	@AfterClass

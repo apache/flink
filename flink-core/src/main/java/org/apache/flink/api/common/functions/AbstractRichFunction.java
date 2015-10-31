@@ -38,10 +38,12 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 	
 	private transient RuntimeContext runtimeContext;
 
+	@Override
 	public void setRuntimeContext(RuntimeContext t) {
 		this.runtimeContext = t;
 	}
-	
+
+	@Override
 	public RuntimeContext getRuntimeContext() {
 		if (this.runtimeContext != null) {
 			return this.runtimeContext;
@@ -50,6 +52,7 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 		}
 	}
 	
+	@Override
 	public IterationRuntimeContext getIterationRuntimeContext() {
 		if (this.runtimeContext == null) {
 			throw new IllegalStateException("The runtime context has not been initialized.");

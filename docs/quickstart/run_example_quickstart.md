@@ -36,7 +36,7 @@ Flink contains a data generator for K-Means.
 mkdir kmeans
 cd kmeans
 # Run data generator
-java -cp ../examples/flink-java-examples-{{ site.version }}-KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
+java -cp ../examples/KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
   org.apache.flink.examples.java.clustering.util.KMeansDataGenerator \
   -points 500 -k 10 -stddev 0.08 -output `pwd`
 ~~~
@@ -53,7 +53,7 @@ The `kmeans/` directory should now contain two files: `centers` and `points`. Th
 
 
 ## Inspect the Input Data
-Use the `plotPoints.py` tool to review the generated data points. [Download Python Script](quickstart/plotPoints.py)
+Use the `plotPoints.py` tool to review the generated data points. [Download Python Script](plotPoints.py)
 
 ~~~ bash
 python plotPoints.py points ./points input
@@ -93,7 +93,7 @@ The Flink web client allows to submit Flink programs using a graphical user inte
 		1. Open web client on  <a href="http://localhost:8080/launch.html">localhost:8080</a> <br>
 		2. Upload the K-Mean job JAR file. 
 			{% highlight bash %}
-			./examples/flink-java-examples-*-KMeans.jar
+			./examples/KMeans.jar
 			{% endhighlight %} </br>
 		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
 		4. Enter the arguments and options in the lower left box: <br>
@@ -145,7 +145,7 @@ Stop Flink when you are done.
 ~~~
 
 ## Analyze the Result
-Use the [Python Script](quickstart/plotPoints.py) again to visualize the result.
+Use the [Python Script](plotPoints.py) again to visualize the result.
 
 ~~~bash
 cd kmeans

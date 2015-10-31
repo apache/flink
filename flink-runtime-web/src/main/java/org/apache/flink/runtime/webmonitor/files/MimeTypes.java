@@ -22,10 +22,10 @@ import java.util.HashMap;
 
 /**
  * Simple utility class that resolves file extensions to MIME types.
- * 
- * <p>There are various solutions built into Java that depend on extra resource and configuration
+ * <p>
+ * There are various solutions built into Java that depend on extra resource and configuration
  * files. They are designed to be composable and extensible, but also unfortunately tricky to control.
- * This is meant to be a simple solution that may eventually be subsumed by a better one.</p>
+ * This is meant to be a simple solution that may eventually be subsumed by a better one.
  */
 public class MimeTypes {
 
@@ -91,6 +91,9 @@ public class MimeTypes {
 		MIME_MAP.put("htm", "text/html");
 		MIME_MAP.put("css", "text/css");
 		MIME_MAP.put("txt", "text/plain");
+		MIME_MAP.put("log", "text/plain");
+		MIME_MAP.put("out", "text/plain");
+		MIME_MAP.put("err", "text/plain");
 		MIME_MAP.put("xml", "text/xml");
 		MIME_MAP.put("csv", "text/csv");
 		

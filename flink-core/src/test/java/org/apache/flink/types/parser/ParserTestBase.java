@@ -26,13 +26,14 @@ import static org.junit.Assert.fail;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 
 /**
  *
  */
-public abstract class ParserTestBase<T> {
+public abstract class ParserTestBase<T> extends TestLogger {
 	
 	public abstract String[] getValidTestValues();
 	

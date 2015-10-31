@@ -133,42 +133,38 @@ function deleteJob(id)
 function createJobList(data)
 {
   var markup = "";
-  
-  var entries = data.split("#_#");
-  
-  var lines = entries[0].split("\n");
+   
+  var lines = data.split("\n");
   for (var i = 0; i < lines.length; i++)
   {
     if (lines[i] == null || lines[i].length == 0) {
       continue;
     }
     
-    var name = lines[i];
     var date = "unknown date";
     var assemblerClass = "<em>no entry class specified</em>";
     
     var tokens = lines[i].split("\t");
-    if (tokens.length > 0) {
-      name = tokens[0];
-      if (tokens.length > 1) {
-        date = tokens[1];
-        if (tokens.length > 2) {
-          assemblerClass = tokens[2];
-        }
+    var name = tokens[0];
+    if (tokens.length > 1) {
+      date = tokens[1];
+      if (tokens.length > 2) {
+        assemblerClass = tokens[2];
       }
     }
     
-    var classes = assemblerClass.split(",");
+    var entries = assemblerClass.split("#");
+    var classes = entries[0].split(",");
     
     markup += '<div id="job_' + name + '" class="JobListItems"><table class="table"><tr>';
     markup += '<td colspan="2"><p class="JobListItemsName">' + name + '</p></td>';
     markup += '<td><p class="JobListItemsDate">' + date + '</p></td>';
     markup += '<td width="30px"><img class="jobItemDeleteIcon" src="img/delete-icon.png" width="24" height="24" /></td></tr>';
     
-    var i = 0;
+    var j = 0;
     for (var idx in classes) {
       markup += '<tr><td width="30px;"><input id="' + classes[idx] + '" class="jobItemCheckbox" type="checkbox"></td>';
-      markup += '<td colspan="3"><p class="JobListItemsDate" title="' + entries[++i] + '">' + classes[idx] + '</p></td></tr>';
+      markup += '<td colspan="3"><p class="JobListItemsDate" title="' + entries[++j] + '">' + classes[idx] + '</p></td></tr>';
     }
     markup += '</table></div>';
   }

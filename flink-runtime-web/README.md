@@ -22,16 +22,16 @@ under the License.
 The web dashboard is work in progress towards the new Flink runtime monitor. In particular, it will
 provide the following missing features of the current web dashboard:
 
- - Live progress monitoring (via life accumulators)
+ - Live progress monitoring (via live accumulators)
  - A graph view of the program, as it is executed.
  - A REST style API to access the status of individual jobs.
  - A more modular design
 
 The web dashboard can be activated by adding/uncommenting the config parameter
 `jobmanager.new-web-frontend: true` in the `conf/fink-conf.yaml` file.
-The dashboard listens at `http://localhost:8082`.
+The dashboard listens at `http://localhost:8081`.
 
-The new web dashboard is work in progress. It starts an additional HTTP server (by default at port 8082)
+The new web dashboard is work in progress. It starts an additional HTTP server (by default at port 8081)
 that serves the new web pages and additional background requests. It also relies on the old HTTP server
 for some requests still.
 
@@ -60,14 +60,10 @@ The dashboard files are all pre-built, so one can try it out without building it
 Depending on your version of Linux or MacOS, you may need to manually install *node.js* and *bower*.
 
 
-#### Ubuntu Linux (12.04 and 14.04)
+#### Ubuntu Linux
 
-Install *node.js* via
-```
-sudo add-apt-repository ppa:chris-lea/node.js 
-sudo apt-get update
-sudo apt-get -y install nodejs
-```
+Install *node.js* by following [these instructions](https://github.com/joyent/node/wiki/installing-node.js-via-package-manager).
+
 Verify that the installed version is at least *2.11.3*, via `npm -version`.
 
 
@@ -97,7 +93,7 @@ bower install
 gulp
 ```
 
-The dashboard code is under `/app`. The result of the build process is under `/web`.
+The dashboard code is under `/app`. The result of the build process is under `/web` in the src/main/resources folder.
 
 When building Flink with Maven (in particular the `flink-dist` project), the generated
 files are copied into the build target, to the folder `resources/web-runtime-monitor`.
@@ -117,8 +113,8 @@ mvn -DskipTests clean package
 To simplify continuous development, one can use a *standalone proxy server*, together with automatic
 re-compilation:
 
-1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `webServer`, `jobServer`, and `newServer` URLs.
+1. Edit the file `app/scripts/index.coffee`. Comment/uncomment the lines that define the `webServer`, and `jobServer` URLs.
 2. Re-compile the files via `gulp`. By calling `gulp watch`, the build-tool autocompiles future changes.
 3. Start the proxy server via `node server.js`
-4. Access teh dashboardat [`http://localhost:3000`](http://localhost:3000)
+4. Access the dashboard at [`http://localhost:3000`](http://localhost:3000)
 

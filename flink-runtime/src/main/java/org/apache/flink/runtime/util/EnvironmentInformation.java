@@ -26,6 +26,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -115,7 +116,24 @@ public class EnvironmentInformation {
 	 * @return The maximum JVM heap size, in bytes.
 	 */
 	public static long getMaxJvmHeapMemory() {
-		return Runtime.getRuntime().maxMemory();
+		long maxMemory = Runtime.getRuntime().maxMemory();
+
+		if (maxMemory == Long.MAX_VALUE) {
+			// amount of free memory unknown
+			try {
+				// workaround for Oracle JDK
+				OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
+				Class<?> clazz = Class.forName("com.sun.management.OperatingSystemMXBean");
+				Method method = clazz.getMethod("getTotalPhysicalMemorySize");
+				maxMemory = (Long) method.invoke(operatingSystemMXBean) / 4;
+			}
+			catch (Throwable e) {
+				throw new RuntimeException("Could not determine the amount of free memory.\n" +
+						"Please set the maximum memory for the JVM, e.g. -Xmx512M for 512 megabytes.");
+			}
+		}
+		
+		return maxMemory;
 	}
 
 	/**
@@ -280,6 +298,7 @@ public class EnvironmentInformation {
 			log.info(" JVM: " + jvmVersion);
 			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
 			log.info(" JAVA_HOME: " + (javaHome == null ? "(not set)" : javaHome));
+			log.info(" Hadoop version: " + VersionInfo.getVersion());
 
 			if (options.length == 0) {
 				log.info(" JVM Options: (none)");

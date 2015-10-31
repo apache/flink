@@ -25,7 +25,11 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.test.javaApiOperators.util.ValueCollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.StringValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -62,6 +66,27 @@ public class AggregateITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testFullAggregateOfMutableValueTypes() throws Exception {
+		/*
+		 * Full Aggregate of mutable value types
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<IntValue, LongValue, StringValue>> ds = ValueCollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<IntValue, LongValue>> aggregateDs = ds
+				.aggregate(Aggregations.SUM, 0)
+				.and(Aggregations.MAX, 1)
+				.project(0, 1);
+
+		List<Tuple2<IntValue, LongValue>> result = aggregateDs.collect();
+
+		String expected = "231,6\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
 	public void testGroupedAggregate() throws Exception {
 		/*
 		 * Grouped Aggregate
@@ -75,6 +100,31 @@ public class AggregateITCase extends MultipleProgramsTestBase {
 				.project(1, 0);
 
 		List<Tuple2<Long, Integer>> result = aggregateDs.collect();
+
+		String expected = "1,1\n" +
+				"2,5\n" +
+				"3,15\n" +
+				"4,34\n" +
+				"5,65\n" +
+				"6,111\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testGroupedAggregateOfMutableValueTypes() throws Exception {
+		/*
+		 * Grouped Aggregate of mutable value types
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<IntValue, LongValue, StringValue>> ds = ValueCollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<IntValue, LongValue>> aggregateDs = ds.groupBy(1)
+				.aggregate(Aggregations.SUM, 0)
+				.project(1, 0);
+
+		List<Tuple2<IntValue, LongValue>> result = aggregateDs.collect();
 
 		String expected = "1,1\n" +
 				"2,5\n" +
@@ -101,6 +151,27 @@ public class AggregateITCase extends MultipleProgramsTestBase {
 				.project(0);
 
 		List<Tuple1<Integer>> result = aggregateDs.collect();
+
+		String expected = "1\n";
+
+		compareResultAsTuples(result, expected);
+	}
+
+	@Test
+	public void testNestedAggregateOfMutableValueTypes() throws Exception {
+		/*
+		 * Nested Aggregate of mutable value types
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<IntValue, LongValue, StringValue>> ds = ValueCollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple1<IntValue>> aggregateDs = ds.groupBy(1)
+				.aggregate(Aggregations.MIN, 0)
+				.aggregate(Aggregations.MIN, 0)
+				.project(0);
+
+		List<Tuple1<IntValue>> result = aggregateDs.collect();
 
 		String expected = "1\n";
 

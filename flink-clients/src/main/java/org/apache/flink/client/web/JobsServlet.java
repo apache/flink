@@ -163,9 +163,9 @@ public class JobsServlet extends HttpServlet {
 							if (d == null) {
 								d = "No description provided.";
 							}
-							descriptions += "#_#" + d;
+							descriptions += "#" + d;
 						} catch (ProgramInvocationException e) {
-							descriptions += "#_#No description provided.";
+							descriptions += "#No description provided.";
 							continue;
 						}
 					}

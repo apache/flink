@@ -84,7 +84,7 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	}
 
 	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int[] keyPositions) {
-		this(operatorInfo, keyPositions, "<Unnamed Workset-Iteration>");
+		this(operatorInfo, keyPositions, "<Unnamed Delta Iteration>");
 	}
 
 	public DeltaIterationBase(BinaryOperatorInformation<ST, WT, ST> operatorInfo, int keyPosition, String name) {
@@ -283,7 +283,7 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 		private final DeltaIterationBase<?, WT> containingIteration;
 
 		public WorksetPlaceHolder(DeltaIterationBase<?, WT> container, OperatorInformation<WT> operatorInfo) {
-			super(operatorInfo, "Workset Place Holder");
+			super(operatorInfo, "Workset");
 			this.containingIteration = container;
 		}
 
@@ -312,7 +312,7 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 		protected final DeltaIterationBase<ST, ?> containingIteration;
 
 		public SolutionSetPlaceHolder(DeltaIterationBase<ST, ?> container, OperatorInformation<ST> operatorInfo) {
-			super(operatorInfo, "Solution Set Place Holder");
+			super(operatorInfo, "Solution Set");
 			this.containingIteration = container;
 		}
 

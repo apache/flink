@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -33,6 +33,18 @@ under the License.
 	<name>flink-runtime-web</name>
 
 	<packaging>jar</packaging>
+
+	<build>
+		<resources>
+			<resource>
+				<!-- Only include the web folder from the web-dashboard directory -->
+				<directory>web-dashboard</directory>
+				<includes>
+					<include>web/**</include>
+				</includes>
+			</resource>
+		</resources>
+	</build>
 
 	<dependencies>
 
@@ -94,21 +106,29 @@ under the License.
 		<!-- ===================================================
 								Testing
 			=================================================== -->
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples</artifactId>
+			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 </project>

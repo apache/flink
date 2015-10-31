@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.testutils;
 
 import static org.junit.Assert.fail;
@@ -27,6 +26,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -35,8 +36,7 @@ import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
 /**
- * This class contains auxiliary methods for unit tests in the Nephele common module.
- * 
+ * This class contains reusable utility methods for unit tests.
  */
 public class CommonTestUtils {
 
@@ -98,7 +98,7 @@ public class CommonTestUtils {
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
+	public static <T extends IOReadableWritable> T createCopyWritable(final T original) throws IOException {
 
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
@@ -125,9 +125,7 @@ public class CommonTestUtils {
 		T copy = null;
 		try {
 			copy = clazz.newInstance();
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
+		} catch (InstantiationException | IllegalAccessException e) {
 			fail(e.getMessage());
 		}
 
@@ -141,5 +139,28 @@ public class CommonTestUtils {
 		copy.read(new InputViewDataInputStreamWrapper(dis));
 
 		return copy;
+	}
+
+	public static <T extends java.io.Serializable> T createCopySerializable(T original) throws IOException {
+		if (original == null) {
+			throw new IllegalArgumentException();
+		}
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(original);
+		oos.close();
+		baos.close();
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+
+		try (ObjectInputStream ois = new ObjectInputStream(bais)) {
+			@SuppressWarnings("unchecked")
+			T copy = (T) ois.readObject();
+			return copy;
+		}
+		catch (ClassNotFoundException e) {
+			throw new IOException(e);
+		}
 	}
 }

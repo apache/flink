@@ -32,7 +32,7 @@ import org.apache.flink.core.io.GenericInputSplit;
  * The input format checks the exit code of the process to validate whether the process terminated correctly. A list of allowed exit codes can be provided.
  * The input format requires ({@link ExternalProcessInputSplit} objects that hold the command to execute.
  * 
- * <b>Attention! </b><br/>
+ * <b>Attention! </b><br>
  * You must take care to read from (and process) both output streams of the process, standard out (stdout) and standard error (stderr). 
  * Otherwise, the input format might get deadlocked! 
  * 

@@ -21,6 +21,7 @@ package org.apache.flink.api.io.avro;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.flink.api.io.avro.generated.Address;
 import org.apache.flink.api.io.avro.generated.Colors;
 import org.apache.flink.api.io.avro.generated.Fixed16;
 import org.apache.flink.api.io.avro.generated.User;
@@ -65,6 +66,12 @@ public class AvroSplittableInputFormatTest {
 	final static String TEST_MAP_KEY2 = "KEY 2";
 	final static long TEST_MAP_VALUE2 = 17554L;
 
+	final static Integer TEST_NUM = new Integer(239);
+	final static String TEST_STREET = "Baker Street";
+	final static String TEST_CITY = "London";
+	final static String TEST_STATE = "London";
+	final static String TEST_ZIP = "NW1 6XE";
+	
 	final static int NUM_RECORDS = 5000;
 
 	@Before
@@ -83,6 +90,13 @@ public class AvroSplittableInputFormatTest {
 		longMap.put(TEST_MAP_KEY1, TEST_MAP_VALUE1);
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
 		
+		Address addr = new Address();
+		addr.setNum(new Integer(TEST_NUM));
+		addr.setStreet(TEST_STREET);
+		addr.setCity(TEST_CITY);
+		addr.setState(TEST_STATE);
+		addr.setZip(TEST_ZIP);
+		
 		
 		User user1 = new User();
 		user1.setName(TEST_NAME);
@@ -93,6 +107,7 @@ public class AvroSplittableInputFormatTest {
 		user1.setTypeArrayBoolean(booleanArray);
 		user1.setTypeEnum(TEST_ENUM_COLOR);
 		user1.setTypeMap(longMap);
+		user1.setTypeNested(addr);
 		
 		// Construct via builder
 		User user2 = User.newBuilder()
@@ -110,6 +125,11 @@ public class AvroSplittableInputFormatTest {
 		             .setTypeMap(new HashMap<CharSequence, Long>())
 					 .setTypeFixed(new Fixed16())
 					 .setTypeUnion(123L)
+				.setTypeNested(
+						Address.newBuilder().setNum(TEST_NUM).setStreet(TEST_STREET)
+								.setCity(TEST_CITY).setState(TEST_STATE).setZip(TEST_ZIP)
+								.build())
+
 		             .build();
 		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<User>(User.class);
 		DataFileWriter<User> dataFileWriter = new DataFileWriter<User>(userDatumWriter);
@@ -128,6 +148,13 @@ public class AvroSplittableInputFormatTest {
 			user.setTypeArrayBoolean(booleanArray);
 			user.setTypeEnum(TEST_ENUM_COLOR);
 			user.setTypeMap(longMap);
+			Address address = new Address();
+			address.setNum(new Integer(TEST_NUM));
+			address.setStreet(TEST_STREET);
+			address.setCity(TEST_CITY);
+			address.setState(TEST_STATE);
+			address.setZip(TEST_ZIP);
+			user.setTypeNested(address);
 
 			dataFileWriter.append(user);
 		}
@@ -155,10 +182,11 @@ public class AvroSplittableInputFormatTest {
 			}
 			format.close();
 		}
-		Assert.assertEquals(1474, elementsPerSplit[0]);
-		Assert.assertEquals(1474, elementsPerSplit[1]);
-		Assert.assertEquals(1474, elementsPerSplit[2]);
-		Assert.assertEquals(578, elementsPerSplit[3]);
+
+		Assert.assertEquals(1539, elementsPerSplit[0]);
+		Assert.assertEquals(1026, elementsPerSplit[1]);
+		Assert.assertEquals(1539, elementsPerSplit[2]);
+		Assert.assertEquals(896, elementsPerSplit[3]);
 		Assert.assertEquals(NUM_RECORDS, elements);
 		format.close();
 	}

@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullFieldException;
 
 
-public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
+public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
 	private static final long serialVersionUID = 1L;
 	

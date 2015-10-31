@@ -23,14 +23,18 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.WeakHashMap;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
- * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archiver.
+ * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archive.
  * <p>
  * The holder will cache the ExecutionGraph behind a weak reference, which will be cleared
  * at some point once no one else is pointing to the ExecutionGraph.
@@ -38,46 +42,53 @@ import java.util.WeakHashMap;
  * stay valid.
  */
 public class ExecutionGraphHolder {
-	
-	private final ActorGateway source;
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphHolder.class);
+
 	private final FiniteDuration timeout;
-	
+
 	private final WeakHashMap<JobID, ExecutionGraph> cache = new WeakHashMap<JobID, ExecutionGraph>();
-	
-	
-	public ExecutionGraphHolder(ActorGateway source) {
-		this(source, WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
+
+	public ExecutionGraphHolder() {
+		this(WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
 	}
 
-	public ExecutionGraphHolder(ActorGateway source, FiniteDuration timeout) {
-		if (source == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.source = source;
-		this.timeout = timeout;
+	public ExecutionGraphHolder(FiniteDuration timeout) {
+		this.timeout = checkNotNull(timeout);
 	}
-	
-	
-	public ExecutionGraph getExecutionGraph(JobID jid) {
+
+	/**
+	 * Retrieves the execution graph with {@link JobID} jid or null if it cannot be found.
+	 *
+	 * @param jid jobID of the execution graph to be retrieved
+	 * @return the retrieved execution graph or null if it is not retrievable
+	 */
+	public ExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
 		ExecutionGraph cached = cache.get(jid);
 		if (cached != null) {
 			return cached;
 		}
-		
+
 		try {
-			Future<Object> future = source.ask(new JobManagerMessages.RequestJob(jid), timeout);
-			Object result = Await.result(future, timeout);
-			if (result instanceof JobManagerMessages.JobNotFound) {
-				return null;
-			}
-			else if (result instanceof JobManagerMessages.JobFound) {
-				ExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
-				cache.put(jid, eg);
-				return eg;
+			if (jobManager != null) {
+				Future<Object> future = jobManager.ask(new JobManagerMessages.RequestJob(jid), timeout);
+				Object result = Await.result(future, timeout);
+				
+				if (result instanceof JobManagerMessages.JobNotFound) {
+					return null;
+				}
+				else if (result instanceof JobManagerMessages.JobFound) {
+					ExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
+					cache.put(jid, eg);
+					return eg;
+				}
+				else {
+					throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
+				}
 			}
 			else {
-				throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
+				LOG.warn("No connection to the leading JobManager.");
+				return null;
 			}
 		}
 		catch (Exception e) {

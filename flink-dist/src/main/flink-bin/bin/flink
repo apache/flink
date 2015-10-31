@@ -17,8 +17,24 @@
 # limitations under the License.
 ################################################################################
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+target="$0"
+# For the case, the executable has been directly symlinked, figure out
+# the correct bin path by following its symlink up to an upper bound.
+# Note: we can't use the readlink utility here if we want to be POSIX
+# compatible.
+iteration=0
+while [ -L "$target" ]; do
+    if [ "$iteration" -gt 100 ]; then
+        echo "Cannot resolve path: You have a cyclic symlink in $target."
+        break
+    fi
+    ls=`ls -ld -- "$target"`
+    target=`expr "$ls" : '.* -> \(.*\)$'`
+    iteration=$((iteration + 1))
+done
+
+# Convert relative path to absolute path
+bin=`dirname "$target"`
 
 # get flink config
 . "$bin"/config.sh
@@ -29,7 +45,7 @@ fi
 
 CC_CLASSPATH=`constructFlinkClassPath`
 
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-flink-client-$HOSTNAME.log
+log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-client-$HOSTNAME.log
 log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
 export FLINK_ROOT_DIR

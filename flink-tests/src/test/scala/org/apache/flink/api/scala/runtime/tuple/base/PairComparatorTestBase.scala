@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.runtime.tuple.base
 
+import org.apache.flink.util.TestLogger
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.apache.flink.api.common.typeutils.TypePairComparator
@@ -25,7 +26,7 @@ import org.junit.Test
 /**
  * Abstract test base for PairComparators.
  */
-abstract class PairComparatorTestBase[T, R] {
+abstract class PairComparatorTestBase[T, R] extends TestLogger {
   protected def createComparator(ascending: Boolean): TypePairComparator[T, R]
 
   protected def getSortedTestData: (Array[T], Array[R])

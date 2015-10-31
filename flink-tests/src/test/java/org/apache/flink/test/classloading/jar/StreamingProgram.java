@@ -39,10 +39,10 @@ public class StreamingProgram {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.getConfig().disableSysoutLogging();
 		
-		DataStream<String> text = env.fromElements(WordCountData.TEXT);
+		DataStream<String> text = env.fromElements(WordCountData.TEXT).rebalance();
 
 		DataStream<Word> counts =
-				text.flatMap(new Tokenizer()).groupBy("word").sum("frequency");
+				text.flatMap(new Tokenizer()).keyBy("word").sum("frequency");
 
 		counts.addSink(new NoOpSink());
 

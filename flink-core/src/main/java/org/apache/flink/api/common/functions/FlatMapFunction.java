@@ -29,11 +29,11 @@ import java.io.Serializable;
  * use the {@link MapFunction}.
  * <p>
  * The basic syntax for using a FlatMapFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  * 
  * DataSet<Y> result = input.flatMap(new MyFlatMapFunction());
- * </blockquote></pre>
+ * }</pre>
  * 
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.

@@ -18,7 +18,7 @@
 
 angular.module('flinkApp')
 
-.controller 'OverviewController', ($scope, OverviewService, JobsService) ->
+.controller 'OverviewController', ($scope, OverviewService, JobsService, $interval, flinkConfig) ->
   $scope.jobObserver = ->
     $scope.runningJobs = JobsService.getJobs('running')
     $scope.finishedJobs = JobsService.getJobs('finished')
@@ -28,3 +28,14 @@ angular.module('flinkApp')
     JobsService.unRegisterObserver($scope.jobObserver)
 
   $scope.jobObserver()
+
+  OverviewService.loadOverview().then (data) ->
+    $scope.overview = data
+
+  refresh = $interval ->
+    OverviewService.loadOverview().then (data) ->
+      $scope.overview = data
+  , flinkConfig["refresh-interval"]
+
+  $scope.$on '$destroy', ->
+    $interval.cancel(refresh)

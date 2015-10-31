@@ -105,7 +105,7 @@ public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Oper
 	 * Clears all previous broadcast inputs and binds the given inputs as
 	 * broadcast variables of this operator.
 	 * 
-	 * @param inputs The <name, root> pairs to be set as broadcast inputs.
+	 * @param inputs The {@code<name, root>} pairs to be set as broadcast inputs.
 	 */
 	public <T> void setBroadcastVariables(Map<String, Operator<T>> inputs) {
 		this.broadcastInputs.clear();

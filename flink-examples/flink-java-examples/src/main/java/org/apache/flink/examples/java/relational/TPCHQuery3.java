@@ -42,7 +42,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
  * This program implements the following SQL equivalent:
  *
  * <p>
- * <code><pre>
+ * <pre>{@code
  * SELECT 
  *      l_orderkey, 
  *      SUM(l_extendedprice*(1-l_discount)) AS revenue,
@@ -61,7 +61,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
  *      l_orderkey, 
  *      o_orderdate, 
  *      o_shippriority;
- * </pre></code>
+ * }</pre>
  *
  * <p>
  * Compared to the original TPC-H query this version does not sort the result by revenue

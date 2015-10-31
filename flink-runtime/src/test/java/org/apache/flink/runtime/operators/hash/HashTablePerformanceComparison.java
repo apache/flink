@@ -25,12 +25,9 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.operators.hash.AbstractHashTableProber;
-import org.apache.flink.runtime.operators.hash.AbstractMutableHashTable;
-import org.apache.flink.runtime.operators.hash.CompactingHashTable;
-import org.apache.flink.runtime.operators.hash.MutableHashTable;
 import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
@@ -38,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -72,8 +70,8 @@ public class HashTablePerformanceComparison {
 
 			MutableObjectIterator<IntPair> updateTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 			
-			long start = 0L;
-			long end = 0L;
+			long start;
+			long end;
 			
 			long first = System.currentTimeMillis();
 			
@@ -105,7 +103,7 @@ public class HashTablePerformanceComparison {
 			start = System.currentTimeMillis();
 			while(updater.next(target) != null) {
 				target.setValue(target.getValue()*-1);
-				table.insertOrReplaceRecord(target, temp);
+				table.insertOrReplaceRecord(target);
 			}
 			end = System.currentTimeMillis();
 			System.out.println("Update done. Time: " + (end-start) + " ms");
@@ -147,8 +145,8 @@ public class HashTablePerformanceComparison {
 
 			MutableObjectIterator<IntPair> updateTester = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
 			
-			long start = 0L;
-			long end = 0L;
+			long start;
+			long end;
 			
 			long first = System.currentTimeMillis();
 			
@@ -216,7 +214,7 @@ public class HashTablePerformanceComparison {
 		List<MemorySegment> memory = new ArrayList<MemorySegment>();
 		
 		for (int i = 0; i < numPages; i++) {
-			memory.add(new MemorySegment(new byte[pageSize]));
+			memory.add(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
 		}
 		
 		return memory;

@@ -28,7 +28,7 @@ Start working on your Flink Scala program in a few simple steps.
 
 ## Requirements
 
-The only requirements are working __Maven 3.0.4__ (or higher) and __Java 6.x__ (or higher) installations.
+The only requirements are working __Maven 3.0.4__ (or higher) and __Java 7.x__ (or higher) installations.
 
 
 ## Create Project
@@ -42,7 +42,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
 {% highlight bash %}
-$ curl http://flink.apache.org/q/quickstart-scala.sh | bash
+$ curl https://flink.apache.org/q/quickstart-scala.sh | bash
 {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">

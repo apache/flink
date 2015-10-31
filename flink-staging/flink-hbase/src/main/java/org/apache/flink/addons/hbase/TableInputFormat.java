@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -43,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * {@link InputFormat} subclass that wraps the access for HTables.
  *
  */
-public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T, TableInputSplit>{
+public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<T, TableInputSplit>{
 
 	private static final long serialVersionUID = 1L;
 

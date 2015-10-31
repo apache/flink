@@ -33,10 +33,11 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 
 /**
- * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
+ * The abstract base class for all Rich output formats that are file based. Contains the logic to
+ * open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, InitializeOnMaster, CleanupWhenUnsuccessful {
+public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implements InitializeOnMaster, CleanupWhenUnsuccessful {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -50,7 +51,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 		/** A directory is always created, regardless of number of write tasks. */
 		ALWAYS,	
 		
-		/** A directory is only created for parallel output tasks, i.e., number of output tasks > 1.
+		/** A directory is only created for parallel output tasks, i.e., number of output tasks &gt; 1.
 		 * If number of output tasks = 1, the output is written to a single file. */
 		PARONLY
 	}

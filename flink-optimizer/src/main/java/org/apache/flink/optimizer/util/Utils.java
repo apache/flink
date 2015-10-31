@@ -29,11 +29,11 @@ import org.apache.flink.optimizer.CompilerException;
 
 
 /**
- * 
+ * Utility class that contains helper methods for optimizer.
  */
-public class Utils
-{
-	public static final FieldList createOrderedFromSet(FieldSet set) {
+public final class Utils {
+
+	public static FieldList createOrderedFromSet(FieldSet set) {
 		if (set instanceof FieldList) {
 			return (FieldList) set;
 		} else {
@@ -43,7 +43,7 @@ public class Utils
 		}
 	}
 	
-	public static final Ordering createOrdering(FieldList fields, boolean[] directions) {
+	public static Ordering createOrdering(FieldList fields, boolean[] directions) {
 		final Ordering o = new Ordering();
 		for (int i = 0; i < fields.size(); i++) {
 			o.appendOrdering(fields.get(i), null, directions == null || directions[i] ? Order.ASCENDING : Order.DESCENDING);
@@ -51,7 +51,7 @@ public class Utils
 		return o;
 	}
 	
-	public static final Ordering createOrdering(FieldList fields) {
+	public static Ordering createOrdering(FieldList fields) {
 		final Ordering o = new Ordering();
 		for (int i = 0; i < fields.size(); i++) {
 			o.appendOrdering(fields.get(i), null, Order.ANY);
@@ -77,5 +77,7 @@ public class Utils
 	/**
 	 * No instantiation.
 	 */
-	private Utils() {}
+	private Utils() {
+		throw new RuntimeException();
+	}
 }

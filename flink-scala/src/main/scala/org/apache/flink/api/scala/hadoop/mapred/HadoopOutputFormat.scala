@@ -18,10 +18,19 @@
 package org.apache.flink.api.scala.hadoop.mapred
 
 import org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormatBase
-import org.apache.hadoop.mapred.{JobConf, OutputFormat}
+import org.apache.hadoop.mapred.{OutputCommitter, JobConf, OutputFormat}
 
 class HadoopOutputFormat[K, V](mapredOutputFormat: OutputFormat[K, V], job: JobConf)
   extends HadoopOutputFormatBase[K, V, (K, V)](mapredOutputFormat, job) {
+
+  def this(
+      mapredOutputFormat: OutputFormat[K, V],
+      outputCommitterClass: Class[OutputCommitter],
+      job: JobConf) {
+
+    this(mapredOutputFormat, job)
+    this.getJobConf.setOutputCommitter(outputCommitterClass)
+  }
 
   def writeRecord(record: (K, V)) {
     this.recordWriter.write(record._1, record._2)

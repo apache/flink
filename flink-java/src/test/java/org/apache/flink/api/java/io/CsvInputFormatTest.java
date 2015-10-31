@@ -22,8 +22,9 @@ package org.apache.flink.api.java.io;
 import com.google.common.base.Charsets;
 
 import org.apache.flink.api.common.io.ParseException;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +38,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
@@ -548,7 +551,7 @@ public class CsvInputFormatTest {
 			
 			format.setFieldDelimiter("|");
 			
-			format.setFields(new int[] {0, 3, 7}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
+			format.setFields(new int[]{0, 3, 7}, new Class<?>[]{Integer.class, Integer.class, Integer.class});
 			
 			
 			format.configure(new Configuration());
@@ -823,7 +826,7 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		inputFormat.configure(new Configuration());
@@ -846,7 +849,7 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PrivatePojoItem> typeInfo = (TypeInformation<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
+		PojoTypeInfo<PrivatePojoItem> typeInfo = (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
 		CsvInputFormat<PrivatePojoItem> inputFormat = new CsvInputFormat<PrivatePojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		inputFormat.configure(new Configuration());
@@ -882,7 +885,7 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 		inputFormat.setFields(new boolean[]{true, true, true, true}, new Class<?>[]{Integer.class, Double.class, String.class, String.class});
 		inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field3", "field2", "field4"});
@@ -907,7 +910,7 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 		inputFormat.setFields(new boolean[]{true, false, true, false, true, true}, new Class[]{Integer.class, String
 			.class, Double.class, String.class});
@@ -932,7 +935,7 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 		inputFormat.setFields(new boolean[]{true, false, false, true}, new Class[]{Integer.class, String.class});
 		inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field4"});
@@ -956,7 +959,7 @@ public class CsvInputFormatTest {
 		tempFile.setWritable(true);
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		try {
@@ -984,7 +987,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void testQuotedStringParsingWithIncludeFields() throws Exception {
 		final String fileContent = "\"20:41:52-1-3-2015\"|\"Re: Taskmanager memory error in Eclipse\"|" +
-				"\"Blahblah <blah@blahblah.org>\"|\"bla\"|\"blubb\"";
+				"\"Blahblah <blah@blahblah.org>\"|\"blaaa|\"blubb\"";
 
 		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
 		tempFile.deleteOnExit();
@@ -994,7 +997,7 @@ public class CsvInputFormatTest {
 		writer.write(fileContent);
 		writer.close();
 
-		TypeInformation<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
+		CompositeType<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
 		CsvInputFormat<Tuple2<String, String>> inputFormat = new CsvInputFormat<Tuple2<String, String>>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		inputFormat.enableQuotedStringParsing('"');
@@ -1011,6 +1014,79 @@ public class CsvInputFormatTest {
 
 		assertEquals("20:41:52-1-3-2015", record.f0);
 		assertEquals("Blahblah <blah@blahblah.org>", record.f1);
+	}
+
+	@Test
+	public void testQuotedStringParsingWithEscapedQuotes() throws Exception {
+		final String fileContent = "\"\\\"Hello\\\" World\"|\"We are\\\" young\"";
+
+		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
+		tempFile.deleteOnExit();
+		tempFile.setWritable(true);
+
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
+		writer.write(fileContent);
+		writer.close();
+
+		TupleTypeInfo<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
+		CsvInputFormat<Tuple2<String, String>> inputFormat = new CsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
+
+		inputFormat.enableQuotedStringParsing('"');
+		inputFormat.setFieldDelimiter('|');
+		inputFormat.setDelimiter('\n');
+
+		inputFormat.configure(new Configuration());
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+
+		inputFormat.open(splits[0]);
+
+		Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<String, String>());
+
+		assertEquals("\\\"Hello\\\" World", record.f0);
+		assertEquals("We are\\\" young", record.f1);
+	}
+
+	/**
+	 * Tests that the CSV input format can deal with POJOs which are subclasses.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testPojoSubclassType() throws Exception {
+		final String fileContent = "t1,foobar,tweet2\nt2,barfoo,tweet2";
+
+		final File tempFile = File.createTempFile("CsvReaderPOJOSubclass", "tmp");
+		tempFile.deleteOnExit();
+
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
+		writer.write(fileContent);
+		writer.close();
+
+		@SuppressWarnings("unchecked")
+		PojoTypeInfo<TwitterPOJO> typeInfo = (PojoTypeInfo<TwitterPOJO>)TypeExtractor.createTypeInfo(TwitterPOJO.class);
+		CsvInputFormat<TwitterPOJO> inputFormat = new CsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
+
+		inputFormat.configure(new Configuration());
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+
+		inputFormat.open(splits[0]);
+
+		List<TwitterPOJO> expected = new ArrayList<>();
+
+		for (String line: fileContent.split("\n")) {
+			String[] elements = line.split(",");
+			expected.add(new TwitterPOJO(elements[0], elements[1], elements[2]));
+		}
+
+		List<TwitterPOJO> actual = new ArrayList<>();
+
+		TwitterPOJO pojo;
+
+		while((pojo = inputFormat.nextRecord(new TwitterPOJO())) != null) {
+			actual.add(pojo);
+		}
+
+		assertEquals(expected, actual);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1060,6 +1136,54 @@ public class CsvInputFormatTest {
 
 		public void setField4(String field4) {
 			this.field4 = field4;
+		}
+	}
+
+	public static class POJO {
+		public String table;
+		public String time;
+
+		public POJO() {
+			this("", "");
+		}
+
+		public POJO(String table, String time) {
+			this.table = table;
+			this.time = time;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof POJO) {
+				POJO other = (POJO) obj;
+				return table.equals(other.table) && time.equals(other.time);
+			} else {
+				return false;
+			}
+		}
+	}
+
+	public static class TwitterPOJO extends POJO {
+		public String tweet;
+
+		public TwitterPOJO() {
+			this("", "", "");
+		}
+
+		public TwitterPOJO(String table, String time, String tweet) {
+			super(table, time);
+			this.tweet = tweet;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof TwitterPOJO) {
+				TwitterPOJO other = (TwitterPOJO) obj;
+
+				return super.equals(other) && tweet.equals(other.tweet);
+			} else {
+				return false;
+			}
 		}
 	}
 

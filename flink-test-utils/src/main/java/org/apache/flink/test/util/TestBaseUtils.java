@@ -19,11 +19,14 @@
 package org.apache.flink.test.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -32,6 +35,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -54,6 +58,8 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -66,17 +72,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class TestBaseUtils {
+public class TestBaseUtils extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
 
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	protected static final long TASK_MANAGER_MEMORY_SIZE = 80;
-
-	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
-
-	protected static final int DEFAULT_NUM_TASK_MANAGERS = 1;
 
 	protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
 
@@ -99,33 +101,56 @@ public class TestBaseUtils {
 	}
 	
 	
-	public static ForkableFlinkMiniCluster startCluster(int numTaskManagers,
-															int taskManagerNumSlots,
-															StreamingMode mode,
-															boolean startWebserver,
-															boolean singleActorSystem) throws Exception {
+	public static ForkableFlinkMiniCluster startCluster(
+		int numTaskManagers,
+		int taskManagerNumSlots,
+		StreamingMode mode,
+		boolean startWebserver,
+		boolean startZooKeeper,
+		boolean singleActorSystem) throws Exception {
 		
+		Configuration config = new Configuration();
+
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+		
+		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, startWebserver);
+
+		if (startZooKeeper) {
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
+			config.setString(ConfigConstants.RECOVERY_MODE, "zookeeper");
+		}
+
+		return startCluster(config, mode, singleActorSystem);
+	}
+
+	public static ForkableFlinkMiniCluster startCluster(
+		Configuration config,
+		StreamingMode mode,
+		boolean singleActorSystem) throws Exception {
+
 		logDir = File.createTempFile("TestBaseUtils-logdir", null);
 		Assert.assertTrue("Unable to delete temp file", logDir.delete());
 		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
-	
-		Configuration config = new Configuration();
+		Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
+		Files.createFile(new File(logDir, "jobmanager.out").toPath());
+
+		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
-		
-		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
-		
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
-		
-		config.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, startWebserver);
+
 		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
-		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
-		
-		return new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
+
+		ForkableFlinkMiniCluster cluster =  new ForkableFlinkMiniCluster(config, singleActorSystem, mode);
+
+		cluster.start();
+
+		return cluster;
 	}
+
 
 	public static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout) throws Exception {
 		if (logDir != null) {
@@ -134,7 +159,8 @@ public class TestBaseUtils {
 		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
-			{
+			
+			if (executor.running()) {
 				List<ActorRef> tms = executor.getTaskManagersAsJava();
 				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<Future<Object>>();
 				List<Future<Object>> numActiveConnectionsResponseFutures = new ArrayList<Future<Object>>();
@@ -320,16 +346,15 @@ public class TestBaseUtils {
 				Assert.fail(msg);
 			}
 		}
-
 	}
 
-	public static void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
-											String delimiter, double maxDelta) throws Exception {
-		compareKeyValueParisWithDelta(expectedLines, resultPath, new String[]{}, delimiter, maxDelta);
+	public static void compareKeyValuePairsWithDelta(String expectedLines, String resultPath,
+														String delimiter, double maxDelta) throws Exception {
+		compareKeyValuePairsWithDelta(expectedLines, resultPath, new String[]{}, delimiter, maxDelta);
 	}
 
-	public static void compareKeyValueParisWithDelta(String expectedLines, String resultPath,
-											String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
+	public static void compareKeyValuePairsWithDelta(String expectedLines, String resultPath,
+														String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
 		readAllResultLines(list, resultPath, excludePrefixes, false);
 
@@ -451,6 +476,34 @@ public class TestBaseUtils {
 			assertEquals(extectedStrings[i], resultStrings[i]);
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Comparison methods for tests using sample
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * The expected string contains all expected results separate with line break, check whether all elements in result
+	 * are contained in the expected string.
+	 * @param result The test result.
+	 * @param expected The expected string value combination.
+	 * @param <T> The result type.
+	 */
+	public static <T> void containsResultAsText(List<T> result, String expected) {
+		String[] expectedStrings = expected.split("\n");
+		List<String> resultStrings = Lists.newLinkedList();
+
+		for (int i = 0; i < result.size(); i++) {
+			T val = result.get(i);
+			String str = (val == null) ? "null" : val.toString();
+			resultStrings.add(str);
+		}
+
+		List<String> expectedStringList = Arrays.asList(expectedStrings);
+
+		for (String element : resultStrings) {
+			assertTrue(expectedStringList.contains(element));
+		}
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous helper methods
@@ -556,5 +609,50 @@ public class TestBaseUtils {
 		}
 
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+	}
+	
+	public static class TupleComparator<T extends Tuple> implements Comparator<T> {
+
+		@Override
+		public int compare(T o1, T o2) {
+			if (o1 == null || o2 == null) {
+				throw new IllegalArgumentException("Cannot compare null tuples");
+			}
+			else if (o1.getArity() != o2.getArity()) {
+				return o1.getArity() - o2.getArity();
+			}
+			else {
+				for (int i = 0; i < o1.getArity(); i++) {
+					Object val1 = o1.getField(i);
+					Object val2 = o2.getField(i);
+					
+					int cmp;
+					if (val1 != null && val2 != null) {
+						cmp = compareValues(val1, val2);
+					}
+					else {
+						cmp = val1 == null ? (val2 == null ? 0 : -1) : 1;
+					}
+					
+					if (cmp != 0) {
+						return cmp;
+					}
+				}
+				
+				return 0;
+			}
+		}
+		
+		@SuppressWarnings("unchecked")
+		private static <X extends Comparable<X>> int compareValues(Object o1, Object o2) {
+			if (o1 instanceof Comparable && o2 instanceof Comparable) {
+				X c1 = (X) o1;
+				X c2 = (X) o2;
+				return c1.compareTo(c2);
+			}
+			else {
+				throw new IllegalArgumentException("Cannot compare tuples with non comparable elements");
+			}
+		}
 	}
 }

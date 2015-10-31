@@ -23,7 +23,7 @@ package org.apache.flink.runtime.operators.util;
 import java.io.IOException;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.util.Collector;
 
 /**

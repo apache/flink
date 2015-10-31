@@ -28,12 +28,12 @@ import java.io.Serializable;
  * pair of elements, instead of processing 2-tuples that contain the pairs.
  * <p>
  * The basic syntax for using Cross on two data sets is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> set1 = ...;
  * DataSet<Y> set2 = ...;
  * 
  * set1.cross(set2).with(new MyCrossFunction());
- * </blockquote></pre>
+ * }</pre>
  * <p>
  * {@code set1} is here considered the first input, {@code set2} the second input.
  * 

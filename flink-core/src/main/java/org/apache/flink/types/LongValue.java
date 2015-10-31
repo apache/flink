@@ -160,10 +160,15 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	public int getBinaryLength() {
 		return 8;
 	}
-	
+
 	@Override
 	public void copyTo(LongValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public LongValue copy() {
+		return new LongValue(this.value);
 	}
 
 	@Override

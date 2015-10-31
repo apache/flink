@@ -48,7 +48,6 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 		this.value = value;
 	}
 
-	
 	public boolean get() {
 		return value;
 	}
@@ -115,6 +114,11 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 	@Override
 	public void copyTo(BooleanValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public BooleanValue copy() {
+		return new BooleanValue(this.value);
 	}
 
 	@Override

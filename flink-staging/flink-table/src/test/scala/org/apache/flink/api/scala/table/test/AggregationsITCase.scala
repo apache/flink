@@ -18,16 +18,13 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.typeinfo.RowTypeInfo
-import org.apache.flink.api.table.{ExpressionException, Row}
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.Assert._
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -57,7 +54,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable
-      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
+      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -69,7 +66,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable
-      .select('foo.avg)
+      .select('foo.avg).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -84,6 +81,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
+      .toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -95,7 +93,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
-      .select(('_1 + 2).avg + 2, '_2.count + " THE COUNT")
+      .select(('_1 + 2).avg + 2, '_2.count + " THE COUNT").toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -107,7 +105,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("Hello", 1)).toTable
-      .select('_1.sum)
+      .select('_1.sum).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -119,63 +117,12 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("Hello", 1)).toTable
-      .select('_2.sum.sum)
+      .select('_2.sum.sum).toDataSet[Row]
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = ""
   }
 
-  @Test
-  def testAggregationWithNullValues(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val dataSet = env.fromElements[(Integer, String)](
-      (123, "a"), (234, "b"), (345, "c"), (0, "d"))
-
-    implicit val rowInfo: TypeInformation[Row] = new RowTypeInfo(
-      Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), Seq("id", "name"))
-
-    val rowDataSet = dataSet.map {
-      entry =>
-        val row = new Row(2)
-        val amount = if (entry._1 > 200) entry._1 else null
-        row.setField(0, amount)
-        row.setField(1, entry._2)
-        row
-    }
-
-    val entries = rowDataSet.toTable.select('id.avg, 'id.sum, 'id.count).collect().head
-    val mean = entries.productElement(0).toString.toInt
-    val sum = entries.productElement(1).toString.toInt
-    val count = entries.productElement(2).toString.toInt
-
-    assertEquals(4,count)
-
-    val computedMean = sum / 2
-    assertEquals(computedMean, mean)
-  }
-
-  @Test
-  def testAggregationWhenAllValuesAreNull(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val dataSet = env.fromElements[(Integer, String)](
-      (123, "a"), (234, "b"), (345, "c"), (0, "d"))
-
-    implicit val rowInfo: TypeInformation[Row] = new RowTypeInfo(
-      Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), Seq("id", "name"))
-
-    val rowDataSet = dataSet.map {
-      entry =>
-        val row = new Row(2)
-        row.setField(0, null)
-        row.setField(1, entry._2)
-        row
-    }
-
-    val entries = rowDataSet.toTable.select('id.max).collect().head.productElement(0)
-    assertEquals(entries, null)
-  }
 
 }

@@ -38,6 +38,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.Visitor;
 import org.junit.Before;
 
@@ -46,7 +47,7 @@ import org.junit.Before;
  * of a program and to fetch the nodes in an optimizer plan that correspond
  * the the node in the program plan.
  */
-public abstract class CompilerTestBase implements java.io.Serializable {
+public abstract class CompilerTestBase extends TestLogger implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 

@@ -46,21 +46,20 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointNotificationOperator;
-import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
-import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
-import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
+import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,6 +140,9 @@ public class Task implements Runnable {
 
 	/** The jar files used by this task */
 	private final List<BlobKey> requiredJarFiles;
+
+	/** The classpaths used by this task */
+	private final List<URL> requiredClasspaths;
 
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
@@ -247,6 +249,7 @@ public class Task implements Runnable {
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
 		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
+		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 
@@ -534,10 +537,10 @@ public class Task implements Runnable {
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
 
 			if (operatorState != null) {
-				if (invokable instanceof OperatorStateCarrier) {
+				if (invokable instanceof StatefulTask) {
 					try {
 						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
-						OperatorStateCarrier<?> op = (OperatorStateCarrier<?>) invokable;
+						StatefulTask<?> op = (StatefulTask<?>) invokable;
 						StateUtils.setOperatorState(op, state);
 					}
 					catch (Exception e) {
@@ -571,7 +574,7 @@ public class Task implements Runnable {
 			// notify everyone that we switched to running. especially the TaskManager needs
 			// to know this!
 			notifyObservers(ExecutionState.RUNNING, null);
-			taskManager.tell(new TaskMessages.UpdateTaskExecutionState(
+			taskManager.tell(new UpdateTaskExecutionState(
 					new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING)));
 
 			// make sure the user code classloader is accessible thread-locally
@@ -704,7 +707,7 @@ public class Task implements Runnable {
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		libraryCache.registerTask(jobId, executionId, requiredJarFiles);
+		libraryCache.registerTask(jobId, executionId, requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Register task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);
@@ -856,8 +859,7 @@ public class Task implements Runnable {
 		}
 
 		TaskExecutionState stateUpdate = new TaskExecutionState(jobId, executionId, newState, error);
-		TaskMessages.UpdateTaskExecutionState actorMessage = new
-				TaskMessages.UpdateTaskExecutionState(stateUpdate);
+		UpdateTaskExecutionState actorMessage = new UpdateTaskExecutionState(stateUpdate);
 
 		for (ActorGateway listener : executionListenerActors) {
 			listener.tell(actorMessage);
@@ -870,7 +872,7 @@ public class Task implements Runnable {
 
 	/**
 	 * Calls the invokable to trigger a checkpoint, if the invokable implements the interface
-	 * {@link org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator}.
+	 * {@link org.apache.flink.runtime.jobgraph.tasks.StatefulTask}.
 	 * 
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.   
@@ -879,18 +881,17 @@ public class Task implements Runnable {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof CheckpointedOperator) {
+			if (invokable instanceof StatefulTask) {
 
 				// build a local closure 
-				final CheckpointedOperator checkpointer = (CheckpointedOperator) invokable;
-				final Logger logger = LOG;
+				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
 						try {
-							checkpointer.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
 						}
 						catch (Throwable t) {
 							failExternally(new RuntimeException("Error while triggering checkpoint for " + taskName, t));
@@ -913,18 +914,17 @@ public class Task implements Runnable {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof CheckpointNotificationOperator) {
+			if (invokable instanceof StatefulTask) {
 
 				// build a local closure 
-				final CheckpointNotificationOperator checkpointer = (CheckpointNotificationOperator) invokable;
-				final Logger logger = LOG;
+				final StatefulTask<?> statefulTask = (StatefulTask<?>) invokable;
 				final String taskName = taskNameWithSubtask;
 
 				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
 						try {
-							checkpointer.notifyCheckpointComplete(checkpointID);
+							statefulTask.notifyCheckpointComplete(checkpointID);
 						}
 						catch (Throwable t) {
 							// fail task if checkpoint confirmation failed.
@@ -1001,7 +1001,7 @@ public class Task implements Runnable {
 			if (executor == null) {
 				// first time use, initialize
 				executor = Executors.newSingleThreadExecutor(
-						new DispatherThreadFactory(TASK_THREADS_GROUP, "Async calls on " + taskNameWithSubtask));
+						new DispatcherThreadFactory(TASK_THREADS_GROUP, "Async calls on " + taskNameWithSubtask));
 				this.asyncCallDispatcher = executor;
 				
 				// double-check for execution state, and make sure we clean up after ourselves
@@ -1094,7 +1094,7 @@ public class Task implements Runnable {
 				// interrupt the running thread initially 
 				executer.interrupt();
 				try {
-					executer.join(10000);
+					executer.join(30000);
 				}
 				catch (InterruptedException e) {
 					// we can ignore this
@@ -1117,7 +1117,7 @@ public class Task implements Runnable {
 
 					executer.interrupt();
 					try {
-						executer.join(10000);
+						executer.join(30000);
 					}
 					catch (InterruptedException e) {
 						// we can ignore this

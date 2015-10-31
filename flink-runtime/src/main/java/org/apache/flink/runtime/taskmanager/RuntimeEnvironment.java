@@ -31,10 +31,10 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -75,9 +75,7 @@ public class RuntimeEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	private final Configuration taskManagerConfiguration;
-
-	private final String hostname;
+	private final TaskManagerRuntimeInfo taskManagerInfo;
 
 	// ------------------------------------------------------------------------
 
@@ -124,8 +122,7 @@ public class RuntimeEnvironment implements Environment {
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
 		this.jobManager = checkNotNull(jobManager);
-		this.taskManagerConfiguration = checkNotNull(taskManagerInfo).getConfiguration();
-		this.hostname = taskManagerInfo.getHostname();
+		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 	}
 
 	// ------------------------------------------------------------------------
@@ -176,13 +173,8 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public Configuration getTaskManagerConfiguration(){
-		return taskManagerConfiguration;
-	}
-
-	@Override
-	public String getHostname(){
-		return hostname;
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return taskManagerInfo;
 	}
 
 	@Override

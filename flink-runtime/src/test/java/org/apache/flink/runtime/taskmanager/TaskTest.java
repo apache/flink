@@ -42,7 +42,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskMessages;
 
 import org.junit.After;
@@ -52,6 +52,7 @@ import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.reflect.Field;
+import java.net.URL;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -739,6 +740,7 @@ public class TaskTest {
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
 				0);
 	}
 
@@ -750,7 +752,7 @@ public class TaskTest {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			Object rawMessage = taskManagerMessages.poll(10, TimeUnit.SECONDS);
+			Object rawMessage = taskManagerMessages.take();
 			
 			assertNotNull("There is no additional TaskManager message", rawMessage);
 			if (!(rawMessage instanceof TaskMessages.TaskInFinalState)) {
@@ -769,7 +771,7 @@ public class TaskTest {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			Object rawMessage = taskManagerMessages.poll(10, TimeUnit.SECONDS);
+			Object rawMessage = taskManagerMessages.take();
 
 			assertNotNull("There is no additional TaskManager message", rawMessage);
 			if (!(rawMessage instanceof TaskMessages.UpdateTaskExecutionState)) {
@@ -800,8 +802,8 @@ public class TaskTest {
 		try {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
-			TaskMessages.UpdateTaskExecutionState message = 
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+			TaskMessages.UpdateTaskExecutionState message =
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			assertNotNull("There is no additional listener message", message);
 			
 			TaskExecutionState taskState =  message.taskExecutionState();
@@ -826,9 +828,9 @@ public class TaskTest {
 			// we may have to wait for a bit to give the actors time to receive the message
 			// and put it into the queue
 			TaskMessages.UpdateTaskExecutionState message1 =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			TaskMessages.UpdateTaskExecutionState message2 =
-					(TaskMessages.UpdateTaskExecutionState) listenerMessages.poll(10, TimeUnit.SECONDS);
+					(TaskMessages.UpdateTaskExecutionState) listenerMessages.take();
 			
 			
 			assertNotNull("There is no additional listener message", message1);
@@ -975,9 +977,9 @@ public class TaskTest {
 			try {
 				triggerLatch.await();
 			}
-			finally {
-				throw new CancelTaskException();
-			}
+			catch (Throwable ignored) {}
+			
+			throw new CancelTaskException();
 		}
 	}
 }

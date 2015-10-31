@@ -28,8 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * 
  * @see SerializedInputFormat
  */
-public class SerializedOutputFormat<T extends IOReadableWritable> extends
-		BinaryOutputFormat<T> {
+public class SerializedOutputFormat<T extends IOReadableWritable> extends BinaryOutputFormat<T> {
 	
 	private static final long serialVersionUID = 1L;
 	

@@ -32,12 +32,6 @@ import org.junit.Assert;
 
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.ListValue;
-import org.apache.flink.types.MapValue;
-import org.apache.flink.types.Pair;
-import org.apache.flink.types.StringValue;
 import org.junit.Before;
 import org.junit.Test;
 

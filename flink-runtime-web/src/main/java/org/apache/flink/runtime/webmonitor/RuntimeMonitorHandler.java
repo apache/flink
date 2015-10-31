@@ -25,14 +25,24 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
+import scala.Option;
+import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.nio.charset.Charset;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * The Netty channel handler that processes all HTTP requests.
@@ -42,29 +52,70 @@ import java.nio.charset.Charset;
  */
 @ChannelHandler.Sharable
 public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
-	
+
 	private static final Charset ENCODING = Charset.forName("UTF-8");
-	
+
 	private final RequestHandler handler;
-	
+
+	private final JobManagerRetriever retriever;
+
+	private final Future<String> localJobManagerAddressFuture;
+
+	private final FiniteDuration timeout;
+
 	private final String contentType;
-	
-	public RuntimeMonitorHandler(RequestHandler handler) {
-		if (handler == null) {
-			throw new NullPointerException();
-		}
-		this.handler = handler;
+
+	private String localJobManagerAddress;
+
+	public RuntimeMonitorHandler(
+			RequestHandler handler,
+			JobManagerRetriever retriever,
+			Future<String> localJobManagerAddressFuture,
+			FiniteDuration timeout) {
+
+		this.handler = checkNotNull(handler);
+		this.retriever = checkNotNull(retriever);
+		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
+		this.timeout = checkNotNull(timeout);
 		this.contentType = (handler instanceof RequestHandler.JsonResponse) ? "application/json" : "text/plain";
 	}
-	
+
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
+		if (localJobManagerAddressFuture.isCompleted()) {
+			if (localJobManagerAddress == null) {
+				localJobManagerAddress = Await.result(localJobManagerAddressFuture, timeout);
+			}
+
+			Option<Tuple2<ActorGateway, Integer>> jobManager = retriever.getJobManagerGatewayAndWebPort();
+
+			if (jobManager.isDefined()) {
+				Tuple2<ActorGateway, Integer> gatewayPort = jobManager.get();
+				String redirectAddress = HandlerRedirectUtils.getRedirectAddress(
+					localJobManagerAddress, gatewayPort);
+
+				if (redirectAddress != null) {
+					HttpResponse redirect = HandlerRedirectUtils.getRedirectResponse(redirectAddress, routed.path());
+					KeepAliveWrite.flush(ctx, routed.request(), redirect);
+				}
+				else {
+					respondAsLeader(ctx, routed, gatewayPort._1());
+				}
+			} else {
+				KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
+			}
+		} else {
+			KeepAliveWrite.flush(ctx, routed.request(), HandlerRedirectUtils.getUnavailableResponse());
+		}
+	}
+
+	private void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager) {
 		DefaultFullHttpResponse response;
-		
+
 		try {
-			String result = handler.handleRequest(routed.pathParams());
+			String result = handler.handleRequest(routed.pathParams(), jobManager);
 			byte[] bytes = result.getBytes(ENCODING);
-			
+
 			response = new DefaultFullHttpResponse(
 					HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
 
