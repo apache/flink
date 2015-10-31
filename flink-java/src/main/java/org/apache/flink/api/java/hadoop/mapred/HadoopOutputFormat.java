@@ -40,6 +40,10 @@ public class HadoopOutputFormat<K,V> extends HadoopOutputFormatBase<K, V, Tuple2
 		super(mapredOutputFormat, job);
 	}
 
+	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat) {
+		super(mapredOutputFormat, new JobConf());
+	}
+
 	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, Class<OutputCommitter> outputCommitterClass, JobConf job) {
 		this(mapredOutputFormat, job);
 		super.getJobConf().setOutputCommitter(outputCommitterClass);

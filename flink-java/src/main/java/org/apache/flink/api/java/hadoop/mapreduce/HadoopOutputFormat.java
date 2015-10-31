@@ -36,6 +36,10 @@ public class HadoopOutputFormat<K, V> extends HadoopOutputFormatBase<K, V, Tuple
 	public HadoopOutputFormat(org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat, Job job) {
 		super(mapreduceOutputFormat, job);
 	}
+
+	public HadoopOutputFormat(org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat) throws IOException {
+		super(mapreduceOutputFormat, Job.getInstance());
+	}
 	
 	@Override
 	public void writeRecord(Tuple2<K, V> record) throws IOException {

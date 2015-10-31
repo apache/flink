@@ -24,6 +24,10 @@ import org.apache.hadoop.mapreduce.{Job, OutputFormat}
 class HadoopOutputFormat[K, V](mapredOutputFormat: OutputFormat[K, V], job: Job)
   extends HadoopOutputFormatBase[K, V, (K, V)](mapredOutputFormat, job) {
 
+  def this(mapredOutputFormat: OutputFormat[K, V]) {
+    this(mapredOutputFormat, Job.getInstance())
+  }
+
   def writeRecord(record: (K, V)) {
     this.recordWriter.write(record._1, record._2)
   }

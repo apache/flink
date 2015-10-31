@@ -24,6 +24,13 @@ class HadoopOutputFormat[K, V](mapredOutputFormat: OutputFormat[K, V], job: JobC
   extends HadoopOutputFormatBase[K, V, (K, V)](mapredOutputFormat, job) {
 
   def this(
+            mapredOutputFormat: OutputFormat[K, V],
+            outputCommitterClass: Class[OutputCommitter]) {
+
+    this(mapredOutputFormat, new JobConf)
+  }
+
+  def this(
       mapredOutputFormat: OutputFormat[K, V],
       outputCommitterClass: Class[OutputCommitter],
       job: JobConf) {
