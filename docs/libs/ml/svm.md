@@ -87,106 +87,106 @@ the algorithm's performance.
 
 The SVM implementation can be controlled by the following parameters:
 
-   <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th class="text-left" style="width: 20%">Parameters</th>
-        <th class="text-center">Description</th>
-      </tr>
-    </thead>
+<table class="table table-bordered">
+<thead>
+  <tr>
+    <th class="text-left" style="width: 20%">Parameters</th>
+    <th class="text-center">Description</th>
+  </tr>
+</thead>
 
-    <tbody>
-      <tr>
-        <td><strong>Blocks</strong></td>
-        <td>
-          <p>
-            Sets the number of blocks into which the input data will be split.
-            On each block the local stochastic dual coordinate ascent method is executed.
-            This number should be set at least to the degree of parallelism.
-            If no value is specified, then the parallelism of the input DataSet is used as the number of blocks.
-            (Default value: <strong>None</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>Iterations</strong></td>
-        <td>
-          <p>
-            Defines the maximum number of iterations of the outer loop method.
-            In other words, it defines how often the SDCA method is applied to the blocked data.
-            After each iteration, the locally computed weight vector updates have to be reduced to update the global weight vector value.
-            The new weight vector is broadcast to all SDCA tasks at the beginning of each iteration.
-            (Default value: <strong>10</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>LocalIterations</strong></td>
-        <td>
-          <p>
-            Defines the maximum number of SDCA iterations.
-            In other words, it defines how many data points are drawn from each local data block to calculate the stochastic dual coordinate ascent.
-            (Default value: <strong>10</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>Regularization</strong></td>
-        <td>
-          <p>
-            Defines the regularization constant of the SVM algorithm.
-            The higher the value, the smaller will the 2-norm of the weight vector be.
-            In case of a SVM with hinge loss this means that the SVM margin will be wider even though it might contain some false classifications.
-            (Default value: <strong>1.0</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>Stepsize</strong></td>
-        <td>
-          <p>
-            Defines the initial step size for the updates of the weight vector.
-            The larger the step size is, the larger will be the contribution of the weight vector updates to the next weight vector value.
-            The effective scaling of the updates is $\frac{stepsize}{blocks}$.
-            This value has to be tuned in case that the algorithm becomes unstable.
-            (Default value: <strong>1.0</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>ThresholdValue</strong></td>
-        <td>
-          <p>
-            Defines the limiting value for the decision function above which examples are labeled as
-            positive (+1.0). Examples with a decision function value below this value are classified
-            as negative (-1.0). In order to get the raw decision function values you need to indicate it by
-            using the OutputDecisionFunction parameter.  (Default value: <strong>0.0</strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td><strong>OutputDecisionFunction</strong></td>
-        <td>
-          <p>
-            Determines whether the predict and evaluate functions of the SVM should return the distance
-            to the separating hyperplane, or binary class labels. Setting this to true will 
-            return the raw distance to the hyperplane for each example. Setting it to false will 
-            return the binary class label (+1.0, -1.0) (Default value: <strong>false<\strong>)
-          </p>
-        </td>
-      </tr>
-      <tr>
-      <td><strong>Seed</strong></td>
-      <td>
-        <p>
-          Defines the seed to initialize the random number generator.
-          The seed directly controls which data points are chosen for the SDCA method.
-          (Default value: <strong>Random Long Integer</strong>)
-        </p>
-      </td>
-    </tr>
-    </tbody>
-  </table>
+<tbody>
+  <tr>
+    <td><strong>Blocks</strong></td>
+    <td>
+      <p>
+        Sets the number of blocks into which the input data will be split.
+        On each block the local stochastic dual coordinate ascent method is executed.
+        This number should be set at least to the degree of parallelism.
+        If no value is specified, then the parallelism of the input DataSet is used as the number of blocks.
+        (Default value: <strong>None</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Iterations</strong></td>
+    <td>
+      <p>
+        Defines the maximum number of iterations of the outer loop method.
+        In other words, it defines how often the SDCA method is applied to the blocked data.
+        After each iteration, the locally computed weight vector updates have to be reduced to update the global weight vector value.
+        The new weight vector is broadcast to all SDCA tasks at the beginning of each iteration.
+        (Default value: <strong>10</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>LocalIterations</strong></td>
+    <td>
+      <p>
+        Defines the maximum number of SDCA iterations.
+        In other words, it defines how many data points are drawn from each local data block to calculate the stochastic dual coordinate ascent.
+        (Default value: <strong>10</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Regularization</strong></td>
+    <td>
+      <p>
+        Defines the regularization constant of the SVM algorithm.
+        The higher the value, the smaller will the 2-norm of the weight vector be.
+        In case of a SVM with hinge loss this means that the SVM margin will be wider even though it might contain some false classifications.
+        (Default value: <strong>1.0</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Stepsize</strong></td>
+    <td>
+      <p>
+        Defines the initial step size for the updates of the weight vector.
+        The larger the step size is, the larger will be the contribution of the weight vector updates to the next weight vector value.
+        The effective scaling of the updates is $\frac{stepsize}{blocks}$.
+        This value has to be tuned in case that the algorithm becomes unstable.
+        (Default value: <strong>1.0</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>ThresholdValue</strong></td>
+    <td>
+      <p>
+        Defines the limiting value for the decision function above which examples are labeled as
+        positive (+1.0). Examples with a decision function value below this value are classified
+        as negative (-1.0). In order to get the raw decision function values you need to indicate it by
+        using the OutputDecisionFunction parameter.  (Default value: <strong>0.0</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>OutputDecisionFunction</strong></td>
+    <td>
+      <p>
+        Determines whether the predict and evaluate functions of the SVM should return the distance
+        to the separating hyperplane, or binary class labels. Setting this to true will 
+        return the raw distance to the hyperplane for each example. Setting it to false will 
+        return the binary class label (+1.0, -1.0) (Default value: <strong>false</strong>)
+      </p>
+    </td>
+  </tr>
+  <tr>
+  <td><strong>Seed</strong></td>
+  <td>
+    <p>
+      Defines the seed to initialize the random number generator.
+      The seed directly controls which data points are chosen for the SDCA method.
+      (Default value: <strong>Random Long Integer</strong>)
+    </p>
+  </td>
+</tr>
+</tbody>
+</table>
 
 ## Examples
 
@@ -212,7 +212,7 @@ val svm = SVM()
 svm.fit(trainingDS)
 
 // Read the testing data set
-val testingDS: DataSet[Vector] = env.readLibSVM(pathToTestingFile).map(lv => lv.vector)
+val testingDS: DataSet[Vector] = env.readLibSVM(pathToTestingFile).map(_.vector)
 
 // Calculate the predictions for the testing data set
 val predictionDS: DataSet[(Vector, Double)] = svm.predict(testingDS)
