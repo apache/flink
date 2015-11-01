@@ -27,17 +27,10 @@ provide the following missing features of the current web dashboard:
  - A REST style API to access the status of individual jobs.
  - A more modular design
 
-The web dashboard can be activated by adding/uncommenting the config parameter
-`jobmanager.new-web-frontend: true` in the `conf/fink-conf.yaml` file.
 The dashboard listens at `http://localhost:8081`.
 
-The new web dashboard is work in progress. It starts an additional HTTP server (by default at port 8081)
-that serves the new web pages and additional background requests. It also relies on the old HTTP server
-for some requests still.
-
-**NOTE: Many values are placeholders still.**
-
-
+The new web dashboard is work in progress. It starts an HTTP server (by default at port 8081)
+that serves the new web pages and additional background requests.
 
 ## Server Backend
 
@@ -57,7 +50,8 @@ The dashboard files are all pre-built, so one can try it out without building it
 
 ### Preparing the Build Environment
 
-Depending on your version of Linux or MacOS, you may need to manually install *node.js* and *bower*.
+Depending on your version of Linux, Windows or MacOS, you may need to manually install *node.js*
+and *bower*.
 
 
 #### Ubuntu Linux
@@ -93,11 +87,7 @@ bower install
 gulp
 ```
 
-The dashboard code is under `/app`. The result of the build process is under `/web` in the src/main/resources folder.
-
-When building Flink with Maven (in particular the `flink-dist` project), the generated
-files are copied into the build target, to the folder `resources/web-runtime-monitor`.
-
+The dashboard code is under `/app`. The result of the build process is under `/web`.
 
 ### Developing
 
