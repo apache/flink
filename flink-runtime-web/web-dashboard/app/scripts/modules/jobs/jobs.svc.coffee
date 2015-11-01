@@ -211,4 +211,7 @@ angular.module('flinkApp')
 
     deferred.promise
 
+  @cancelJob = (jobid) ->
+    $http.delete "jobs/" + jobid
+
   @

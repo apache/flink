@@ -32,6 +32,7 @@ limitations under the License.
       - 
       {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></div>
   <div ng-if="job.duration &gt; -1" class="navbar-info last first">{{job.duration}} ms</div>
+  <div ng-if="job.state=='RUNNING' || job.state=='CREATED'" class="navbar-info last first"><span ng-click="cancelJob($event)" class="show-pointer label label-danger">Cancel</span></div>
 </nav>
 <nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main-additional">
   <ul class="nav nav-tabs">
