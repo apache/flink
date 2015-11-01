@@ -35,9 +35,13 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
     span(ng-if="job['end-time'] > -1")
       | - 
       | {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
-  
+
   .navbar-info.last.first(ng-if="job.duration > -1")
     | {{job.duration}} ms
+
+  .navbar-info.last.first(ng-if="job.state=='RUNNING' || job.state=='CREATED'")
+    span.show-pointer.label.label-danger(ng-click="cancelJob($event)")
+      | Cancel
 
 nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
   ul.nav.nav-tabs

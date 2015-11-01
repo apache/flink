@@ -36,6 +36,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobCancellationHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
@@ -186,7 +187,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobmanager/stdout", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile))
 
 			// this handler serves all the static contents
-			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir));
+			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir))
+
+			// cancel a job
+			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()));
 
 		synchronized (startupShutdownLock) {
 

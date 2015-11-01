@@ -70,6 +70,10 @@ angular.module('flinkApp')
 
     $interval.cancel(refresher)
 
+  $scope.cancelJob = (cancelEvent) ->
+    angular.element(cancelEvent.currentTarget).removeClass('label-danger').addClass('label-info').html('Cancelling...')
+    JobsService.cancelJob($stateParams.jobid).then (data) ->
+      {}
 
 # --------------------------------------
 
