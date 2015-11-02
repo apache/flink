@@ -107,6 +107,15 @@ under the License.
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.txt</include>
+			</includes>
+		</fileSet>
+
+		<!-- copy LICENSE/NOTICE files -->
+		<fileSet>
+			<directory>../</directory>
+			<outputDirectory></outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
 				<include>LICENSE*</include>
 				<include>NOTICE*</include>
 			</includes>
