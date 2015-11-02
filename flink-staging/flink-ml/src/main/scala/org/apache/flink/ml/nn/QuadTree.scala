@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -68,7 +67,8 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
     def overlap(obj: Vector, radius: Double): Boolean = {
       var count = 0
       for (i <- 0 to obj.size - 1) {
-        if (obj(i) - radius < center(i) + width(i) / 2 && obj(i) + radius > center(i) - width(i) / 2) {
+        if (obj(i) - radius < center(i) + width(i) / 2 &&
+          obj(i) + radius > center(i) - width(i) / 2) {
           count += 1
         }
       }
