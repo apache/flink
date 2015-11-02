@@ -21,10 +21,8 @@ import org.apache.flink.ml.metrics.distances.EuclideanDistanceMetric
 import org.apache.flink.ml.nn.util.QuadTree
 import org.apache.flink.test.util.FlinkTestBase
 import org.apache.flink.ml.math.{Breeze, Vector, DenseVector}
-import Breeze._
 
 import org.scalatest.{Matchers, FlatSpec}
-import scala.collection.mutable.ListBuffer
 
 /** Test of Quadtree class
   * Constructor for the Quadtree class:
