@@ -20,8 +20,7 @@ package org.apache.flink.ml.nn
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.DataSetUtils._
-//import org.apache.flink.api.scala.utils._
+import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Breeze,Vector, DenseVector}
