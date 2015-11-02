@@ -108,8 +108,8 @@ class KNN extends Predictor[KNN] {
   /**
    * Sets the Boolean variable that decides whether to use the QuadTree or not
     */
-  def setUseQuadTree(useQuadTree: Boolean): KNN = {
-    parameters.add(useQuadTreeParam, useQuadTree)
+  def setUseQuadTree(UseQuadTree: Boolean): KNN = {
+    parameters.add(UseQuadTreeParam, UseQuadTree)
     this
   }
 
@@ -130,7 +130,7 @@ object KNN {
     val defaultValue: Option[Int] = None
   }
 
-  case object useQuadTreeParam extends Parameter[Boolean] {
+  case object UseQuadTreeParam extends Parameter[Boolean] {
     val defaultValue: Option[Boolean] = None
   }
 
@@ -194,14 +194,14 @@ object KNN {
                   val queue = mutable.PriorityQueue[(Vector, Vector, Long, Double)]()(
                     Ordering.by(_._4))
 
-                  var MinArr =  List.range(0,training.values.head.size).toArray
-                  var MaxArr =  List.range(0,training.values.head.size).toArray
+                  val MinArr =  List.range(0,training.values.head.size).toArray
+                  val MaxArr =  List.range(0,training.values.head.size).toArray
 
                   var trainingFiltered = new ListBuffer[Vector]
 
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
                   // < Ntest*Ntrain, and distance is Euclidean
-                  val useQuadTree = resultParameters.get(useQuadTreeParam).getOrElse(
+                  val useQuadTree = resultParameters.get(UseQuadTreeParam).getOrElse(
                     training.values.head.size + math.log(math.log(training.values.length)/
                       math.log(4.0)) < math.log(training.values.length)/math.log(4.0) &&
                     (metric.isInstanceOf[EuclideanDistanceMetric] ||
