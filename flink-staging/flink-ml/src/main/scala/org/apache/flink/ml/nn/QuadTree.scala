@@ -114,7 +114,6 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
       for (i <- 0 to obj.size - 1) {
         if (obj(i) > center(i)) {
           count += Math.pow(2, obj.size -1 - i).toInt
-          //count += Math.pow(2,i).toInt
         }
       }
       count
@@ -122,7 +121,6 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
 
     def makeChildren() {
       val centerClone = center.copy
-      //val cPart = partitionBox(center, width)
       val cPart = partitionBox(centerClone, width)
       val mappedWidth = 0.5*width.asBreeze
       children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
@@ -130,15 +128,16 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
     }
 
     /**
-     * Recursive function that partitions a n-dim box by taking the (n-1) dimensional
+     *  Recursive function that partitions a n-dim box by taking the (n-1) dimensional
      * plane through the center of the box keeping the n-th coordinate fixed,
      * then shifting it in the n-th direction up and down
      * and recursively applying partitionBox to the two shifted (n-1) dimensional planes.
      *
+     * @param center
+     * @param width
      * @return
+     *
      */
-
-
     def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
 
       def partitionHelper(box: Seq[Vector], dim: Int): Seq[Vector] = {
