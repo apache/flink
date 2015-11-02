@@ -243,5 +243,29 @@ case class Table(private[flink] val operation: PlanNode) {
     this.copy(operation = Join(operation, right.operation))
   }
 
+  /**
+   * Union two[[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
+   * must fully overlap.
+   *
+   * Example:
+   *
+   * {{{
+   *   left.unionAll(right)
+   * }}}
+   */
+  def unionAll(right: Table): Table = {
+    val leftInputNames = operation.outputFields.map(_._1).toSet
+    val rightInputNames = right.operation.outputFields.map(_._1).toSet
+    if (!leftInputNames.equals(rightInputNames)) {
+      throw new ExpressionException(
+        "The fields names of join inputs should be fully overlapped, current inputs fields name:" +
+          operation.outputFields.mkString(", ") +
+          " and " +
+          right.operation.outputFields.mkString(", ")
+      )
+    }
+    this.copy(operation = UnionAll(operation, right.operation))
+  }
+
   override def toString: String = s"Expression($operation)"
 }
