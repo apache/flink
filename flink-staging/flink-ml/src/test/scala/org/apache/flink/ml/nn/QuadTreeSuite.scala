@@ -39,35 +39,26 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val minVec = DenseVector(-1.0, -0.5)
     val maxVec = DenseVector(1.0, 0.5)
-    println("hello")
 
     val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric())
     myTree.maxPerBox = 3
 
-    println("hello")
 
     myTree.insert(DenseVector(-0.25, 0.3).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.20, 0.31).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.21, 0.29).asInstanceOf[Vector])
 
     var a = myTree.root.getCenterWidth()
-    println("a = " + a)
     /** Tree will partition once the 4th point is added
      */
-    println("hello")
 
     myTree.insert(DenseVector(0.2, 0.27).asInstanceOf[Vector])
     myTree.insert(DenseVector(0.2, 0.26).asInstanceOf[Vector])
-    println("hello")
 
     myTree.insert(DenseVector(-0.21, 0.289).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.1, 0.289).asInstanceOf[Vector])
 
     myTree.insert(DenseVector(0.7, 0.45).asInstanceOf[Vector])
-    println("hello")
-
-    println("printing tree  ")
-    myTree.printTree()
 
     /**
      * Exact values of (centers,dimensions) of root + children nodes, to test
@@ -83,7 +74,6 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
       (DenseVector(0.5, 0.25), DenseVector(1.0, 0.5))
     )
 
-    println("hello")
     /**
      * (centers,dimensions) computed from QuadTree.makeChildren
      */
@@ -114,9 +104,6 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
     val isSiblingsInSearch = siblingsObjectsComputed.contains(DenseVector(-0.2, 0.31)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.29)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.289))
-
-    println(siblingsObjectsComputed)
-    println(neighborsComputed)
 
     //computedCentersLength should be(knownCentersLengths)
     isNeighborInSearch should be(true)

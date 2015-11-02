@@ -121,18 +121,11 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
     }
 
     def makeChildren() {
-      println("center before partitioning =  " + center)
       val centerClone = center.copy
-      val cPart = partitionBox(center, width)
-      println("cPart =  " + cPart)
+      //val cPart = partitionBox(center, width)
+      val cPart = partitionBox(centerClone, width)
       val mappedWidth = 0.5*width.asBreeze
       children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
-      println("center after partitioning =  " + center)
-      println("centerClone =  " + centerClone)
-
-      center.map(i => centerClone)
-
-      println("center after partitioning =  " + center)
 
     }
 
@@ -144,6 +137,8 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
      *
      * @return
      */
+
+
     def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
 
       def partitionHelper(box: Seq[Vector], dim: Int): Seq[Vector] = {
@@ -164,6 +159,7 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
       partitionHelper(Seq(center), 0)
     }
   }
+
 
   val root = new Node( ((minVec.asBreeze + maxVec.asBreeze)*0.5).fromBreeze,
     (maxVec.asBreeze - minVec.asBreeze).fromBreeze, null)
