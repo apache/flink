@@ -64,7 +64,8 @@ class JavaStreamingTranslator(env: Option[StreamExecutionEnvironment]) extends P
       case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
 
       case static: StaticTableSource =>
-        createTable(static.createStaticDataStream(env.get), static.getOutputFieldNames().mkString(","))
+        createTable(static.createStaticDataStream(env.get),
+          static.getOutputFieldNames().mkString(","))
 
       case _ => throw new ExpressionException("Unknown TableSource type.")
     }

@@ -39,13 +39,17 @@ object FieldBacktracker {
       case s@Select(input, selection) =>
         var resolvedField: Option[(AdaptiveTableSource, String)] = None
         // only follow unmodified fields
-        selection.foreach {
-          case ResolvedFieldReference(name, _) if name == fieldName =>
-            resolvedField = resolveFieldNameAndTableSource(input, fieldName)
-          case n@Naming(ResolvedFieldReference(oldName,_), newName) if newName == fieldName =>
-            resolvedField = resolveFieldNameAndTableSource(input, oldName)
-          case _ => // do nothing
-        }
+        selection.foreach(expr => {
+          if (resolvedField.isEmpty) {
+            expr match {
+              case ResolvedFieldReference(name, _) if name == fieldName =>
+                resolvedField = resolveFieldNameAndTableSource(input, fieldName)
+              case n@Naming(ResolvedFieldReference(oldName, _), newName) if newName == fieldName =>
+                resolvedField = resolveFieldNameAndTableSource(input, oldName)
+              case _ => // do nothing
+            }
+          }
+        })
         resolvedField
       case Filter(input, _) =>
         resolveFieldNameAndTableSource(input, fieldName)

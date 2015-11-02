@@ -64,7 +64,8 @@ class JavaBatchTranslator(env: Option[ExecutionEnvironment]) extends PlanTransla
       case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
 
       case static: StaticTableSource =>
-        createTable(static.createStaticDataSet(env.get), static.getOutputFieldNames().mkString(","))
+        createTable(static.createStaticDataSet(env.get),
+          static.getOutputFieldNames().mkString(","))
 
       case _ => throw new ExpressionException("Unknown TableSource type.")
     }
