@@ -20,7 +20,8 @@ package org.apache.flink.ml.nn
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.utils._
+import org.apache.flink.api.scala.DataSetUtils._
+//import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Breeze,Vector, DenseVector}
@@ -28,6 +29,7 @@ import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric,
 DistanceMetric, EuclideanDistanceMetric}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.util.Collector
+
 
 import org.apache.flink.ml.nn.util.QuadTree
 import scala.collection.mutable.ListBuffer
@@ -197,6 +199,9 @@ object KNN {
                   val MinArr =  List.range(0,training.values.head.size).toArray
                   val MaxArr =  List.range(0,training.values.head.size).toArray
 
+                  println("training.values =  " + training.values)
+                 println("testing.values =  " + testing.values)
+
                   var trainingFiltered = new ListBuffer[Vector]
 
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
@@ -206,6 +211,14 @@ object KNN {
                       math.log(4.0)) < math.log(training.values.length)/math.log(4.0) &&
                     (metric.isInstanceOf[EuclideanDistanceMetric] ||
                       metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
+
+                  /*
+                  if (useQuadTree) {
+                    knnQueryWithQuadTree(training, testing, out)
+                  } else {
+                    knnQueryBasic(training, testing, out)
+                  }*/
+
 
                   if (!useQuadTree) {
                     for (v <- training.values) {
@@ -294,4 +307,39 @@ object KNN {
       }
     }
   }
+
+  //import org.apache.flink.ml.math.{Breeze,Vector, DenseVector}
+
+  def knnQueryWithQuadTree(training: Vector, testing:Vector(DenseVector), k:Int, out:Vector): Unit ={
+    val MinArr =  List.range(0,training.values.head.size).toArray
+    val MaxArr =  List.range(0,training.head.size).toArray
+
+    val minVecTrain = MinArr.map(i=>training.map(x=>x(i)).min - 0.01)
+    val minVecTest = MinArr.map(i=>testing.map(x => x._2(i)).min - 0.01)
+
+    val maxVecTrain = MaxArr.map(i=>training.map(x=>x(i)).min + 0.01)
+    val maxVecTest = MaxArr.map(i=>testing.map(x => x._2(i)).min + 0.01)
+
+    val MinVec = DenseVector(MinArr.map(i=>Array(minVecTrain(i),minVecTest(i)).min))
+    val MaxVec = DenseVector(MinArr.map(i=>Array(maxVecTrain(i),maxVecTest(i)).max))
+
+    var trainingQuadTree = new QuadTree(MinVec, MaxVec,metric)
+
+    if (trainingQuadTree.maxPerBox < k) {
+      trainingQuadTree.maxPerBox = k
+    }
+
+      for (v <- training.values) {
+        trainingQuadTree.insert(v.asInstanceOf[Vector])
+      }
+
+  }
+
+  def knnQueryBasic(training: Vector, testing :Vector, out: Vector): Unit ={
+
+  }
+
+
+
 }
+
