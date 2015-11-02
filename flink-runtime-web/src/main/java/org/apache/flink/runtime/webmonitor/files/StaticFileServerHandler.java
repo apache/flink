@@ -246,6 +246,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 			logger.debug("Responding with file '" + file.getAbsolutePath() + '\'');
 		}
 
+		// Don't need to close this manually. Netty's DefaultFileRegion will take care of it.
 		final RandomAccessFile raf;
 		try {
 			raf = new RandomAccessFile(file, "r");
