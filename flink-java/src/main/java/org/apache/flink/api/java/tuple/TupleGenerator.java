@@ -469,19 +469,12 @@ class TupleGenerator {
 			// create csv input format
 			sb.append("\t\tCsvInputFormat<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> inputFormat = new CsvInputFormat<Tuple" + numFields + "<");
+			sb.append(">> inputFormat = new TupleCsvInputFormat<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(path, types);\n");
+			sb.append(">>(path, types, this.includedMask);\n");
 
 			// configure input format
-			sb.append("\t\tconfigureInputFormat(inputFormat, ");
-			for (int i = 0; i < numFields; i++) {
-				if (i > 0) {
-					sb.append(", ");
-				}
-				sb.append("type" + i);
-			}
-			sb.append(");\n");
+			sb.append("\t\tconfigureInputFormat(inputFormat);\n");
 
 			// return
 			sb.append("\t\treturn new DataSource<Tuple" + numFields + "<");

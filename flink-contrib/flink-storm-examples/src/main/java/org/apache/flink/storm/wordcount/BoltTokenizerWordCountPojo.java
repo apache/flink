@@ -20,6 +20,7 @@ package org.apache.flink.storm.wordcount;
 import backtype.storm.topology.IRichBolt;
 
 import org.apache.flink.api.java.io.CsvInputFormat;
+import org.apache.flink.api.java.io.PojoCsvInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -119,7 +120,7 @@ public class BoltTokenizerWordCountPojo {
 			// read the text file from given input path
 			PojoTypeInfo<Sentence> sourceType = (PojoTypeInfo<Sentence>) TypeExtractor
 					.getForObject(new Sentence(""));
-			return env.createInput(new CsvInputFormat<Sentence>(new Path(
+			return env.createInput(new PojoCsvInputFormat<Sentence>(new Path(
 					textPath), CsvInputFormat.DEFAULT_LINE_DELIMITER,
 					CsvInputFormat.DEFAULT_LINE_DELIMITER, sourceType),
 					sourceType);

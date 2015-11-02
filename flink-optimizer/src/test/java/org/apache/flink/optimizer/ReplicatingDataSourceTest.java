@@ -27,7 +27,7 @@ import org.apache.flink.api.common.io.ReplicatingInputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvInputFormat;
+import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -58,7 +58,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -95,7 +95,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -133,7 +133,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -171,7 +171,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -209,7 +209,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -247,7 +247,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -288,7 +288,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -325,7 +325,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -364,7 +364,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -390,7 +390,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -417,7 +417,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -443,7 +443,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
