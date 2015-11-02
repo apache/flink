@@ -305,5 +305,5 @@ The Apache Flink project bundles the following fonts under the
 Open Font License (OFT) - http://scripts.sil.org/OFL
 
  - Font Awesome (http://fortawesome.github.io/Font-Awesome/) - Created by Dave Gandy
-   -> fonts in "flink-runtime/src/main/resources/web-docs-infoserver/font-awesome/fonts"
+   -> fonts in "flink-runtime-web/web-dashboard/assets/fonts"
 
