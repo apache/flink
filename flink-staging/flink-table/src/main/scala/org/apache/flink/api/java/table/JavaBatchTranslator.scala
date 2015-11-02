@@ -252,6 +252,11 @@ class JavaBatchTranslator extends PlanTranslator {
         val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
         val filter = new ExpressionFilterFunction[Row](predicate, inType)
         translatedInput.filter(filter).name(predicate.toString)
+
+      case uni@UnionAll(left, right) =>
+        val translatedLeft = translateInternal(left)
+        val translatedRight = translateInternal(right)
+        translatedLeft.union(translatedRight).name("Union: " + uni)
     }
   }
 
