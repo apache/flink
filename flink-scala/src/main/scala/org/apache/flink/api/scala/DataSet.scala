@@ -1441,7 +1441,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * The DataSet can be sorted on multiple fields by chaining sortPartition() calls.
    */
   def sortPartition(field: Int, order: Order): DataSet[T] = {
-    wrap (new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
+    new PartitionSortedDataSet[T] (
+      new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
   }
 
   /**
@@ -1449,7 +1450,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * The DataSet can be sorted on multiple fields by chaining sortPartition() calls.
    */
   def sortPartition(field: String, order: Order): DataSet[T] = {
-    wrap (new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
+    new PartitionSortedDataSet[T](
+      new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
   }
 
   // --------------------------------------------------------------------------------------------
