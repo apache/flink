@@ -63,7 +63,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testJoin() throws Exception {
+	public void testUnion() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -84,7 +84,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testJoinWithFilter() throws Exception {
+	public void testUnionWithFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -147,7 +147,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testJoinWithAggregation() throws Exception {
+	public void testUnionWithAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
