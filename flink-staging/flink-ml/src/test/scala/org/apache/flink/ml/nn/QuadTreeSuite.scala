@@ -77,14 +77,12 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
     /**
      * (centers,dimensions) computed from QuadTree.makeChildren
      */
-/*
+
     var computedCentersLength =  Set( ( DenseVector(0.0,0.0) , DenseVector(2.0,1.0)))
     for (child <- myTree.root.children){
-      (c,w) =
-     computedCentersLength += child.getCenterWidth()
-       //map(x=>DenseVector(x))
+      computedCentersLength += child.getCenterWidth().asInstanceOf[(DenseVector, DenseVector)]
     }
-*/
+
 
     /**
      * Tests search for nearby neighbors, make sure the right object is contained in neighbor search
@@ -105,7 +103,7 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.29)) &&
       siblingsObjectsComputed.contains(DenseVector(-0.21, 0.289))
 
-    //computedCentersLength should be(knownCentersLengths)
+    computedCentersLength should be(knownCentersLengths)
     isNeighborInSearch should be(true)
     isSiblingsInSearch should be(true)
   }
