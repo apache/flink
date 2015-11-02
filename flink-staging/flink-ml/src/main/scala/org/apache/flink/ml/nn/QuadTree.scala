@@ -122,11 +122,18 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
 
     def makeChildren() {
       println("center before partitioning =  " + center)
+      val centerClone = center.copy
       val cPart = partitionBox(center, width)
       println("cPart =  " + cPart)
       val mappedWidth = 0.5*width.asBreeze
       children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
       println("center after partitioning =  " + center)
+      println("centerClone =  " + centerClone)
+
+      center.map(i => centerClone)
+
+      println("center after partitioning =  " + center)
+
     }
 
     /**
