@@ -456,6 +456,12 @@ livechart {
 .label-group .label.label-black {
   background-color: #000;
 }
+.navbar-info-button {
+  padding: 3px 4px;
+  font-size: 12px;
+  font-family: inherit;
+  margin-top: -2px;
+}
 svg.graph {
   overflow: hidden;
 }

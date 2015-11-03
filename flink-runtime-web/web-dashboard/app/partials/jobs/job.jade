@@ -40,7 +40,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
     | {{job.duration}} ms
 
   .navbar-info.last.first(ng-if="job.state=='RUNNING' || job.state=='CREATED'")
-    span.show-pointer.label.label-danger(ng-click="cancelJob($event)")
+    span.navbar-info-button.btn.btn-default(ng-click="cancelJob($event)")
       | Cancel
 
 nav.navbar.navbar-default.navbar-fixed-top.navbar-main-additional(ng-if="job")
