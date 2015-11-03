@@ -210,8 +210,7 @@ object KNN {
 
                   if (useQuadTree) {
                     knnQueryWithQuadTree(training.values.asInstanceOf[Vector[DenseVector]],
-                      testing.values,k, metric,
-                      queue, out)
+                      testing.values,k, metric,queue, out)
                   } else {
                     knnQueryBasic(training.values.asInstanceOf[Vector[DenseVector]],
                       testing.values,k, metric,queue, out)
