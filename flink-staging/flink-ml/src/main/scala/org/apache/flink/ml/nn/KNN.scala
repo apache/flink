@@ -309,7 +309,7 @@ object KNN {
   }
 
   //import org.apache.flink.ml.math.{Breeze,Vector, DenseVector}
-
+/*
   def knnQueryWithQuadTree(training: Vector, testing:Vector(DenseVector), k:Int, out:Vector): Unit ={
     val MinArr =  List.range(0,training.values.head.size).toArray
     val MaxArr =  List.range(0,training.head.size).toArray
@@ -338,7 +338,7 @@ object KNN {
   def knnQueryBasic(training: Vector, testing :Vector, out: Vector): Unit ={
 
   }
-
+*/
 
 
 }
