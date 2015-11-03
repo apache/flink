@@ -123,13 +123,207 @@ DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
 When using Java, the embedded DSL for specifying expressions cannot be used. Only String expressions
 are supported. They support exactly the same feature set as the expression DSL.
 
+## Table API Operators
+Table API provide a domain-spcific language to execute language-integrated queries on structured data in Scala and Java.
+This section gives a brief overview of all available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/api/table/Table.html).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><strong>Select</strong></td>
+      <td>
+        <p>Similar to a SQL SELECT statement. Perform a select operation.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.select("a, c as d");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>As</strong></td>
+      <td>
+        <p>Rename fields.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.as("d, e, f");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Filter</strong></td>
+      <td>
+        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.filter("a % 2 = 0");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Where</strong></td>
+      <td>
+        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.where("b = 'red'");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>GroupBy</strong></td>
+      <td>
+        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation</p>
+        <p>operator to aggregate on per-group basis.</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.groupby("a").select("a, b.sum as d");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Join</strong></td>
+      <td>
+        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where</p>
+        <p>clause is mandatory for join condition.</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table result = left.join(right).where("a = d").select("a, b, e");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Union</strong></td>
+      <td>
+        <p>Similar to a SQL UNION ALL clause. Union two tables, both tables must have identical schema(field names and types).</p>
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c");
+Table right = tableEnv.fromDataSet(ds2, "a, b, c");
+Table result = left.union(right);
+{% endhighlight %}
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+</div>
+<div data-lang="scala" markdown="1">
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><strong>Select</strong></td>
+      <td>
+        <p>Similar to a SQL SELECT statement. Perform a select operation.</p>
+{% highlight scala %}
+val in = ds.as('a, 'b, 'c);
+val result = in.select('a, 'c as 'd);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>As</strong></td>
+      <td>
+        <p>Rename fields.</p>
+{% highlight scala %}
+val in = ds.as('a, 'b, 'c);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Filter</strong></td>
+      <td>
+        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+{% highlight scala %}
+val in = ds.as('a, 'b, 'c);
+val result = in.filter('a % 2 === 0)
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Where</strong></td>
+      <td>
+        <p>Similar to a SQL WHERE clause. Filter out elements that do not pass the filter predicate.</p>
+{% highlight scala %}
+val in = ds.as('a, 'b, 'c);
+val result = in.where('b === "red");
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>GroupBy</strong></td>
+      <td>
+        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation</p>
+        <p>operator to aggregate on per-group basis.</p>
+{% highlight scala %}
+val in = ds.as('a, 'b, 'c);
+val result = in.groupby('a).select('a, 'b.sum as 'd);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Join</strong></td>
+      <td>
+        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where</p>
+        <p>clause is mandatory for join condition.</p>
+{% highlight scala %}
+val left = ds1.as('a, 'b, 'c);
+val right = ds2.as('d, 'e, 'f);
+val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Union</strong></td>
+      <td>
+        <p>Similar to a SQL UNION ALL clause. Union two tables, both tables must have identical schema(field names and types).</p>
+{% highlight scala %}
+val left = ds1.as('a, 'b, 'c);
+val right = ds2.as('a, 'b, 'c);
+val result = left.union(right);
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
 ## Expression Syntax
-
-A `Table` supports to following operations: `select`, `where`, `groupBy`, `join` (Plus `filter` as
-an alias for `where`.). These are also documented in the [Javadoc](http://flink.apache.org/docs/latest/api/java/org/apache/flink/api/table/Table.html) 
-of Table.
-
-Some of these expect an expression. These can either be specified using an embedded Scala DSL or
+Some of operators in previous section expect an expression. These can either be specified using an embedded Scala DSL or
 a String expression. Please refer to the examples above to learn how expressions can be
 formulated.
 
