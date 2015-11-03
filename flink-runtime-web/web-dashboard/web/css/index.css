@@ -582,6 +582,10 @@ svg.graph .node-label {
     width: 30%;
   }
 }
+.legend-box {
+  font-size: 10px;
+  width: 2em;
+}
 #total-mem {
   background-color: #7cb5ec;
 }
