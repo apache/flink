@@ -74,6 +74,19 @@ under the License.
 			<version>${guava.version}</version>
 		</dependency>
 
+		<!--
+		Chill is added to flink-clients because the KryoSerializer dynamically loads a Kryo instance
+		via Chill if Chill is in the classpath. Since Chill is (transitively through flink-scala)
+		in the classpath of a running JM and TM, we add Chill to flink-clients to ensure that Kyro
+		serialization happens on both ends with Chill's Kryo instance when sending data to a cluster
+		instance.
+		-->
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>

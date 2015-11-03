@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Kryo.DefaultInstantiatorStrategy;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
@@ -26,7 +27,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.base.Preconditions;
-import com.twitter.chill.ScalaKryoInstantiator;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -37,11 +37,14 @@ import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers.SpecificInstanceCollectionSerializerForArrayList;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -281,9 +284,33 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	// --------------------------------------------------------------------------------------------
 
+	private Kryo getKryoInstance() {
+
+		try {
+			// check if ScalaKryoInstantiator is in class path (coming from Twitter's Chill library).
+			// This will be true if Flink's Scala API is used.
+			Class<?> chillInstantiatorClazz = Class.forName("com.twitter.chill.ScalaKryoInstantiator");
+			Object chillInstantiator = chillInstantiatorClazz.newInstance();
+
+			// obtain a Kryo instance through Twitter Chill
+			Method m = chillInstantiatorClazz.getMethod("newKryo");
+			return (Kryo) m.invoke(chillInstantiator);
+		}
+		catch(ClassNotFoundException | InstantiationException | NoSuchMethodException |
+				IllegalAccessException | InvocationTargetException e ) {
+
+			// Twitter Chill is not in classpath. Use a regular Kryo instance with fallback instantiator strategy.
+			Kryo kryo = new Kryo();
+			DefaultInstantiatorStrategy dis = new DefaultInstantiatorStrategy();
+			dis.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(dis);
+			return kryo;
+		}
+	}
+
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
-			this.kryo = new ScalaKryoInstantiator().newKryo();
+			this.kryo = getKryoInstance();
 
 			// Throwable and all subclasses should be serialized via java serialization
 			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());

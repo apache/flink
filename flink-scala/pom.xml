@@ -69,13 +69,19 @@ under the License.
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
 			<artifactId>asm</artifactId>
-            <version>${asm.version}</version>
+			<version>${asm.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
 		</dependency>
 
 		<dependency>
