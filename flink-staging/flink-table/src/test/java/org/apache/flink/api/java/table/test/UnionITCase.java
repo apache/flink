@@ -27,16 +27,13 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.table.ExpressionException;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class UnionITCase extends MultipleProgramsTestBase {
@@ -44,22 +41,6 @@ public class UnionITCase extends MultipleProgramsTestBase {
 
 	public UnionITCase(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected = "";
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -73,14 +54,12 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c");
 
-		Table result = in1.unionAll(in2).select("c");
+		Table selected = in1.unionAll(in2).select("c");
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n";
+		String expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n";
+		compareResults(results, expected);
 	}
 
 	@Test
@@ -94,14 +73,12 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d, c, e").select("a, b, c");
 
-		Table result = in1.unionAll(in2).where("b < 2").select("c");
+		Table selected = in1.unionAll(in2).where("b < 2").select("c");
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "Hi\n" + "Hallo\n";
+		String expected = "Hi\n" + "Hallo\n";
+		compareResults(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -115,14 +92,12 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "d, e, f, g, h");
 
-		Table result = in1.unionAll(in2);
+		Table selected = in1.unionAll(in2);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		String expected = "";
+		compareResults(results, expected);
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -136,14 +111,12 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, c, d, e").select("a, b, c");
 
-		Table result = in1.unionAll(in2);
+		Table selected = in1.unionAll(in2);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		String expected = "";
+		compareResults(results, expected);
 	}
 
 	@Test
@@ -157,14 +130,12 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		Table in1 = tableEnv.fromDataSet(ds1, "a, b, c");
 		Table in2 = tableEnv.fromDataSet(ds2, "a, b, d, c, e").select("a, b, c");
 
-		Table result = in1.unionAll(in2).select("c.count");
+		Table selected = in1.unionAll(in2).select("c.count");
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
 
-		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "18";
+		String expected = "18";
+		compareResults(results, expected);
 	}
 
 }

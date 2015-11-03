@@ -23,32 +23,16 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.table.{ExpressionException, Row}
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.junit._
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import scala.collection.JavaConversions
+
 @RunWith(classOf[Parameterized])
 class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = ""
-  private val _tempFolder = new TemporaryFolder()
-
-  @Rule
-  def tempFolder = _tempFolder
-
-  @Before
-  def before(): Unit = {
-    resultPath = tempFolder.newFile().toURI.toString
-  }
-
-  @After
-  def after(): Unit = {
-    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
-  }
 
   @Test
   def testUnion(): Unit = {
@@ -58,9 +42,9 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
-    unionDs.toDataSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
+    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test
@@ -71,9 +55,9 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val joinDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
-    joinDs.toDataSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "Hi\n" + "Hallo\n"
+    val results = joinDs.toDataSet[Row].collect()
+    val expected = "Hi\n" + "Hallo\n"
+    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -84,9 +68,9 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val unionDs = ds1.unionAll(ds2)
 
-    unionDs.toDataSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = ""
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = ""
+    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -97,9 +81,9 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val unionDs = ds1.unionAll(ds2)
 
-    unionDs.toDataSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = ""
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = ""
+    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test
@@ -110,8 +94,8 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).select('c.count)
 
-    unionDs.toDataSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
-    expected = "18"
+    val results = unionDs.toDataSet[Row].collect()
+    val expected = "18"
+    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
   }
 }
