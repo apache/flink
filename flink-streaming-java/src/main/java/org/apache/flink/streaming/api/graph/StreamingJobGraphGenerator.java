@@ -421,12 +421,7 @@ public class StreamingJobGraphGenerator {
 
 	private void configureExecutionRetries() {
 		int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
-		if (executionRetries != -1) {
-			jobGraph.setNumberOfExecutionRetries(executionRetries);
-		} else {
-			// if the user didn't configure anything, the number of retries is 0.
-			jobGraph.setNumberOfExecutionRetries(0);
-		}
+		jobGraph.setNumberOfExecutionRetries(executionRetries);
 	}
 
 	private void configureExecutionRetryDelay() {
