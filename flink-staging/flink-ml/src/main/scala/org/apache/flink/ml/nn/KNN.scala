@@ -195,11 +195,6 @@ object KNN {
                   val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
                     Ordering.by(_._4))
 
-                  val MinArr = List.range(0, training.values.head.size).toArray
-                  val MaxArr = List.range(0, training.values.head.size).toArray
-
-                  var trainingFiltered = new ListBuffer[FlinkVector]
-
                   // use a quadtree if (4^dim)Ntest*log(Ntrain)
                   // < Ntest*Ntrain, and distance is Euclidean
                   val useQuadTree = resultParameters.get(UseQuadTreeParam).getOrElse(
