@@ -45,7 +45,7 @@ class TableSourceTest {
 
     val tableSource3 = new DummyTableSourceWithPushdown
     getTableJava(tableSource3)
-      .select("a, b")
+      .select("1, a, b")
     assertEquals(Set(("a", false), ("b", false)), tableSource3.resolvedFields)
 
     val tableSource4 = new DummyTableSourceWithPushdown
