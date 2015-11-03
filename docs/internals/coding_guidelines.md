@@ -20,4 +20,4 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The *Coding Guidelines* are located [on the project website](http://flink.apache.org/coding-guidelines.html).
+The *Coding Guidelines* are located [on the project website](http://flink.apache.org/contribute-code.html#coding-guidelines).
