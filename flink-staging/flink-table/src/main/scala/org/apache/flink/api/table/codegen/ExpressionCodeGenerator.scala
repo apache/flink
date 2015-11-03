@@ -102,9 +102,9 @@ abstract class ExpressionCodeGenerator[R](
             |boolean $nullTerm = ${leftCode.nullTerm} || ${rightCode.nullTerm};
             |$resultTpe $resultTerm;
             |if ($nullTerm) {
-            |  $resultTerm = ${defaultPrimitive(resultType)}
+            |  $resultTerm = ${defaultPrimitive(resultType)};
             |} else {
-            |  $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)}
+            |  $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)};
             |}
           """.stripMargin
       } else {
@@ -165,7 +165,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(doubleValue: Double, DOUBLE_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = $doubleValue;
           """.stripMargin
         } else {
@@ -177,7 +177,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(floatValue: Float, FLOAT_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = ${floatValue}f;
           """.stripMargin
         } else {
@@ -189,7 +189,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(strValue: String, STRING_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = "$strValue";
           """.stripMargin
         } else {
@@ -201,7 +201,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(boolValue: Boolean, BOOLEAN_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = $boolValue;
           """.stripMargin
         } else {
@@ -218,7 +218,7 @@ abstract class ExpressionCodeGenerator[R](
 
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = $dateName;
           """.stripMargin
         } else {
@@ -537,10 +537,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = -(${childCode.resultTerm});
+              |  $resultTerm = -(${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
@@ -571,10 +572,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = ~((int) ${childCode.resultTerm});
+              |  $resultTerm = ~((int) ${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
@@ -590,10 +592,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = !(${childCode.resultTerm});
+              |  $resultTerm = !(${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
@@ -608,12 +611,7 @@ abstract class ExpressionCodeGenerator[R](
         if (nullCheck) {
           childCode.code +
             s"""
-              |boolean $nullTerm = ${childCode.nullTerm};
-              |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
-              |} else {
-              |  $resultTpe $resultTerm = (${childCode.resultTerm}) == null;
-              |}
+              |$resultTpe $resultTerm = ${childCode.nullTerm};
             """.stripMargin
         } else {
           childCode.code +
@@ -627,12 +625,7 @@ abstract class ExpressionCodeGenerator[R](
         if (nullCheck) {
           childCode.code +
             s"""
-              |boolean $nullTerm = ${childCode.nullTerm};
-              |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
-              |} else {
-              |  $resultTpe $resultTerm = (${childCode.resultTerm}) != null;
-              |}
+              |$resultTpe $resultTerm = !${childCode.nullTerm};
             """.stripMargin
         } else {
           childCode.code +
@@ -647,10 +640,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = Math.abs(${childCode.resultTerm});
+              |  $resultTerm = Math.abs(${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
