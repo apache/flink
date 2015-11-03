@@ -27,6 +27,10 @@ class HadoopInputFormat[K, V](
     job: JobConf)
   extends HadoopInputFormatBase[K, V, (K, V)](mapredInputFormat, keyClass, valueClass, job) {
 
+  def this(mapredInputFormat: InputFormat[K, V], keyClass: Class[K], valueClass: Class[V]) = {
+    this(mapredInputFormat, keyClass, valueClass, new JobConf)
+  }
+
   def nextRecord(reuse: (K, V)): (K, V) = {
     if (!fetched) {
       fetchNext()
