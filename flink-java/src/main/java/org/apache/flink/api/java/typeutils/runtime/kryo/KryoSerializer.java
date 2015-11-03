@@ -26,7 +26,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.base.Preconditions;
-import com.twitter.chill.ScalaKryoInstantiator;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -42,6 +41,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -281,9 +282,29 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	// --------------------------------------------------------------------------------------------
 
+	private Kryo getKryoInstance() {
+
+		try {
+			// check if ScalaKryoInstantiator is in class path (coming from Twitter's Chill library).
+			// This will be true if Flink's Scala API is used.
+			Class<?> chillInstantiatorClazz = Class.forName("com.twitter.chill.ScalaKryoInstantiator");
+			Object chillInstantiator = chillInstantiatorClazz.newInstance();
+
+			// obtain a Kryo instance through Twitter Chill
+			Method m = chillInstantiatorClazz.getMethod("newKryo");
+			return (Kryo) m.invoke(chillInstantiator);
+		}
+		catch(ClassNotFoundException | InstantiationException | NoSuchMethodException |
+				IllegalAccessException | InvocationTargetException e ) {
+
+			// Chill must be in the classpath. It is added as a dependency to flink-runtime.
+			throw new RuntimeException("Could not instantiate Kryo instance from Chill.", e);
+		}
+	}
+
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
-			this.kryo = new ScalaKryoInstantiator().newKryo();
+			this.kryo = getKryoInstance();
 
 			// Throwable and all subclasses should be serialized via java serialization
 			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());

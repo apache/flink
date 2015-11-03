@@ -180,6 +180,18 @@ under the License.
 			<artifactId>zookeeper</artifactId>
 		</dependency>
 
+		<!--
+		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
+		is in the classpath. Because we do not want to have transitive Scala dependencies
+		in Flink's API modules (such as flink-java) due to Chill, Chill is added to flink-runtime
+		to ensure that Chill is always present in the classpath.
+		-->
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-curator-recipes</artifactId>

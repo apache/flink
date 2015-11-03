@@ -69,7 +69,7 @@ under the License.
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
 			<artifactId>asm</artifactId>
-            <version>${asm.version}</version>
+			<version>${asm.version}</version>
 		</dependency>
 		
 		<dependency>
