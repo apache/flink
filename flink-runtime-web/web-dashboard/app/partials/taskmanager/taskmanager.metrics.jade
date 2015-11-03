@@ -28,15 +28,16 @@ table.table(ng-if="metrics.id")
       td
         livechart(data="metrics" key="used")
         .row.text-center
-          span
-            i.fa.fa-square-o.fa-lg(id="total-mem")
-            | &nbsp;Total Memory&nbsp;
-          span
-            i.fa.fa-square-o.fa-lg(id="heap-mem")
-            | &nbsp;Heap Memory&nbsp;
-          span
-            i.fa.fa-square-o.fa-lg(id="non-heap-mem")
-            | &nbsp;Non-heap Memory&nbsp;
+          span.label.legend-box#total-mem
+            | &nbsp;&nbsp;
+          | &nbsp;Total Memory&nbsp;&nbsp;
+          span.label.legend-box#heap-mem
+            | &nbsp;&nbsp;
+          | &nbsp;Heap Memory&nbsp;&nbsp;
+          span.label.legend-box#non-heap-mem
+            | &nbsp;&nbsp;
+          | &nbsp;Non-heap Memory&nbsp;&nbsp;
+
 
 table.table.table-properties(ng-if="metrics.id")
   thead
