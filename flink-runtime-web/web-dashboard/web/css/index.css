@@ -445,9 +445,8 @@ livechart {
 }
 .label-group .label {
   display: inline-block;
-  width: 2em;
-  padding-left: 0.1em;
-  padding-right: 0.1em;
+  padding-left: 0.4em;
+  padding-right: 0.4em;
   margin: 0;
   border-right: 1px solid #fff;
   -webkit-border-radius: 0;
