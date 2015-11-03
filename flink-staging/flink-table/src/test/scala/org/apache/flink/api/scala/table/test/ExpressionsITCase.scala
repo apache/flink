@@ -18,6 +18,10 @@
 
 package org.apache.flink.api.scala.table.test
 
+import java.util.Date
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
@@ -109,6 +113,20 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val ds = env.fromElements((3, 5.toByte)).as('a, 'b)
       .groupBy("a").select("a, a.count As cnt").toDataSet[Row]
     val expected = "3,1"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testDateLiteral(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = env.fromElements((0L, "test")).as('a, 'b)
+      .select('a,
+        Literal(new Date(0)).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        'a.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
+      .toDataSet[Row]
+    val expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
     val results = ds.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

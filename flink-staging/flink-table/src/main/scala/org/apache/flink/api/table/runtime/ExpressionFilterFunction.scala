@@ -19,6 +19,7 @@ package org.apache.flink.api.table.runtime
 
 import org.apache.flink.api.common.functions.{FilterFunction, RichFilterFunction}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.GenerateFilter
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.configuration.Configuration
@@ -29,16 +30,18 @@ import org.apache.flink.configuration.Configuration
  */
 class ExpressionFilterFunction[T](
     predicate: Expression,
-    inputType: CompositeType[T]) extends RichFilterFunction[T] {
+    inputType: CompositeType[T],
+    config: TableConfig = TableConfig.DEFAULT) extends RichFilterFunction[T] {
 
   var compiledFilter: FilterFunction[T] = null
 
-  override def open(config: Configuration): Unit = {
+  override def open(c: Configuration): Unit = {
     if (compiledFilter == null) {
       val codegen = new GenerateFilter[T](
         inputType,
         predicate,
-        getRuntimeContext.getUserCodeClassLoader)
+        getRuntimeContext.getUserCodeClassLoader,
+        config)
       compiledFilter = codegen.generate()
     }
   }

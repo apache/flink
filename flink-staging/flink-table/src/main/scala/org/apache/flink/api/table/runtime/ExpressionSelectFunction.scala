@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.runtime
 
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -30,18 +31,20 @@ import org.apache.flink.configuration.Configuration
 class ExpressionSelectFunction[I, O](
      inputType: CompositeType[I],
      resultType: CompositeType[O],
-     outputFields: Seq[Expression]) extends RichMapFunction[I, O] {
+     outputFields: Seq[Expression],
+     config: TableConfig = TableConfig.DEFAULT) extends RichMapFunction[I, O] {
 
   var compiledSelect: MapFunction[I, O] = null
 
-  override def open(config: Configuration): Unit = {
+  override def open(c: Configuration): Unit = {
 
     if (compiledSelect == null) {
       val resultCodegen = new GenerateSelect[I, O](
         inputType,
         resultType,
         outputFields,
-        getRuntimeContext.getUserCodeClassLoader)
+        getRuntimeContext.getUserCodeClassLoader,
+        config)
 
       compiledSelect = resultCodegen.generate()
     }

@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.table.test;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
@@ -120,6 +121,28 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = ds.collect();
 		String expected = "1,1,1,1,2.0,2.0,true\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testCastDateFromString() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSource<Tuple4<String, String, String, String>> input =
+				env.fromElements(new Tuple4<>("2011-05-03", "15:51:36", "2011-05-03 15:51:36.000", "1446473775"));
+
+		Table table =
+				tableEnv.fromDataSet(input);
+
+		Table result = table
+				.select("f0.cast(DATE) AS f0, f1.cast(DATE) AS f1, f2.cast(DATE) AS f2, f3.cast(DATE) AS f3")
+				.select("f0.cast(STRING), f1.cast(STRING), f2.cast(STRING), f3.cast(STRING)");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
+				"1970-01-17 17:47:53.775\n";
 		compareResultAsText(results, expected);
 	}
 }

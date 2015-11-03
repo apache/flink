@@ -19,12 +19,12 @@ package org.apache.flink.api.table.codegen
 
 import java.io.StringReader
 
-import org.slf4j.LoggerFactory
-
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.Indenter._
 import org.apache.flink.api.table.expressions.Expression
+import org.slf4j.LoggerFactory
 
 /**
  * Code generator for assembling the result of a select operation.
@@ -33,10 +33,12 @@ class GenerateSelect[I, O](
     inputTypeInfo: CompositeType[I],
     resultTypeInfo: CompositeType[O],
     outputFields: Seq[Expression],
-    cl: ClassLoader)
+    cl: ClassLoader,
+    config: TableConfig)
   extends GenerateResultAssembler[MapFunction[I, O]](
     Seq(("in0", inputTypeInfo)),
-    cl = cl) {
+    cl = cl,
+    config) {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -58,6 +60,13 @@ class GenerateSelect[I, O](
 
           ${reuseCode(resultTypeInfo)}
 
+          org.apache.flink.api.table.TableConfig config = null;
+
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+            ${reuseInitCode()}
+          }
+
           @Override
           public Object map(Object _in0) {
             $inputTpe in0 = ($inputTpe) _in0;
@@ -69,6 +78,7 @@ class GenerateSelect[I, O](
     LOG.debug(s"""Generated select:\n$code""")
     compiler.cook(new StringReader(code))
     val clazz = compiler.getClassLoader().loadClass(generatedName)
-    clazz.newInstance().asInstanceOf[MapFunction[I, O]]
+    val constructor = clazz.getConstructor(classOf[TableConfig])
+    constructor.newInstance(config).asInstanceOf[MapFunction[I, O]]
   }
 }
