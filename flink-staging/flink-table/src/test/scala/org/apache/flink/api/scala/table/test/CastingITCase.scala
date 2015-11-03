@@ -43,7 +43,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, new Date(0))).toTable
       .select('_1 + "b", '_2 + "s", '_3 + "i", '_4 + "L", '_5 + "f", '_6 + "d", '_7 + "Date")
       .toDataSet[Row]
-    val expected = "1b,1s,1i,1L,1.0f,1.0d,1970-01-01 00:00:00.0Date"
+    val expected = "1b,1s,1i,1L,1.0f,1.0d,1970-01-01 00:00:00.000Date"
     val results = ds.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
