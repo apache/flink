@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.codegen
 
+import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
 
 import org.codehaus.janino.SimpleCompiler
@@ -30,6 +31,8 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenamingProxyTypeInfo, RowTypeInfo}
 import org.apache.flink.api.table.{ExpressionException, expressions}
+
+import scala.collection.mutable
 
 /** Base class for all code generation classes. This provides the functionality for generating
   * code from an [[Expression]] tree. Derived classes must embed this in a lambda function
@@ -57,6 +60,11 @@ abstract class ExpressionCodeGenerator[R](
   val compiler = new SimpleCompiler()
   compiler.setParentClassLoader(cl)
 
+  protected val reusableStatements = mutable.Set[String]()
+
+  protected def reuseCode(): String = {
+    reusableStatements.mkString("", "\n", "\n")
+  }
 
   // This is to be implemented by subclasses, we have it like this
   // so that we only call it from here with the Scala Reflection Lock.
@@ -202,6 +210,23 @@ abstract class ExpressionCodeGenerator[R](
           """.stripMargin
         }
 
+      case expressions.Literal(dateValue: Date, DATE_TYPE_INFO) =>
+        val dateName = s"""date_${dateValue.getTime}"""
+        val dateStmt = s"""static java.util.Date $dateName
+             |= new java.util.Date(${dateValue.getTime});""".stripMargin
+        reusableStatements.add(dateStmt)
+
+        if (nullCheck) {
+          s"""
+            |val $nullTerm = false
+            |$resultTpe $resultTerm = $dateName;
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = $dateName;
+          """.stripMargin
+        }
+
       case Substring(str, beginIndex, endIndex) =>
         val strCode = generateExpression(str)
         val beginIndexCode = generateExpression(beginIndex)
@@ -243,6 +268,29 @@ abstract class ExpressionCodeGenerator[R](
             """
         }
 
+      case expressions.Cast(child: Expression, STRING_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
+        val childGen = generateExpression(child)
+
+        reusableStatements.add(timestampFormatter)
+
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = timestampFormatter.format(${childGen.resultTerm});
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = timestampFormatter.format(${childGen.resultTerm});
+          """.stripMargin
+        }
+        childGen.code + castCode
+
       case expressions.Cast(child: Expression, STRING_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
@@ -261,6 +309,104 @@ abstract class ExpressionCodeGenerator[R](
           """.stripMargin
         }
         childGen.code + castCode
+
+      case expressions.Cast(child: Expression, DATE_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.LONG_TYPE_INFO =>
+        val childGen = generateExpression(child)
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = new java.util.Date(${childGen.resultTerm});
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = new java.util.Date(${childGen.resultTerm});
+          """.stripMargin
+        }
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, DATE_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
+        val childGen = generateExpression(child)
+
+        reusableStatements.add(dateFormatter)
+        reusableStatements.add(timeFormatter)
+        reusableStatements.add(timestampFormatter)
+
+        // tries to parse
+        // "2011-05-03 15:51:36.234"
+        // then "2011-05-03"
+        // then "15:51:36"
+        // then "1446473775"
+        val parsedName = freshName("parsed")
+        val parsingCode =
+          s"""
+            |java.util.Date $parsedName = null;
+            |try {
+            |  $parsedName = timestampFormatter.parse(${childGen.resultTerm});
+            |} catch (java.text.ParseException e1) {
+            |  try {
+            |    $parsedName = dateFormatter.parse(${childGen.resultTerm});
+            |  } catch (java.text.ParseException e2) {
+            |    try {
+            |      $parsedName = timeFormatter.parse(${childGen.resultTerm});
+            |    } catch (java.text.ParseException e3) {
+            |      $parsedName = new java.util.Date(Long.valueOf(${childGen.resultTerm}));
+            |    }
+            |  }
+            |}
+           """.stripMargin
+
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $parsingCode
+            |  $resultTerm = $parsedName;
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$parsingCode
+            |$resultTpe $resultTerm = $parsedName;
+          """.stripMargin
+        }
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, DATE_TYPE_INFO) =>
+        throw new ExpressionException("Only Long and String can be casted to Date.")
+
+      case expressions.Cast(child: Expression, LONG_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
+        val childGen = generateExpression(child)
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = ${childGen.resultTerm}.getTime();
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTerm = ${childGen.resultTerm}.getTime();
+          """.stripMargin
+        }
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
+        if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
+        throw new ExpressionException("Date can only be casted to Long or String.")
 
       case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
         if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
@@ -643,4 +789,23 @@ abstract class ExpressionCodeGenerator[R](
       tpe.getTypeClass.getCanonicalName
 
   }
+
+  def dateFormatter(): String = s"""
+    |java.text.SimpleDateFormat dateFormatter = new java.text.SimpleDateFormat("yyyy-MM-dd");
+    |{
+    |  dateFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    |}""".stripMargin
+
+  def timeFormatter(): String = s"""
+    |java.text.SimpleDateFormat timeFormatter = new java.text.SimpleDateFormat("HH:mm:ss");
+    |{
+    |  timeFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    |}""".stripMargin
+
+  def timestampFormatter(): String = s"""
+    |java.text.SimpleDateFormat timestampFormatter =
+    |  new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    |{
+    |  timestampFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    |}""".stripMargin
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.expressions
 
+import java.util.Date
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.scala.table.ImplicitExpressionOperations
 
@@ -28,6 +29,7 @@ object Literal {
     case f: Float => Literal(f, BasicTypeInfo.FLOAT_TYPE_INFO)
     case str: String => Literal(str, BasicTypeInfo.STRING_TYPE_INFO)
     case bool: Boolean => Literal(bool, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+    case date: Date => Literal(date, BasicTypeInfo.DATE_TYPE_INFO)
   }
 }
 
