@@ -38,10 +38,10 @@ limitations under the License.
       <td><span ng-if="subtask['start-time'] &gt; -1">{{ subtask['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask['end-time'] &gt; -1">{{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="subtask.duration &gt; -1">{{ subtask.duration }} ms</span></td>
-      <td><span ng-if="subtask.metrics['read-bytes'] &gt; -1">{{ subtask.metrics['read-bytes'] }}</span></td>
-      <td><span ng-if="subtask.metrics['read-records'] &gt; -1">{{ subtask.metrics['read-records'] }}</span></td>
-      <td><span ng-if="subtask.metrics['write-bytes'] &gt; -1">{{ subtask.metrics['write-bytes'] }}</span></td>
-      <td><span ng-if="subtask.metrics['write-records'] &gt; -1">{{ subtask.metrics['write-records'] }}</span></td>
+      <td><span ng-if="subtask.metrics['read-bytes'] &gt; -1">{{ subtask.metrics['read-bytes'] | number }}</span></td>
+      <td><span ng-if="subtask.metrics['read-records'] &gt; -1">{{ subtask.metrics['read-records'] | number }}</span></td>
+      <td><span ng-if="subtask.metrics['write-bytes'] &gt; -1">{{ subtask.metrics['write-bytes'] | number }}</span></td>
+      <td><span ng-if="subtask.metrics['write-records'] &gt; -1">{{ subtask.metrics['write-records'] | number }}</span></td>
       <td>{{ subtask.attempt + 1 }}</td>
       <td>{{ subtask.host }}</td>
       <td> 
