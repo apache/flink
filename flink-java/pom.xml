@@ -65,13 +65,7 @@ under the License.
 
 		<dependency>
 			<groupId>com.twitter</groupId>
-			<artifactId>chill_${scala.binary.version}</artifactId>
-			<version>${chill.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>chill-avro_${scala.binary.version}</artifactId>
+			<artifactId>chill-java</artifactId>
 			<version>${chill.version}</version>
 		</dependency>
 
