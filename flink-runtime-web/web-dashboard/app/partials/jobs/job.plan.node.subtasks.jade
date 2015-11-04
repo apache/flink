@@ -40,7 +40,7 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
       td
         span(ng-if="subtask['end-time'] > -1") {{ subtask['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td
-        span(ng-if="subtask.duration > -1") {{ subtask.duration }} ms
+        span(ng-if="subtask.duration > -1" title="{{subtask.duration | humanizeDuration:false}}") {{subtask.duration | humanizeDuration:true}}
 
       td
         span(ng-if="subtask.metrics['read-bytes'] > -1") {{ subtask.metrics['read-bytes'] | number }}
