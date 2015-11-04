@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -70,7 +69,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<IN, OUT, W>>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable, OutputTypeConfigurable<OUT> {
+		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -508,15 +507,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	public NonKeyedWindowOperator<IN, OUT, W> enableSetProcessingTime(boolean setProcessingTime) {
 		this.setProcessingTime = setProcessingTime;
 		return this;
-	}
-
-	@Override
-	public final void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
-		if (userFunction instanceof OutputTypeConfigurable) {
-			@SuppressWarnings("unchecked")
-			OutputTypeConfigurable<OUT> typeConfigurable = (OutputTypeConfigurable<OUT>) userFunction;
-			typeConfigurable.setOutputType(outTypeInfo, executionConfig);
-		}
 	}
 
 	// ------------------------------------------------------------------------
