@@ -36,7 +36,7 @@ table.table.table-body-hover.table-clickable.table-activable
       td
         span(ng-if="v['end-time'] > -1") {{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
       td
-        span(ng-if="v.duration > -1") {{ v.duration }} ms
+        span(ng-if="v.duration > -1" title="{{v.duration | humanizeDuration:false}}") {{v.duration | humanizeDuration:true}}
 
       td.td-long {{ v.name | humanizeText }}
       td {{ v.metrics['read-bytes'] | number }}

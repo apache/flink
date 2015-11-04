@@ -28,6 +28,32 @@ angular.module('flinkApp')
 
   amDurationFormatExtendedFilter
 
+.filter "humanizeDuration", ->
+  (value, short) ->
+    return "" if typeof value is "undefined" or value is null
+    ms = value % 1000
+    x = Math.floor(value / 1000)
+    seconds = x % 60
+    x = Math.floor(x / 60)
+    minutes = x % 60
+    x = Math.floor(x / 60)
+    hours = x % 24
+    x = Math.floor(x / 24)
+    days = x
+    if days == 0
+      if hours == 0
+        if minutes == 0
+          if seconds == 0
+            return ms + "ms"
+          else
+            return seconds + "s "
+        else
+          return minutes + "m " + seconds + "s"
+      else
+        if short then return hours + "h " + minutes + "m" else return hours + "h " + minutes + "m " + seconds + "s"
+    else
+      if short then return days + "d " + hours + "h" else return days + "d " + hours + "h " + minutes + "m " + seconds + "s"
+
 .filter "humanizeText", ->
   (text) ->
     # TODO: extend... a lot
