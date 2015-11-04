@@ -41,17 +41,17 @@ Each binary release of Flink contains an `examples` directory with jar files for
 
 To run the WordCount example, issue the following command:
 
-~~~bash
+```bash
 ./bin/flink run ./examples/WordCount.jar
-~~~
+```
 
 The other examples can be started in a similar way.
 
 Note that many examples run without passing any arguments for them, by using build-in data. To run WordCount with real data, you have to pass the path to the data:
 
-~~~bash
+```bash
 ./bin/flink run ./examples/WordCount.jar /path/to/some/text/data /path/to/result
-~~~
+```
 
 Note that non-local file systems require a schema prefix, such as `hdfs://`.
 
@@ -62,7 +62,7 @@ WordCount is the "Hello World" of Big Data processing systems. It computes the f
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 DataSet<String> text = env.readTextFile("/path/to/file"); 
@@ -92,14 +92,14 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
         }
     }
 }
-~~~
+```
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+```scala
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 // get input data
@@ -111,7 +111,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
   .sum(1)
 
 counts.writeAsCsv(outputPath, "\n", " ")
-~~~
+```
 
 The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
@@ -128,7 +128,7 @@ In this simple example, PageRank is implemented with a [bulk iteration](iteratio
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // read the pages and initial ranks by parsing a CSV file
@@ -199,7 +199,7 @@ public static final class EpsilonFilter
         return Math.abs(value.f0.f1 - value.f1.f1) > EPSILON;
     }
 }
-~~~
+```
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
@@ -207,7 +207,7 @@ It requires the following parameters to run: `<pages input path>, <links input p
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+```scala
 // User-defined types
 case class Link(sourceId: Long, targetId: Long)
 case class Page(pageId: Long, rank: Double)
@@ -266,7 +266,7 @@ val result = finalRanks
 
 // emit result
 result.writeAsCsv(outputPath, "\n", " ")
-~~~
+```
 
 he {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
@@ -290,7 +290,7 @@ This implementation uses a [delta iteration](iterations.html): Vertices that hav
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+```java
 // read vertex and edge data
 DataSet<Long> vertices = getVertexDataSet(env);
 DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge());
@@ -362,14 +362,14 @@ public static final class ComponentIdFilter
         }
     }
 }
-~~~
+```
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+```scala
 // set up execution environment
 val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -405,7 +405,7 @@ val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Arra
 
 verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
     
-~~~
+```
 
 The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 </div>
@@ -423,7 +423,7 @@ The Relational Query example assumes two tables, one with `orders` and the other
 
 The example implements the following SQL query.
 
-~~~sql
+```sql
 SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
     FROM orders, lineitem
 WHERE l_orderkey = o_orderkey
@@ -431,14 +431,14 @@ WHERE l_orderkey = o_orderkey
     AND YEAR(o_orderdate) > 1993
     AND o_orderpriority LIKE "5%"
 GROUP BY l_orderkey, o_shippriority;
-~~~
+```
 
 The Flink program, which implements the above query looks as follows.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+```java
 // get orders data set: (orderkey, orderstatus, orderdate, orderpriority, shippriority)
 DataSet<Tuple5<Integer, String, String, String, Integer>> orders = getOrdersDataSet(env);
 // get lineitem data set: (orderkey, extendedprice)
@@ -481,7 +481,7 @@ DataSet<Tuple3<Integer, Integer, Double>> priceSums =
 
 // emit result
 priceSums.writeAsCsv(outputPath);
-~~~
+```
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/relational/TPCHQuery10.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
@@ -500,17 +500,17 @@ Take the following steps to generate arbitrary large input files for the provide
 1.  Download and unpack DBGEN
 2.  Make a copy of *makefile.suite* called *Makefile* and perform the following changes:
 
-~~~bash
+```bash
 DATABASE = DB2
 MACHINE  = LINUX
 WORKLOAD = TPCH
 CC       = gcc
-~~~
+```
 
 1.  Build DBGEN using *make*
 2.  Generate lineitem and orders relations using dbgen. A scale factor
     (-s) of 1 results in a generated data set with about 1 GB size.
 
-~~~bash
+```bash
 ./dbgen -T o -s 1
-~~~
+```
