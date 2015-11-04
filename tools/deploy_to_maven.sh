@@ -21,11 +21,11 @@
 #Please ask @rmetzger (on GitHub) before changing anything here. It contains some magic.
 
 # Build Responsibilities
-# 1. Deploy snapshot & S3 (hadoop1)
-# 2. Deploy snapshot & S3 (hadoop2)
+# 1. Nothing
+# 2. Nothing
 # 3. Nothing
-# 4. Nothing
-# 5. Nothing
+# 4. Deploy snapshot & S3 (hadoop2)
+# 5. Deploy snapshot & S3 (hadoop1)
 
 
 function getVersion() {
@@ -83,7 +83,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flin
 	# It will deploy both a hadoop v1 and a hadoop v2 (yarn) artifact
 	# 
 
-	if [[ $TRAVIS_JOB_NUMBER == *1 ]] &&  [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *5 ]] &&  [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# Deploy hadoop v1 to maven
 		echo "Generating poms for hadoop1"
 		./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_HADOOP1 pom.hadoop1.xml
@@ -93,7 +93,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flin
 		deploy_to_s3 $CURRENT_FLINK_VERSION "hadoop1"
 	fi
 
-	if [[ $TRAVIS_JOB_NUMBER == *2 ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
+	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# the time to build and upload flink twice (scala 2.10 and scala 2.11) takes
 		# too much time. That's why we are going to do it in parallel
 		# Note that the parallel execution will cause the output to be interleaved
