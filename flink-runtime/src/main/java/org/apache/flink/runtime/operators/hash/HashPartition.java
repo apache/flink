@@ -207,7 +207,8 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 */
 	public int getNumOccupiedMemorySegments() {
 		// either the number of memory segments, or one for spilling
-		final int numPartitionBuffers = this.partitionBuffers != null ? this.partitionBuffers.length : 1;
+		final int numPartitionBuffers = this.partitionBuffers != null ?
+			this.partitionBuffers.length : this.buildSideWriteBuffer.getNumOccupiedMemorySegments();
 		return numPartitionBuffers + numOverflowSegments;
 	}
 	
@@ -540,6 +541,11 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		
 		int getBlockCount() {
 			return this.currentBlockNumber + 1;
+		}
+
+		int getNumOccupiedMemorySegments() {
+			// return the current segment + all filled segments
+			return this.targetList.size() + 1;
 		}
 		
 		int spill(BlockChannelWriter<MemorySegment> writer) throws IOException {

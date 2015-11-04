@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.operators.hash;
 
+import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteValueSerializer;
 import org.apache.flink.api.common.typeutils.base.LongComparator;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
@@ -37,10 +39,13 @@ import org.apache.flink.types.ByteValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
+import org.junit.Assert;
 import org.mockito.Mockito;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -191,6 +196,64 @@ public class HashTableTest {
 			ioMan.shutdown();
 		}
 	}
+
+	/**
+	 * Tests that the MutableHashTable spills its partitions when creating the initial table
+	 * without overflow segments in the partitions. This means that the records are large.
+	 */
+	@Test
+	public void testSpillingWhenBuildingTableWithoutOverflow() throws Exception {
+		final IOManager ioMan = new IOManagerAsync();
+
+		final TypeSerializer<byte[]> serializer = BytePrimitiveArraySerializer.INSTANCE;
+		final TypeComparator<byte[]> buildComparator = new BytePrimitiveArrayComparator(true);
+		final TypeComparator<byte[]> probeComparator = new BytePrimitiveArrayComparator(true);
+
+		@SuppressWarnings("unchecked")
+		final TypePairComparator<byte[], byte[]> pairComparator = new GenericPairComparator<>(
+			new BytePrimitiveArrayComparator(true), new BytePrimitiveArrayComparator(true));
+
+		final int pageSize = 128;
+		final int numSegments = 33;
+
+		List<MemorySegment> memory = getMemory(numSegments, pageSize);
+
+		MutableHashTable<byte[], byte[]> table = new MutableHashTable<byte[], byte[]>(
+			serializer,
+			serializer,
+			buildComparator,
+			probeComparator,
+			pairComparator,
+			memory,
+			ioMan,
+			1,
+			false);
+
+		int numElements = 9;
+
+		table.open(
+			new CombiningIterator<byte[]>(
+				new ByteArrayIterator(numElements, 128,(byte) 0),
+				new ByteArrayIterator(numElements, 128,(byte) 1)),
+			new CombiningIterator<byte[]>(
+				new ByteArrayIterator(1, 128,(byte) 0),
+				new ByteArrayIterator(1, 128,(byte) 1)));
+
+		while(table.nextRecord()) {
+			MutableHashTable.HashBucketIterator<byte[], byte[]> iterator = table.getBuildSideIterator();
+
+			int counter = 0;
+
+			while(iterator.next() != null) {
+				counter++;
+			}
+
+			// check that we retrieve all our elements
+			Assert.assertEquals(numElements, counter);
+		}
+
+		table.close();
+	}
 	
 	// ------------------------------------------------------------------------
 	//  Utilities
@@ -241,6 +304,34 @@ public class HashTableTest {
 		}
 	}
 
+	private static class ByteArrayIterator implements MutableObjectIterator<byte[]> {
+
+		private final long numRecords;
+		private long counter = 0;
+		private final byte[] arrayValue;
+
+
+		ByteArrayIterator(long numRecords, int length, byte value) {
+			this.numRecords = numRecords;
+			arrayValue = new byte[length];
+			Arrays.fill(arrayValue, value);
+		}
+
+		@Override
+		public byte[] next(byte[] array) {
+			return next();
+		}
+
+		@Override
+		public byte[] next() {
+			if (counter++ < numRecords) {
+				return arrayValue;
+			} else {
+				return null;
+			}
+		}
+	}
+
 	private static class LongIterator implements MutableObjectIterator<Long> {
 
 		private final long numRecords;
@@ -285,6 +376,39 @@ public class HashTableTest {
 				return new ByteValue((byte) 0);
 			} else {
 				return null;
+			}
+		}
+	}
+
+	private static class CombiningIterator<T> implements MutableObjectIterator<T> {
+
+		private final MutableObjectIterator<T> left;
+		private final MutableObjectIterator<T> right;
+
+		public CombiningIterator(MutableObjectIterator<T> left, MutableObjectIterator<T> right) {
+			this.left = left;
+			this.right = right;
+		}
+
+		@Override
+		public T next(T reuse) throws IOException {
+			T value = left.next(reuse);
+
+			if (value == null) {
+				return right.next(reuse);
+			} else {
+				return value;
+			}
+		}
+
+		@Override
+		public T next() throws IOException {
+			T value = left.next();
+
+			if (value == null) {
+				return right.next();
+			} else {
+				return value;
 			}
 		}
 	}
