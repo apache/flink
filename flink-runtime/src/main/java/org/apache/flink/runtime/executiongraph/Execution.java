@@ -135,6 +135,8 @@ public class Execution implements Serializable {
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
 	private SerializedValue<StateHandle<?>> operatorState;
+	
+	private long nextCpId;
 
 	/** The execution context which is used to execute futures. */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
@@ -231,11 +233,12 @@ public class Execution implements Serializable {
 		partialInputChannelDeploymentDescriptors = null;
 	}
 	
-	public void setInitialState(SerializedValue<StateHandle<?>> initialState) {
+	public void setInitialState(SerializedValue<StateHandle<?>> initialState, long nextCpId) {
 		if (state != ExecutionState.CREATED) {
 			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
 		}
 		this.operatorState = initialState;
+		this.nextCpId = nextCpId;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -359,7 +362,7 @@ public class Execution implements Serializable {
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
 			
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState);
+			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState, nextCpId);
 			
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);

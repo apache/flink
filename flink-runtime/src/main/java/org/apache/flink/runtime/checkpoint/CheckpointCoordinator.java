@@ -489,14 +489,16 @@ public class CheckpointCoordinator {
 					return;
 				}
 			}
+			
+			long nextId = checkpointIdCounter.get();
 
 			if (allOrNothingState) {
 				Map<ExecutionJobVertex, Integer> stateCounts = new HashMap<ExecutionJobVertex, Integer>();
-
+				
 				for (StateForTask state : latest.getStates()) {
 					ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
 					Execution exec = vertex.getTaskVertices()[state.getSubtask()].getCurrentExecutionAttempt();
-					exec.setInitialState(state.getState());
+					exec.setInitialState(state.getState(), nextId);
 
 					Integer count = stateCounts.get(vertex);
 					if (count != null) {
@@ -519,7 +521,7 @@ public class CheckpointCoordinator {
 				for (StateForTask state : latest.getStates()) {
 					ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
 					Execution exec = vertex.getTaskVertices()[state.getSubtask()].getCurrentExecutionAttempt();
-					exec.setInitialState(state.getState());
+					exec.setInitialState(state.getState(), nextId);
 				}
 			}
 		}

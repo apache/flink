@@ -38,17 +38,19 @@ public class StateUtils {
 	 *            The state carrier operator.
 	 * @param state
 	 *            The state handle.
+	 * @param nextCheckpointId
+	 *            Next checkpoint id
 	 * @param <T>
 	 *            Type bound for the
 	 */
 	public static <T extends StateHandle<?>> void setOperatorState(StatefulTask<?> op,
-			StateHandle<?> state) throws Exception {
+			StateHandle<?> state, long nextCheckpointId) throws Exception {
 		@SuppressWarnings("unchecked")
 		StatefulTask<T> typedOp = (StatefulTask<T>) op;
 		@SuppressWarnings("unchecked")
 		T typedHandle = (T) state;
 
-		typedOp.setInitialState(typedHandle);
+		typedOp.setInitialState(typedHandle, nextCheckpointId);
 	}
 
 	// ------------------------------------------------------------------------

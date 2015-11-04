@@ -616,7 +616,8 @@ public class ExecutionVertex implements Serializable {
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
 			SimpleSlot targetSlot,
-			SerializedValue<StateHandle<?>> operatorState) {
+			SerializedValue<StateHandle<?>> operatorState,
+			long recoveryTimestamp) {
 
 		// Produced intermediate results
 		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<ResultPartitionDeploymentDescriptor>(resultPartitions.size());
@@ -651,7 +652,7 @@ public class ExecutionVertex implements Serializable {
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
 				producedPartitions, consumedPartitions, jarFiles, classpaths, targetSlot.getRoot().getSlotNumber(),
-				operatorState);
+				operatorState, recoveryTimestamp);
 	}
 
 	// --------------------------------------------------------------------------------------------

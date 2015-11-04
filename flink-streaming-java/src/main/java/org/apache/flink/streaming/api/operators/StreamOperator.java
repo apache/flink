@@ -112,11 +112,13 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *
 	 * @param state The state of operator that was snapshotted as part of checkpoint
 	 *              from which the execution is restored.
+	 * 
+	 * @param nextCpId Next checkpoint id
 	 *
 	 * @throws Exception Exceptions during state restore should be forwarded, so that the system can
 	 *                   properly react to failed state restore and fail the execution attempt.
 	 */
-	void restoreState(StreamTaskState state) throws Exception;
+	void restoreState(StreamTaskState state, long nextCpId) throws Exception;
 
 	/**
 	 * Called when the checkpoint with the given ID is completed and acknowledged on the JobManager.

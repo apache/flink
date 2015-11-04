@@ -57,7 +57,8 @@ public interface KvStateSnapshot<K, V, Backend extends StateBackend<Backend>> ex
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<V> valueSerializer,
 			V defaultValue,
-			ClassLoader classLoader) throws Exception;
+			ClassLoader classLoader,
+			long nextCheckpointId) throws Exception;
 
 
 	/**

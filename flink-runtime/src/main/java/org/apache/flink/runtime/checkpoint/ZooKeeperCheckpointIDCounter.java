@@ -107,6 +107,17 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
 			}
 		}
 	}
+	
+	@Override
+	public long get() throws Exception {
+		ConnectionState connState = connStateListener.getLastState();
+
+		if (connState != null) {
+			throw new IllegalStateException("Connection state: " + connState);
+		}
+
+		return sharedCount.getVersionedValue().getValue();
+	}
 
 	/**
 	 * Connection state listener. In case of {@link ConnectionState#SUSPENDED} or {@link

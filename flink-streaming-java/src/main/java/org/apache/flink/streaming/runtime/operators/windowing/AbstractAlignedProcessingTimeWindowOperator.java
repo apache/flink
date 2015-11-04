@@ -264,8 +264,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	}
 
 	@Override
-	public void restoreState(StreamTaskState taskState) throws Exception {
-		super.restoreState(taskState);
+	public void restoreState(StreamTaskState taskState, long nextCpId) throws Exception {
+		super.restoreState(taskState, nextCpId);
 
 		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();

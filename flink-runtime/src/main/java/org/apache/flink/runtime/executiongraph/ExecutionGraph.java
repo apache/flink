@@ -811,6 +811,7 @@ public class ExecutionGraph implements Serializable {
 	 *
 	 * <p>The recovery of checkpoints might block. Make sure that calls to this method don't
 	 * block the job manager actor and run asynchronously.
+	 * 
 	 */
 	public void restoreLatestCheckpointedState() throws Exception {
 		synchronized (progressLock) {

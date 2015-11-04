@@ -191,7 +191,7 @@ public class MemoryStateBackendTest {
 
 			// restore the first snapshot and validate it
 			KvState<Integer, String, MemoryStateBackend> restored1 = snapshot1.restoreState(backend,
-							IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader());
+							IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
 
 			assertEquals(2, restored1.size());
 			restored1.setCurrentKey(1);
@@ -201,7 +201,7 @@ public class MemoryStateBackendTest {
 
 			// restore the first snapshot and validate it
 			KvState<Integer, String, MemoryStateBackend> restored2 = snapshot2.restoreState(backend,
-					IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader());
+					IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
 
 			assertEquals(3, restored2.size());
 			restored2.setCurrentKey(1);
@@ -243,7 +243,7 @@ public class MemoryStateBackendTest {
 
 			try {
 				snapshot.restoreState(backend, fakeIntSerializer,
-						StringSerializer.INSTANCE, null, getClass().getClassLoader());
+						StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
 				fail("should recognize wrong serializers");
 			} catch (IllegalArgumentException e) {
 				// expected
@@ -253,7 +253,7 @@ public class MemoryStateBackendTest {
 
 			try {
 				snapshot.restoreState(backend, IntSerializer.INSTANCE,
-						fakeStringSerializer, null, getClass().getClassLoader());
+						fakeStringSerializer, null, getClass().getClassLoader(), 1);
 				fail("should recognize wrong serializers");
 			} catch (IllegalArgumentException e) {
 				// expected
@@ -263,7 +263,7 @@ public class MemoryStateBackendTest {
 
 			try {
 				snapshot.restoreState(backend, fakeIntSerializer,
-						fakeStringSerializer, null, getClass().getClassLoader());
+						fakeStringSerializer, null, getClass().getClassLoader(), 1);
 				fail("should recognize wrong serializers");
 			} catch (IllegalArgumentException e) {
 				// expected

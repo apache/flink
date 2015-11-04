@@ -595,7 +595,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 							windowSize, windowSize);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
-			op.restoreState(state);
+			op.restoreState(state, 1);
 			op.open();
 
 			// inject some more elements
@@ -694,7 +694,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 					windowSize, windowSlide);
 
 			op.setup(mockTask, new StreamConfig(new Configuration()), out2);
-			op.restoreState(state);
+			op.restoreState(state, 1);
 			op.open();
 			
 

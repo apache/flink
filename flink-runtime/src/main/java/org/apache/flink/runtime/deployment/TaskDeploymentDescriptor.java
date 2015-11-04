@@ -83,7 +83,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final List<URL> requiredClasspaths;
 
 	private final SerializedValue<StateHandle<?>> operatorState;
-	
+
+	private long nextCpId;
+		
 	/**
 	 * Constructs a task deployment descriptor.
 	 */
@@ -94,7 +96,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
-			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState) {
+			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState, long nextCpId) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
@@ -115,6 +117,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
+		this.nextCpId = nextCpId;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -128,7 +131,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
-				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null);
+				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
 	}
 
 	/**
@@ -244,5 +247,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public SerializedValue<StateHandle<?>> getOperatorState() {
 		return operatorState;
+	}
+	
+	public long getNextCpId() {
+		return nextCpId;
 	}
 }

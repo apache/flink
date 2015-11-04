@@ -198,7 +198,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void setInitialState(StateHandle<Serializable> stateHandle) throws Exception {
+		public void setInitialState(StateHandle<Serializable> stateHandle, long ts) throws Exception {
 
 		}
 

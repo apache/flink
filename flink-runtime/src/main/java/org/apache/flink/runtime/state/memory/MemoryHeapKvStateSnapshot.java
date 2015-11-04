@@ -70,7 +70,8 @@ public class MemoryHeapKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, Me
 			final TypeSerializer<K> keySerializer,
 			final TypeSerializer<V> valueSerializer,
 			V defaultValue,
-			ClassLoader classLoader) throws Exception {
+			ClassLoader classLoader,
+			long nextCpId) throws Exception {
 
 		// validity checks
 		if (!keySerializer.getClass().getName().equals(keySerializerClassName) ||

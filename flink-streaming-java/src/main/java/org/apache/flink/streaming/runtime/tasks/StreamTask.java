@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -138,6 +139,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
 	private volatile boolean isRunning;
+
+	private long nextCpId;
 	
 
 	// ------------------------------------------------------------------------
@@ -382,8 +385,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void setInitialState(StreamTaskStateList initialState) {
+	public void setInitialState(StreamTaskStateList initialState, long nextCpId) {
 		lazyRestoreState = initialState;
+		this.nextCpId = nextCpId;
 	}
 	
 	public void restoreStateLazy() throws Exception {
@@ -403,7 +407,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					
 					if (state != null && operator != null) {
 						LOG.debug("Task {} in chain ({}) has checkpointed state", i, getName());
-						operator.restoreState(state);
+						operator.restoreState(state, nextCpId);
 					}
 					else if (operator != null) {
 						LOG.debug("Task {} in chain ({}) does not have checkpointed state", i, getName());
@@ -463,6 +467,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		synchronized (lock) {
 			if (isRunning) {
 				LOG.debug("Notification of complete checkpoint for task {}", getName());
+				
+				// We first notify the state backend if necessary
+				if (stateBackend instanceof CheckpointNotifier) {
+					((CheckpointNotifier) stateBackend).notifyCheckpointComplete(checkpointId);
+				}
 				
 				for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 					if (operator != null) {
