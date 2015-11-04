@@ -38,10 +38,10 @@ limitations under the License.
       <td><span ng-if="v['end-time'] &gt; -1">{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="v.duration &gt; -1">{{ v.duration }} ms</span></td>
       <td class="td-long">{{ v.name | humanizeText }}</td>
-      <td>{{ v.metrics['read-bytes'] }}</td>
-      <td>{{ v.metrics['read-records'] }}</td>
-      <td>{{ v.metrics['write-bytes'] }}</td>
-      <td>{{ v.metrics['write-records'] }}</td>
+      <td>{{ v.metrics['read-bytes'] | number }}</td>
+      <td>{{ v.metrics['read-records'] | number }}</td>
+      <td>{{ v.metrics['write-bytes'] | number }}</td>
+      <td>{{ v.metrics['write-records'] | number }}</td>
       <td>
         <div class="label-group">
           <bs-label status="{{status}}" ng-repeat="(index, status) in stateList">{{v.tasks[status]}}</bs-label>

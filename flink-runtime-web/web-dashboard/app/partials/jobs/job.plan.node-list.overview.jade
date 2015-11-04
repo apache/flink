@@ -39,10 +39,10 @@ table.table.table-body-hover.table-clickable.table-activable
         span(ng-if="v.duration > -1") {{ v.duration }} ms
 
       td.td-long {{ v.name | humanizeText }}
-      td {{ v.metrics['read-bytes'] }}
-      td {{ v.metrics['read-records'] }}
-      td {{ v.metrics['write-bytes'] }}
-      td {{ v.metrics['write-records'] }}
+      td {{ v.metrics['read-bytes'] | number }}
+      td {{ v.metrics['read-records'] | number }}
+      td {{ v.metrics['write-bytes'] | number }}
+      td {{ v.metrics['write-records'] | number }}
       td
         .label-group
           bs-label(status="{{status}}" ng-repeat="(index, status) in stateList") {{v.tasks[status]}}

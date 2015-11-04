@@ -43,13 +43,13 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="subta
         span(ng-if="subtask.duration > -1") {{ subtask.duration }} ms
 
       td
-        span(ng-if="subtask.metrics['read-bytes'] > -1") {{ subtask.metrics['read-bytes'] }}
+        span(ng-if="subtask.metrics['read-bytes'] > -1") {{ subtask.metrics['read-bytes'] | number }}
       td
-        span(ng-if="subtask.metrics['read-records'] > -1") {{ subtask.metrics['read-records'] }}
+        span(ng-if="subtask.metrics['read-records'] > -1") {{ subtask.metrics['read-records'] | number }}
       td
-        span(ng-if="subtask.metrics['write-bytes'] > -1") {{ subtask.metrics['write-bytes'] }}
+        span(ng-if="subtask.metrics['write-bytes'] > -1") {{ subtask.metrics['write-bytes'] | number }}
       td
-        span(ng-if="subtask.metrics['write-records'] > -1") {{ subtask.metrics['write-records'] }}
+        span(ng-if="subtask.metrics['write-records'] > -1") {{ subtask.metrics['write-records'] | number }}
 
       td {{ subtask.attempt + 1 }}
       td {{ subtask.host }}
