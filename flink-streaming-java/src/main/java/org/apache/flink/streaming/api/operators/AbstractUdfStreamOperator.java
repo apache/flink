@@ -20,8 +20,10 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
@@ -44,7 +46,7 @@ import static java.util.Objects.requireNonNull;
  * @param <F>
  *            The type of the user function
  */
-public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> {
+public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -174,6 +176,20 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 			((CheckpointNotifier) userFunction).notifyCheckpointComplete(checkpointId);
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Output type configuration
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+		if (userFunction instanceof OutputTypeConfigurable) {
+			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) userFunction;
+
+			outputTypeConfigurable.setOutputType(outTypeInfo, executionConfig);
+		}
+	}
+
 
 	// ------------------------------------------------------------------------
 	//  Utilities
