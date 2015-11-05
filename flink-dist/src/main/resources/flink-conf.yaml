@@ -66,6 +66,10 @@ parallelism.default: 1
 
 jobmanager.web.port: 8081
 
+# Flag to specify whether job submission is enabled from the web-based
+# runtime monitor. Uncomment to disable.
+
+#jobmanager.web.submit.enable: false
 
 # The port uder which the standalone web client
 # (for job upload and submit) listens.

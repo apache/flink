@@ -40,7 +40,10 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -66,6 +69,8 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 	private final String contentType;
 
 	private String localJobManagerAddress;
+
+	public static final String WEB_MONITOR_ADDRESS_KEY = "web.monitor.address";
 
 	public RuntimeMonitorHandler(
 			RequestHandler handler,
@@ -113,7 +118,16 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 		DefaultFullHttpResponse response;
 
 		try {
-			String result = handler.handleRequest(routed.pathParams(), jobManager);
+			// we only pass the first element in the list to the handlers.
+			Map<String, String> queryParams = new HashMap<>();
+			for (String key : routed.queryParams().keySet()) {
+				queryParams.put(key, routed.queryParam(key));
+			}
+
+			InetSocketAddress address = (InetSocketAddress) ctx.channel().localAddress();
+			queryParams.put(WEB_MONITOR_ADDRESS_KEY, address.getHostName() + ":" + address.getPort());
+
+			String result = handler.handleRequest(routed.pathParams(), queryParams, jobManager);
 			byte[] bytes = result.getBytes(ENCODING);
 
 			response = new DefaultFullHttpResponse(

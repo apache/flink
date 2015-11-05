@@ -49,7 +49,7 @@ public class ClusterOverviewHandler implements RequestHandler, RequestHandler.Js
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		// we need no parameters, get all requests
 		try {
 			if (jobManager != null) {

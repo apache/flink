@@ -18,29 +18,17 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
-public class JobCancellationHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JarAccessDeniedHandler implements RequestHandler, RequestHandler.JsonResponse {
+
+	private static final String ERROR_MESSAGE = "{\"error\": \"Web submission interface is not " +
+			"available for this cluster. Please check the config key jobmanager.web.submit.enable.\"}";
 
 	@Override
 	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
-		try {
-			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
-			if (jobManager != null) {
-				jobManager.tell(new JobManagerMessages.CancelJob(jobid));
-				return "";
-			}
-			else {
-				throw new Exception("No connection to the leading JobManager.");
-			}
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to cancel the job with id: "  + pathParams.get("jobid") + e.getMessage(), e);
-		}
+		return ERROR_MESSAGE;
 	}
 }

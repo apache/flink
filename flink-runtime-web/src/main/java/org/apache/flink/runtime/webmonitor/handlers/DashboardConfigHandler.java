@@ -67,7 +67,7 @@ public class DashboardConfigHandler implements RequestHandler, RequestHandler.Js
 	}
 	
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManagerGateway) {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return this.configString;
 	}
 }
