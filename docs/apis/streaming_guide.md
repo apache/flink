@@ -3069,12 +3069,16 @@ execution under failures.
 First, we look at how to make local variables consistent under failures, and then we look at
 Flink's state interface.
 
+By default state checkpoints will be stored in-memory at the JobManager. For proper persistence of large
+state, Flink supports storing the checkpoints on file systems (HDFS, S3, or any mounted POSIX file system),
+which can be configured in the `flink-conf.yaml` or via `StreamExecutionEnvironment.setStateBackend(…)`. 
 
-### Making Local Variables Consistent
 
-Local variables can be made consistent by using the `Checkpointed` interface.
+### Checkpointing Local Variables
 
-When the user defined function implements the `Checkpointed` interface, the `snapshotState(…)` and `restoreState(…)` 
+Local variables can be checkpointed by using the `Checkpointed` interface.
+
+When the user-defined function implements the `Checkpointed` interface, the `snapshotState(…)` and `restoreState(…)` 
 methods will be executed to draw and restore function state.
 
 In addition to that, user functions can also implement the `CheckpointNotifier` interface to receive notifications on 
@@ -3088,18 +3092,18 @@ For example the same counting, reduce function shown for `OperatorState`s by usi
 {% highlight java %}
 public class CounterSum implements ReduceFunction<Long>, Checkpointed<Long> {
 
-    //persistent counter
+    // persistent counter
     private long counter = 0;
 
     @Override
-    public Long reduce(Long value1, Long value2) throws Exception {
+    public Long reduce(Long value1, Long value2) {
         counter++;
         return value1 + value2;
     }
 
     // regularly persists state during normal operation
     @Override
-    public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+    public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
         return counter;
     }
 
@@ -3111,92 +3115,106 @@ public class CounterSum implements ReduceFunction<Long>, Checkpointed<Long> {
 }
 {% endhighlight %}
 
-### Using the State Interface
+### Using the Key/Value State Interface
 
-Flink supports two types of operator states: partitioned and non-partitioned states.
+The state interface gives access to key/value states, which are a collection of key/value pairs.
+Because the state is partitioned by the keys (distributed accross workers), it can only be used
+on the `KeyedStream`, created via `stream.keyBy(…)` (which means also that it is usable in all
+types of functions on keyed windows).
 
-In case of non-partitioned operator state, an operator state is maintained for each parallel instance of a given operator. 
-When `OperatorState.value()` is called, a separate state is returned in each parallel instance. 
-In practice this means if we keep a counter for the received inputs in a mapper, `value()` will 
-return the number of inputs processed by each parallel mapper.
+The handle to the state can be obtained from the function's `RuntimeContext`. The state handle will
+then give access to the value mapped under the key of the current record or window - each key consequently
+has its own value.
 
-In case of of partitioned operator state a separate state is maintained for each received key. 
-This can be used for instance to count received inputs by different keys, or store and update summary 
-statistics of different sub-streams.
-
-Checkpointing of the states needs to be enabled from the `StreamExecutionEnvironment` using the `enableCheckpointing(…)` 
-where additional parameters can be passed to modify the default 5 second checkpoint interval.
-
-Operator states can be accessed from the `RuntimeContext` using the `getOperatorState(“name”, defaultValue, partitioned)` 
-method so it is only accessible in `RichFunction`s. A recommended usage pattern is to retrieve the operator state in the `open(…)` 
-method of the operator and set it as a field in the operator instance for runtime usage. Multiple `OperatorState`s 
-can be used simultaneously by the same operator by using different names to identify them.
-
-Partitioned operator state is only supported on `KeyedStreams`.
-
-By default operator states are checkpointed using default java serialization thus they need to be `Serializable`. 
-The user can gain more control over the state checkpoint mechanism by passing a `StateCheckpointer` instance when retrieving
- the `OperatorState` from the `RuntimeContext`. The `StateCheckpointer` allows custom implementations for the checkpointing 
- logic for increased efficiency and to store arbitrary non-serializable states.
-
-By default state checkpoints will be stored in-memory at the JobManager. Flink also supports storing the checkpoints on 
- Flink-supported file system which can be set in the flink-conf.yaml. 
- Note that the state backend must be accessible from the JobManager, use `file://` only for local setups.
-
-For example let us write a reduce function that besides summing the data it also counts have many elements it has seen.
+The following code sample shows how to use the key/value state inside a reduce function.
+When creating the state handle, one needs to supply a name for that state (a function can have multiple states
+of different types), the type of the state (used to create efficient serializers), and the default value (returned
+as a value for keys that do not yet have a value associated).
 
 {% highlight java %}
 public class CounterSum implements RichReduceFunction<Long> {
-    
-    //persistent counter
+
+    /** The state handle */
     private OperatorState<Long> counter;
 
     @Override
-    public Long reduce(Long value1, Long value2) throws Exception {
+    public Long reduce(Long value1, Long value2) {
         counter.update(counter.value() + 1);
         return value1 + value2;
     }
 
     @Override
     public void open(Configuration config) {
-        counter = getRuntimeContext().getOperatorState(“counter”, 0L, false);
+        counter = getRuntimeContext().getKeyValueState("myCounter", Long.class, 0L);
     }
 }
 {% endhighlight %} 
 
-Stateful sources require a bit more care as opposed to other operators they are not data driven, but their `run(SourceContext)` methods potentially run infinitely. In order to make the updates to the state and output collection atomic the user is required to get a lock from the source's context.
+State updated by this is usually kept locally inside the flink process (unless one configures explicitly
+an external state backend). This means that lookups and updates are process local and this very fast.
+
+The important implication of having the keys set implicitly is that it forces programs to group the stream
+by key (via the `keyBy()` function), making the key partitioning transparent to Flink. That allows the system
+to efficiently restore and redistribute keys and state.
+
+The Scala API has shortcuts that for stateful `map()` or `flatMap()` functions on `KeyedStream`, which give the
+state of the current key as an option directly into the function, and return the result with a state update:
+
+{% highlight scala %}
+val stream: DataStream[(String, Int)] = ...
+
+val counts: DataStream[(String, Int)] = stream
+  .keyBy(_._1)
+  .mapWithState((in: (String, Int), count: Option[Int]) =>
+    count match {
+      case Some(c) => ( (in._1, c), Some(c + in._2) )
+      case None => ( (in._1, 0), Some(in._2) )
+    })
+{% endhighlight %} 
+
+
+### Stateful Source Functions
+
+Stateful sources require a bit more care as opposed to other operators. 
+In order to make the updates to the state and output collection atomic (required for exactly-once semantics
+on failure/recovery), the user is required to get a lock from the source's context.
 
 {% highlight java %}
-public static class CounterSource implements RichParallelSourceFunction<Long> {
+public static class CounterSource implements RichParallelSourceFunction<Long>, Checkpointed<Long> {
 
-    // utility for job cancellation
-    private volatile boolean isRunning = false;
-    
-    // maintain the current offset for exactly once semantics
-    private OperatorState<Long> offset;
+    /**  current offset for exactly once semantics */
+    private long offset;
+
+    /** flag for job cancellation */
+    private volatile boolean isRunning = true;
     
     @Override
-    public void run(SourceContext<Long> ctx) throws Exception {
-        isRunning = true;
-        Object lock = ctx.getCheckpointLock();
+    public void run(SourceContext<Long> ctx) {
+        final Object lock = ctx.getCheckpointLock();
         
         while (isRunning) {
             // output and state update are atomic
-            synchronized (lock){
+            synchronized (lock) {
                 ctx.collect(offset);
-                offset.update(offset.value() + 1);
+                offset += 1;
             }
         }
     }
 
     @Override
-    public void open(Configuration config) {
-        offset = getRuntimeContext().getOperatorState(“offset”, 0L);
+    public void cancel() {
+        isRunning = false;
     }
 
     @Override
-    public void cancel() {
-        isRunning = false;
+    public Long snapshotState(long checkpointId, long checkpointTimestamp) {
+        return offset;
+
+    }
+
+    @Override
+	public void restoreState(Long state) {
+        offset = state;
     }
 }
 {% endhighlight %}
