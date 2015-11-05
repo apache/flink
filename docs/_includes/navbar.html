@@ -39,7 +39,7 @@ under the License.
         <!-- The navigation links. -->
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
           <ul class="nav navbar-nav">
-            <li{% if page.url == '/index.html' %} class="active"{% endif %}><a href="{{ site.baseurl}}/index.html">Overview<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
+            <li{% if page.url == '/' %} class="active"{% endif %}><a href="{{ site.baseurl}}/">Documentation<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
 
             <!-- Quickstart -->
             <li class="dropdown{% if page.url contains '/quickstart/' %} active{% endif %}">
@@ -113,8 +113,8 @@ under the License.
               <a href="{{ internals }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Internals <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li role="presentation" class="dropdown-header"><strong>Contribute</strong></li>
-                <li><a href="{{ internals }}/how_to_contribute.html">How to Contribute</a></li>
-                <li><a href="{{ internals }}/coding_guidelines.html">Coding Guidelines</a></li>
+                <li><a href="http://flink.apache.org/how-to-contribute.html"><small><span class="glyphicon glyphicon-new-window"></span></small> How to Contribute</a></li>
+                <li><a href="http://flink.apache.org/contribute-code.html#coding-guidelines"><small><span class="glyphicon glyphicon-new-window"></span></small> Coding Guidelines</a></li>
                 <li><a href="{{ internals }}/ide_setup.html">IDE Setup</a></li>
                 <li><a href="{{ internals }}/logging.html">Logging</a></li>
                 <li class="divider"></li>
@@ -130,7 +130,7 @@ under the License.
           </ul>
           <form class="navbar-form navbar-right hidden-sm hidden-md" role="search" action="{{site.baseurl}}/search-results.html">
             <div class="form-group">
-              <input type="text" class="form-control" name="q" placeholder="Search all pages">
+              <input type="text" class="form-control" size="16px" name="q" placeholder="Search all pages">
             </div>
             <button type="submit" class="btn btn-default">Search</button>
           </form>

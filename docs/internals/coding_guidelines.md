@@ -20,4 +20,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The *Coding Guidelines* are located [on the project website](http://flink.apache.org/contribute-code.html#coding-guidelines).
+<meta http-equiv="refresh" content="5; url=http://flink.apache.org/contribute-code.html#coding-guidelines" />
+
+The *Coding Guidelines* are located [on the project website](http://flink.apache.org/contribute-code.html#coding-guidelines) (auto redirect in 5 seconds).
