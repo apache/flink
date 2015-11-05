@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -44,7 +43,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test
@@ -57,7 +56,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = joinDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hallo\n"
-    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -70,10 +69,10 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = ""
-    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[ExpressionException])
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -83,7 +82,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = ""
-    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
   }
 
   @Test
@@ -96,6 +95,6 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "18"
-    TestBaseUtils.compareResults(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
   }
 }

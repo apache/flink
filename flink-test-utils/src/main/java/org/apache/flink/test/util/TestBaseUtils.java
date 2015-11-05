@@ -310,20 +310,6 @@ public class TestBaseUtils extends TestLogger {
 		Assert.assertArrayEquals(expected, result);
 	}
 
-	public static void compareResults(List<?> results, String expectedResults) {
-		String[] collected = new String[results.size()];
-		for (int i=0; i<results.size(); i++) {
-			collected[i] = results.get(i).toString();
-		}
-
-		String[] expected = expectedResults.split("\n");
-
-		Arrays.sort(collected);
-		Arrays.sort(expected);
-		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, collected.length);
-		Assert.assertArrayEquals(expected, collected);
-	}
-
 	public static void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr,
 																	String resultPath) throws Exception {
 		compareResultsByLinesInMemoryWithStrictOrder(expectedResultStr, resultPath, new String[]{});

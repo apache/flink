@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.table.test;
 
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
@@ -59,7 +58,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 
 		String expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n";
-		compareResults(results, expected);
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -78,7 +77,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 
 		String expected = "Hi\n" + "Hallo\n";
-		compareResults(results, expected);
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -97,10 +96,10 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 
 		String expected = "";
-		compareResults(results, expected);
+		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test(expected = ExpressionException.class)
 	public void testUnionFieldsNameNotOverlap2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -116,7 +115,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 
 		String expected = "";
-		compareResults(results, expected);
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -135,7 +134,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 
 		String expected = "18";
-		compareResults(results, expected);
+		compareResultAsText(results, expected);
 	}
 
 }
