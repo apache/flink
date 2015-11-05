@@ -20,4 +20,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The *How to Contribute* guide is located [on the project website](http://flink.apache.org/how-to-contribute.html).
+<meta http-equiv="refresh" content="5; url=http://flink.apache.org/how-to-contribute.html" />
+
+The *How to Contribute* guide is located [on the project website](http://flink.apache.org/how-to-contribute.html) (auto redirect in 5 seconds).
