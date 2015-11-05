@@ -19,38 +19,52 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.ActorGateway;
 
+import java.io.File;
+import java.io.FilenameFilter;
 import java.io.StringWriter;
 import java.util.Map;
 
 /**
- * Returns the Job Manager's configuration.
+ * Handles requests for deletion of jars.
  */
-public class JobManagerConfigHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JarDeleteHandler implements RequestHandler, RequestHandler.JsonResponse {
 
-	private final Configuration config;
+	private final File jarDir;
 
-	public JobManagerConfigHandler(Configuration config) {
-		this.config = config;
+	public JarDeleteHandler(File jarDirectory) {
+		jarDir = jarDirectory;
 	}
 
 	@Override
 	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
-		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
-
-		gen.writeStartArray();
-		for (String key : config.keySet()) {
+		final String file = pathParams.get("jarid");
+		try {
+			File[] list = jarDir.listFiles(new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.equals(file);
+				}
+			});
+			boolean success = false;
+			for (File f: list) {
+				// although next to impossible for multiple files, we still delete them.
+				success = success || f.delete();
+			}
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
 			gen.writeStartObject();
-			gen.writeStringField("key", key);
-			gen.writeStringField("value", config.getString(key, null));
+			if (!success) {
+				// this seems to always fail on Windows.
+				gen.writeStringField("error", "The requested jar couldn't be deleted. Please try again.");
+			}
 			gen.writeEndObject();
+			gen.close();
+			return writer.toString();
 		}
-		gen.writeEndArray();
-
-		gen.close();
-		return writer.toString();
+		catch (Exception e) {
+			throw new RuntimeException("Failed to delete jar id " + pathParams.get("jarid") + ": " + e.getMessage(), e);
+		}
 	}
 }

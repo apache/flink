@@ -193,4 +193,11 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobmanager/log.html"
         controller: 'JobManagerLogsController'
 
+  .state "submit",
+      url: "/submit"
+      views:
+        main:
+          templateUrl: "partials/submit.html"
+          controller: "JobSubmitController"
+
   $urlRouterProvider.otherwise "/overview"

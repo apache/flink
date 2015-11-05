@@ -18,29 +18,38 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.JobID;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 
+import java.io.File;
+import java.io.StringWriter;
 import java.util.Map;
 
-public class JobCancellationHandler implements RequestHandler, RequestHandler.JsonResponse {
+/**
+ * This handler handles requests to fetch plan for a jar.
+ */
+public class JarPlanHandler extends JarActionHandler {
+
+	public JarPlanHandler(File jarDirectory) {
+		super(jarDirectory);
+	}
 
 	@Override
 	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
-			if (jobManager != null) {
-				jobManager.tell(new JobManagerMessages.CancelJob(jobid));
-				return "";
-			}
-			else {
-				throw new Exception("No connection to the leading JobManager.");
-			}
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to cancel the job with id: "  + pathParams.get("jobid") + e.getMessage(), e);
+			JobGraph graph = getJobGraphAndClassLoader(pathParams, queryParams).f0;
+			StringWriter writer = new StringWriter();
+			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+			gen.writeStartObject();
+			gen.writeFieldName("plan");
+			gen.writeRawValue(JsonPlanGenerator.generatePlan(graph));
+			gen.writeEndObject();
+			gen.close();
+			return writer.toString();
+		} catch (Exception e) {
+			return sendError(e);
 		}
 	}
 }

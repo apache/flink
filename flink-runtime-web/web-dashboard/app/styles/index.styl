@@ -177,12 +177,88 @@ sidebar-width-small = 160px
       
     td
       position: relative
-      
+
+  &.table-no-border
+    th
+      border-top: none !important
+    td
+      border-top: none !important
+
+  &#job-submit-table
+    table-layout: fixed
+    white-space: nowrap
+    td.td-large
+      width: 40%
+    td
+      width: 15%
+      > input
+        height: 28px
+        font-size: 14px
+      > span.btn
+        padding: 2px 4px
+        font-size: 14px
+
+  &#add-file-table
+    table-layout: fixed
+
+    span.btn
+      position: relative
+      overflow: hidden
+      padding: 2px 4px
+      font-size: 14px
+      border-radius: 2px
+      margin-top: -3px
+
+    td#add-file-button
+      width: 100px
+
+      input[type=file]
+        position: absolute
+        top: 0
+        right: 0
+        min-width: 100%
+        min-height: 100%
+        filter: unquote("alpha(opacity=0)")
+        opacity: 0
+        outline: none
+        cursor: inherit
+        display: block
+
+    td#add-file-name
+      width: 250px
+      text-overflow: ellipsis
+      overflow: hidden
+      white-space: nowrap
+
+    td#add-file-status
+      width: 100%
+
+      span.btn-progress-bar
+        padding: 0 !important
+        width: 100%
+        background-color: #f5f5f5
+        text-align: left
+      span.btn-progress
+        padding: 2px 2px
+        font-size: 10px
+
+
+  span.error-area
+    color: red
+
+  span.row-button
+    padding: 1px 2px
+    margin: 0
+    border: none !important
+
   .small-label
     text-transform: uppercase
     font-size: 13px
     color: #999999
 
+span.icon-wrapper
+  width: 1.2em
+  display: inline-block
 
 .panel
   &.panel-dashboard
@@ -330,6 +406,13 @@ pre.exception
   padding: 0
   margin: 0
 
+pre
+  white-space: pre-wrap
+  white-space: -moz-pre-wrap
+  white-space: -pre-wrap
+  white-space: -o-pre-wrap
+  word-wrap: break-word
+
 .nav-tabs
   &.tabs-vertical
     // float: right
@@ -426,4 +509,12 @@ livechart
 
 .show-pointer
   cursor: pointer
+
+#fetch-plan
+  width: 100px
+
+#job-submit
+  width: 100px
+
+
 
