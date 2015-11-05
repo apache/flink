@@ -655,7 +655,7 @@ expects input type `I`.
 
 In some applications, it is desirable to combine a DataSet into an intermediate
 format before performing additional transformations (e.g. to reduce data
-size). This can be achieved with a ComineGroup transformation with very little
+size). This can be achieved with a CombineGroup transformation with very little
 costs.
 
 **Note:** The GroupCombine on a Grouped DataSet is performed in memory with a
@@ -665,7 +665,7 @@ costs.
   results.
 
 The following example demonstrates the use of a CombineGroup transformation for
-an alternative WordCount implementation. In the implementation,
+an alternative WordCount implementation.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -736,7 +736,7 @@ val output: DataSet[(String, Int)] = combinedWords
 The above alternative WordCount implementation demonstrates how the GroupCombine
 combines words before performing the GroupReduce transformation. The above
 example is just a proof of concept. Note, how the combine step changes the type
-of the DataSet which would normally required an additional Map transformation
+of the DataSet which would normally require an additional Map transformation
 before executing the GroupReduce.
 
 ### Aggregate on Grouped Tuple DataSet
@@ -747,7 +747,7 @@ There are some common aggregation operations that are frequently used. The Aggre
 - Min, and
 - Max.
 
-The Aggregate transformation can only be applied on a Tuple DataSet and supports only field positions keys for grouping.
+The Aggregate transformation can only be applied on a Tuple DataSet and supports only field position keys for grouping.
 
 The following code shows how to apply an Aggregation transformation on a DataSet grouped by field position keys:
 
