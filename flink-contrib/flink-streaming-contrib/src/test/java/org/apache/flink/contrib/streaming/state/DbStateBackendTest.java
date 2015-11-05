@@ -23,17 +23,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -49,19 +50,21 @@ import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.shaded.com.google.common.collect.Lists;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 
 public class DbStateBackendTest {
 
 	private static NetworkServerControl server;
 	private static File tempDir;
 	private static DbBackendConfig conf;
+	private static String url1;
+	private static String url2;
 
 	@BeforeClass
 	public static void startDerbyServer() throws UnknownHostException, Exception {
@@ -70,9 +73,11 @@ public class DbStateBackendTest {
 		tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		conf = new DbBackendConfig("flink", "flink",
 				"jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
-		conf.setDbAdapterClass(DerbyAdapter.class);
+		conf.setDbAdapter(new DerbyAdapter());
 		conf.setKvStateCompactionFrequency(1);
 
+		url1 = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true";
+		url2 = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB2;create=true";
 	}
 
 	@AfterClass
@@ -100,14 +105,14 @@ public class DbStateBackendTest {
 		Environment env = new DummyEnvironment("test", 1, 0);
 		backend.initializeForJob(env);
 
-		assertNotNull(backend.getConnection());
-		assertTrue(isTableCreated(backend.getConnection(), "checkpoints_" + env.getJobID().toString()));
+		assertNotNull(backend.getConnections());
+		assertTrue(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
 
 		backend.disposeAllStateForCurrentJob();
-		assertFalse(isTableCreated(backend.getConnection(), "checkpoints_" + env.getJobID().toString()));
+		assertFalse(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
 		backend.close();
 
-		assertTrue(backend.getConnection().isClosed());
+		assertTrue(backend.getConnections().getFirst().isClosed());
 	}
 
 	@Test
@@ -134,12 +139,12 @@ public class DbStateBackendTest {
 		assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 		handle2.discardState();
 
-		assertFalse(isTableEmpty(backend.getConnection(), "checkpoints_" + env.getJobID().toString()));
+		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
 
 		assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 		handle3.discardState();
 
-		assertTrue(isTableEmpty(backend.getConnection(), "checkpoints_" + env.getJobID().toString()));
+		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
 
 		backend.close();
 
@@ -154,24 +159,17 @@ public class DbStateBackendTest {
 		try {
 			FsStateBackend fileBackend = new FsStateBackend(localFileUri(tempDir));
 
-			DbBackendConfig conf2 = new DbBackendConfig("flink", "flink",
-					"jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB2;create=true");
-			conf2.setDbAdapterClass(DerbyAdapter.class);
-
 			DbStateBackend backend = new DbStateBackend(conf, fileBackend);
-			DbStateBackend backend2 = new DbStateBackend(conf2, fileBackend);
 
 			Environment env = new DummyEnvironment("test", 2, 0);
-			Environment env2 = new DummyEnvironment("test", 2, 1);
 
 			backend.initializeForJob(env);
-			backend2.initializeForJob(env2);
 
 			LazyDbKvState<Integer, String> kv = backend.createKvState(1, "state1", IntSerializer.INSTANCE,
 					StringSerializer.INSTANCE, null);
 
 			String tableName = "kvstate_" + env.getJobID() + "_1_state1";
-			assertTrue(isTableCreated(backend.getConnection(), tableName));
+			assertTrue(isTableCreated(backend.getConnections().getFirst(), tableName));
 
 			assertEquals(0, kv.size());
 
@@ -188,7 +186,7 @@ public class DbStateBackendTest {
 			assertEquals("1", kv.value());
 			assertEquals(2, kv.size());
 
-			kv.shapshot(682375462378L, 100);
+			kv.snapshot(682375462378L, 100);
 
 			// make some more modifications
 			kv.setCurrentKey(1);
@@ -198,19 +196,19 @@ public class DbStateBackendTest {
 			kv.setCurrentKey(3);
 			kv.update("u3");
 
-			assertTrue(containsKey(backend.getConnection(), tableName, 1, 1));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462378L));
 
 			kv.notifyCheckpointComplete(682375462378L);
 
 			// draw another snapshot
-			KvStateSnapshot<Integer, String, DbStateBackend> snapshot2 = kv.shapshot(682375462379L,
+			KvStateSnapshot<Integer, String, DbStateBackend> snapshot2 = kv.snapshot(682375462379L,
 					200);
-			assertTrue(containsKey(backend.getConnection(), tableName, 1, 1));
-			assertTrue(containsKey(backend.getConnection(), tableName, 1, 682375462379L));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462378L));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462379L));
 			kv.notifyCheckpointComplete(682375462379L);
 			// Compaction should be performed
-			assertFalse(containsKey(backend.getConnection(), tableName, 1, 1));
-			assertTrue(containsKey(backend.getConnection(), tableName, 1, 682375462379L));
+			assertFalse(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462378L));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462379L));
 
 			// validate the original state
 			assertEquals(3, kv.size());
@@ -233,31 +231,7 @@ public class DbStateBackendTest {
 			restored2.setCurrentKey(3);
 			assertEquals("u3", restored2.value());
 
-			LazyDbKvState<Integer, String> kv2 = backend2.createKvState(1, "state2", IntSerializer.INSTANCE,
-					StringSerializer.INSTANCE, "a");
-
-			kv2.setCurrentKey(1);
-			kv2.update("c");
-
-			assertEquals("c", kv2.value());
-
-			kv2.update(null);
-			assertEquals("a", kv2.value());
-
-			KvStateSnapshot<Integer, String, DbStateBackend> snapshot3 = kv2.shapshot(682375462380L,
-					400);
-			kv2.notifyCheckpointComplete(682375462380L);
-			try {
-				// Restoring should fail with the wrong backend
-				snapshot3.restoreState(backend, IntSerializer.INSTANCE, StringSerializer.INSTANCE, "a",
-						getClass().getClassLoader(), System.currentTimeMillis());
-				fail();
-			} catch (IOException e) {
-
-			}
-
 			backend.close();
-			backend2.close();
 		} finally {
 			deleteDirectorySilently(tempDir);
 		}
@@ -265,34 +239,30 @@ public class DbStateBackendTest {
 
 	@Test
 	public void testCleanupTasks() throws Exception {
-		String url = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true";
-
-		DbBackendConfig conf = new DbBackendConfig("flink", "flink", Lists.newArrayList(url, url));
-		conf.setDbAdapterClass(DerbyAdapter.class);
+		DbBackendConfig conf = new DbBackendConfig("flink", "flink", url1);
+		conf.setDbAdapter(new DerbyAdapter());
 
 		DbStateBackend backend1 = new DbStateBackend(conf);
 		DbStateBackend backend2 = new DbStateBackend(conf);
 		DbStateBackend backend3 = new DbStateBackend(conf);
-		DbStateBackend backend4 = new DbStateBackend(conf);
-		DbStateBackend backend5 = new DbStateBackend(conf);
 
-		backend1.initializeForJob(new DummyEnvironment("test", 5, 0));
-		backend2.initializeForJob(new DummyEnvironment("test", 5, 1));
-		backend3.initializeForJob(new DummyEnvironment("test", 5, 2));
-		backend4.initializeForJob(new DummyEnvironment("test", 5, 3));
-		backend5.initializeForJob(new DummyEnvironment("test", 5, 4));
+		backend1.initializeForJob(new DummyEnvironment("test", 3, 0));
+		backend2.initializeForJob(new DummyEnvironment("test", 3, 1));
+		backend3.initializeForJob(new DummyEnvironment("test", 3, 2));
 
 		assertTrue(backend1.createKvState(1, "a", null, null, null).isCompacter());
-		assertTrue(backend2.createKvState(1, "a", null, null, null).isCompacter());
+		assertFalse(backend2.createKvState(1, "a", null, null, null).isCompacter());
 		assertFalse(backend3.createKvState(1, "a", null, null, null).isCompacter());
-		assertFalse(backend4.createKvState(1, "a", null, null, null).isCompacter());
-		assertFalse(backend5.createKvState(1, "a", null, null, null).isCompacter());
 	}
 
 	@Test
 	public void testCaching() throws Exception {
-		// We copy the config before setting the caching parameters
-		DbBackendConfig conf = DbStateBackendTest.conf.createConfigForShard(0);
+		
+		List<String> urls = Lists.newArrayList(url1, url2);
+		DbBackendConfig conf = new DbBackendConfig("flink", "flink",
+				urls);
+
+		conf.setDbAdapter(new DerbyAdapter());
 		conf.setKvCacheSize(3);
 		conf.setMaxKvInsertBatchSize(2);
 
@@ -303,10 +273,18 @@ public class DbStateBackendTest {
 
 		Environment env = new DummyEnvironment("test", 2, 0);
 
+		String tableName = "kvstate_" + env.getJobID() + "_1_state1";
+		assertFalse(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
+		assertFalse(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
+
 		backend.initializeForJob(env);
 
 		LazyDbKvState<Integer, String> kv = backend.createKvState(1, "state1", IntSerializer.INSTANCE,
 				StringSerializer.INSTANCE, "a");
+		
+		assertTrue(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
+		assertTrue(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
+		
 		Map<Integer, Optional<String>> cache = kv.getStateCache();
 		Map<Integer, Optional<String>> modified = kv.getModified();
 
@@ -322,6 +300,7 @@ public class DbStateBackendTest {
 		assertEquals("a", kv.value());
 		kv.update("2");
 		assertEquals(2, kv.size());
+		assertEquals("2", kv.value());
 
 		kv.setCurrentKey(1);
 		assertEquals("a", kv.value());
@@ -350,7 +329,7 @@ public class DbStateBackendTest {
 		assertFalse(cache.containsKey(2));
 
 		// draw a snapshot
-		kv.shapshot(682375462378L, 100);
+		kv.snapshot(682375462378L, 100);
 
 		assertTrue(modified.isEmpty());
 
@@ -358,6 +337,7 @@ public class DbStateBackendTest {
 		kv.setCurrentKey(2);
 		assertEquals("2", kv.value());
 		kv.update(null);
+		assertEquals("a", kv.value());
 
 		assertTrue(modified.containsKey(2));
 		assertEquals(1, modified.size());
@@ -368,8 +348,10 @@ public class DbStateBackendTest {
 		assertFalse(cache.containsKey(1));
 
 		assertTrue(modified.containsKey(2));
-		assertTrue(modified.containsKey(3));
-		assertTrue(modified.containsKey(4));
+		assertFalse(modified.containsKey(3));
+		assertFalse(modified.containsKey(4));
+		assertTrue(cache.containsKey(3));
+		assertTrue(cache.containsKey(4));
 
 		// clear cache from initial keys
 
@@ -395,7 +377,7 @@ public class DbStateBackendTest {
 		long checkpointTs = System.currentTimeMillis();
 
 		// Draw a snapshot that we will restore later
-		KvStateSnapshot<Integer, String, DbStateBackend> snapshot1 = kv.shapshot(682375462379L, checkpointTs);
+		KvStateSnapshot<Integer, String, DbStateBackend> snapshot1 = kv.snapshot(682375462379L, checkpointTs);
 		assertTrue(modified.isEmpty());
 
 		// Do some updates then draw another snapshot (imitate a partial
@@ -411,7 +393,7 @@ public class DbStateBackendTest {
 		kv.update("4");
 		kv.update("5");
 
-		kv.shapshot(6823754623710L, checkpointTs + 10);
+		kv.snapshot(6823754623710L, checkpointTs + 10);
 
 		// restore the second snapshot and validate it (we set a new default
 		// value here to make sure that the default wasn't written)
@@ -450,7 +432,7 @@ public class DbStateBackendTest {
 			return smt.executeQuery().next();
 		}
 	}
-
+	
 	private static String localFileUri(File path) {
 		return path.toURI().toString();
 	}

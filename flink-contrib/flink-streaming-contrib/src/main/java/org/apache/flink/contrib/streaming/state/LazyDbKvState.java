@@ -21,7 +21,6 @@ import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,9 +31,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 
-import org.apache.derby.client.am.SqlException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.ShardedConnection.ShardedStatement;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
@@ -79,13 +78,15 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 	// Database properties
 	private final DbBackendConfig conf;
-	private final Connection con;
-	private final MySqlAdapter dbAdapter;
-	private final BatchInsert batchInsert;
+	private final ShardedConnection connections;
+	private final DbAdapter dbAdapter;
+
+	// Convenience object for handling inserts to the database
+	private final BatchInserter batchInsert;
 
 	// Statements for key-lookups and inserts as prepared by the dbAdapter
-	private PreparedStatement selectStatement;
-	private PreparedStatement insertStatement;
+	private ShardedStatement selectStatements;
+	private ShardedStatement insertStatements;
 
 	// ------------------------------------------------------
 
@@ -100,15 +101,15 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * Constructor to initialize the {@link LazyDbKvState} the first time the
 	 * job starts.
 	 */
-	public LazyDbKvState(String kvStateId, boolean compact, Connection con, DbBackendConfig conf,
+	public LazyDbKvState(String kvStateId, boolean compact, ShardedConnection cons, DbBackendConfig conf,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
-		this(kvStateId, compact, con, conf, keySerializer, valueSerializer, defaultValue, 1);
+		this(kvStateId, compact, cons, conf, keySerializer, valueSerializer, defaultValue, 1);
 	}
 
 	/**
 	 * Initialize the {@link LazyDbKvState} from a snapshot.
 	 */
-	public LazyDbKvState(String kvStateId, boolean compact, Connection con, final DbBackendConfig conf,
+	public LazyDbKvState(String kvStateId, boolean compact, ShardedConnection cons, final DbBackendConfig conf,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue, long nextId)
 					throws IOException {
 
@@ -121,7 +122,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 		this.maxInsertBatchSize = conf.getMaxKvInsertBatchSize();
 		this.conf = conf;
-		this.con = con;
+		this.connections = cons;
 		this.dbAdapter = conf.getDbAdapter();
 		this.compactEvery = conf.getKvStateCompactionFrequency();
 		this.numSqlRetries = conf.getMaxNumberOfSqlRetries();
@@ -131,9 +132,9 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 		this.cache = new StateCache(conf.getKvCacheSize(), conf.getNumElementsToEvict());
 
-		initDB(this.con);
+		initDB(this.connections);
 
-		batchInsert = new BatchInsert();
+		batchInsert = new BatchInserter(connections.getNumShards());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Lazy database kv-state ({}) successfully initialized", kvStateId);
@@ -172,7 +173,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	}
 
 	@Override
-	public DbKvStateSnapshot<K, V> shapshot(long checkpointId, long timestamp) throws IOException {
+	public DbKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws IOException {
 
 		// We insert the modified elements to the database with the current id
 		// then clear the modified states
@@ -209,15 +210,17 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * Create a table for the kvstate checkpoints (based on the kvStateId) and
 	 * prepare the statements used during checkpointing.
 	 */
-	private void initDB(final Connection con) throws IOException {
+	private void initDB(final ShardedConnection cons) throws IOException {
 
 		retry(new Callable<Void>() {
 			public Void call() throws Exception {
 
-				dbAdapter.createKVStateTable(kvStateId, con);
+				for (Connection con : cons.connections()) {
+					dbAdapter.createKVStateTable(kvStateId, con);
+				}
 
-				insertStatement = dbAdapter.prepareKVCheckpointInsert(kvStateId, con);
-				selectStatement = dbAdapter.prepareKeyLookup(kvStateId, con);
+				insertStatements = cons.prepareStatement(dbAdapter.prepareKVCheckpointInsert(kvStateId));
+				selectStatements = cons.prepareStatement(dbAdapter.prepareKeyLookup(kvStateId));
 
 				return null;
 			}
@@ -230,7 +233,9 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		// If compaction is turned on we compact on the first subtask
 		if (compactEvery > 0 && compact && checkpointId % compactEvery == 0) {
 			try {
-				dbAdapter.compactKvStates(kvStateId, con, 0, checkpointId);
+				for (Connection c : connections.connections()) {
+					dbAdapter.compactKvStates(kvStateId, c, 0, checkpointId);
+				}
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("State succesfully compacted for {}.", kvStateId);
 				}
@@ -245,12 +250,12 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		// We are only closing the statements here, the connection is borrowed
 		// from the state backend and will be closed there.
 		try {
-			selectStatement.close();
+			selectStatements.close();
 		} catch (SQLException e) {
 			// There is not much to do about this
 		}
 		try {
-			insertStatement.close();
+			insertStatements.close();
 		} catch (SQLException e) {
 			// There is not much to do about this
 		}
@@ -302,22 +307,26 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 				ClassLoader classLoader, final long nextId) throws IOException {
 
 			// First we clean up the states written by partially failed
-			// snapshots (we only do it on 1 subtask)
+			// snapshots
 			retry(new Callable<Void>() {
 				public Void call() throws Exception {
-					stateBackend.getConfiguration().getDbAdapter().cleanupFailedCheckpoints(kvStateId,
-							stateBackend.getConnection(), checkpointId, nextId);
+
+					// We need to perform cleanup on all shards to be safe here
+					for (Connection c : stateBackend.getConnections().connections()) {
+						stateBackend.getConfiguration().getDbAdapter().cleanupFailedCheckpoints(kvStateId,
+								c, checkpointId, nextId);
+					}
 
 					return null;
 				}
 			}, stateBackend.getConfiguration().getMaxNumberOfSqlRetries(),
 					stateBackend.getConfiguration().getSleepBetweenSqlRetries());
 
-			boolean cleanup = stateBackend.getEnvironment().getIndexInSubtaskGroup() == stateBackend.getShardIndex();
+			boolean cleanup = stateBackend.getEnvironment().getIndexInSubtaskGroup() == 0;
 
 			// Restore the KvState
 			LazyDbKvState<K, V> restored = new LazyDbKvState<K, V>(kvStateId, cleanup,
-					stateBackend.getConnection(), stateBackend.getConfiguration(), keySerializer, valueSerializer,
+					stateBackend.getConnections(), stateBackend.getConfiguration(), keySerializer, valueSerializer,
 					defaultValue, nextId);
 
 			if (LOG.isDebugEnabled()) {
@@ -376,9 +385,6 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 				value = Optional.fromNullable(getFromDatabaseOrNull((K) key));
 				put((K) key, value);
 			}
-			// We currently mark elements that were retreived also as modified
-			// in case the user applies some mutation without update.
-			modified.put((K) key, value);
 			return value;
 		}
 
@@ -400,10 +406,11 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			try {
 				return retry(new Callable<V>() {
 					public V call() throws Exception {
+						byte[] serializedKey = InstantiationUtil.serializeToByteArray(keySerializer, key);
 						// We lookup using the adapter and serialize/deserialize
 						// with the TypeSerializers
-						byte[] serializedVal = dbAdapter.lookupKey(kvStateId, selectStatement,
-								InstantiationUtil.serializeToByteArray(keySerializer, key), nextCheckpointId);
+						byte[] serializedVal = dbAdapter.lookupKey(kvStateId,
+								selectStatements.getForKey(key), serializedKey, nextCheckpointId);
 
 						return serializedVal != null
 								? InstantiationUtil.deserializeFromByteArray(valueSerializer, serializedVal) : null;
@@ -464,25 +471,64 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		}
 	}
 
-	// Object for handling inserts to the database by batching them together
-	private class BatchInsert {
-		List<Tuple2<byte[], byte[]>> toInsert = new ArrayList<>();
+	/**
+	 * Object for handling inserts to the database by batching them together
+	 * partitioned on the sharding key. The batches are written to the database
+	 * when they are full or when the inserter is flushed.
+	 *
+	 */
+	private class BatchInserter {
+
+		// Map from shard index to the kv pairs to be inserted
+		// Map<Integer, List<Tuple2<byte[], byte[]>>> inserts = new HashMap<>();
+
+		List<Tuple2<byte[], byte[]>>[] inserts;
+
+		@SuppressWarnings("unchecked")
+		public BatchInserter(int numShards) {
+			inserts = new List[numShards];
+			for (int i = 0; i < numShards; i++) {
+				inserts[i] = new ArrayList<>();
+			}
+		}
 
 		public void add(Entry<K, Optional<V>> next, long checkpointId) throws IOException {
-			K k = next.getKey();
-			V v = next.getValue().orNull();
-			toInsert.add(Tuple2.of(InstantiationUtil.serializeToByteArray(keySerializer, k),
-					v != null ? InstantiationUtil.serializeToByteArray(valueSerializer, v) : null));
-			if (toInsert.size() == maxInsertBatchSize) {
-				flush(checkpointId);
+
+			K key = next.getKey();
+			V value = next.getValue().orNull();
+
+			// Get the current partition if present or initialize empty list
+			int shardIndex = connections.getShardIndex(key);
+
+			List<Tuple2<byte[], byte[]>> insertPartition = inserts[shardIndex];
+
+			// Add the k-v pair to the partition
+			byte[] k = InstantiationUtil.serializeToByteArray(keySerializer, key);
+			byte[] v = value != null ? InstantiationUtil.serializeToByteArray(valueSerializer, value) : null;
+			insertPartition.add(Tuple2.of(k, v));
+
+			// If partition is full write to the database and clear
+			if (insertPartition.size() == maxInsertBatchSize) {
+				dbAdapter.insertBatch(kvStateId, conf,
+						connections.getForIndex(shardIndex),
+						insertStatements.getForIndex(shardIndex),
+						checkpointId, insertPartition);
+
+				insertPartition.clear();
 			}
 		}
 
 		public void flush(long checkpointId) throws IOException {
-			if (!toInsert.isEmpty()) {
-				dbAdapter.insertBatch(kvStateId, conf, con, insertStatement, checkpointId, toInsert);
-				toInsert.clear();
+			// We flush all non-empty partitions
+			for (int i = 0; i < inserts.length; i++) {
+				List<Tuple2<byte[], byte[]>> insertPartition = inserts[i];
+				if (!insertPartition.isEmpty()) {
+					dbAdapter.insertBatch(kvStateId, conf, connections.getForIndex(i),
+							insertStatements.getForIndex(i), checkpointId, insertPartition);
+					insertPartition.clear();
+				}
 			}
+
 		}
 	}
 }

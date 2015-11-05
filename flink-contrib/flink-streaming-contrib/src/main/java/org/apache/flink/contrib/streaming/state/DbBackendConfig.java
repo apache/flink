@@ -18,10 +18,10 @@
 package org.apache.flink.contrib.streaming.state;
 
 import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
+
+import org.apache.flink.contrib.streaming.state.ShardedConnection.Partitioner;
 
 import com.google.common.collect.Lists;
 
@@ -41,7 +41,7 @@ public class DbBackendConfig implements Serializable {
 	private final List<String> shardUrls;
 
 	// JDBC Driver + DbAdapter information
-	private Class<? extends MySqlAdapter> dbAdapterClass = MySqlAdapter.class;
+	private DbAdapter dbAdapter = new MySqlAdapter();
 	private String JDBCDriver = null;
 
 	private int maxNumberOfSqlRetries = 5;
@@ -52,6 +52,8 @@ public class DbBackendConfig implements Serializable {
 	private int maxKvInsertBatchSize = 1000;
 	private float maxKvEvictFraction = 0.1f;
 	private int kvStateCompactionFreq = -1;
+
+	private Partitioner shardPartitioner;
 
 	/**
 	 * Creates a new sharded database state backend configuration with the given
@@ -137,19 +139,30 @@ public class DbBackendConfig implements Serializable {
 		return shardUrls.get(shardIndex);
 	}
 
-	/**
-	 * Get an instance of the {@link MySqlAdapter} that will be used to operate on
-	 * the database during checkpointing.
-	 * 
-	 * @return An instance of the class set in {@link #setDbAdapterClass(Class)}
-	 *         or a {@link MySqlAdapter} instance if a custom class was not set.
-	 */
-	public MySqlAdapter getDbAdapter() {
-		try {
-			return dbAdapterClass.newInstance();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+	private void validateShardIndex(int i) {
+		if (i < 0) {
+			throw new IllegalArgumentException("Index must be positive.");
+		} else if (getNumberOfShards() <= i) {
+			throw new IllegalArgumentException("Index must be less then the total number of shards.");
 		}
+	}
+
+	/**
+	 * Get the {@link DbAdapter} that will be used to operate on the database
+	 * during checkpointing.
+	 * 
+	 */
+	public DbAdapter getDbAdapter() {
+		return dbAdapter;
+	}
+
+	/**
+	 * Set the {@link DbAdapter} that will be used to operate on the database
+	 * during checkpointing.
+	 * 
+	 */
+	public void setDbAdapter(DbAdapter adapter) {
+		this.dbAdapter = adapter;
 	}
 
 	/**
@@ -166,25 +179,6 @@ public class DbBackendConfig implements Serializable {
 	 */
 	public void setJDBCDriver(String jDBCDriverClassName) {
 		JDBCDriver = jDBCDriverClassName;
-	}
-
-	/**
-	 * Get the Class that will be used to instantiate the {@link MySqlAdapter} for
-	 * the {@link #getDbAdapter()} method.
-	 * 
-	 */
-	public Class<? extends MySqlAdapter> getDbAdapterClass() {
-		return dbAdapterClass;
-	}
-
-	/**
-	 * Set the Class that will be used to instantiate the {@link MySqlAdapter} for
-	 * the {@link #getDbAdapter()} method. The class should have an empty
-	 * constructor.
-	 * 
-	 */
-	public void setDbAdapterClass(Class<? extends MySqlAdapter> dbAdapterClass) {
-		this.dbAdapterClass = dbAdapterClass;
 	}
 
 	/**
@@ -308,23 +302,18 @@ public class DbBackendConfig implements Serializable {
 	}
 
 	/**
-	 * Creates a new {@link Connection} using the set parameters for the first
-	 * shard.
-	 * 
-	 * @throws SQLException
+	 * Sets the partitioner used to assign keys to different database shards
 	 */
-	public Connection createConnection() throws SQLException {
-		return createConnection(0);
+	public void setPartitioner(Partitioner partitioner) {
+		this.shardPartitioner = partitioner;
 	}
 
 	/**
-	 * Creates a new {@link Connection} using the set parameters for the given
-	 * shard index.
+	 * Creates a new {@link ShardedConnection} using the set parameters.
 	 * 
 	 * @throws SQLException
 	 */
-	public Connection createConnection(int shardIndex) throws SQLException {
-		validateShardIndex(shardIndex);
+	public ShardedConnection createShardedConnection() throws SQLException {
 		if (JDBCDriver != null) {
 			try {
 				Class.forName(JDBCDriver);
@@ -332,46 +321,11 @@ public class DbBackendConfig implements Serializable {
 				throw new RuntimeException("Could not load JDBC driver class", e);
 			}
 		}
-		return DriverManager.getConnection(getShardUrl(shardIndex), userName, userPassword);
-	}
-
-	/**
-	 * Creates a new {@link DbBackendConfig} with the selected shard as its only
-	 * shard.
-	 * 
-	 */
-	public DbBackendConfig createConfigForShard(int shardIndex) {
-		validateShardIndex(shardIndex);
-		DbBackendConfig c = new DbBackendConfig(userName, userPassword, shardUrls.get(shardIndex));
-		c.setJDBCDriver(JDBCDriver);
-		c.setDbAdapterClass(dbAdapterClass);
-		c.setKvCacheSize(kvStateCacheSize);
-		c.setMaxKvInsertBatchSize(maxKvInsertBatchSize);
-		return c;
-	}
-
-	private void validateShardIndex(int i) {
-		if (i < 0) {
-			throw new IllegalArgumentException("Index must be positive.");
-		} else if (getNumberOfShards() <= i) {
-			throw new IllegalArgumentException("Index must be less then the total number of shards.");
+		if (shardPartitioner == null) {
+			return new ShardedConnection(shardUrls, userName, userPassword);
+		} else {
+			return new ShardedConnection(shardUrls, userName, userPassword, shardPartitioner);
 		}
-	}
-
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((JDBCDriver == null) ? 0 : JDBCDriver.hashCode());
-		result = prime * result + ((dbAdapterClass == null) ? 0 : dbAdapterClass.hashCode());
-		result = prime * result + kvStateCacheSize;
-		result = prime * result + Float.floatToIntBits(maxKvEvictFraction);
-		result = prime * result + maxKvInsertBatchSize;
-		result = prime * result + kvStateCompactionFreq;
-		result = prime * result + ((shardUrls == null) ? 0 : shardUrls.hashCode());
-		result = prime * result + ((userName == null) ? 0 : userName.hashCode());
-		result = prime * result + ((userPassword == null) ? 0 : userPassword.hashCode());
-		return result;
 	}
 
 	@Override
@@ -382,7 +336,7 @@ public class DbBackendConfig implements Serializable {
 		if (obj == null) {
 			return false;
 		}
-		if (getClass() != obj.getClass()) {
+		if (!(obj instanceof DbBackendConfig)) {
 			return false;
 		}
 		DbBackendConfig other = (DbBackendConfig) obj;
@@ -393,14 +347,17 @@ public class DbBackendConfig implements Serializable {
 		} else if (!JDBCDriver.equals(other.JDBCDriver)) {
 			return false;
 		}
-		if (dbAdapterClass == null) {
-			if (other.dbAdapterClass != null) {
+		if (dbAdapter == null) {
+			if (other.dbAdapter != null) {
 				return false;
 			}
-		} else if (!dbAdapterClass.equals(other.dbAdapterClass)) {
+		} else if (!dbAdapter.getClass().equals(other.dbAdapter.getClass())) {
 			return false;
 		}
 		if (kvStateCacheSize != other.kvStateCacheSize) {
+			return false;
+		}
+		if (kvStateCompactionFreq != other.kvStateCompactionFreq) {
 			return false;
 		}
 		if (Float.floatToIntBits(maxKvEvictFraction) != Float.floatToIntBits(other.maxKvEvictFraction)) {
@@ -409,7 +366,14 @@ public class DbBackendConfig implements Serializable {
 		if (maxKvInsertBatchSize != other.maxKvInsertBatchSize) {
 			return false;
 		}
-		if (kvStateCompactionFreq != other.kvStateCompactionFreq) {
+		if (maxNumberOfSqlRetries != other.maxNumberOfSqlRetries) {
+			return false;
+		}
+		if (shardPartitioner == null) {
+			if (other.shardPartitioner != null) {
+				return false;
+			}
+		} else if (!shardPartitioner.getClass().equals(other.shardPartitioner.getClass())) {
 			return false;
 		}
 		if (shardUrls == null) {
@@ -417,6 +381,9 @@ public class DbBackendConfig implements Serializable {
 				return false;
 			}
 		} else if (!shardUrls.equals(other.shardUrls)) {
+			return false;
+		}
+		if (sleepBetweenSqlRetries != other.sleepBetweenSqlRetries) {
 			return false;
 		}
 		if (userName == null) {

@@ -21,7 +21,6 @@ import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Connection;
 import java.util.concurrent.Callable;
 
 import org.apache.flink.runtime.state.StateHandle;
@@ -56,8 +55,8 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 	protected byte[] getBytes() throws IOException {
 		return retry(new Callable<byte[]>() {
 			public byte[] call() throws Exception {
-				try (Connection con = dbConfig.createConnection()) {
-					return dbConfig.getDbAdapter().getCheckpoint(jobId, con, checkpointId, checkpointTs, handleId);
+				try (ShardedConnection con = dbConfig.createShardedConnection()) {
+					return dbConfig.getDbAdapter().getCheckpoint(jobId, con.getFirst(), checkpointId, checkpointTs, handleId);
 				}
 			}
 		}, dbConfig.getMaxNumberOfSqlRetries(), dbConfig.getSleepBetweenSqlRetries());
@@ -68,8 +67,8 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 		try {
 			retry(new Callable<Boolean>() {
 				public Boolean call() throws Exception {
-					try (Connection con = dbConfig.createConnection()) {
-						dbConfig.getDbAdapter().deleteCheckpoint(jobId, con, checkpointId, checkpointTs, handleId);
+					try (ShardedConnection con = dbConfig.createShardedConnection()) {
+						dbConfig.getDbAdapter().deleteCheckpoint(jobId, con.getFirst(), checkpointId, checkpointTs, handleId);
 					}
 					return true;
 				}

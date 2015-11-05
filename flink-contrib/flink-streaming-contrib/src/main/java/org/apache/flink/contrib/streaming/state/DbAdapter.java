@@ -18,6 +18,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -25,7 +26,7 @@ import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-public interface DbAdapter {
+public interface DbAdapter extends Serializable {
 
 	/**
 	 * Initialize tables for storing non-partitioned checkpoints for the given
@@ -125,14 +126,14 @@ public interface DbAdapter {
 	 * the database.
 	 * 
 	 */
-	PreparedStatement prepareKVCheckpointInsert(String stateId, Connection con) throws SQLException;
+	String prepareKVCheckpointInsert(String stateId) throws SQLException;
 
 	/**
 	 * Prepare the statement that will be used to lookup keys from the database.
 	 * Keys and values are assumed to be byte arrays.
 	 * 
 	 */
-	PreparedStatement prepareKeyLookup(String stateId, Connection con) throws SQLException;
+	String prepareKeyLookup(String stateId) throws SQLException;
 
 	/**
 	 * Retrieve the latest value from the database for a given key and
@@ -166,5 +167,11 @@ public interface DbAdapter {
 	 */
 	void insertBatch(String stateId, DbBackendConfig conf, Connection con, PreparedStatement insertStatement,
 			long checkpointId, List<Tuple2<byte[], byte[]>> toInsert) throws IOException;
+
+	/**
+	 * Compact the states between two checkpoint ids by only keeping the most
+	 * recent.
+	 */
+	void compactKvStates(String kvStateId, Connection con, long lowerId, long upperId) throws SQLException;
 
 }

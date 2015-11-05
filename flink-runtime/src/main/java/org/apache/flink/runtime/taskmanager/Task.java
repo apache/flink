@@ -219,7 +219,7 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
-	private volatile long recoveryTimestamp;
+	private volatile long nextCheckpointId;
 
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
@@ -254,7 +254,7 @@ public class Task implements Runnable {
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
-		this.recoveryTimestamp = tdd.getNextCpId();
+		this.nextCheckpointId = tdd.getNextCpId();
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -538,14 +538,14 @@ public class Task implements Runnable {
 
 			// get our private reference onto the stack (be safe against concurrent changes) 
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
-			long recoveryTimestamp = this.recoveryTimestamp;
+			long nextCheckpointId = this.nextCheckpointId;
 
 			if (operatorState != null) {
 				if (invokable instanceof StatefulTask) {
 					try {
 						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
 						StatefulTask<?> op = (StatefulTask<?>) invokable;
-						StateUtils.setOperatorState(op, state, recoveryTimestamp);
+						StateUtils.setOperatorState(op, state, nextCheckpointId);
 					}
 					catch (Exception e) {
 						throw new RuntimeException("Failed to deserialize state handle and setup initial operator state.", e);

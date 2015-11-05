@@ -52,8 +52,8 @@ import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
  * streaming program.
  * <p>
  * To control table creation, insert/lookup operations and to provide
- * compatibility for different SQL implementations, a custom {@link MySqlAdapter}
- * can be supplied in the {@link DbBackendConfig}.
+ * compatibility for different SQL implementations, a custom
+ * {@link MySqlAdapter} can be supplied in the {@link DbBackendConfig}.
  *
  */
 public class DbStateBackend extends StateBackend<DbStateBackend> {
@@ -72,12 +72,11 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	private final DbBackendConfig dbConfig;
 	private final DbAdapter dbAdapter;
 
-	private Connection con;
-	private int shardIndex = 0;
+	private ShardedConnection connections;
 
 	private final int numSqlRetries;
 	private final int sqlRetrySleep;
-	
+
 	private PreparedStatement insertStatement;
 
 	// ------------------------------------------------------
@@ -111,10 +110,10 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	}
 
 	/**
-	 * Get the database connection maintained by the backend.
+	 * Get the database connections maintained by the backend.
 	 */
-	public Connection getConnection() {
-		return con;
+	public ShardedConnection getConnections() {
+		return connections;
 	}
 
 	/**
@@ -122,15 +121,11 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	 * 
 	 */
 	public boolean isInitialized() {
-		return con != null;
+		return connections != null;
 	}
-	
+
 	public Environment getEnvironment() {
 		return env;
-	}
-	
-	public int getShardIndex() {
-		return shardIndex;
 	}
 
 	/**
@@ -160,7 +155,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 					insertStatement.executeUpdate();
 
 					return new DbStateHandle<S>(env.getJobID().toString(), checkpointID, timestamp, handleId,
-							dbConfig.createConfigForShard(shardIndex));
+							dbConfig);
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {
@@ -185,8 +180,8 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
 		return new LazyDbKvState<K, V>(
 				env.getJobID() + "_" + operatorId + "_" + stateName,
-				shardIndex == env.getIndexInSubtaskGroup(),
-				getConnection(),
+				env.getIndexInSubtaskGroup() == 0,
+				getConnections(),
 				getConfiguration(),
 				keySerializer,
 				valueSerializer,
@@ -198,24 +193,23 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 		this.rnd = new Random();
 		this.env = env;
 
-		// If there are multiple shards provided in the config we partition the
-		// writes by subtask index
-		shardIndex = env.getIndexInSubtaskGroup() % dbConfig.getNumberOfShards();
-
-		con = dbConfig.createConnection(shardIndex);
+		connections = dbConfig.createShardedConnection();
+		
 		// We want the most light-weight transaction isolation level as we don't
 		// have conflicting reads/writes. We just want to be able to roll back
 		// batch inserts for k-v snapshots. This requirement might be removed in
 		// the future.
-		con.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+		connections.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
 
 		// If we have a different backend for non-partitioned states we
 		// initialize that, otherwise create tables for storing the checkpoints.
+		// 
+		// Currently all non-partitioned states are written to the first database shard
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(env.getJobID().toString(), getConnection());
-					return dbAdapter.prepareCheckpointInsert(env.getJobID().toString(), getConnection());
+					dbAdapter.createCheckpointsTable(env.getJobID().toString(), getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(env.getJobID().toString(), getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {
@@ -231,7 +225,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	public void close() throws Exception {
 		// We first close the statement/non-partitioned backend, then we close
 		// the database connection
-		try (Connection c = con) {
+		try (ShardedConnection c = connections) {
 			if (nonPartitionedStateBackend == null) {
 				insertStatement.close();
 			} else {
@@ -243,7 +237,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(env.getJobID().toString(), con);
+			dbAdapter.disposeAllStateForJob(env.getJobID().toString(), connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}

@@ -94,18 +94,16 @@ public class DerbyAdapter extends MySqlAdapter {
 	 * select statements.
 	 */
 	@Override
-	public PreparedStatement prepareKeyLookup(String stateId, Connection con) throws SQLException {
+	public String prepareKeyLookup(String stateId) throws SQLException {
 		validateStateId(stateId);
-		PreparedStatement smt = con.prepareStatement("SELECT v " + "FROM kvstate_" + stateId
+		return "SELECT v " + "FROM kvstate_" + stateId
 				+ " WHERE k = ? "
 				+ " AND id <= ? "
-				+ "ORDER BY id DESC");
-		smt.setMaxRows(1);
-		return smt;
+				+ "ORDER BY id DESC";
 	}
 
 	@Override
-	protected void compactKvStates(String stateId, Connection con, long lowerBound, long upperBound)
+	public void compactKvStates(String stateId, Connection con, long lowerBound, long upperBound)
 			throws SQLException {
 		validateStateId(stateId);
 
@@ -123,10 +121,9 @@ public class DerbyAdapter extends MySqlAdapter {
 	}
 
 	@Override
-	public PreparedStatement prepareKVCheckpointInsert(String stateId, Connection con) throws SQLException {
+	public String prepareKVCheckpointInsert(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return con.prepareStatement(
-				"INSERT INTO kvstate_" + stateId + " (id, k, v) VALUES (?,?,?)");
+		return "INSERT INTO kvstate_" + stateId + " (id, k, v) VALUES (?,?,?)";
 	}
 
 	@Override

@@ -18,7 +18,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,7 +36,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
  * MySQL
  *
  */
-public class MySqlAdapter implements Serializable, DbAdapter {
+public class MySqlAdapter implements DbAdapter {
 
 	private static final long serialVersionUID = 1L;
 
@@ -130,21 +129,20 @@ public class MySqlAdapter implements Serializable, DbAdapter {
 	}
 
 	@Override
-	public PreparedStatement prepareKVCheckpointInsert(String stateId, Connection con) throws SQLException {
+	public String prepareKVCheckpointInsert(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return con.prepareStatement(
-				"INSERT INTO kvstate_" + stateId + " (id, k, v) VALUES (?,?,?) "
-						+ "ON DUPLICATE KEY UPDATE v=? ");
+		return "INSERT INTO kvstate_" + stateId + " (id, k, v) VALUES (?,?,?) "
+				+ "ON DUPLICATE KEY UPDATE v=? ";
 	}
 
 	@Override
-	public PreparedStatement prepareKeyLookup(String stateId, Connection con) throws SQLException {
+	public String prepareKeyLookup(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return con.prepareStatement("SELECT v"
+		return "SELECT v"
 				+ " FROM kvstate_" + stateId
 				+ " WHERE k = ?"
 				+ " AND id <= ?"
-				+ " ORDER BY id DESC LIMIT 1");
+				+ " ORDER BY id DESC LIMIT 1";
 	}
 
 	@Override
@@ -170,11 +168,11 @@ public class MySqlAdapter implements Serializable, DbAdapter {
 			smt.executeUpdate("DELETE FROM kvstate_" + stateId
 					+ " WHERE id > " + checkpointId
 					+ " AND id < " + nextId);
-			System.out.println("Cleaned up");
 		}
 	}
 
-	protected void compactKvStates(String stateId, Connection con, long lowerId, long upperId)
+	@Override
+	public void compactKvStates(String stateId, Connection con, long lowerId, long upperId)
 			throws SQLException {
 		validateStateId(stateId);
 
@@ -188,7 +186,6 @@ public class MySqlAdapter implements Serializable, DbAdapter {
 					+ " ) m"
 					+ " ON state.k = m.k"
 					+ " AND state.id >= " + lowerId);
-			System.out.println("Compacted");
 		}
 	}
 
@@ -215,7 +212,6 @@ public class MySqlAdapter implements Serializable, DbAdapter {
 				}
 				insertStatement.executeBatch();
 				insertStatement.clearBatch();
-				System.out.println("Batch inserted");
 				return null;
 			}
 		}, new Callable<Void>() {

@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
@@ -50,8 +49,6 @@ import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
 import org.junit.After;
 import org.junit.Before;
 
-import com.google.common.collect.Lists;
-
 @SuppressWarnings("serial")
 public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 
@@ -72,7 +69,6 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		try {
 			server.shutdown();
 			FileUtils.deleteDirectory(new File(tempDir.getAbsolutePath() + "/flinkDB1"));
-			FileUtils.deleteDirectory(new File(tempDir.getAbsolutePath() + "/flinkDB2"));
 			FileUtils.forceDelete(new File("derby.log"));
 		} catch (Exception ignore) {
 		}
@@ -82,13 +78,9 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 	public void testProgram(StreamExecutionEnvironment env) {
 		env.enableCheckpointing(500);
 
-		// We create 2 shards
-		List<String> derbyShards = Lists.newArrayList(
-				"jdbc:derby://localhost:1526/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true",
-				"jdbc:derby://localhost:1526/" + tempDir.getAbsolutePath() + "/flinkDB2;create=true");
-
-		DbBackendConfig conf = new DbBackendConfig("flink", "flink", derbyShards);
-		conf.setDbAdapterClass(DerbyAdapter.class);
+		DbBackendConfig conf = new DbBackendConfig("flink", "flink",
+				"jdbc:derby://localhost:1526/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
+		conf.setDbAdapter(new DerbyAdapter());
 		conf.setKvStateCompactionFrequency(2);
 
 		// We store the non-partitioned states (source offset) in-memory

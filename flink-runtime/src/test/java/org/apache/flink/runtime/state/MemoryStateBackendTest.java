@@ -179,7 +179,7 @@ public class MemoryStateBackendTest {
 			// draw another snapshot
 			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot2 =
 					kv.snapshot(682375462379L, System.currentTimeMillis());
-			
+
 			// validate the original state
 			assertEquals(3, kv.size());
 			kv.setCurrentKey(1);
