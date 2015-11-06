@@ -48,9 +48,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -281,34 +284,31 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 	@Override
 	public final void processWatermark(Watermark mark) throws Exception {
-		Set<Long> toRemove = new HashSet<>();
-		Set<Context> toTrigger = new HashSet<>();
+		List<Set<Context>> toTrigger = new ArrayList<>();
 
-		// we cannot call the Trigger in here because trigger methods might register new triggers.
-		// that would lead to concurrent modification errors.
-		for (Map.Entry<Long, Set<Context>> triggers: watermarkTimers.entrySet()) {
+		Iterator<Map.Entry<Long, Set<Context>>> it = watermarkTimers.entrySet().iterator();
+
+		while (it.hasNext()) {
+			Map.Entry<Long, Set<Context>> triggers = it.next();
 			if (triggers.getKey() <= mark.getTimestamp()) {
-				for (Context context: triggers.getValue()) {
-					toTrigger.add(context);
+				toTrigger.add(triggers.getValue());
+				it.remove();
+			}
+		}
+
+		for (Set<Context> ctxs: toTrigger) {
+			for (Context ctx: ctxs) {
+				// double check the time. it can happen that the trigger registers a new timer,
+				// in that case the entry is left in the watermarkTimers set for performance reasons.
+				// We have to check here whether the entry in the set still reflects the
+				// currently set timer in the Context.
+				if (ctx.watermarkTimer <= mark.getTimestamp()) {
+					Trigger.TriggerResult triggerResult = ctx.onEventTime(ctx.watermarkTimer);
+					processTriggerResult(triggerResult, ctx.window);
 				}
-				toRemove.add(triggers.getKey());
 			}
 		}
 
-		for (Context context: toTrigger) {
-			// double check the time. it can happen that the trigger registers a new timer,
-			// in that case the entry is left in the watermarkTimers set for performance reasons.
-			// We have to check here whether the entry in the set still reflects the
-			// currently set timer in the Context.
-			if (context.watermarkTimer <= mark.getTimestamp()) {
-				Trigger.TriggerResult triggerResult = context.onEventTime(context.watermarkTimer);
-				processTriggerResult(triggerResult, context.window);
-			}
-		}
-
-		for (Long l: toRemove) {
-			watermarkTimers.remove(l);
-		}
 		output.emitWatermark(mark);
 
 		this.currentWatermark = mark.getTimestamp();
@@ -316,20 +316,29 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 
 	@Override
 	public final void trigger(long time) throws Exception {
-		Set<Long> toRemove = new HashSet<>();
+		List<Set<Context>> toTrigger = new ArrayList<>();
 
-		for (Map.Entry<Long, Set<Context>> triggers: processingTimeTimers.entrySet()) {
-			long actualTime = triggers.getKey();
-			if (actualTime <= time) {
-				for (Context context: triggers.getValue()) {
-					Trigger.TriggerResult triggerResult = context.onProcessingTime(actualTime);
-					processTriggerResult(triggerResult, context.window);
-				}
-				toRemove.add(triggers.getKey());
+		Iterator<Map.Entry<Long, Set<Context>>> it = processingTimeTimers.entrySet().iterator();
+
+		while (it.hasNext()) {
+			Map.Entry<Long, Set<Context>> triggers = it.next();
+			if (triggers.getKey() <= time) {
+				toTrigger.add(triggers.getValue());
+				it.remove();
 			}
 		}
-		for (Long l: toRemove) {
-			processingTimeTimers.remove(l);
+
+		for (Set<Context> ctxs: toTrigger) {
+			for (Context ctx: ctxs) {
+				// double check the time. it can happen that the trigger registers a new timer,
+				// in that case the entry is left in the processingTimeTimers set for
+				// performance reasons. We have to check here whether the entry in the set still
+				// reflects the currently set timer in the Context.
+				if (ctx.processingTimeTimer <= time) {
+					Trigger.TriggerResult triggerResult = ctx.onProcessingTime(ctx.processingTimeTimer);
+					processTriggerResult(triggerResult, ctx.window);
+				}
+			}
 		}
 	}
 
