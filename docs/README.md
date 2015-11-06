@@ -6,15 +6,19 @@ http://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-We use Markdown to write and Jekyll to translate the documentation to static HTML. You can install
-all needed software via:
+We use Markdown to write and Jekyll to translate the documentation to static HTML. Kramdown is 
+needed for Markdown processing and the Python based Pygments is used for syntax highlighting. To run
+Javascript code from Ruby, you need to install a javascript runtime (e.g. `therubyracer`). You can 
+install all needed software via the following commands:
 
-    gem install jekyll
-    gem install kramdown
+    gem install jekyll -v 2.5.3
+    gem install kramdown -v 1.9.0
+    gem install pygments.rb -v 0.6.3
+    gem install therubyracer -v 0.12.2
     sudo easy_install Pygments
-
-Kramdown is needed for Markdown processing and the Python based Pygments is used for syntax
-highlighting.
+    
+Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev` and 
+`python-setuptools` packages via apt.
 
 # Build
 
