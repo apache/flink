@@ -228,8 +228,8 @@ public class WrapperSetupHelperTest extends AbstractTest {
 			Config stormConfig = new Config();
 			stormConfig.put(WrapperSetupHelper.TOPOLOGY_NAME, "test");
 
-			TopologyContext topologyContext = WrapperSetupHelper.createTopologyContext(
-					context, operators.get(thisComponentId), stormTopology, stormConfig);
+			TopologyContext topologyContext = WrapperSetupHelper.createTopologyContext(context,
+					operators.get(thisComponentId), thisComponentId, stormTopology, stormConfig);
 
 			ComponentCommon expcetedCommon = expectedContext.getComponentCommon(thisComponentId);
 			ComponentCommon common = topologyContext.getComponentCommon(thisComponentId);

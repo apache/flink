@@ -54,7 +54,6 @@ import java.util.Map.Entry;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
@@ -271,7 +270,7 @@ public class BoltWrapperTest extends AbstractTest {
 		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
 		wrapper.open();
 		
-		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), isNull(OutputCollector.class));
+		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), any(OutputCollector.class));
 	}
 
 	@SuppressWarnings("unchecked")

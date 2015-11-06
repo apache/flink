@@ -101,7 +101,7 @@ public class FlinkTopologyBuilder {
 			final DataStreamSource<?> source;
 
 			if (sourceStreams.size() == 1) {
-				final SpoutWrapper<Tuple> spoutWrapperSingleOutput = new SpoutWrapper<Tuple>(userSpout);
+				final SpoutWrapper<Tuple> spoutWrapperSingleOutput = new SpoutWrapper<Tuple>(userSpout, spoutId, null, null);
 				spoutWrapperSingleOutput.setStormTopology(stormTopology);
 
 				final String outputStreamId = (String) sourceStreams.keySet().toArray()[0];
@@ -113,7 +113,7 @@ public class FlinkTopologyBuilder {
 				source = src;
 			} else {
 				final SpoutWrapper<SplitStreamType<Tuple>> spoutWrapperMultipleOutputs = new SpoutWrapper<SplitStreamType<Tuple>>(
-						userSpout);
+						userSpout, spoutId, null, null);
 				spoutWrapperMultipleOutputs.setStormTopology(stormTopology);
 
 				@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -124,7 +124,10 @@ public class FlinkTopologyBuilder {
 				SplitStream<SplitStreamType<Tuple>> splitSource = multiSource
 						.split(new StormStreamSelector<Tuple>());
 				for (String streamId : sourceStreams.keySet()) {
-					outputStreams.put(streamId, splitSource.select(streamId).map(new SplitStreamMapper<Tuple>()));
+					SingleOutputStreamOperator<Tuple, ?> outStream = splitSource.select(streamId)
+							.map(new SplitStreamMapper<Tuple>());
+					outStream.getTransformation().setOutputType(declarer.getOutputType(streamId));
+					outputStreams.put(streamId, outStream);
 				}
 				source = multiSource;
 			}
@@ -230,8 +233,8 @@ public class FlinkTopologyBuilder {
 										.getOutputType(outputStreamId);
 
 								final BoltWrapper<Tuple, Tuple> boltWrapperSingleOutput = new BoltWrapper<Tuple, Tuple>(
-										userBolt, this.outputStreams.get(producerId).get(
-												inputStreamId));
+										userBolt, boltId, this.outputStreams.get(producerId).get(
+												inputStreamId), null);
 								boltWrapperSingleOutput.setStormTopology(stormTopology);
 
 								final SingleOutputStreamOperator<Tuple, ?> outStream = inputStream
@@ -246,8 +249,8 @@ public class FlinkTopologyBuilder {
 								outputStream = outStream;
 							} else {
 								final BoltWrapper<Tuple, SplitStreamType<Tuple>> boltWrapperMultipleOutputs = new BoltWrapper<Tuple, SplitStreamType<Tuple>>(
-										userBolt, this.outputStreams.get(producerId).get(
-												inputStreamId));
+										userBolt, boltId, this.outputStreams.get(producerId).get(
+												inputStreamId), null);
 								boltWrapperMultipleOutputs.setStormTopology(stormTopology);
 
 								@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -262,9 +265,12 @@ public class FlinkTopologyBuilder {
 
 								final HashMap<String, DataStream<Tuple>> op = new HashMap<String, DataStream<Tuple>>();
 								for (String outputStreamId : boltOutputStreams.keySet()) {
-									op.put(outputStreamId,
-											splitStream.select(outputStreamId).map(
-													new SplitStreamMapper<Tuple>()));
+									SingleOutputStreamOperator<Tuple, ?> outStream = splitStream
+											.select(outputStreamId).map(
+													new SplitStreamMapper<Tuple>());
+									outStream.getTransformation().setOutputType(
+											declarer.getOutputType(outputStreamId));
+									op.put(outputStreamId, outStream);
 								}
 								availableInputs.put(boltId, op);
 								outputStream = multiStream;
