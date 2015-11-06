@@ -254,8 +254,8 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def unionAll(right: Table): Table = {
-    val leftInputFields = operation.outputFields.toSet
-    val rightInputFields = right.operation.outputFields.toSet
+    val leftInputFields = operation.outputFields
+    val rightInputFields = right.operation.outputFields
     if (!leftInputFields.equals(rightInputFields)) {
       throw new ExpressionException(
         "The fields names of join inputs should be fully overlapped, left inputs fields:" +
