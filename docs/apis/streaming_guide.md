@@ -3499,6 +3499,7 @@ Also note that Flink can only restart the topology if enough processing slots ar
 So if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
 Flink on YARN supports automatic restart of lost YARN containers.
 
+If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
 #### Kafka Producer
 

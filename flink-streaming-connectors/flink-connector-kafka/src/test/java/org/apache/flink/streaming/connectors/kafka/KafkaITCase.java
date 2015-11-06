@@ -44,7 +44,13 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	public void testOffsetInZookeeper() throws Exception {
 		runOffsetInZookeeperValidationTest();
 	}
-	
+
+	@Test
+	public void testOffsetAutocommitTest() throws Exception {
+		runOffsetAutocommitTest();
+	}
+
+
 	@Test
 	public void testConcurrentProducerConsumerTopology() throws Exception {
 		runSimpleConcurrentProducerConsumerTopology();

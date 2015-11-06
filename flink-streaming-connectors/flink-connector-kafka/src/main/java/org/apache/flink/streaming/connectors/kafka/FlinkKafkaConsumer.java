@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.LegacyFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.OffsetHandler;
@@ -233,7 +234,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	private transient long[] restoreToOffset;
 	
 	private volatile boolean running = true;
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -258,8 +259,8 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		this.offsetStore = checkNotNull(offsetStore);
 		this.fetcherType = checkNotNull(fetcherType);
 
-		if(fetcherType == FetcherType.NEW_HIGH_LEVEL) {
-			throw new UnsupportedOperationException("The fetcher for Kafka 0.8.3 is not yet " +
+		if (fetcherType == FetcherType.NEW_HIGH_LEVEL) {
+			throw new UnsupportedOperationException("The fetcher for Kafka 0.8.3 / 0.9.0 is not yet " +
 					"supported in Flink");
 		}
 		if (offsetStore == OffsetStore.KAFKA && fetcherType == FetcherType.LEGACY_LOW_LEVEL) {
@@ -290,9 +291,6 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			}
 		}
 		LOG.info("Topic {} has {} partitions", topic, partitions.length);
-
-		// make sure that we take care of the committing
-		props.setProperty("enable.auto.commit", "false");
 	}
 
 	// ------------------------------------------------------------------------
@@ -302,7 +300,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		
+
 		final int numConsumers = getRuntimeContext().getNumberOfParallelSubtasks();
 		final int thisComsumerIndex = getRuntimeContext().getIndexOfThisSubtask();
 		
@@ -374,12 +372,33 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			// no restore request. Let the offset handler take care of the initial offset seeking
 			offsetHandler.seekFetcherToInitialOffsets(subscribedPartitions, fetcher);
 		}
+
+
 	}
 
 	@Override
 	public void run(SourceContext<T> sourceContext) throws Exception {
 		if (fetcher != null) {
+			// For non-checkpointed sources, a thread which periodically commits the current offset into ZK.
+			PeriodicOffsetCommitter offsetCommitter = null;
+
+			// check whether we need to start the periodic checkpoint committer
+			StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) getRuntimeContext();
+			if (!streamingRuntimeContext.isCheckpointingEnabled()) {
+				// we use Kafka's own configuration parameter key for this.
+				// Note that the default configuration value in Kafka is 60 * 1000, so we use the
+				// same here.
+				long commitInterval = Long.valueOf(props.getProperty("auto.commit.interval.ms", "60000"));
+				offsetCommitter = new PeriodicOffsetCommitter(commitInterval, this);
+				offsetCommitter.start();
+				LOG.info("Starting periodic offset committer, with commit interval of {}ms", commitInterval);
+			}
+
 			fetcher.run(sourceContext, valueDeserializer, lastOffsets);
+
+			if (offsetCommitter != null) {
+				offsetCommitter.close();
+			}
 		}
 		else {
 			// this source never completes
@@ -419,7 +438,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				LOG.warn("Error while closing Kafka connector data fetcher", e);
 			}
 		}
-		
+
 		OffsetHandler offsetHandler = this.offsetHandler;
 		this.offsetHandler = null;
 		if (offsetHandler != null) {
@@ -430,6 +449,8 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				LOG.warn("Error while closing Kafka connector offset handler", e);
 			}
 		}
+
+
 	}
 
 	@Override
@@ -567,6 +588,69 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		}
 		return partitionsToSub;
 	}
+
+	/**
+	 * Thread to periodically commit the current read offset into Zookeeper.
+	 */
+	private static class PeriodicOffsetCommitter extends Thread {
+		private final long commitInterval;
+		private final FlinkKafkaConsumer consumer;
+		private volatile boolean running = true;
+
+		public PeriodicOffsetCommitter(long commitInterval, FlinkKafkaConsumer consumer) {
+			this.commitInterval = commitInterval;
+			this.consumer = consumer;
+		}
+
+		@Override
+		public void run() {
+			try {
+				while (running) {
+					try {
+						Thread.sleep(commitInterval);
+						//  ------------  commit current offsets ----------------
+
+						// create copy of current offsets
+						long[] currentOffsets = Arrays.copyOf(consumer.lastOffsets, consumer.lastOffsets.length);
+
+						Map<TopicPartition, Long> offsetsToCommit = new HashMap<>();
+						for (TopicPartition tp : (List<TopicPartition>)consumer.subscribedPartitions) {
+							int partition = tp.partition();
+							long offset = currentOffsets[partition];
+							long lastCommitted = consumer.commitedOffsets[partition];
+
+							if (offset != OFFSET_NOT_SET) {
+								if (offset > lastCommitted) {
+									offsetsToCommit.put(tp, offset);
+									LOG.debug("Committing offset {} for partition {}", offset, partition);
+								} else {
+									LOG.debug("Ignoring offset {} for partition {} because it is already committed", offset, partition);
+								}
+							}
+						}
+
+						consumer.offsetHandler.commit(offsetsToCommit);
+					} catch (InterruptedException e) {
+						if (running) {
+							// throw unexpected interruption
+							throw e;
+						}
+						// looks like the thread is being closed. Leave loop
+						break;
+					}
+				}
+			} catch (Throwable t) {
+				LOG.warn("Periodic checkpoint committer is stopping the fetcher because of an error", t);
+				consumer.fetcher.stopWithError(t);
+			}
+		}
+
+		public void close() {
+			this.running = false;
+			this.interrupt();
+		}
+
+	}
 	
 	// ------------------------------------------------------------------------
 	//  Kafka / ZooKeeper communication utilities
@@ -657,10 +741,19 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		return partitions;
 	}
 
+	/**
+	 * Turn a broker instance into a node instance
+	 * @param broker broker instance
+	 * @return Node representing the given broker
+	 */
 	private static Node brokerToNode(Broker broker) {
 		return new Node(broker.id(), broker.host(), broker.port());
 	}
-	
+
+	/**
+	 * Validate the ZK configuration, checking for required parameters
+	 * @param props Properties to check
+	 */
 	protected static void validateZooKeeperConfig(Properties props) {
 		if (props.getProperty("zookeeper.connect") == null) {
 			throw new IllegalArgumentException("Required property 'zookeeper.connect' has not been set in the properties");

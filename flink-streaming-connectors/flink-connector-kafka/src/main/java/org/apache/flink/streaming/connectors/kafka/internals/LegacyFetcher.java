@@ -122,7 +122,7 @@ public class LegacyFetcher implements Fetcher {
 	}
 
 	@Override
-	public <T> void run(SourceFunction.SourceContext<T> sourceContext, 
+	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
 						DeserializationSchema<T> valueDeserializer,
 						long[] lastOffsets) throws Exception {
 		
@@ -258,7 +258,8 @@ public class LegacyFetcher implements Fetcher {
 	 * 
 	 * @param error The error to report.
 	 */
-	void onErrorInFetchThread(Throwable error) {
+	@Override
+	public void stopWithError(Throwable error) {
 		if (this.error.compareAndSet(null, error)) {
 			// we are the first to report an error
 			if (mainThread != null) {
@@ -445,7 +446,7 @@ public class LegacyFetcher implements Fetcher {
 								final T value = valueDeserializer.deserialize(valueByte);
 								final long offset = msg.offset();
 										
-								synchronized (sourceContext.getCheckpointLock()) {
+								synchronized (this.sourceContext.getCheckpointLock()) {
 									sourceContext.collect(value);
 									offsetsState[partition] = offset;
 								}
@@ -464,7 +465,7 @@ public class LegacyFetcher implements Fetcher {
 			}
 			catch (Throwable t) {
 				// report to the main thread
-				owner.onErrorInFetchThread(t);
+				owner.stopWithError(t);
 			}
 			finally {
 				// end of run loop. close connection to consumer

@@ -64,12 +64,11 @@ public interface Fetcher {
 	 * 
 	 * @param sourceContext The source context to emit elements to.
 	 * @param valueDeserializer The deserializer to decode the raw values with.
-	 * @param lastOffsets The array into which to store the offsets foe which elements are emitted. 
+	 * @param lastOffsets The array into which to store the offsets for which elements are emitted (operator state)
 	 * 
 	 * @param <T> The type of elements produced by the fetcher and emitted to the source context.
 	 */
-	<T> void run(SourceFunction.SourceContext<T> sourceContext, DeserializationSchema<T> valueDeserializer, 
-					long[] lastOffsets) throws Exception;
+	<T> void run(SourceFunction.SourceContext<T> sourceContext, DeserializationSchema<T> valueDeserializer, long[] lastOffsets) throws Exception;
 	
 	/**
 	 * Set the next offset to read from for the given partition.
@@ -80,4 +79,11 @@ public interface Fetcher {
 	 * @param offsetToRead To offset to seek to.
 	 */
 	void seek(TopicPartition topicPartition, long offsetToRead);
+
+	/**
+	 * Exit run loop with given error and release all resources.
+	 *
+	 * @param t Error cause
+	 */
+	void stopWithError(Throwable t);
 }
