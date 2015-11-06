@@ -58,6 +58,8 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	private final HashMap<String, Integer> numberOfAttributes;
 	/** The wrapped {@link IRichSpout spout}. */
 	private final IRichSpout spout;
+	/** The name of the spout. */
+	private final String name;
 	/** The wrapper of the given Flink collector. */
 	private SpoutCollector<OUT> collector;
 	/** Indicates, if the source is still running or was canceled. */
@@ -193,7 +195,36 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	 */
 	public SpoutWrapper(final IRichSpout spout, final Collection<String> rawOutputs,
 			final Integer numberOfInvocations) throws IllegalArgumentException {
+		this(spout, null, rawOutputs, numberOfInvocations);
+	}
+
+	/**
+	 * Instantiates a new {@link SpoutWrapper} that calls the {@link IRichSpout#nextTuple() nextTuple()} method of
+	 * the given {@link IRichSpout spout} a finite number of times. The output type can be any type if parameter
+	 * {@code rawOutput} is {@code true} and the spout's number of declared output tuples is 1. If {@code rawOutput} is
+	 * {@code false} the output type will be one of {@link Tuple0} to {@link Tuple25} depending on the spout's declared
+	 * number of attributes.
+	 * 
+	 * @param spout
+	 *            The {@link IRichSpout spout} to be used.
+	 * @param name
+	 *            The name of the spout.
+	 * @param rawOutputs
+	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 *            of a raw type. (Can be {@code null}.)
+	 * @param numberOfInvocations
+	 *            The number of calls to {@link IRichSpout#nextTuple()}. If value is negative, {@link SpoutWrapper}
+	 *            terminates if no tuple was emitted for the first time. If value is {@code null}, finite invocation is
+	 *            disabled.
+	 * @throws IllegalArgumentException
+	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             [0;25].
+	 */
+	public SpoutWrapper(final IRichSpout spout, final String name, final Collection<String> rawOutputs,
+			final Integer numberOfInvocations) throws IllegalArgumentException {
 		this.spout = spout;
+		this.name = name;
 		this.numberOfAttributes = WrapperSetupHelper.getNumberOfAttributes(spout, rawOutputs);
 		this.numberOfInvocations = numberOfInvocations;
 	}
@@ -225,7 +256,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 		}
 
 		this.spout.open(stormConfig, WrapperSetupHelper.createTopologyContext(
-				(StreamingRuntimeContext) super.getRuntimeContext(), this.spout,
+				(StreamingRuntimeContext) super.getRuntimeContext(), this.spout, this.name,
 				this.stormTopology, stormConfig), new SpoutOutputCollector(this.collector));
 		this.spout.activate();
 

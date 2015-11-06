@@ -54,6 +54,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 
 	/** The wrapped Storm {@link IRichBolt bolt}. */
 	private final IRichBolt bolt;
+	/** The name of the bolt. */
+	private final String name;
 	/** Number of attributes of the bolt's output tuples per stream. */
 	private final HashMap<String, Integer> numberOfAttributes;
 	/** The schema (ie, ordered field names) of the input stream. */
@@ -189,7 +191,34 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 */
 	public BoltWrapper(final IRichBolt bolt, final Fields inputSchema,
 			final Collection<String> rawOutputs) throws IllegalArgumentException {
+		this(bolt, null, inputSchema, rawOutputs);
+	}
+
+	/**
+	 * Instantiates a new {@link BoltWrapper} that wraps the given Storm {@link IRichBolt bolt} such that it can be used
+	 * within a Flink streaming program. The given input schema enable attribute-by-name access for input types
+	 * {@link Tuple0} to {@link Tuple25}. The output type can be any type if parameter {@code rawOutput} is {@code true}
+	 * and the bolt's number of declared output tuples is 1. If {@code rawOutput} is {@code false} the output type will
+	 * be one of {@link Tuple0} to {@link Tuple25} depending on the bolt's declared number of attributes.
+	 * 
+	 * @param bolt
+	 *            The Storm {@link IRichBolt bolt} to be used.
+	 * @param name
+	 *            The name of the bolt.
+	 * @param inputSchema
+	 *            The schema (ie, ordered field names) of the input stream.
+	 * @param rawOutputs
+	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
+	 *            of a raw type.
+	 * @throws IllegalArgumentException
+	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             [0;25].
+	 */
+	public BoltWrapper(final IRichBolt bolt, final String name, final Fields inputSchema,
+			final Collection<String> rawOutputs) throws IllegalArgumentException {
 		this.bolt = bolt;
+		this.name = name;
 		this.inputSchema = inputSchema;
 		this.numberOfAttributes = WrapperSetupHelper.getNumberOfAttributes(bolt, rawOutputs);
 	}
@@ -209,12 +238,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		super.open();
 
 		this.flinkCollector = new TimestampedCollector<OUT>(output);
-		OutputCollector stormCollector = null;
-
-		if (this.numberOfAttributes.size() > 0) {
-			stormCollector = new OutputCollector(new BoltCollector<OUT>(
-					this.numberOfAttributes, flinkCollector));
-		}
+		final OutputCollector stormCollector = new OutputCollector(new BoltCollector<OUT>(
+				this.numberOfAttributes, flinkCollector));
 
 		GlobalJobParameters config = getExecutionConfig().getGlobalJobParameters();
 		StormConfig stormConfig = new StormConfig();
@@ -228,7 +253,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		}
 
 		final TopologyContext topologyContext = WrapperSetupHelper.createTopologyContext(
-				getRuntimeContext(), this.bolt, this.stormTopology, stormConfig);
+				getRuntimeContext(), this.bolt, this.name, this.stormTopology, stormConfig);
 
 		this.bolt.prepare(stormConfig, topologyContext, stormCollector);
 	}

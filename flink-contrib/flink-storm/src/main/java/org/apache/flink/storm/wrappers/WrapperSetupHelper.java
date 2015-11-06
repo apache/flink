@@ -112,12 +112,7 @@ class WrapperSetupHelper {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	static synchronized TopologyContext createTopologyContext(
 			final StreamingRuntimeContext context, final IComponent spoutOrBolt,
-			StormTopology stormTopology, Map stormConfig) {
-		String operatorName = context.getTaskName();
-		if (operatorName.startsWith("Source: ")) {
-			// prefix "Source: " is inserted by Flink sources by default -- need to get rid of it here
-			operatorName = operatorName.substring(8);
-		}
+			final String operatorName, StormTopology stormTopology, final Map stormConfig) {
 		final int dop = context.getNumberOfParallelSubtasks();
 
 		final Map<Integer, String> taskToComponents = new HashMap<Integer, String>();
