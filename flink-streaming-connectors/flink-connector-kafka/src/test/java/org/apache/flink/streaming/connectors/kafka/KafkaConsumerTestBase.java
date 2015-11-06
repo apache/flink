@@ -181,12 +181,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	/**
 	 * Tests that offsets are properly committed to ZooKeeper and initial offsets are read from ZooKeeper.
 	 *
-	 * This test is only applicable if Teh Flink Kafka Consumer uses the ZooKeeperOffsetHandler.
+	 * This test is only applicable if the Flink Kafka Consumer uses the ZooKeeperOffsetHandler.
 	 */
 	public void runOffsetInZookeeperValidationTest() throws Exception {
-		LOG.info("Starting testFlinkKafkaConsumerWithOffsetUpdates()");
-
-		final String topicName = "testOffsetHacking";
+		final String topicName = "testOffsetInZK";
 		final int parallelism = 3;
 
 		createTestTopic(topicName, parallelism, 1);
@@ -223,8 +221,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
 
 		assertTrue(o1 == FlinkKafkaConsumer.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
-		assertTrue(o2 == FlinkKafkaConsumer.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
-		assertTrue(o3 == FlinkKafkaConsumer.OFFSET_NOT_SET || (o1 >= 0 && o1 <= 100));
+		assertTrue(o2 == FlinkKafkaConsumer.OFFSET_NOT_SET || (o2 >= 0 && o2 <= 100));
+		assertTrue(o3 == FlinkKafkaConsumer.OFFSET_NOT_SET || (o3 >= 0 && o3 <= 100));
 
 		LOG.info("Manipulating offsets");
 
@@ -239,8 +237,56 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		readSequence(env3, standardProps, parallelism, topicName, 50, 50);
 
 		deleteTestTopic(topicName);
+	}
 
-		LOG.info("Finished testFlinkKafkaConsumerWithOffsetUpdates()");
+	public void runOffsetAutocommitTest() throws Exception {
+		final String topicName = "testOffsetAutocommit";
+		final int parallelism = 3;
+
+		createTestTopic(topicName, parallelism, 1);
+
+		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env1.getConfig().disableSysoutLogging();
+		env1.setNumberOfExecutionRetries(0);
+		env1.setParallelism(parallelism);
+
+		StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		// NOTE: We are not enabling the checkpointing!
+		env2.getConfig().disableSysoutLogging();
+		env2.setNumberOfExecutionRetries(0);
+		env2.setParallelism(parallelism);
+
+
+		// write a sequence from 0 to 99 to each of the 3 partitions.
+		writeSequence(env1, topicName, 100, parallelism);
+
+
+		// the readSequence operation sleeps for 20 ms between each record.
+		// setting a delay of 25*20 = 500 for the commit interval makes
+		// sure that we commit roughly 3-4 times while reading, however
+		// at least once.
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.commit.interval.ms", "500");
+
+		// read so that the offset can be committed to ZK
+		readSequence(env2, readProps, parallelism, topicName, 100, 0);
+
+		// get the offset
+		ZkClient zkClient = createZookeeperClient();
+
+		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 0);
+		long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 1);
+		long o3 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 2);
+
+		LOG.info("Got final offsets from zookeeper o1={}, o2={}, o3={}", o1, o2, o3);
+
+		// ensure that the offset has been committed
+		assertTrue("Offset of o1=" + o1 + " was not in range", o1 > 0 && o1 <= 100);
+		assertTrue("Offset of o2=" + o2 + " was not in range", o2 > 0 && o2 <= 100);
+		assertTrue("Offset of o3=" + o3 + " was not in range", o3 > 0 && o3 <= 100);
+
+		deleteTestTopic(topicName);
 	}
 
 	/**
@@ -257,8 +303,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 */
 	@RetryOnException(times=2, exception=kafka.common.NotLeaderForPartitionException.class)
 	public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
-		LOG.info("Starting runSimpleConcurrentProducerConsumerTopology()");
-
 		final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
 		final int parallelism = 3;
 		final int elementsPerPartition = 100;
@@ -361,8 +405,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			throw e;
 		}
 
-		LOG.info("Finished runSimpleConcurrentProducerConsumerTopology()");
-
 		deleteTestTopic(topic);
 	}
 
@@ -371,7 +413,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * Flink sources.
 	 */
 	public void runOneToOneExactlyOnceTest() throws Exception {
-		LOG.info("Starting runOneToOneExactlyOnceTest()");
 
 		final String topic = "oneToOneTopic";
 		final int parallelism = 5;
@@ -416,8 +457,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * one Flink source will read multiple Kafka partitions.
 	 */
 	public void runOneSourceMultiplePartitionsExactlyOnceTest() throws Exception {
-		LOG.info("Starting runOneSourceMultiplePartitionsExactlyOnceTest()");
-
 		final String topic = "oneToManyTopic";
 		final int numPartitions = 5;
 		final int numElementsPerPartition = 1000;
@@ -463,8 +502,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * that some Flink sources will read no partitions.
 	 */
 	public void runMultipleSourcesOnePartitionExactlyOnceTest() throws Exception {
-		LOG.info("Starting runMultipleSourcesOnePartitionExactlyOnceTest()");
-
 		final String topic = "manyToOneTopic";
 		final int numPartitions = 5;
 		final int numElementsPerPartition = 1000;
@@ -706,7 +743,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * see http://stackoverflow.com/questions/21020347/kafka-sending-a-15mb-message
 	 */
 	public void runBigRecordTestTopology() throws Exception {
-		LOG.info("Starting runBigRecordTestTopology()");
 
 		final String topic = "bigRecordTestTopic";
 		final int parallelism = 1; // otherwise, the kafka mini clusters may run out of heap space
@@ -805,13 +841,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		deleteTestTopic(topic);
 
-		LOG.info("Finished runBigRecordTestTopology()");
 	}
 
 	
 	public void runBrokerFailureTest() throws Exception {
-		LOG.info("starting runBrokerFailureTest()");
-
 		final String topic = "brokerFailureTestTopic";
 
 		final int parallelism = 2;
@@ -878,7 +911,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// start a new broker:
 		brokers.set(leaderIdToShutDown, getKafkaServer(leaderIdToShutDown, tmpKafkaDirs.get(leaderIdToShutDown), kafkaHost, zookeeperConnectionString));
 
-		LOG.info("finished runBrokerFailureTest()");
 	}
 
 	// ------------------------------------------------------------------------
