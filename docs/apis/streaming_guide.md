@@ -326,14 +326,14 @@ Typically, you only need to use `getExecutionEnvironment`, since this
 will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
-you created a JAR file from you program, and invoke it through the [command line](cli.html)
+you created a JAR file from your program, and invoke it through the [command line](cli.html)
 or the [web interface](web_client.html),
 the Flink cluster manager will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
 For specifying data sources the execution environment has several methods
 to read from files, sockets, and external systems using various methods. To just read
-data from a socket (useful also for debugginf), you can use:
+data from a socket (useful also for debugging), you can use:
 
 {% highlight scala %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -1350,7 +1350,7 @@ dataStream.broadcast()
 
 ### Task chaining and resource groups
 
-Chaining two subsequent transformations means col-locating them within the same thread for better
+Chaining two subsequent transformations means co-locating them within the same thread for better
 performance. Flink by default chains operators if this is possible (e.g., two subsequent map
 transformations). The API gives fine-grained control over chaining if desired:
 
@@ -2536,8 +2536,8 @@ triggeredStream.evict(CountEvictor.of(1000));
           </p>
     {% highlight java %}
 triggeredStream.evict(DeltaEvictor.of(5000, new DeltaFunction<Double>() {
-  public double (Double old, Double new) {
-      return (new - old > 0.01);
+  public double (Double oldValue, Double newValue) {
+      return newValue - oldValue;
   }
 }));
     {% endhighlight %}
@@ -3261,7 +3261,7 @@ the "termination" logic, where an element is allowed to propagate downstream rat
 than being fed back.
 
 {% highlight java %}
-iteration.closeWith(tail.filter(iterationBody.filter(/* one part of the stream */)));
+iteration.closeWith(iterationBody.filter(/* one part of the stream */));
 DataStream<Integer> output = iterationBody.filter(/* some other part of the stream */);
 {% endhighlight %}
 
@@ -3450,7 +3450,7 @@ Note that the streaming connectors are currently not part of the binary distribu
 #### Installing Apache Kafka
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
 * On 32 bit computers [this](http://stackoverflow.com/questions/22325364/unrecognized-vm-option-usecompressedoops-when-running-kafka-from-my-ubuntu-in) problem may occur.
-* If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file the  must be set to the machine's IP address.
+* If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
 
 #### Kafka Consumer
 
@@ -3667,6 +3667,7 @@ This will buffer elements before sending a request to the cluster. The behaviour
   settings in milliseconds
 
 This example code does the same, but with a `TransportClient`:
+
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
