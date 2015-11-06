@@ -63,6 +63,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -415,8 +416,12 @@ public class CliFrontend {
 				this.optimizedPlan = flinkPlan;
 				this.packagedProgram = program;
 			} else {
-				String jsonPlan = new PlanJSONDumpGenerator()
-						.getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
+				String jsonPlan = null;
+				if (flinkPlan instanceof OptimizedPlan) {
+					jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
+				} else if (flinkPlan instanceof StreamingPlan) {
+					jsonPlan = ((StreamingPlan) flinkPlan).getStreamingPlanAsJSON();
+				}
 
 				if (jsonPlan != null) {
 					System.out.println("----------------------- Execution Plan -----------------------");
