@@ -17,7 +17,7 @@ language: java
 matrix:
   include:
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests
+      env: PROFILE="-Dhadoop.version=2.7.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests"
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.5.0 -Pinclude-yarn-tests"
     - jdk: "openjdk7"
@@ -41,7 +41,7 @@ notifications:
     secure: iYjxJn8OkCRslJ30/PcE+EbMiqfKwsvUJiVUEQAEXqCEwZg+wYDsN0ilPQQT0zU16mYWKoMTx71zrOZpjirGq7ww0XZ0wAfXDjgmTxX/DaEdp87uNgTRdQzLV7mQouMKZni28eoa08Rb2NIoLLQ39q7uCu0W/p7vAD2e9xHlBBE=
 
 env:
-    global: 
+    global:
         # Global variable to avoid hanging travis builds when downloading cache archives.
         - MALLOC_ARENA_MAX=2
         # username and password for Apache Nexus (maven deploy)
