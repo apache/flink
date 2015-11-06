@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 
 import java.util.HashMap;
@@ -51,6 +53,9 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	
 	/** Type of the values stored in the state, to make sure repeated requests of the state are consistent */
 	private HashMap<String, TypeInformation<?>> stateTypeInfos;
+
+	/** Stream configuration object. */
+	private final StreamConfig streamConfig;
 	
 	
 	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
@@ -65,6 +70,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		
 		this.operator = operator;
 		this.taskEnvironment = env;
+		this.streamConfig = new StreamConfig(env.getTaskConfiguration());
 	}
 
 	// ------------------------------------------------------------------------
@@ -173,4 +179,31 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 			}
 		}
 	}
+
+	// ------------------ expose (read only) relevant information from the stream config -------- //
+
+	/**
+	 * Returns true if checkpointing is enabled for the running job.
+	 * @return true if checkpointing is enabled.
+	 */
+	public boolean isCheckpointingEnabled() {
+		return streamConfig.isCheckpointingEnabled();
+	}
+
+	/**
+	 * Returns the checkpointing mode
+	 * @return checkpointing mode
+	 */
+	public CheckpointingMode getCheckpointMode() {
+		return streamConfig.getCheckpointMode();
+	}
+
+	/**
+	 * Returns the buffer timeout of the job
+	 * @return buffer timeout (in milliseconds)
+	 */
+	public long getBufferTimeout() {
+		return streamConfig.getBufferTimeout();
+	}
+
 }
