@@ -21,11 +21,17 @@ package org.apache.flink.api.scala
 import java.io.BufferedReader
 
 import _root_.scala.tools.nsc.interpreter._
+import _root_.scala.io.AnsiColor.{MAGENTA, RESET}
 
 class ILoopCompat(
     in0: Option[BufferedReader],
     out0: JPrintWriter)
     extends ILoop(in0, out0) {
+
+  override def prompt = {
+    val promptStr = "Scala-Flink> "
+    s"$MAGENTA$promptStr$RESET"
+  }
 
   protected def addThunk(f: => Unit): Unit = f
 }
