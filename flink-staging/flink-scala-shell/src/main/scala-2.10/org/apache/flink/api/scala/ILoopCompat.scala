@@ -26,4 +26,6 @@ class ILoopCompat(
     in0: Option[BufferedReader],
     out0: JPrintWriter)
     extends ILoop(in0, out0) {
+
+  override def prompt = "Scala-Flink> "
 }

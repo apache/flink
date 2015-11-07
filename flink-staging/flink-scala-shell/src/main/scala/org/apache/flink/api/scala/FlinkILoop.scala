@@ -175,11 +175,6 @@ class FlinkILoop(
   }
 
   /**
-   * CUSTOM START METHODS OVERRIDE:
-   */
-  override def prompt = "Scala-Flink> "
-
-  /**
    * custom welcome message
    */
   override def printWelcome() {
