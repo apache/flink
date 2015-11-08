@@ -141,6 +141,7 @@ public class MySqlAdapter implements DbAdapter {
 		return "SELECT v"
 				+ " FROM kvstate_" + stateId
 				+ " WHERE k = ?"
+				+ " AND timestamp <= ?"
 				+ " ORDER BY timestamp DESC LIMIT 1";
 	}
 
@@ -148,6 +149,7 @@ public class MySqlAdapter implements DbAdapter {
 	public byte[] lookupKey(String stateId, PreparedStatement lookupStatement, byte[] key, long lookupTs)
 			throws SQLException {
 		lookupStatement.setBytes(1, key);
+		lookupStatement.setLong(2, lookupTs);
 
 		ResultSet res = lookupStatement.executeQuery();
 

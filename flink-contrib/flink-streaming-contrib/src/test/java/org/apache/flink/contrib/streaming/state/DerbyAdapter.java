@@ -98,7 +98,8 @@ public class DerbyAdapter extends MySqlAdapter {
 		validateStateId(stateId);
 		return "SELECT v " + "FROM kvstate_" + stateId
 				+ " WHERE k = ? "
-				+ "ORDER BY timestamp DESC";
+				+ " AND timestamp <= ?"
+				+ " ORDER BY timestamp DESC";
 	}
 
 	@Override
