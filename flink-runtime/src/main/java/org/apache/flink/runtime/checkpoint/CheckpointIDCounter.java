@@ -40,6 +40,4 @@ public interface CheckpointIDCounter {
 	 */
 	long getAndIncrement() throws Exception;
 	
-	long get() throws Exception;
-
 }

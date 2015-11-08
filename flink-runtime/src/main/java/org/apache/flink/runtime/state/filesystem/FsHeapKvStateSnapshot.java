@@ -63,7 +63,7 @@ public class FsHeapKvStateSnapshot<K, V> extends AbstractFileState implements Kv
 			final TypeSerializer<V> valueSerializer,
 			V defaultValue,
 			ClassLoader classLoader,
-			long nextCpId) throws Exception {
+			long recoveryTimestamp) throws Exception {
 
 		// validity checks
 		if (!keySerializer.getClass().getName().equals(keySerializerClassName) ||

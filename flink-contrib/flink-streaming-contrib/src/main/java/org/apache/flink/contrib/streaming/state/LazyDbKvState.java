@@ -93,7 +93,8 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	// LRU cache for the key-value states backed by the database
 	private final StateCache cache;
 
-	private long nextCheckpointId;
+	private long nextTs;
+	private Map<Long, Long> completedCheckpoints = new HashMap<>();
 
 	// ------------------------------------------------------
 
@@ -110,7 +111,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * Initialize the {@link LazyDbKvState} from a snapshot.
 	 */
 	public LazyDbKvState(String kvStateId, boolean compact, ShardedConnection cons, final DbBackendConfig conf,
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue, long nextId)
+			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue, long nextTs)
 					throws IOException {
 
 		this.kvStateId = kvStateId;
@@ -128,7 +129,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		this.numSqlRetries = conf.getMaxNumberOfSqlRetries();
 		this.sqlRetrySleep = conf.getSleepBetweenSqlRetries();
 
-		this.nextCheckpointId = nextId;
+		this.nextTs = nextTs;
 
 		this.cache = new StateCache(conf.getKvCacheSize(), conf.getNumElementsToEvict());
 
@@ -175,18 +176,23 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	@Override
 	public DbKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws IOException {
 
-		// We insert the modified elements to the database with the current id
-		// then clear the modified states
-		for (Entry<K, Optional<V>> state : cache.modified.entrySet()) {
-			batchInsert.add(state, checkpointId);
+		// Validate timing assumptions
+		if (timestamp <= nextTs) {
+			throw new RuntimeException("Checkpoint timestamp is smaller than previous ts + 1, "
+					+ "this should not happen.");
 		}
-		batchInsert.flush(checkpointId);
+
+		// We insert the modified elements to the database with the current
+		// timestamp then clear the modified states
+		for (Entry<K, Optional<V>> state : cache.modified.entrySet()) {
+			batchInsert.add(state, timestamp);
+		}
+		batchInsert.flush(timestamp);
 		cache.modified.clear();
 
-		// We increase the next checkpoint id
-		nextCheckpointId = checkpointId + 1;
-
-		return new DbKvStateSnapshot<K, V>(kvStateId, checkpointId);
+		nextTs = timestamp + 1;
+		completedCheckpoints.put(checkpointId, timestamp);
+		return new DbKvStateSnapshot<K, V>(kvStateId, timestamp);
 	}
 
 	/**
@@ -230,11 +236,16 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
+		Long ts = completedCheckpoints.remove(checkpointId);
+		if (ts == null) {
+			LOG.warn("Complete notification for missing checkpoint: " + checkpointId);
+			ts = 0L;
+		}
 		// If compaction is turned on we compact on the first subtask
 		if (compactEvery > 0 && compact && checkpointId % compactEvery == 0) {
 			try {
 				for (Connection c : connections.connections()) {
-					dbAdapter.compactKvStates(kvStateId, c, 0, checkpointId);
+					dbAdapter.compactKvStates(kvStateId, c, 0, ts);
 				}
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("State succesfully compacted for {}.", kvStateId);
@@ -294,17 +305,25 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		private static final long serialVersionUID = 1L;
 
 		private final String kvStateId;
-		private final long checkpointId;
+		private final long checkpointTimestamp;
 
-		public DbKvStateSnapshot(String kvStateId, long checkpointId) {
-			this.checkpointId = checkpointId;
+		public DbKvStateSnapshot(String kvStateId, long checkpointTimestamp) {
+			this.checkpointTimestamp = checkpointTimestamp;
 			this.kvStateId = kvStateId;
 		}
 
 		@Override
 		public LazyDbKvState<K, V> restoreState(final DbStateBackend stateBackend,
 				final TypeSerializer<K> keySerializer, final TypeSerializer<V> valueSerializer, final V defaultValue,
-				ClassLoader classLoader, final long nextId) throws IOException {
+				ClassLoader classLoader, final long recoveryTimestamp) throws IOException {
+
+			// Validate timing assumptions
+			if (recoveryTimestamp <= checkpointTimestamp) {
+				throw new RuntimeException(
+						"Recovery timestamp is smaller or equal to checkpoint timestamp. "
+								+ "This might happen if the job was started with a new JobManager "
+								+ "and the clocks got really out of sync.");
+			}
 
 			// First we clean up the states written by partially failed
 			// snapshots
@@ -314,7 +333,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 					// We need to perform cleanup on all shards to be safe here
 					for (Connection c : stateBackend.getConnections().connections()) {
 						stateBackend.getConfiguration().getDbAdapter().cleanupFailedCheckpoints(kvStateId,
-								c, checkpointId, nextId);
+								c, checkpointTimestamp, recoveryTimestamp);
 					}
 
 					return null;
@@ -327,10 +346,10 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			// Restore the KvState
 			LazyDbKvState<K, V> restored = new LazyDbKvState<K, V>(kvStateId, cleanup,
 					stateBackend.getConnections(), stateBackend.getConfiguration(), keySerializer, valueSerializer,
-					defaultValue, nextId);
+					defaultValue, recoveryTimestamp);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("KV state({},{}) restored.", kvStateId, nextId);
+				LOG.debug("KV state({},{}) restored.", kvStateId, recoveryTimestamp);
 			}
 
 			return restored;
@@ -410,7 +429,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 						// We lookup using the adapter and serialize/deserialize
 						// with the TypeSerializers
 						byte[] serializedVal = dbAdapter.lookupKey(kvStateId,
-								selectStatements.getForKey(key), serializedKey, nextCheckpointId);
+								selectStatements.getForKey(key), serializedKey, nextTs);
 
 						return serializedVal != null
 								? InstantiationUtil.deserializeFromByteArray(valueSerializer, serializedVal) : null;
@@ -443,13 +462,13 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 						// We only need to write to the database if modified
 						if (modified.remove(next.getKey()) != null) {
-							batchInsert.add(next, nextCheckpointId);
+							batchInsert.add(next, nextTs);
 						}
 
 						entryIterator.remove();
 					}
 
-					batchInsert.flush(nextCheckpointId);
+					batchInsert.flush(nextTs);
 
 				} catch (IOException e) {
 					// We need to re-throw this exception to conform to the map
@@ -492,7 +511,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			}
 		}
 
-		public void add(Entry<K, Optional<V>> next, long checkpointId) throws IOException {
+		public void add(Entry<K, Optional<V>> next, long timestamp) throws IOException {
 
 			K key = next.getKey();
 			V value = next.getValue().orNull();
@@ -512,19 +531,19 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 				dbAdapter.insertBatch(kvStateId, conf,
 						connections.getForIndex(shardIndex),
 						insertStatements.getForIndex(shardIndex),
-						checkpointId, insertPartition);
+						timestamp, insertPartition);
 
 				insertPartition.clear();
 			}
 		}
 
-		public void flush(long checkpointId) throws IOException {
+		public void flush(long timestamp) throws IOException {
 			// We flush all non-empty partitions
 			for (int i = 0; i < inserts.length; i++) {
 				List<Tuple2<byte[], byte[]>> insertPartition = inserts[i];
 				if (!insertPartition.isEmpty()) {
 					dbAdapter.insertBatch(kvStateId, conf, connections.getForIndex(i),
-							insertStatements.getForIndex(i), checkpointId, insertPartition);
+							insertStatements.getForIndex(i), timestamp, insertPartition);
 					insertPartition.clear();
 				}
 			}

@@ -120,10 +120,10 @@ public class MySqlAdapter implements DbAdapter {
 			smt.executeUpdate(
 					"CREATE TABLE IF NOT EXISTS kvstate_" + stateId
 							+ " ("
-							+ "id bigint, "
+							+ "timestamp bigint, "
 							+ "k varbinary(256), "
 							+ "v blob, "
-							+ "PRIMARY KEY (k, id) "
+							+ "PRIMARY KEY (k, timestamp) "
 							+ ")");
 		}
 	}
@@ -131,7 +131,7 @@ public class MySqlAdapter implements DbAdapter {
 	@Override
 	public String prepareKVCheckpointInsert(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return "INSERT INTO kvstate_" + stateId + " (id, k, v) VALUES (?,?,?) "
+		return "INSERT INTO kvstate_" + stateId + " (timestamp, k, v) VALUES (?,?,?) "
 				+ "ON DUPLICATE KEY UPDATE v=? ";
 	}
 
@@ -141,15 +141,13 @@ public class MySqlAdapter implements DbAdapter {
 		return "SELECT v"
 				+ " FROM kvstate_" + stateId
 				+ " WHERE k = ?"
-				+ " AND id <= ?"
-				+ " ORDER BY id DESC LIMIT 1";
+				+ " ORDER BY timestamp DESC LIMIT 1";
 	}
 
 	@Override
-	public byte[] lookupKey(String stateId, PreparedStatement lookupStatement, byte[] key, long lookupId)
+	public byte[] lookupKey(String stateId, PreparedStatement lookupStatement, byte[] key, long lookupTs)
 			throws SQLException {
 		lookupStatement.setBytes(1, key);
-		lookupStatement.setLong(2, lookupId);
 
 		ResultSet res = lookupStatement.executeQuery();
 
@@ -161,13 +159,13 @@ public class MySqlAdapter implements DbAdapter {
 	}
 
 	@Override
-	public void cleanupFailedCheckpoints(String stateId, Connection con, long checkpointId,
-			long nextId) throws SQLException {
+	public void cleanupFailedCheckpoints(String stateId, Connection con, long checkpointTs,
+			long recoveryTs) throws SQLException {
 		validateStateId(stateId);
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate("DELETE FROM kvstate_" + stateId
-					+ " WHERE id > " + checkpointId
-					+ " AND id < " + nextId);
+					+ " WHERE timestamp > " + checkpointTs
+					+ " AND timestamp < " + recoveryTs);
 		}
 	}
 
@@ -180,12 +178,12 @@ public class MySqlAdapter implements DbAdapter {
 			smt.executeUpdate("DELETE state.* FROM kvstate_" + stateId + " AS state"
 					+ " JOIN"
 					+ " ("
-					+ " 	SELECT MAX(id) AS maxts, k FROM kvstate_" + stateId
-					+ " 	WHERE id BETWEEN " + lowerId + " AND " + upperId
+					+ " 	SELECT MAX(timestamp) AS maxts, k FROM kvstate_" + stateId
+					+ " 	WHERE timestamp BETWEEN " + lowerId + " AND " + upperId
 					+ " 	GROUP BY k"
 					+ " ) m"
 					+ " ON state.k = m.k"
-					+ " AND state.id >= " + lowerId);
+					+ " AND state.timestamp >= " + lowerId);
 		}
 	}
 
@@ -201,13 +199,13 @@ public class MySqlAdapter implements DbAdapter {
 
 	@Override
 	public void insertBatch(final String stateId, final DbBackendConfig conf,
-			final Connection con, final PreparedStatement insertStatement, final long checkpointId,
+			final Connection con, final PreparedStatement insertStatement, final long checkpointTs,
 			final List<Tuple2<byte[], byte[]>> toInsert) throws IOException {
 
 		SQLRetrier.retry(new Callable<Void>() {
 			public Void call() throws Exception {
 				for (Tuple2<byte[], byte[]> kv : toInsert) {
-					setKvInsertParams(stateId, insertStatement, checkpointId, kv.f0, kv.f1);
+					setKvInsertParams(stateId, insertStatement, checkpointTs, kv.f0, kv.f1);
 					insertStatement.addBatch();
 				}
 				insertStatement.executeBatch();
@@ -222,9 +220,9 @@ public class MySqlAdapter implements DbAdapter {
 		}, conf.getMaxNumberOfSqlRetries(), conf.getSleepBetweenSqlRetries());
 	}
 
-	private void setKvInsertParams(String stateId, PreparedStatement insertStatement, long checkpointId,
+	private void setKvInsertParams(String stateId, PreparedStatement insertStatement, long checkpointTs,
 			byte[] key, byte[] value) throws SQLException {
-		insertStatement.setLong(1, checkpointId);
+		insertStatement.setLong(1, checkpointTs);
 		insertStatement.setBytes(2, key);
 		if (value != null) {
 			insertStatement.setBytes(3, value);

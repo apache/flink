@@ -490,7 +490,7 @@ public class CheckpointCoordinator {
 				}
 			}
 			
-			long nextId = checkpointIdCounter.get();
+			long recoveryTimestamp = System.currentTimeMillis();
 
 			if (allOrNothingState) {
 				Map<ExecutionJobVertex, Integer> stateCounts = new HashMap<ExecutionJobVertex, Integer>();
@@ -498,7 +498,7 @@ public class CheckpointCoordinator {
 				for (StateForTask state : latest.getStates()) {
 					ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
 					Execution exec = vertex.getTaskVertices()[state.getSubtask()].getCurrentExecutionAttempt();
-					exec.setInitialState(state.getState(), nextId);
+					exec.setInitialState(state.getState(), recoveryTimestamp);
 
 					Integer count = stateCounts.get(vertex);
 					if (count != null) {
@@ -521,7 +521,7 @@ public class CheckpointCoordinator {
 				for (StateForTask state : latest.getStates()) {
 					ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
 					Execution exec = vertex.getTaskVertices()[state.getSubtask()].getCurrentExecutionAttempt();
-					exec.setInitialState(state.getState(), nextId);
+					exec.setInitialState(state.getState(), recoveryTimestamp);
 				}
 			}
 		}

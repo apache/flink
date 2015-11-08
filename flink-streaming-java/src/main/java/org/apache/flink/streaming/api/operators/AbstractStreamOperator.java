@@ -95,7 +95,7 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	private transient HashMap<String, KvStateSnapshot<?, ?, ?>> keyValueStateSnapshots;
 
-	private long nextCheckpointId;
+	private long recoveryTimestamp;
 	
 	// ------------------------------------------------------------------------
 	//  Life Cycle
@@ -175,11 +175,11 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 	
 	@Override
-	public void restoreState(StreamTaskState state, long nextCheckpointId) throws Exception {
+	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
 		keyValueStateSnapshots = state.getKvStates();
-		this.nextCheckpointId = nextCheckpointId;
+		this.recoveryTimestamp = recoveryTimestamp;
 	}
 	
 	@Override
@@ -325,7 +325,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 			if (snapshot != null) {
 				kvstate = snapshot.restoreState(
-						stateBackend, keySerializer, valueSerializer, defaultValue, getUserCodeClassloader(), nextCheckpointId);
+						stateBackend, keySerializer, valueSerializer, defaultValue, getUserCodeClassloader(), recoveryTimestamp);
 			}
 		}
 		

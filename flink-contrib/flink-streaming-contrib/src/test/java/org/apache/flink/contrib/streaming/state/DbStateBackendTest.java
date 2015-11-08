@@ -196,19 +196,19 @@ public class DbStateBackendTest {
 			kv.setCurrentKey(3);
 			kv.update("u3");
 
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462378L));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 100));
 
 			kv.notifyCheckpointComplete(682375462378L);
 
 			// draw another snapshot
 			KvStateSnapshot<Integer, String, DbStateBackend> snapshot2 = kv.snapshot(682375462379L,
 					200);
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462378L));
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462379L));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 100));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 200));
 			kv.notifyCheckpointComplete(682375462379L);
 			// Compaction should be performed
-			assertFalse(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462378L));
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 682375462379L));
+			assertFalse(containsKey(backend.getConnections().getFirst(), tableName, 1, 100));
+			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 200));
 
 			// validate the original state
 			assertEquals(3, kv.size());
@@ -426,7 +426,7 @@ public class DbStateBackendTest {
 	private static boolean containsKey(Connection con, String tableName, int key, long ts)
 			throws SQLException, IOException {
 		try (PreparedStatement smt = con
-				.prepareStatement("select * from " + tableName + " where k=? and id=?")) {
+				.prepareStatement("select * from " + tableName + " where k=? and timestamp=?")) {
 			smt.setBytes(1, InstantiationUtil.serializeToByteArray(IntSerializer.INSTANCE, key));
 			smt.setLong(2, ts);
 			return smt.executeQuery().next();

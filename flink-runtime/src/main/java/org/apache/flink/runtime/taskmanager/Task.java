@@ -219,7 +219,7 @@ public class Task implements Runnable {
 	 * initialization, to be memory friendly */
 	private volatile SerializedValue<StateHandle<?>> operatorState;
 
-	private volatile long nextCheckpointId;
+	private volatile long recoveryTs;
 
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
@@ -254,7 +254,7 @@ public class Task implements Runnable {
 		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
-		this.nextCheckpointId = tdd.getNextCpId();
+		this.recoveryTs = tdd.getRecoveryTimestamp();
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -538,7 +538,7 @@ public class Task implements Runnable {
 
 			// get our private reference onto the stack (be safe against concurrent changes) 
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
-			long nextCheckpointId = this.nextCheckpointId;
+			long nextCheckpointId = this.recoveryTs;
 
 			if (operatorState != null) {
 				if (invokable instanceof StatefulTask) {

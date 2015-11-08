@@ -84,7 +84,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	private final SerializedValue<StateHandle<?>> operatorState;
 
-	private long nextCpId;
+	private long recoveryTimestamp;
 		
 	/**
 	 * Constructs a task deployment descriptor.
@@ -96,7 +96,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
 			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
-			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState, long nextCpId) {
+			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState, long recoveryTimestamp) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
@@ -117,7 +117,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
-		this.nextCpId = nextCpId;
+		this.recoveryTimestamp = recoveryTimestamp;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -249,7 +249,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return operatorState;
 	}
 	
-	public long getNextCpId() {
-		return nextCpId;
+	public long getRecoveryTimestamp() {
+		return recoveryTimestamp;
 	}
 }

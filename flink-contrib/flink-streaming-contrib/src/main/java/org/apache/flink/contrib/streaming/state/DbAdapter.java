@@ -137,7 +137,7 @@ public interface DbAdapter extends Serializable {
 
 	/**
 	 * Retrieve the latest value from the database for a given key and
-	 * checkpointId.
+	 * timestamp.
 	 * 
 	 * @param stateId
 	 *            Unique identifier of the kvstate (usually the table name).
@@ -153,12 +153,11 @@ public interface DbAdapter extends Serializable {
 			throws SQLException;
 
 	/**
-	 * Clean up states between the current and next checkpoint id. Everything
-	 * with larger than current and smaller than next should be removed.
+	 * Clean up states between the checkpoint and recovery timestamp.
 	 * 
 	 */
-	void cleanupFailedCheckpoints(String stateId, Connection con, long checkpointId,
-			long nextId) throws SQLException;
+	void cleanupFailedCheckpoints(String stateId, Connection con, long checkpointTimestamp,
+			long recoveryTimestamp) throws SQLException;
 
 	/**
 	 * Insert a list of Key-Value pairs into the database. The suggested
@@ -166,12 +165,12 @@ public interface DbAdapter extends Serializable {
 	 * 
 	 */
 	void insertBatch(String stateId, DbBackendConfig conf, Connection con, PreparedStatement insertStatement,
-			long checkpointId, List<Tuple2<byte[], byte[]>> toInsert) throws IOException;
+			long checkpointTimestamp, List<Tuple2<byte[], byte[]>> toInsert) throws IOException;
 
 	/**
-	 * Compact the states between two checkpoint ids by only keeping the most
+	 * Compact the states between two checkpoint timestamp by only keeping the most
 	 * recent.
 	 */
-	void compactKvStates(String kvStateId, Connection con, long lowerId, long upperId) throws SQLException;
+	void compactKvStates(String kvStateId, Connection con, long lowerTs, long upperTs) throws SQLException;
 
 }

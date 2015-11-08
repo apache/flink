@@ -75,10 +75,10 @@ public class DerbyAdapter extends MySqlAdapter {
 			smt.executeUpdate(
 					"CREATE TABLE kvstate_" + stateId
 							+ " ("
-							+ "id bigint, "
+							+ "timestamp bigint, "
 							+ "k varchar(256) for bit data, "
 							+ "v blob, "
-							+ "PRIMARY KEY (k, id)"
+							+ "PRIMARY KEY (k, timestamp)"
 							+ ")");
 		} catch (SQLException se) {
 			if (se.getSQLState().equals("X0Y32")) {
@@ -98,8 +98,7 @@ public class DerbyAdapter extends MySqlAdapter {
 		validateStateId(stateId);
 		return "SELECT v " + "FROM kvstate_" + stateId
 				+ " WHERE k = ? "
-				+ " AND id <= ? "
-				+ "ORDER BY id DESC";
+				+ "ORDER BY timestamp DESC";
 	}
 
 	@Override
@@ -113,9 +112,9 @@ public class DerbyAdapter extends MySqlAdapter {
 					+ " ("
 					+ " 	SELECT * FROM kvstate_" + stateId + " t2"
 					+ " 	WHERE t2.k = t1.k"
-					+ "		AND t2.id > t1.id"
-					+ " 	AND t2.id <=" + upperBound
-					+ "		AND t2.id >= " + lowerBound
+					+ "		AND t2.timestamp > t1.timestamp"
+					+ " 	AND t2.timestamp <=" + upperBound
+					+ "		AND t2.timestamp >= " + lowerBound
 					+ " )");
 		}
 	}
@@ -123,40 +122,34 @@ public class DerbyAdapter extends MySqlAdapter {
 	@Override
 	public String prepareKVCheckpointInsert(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return "INSERT INTO kvstate_" + stateId + " (id, k, v) VALUES (?,?,?)";
+		return "INSERT INTO kvstate_" + stateId + " (timestamp, k, v) VALUES (?,?,?)";
 	}
 
 	@Override
 	public void insertBatch(final String stateId, final DbBackendConfig conf,
-			final Connection con, final PreparedStatement insertStatement, final long checkpointId,
+			final Connection con, final PreparedStatement insertStatement, final long checkpointTs,
 			final List<Tuple2<byte[], byte[]>> toInsert) throws IOException {
 
-		try (PreparedStatement smt = con
-				.prepareStatement("UPDATE kvstate_" + stateId + " SET v=? WHERE k=? AND id=?")) {
-			for (final Tuple2<byte[], byte[]> kv : toInsert) {
-				SQLRetrier.retry(new Callable<Void>() {
-					public Void call() throws Exception {
-						try {
-							setKVInsertParams(stateId, insertStatement, checkpointId, kv.f0, kv.f1);
-							insertStatement.executeUpdate();
-						} catch (SQLException e) {
-							if (kv.f0 != null) {
-								smt.setBytes(1, kv.f1);
-							} else {
-								smt.setNull(1, Types.BLOB);
-							}
-							smt.setBytes(2, kv.f0);
-							smt.setLong(3, checkpointId);
-							smt.executeUpdate();
-						}
-						return null;
-					}
-				}, conf.getMaxNumberOfSqlRetries(), conf.getSleepBetweenSqlRetries());
-
+		SQLRetrier.retry(new Callable<Void>() {
+			public Void call() throws Exception {
+				con.setAutoCommit(false);
+				for (Tuple2<byte[], byte[]> kv : toInsert) {
+					setKVInsertParams(stateId, insertStatement, checkpointTs, kv.f0, kv.f1);
+					insertStatement.addBatch();
+				}
+				insertStatement.executeBatch();
+				con.commit();
+				con.setAutoCommit(true);
+				insertStatement.clearBatch();
+				return null;
 			}
-		} catch (SQLException e) {
-			throw new IOException(e);
-		}
+		}, new Callable<Void>() {
+			public Void call() throws Exception {
+				con.rollback();
+				insertStatement.clearBatch();
+				return null;
+			}
+		}, conf.getMaxNumberOfSqlRetries(), conf.getSleepBetweenSqlRetries());
 	}
 
 	private void setKVInsertParams(String stateId, PreparedStatement insertStatement, long checkpointId,

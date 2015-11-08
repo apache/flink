@@ -31,9 +31,9 @@ public interface StatefulTask<T extends StateHandle<?>> {
 	 * a snapshot of the state from a previous execution.
 	 * 
 	 * @param stateHandle The handle to the state.
-	 * @param nextCheckpointId Next checkpoint id.
+	 * @param recoveryTimestamp Global recovery timestamp.
 	 */
-	void setInitialState(T stateHandle, long nextCheckpointId) throws Exception;
+	void setInitialState(T stateHandle, long recoveryTimestamp) throws Exception;
 
 	/**
 	 * This method is either called directly and asynchronously by the checkpoint
