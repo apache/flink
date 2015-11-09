@@ -968,6 +968,29 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
+   * Performs intersect on the edge sets of the input graphs. Edges are considered equal, if they
+   * have the same source identifier, target identifier and edge value.
+   * <p>
+   * The method computes pairs of equal edges from the input graphs. If the same edge occurs
+   * multiple times in the input graphs, there will be multiple edge pairs to be considered. Each
+   * edge instance can only be part of one pair. If the given parameter {@code distinctEdges} is set
+   * to {@code true}, there will be exactly one edge in the output graph representing all pairs of
+   * equal edges. If the parameter is set to {@code false}, both edges of each pair will be in the
+   * output.
+   * <p>
+   * Vertices in the output graph will have no vertex values.
+   *
+   * @param graph the graph to perform intersect with
+   * @param distinctEdges if set to { @code true}, there will be exactly one edge in the output
+   *                      graph representing all pairs of equal edges, otherwise, for each pair,
+   *                      both edges will be in the output graph
+   * @return a new graph which contains only common vertices and edges from the input graphs
+   */
+  def intersect(graph: Graph[K, VV, EV], distinctEdges: Boolean): Graph[K, NullValue, EV] = {
+    wrapGraph(jgraph.intersect(graph.getWrappedGraph, distinctEdges))
+  }
+
+  /**
    * Compute a reduce transformation over the neighbors' vertex values of each vertex.
    * For each vertex, the transformation consecutively calls a
    * {@link ReduceNeighborsFunction} until only a single value for each vertex remains.
