@@ -18,35 +18,37 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.state.ListStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.state.AbstractHeapKvState;
+import org.apache.flink.runtime.state.AbstractHeapListState;
 
 import java.io.DataOutputStream;
 import java.util.HashMap;
+import java.util.List;
 
 /**
- * Heap-backed key/value state that is snapshotted into files.
+ * Heap-backed partitioned {@link org.apache.flink.api.common.state.ListState} that is snapshotted
+ * into files.
  * 
  * @param <K> The type of the key.
  * @param <V> The type of the value.
  */
-public class FsHeapKvState<K, V> extends AbstractHeapKvState<K, V, FsStateBackend> {
-	
+public class FsHeapListState<K, V> extends AbstractHeapListState<K, V, FsStateBackend> {
+
 	/** The file system state backend backing snapshots of this state */
 	private final FsStateBackend backend;
-	
+
 	/**
-	 * Creates a new and empty key/value state.
-	 * 
+	 * Creates a new and empty partitioned state.
+	 *
 	 * @param keySerializer The serializer for the key.
-	 * @param valueSerializer The serializer for the value.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 * and can create a default state value.
 	 * @param backend The file system state backend backing snapshots of this state
 	 */
-	public FsHeapKvState(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer,
-							V defaultValue, FsStateBackend backend) {
-		super(keySerializer, valueSerializer, defaultValue);
+	public FsHeapListState(TypeSerializer<K> keySerializer, ListStateIdentifier<V> stateIdentifier, FsStateBackend backend) {
+		super(backend, keySerializer, stateIdentifier);
 		this.backend = backend;
 	}
 
@@ -54,22 +56,22 @@ public class FsHeapKvState<K, V> extends AbstractHeapKvState<K, V, FsStateBacken
 	 * Creates a new key/value state with the given state contents.
 	 * This method is used to re-create key/value state with existing data, for example from
 	 * a snapshot.
-	 * 
+	 *
 	 * @param keySerializer The serializer for the key.
-	 * @param valueSerializer The serializer for the value.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
 	 * @param state The map of key/value pairs to initialize the state with.
 	 * @param backend The file system state backend backing snapshots of this state
 	 */
-	public FsHeapKvState(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer,
-							V defaultValue, HashMap<K, V> state, FsStateBackend backend) {
-		super(keySerializer, valueSerializer, defaultValue, state);
+	public FsHeapListState(TypeSerializer<K> keySerializer, ListStateIdentifier<V> stateIdentifier, HashMap<K, List<V>> state, FsStateBackend backend) {
+		super(backend, keySerializer, stateIdentifier, state);
 		this.backend = backend;
 	}
 
-	
+
+
 	@Override
-	public FsHeapKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws Exception {
+	public FsHeapListStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws Exception {
 		// first, create an output stream to write to
 		try (FsStateBackend.FsCheckpointStateOutputStream out = 
 					backend.createCheckpointStateOutputStream(checkpointId, timestamp)) {
@@ -82,7 +84,7 @@ public class FsHeapKvState<K, V> extends AbstractHeapKvState<K, V, FsStateBacken
 			outView.flush();
 			
 			// create a handle to the state
-			return new FsHeapKvStateSnapshot<>(getKeySerializer(), getValueSerializer(), out.closeAndGetPath());
+			return new FsHeapListStateSnapshot<K, V>(getKeySerializer(), stateIdentifier, out.closeAndGetPath());
 		}
 	}
 }

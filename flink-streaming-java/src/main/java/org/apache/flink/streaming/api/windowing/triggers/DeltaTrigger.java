@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -46,7 +46,7 @@ public class DeltaTrigger<T extends Serializable, W extends Window> implements T
 
 	@Override
 	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
-		OperatorState<T> lastElementState = ctx.getKeyValueState("last-element", null);
+		ValueState<T> lastElementState = ctx.getKeyValueState("last-element", null);
 		if (lastElementState.value() == null) {
 			lastElementState.update(element);
 			return TriggerResult.CONTINUE;

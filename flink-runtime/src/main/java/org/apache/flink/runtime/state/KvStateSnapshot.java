@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
@@ -32,10 +34,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * a file and this snapshot object contains a pointer to that file.
  *
  * @param <K> The type of the key
- * @param <V> The type of the value
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public interface KvStateSnapshot<K, V, Backend extends StateBackend<Backend>> extends java.io.Serializable {
+public interface KvStateSnapshot<K, S extends State, SI extends StateIdentifier<S>, Backend extends AbstractStateBackend> extends java.io.Serializable {
 
 	/**
 	 * Loads the key/value state back from this snapshot.
@@ -44,19 +45,18 @@ public interface KvStateSnapshot<K, V, Backend extends StateBackend<Backend>> ex
 	 * @param stateBackend The state backend that created this snapshot and can restore the key/value state
 	 *                     from this snapshot.
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.   
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
 	 * @param classLoader The class loader for user-defined types.
 	 * 
 	 * @return An instance of the key/value state loaded from this snapshot.
 	 * 
 	 * @throws Exception Exceptions can occur during the state loading and are forwarded. 
 	 */
-	KvState<K, V, Backend> restoreState(
+	KvState<K, S, SI, Backend> restoreState(
 			Backend stateBackend,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<V> valueSerializer,
-			V defaultValue,
+			SI stateIdentifier,
 			ClassLoader classLoader) throws Exception;
 
 

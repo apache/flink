@@ -16,34 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.typeutils.base;
+package org.apache.flink.api.common.state;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-
-public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
-
-	private static final long serialVersionUID = 8766687317209282373L;
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public TypeSerializerSingleton<T> duplicate() {
-		return this;
-	}
-
-	@Override
-	public int hashCode() {
-		return this.getClass().hashCode();
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof TypeSerializerSingleton) {
-			TypeSerializerSingleton<?> other = (TypeSerializerSingleton<?>) obj;
-
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
-}
+/**
+ * This state interface abstracts persistent partitioned list state in streaming programs.
+ * The state is accessed and modified by user functions, and checkpointed consistently
+ * by the system as part of the distributed snapshots.
+ * 
+ * <p>The state is only accessible by functions applied on a KeyedDataStream. The key is
+ * automatically supplied by the system, so the function always sees the value mapped to the
+ * key of the current element. That way, the system can handle stream and state partitioning
+ * consistently together.
+ * 
+ * @param <T> Type of the value in the operator state
+ */
+public interface ListState<T> extends MergingState<T, Iterable<T>> {}

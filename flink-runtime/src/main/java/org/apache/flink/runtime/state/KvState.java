@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateIdentifier;
 
 /**
  * Key/Value state implementation for user-defined state. The state is backed by a state
@@ -29,9 +30,8 @@ import org.apache.flink.api.common.state.OperatorState;
  * metadata of what is considered part of the checkpoint.
  * 
  * @param <K> The type of the key.
- * @param <V> The type of the value.
  */
-public interface KvState<K, V, Backend extends StateBackend<Backend>> extends OperatorState<V> {
+public interface KvState<K, S extends State, SI extends StateIdentifier<S>, Backend extends AbstractStateBackend> {
 
 	/**
 	 * Sets the current key, which will be used to retrieve values for the next calls to
@@ -51,7 +51,7 @@ public interface KvState<K, V, Backend extends StateBackend<Backend>> extends Op
 	 * @throws Exception Exceptions during snapshotting the state should be forwarded, so the system
 	 *                   can react to failed snapshots.
 	 */
-	KvStateSnapshot<K, V, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
+	KvStateSnapshot<K, S, SI, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
 
 	/**
 	 * Gets the number of key/value pairs currently stored in the state. Note that is a key

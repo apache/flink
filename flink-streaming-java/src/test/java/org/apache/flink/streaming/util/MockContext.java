@@ -27,8 +27,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -36,7 +38,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -93,7 +95,7 @@ public class MockContext<IN, OUT> {
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		final Object lock = new Object();
 		final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
-				
+
 		operator.setup(mockTask, config, mockContext.output);
 		try {
 			operator.open();
@@ -148,12 +150,21 @@ public class MockContext<IN, OUT> {
 			}
 		}).when(task).registerTimer(anyLong(), any(Triggerable.class));
 
-		// ugly Java generic hacks to get the generic state backend into the mock
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing =
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(task.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
-		
+
+		try {
+			doAnswer(new Answer<AbstractStateBackend>() {
+				@Override
+				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[0];
+					MemoryStateBackend backend = MemoryStateBackend.create();
+					backend.initializeForJob(new JobID(), keySerializer, this.getClass().getClassLoader());
+					return backend;
+				}
+			}).when(task).createStateBackend(any(TypeSerializer.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return task;
 	}
 }

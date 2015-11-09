@@ -50,7 +50,7 @@ import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -94,7 +94,7 @@ public class StreamGraph extends StreamingPlan {
 
 	protected Map<Integer, String> vertexIDtoBrokerID;
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
-	private StateBackend<?> stateBackend;
+	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
 	private boolean forceCheckpoint = false;
@@ -150,11 +150,11 @@ public class StreamGraph extends StreamingPlan {
 		this.forceCheckpoint = true;
 	}
 
-	public void setStateBackend(StateBackend<?> backend) {
+	public void setStateBackend(AbstractStateBackend backend) {
 		this.stateBackend = backend;
 	}
 
-	public StateBackend<?> getStateBackend() {
+	public AbstractStateBackend getStateBackend() {
 		return this.stateBackend;
 	}
 

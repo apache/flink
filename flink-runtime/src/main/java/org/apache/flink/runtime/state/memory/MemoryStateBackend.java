@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.state.memory;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateIdentifier;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateIdentifier;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateIdentifier;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.ByteArrayOutputStream;
@@ -29,11 +33,11 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * A {@link StateBackend} that stores all its data and checkpoints in memory and has no
+ * A {@link AbstractStateBackend} that stores all its data and checkpoints in memory and has no
  * capabilities to spill to disk. Checkpoints are serialized and the serialized data is
  * transferred 
  */
-public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
+public class MemoryStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = 4109305377809414635L;
 	
@@ -66,11 +70,6 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void initializeForJob(JobID job) {
-		// nothing to do here
-	}
-
-	@Override
 	public void disposeAllStateForCurrentJob() {
 		// nothing to do here, GC will do it
 	}
@@ -83,11 +82,20 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public <K, V> MemHeapKvState<K, V> createKvState(
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) {
-		return new MemHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue);
+	public <V> ValueState<V> createValueState(ValueStateIdentifier<V> stateIdentifier) throws Exception {
+		return new MemHeapValueState<>(this, keySerializer, stateIdentifier);
 	}
-	
+
+	@Override
+	public <T> ListState<T> createListState(ListStateIdentifier<T> stateIdentifier) throws Exception {
+		return new MemHeapListState<>(this, keySerializer, stateIdentifier);
+	}
+
+	@Override
+	public <T> ReducingState<T> createReducingState(ReducingStateIdentifier<T> stateIdentifier) throws Exception {
+		return new MemHeapReducingState<>(this, keySerializer, stateIdentifier);
+	}
+
 	/**
 	 * Serialized the given state into bytes using Java serialization and creates a state handle that
 	 * can re-create that state.
@@ -195,15 +203,12 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 	//  Static default instance
 	// ------------------------------------------------------------------------
-	
-	/** The default instance of this state backend, using the default maximal state size */
-	private static final MemoryStateBackend DEFAULT_INSTANCE = new MemoryStateBackend();
 
 	/**
 	 * Gets the default instance of this state backend, using the default maximal state size.
 	 * @return The default instance of this state backend.
 	 */
-	public static MemoryStateBackend defaultInstance() {
-		return DEFAULT_INSTANCE;
+	public static MemoryStateBackend create() {
+		return new MemoryStateBackend();
 	}
 }

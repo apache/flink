@@ -31,7 +31,7 @@ import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -370,7 +370,7 @@ public class StreamConfig implements Serializable {
 	//  State backend
 	// ------------------------------------------------------------------------
 	
-	public void setStateBackend(StateBackend<?> backend) {
+	public void setStateBackend(AbstractStateBackend backend) {
 		try {
 			InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
 		} catch (Exception e) {
@@ -378,7 +378,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public StateBackend<?> getStateBackend(ClassLoader cl) {
+	public AbstractStateBackend getStateBackend(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
 		} catch (Exception e) {

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
@@ -25,68 +27,76 @@ import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
 import java.io.DataInputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
- * A snapshot of a heap key/value state stored in a file.
+ * A snapshot of a heap partitioned {@link org.apache.flink.api.common.state.ListState} stored in a
+ * file.
  * 
  * @param <K> The type of the key in the snapshot state.
- * @param <V> The type of the value in the snapshot state.
+ * @param <V> The type of the values.
  */
-public class FsHeapKvStateSnapshot<K, V> extends AbstractFileState implements KvStateSnapshot<K, V, FsStateBackend> {
-	
+public class FsHeapListStateSnapshot<K, V> extends AbstractFileState implements KvStateSnapshot<K, ListState<V>, ListStateIdentifier<V>, FsStateBackend> {
+
 	private static final long serialVersionUID = 1L;
 
 	/** Name of the key serializer class */
 	private final String keySerializerClassName;
 
-	/** Name of the value serializer class */
-	private final String valueSerializerClassName;
+	/** Hash of the StateIdentifier, for sanity checks */
+	int stateIdentifierHash;
 
 	/**
 	 * Creates a new state snapshot with data in the file system.
 	 *
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
 	 * @param filePath The path where the snapshot data is stored.
 	 */
-	public FsHeapKvStateSnapshot(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, Path filePath) {
+	public FsHeapListStateSnapshot(TypeSerializer<K> keySerializer, ListStateIdentifier<V> stateIdentifiers, Path filePath) {
 		super(filePath);
 		this.keySerializerClassName = keySerializer.getClass().getName();
-		this.valueSerializerClassName = valueSerializer.getClass().getName();
+		this.stateIdentifierHash = stateIdentifiers.hashCode();
 	}
 
 	@Override
-	public FsHeapKvState<K, V> restoreState(
+	public FsHeapListState<K, V> restoreState(
 			FsStateBackend stateBackend,
 			final TypeSerializer<K> keySerializer,
-			final TypeSerializer<V> valueSerializer,
-			V defaultValue,
+			ListStateIdentifier<V> stateIdentifier,
 			ClassLoader classLoader) throws Exception {
 
 		// validity checks
-		if (!keySerializer.getClass().getName().equals(keySerializerClassName) ||
-				!valueSerializer.getClass().getName().equals(valueSerializerClassName)) {
+		if (!keySerializer.getClass().getName().equals(keySerializerClassName)
+				|| stateIdentifierHash != stateIdentifier.hashCode()) {
 			throw new IllegalArgumentException(
 					"Cannot restore the state from the snapshot with the given serializers. " +
-							"State (K/V) was serialized with (" + valueSerializerClassName +
-							"/" + keySerializerClassName + ")");
+							"State (K/V) was serialized with " +
+							"(" + keySerializerClassName + "/" + stateIdentifierHash + ") " +
+							"now is (" + keySerializer.getClass().getName() + "/" + stateIdentifier.hashCode() + ")");
 		}
-		
+
 		// state restore
 		try (FSDataInputStream inStream = stateBackend.getFileSystem().open(getFilePath())) {
 			InputViewDataInputStreamWrapper inView = new InputViewDataInputStreamWrapper(new DataInputStream(inStream));
-			
+
 			final int numEntries = inView.readInt();
-			HashMap<K, V> stateMap = new HashMap<>(numEntries);
-			
+			HashMap<K, List<V>> stateMap = new HashMap<>(numEntries);
+
+			TypeSerializer<V> valueSerializer = stateIdentifier.getSerializer();
 			for (int i = 0; i < numEntries; i++) {
 				K key = keySerializer.deserialize(inView);
-				V value = valueSerializer.deserialize(inView);
-				stateMap.put(key, value);
+				int listSize = inView.readInt();
+				List<V> list = new ArrayList<>(listSize);
+				for (int j = 0; j < listSize; j++) {
+					V value = valueSerializer.deserialize(inView);
+					list.add(value);
+				}
+				stateMap.put(key, list);
 			}
-			
-			return new FsHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue, stateMap, stateBackend);
+
+			return new FsHeapListState<>(keySerializer, stateIdentifier, stateMap, stateBackend);
 		}
 		catch (Exception e) {
 			throw new Exception("Failed to restore state from file system", e);

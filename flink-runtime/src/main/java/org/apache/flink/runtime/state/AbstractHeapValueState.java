@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -28,14 +30,15 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Base class for key/value state implementations that are backed by a regular heap hash map. The
- * concrete implementations define how the state is checkpointed.
+ * Base class for partitioned {@link ValueState} implementations that are backed by a regular
+ * heap hash map. The concrete implementations define how the state is checkpointed.
  * 
  * @param <K> The type of the key.
  * @param <V> The type of the value.
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Backend>> implements KvState<K, V, Backend> {
+public abstract class AbstractHeapValueState<K, V, Backend extends AbstractStateBackend>
+		implements KvState<K, ValueState<V>, ValueStateIdentifier<V>, Backend>, ValueState<V> {
 
 	/** Map containing the actual key/value pairs */
 	private final HashMap<K, V> state;
@@ -43,44 +46,43 @@ public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Bac
 	/** The serializer for the keys */
 	private final TypeSerializer<K> keySerializer;
 
-	/** The serializer for the values */
-	private final TypeSerializer<V> valueSerializer;
-	
-	/** The value that is returned when no other value has been associated with a key, yet */
-	private final V defaultValue;
+	/** This holds the name of the state and can create an initial default value for the state. */
+	protected final ValueStateIdentifier<V> stateIdentifier;
 	
 	/** The current key, which the next value methods will refer to */
 	private K currentKey;
+
+	protected final Backend backend;
+
+
 	
 	/**
 	 * Creates a new empty key/value state.
 	 * 
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
 	 */
-	protected AbstractHeapKvState(TypeSerializer<K> keySerializer,
-									TypeSerializer<V> valueSerializer,
-									V defaultValue) {
-		this(keySerializer, valueSerializer, defaultValue, new HashMap<K, V>());
+	protected AbstractHeapValueState(Backend backend, TypeSerializer<K> keySerializer, ValueStateIdentifier<V> stateIdentifier) {
+		this(backend, keySerializer, stateIdentifier, new HashMap<K, V>());
 	}
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 * 
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
-	 * @param state The state map to use in this kev/value state. May contain initial state.   
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
+	 * @param state The state map to use in this kev/value state. May contain initial state.
 	 */
-	protected AbstractHeapKvState(TypeSerializer<K> keySerializer,
-									TypeSerializer<V> valueSerializer,
-									V defaultValue,
-									HashMap<K, V> state) {
+	protected AbstractHeapValueState(Backend backend,
+			TypeSerializer<K> keySerializer,
+			ValueStateIdentifier<V> stateIdentifier,
+			HashMap<K, V> state) {
 		this.state = requireNonNull(state);
 		this.keySerializer = requireNonNull(keySerializer);
-		this.valueSerializer = requireNonNull(valueSerializer);
-		this.defaultValue = defaultValue;
+		this.stateIdentifier = stateIdentifier;
+		this.backend = backend;
 	}
 
 	// ------------------------------------------------------------------------
@@ -88,8 +90,7 @@ public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Bac
 	@Override
 	public V value() {
 		V value = state.get(currentKey);
-		return value != null ? value : 
-				(defaultValue == null ? null : valueSerializer.copy(defaultValue));
+		return value != null ? value : stateIdentifier.getDefaultValue();
 	}
 
 	@Override
@@ -99,6 +100,14 @@ public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Bac
 		}
 		else {
 			state.remove(currentKey);
+		}
+	}
+
+	@Override
+	public void clear() {
+		state.remove(currentKey);
+		if (state.size() == 0) {
+			backend.clear(stateIdentifier);
 		}
 	}
 
@@ -125,19 +134,12 @@ public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Bac
 		return keySerializer;
 	}
 
-	/**
-	 * Gets the serializer for the values.
-	 * @return The serializer for the values.
-	 */
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
-
 	// ------------------------------------------------------------------------
 	//  checkpointing utilities
 	// ------------------------------------------------------------------------
 	
 	protected void writeStateToOutputView(final DataOutputView out) throws IOException {
+		TypeSerializer<V> valueSerializer = stateIdentifier.getSerializer();
 		for (Map.Entry<K, V> entry : state.entrySet()) {
 			keySerializer.serialize(entry.getKey(), out);
 			valueSerializer.serialize(entry.getValue(), out);

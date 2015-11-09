@@ -19,7 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -173,7 +173,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 						private boolean open = false;
 
-						private OperatorState<Integer> count;
+						private ValueState<Integer> count;
 
 						@Override
 						public void open(Configuration parameters) {

@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateBackend;
+import org.apache.flink.api.common.state.StateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -28,17 +31,31 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
- * 
- * @param <Backend> The type of backend itself. This generic parameter is used to refer to the
- *                  type of backend when creating state backed by this backend.
  */
-public abstract class StateBackend<Backend extends StateBackend<Backend>> implements java.io.Serializable {
+public abstract class AbstractStateBackend implements java.io.Serializable, StateBackend {
 	
 	private static final long serialVersionUID = 4620413814639220247L;
-	
+
+	protected transient TypeSerializer<?> keySerializer;
+
+	protected transient ClassLoader userCodeClassLoader;
+
+	protected transient Object currentKey;
+
+	/** For efficient access in setCurrentKey() */
+	private transient KvState<?, ?, ?, ?>[] keyValueStates;
+
+	/** So that we can give out state when the user uses the same key. */
+	private transient HashMap<String, KvState<?, ?, ?, ?>> keyValueStatesByName;
+
+	/** State handles for lazy state restore. */
+	private transient HashMap<String, KvStateSnapshot<?, ?, ?, ?>> keyValueStateSnapshots;
+
 	// ------------------------------------------------------------------------
 	//  initialization and cleanup
 	// ------------------------------------------------------------------------
@@ -52,7 +69,10 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	 *                   case the job that uses the state backend is considered failed during
 	 *                   deployment.
 	 */
-	public abstract void initializeForJob(JobID job) throws Exception;
+	public void initializeForJob(JobID job, TypeSerializer<?> keySerializer, ClassLoader userCodeClassLoader) throws Exception {
+		this.userCodeClassLoader = userCodeClassLoader;
+		this.keySerializer = keySerializer;
+	}
 
 	/**
 	 * Disposes all state associated with the current job.
@@ -68,29 +88,113 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	 * @throws Exception Exceptions can be forwarded and will be logged by the system
 	 */
 	public abstract void close() throws Exception;
+
+	public void dispose() {
+		if (keyValueStates != null) {
+			for (KvState<?, ?, ?, ?> state : keyValueStates) {
+				state.dispose();
+			}
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//  key/value state
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a key/value state backed by this state backend.
-	 * 
-	 * @param keySerializer The serializer for the key.
-	 * @param valueSerializer The serializer for the value.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
+	 * Sets the current key that is used for partitioned state.
+	 * @param currentKey The current key.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public void setCurrentKey(Object currentKey) {
+		this.currentKey = currentKey;
+		if (keyValueStates != null) {
+			for (KvState kv : keyValueStates) {
+				kv.setCurrentKey(currentKey);
+			}
+		}
+	}
+
+	/**
+	 * Creates or retrieves a partitioned state backed by this state backend.
+	 *
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
 	 * @param <K> The type of the key.
-	 * @param <V> The type of the value.
-	 * 
+	 * @param <S> The type of the state.
+	 *
 	 * @return A new key/value state backed by this backend.
-	 * 
+	 *
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
-	public abstract <K, V> KvState<K, V, Backend> createKvState(
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer,
-			V defaultValue) throws Exception;
-	
-	
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	public <K, S extends State> S getPartitionedState(StateIdentifier<S> stateIdentifier) throws Exception {
+
+		if (keySerializer == null) {
+			throw new Exception("State key serializer has not been configured in the config. " +
+					"This operation cannot use partitioned state.");
+		}
+
+		if (keyValueStatesByName == null) {
+			keyValueStatesByName = new HashMap<>();
+		}
+
+		S previous = (S) keyValueStatesByName.get(stateIdentifier.getName());
+		if (previous != null) {
+			return previous;
+		}
+
+		S kvstate = null;
+
+		// check whether we restore the key/value state from a snapshot, or create a new blank one
+		if (keyValueStateSnapshots != null) {
+			@SuppressWarnings("unchecked")
+			KvStateSnapshot<K, S, StateIdentifier<S>, AbstractStateBackend> snapshot = (KvStateSnapshot) keyValueStateSnapshots.remove(stateIdentifier.getName());
+
+			if (snapshot != null) {
+				kvstate = (S) snapshot.restoreState(this, (TypeSerializer) keySerializer, stateIdentifier, userCodeClassLoader);
+			}
+		}
+
+		if (kvstate == null) {
+			// create a new blank key/value state
+			kvstate = stateIdentifier.bind(this);
+		}
+
+		((KvState) kvstate).setCurrentKey(currentKey);
+
+		keyValueStatesByName.put(stateIdentifier.getName(), (KvState) kvstate);
+		keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
+		return kvstate;
+	}
+
+	public HashMap<String, KvStateSnapshot<?, ?, ?, ?>> snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {
+		if (keyValueStates != null) {
+			HashMap<String, KvStateSnapshot<?, ?, ?, ?>> snapshots = new HashMap<>(keyValueStatesByName.size());
+
+			for (Map.Entry<String, KvState<?, ?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
+				KvStateSnapshot<?, ?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
+				snapshots.put(entry.getKey(), snapshot);
+			}
+			return snapshots;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Injects K/V state snapshots for lazy restore.
+	 * @param keyValueStateSnapshots The Map of snapshots
+	 */
+	public void injectKeyValueStateSnapshots(HashMap<String, KvStateSnapshot<?, ?, ?, ?>> keyValueStateSnapshots) {
+		this.keyValueStateSnapshots = keyValueStateSnapshots;
+	}
+
+	public void clear(StateIdentifier<?> stateIdentifier) {
+		keyValueStatesByName.remove(stateIdentifier.getName());
+		keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
+	}
+
 	// ------------------------------------------------------------------------
 	//  storing state for a checkpoint
 	// ------------------------------------------------------------------------
