@@ -16,26 +16,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+
 -->
-<table ng-if="metrics.id" class="table">
-  <thead>
-    <tr>
-      <th>CPU Usage</th>
-      <th>Memory - Used</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <livechart data="metrics" key="cpuLoad"></livechart>
-      </td>
-      <td>
-        <livechart data="metrics" key="used"></livechart>
-        <div class="row text-center"><span id="total-mem" class="label legend-box">&nbsp;&nbsp;</span>&nbsp;Total Memory&nbsp;&nbsp;<span id="heap-mem" class="label legend-box">&nbsp;&nbsp;</span>&nbsp;Heap Memory&nbsp;&nbsp;<span id="non-heap-mem" class="label legend-box">&nbsp;&nbsp;</span>&nbsp;Non-heap Memory&nbsp;&nbsp;</div>
-      </td>
-    </tr>
-  </tbody>
-</table>
 <table ng-if="metrics.id" class="table table-properties">
   <thead>
     <tr>

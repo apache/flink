@@ -44,86 +44,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       JobsService.listJobs()
     , flinkConfig["refresh-interval"]
 
-  Highcharts.setOptions({
-    global: {
-      useUTC: false
-    }
-  })
-
-  #
-  # Grid-light theme for Highcharts JS
-  # @author Torstein Honsi
-  #
-  # Taken from https://github.com/highslide-software/highcharts.com
-  #
-
-
-  Highcharts.createElement('link', {
-  	href: '//fonts.googleapis.com/css?family=Dosis:400,600',
-  	rel: 'stylesheet',
-  	type: 'text/css'
-  }, null, document.getElementsByTagName('head')[0]);
-
-  Highcharts.theme = {
-  	colors: ["#7cb5ec", "#f7a35c", "#90ee7e", "#7798BF", "#aaeeee", "#ff0066", "#eeaaee",
-  		"#55BF3B", "#DF5353", "#7798BF", "#aaeeee"],
-  	chart: {
-  		backgroundColor: null,
-  		style: {
-  			fontFamily: "Dosis, sans-serif"
-  		}
-  	},
-  	title: {
-  		style: {
-  			fontSize: '16px',
-  			fontWeight: 'bold',
-  			textTransform: 'uppercase'
-  		}
-  	},
-  	tooltip: {
-  		borderWidth: 0,
-  		backgroundColor: 'rgba(219,219,216,0.8)',
-  		shadow: false
-  	},
-  	legend: {
-  		itemStyle: {
-  			fontWeight: 'bold',
-  			fontSize: '13px'
-  		}
-  	},
-  	xAxis: {
-  		gridLineWidth: 1,
-  		labels: {
-  			style: {
-  				fontSize: '12px'
-  			}
-  		}
-  	},
-  	yAxis: {
-  		minorTickInterval: 'auto',
-  		title: {
-  			style: {
-  				textTransform: 'uppercase'
-  			}
-  		},
-  		labels: {
-  			style: {
-  				fontSize: '12px'
-  			}
-  		}
-  	},
-  	plotOptions: {
-  		candlestick: {
-  			lineColor: '#404048'
-  		}
-  	},
-
-  	background2: '#F0F0EA'
-
-  };
-
-  Highcharts.setOptions(Highcharts.theme);
-
 
 # --------------------------------------
 
@@ -146,7 +66,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       main:
         templateUrl: "partials/jobs/running-jobs.html"
         controller: 'RunningJobsController'
-  
+
   .state "completed-jobs",
     url: "/completed-jobs"
     views:
@@ -175,14 +95,14 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
     views:
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.overview.html"
-        controller: 'JobPlanOverviewController' 
+        controller: 'JobPlanOverviewController'
 
   .state "single-job.plan.accumulators",
     url: "/accumulators"
     views:
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.accumulators.html"
-        controller: 'JobPlanAccumulatorsController' 
+        controller: 'JobPlanAccumulatorsController'
 
   .state "single-job.timeline",
     url: "/timeline"
@@ -265,4 +185,3 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         controller: 'JobManagerLogsController'
 
   $urlRouterProvider.otherwise "/overview"
-

@@ -15,29 +15,6 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-table.table(ng-if="metrics.id")
-  thead
-    tr
-      th CPU Usage
-      th Memory - Used
-
-  tbody
-    tr
-      td
-        livechart(data="metrics" key="cpuLoad")
-      td
-        livechart(data="metrics" key="used")
-        .row.text-center
-          span.label.legend-box#total-mem
-            | &nbsp;&nbsp;
-          | &nbsp;Total Memory&nbsp;&nbsp;
-          span.label.legend-box#heap-mem
-            | &nbsp;&nbsp;
-          | &nbsp;Heap Memory&nbsp;&nbsp;
-          span.label.legend-box#non-heap-mem
-            | &nbsp;&nbsp;
-          | &nbsp;Non-heap Memory&nbsp;&nbsp;
-
 
 table.table.table-properties(ng-if="metrics.id")
   thead
