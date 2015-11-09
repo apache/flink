@@ -161,7 +161,7 @@ public abstract class AbstractStreamOperator<OUT>
 			HashMap<String, KvStateSnapshot<?, ?, ?>> snapshots = new HashMap<>(keyValueStatesByName.size());
 			
 			for (Map.Entry<String, KvState<?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
-				KvStateSnapshot<?, ?, ?> snapshot = entry.getValue().shapshot(checkpointId, timestamp);
+				KvStateSnapshot<?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
 				snapshots.put(entry.getKey(), snapshot);
 			}
 			

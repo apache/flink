@@ -42,7 +42,7 @@ public class MemHeapKvState<K, V> extends AbstractHeapKvState<K, V, MemoryStateB
 	}
 	
 	@Override
-	public MemoryHeapKvStateSnapshot<K, V> shapshot(long checkpointId, long timestamp) throws Exception {
+	public MemoryHeapKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws Exception {
 		DataOutputSerializer ser = new DataOutputSerializer(Math.max(size() * 16, 16));
 		writeStateToOutputView(ser);
 		byte[] bytes = ser.getCopyOfBuffer();

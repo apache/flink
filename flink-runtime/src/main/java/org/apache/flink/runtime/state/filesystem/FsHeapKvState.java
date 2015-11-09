@@ -69,7 +69,7 @@ public class FsHeapKvState<K, V> extends AbstractHeapKvState<K, V, FsStateBacken
 
 	
 	@Override
-	public FsHeapKvStateSnapshot<K, V> shapshot(long checkpointId, long timestamp) throws Exception {
+	public FsHeapKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws Exception {
 		// first, create an output stream to write to
 		try (FsStateBackend.FsCheckpointStateOutputStream out = 
 					backend.createCheckpointStateOutputStream(checkpointId, timestamp)) {

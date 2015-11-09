@@ -166,7 +166,7 @@ public class MemoryStateBackendTest {
 			
 			// draw a snapshot
 			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot1 = 
-					kv.shapshot(682375462378L, System.currentTimeMillis());
+					kv.snapshot(682375462378L, System.currentTimeMillis());
 			
 			// make some more modifications
 			kv.setCurrentKey(1);
@@ -178,7 +178,7 @@ public class MemoryStateBackendTest {
 
 			// draw another snapshot
 			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot2 =
-					kv.shapshot(682375462379L, System.currentTimeMillis());
+					kv.snapshot(682375462379L, System.currentTimeMillis());
 			
 			// validate the original state
 			assertEquals(3, kv.size());
@@ -230,7 +230,7 @@ public class MemoryStateBackendTest {
 			kv.update("2");
 			
 			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot =
-					kv.shapshot(682375462378L, System.currentTimeMillis());
+					kv.snapshot(682375462378L, System.currentTimeMillis());
 
 
 			@SuppressWarnings("unchecked")

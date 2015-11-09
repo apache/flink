@@ -51,7 +51,7 @@ public interface KvState<K, V, Backend extends StateBackend<Backend>> extends Op
 	 * @throws Exception Exceptions during snapshotting the state should be forwarded, so the system
 	 *                   can react to failed snapshots.
 	 */
-	KvStateSnapshot<K, V, Backend> shapshot(long checkpointId, long timestamp) throws Exception;
+	KvStateSnapshot<K, V, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
 
 	/**
 	 * Gets the number of key/value pairs currently stored in the state. Note that is a key

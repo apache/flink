@@ -247,7 +247,7 @@ public class FileStateBackendTest {
 
 			// draw a snapshot
 			KvStateSnapshot<Integer, String, FsStateBackend> snapshot1 =
-					kv.shapshot(682375462378L, System.currentTimeMillis());
+					kv.snapshot(682375462378L, System.currentTimeMillis());
 
 			// make some more modifications
 			kv.setCurrentKey(1);
@@ -259,7 +259,7 @@ public class FileStateBackendTest {
 
 			// draw another snapshot
 			KvStateSnapshot<Integer, String, FsStateBackend> snapshot2 =
-					kv.shapshot(682375462379L, System.currentTimeMillis());
+					kv.snapshot(682375462379L, System.currentTimeMillis());
 
 			// validate the original state
 			assertEquals(3, kv.size());
@@ -325,7 +325,7 @@ public class FileStateBackendTest {
 			kv.update("2");
 
 			KvStateSnapshot<Integer, String, FsStateBackend> snapshot =
-					kv.shapshot(682375462378L, System.currentTimeMillis());
+					kv.snapshot(682375462378L, System.currentTimeMillis());
 
 
 			@SuppressWarnings("unchecked")
