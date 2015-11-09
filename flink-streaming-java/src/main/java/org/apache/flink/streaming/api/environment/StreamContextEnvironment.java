@@ -17,17 +17,13 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import java.net.URL;
-import java.util.List;
-
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.client.program.DetachedEnvironment;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
-
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,40 +32,17 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
-	private final List<URL> jars;
+	private final ContextEnvironment ctx;
 
-	private final List<URL> classpaths;
-	
-	private final Client client;
-
-	private final ClassLoader userCodeClassLoader;
-	
-	private final boolean wait;
-
-	protected StreamContextEnvironment(Client client, List<URL> jars, List<URL> classpaths, int parallelism,
-			boolean wait) {
-		this.client = client;
-		this.jars = jars;
-		this.classpaths = classpaths;
-		this.wait = wait;
-		
-		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jars, classpaths,
-				getClass().getClassLoader());
-		
-		if (parallelism > 0) {
-			setParallelism(parallelism);
-		}
-		else {
-			// determine parallelism
+	protected StreamContextEnvironment(ContextEnvironment ctx) {
+		this.ctx = ctx;
+		if (ctx.getParallelism() > 0) {
+			setParallelism(ctx.getParallelism());
+		} else {
 			setParallelism(GlobalConfiguration.getInteger(
 					ConfigConstants.DEFAULT_PARALLELISM_KEY,
 					ConfigConstants.DEFAULT_PARALLELISM));
 		}
-	}
-
-	@Override
-	public JobExecutionResult execute() throws Exception {
-		return execute(DEFAULT_JOB_NAME);
 	}
 
 	@Override
@@ -82,12 +55,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		transformations.clear();
 
 		// execute the programs
-		if (wait) {
-			return client.runBlocking(streamGraph, jars, classpaths, userCodeClassLoader);
-		} else {
-			JobSubmissionResult result = client.runDetached(streamGraph, jars, classpaths, userCodeClassLoader);
+		if (ctx instanceof DetachedEnvironment) {
 			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
-			return JobExecutionResult.fromJobSubmissionResult(result);
+			((DetachedEnvironment) ctx).setDetachedPlan(streamGraph);
+			return DetachedEnvironment.DetachedJobExecutionResult.INSTANCE;
+		} else {
+			return ctx.getClient().runBlocking(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader());
 		}
 	}
 }

@@ -242,9 +242,8 @@ public class Client {
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getClasspaths(),
-				prog.getUserCodeClassLoader(), parallelism, true);
-
+			ContextEnvironment.setAsContext(new ContextEnvironmentFactory(this, prog.getAllLibraries(),
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, true));
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
@@ -269,18 +268,18 @@ public class Client {
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getClasspaths(),
-				prog.getUserCodeClassLoader(), parallelism, false);
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, prog.getAllLibraries(),
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, false);
+			ContextEnvironment.setAsContext(factory);
 
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
+				return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
 			}
 			finally {
 				ContextEnvironment.unsetContext();
 			}
-
-			return new JobSubmissionResult(lastJobID);
 		}
 		else {
 			throw new RuntimeException("PackagedProgram does not have a valid invocation mode.");
