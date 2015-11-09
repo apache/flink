@@ -40,6 +40,7 @@ import java.util.Properties;
 import akka.actor.ActorSystem;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -920,7 +921,18 @@ public class CliFrontend {
 
 		System.err.println("\n------------------------------------------------------------");
 		System.err.println(" The program finished with the following exception:\n");
-		t.printStackTrace();
+		if (t.getCause() instanceof InvalidProgramException) {
+			System.err.println(t.getCause().getMessage());
+			StackTraceElement[] trace = t.getCause().getStackTrace();
+			for (StackTraceElement ele: trace) {
+				System.err.println("\t" + ele.toString());
+				if (ele.getMethodName().equals("main")) {
+					break;
+				}
+			}
+		} else {
+			t.printStackTrace();
+		}
 		return 1;
 	}
 

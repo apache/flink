@@ -23,41 +23,30 @@ import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Execution Environment for remote execution with the Client.
+ * Execution Environment for remote execution with the Client in blocking fashion.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ContextEnvironment.class);
+	protected final Client client;
 
-	private final Client client;
+	protected final List<URL> jarFilesToAttach;
 
-	private final List<URL> jarFilesToAttach;
-
-	private final List<URL> classpathsToAttach;
+	protected final List<URL> classpathsToAttach;
 	
-	private final ClassLoader userCodeClassLoader;
-
-	private final boolean wait;
-	
-	
+	protected final ClassLoader userCodeClassLoader;
 	
 	public ContextEnvironment(Client remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-			ClassLoader userCodeClassLoader, boolean wait) {
+			ClassLoader userCodeClassLoader) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
-		this.wait = wait;
 	}
 
 	@Override
@@ -65,17 +54,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
 				this.userCodeClassLoader);
-
-		if (wait) {
-			this.lastJobExecutionResult = client.runBlocking(toRun, getParallelism());
-			return this.lastJobExecutionResult;
-		}
-		else {
-			JobSubmissionResult result = client.runDetached(toRun, getParallelism());
-			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
-			this.lastJobExecutionResult = JobExecutionResult.fromJobSubmissionResult(result);
-			return this.lastJobExecutionResult;
-		}
+		this.lastJobExecutionResult = client.runBlocking(toRun, getParallelism());
+		return this.lastJobExecutionResult;
 	}
 
 	@Override
@@ -91,10 +71,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public void startNewSession() throws Exception {
 		client.endSession(jobID);
 		jobID = JobID.generate();
-	}
-
-	public boolean isWait() {
-		return wait;
 	}
 
 	@Override
@@ -114,63 +90,18 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public List<URL> getClasspaths(){
 		return classpathsToAttach;
 	}
+
+	public ClassLoader getUserCodeClassLoader() {
+		return userCodeClassLoader;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	static void setAsContext(Client client, List<URL> jarFilesToAttach, List<URL> classpathsToAttach,
-				ClassLoader userCodeClassLoader, int defaultParallelism, boolean wait)
-	{
-		ContextEnvironmentFactory factory = new ContextEnvironmentFactory(client, jarFilesToAttach,
-				classpathsToAttach, userCodeClassLoader, defaultParallelism, wait);
+	static void setAsContext(ContextEnvironmentFactory factory) {
 		initializeContextEnvironment(factory);
 	}
 	
 	static void unsetContext() {
 		resetContextEnvironment();
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * The factory that instantiates the environment to be used when running jobs that are
-	 * submitted through a pre-configured client connection.
-	 * This happens for example when a job is submitted from the command line.
-	 */
-	public static class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
-		
-		private final Client client;
-		
-		private final List<URL> jarFilesToAttach;
-
-		private final List<URL> classpathsToAttach;
-		
-		private final ClassLoader userCodeClassLoader;
-		
-		private final int defaultParallelism;
-
-		private final boolean wait;
-		
-
-		public ContextEnvironmentFactory(Client client, List<URL> jarFilesToAttach,
-				List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-				boolean wait)
-		{
-			this.client = client;
-			this.jarFilesToAttach = jarFilesToAttach;
-			this.classpathsToAttach = classpathsToAttach;
-			this.userCodeClassLoader = userCodeClassLoader;
-			this.defaultParallelism = defaultParallelism;
-			this.wait = wait;
-		}
-		
-		@Override
-		public ExecutionEnvironment createExecutionEnvironment() {
-			ContextEnvironment env = new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach,
-					userCodeClassLoader, wait);
-			if (defaultParallelism > 0) {
-				env.setParallelism(defaultParallelism);
-			}
-			return env;
-		}
 	}
 }
