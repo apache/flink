@@ -374,7 +374,7 @@ public class FlinkYarnSessionCli {
 		getYARNSessionCLIOptions(options);
 
 		CommandLineParser parser = new PosixParser();
-		CommandLine cmd = null;
+		CommandLine cmd;
 		try {
 			cmd = parser.parse(options, args);
 		} catch(Exception e) {
