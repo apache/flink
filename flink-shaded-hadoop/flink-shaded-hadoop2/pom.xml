@@ -90,10 +90,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-json</artifactId>
 				</exclusion>
 				<exclusion>
@@ -127,10 +123,6 @@ under the License.
 				<exclusion>
 					<groupId>javax.servlet</groupId>
 					<artifactId>javax.servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-client</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -222,10 +214,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-json</artifactId>
 				</exclusion>
 				<exclusion>
@@ -259,10 +247,6 @@ under the License.
 				<exclusion>
 					<groupId>javax.servlet</groupId>
 					<artifactId>javax.servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-client</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -366,10 +350,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-json</artifactId>
 				</exclusion>
 				<exclusion>
@@ -403,10 +383,6 @@ under the License.
 				<exclusion>
 					<groupId>javax.servlet</groupId>
 					<artifactId>javax.servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-client</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -510,10 +486,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-json</artifactId>
 				</exclusion>
 				<exclusion>
@@ -547,10 +519,6 @@ under the License.
 				<exclusion>
 					<groupId>javax.servlet</groupId>
 					<artifactId>javax.servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-client</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -654,10 +622,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
 					<artifactId>jersey-json</artifactId>
 				</exclusion>
 				<exclusion>
@@ -691,10 +655,6 @@ under the License.
 				<exclusion>
 					<groupId>javax.servlet</groupId>
 					<artifactId>javax.servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-client</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
