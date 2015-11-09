@@ -55,6 +55,7 @@ public class StreamingScalabilityAndLatency {
 			config.setInteger("taskmanager.net.client.numThreads", 1);
 
 			cluster = new LocalFlinkMiniCluster(config, false, StreamingMode.STREAMING);
+			cluster.start();
 			
 			runPartitioningProgram(cluster.getLeaderRPCPort(), PARALLELISM);
 		}
