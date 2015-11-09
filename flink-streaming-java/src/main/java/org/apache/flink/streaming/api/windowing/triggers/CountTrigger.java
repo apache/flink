@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws IOException {
-		OperatorState<Long> count = ctx.getKeyValueState("count", 0L);
+		ValueState<Long> count = ctx.getKeyValueState("count", 0L);
 		long currentCount = count.value() + 1;
 		count.update(currentCount);
 		if (currentCount >= maxCount) {
