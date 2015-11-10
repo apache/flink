@@ -186,11 +186,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobmanager/log", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.logFile))
 			.GET("/jobmanager/stdout", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile))
 
-			// this handler serves all the static contents
-			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir))
+			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
+			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))
+			// DELETE is the preferred way of cancelling a job (Rest-conform)
+			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()))
 
-			// cancel a job
-			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()));
+			// this handler serves all the static contents
+			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir));
+
 
 		synchronized (startupShutdownLock) {
 

@@ -212,6 +212,8 @@ angular.module('flinkApp')
     deferred.promise
 
   @cancelJob = (jobid) ->
-    $http.delete "jobs/" + jobid
+    # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
+    # proper "DELETE jobs/<jobid>/"
+    $http.get "jobs/" + jobid + "/yarn-cancel"
 
   @
