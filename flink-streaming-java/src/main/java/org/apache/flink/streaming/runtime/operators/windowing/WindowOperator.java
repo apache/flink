@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,11 +42,10 @@ import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuff
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -436,7 +434,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		 * {@link #writeToState(StateBackend.CheckpointStateOutputView)}
 		 */
 		@SuppressWarnings("unchecked")
-		protected Context(DataInputView in) throws Exception {
+		protected Context(DataInputView in, ClassLoader userClassloader) throws Exception {
 			this.key = keySerializer.deserialize(in);
 			this.window = windowSerializer.deserialize(in);
 			this.watermarkTimer = in.readLong();
@@ -445,8 +443,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 			int stateSize = in.readInt();
 			byte[] stateData = new byte[stateSize];
 			in.read(stateData);
-			ByteArrayInputStream bais = new ByteArrayInputStream(stateData);
-			state = (HashMap<String, Serializable>) SerializationUtils.deserialize(bais);
+			state = InstantiationUtil.deserializeObject(stateData, userClassloader);
 
 			this.windowBuffer = windowBufferFactory.create();
 			int numElements = in.readInt();
@@ -465,10 +462,9 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 			out.writeLong(watermarkTimer);
 			out.writeLong(processingTimeTimer);
 
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			SerializationUtils.serialize(state, baos);
-			out.writeInt(baos.size());
-			out.write(baos.toByteArray(), 0, baos.size());
+			byte[] serializedState = InstantiationUtil.serializeObject(state);
+			out.writeInt(serializedState.length);
+			out.write(serializedState, 0, serializedState.length);
 
 			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
 			out.writeInt(windowBuffer.size());
@@ -608,10 +604,11 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	public void restoreState(StreamTaskState taskState) throws Exception {
 		super.restoreState(taskState);
 
+		final ClassLoader userClassloader = getUserCodeClassloader();
 
 		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> inputState = (StateHandle<DataInputView>) taskState.getOperatorState();
-		DataInputView in = inputState.getState(getUserCodeClassloader());
+		DataInputView in = inputState.getState(userClassloader);
 
 		int numKeys = in.readInt();
 		this.windows = new HashMap<>(numKeys);
@@ -621,7 +618,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		for (int i = 0; i < numKeys; i++) {
 			int numWindows = in.readInt();
 			for (int j = 0; j < numWindows; j++) {
-				Context context = new Context(in);
+				Context context = new Context(in, userClassloader);
 				Map<W, Context> keyWindows = windows.get(context.key);
 				if (keyWindows == null) {
 					keyWindows = new HashMap<>(numWindows);

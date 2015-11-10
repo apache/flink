@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -153,13 +152,9 @@ public class AllWindowedStream<T, W extends Window> {
 					evictor).enableSetProcessingTime(setProcessingTime);
 
 		} else {
-			// we need to copy because we need our own instance of the pre aggregator
-			@SuppressWarnings("unchecked")
-			ReduceFunction<T> functionCopy = (ReduceFunction<T>) SerializationUtils.clone(function);
-
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new PreAggregatingHeapWindowBuffer.Factory<>(functionCopy),
+					new PreAggregatingHeapWindowBuffer.Factory<>(function),
 					new ReduceAllWindowFunction<W, T>(function),
 					trigger).enableSetProcessingTime(setProcessingTime);
 		}

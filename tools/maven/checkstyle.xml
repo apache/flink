@@ -54,10 +54,17 @@ under the License.
 		<module name="IllegalImport">
 			<property name="illegalPkgs" value="org.apache.flink.shaded"/>
 		</module>
+		<!-- forbid use of commons lang validate -->
 		<module name="Regexp">
 			<property name="format" value="org\.apache\.commons\.lang3\.Validate"/>
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Use Guava Checks instead of Commons Validate. Please refer to the coding guidelines."/>
+		</module>
+		<!-- forbid the use of org.apache.commons.lang.SerializationUtils -->
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang\.SerializationUtils"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
 		</module>
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
