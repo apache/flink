@@ -96,19 +96,19 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	
 //	@Test
 	public void testCancelSortMatchWhileDoingHeavySorting() throws Exception {
-		executeTaskWithGenerator(new SimpleMatcher<Integer>(), 100000, 100, 30 * 1000, 30 * 1000);
+		executeTaskWithGenerator(new SimpleMatcher<Integer>(), 50000, 100, 30 * 1000, 30 * 1000);
 	}
 
 	// --------------- Test Sort Matches that are canceled while in the Matching Phase -----------------
 	
 //	@Test
 	public void testCancelSortMatchWhileJoining() throws Exception {
-		executeTaskWithGenerator(new DelayingMatcher<Integer>(), 50000, 100, 10 * 1000, 20 * 1000);
+		executeTaskWithGenerator(new DelayingMatcher<Integer>(), 500, 3, 10 * 1000, 20 * 1000);
 	}
 	
 //	@Test
 	public void testCancelSortMatchWithLongCancellingResponse() throws Exception {
-		executeTaskWithGenerator(new LongCancelTimeMatcher<Integer>(), 50000, 100, 10 * 1000, 10 * 1000);
+		executeTaskWithGenerator(new LongCancelTimeMatcher<Integer>(), 500, 3, 10 * 1000, 10 * 1000);
 	}
 
 	// -------------------------------------- Test System corner cases ---------------------------------

@@ -19,6 +19,7 @@
 
 package org.apache.flink.test.cancelling;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -43,6 +44,7 @@ import org.apache.hadoop.fs.FileSystem;
 
 import org.junit.After;
 import org.junit.Before;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * 
@@ -119,12 +121,12 @@ public abstract class CancellingTestBase extends TestLogger {
 					jobGraph.getJobID(),
 					TestingUtils.TESTING_DURATION());
 
-			Thread.sleep(5000);
+			Thread.sleep(msecsTillCanceling);
 
 			cancelJob(
 					executor.getLeaderGateway(TestingUtils.TESTING_DURATION()),
 					jobGraph.getJobID(),
-					TestingUtils.TESTING_DURATION());
+					new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS));
 
 			// Wait for the job to be cancelled
 			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.CANCELED,

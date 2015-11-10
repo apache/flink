@@ -80,7 +80,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 	public static final class DelayingIdentityMapper<IN> implements MapFunction<IN, IN> {
 		private static final long serialVersionUID = 1L;
 
-		private static final int WAIT_TIME_PER_VALUE = 10 * 1000; // 5 sec.
+		private static final int WAIT_TIME_PER_VALUE = 10 * 1000; // 10 sec.
 
 		@Override
 		public IN map(IN value) throws Exception {
