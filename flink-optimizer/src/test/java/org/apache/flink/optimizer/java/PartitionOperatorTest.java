@@ -41,6 +41,7 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
 
@@ -95,18 +96,17 @@ public class PartitionOperatorTest extends CompilerTestBase {
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
 			SingleInputPlanNode partitionIDRemover = (SingleInputPlanNode) reducer.getInput().getSource();
-			Iterable<Channel> inputs = partitionIDRemover.getInputs();
-			SingleInputPlanNode partitionNode = (SingleInputPlanNode)inputs.iterator().next().getSource();
 
 			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.FORWARD, partitionIDRemover.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionNode.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionIDRemover.getInput().getShipStrategy());
 
 			SourcePlanNode sourcePlanNode = op.getDataSources().iterator().next();
 			List<Channel> sourceOutgoingChannels = sourcePlanNode.getOutgoingChannels();
 			assertEquals(2, sourceOutgoingChannels.size());
 			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(0).getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(1).getShipStrategy());
+			assertEquals(DataExchangeMode.PIPELINED, sourceOutgoingChannels.get(0).getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, sourceOutgoingChannels.get(1).getDataExchangeMode());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -159,12 +159,9 @@ public class PartitionOperatorTest extends CompilerTestBase {
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
 			SingleInputPlanNode partitionIDRemover = (SingleInputPlanNode) reducer.getInput().getSource();
-			Iterable<Channel> inputs = partitionIDRemover.getInputs();
-			SingleInputPlanNode partitionNode = (SingleInputPlanNode)inputs.iterator().next().getSource();
 
 			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.FORWARD, partitionIDRemover.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionNode.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionIDRemover.getInput().getShipStrategy());
 
 			SourcePlanNode sourcePlanNode = op.getDataSources().iterator().next();
 			List<Channel> sourceOutgoingChannels = sourcePlanNode.getOutgoingChannels();
@@ -172,11 +169,16 @@ public class PartitionOperatorTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(0).getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(1).getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, sourceOutgoingChannels.get(2).getShipStrategy());
+			assertEquals(DataExchangeMode.PIPELINED, sourceOutgoingChannels.get(0).getDataExchangeMode());
+			assertEquals(DataExchangeMode.PIPELINED, sourceOutgoingChannels.get(1).getDataExchangeMode());
+			assertEquals(DataExchangeMode.BATCH, sourceOutgoingChannels.get(2).getDataExchangeMode());
 
 			List<Channel> idRemoverOutputChannels = partitionIDRemover.getOutgoingChannels();
 			assertEquals(2, idRemoverOutputChannels.size());
 			assertEquals(ShipStrategyType.FORWARD, idRemoverOutputChannels.get(0).getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, idRemoverOutputChannels.get(1).getShipStrategy());
+			assertEquals(DataExchangeMode.PIPELINED, idRemoverOutputChannels.get(0).getDataExchangeMode());
+			assertEquals(DataExchangeMode.PIPELINED, idRemoverOutputChannels.get(1).getDataExchangeMode());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
