@@ -82,6 +82,7 @@ under the License.
 		<shading-artifact-module.name>error</shading-artifact-module.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.3.0</hadoop-two.version>
+		<hbase.version>1.1.2</hbase.version>
 		<!-- Need to use a user property here because the surefire/failsafe
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->

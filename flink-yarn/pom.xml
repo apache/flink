@@ -63,6 +63,11 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-client</artifactId>
+			<version>${hbase.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
