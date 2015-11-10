@@ -143,8 +143,7 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 					produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
 
 				// both are range partitioned, check that partitioning fields are equivalently chosen
-				return checkEquivalentFieldPositionsInKeyFields(
-						produced1.getPartitioningFields(), produced2.getPartitioningFields());
+				return false;
 
 			}
 			else if(produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&

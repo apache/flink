@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.udf.AssignRangeIndex;
 import org.apache.flink.runtime.operators.udf.PartitionIDRemoveWrapper;
 import org.apache.flink.runtime.operators.udf.RangeBoundaryBuilder;
@@ -143,7 +144,8 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final MapPartitionOperatorBase ariOperatorBase = new MapPartitionOperatorBase(assignRangeIndex, ariOperatorInformation, "Assign Range Index");
 		final MapPartitionNode ariNode = new MapPartitionNode(ariOperatorBase);
 		final Channel ariChannel = new Channel(sourceNode, TempMode.NONE);
-		ariChannel.setShipStrategy(ShipStrategyType.FORWARD, channel.getDataExchangeMode());
+		// To avoid deadlock, set the DataExchangeMode of channel between source node and this to Batch.
+		ariChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.BATCH);
 		final SingleInputPlanNode ariPlanNode = new SingleInputPlanNode(ariNode, "AssignRangeIndex PlanNode", ariChannel, DriverStrategy.MAP_PARTITION);
 		ariPlanNode.setParallelism(sourceParallelism);
 		ariChannel.setTarget(ariPlanNode);
@@ -157,7 +159,7 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		broadcastChannels.add(broadcastChannel);
 		ariPlanNode.setBroadcastInputs(broadcastChannels);
 
-		// 6. Remove the partition id.
+		// 5. Remove the partition id.
 		final Channel partChannel = new Channel(ariPlanNode, channel.getTempMode());
 		partChannel.setDataExchangeMode(channel.getDataExchangeMode());
 		final FieldList keys = new FieldList(0);

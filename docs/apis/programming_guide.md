@@ -742,6 +742,17 @@ DataSet<Integer> result = in.partitionByHash(0)
       </td>
     </tr>
     <tr>
+      <td><strong>Range-Partition</strong></td>
+      <td>
+        <p>Range-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys.</p>
+{% highlight java %}
+DataSet<Tuple2<String,Integer>> in = // [...]
+DataSet<Integer> result = in.partitionByRange(0)
+                            .mapPartition(new PartitionMapper());
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
       <td><strong>Custom Partitioning</strong></td>
       <td>
         <p>Manually specify a partitioning over the data.
@@ -1017,6 +1028,17 @@ val result: DataSet[(Int, String)] = data1.rebalance().map(...)
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in.partitionByHash(0).mapPartition { ... }
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Range-Partition</strong></td>
+      <td>
+        <p>Range-partitions a data set on a given key. Keys can be specified as key-selector functions, tuple positions
+        or case class fields.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in.partitionByRange(0).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
