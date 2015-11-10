@@ -146,7 +146,7 @@ public final class Utils {
 	/**
 	 * Obtain Kerberos security token for HBase.
 	 */
-	private static void obtainTokenForHBase(Credentials credentials, Configuration conf) {
+	private static void obtainTokenForHBase(Credentials credentials, Configuration conf) throws IOException {
 		if (UserGroupInformation.isSecurityEnabled()) {
 			LOG.info("Attempting to obtain Kerberos security token for HBase");
 			try {
@@ -170,8 +170,7 @@ public final class Utils {
 				credentials.addToken(token.getService(), token);
 				LOG.info("Added HBase Kerberos security token to credentials.");
 			} catch (IOException e) {
-				LOG.error("Caught exception while trying to obtain HBase Kerberos security token.");
-				e.printStackTrace();
+				throw new IOException("Unable to obtain HBase Kerberos security token", e);
 			}
 		}
 	}
