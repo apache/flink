@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.api.java.typeutils.RecordTypeInfo;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.udf.AssignRangeIndex;
 import org.apache.flink.runtime.operators.udf.PartitionIDRemoveWrapper;
@@ -75,8 +76,12 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		for (Channel channel : outgoingChannels) {
 			ShipStrategyType shipStrategy = channel.getShipStrategy();
 			if (shipStrategy == ShipStrategyType.PARTITION_RANGE) {
-				newOutGoingChannels.addAll(rewriteRangePartitionChannel(channel));
-				toBeRemoveChannels.add(channel);
+				TypeInformation<?> outputType = channel.getSource().getProgramOperator().getOperatorInfo().getOutputType();
+				// Do not optimize for record type, it's a special case for range partitioner, and should be removed later.
+				if (!(outputType instanceof RecordTypeInfo)) {
+					newOutGoingChannels.addAll(rewriteRangePartitionChannel(channel));
+					toBeRemoveChannels.add(channel);
+				}
 			}
 		}
 
