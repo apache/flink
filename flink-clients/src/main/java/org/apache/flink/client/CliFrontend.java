@@ -125,8 +125,6 @@ public class CliFrontend {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
 
-	private final File configDirectory;
-
 	private final Configuration config;
 
 	private final FiniteDuration askTimeout;
@@ -155,12 +153,12 @@ public class CliFrontend {
 	public CliFrontend(String configDir) throws Exception {
 
 		// configure the config directory
-		this.configDirectory = new File(configDir);
-		LOG.info("Using configuration directory " + this.configDirectory.getAbsolutePath());
+		File configDirectory = new File(configDir);
+		LOG.info("Using configuration directory " + configDirectory.getAbsolutePath());
 
 		// load the configuration
 		LOG.info("Trying to load configuration file");
-		GlobalConfiguration.loadConfiguration(this.configDirectory.getAbsolutePath());
+		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 		this.config = GlobalConfiguration.getConfiguration();
 
 		// load the YARN properties
@@ -175,12 +173,8 @@ public class CliFrontend {
 
 			Properties yarnProperties = new Properties();
 			try {
-				InputStream is = new FileInputStream(propertiesFile);
-				try {
+				try (InputStream is = new FileInputStream(propertiesFile)) {
 					yarnProperties.load(is);
-				}
-				finally {
-					is.close();
 				}
 			}
 			catch (IOException e) {
@@ -915,9 +909,9 @@ public class CliFrontend {
 		}
 		LOG.error("Error while running the command.", t);
 
+		System.err.println("\n------------------------------------------------------------");
+		System.err.println(" The program finished with the following exception:\n");
 		t.printStackTrace();
-		System.err.println();
-		System.err.println("The exception above occurred while trying to run your command.");
 		return 1;
 	}
 

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
@@ -113,9 +114,9 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 		// =========== State Change Messages ===============
 
 		if (message instanceof ExecutionGraphMessages.ExecutionStateChanged) {
-			logAndPrintMessage(message);
+			logAndPrintMessage((ExecutionGraphMessages.ExecutionStateChanged) message);
 		} else if (message instanceof ExecutionGraphMessages.JobStatusChanged) {
-			logAndPrintMessage(message);
+			logAndPrintMessage((ExecutionGraphMessages.JobStatusChanged) message);
 		}
 
 		// ============ JobManager ActorRef resolution ===============
@@ -276,10 +277,27 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 		return leaderSessionID;
 	}
 
-	private void logAndPrintMessage(Object message) {
+	private void logAndPrintMessage(ExecutionGraphMessages.ExecutionStateChanged message) {
 		LOG.info(message.toString());
 		if (sysoutUpdates) {
 			System.out.println(message.toString());
+		}
+	}
+
+	private void logAndPrintMessage(ExecutionGraphMessages.JobStatusChanged message) {
+		// by default, this only prints the status, and not any exception.
+		// in state FAILING, we report the exception in addition
+		if (message.newJobStatus() != JobStatus.FAILING || message.error() == null) {
+			LOG.info(message.toString());
+			if (sysoutUpdates) {
+				System.out.println(message.toString());
+			}
+		} else {
+			LOG.info(message.toString(), message.error());
+			if (sysoutUpdates) {
+				System.out.println(message.toString());
+				message.error().printStackTrace(System.out);
+			}
 		}
 	}
 
