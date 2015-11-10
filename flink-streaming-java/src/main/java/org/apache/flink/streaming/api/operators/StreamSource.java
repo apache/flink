@@ -64,7 +64,10 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 	public void cancel() {
 		userFunction.cancel();
-		ctx.close();
+		// the context may not be initialized if the source was never running.
+		if(ctx != null) {
+			ctx.close();
+		}
 	}
 
 	/**
