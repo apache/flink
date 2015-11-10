@@ -20,11 +20,11 @@ package org.apache.flink.yarn;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 
-import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -116,6 +117,8 @@ public final class Utils {
 		Credentials credentials = new Credentials();
 		// for HDFS
 		TokenCache.obtainTokensForNamenodes(credentials, paths, conf);
+		// for HBase
+		obtainTokenForHBase(credentials, conf);
 		// for user
 		UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 		
@@ -135,7 +138,55 @@ public final class Utils {
 		ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 		amContainer.setTokens(securityTokens);
 	}
-	
+
+	/**
+	 * Obtain Kerberos security token for HBase.
+	 */
+	private static void obtainTokenForHBase(Credentials credentials, Configuration conf) throws IOException {
+		if (UserGroupInformation.isSecurityEnabled()) {
+			LOG.info("Attempting to obtain Kerberos security token for HBase");
+			try {
+				// ----
+				// Intended call: HBaseConfiguration.addHbaseResources(conf);
+				Class
+						.forName("org.apache.hadoop.hbase.HBaseConfiguration")
+						.getMethod("addHbaseResources", Configuration.class )
+						.invoke(null, conf);
+				// ----
+
+				LOG.info("HBase security setting: {}", conf.get("hbase.security.authentication"));
+
+				if (!"kerberos".equals(conf.get("hbase.security.authentication"))) {
+					LOG.info("HBase has not been configured to use Kerberos.");
+					return;
+				}
+
+				LOG.info("Obtaining Kerberos security token for HBase");
+				// ----
+				// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(conf);
+				Token<?> token = (Token<?>) Class
+						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
+						.getMethod("obtainToken", Configuration.class)
+						.invoke(null, conf);
+				// ----
+
+				if (token == null) {
+					LOG.error("No Kerberos security token for HBase available");
+					return;
+				}
+
+				credentials.addToken(token.getService(), token);
+				LOG.info("Added HBase Kerberos security token to credentials.");
+			} catch ( ClassNotFoundException
+					| NoSuchMethodException
+					| IllegalAccessException
+					| InvocationTargetException e) {
+				LOG.info("HBase is not available (not packaged with this application): {} : \"{}\".",
+						e.getClass().getSimpleName(), e.getMessage());
+			}
+		}
+	}
+
 	public static void logFilesInCurrentDirectory(final Logger logger) {
 		new File(".").list(new FilenameFilter() {
 			

@@ -249,7 +249,15 @@ if [ -n "$HADOOP_HOME" ]; then
     fi
 fi
 
-INTERNAL_HADOOP_CLASSPATHS="$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR"
+INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
+
+if [ -n "${HBASE_CONF_DIR}" ]; then
+    # Setup the HBase classpath.
+    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hbase classpath`"
+
+    # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
+    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
+fi
 
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the taskManager type
