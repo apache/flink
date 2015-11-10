@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.aggregators;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.types.DoubleValue;
 
 
@@ -25,6 +26,7 @@ import org.apache.flink.types.DoubleValue;
  * An {@link Aggregator} that sums up {@link DoubleValue} values.
  */
 @SuppressWarnings("serial")
+@PublicInterface
 public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 
 	private DoubleValue wrapper = new DoubleValue();

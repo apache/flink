@@ -26,11 +26,13 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
 
+@PublicInterface
 public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 
 	private static final long serialVersionUID = 1L;

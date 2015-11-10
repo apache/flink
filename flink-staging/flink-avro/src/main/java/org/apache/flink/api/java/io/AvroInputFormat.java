@@ -27,6 +27,7 @@ import org.apache.avro.file.SeekableInput;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.flink.annotation.PublicInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.avro.FSDataInputStreamWrapper;
@@ -38,7 +39,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.InstantiationUtil;
 
-
+@PublicInterface
 public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultTypeQueryable<E> {
 	
 	private static final long serialVersionUID = 1L;

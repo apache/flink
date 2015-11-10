@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;

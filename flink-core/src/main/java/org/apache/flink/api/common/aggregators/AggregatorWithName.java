@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.common.aggregators;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.types.Value;
 
 /**
  * Simple utility class holding an {@link Aggregator} with the name it is registered under.
  */
+@PublicInterface
 public class AggregatorWithName<T extends Value> {
 
 	private final String name;

@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.ReflectionUtil;
@@ -33,6 +34,7 @@ import org.apache.flink.util.ReflectionUtil;
  * @param <U> Type of the pair's first element.
  * @param <V> Type of the pair's second element.
  */
+@PublicInterface
 public abstract class Pair<U extends Key<U>, V extends Key<V>> implements Key<Pair<U, V>> {
 	private static final long serialVersionUID = 1L;
 	

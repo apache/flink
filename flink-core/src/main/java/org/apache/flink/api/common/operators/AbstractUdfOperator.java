@@ -73,7 +73,7 @@ public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Oper
 		return userFunction;
 	}
 
-// --------------------------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the input, or null, if none is set.

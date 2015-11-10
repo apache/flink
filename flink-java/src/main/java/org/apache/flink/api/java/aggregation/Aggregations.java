@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.aggregation;
 
-/**
- *
- */
+import org.apache.flink.annotation.PublicInterface;
+
+@PublicInterface
 public enum Aggregations {
 	
 	SUM (new SumAggregationFunction.SumAggregationFunctionFactory()),

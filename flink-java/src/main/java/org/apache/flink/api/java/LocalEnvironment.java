@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -36,6 +37,7 @@ import org.apache.flink.configuration.Configuration;
  * and {@link ExecutionEnvironment#createLocalEnvironment(int)}. The former version will pick a
  * default parallelism equal to the number of hardware contexts in the local machine.
  */
+@PublicInterface
 public class LocalEnvironment extends ExecutionEnvironment {
 	
 	/** The user-defined configuration for the local execution */

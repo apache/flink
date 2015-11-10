@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -34,6 +35,7 @@ import java.io.IOException;
  * 
  * @param <T> The type to be serialized.
  */
+@PublicInterface
 public class TypeInformationSerializationSchema<T> implements DeserializationSchema<T>, SerializationSchema<T> {
 	
 	private static final long serialVersionUID = -5359448468131559102L;

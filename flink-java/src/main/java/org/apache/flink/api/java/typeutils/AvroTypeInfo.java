@@ -20,6 +20,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.lang.reflect.Type;
@@ -39,6 +40,7 @@ import java.util.List;
  * This class is checked by the AvroPojoTest.
  * @param <T>
  */
+@PublicInterface
 public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> {
 	public AvroTypeInfo(Class<T> typeClass) {
 		super(typeClass, generateFieldsFromAvroSchema(typeClass));

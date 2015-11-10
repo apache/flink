@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
  * @param <IN1> Type of the first input data steam.
  * @param <IN2> Type of the second input data stream.
  */
+@PublicInterface
 public class ConnectedStreams<IN1, IN2> {
 
 	protected StreamExecutionEnvironment environment;

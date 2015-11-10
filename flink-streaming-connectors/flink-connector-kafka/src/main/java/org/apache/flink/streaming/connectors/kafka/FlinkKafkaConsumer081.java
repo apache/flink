@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 import java.util.Properties;
@@ -37,6 +38,7 @@ import java.util.Properties;
  * 
  * @param <T> The type of elements produced by this consumer.
  */
+@PublicInterface
 public class FlinkKafkaConsumer081<T> extends FlinkKafkaConsumer<T> {
 
 	private static final long serialVersionUID = -5649906773771949146L;

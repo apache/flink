@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -66,6 +67,7 @@ import static java.util.Objects.requireNonNull;
  *     .apply(new MyCoGroupFunction());
  * } </pre>
  */
+@PublicInterface
 public class CoGroupedStreams<T1, T2> {
 
 	/** The first input stream */

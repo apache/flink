@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.PublicInterface;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +28,7 @@ import java.util.concurrent.TimeUnit;
  * The result of a job execution. Gives access to the execution time of the job,
  * and to all accumulators created by this job.
  */
+@PublicInterface
 public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;

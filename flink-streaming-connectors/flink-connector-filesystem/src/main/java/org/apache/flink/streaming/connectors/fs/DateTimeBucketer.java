@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,7 @@ import java.util.Date;
  * {@code /base/1976-12-31-14/}
  *
  */
+@PublicInterface
 public class DateTimeBucketer implements Bucketer {
 
 	private static Logger LOG = LoggerFactory.getLogger(DateTimeBucketer.class);

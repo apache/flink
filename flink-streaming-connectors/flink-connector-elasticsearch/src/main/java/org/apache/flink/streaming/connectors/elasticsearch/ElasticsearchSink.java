@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -86,6 +87,7 @@ import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
  *
  * @param <T> Type of the elements emitted by this sink
  */
+@PublicInterface
 public class ElasticsearchSink<T> extends RichSinkFunction<T> {
 
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";

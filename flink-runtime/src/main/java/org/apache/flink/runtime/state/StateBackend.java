@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -35,6 +36,7 @@ import java.io.Serializable;
  * @param <Backend> The type of backend itself. This generic parameter is used to refer to the
  *                  type of backend when creating state backed by this backend.
  */
+@PublicInterface
 public abstract class StateBackend<Backend extends StateBackend<Backend>> implements java.io.Serializable {
 
 	private static final long serialVersionUID = 4620413814639220247L;

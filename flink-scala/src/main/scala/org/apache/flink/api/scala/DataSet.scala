@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.{PublicExperimental, PublicInterface}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
@@ -83,6 +84,7 @@ import scala.reflect.ClassTag
  *
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
+@PublicInterface
 class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   require(set != null, "Java DataSet must not be null.")
 
@@ -1573,7 +1575,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @Deprecated
-  @deprecated
+  @PublicExperimental
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
   }
@@ -1586,7 +1588,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @Deprecated
-  @deprecated
+  @PublicExperimental
   def printToErr(sinkIdentifier: String): DataSink[T] = {
       output(new PrintingOutputFormat[T](sinkIdentifier, true))
   }

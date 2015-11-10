@@ -18,12 +18,11 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.types.Value;
 
-/**
- * 
- */
+@PublicInterface
 public interface IterationRuntimeContext extends RuntimeContext {
 	
 	/**

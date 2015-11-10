@@ -17,9 +17,12 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * A {@link Clock} that uses {@code System.currentTimeMillis()} to determine the system time.
  */
+@PublicInterface
 public class SystemClock implements Clock {
 	@Override
 	public long currentTimeMillis() {

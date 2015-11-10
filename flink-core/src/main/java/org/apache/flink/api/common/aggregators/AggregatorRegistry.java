@@ -23,11 +23,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.types.Value;
 
 /**
  * A registry for iteration {@link Aggregator}s.
  */
+@PublicInterface
 public class AggregatorRegistry {
 	
 	private final Map<String, Aggregator<?>> registry = new HashMap<String, Aggregator<?>>();

@@ -20,6 +20,7 @@ package org.apache.flink.api.java.utils;
 import com.google.common.base.Preconditions;
 import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -38,6 +39,7 @@ import java.util.Properties;
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources
  */
+@PublicInterface
 public class ParameterTool extends ExecutionConfig.GlobalJobParameters implements Serializable, Cloneable {
 	private static final long serialVersionUID = 1L;
 

@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplit;
@@ -32,6 +33,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
  * This is the default implementation of the {@link InputSplitAssigner} interface. The default input split assigner
  * simply returns all input splits of an input vertex in the order they were originally computed.
  */
+@PublicInterface
 public class DefaultInputSplitAssigner implements InputSplitAssigner {
 
 	/** The logging object used to report information and errors. */

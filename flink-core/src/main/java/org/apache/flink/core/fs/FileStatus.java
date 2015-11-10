@@ -25,11 +25,14 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * Interface that represents the client side information for a file
  * independent of the file system.
  * 
  */
+@PublicInterface
 public interface FileStatus {
 
 	/**

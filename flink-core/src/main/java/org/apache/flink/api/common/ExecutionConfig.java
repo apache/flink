@@ -19,6 +19,7 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
+import org.apache.flink.annotation.PublicInterface;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -51,6 +52,7 @@ import java.util.Objects;
  *         automatically applied.</li>
  * </ul>
  */
+@PublicInterface
 public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -673,6 +675,7 @@ public class ExecutionConfig implements Serializable {
 	 * This user config is accessible at runtime through
 	 * getRuntimeContext().getExecutionConfig().GlobalJobParameters()
 	 */
+	@PublicInterface
 	public static class GlobalJobParameters implements Serializable {
 		private static final long serialVersionUID = 1L;
 

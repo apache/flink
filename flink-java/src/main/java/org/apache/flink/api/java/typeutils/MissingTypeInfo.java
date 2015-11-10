@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -27,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * A special type information signifying that the type extraction failed. It contains
  * additional error information.
  */
+@PublicInterface
 public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 
 	private static final long serialVersionUID = -4212082837126702723L;

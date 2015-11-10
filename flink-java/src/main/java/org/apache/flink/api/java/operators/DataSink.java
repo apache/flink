@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
@@ -35,7 +36,7 @@ import org.apache.flink.api.java.DataSet;
 
 import java.util.Arrays;
 
-
+@PublicInterface
 public class DataSink<T> {
 	
 	private final OutputFormat<T> format;

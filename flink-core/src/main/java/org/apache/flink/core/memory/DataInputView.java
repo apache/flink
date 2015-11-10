@@ -20,6 +20,8 @@
 package org.apache.flink.core.memory;
 
 
+import org.apache.flink.annotation.PublicInterface;
+
 import java.io.DataInput;
 import java.io.IOException;
 
@@ -28,6 +30,7 @@ import java.io.IOException;
  * This interface defines a view over some memory that can be used to sequentially read the contents of the memory.
  * The view is typically backed by one or more {@link org.apache.flink.core.memory.MemorySegment}.
  */
+@PublicInterface
 public interface DataInputView extends DataInput {
 	
 	/**

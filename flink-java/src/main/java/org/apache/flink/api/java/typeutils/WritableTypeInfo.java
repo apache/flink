@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -35,6 +36,7 @@ import org.apache.hadoop.io.Writable;
  *
  * @param <T> The type of the class represented by this type information.
  */
+@PublicInterface
 public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> implements AtomicType<T> {
 	
 	private static final long serialVersionUID = 1L;

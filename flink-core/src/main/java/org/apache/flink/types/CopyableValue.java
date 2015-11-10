@@ -20,12 +20,14 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * Interface to be implemented by basic types that support to be copied efficiently.
  */
+@PublicInterface
 public interface CopyableValue<T> extends Value {
 	
 	/**

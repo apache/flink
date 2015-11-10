@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
@@ -34,6 +35,7 @@ import org.apache.flink.configuration.Configuration;
  * 
  * @param <OUT> The type of the elements produced by this data source.
  */
+@PublicInterface
 public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 
 	private final InputFormat<OUT, ?> inputFormat;

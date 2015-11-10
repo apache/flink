@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala.function
 
+import org.apache.flink.annotation.PublicInterface
 import org.apache.flink.api.common.functions.RichFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.state.OperatorState
  * RichFunctions without exposing the OperatorStates to the user. The user should
  * call the applyWithState method in his own RichFunction implementation.
  */
+@PublicInterface
 trait StatefulFunction[I, O, S] extends RichFunction {
   
   var state: OperatorState[S] = _

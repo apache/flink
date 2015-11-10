@@ -19,9 +19,12 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * An accumulator that sums up {@code Integer} values.
  */
+@PublicInterface
 public class IntCounter implements SimpleAccumulator<Integer> {
 
 	private static final long serialVersionUID = 1L;

@@ -19,6 +19,9 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.PublicInterface;
+
+@PublicInterface
 public interface ResettableValue<T extends Value> extends Value {
 
 	/**

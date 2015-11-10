@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.api.transformations.SplitTransformation;
  *
  * @param <OUT> The type of the elements in the Stream
  */
+@PublicInterface
 public class SplitStream<OUT> extends DataStream<OUT> {
 
 	protected SplitStream(DataStream<OUT> dataStream, OutputSelector<OUT> outputSelector) {

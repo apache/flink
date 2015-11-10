@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.fs;
 
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -41,6 +42,7 @@ import java.io.IOException;
  * @param <K> The type of the first tuple field.
  * @param <V> The type of the second tuple field.
  */
+@PublicInterface
 public class SequenceFileWriter<K extends Writable, V extends Writable> implements Writer<Tuple2<K, V>>, InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 
