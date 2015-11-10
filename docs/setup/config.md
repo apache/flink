@@ -210,18 +210,19 @@ the JVMs running Flink's services.
   
   Supported backends: 
   
-   -  `jobmanager` (in-memory)
-   -  `filesystem` (all filesystems supported by Flink, for example HDFS)
+   -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
+   -  `filesystem`: State is in-memory on the TaskManagers, and state snapshots are stored in a file system. Supported are all filesystems supported by Flink, for example HDFS, S3, ...
 
 - `state.backend.fs.checkpointdir`: Directory for storing checkpoints in a flink supported filesystem
 Note: State backend must be accessible from the JobManager, use file:// only for local setups. 
 
 - `blob.storage.directory`: Directory for storing blobs (such as user jar's) on the TaskManagers.
 
-- `execution-retries.delay`: Delay between execution retries. Default value "100 s". Note that values
+- `execution-retries.delay`: Delay between execution retries. Default value "5 s". Note that values
 have to be specified as strings with a unit.
 
-- `execution-retries.default`: Default number of execution retries (Can also be set on a per-job basis).
+- `execution-retries.default`: Default number of execution retries, used by jobs that do not explicitly
+specify that value on the execution environment. Default value is zero.
 
 ## Full Reference
 

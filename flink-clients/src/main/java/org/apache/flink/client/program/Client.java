@@ -69,11 +69,8 @@ import akka.actor.ActorSystem;
 public class Client {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
-
-	/**
-	 * The configuration to use for the client (optimizer, timeouts, ...) and to connect to the
-	 * JobManager.
-	 */
+	
+	
 	/** The optimizer used in the optimization of batch programs */
 	final Optimizer compiler;
 	
@@ -150,6 +147,7 @@ public class Client {
 		timeout = AkkaUtils.getTimeout(config);
 		lookupTimeout = AkkaUtils.getTimeout(config);
 	}
+	
 	// ------------------------------------------------------------------------
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
