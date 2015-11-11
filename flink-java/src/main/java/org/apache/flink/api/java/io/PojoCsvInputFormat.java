@@ -95,10 +95,7 @@ public class PojoCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 	private void configure(String lineDelimiter, String fieldDelimiter, PojoTypeInfo<OUT> pojoTypeInfo, String[] fieldNames, boolean[] includedFieldsMask) {
 
 		if (includedFieldsMask == null) {
-			includedFieldsMask = new boolean[fieldNames.length];
-			for (int x = 0; x < includedFieldsMask.length; x++) {
-				includedFieldsMask[x] = true;
-			}
+			includedFieldsMask = createDefaultMask(fieldNames.length);
 		}
 
 		for (String name : fieldNames) {
@@ -189,44 +186,14 @@ public class PojoCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 	}
 
 	@Override
-	public OUT readRecord(OUT reuse, byte[] bytes, int offset, int numBytes) throws IOException {
-		/*
-		 * Fix to support windows line endings in CSVInputFiles with standard delimiter setup = \n
-		 */
-		//Find windows end line, so find carriage return before the newline
-		if (this.lineDelimiterIsLinebreak == true && numBytes > 0 && bytes[offset + numBytes - 1] == '\r') {
-			//reduce the number of bytes so that the Carriage return is not taken as data
-			numBytes--;
-		}
-
-		if (commentPrefix != null && commentPrefix.length <= numBytes) {
-			//check record for comments
-			boolean isComment = true;
-			for (int i = 0; i < commentPrefix.length; i++) {
-				if (commentPrefix[i] != bytes[offset + i]) {
-					isComment = false;
-					break;
-				}
-			}
-			if (isComment) {
-				this.commentCount++;
-				return null;
+	public OUT fillRecord(OUT reuse, Object[] parsedValues) {
+		for (int i = 0; i < parsedValues.length; i++) {
+			try {
+				pojoFields[i].set(reuse, parsedValues[i]);
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Parsed value could not be set in POJO field \"" + pojoFieldNames[i] + "\"", e);
 			}
 		}
-
-		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
-			for (int i = 0; i < parsedValues.length; i++) {
-				try {
-					pojoFields[i].set(reuse, parsedValues[i]);
-				} catch (IllegalAccessException e) {
-					throw new RuntimeException("Parsed value could not be set in POJO field \"" + pojoFieldNames[i] + "\"", e);
-				}
-			}
-			return reuse;
-		} else {
-			this.invalidLineCount++;
-			return null;
-		}
+		return reuse;
 	}
-
 }

@@ -80,6 +80,42 @@ public abstract class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 		return returnRecord;
 	}
 
+	@Override
+	public OUT readRecord(OUT reuse, byte[] bytes, int offset, int numBytes) throws IOException {
+		/*
+		 * Fix to support windows line endings in CSVInputFiles with standard delimiter setup = \n
+		 */
+		//Find windows end line, so find carriage return before the newline
+		if (this.lineDelimiterIsLinebreak == true && numBytes > 0 && bytes[offset + numBytes - 1] == '\r') {
+			//reduce the number of bytes so that the Carriage return is not taken as data
+			numBytes--;
+		}
+
+		if (commentPrefix != null && commentPrefix.length <= numBytes) {
+			//check record for comments
+			boolean isComment = true;
+			for (int i = 0; i < commentPrefix.length; i++) {
+				if (commentPrefix[i] != bytes[offset + i]) {
+					isComment = false;
+					break;
+				}
+			}
+			if (isComment) {
+				this.commentCount++;
+				return null;
+			}
+		}
+
+		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
+			return fillRecord(reuse, parsedValues);
+		} else {
+			this.invalidLineCount++;
+			return null;
+		}
+	}
+
+	protected abstract OUT fillRecord(OUT reuse, Object[] parsedValues);
+
 	public Class<?>[] getFieldTypes() {
 		return super.getGenericFieldTypes();
 	}
