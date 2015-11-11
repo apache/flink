@@ -19,7 +19,6 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.core.fs.Path;
 
-import java.io.IOException;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
