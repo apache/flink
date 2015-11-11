@@ -25,6 +25,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
+import org.apache.flink.api.common.functions.util.utils.TestRuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
@@ -118,14 +119,12 @@ public class InnerJoinOperatorBaseTest implements Serializable {
 
 
 		try {
-			final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
-			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
 
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.disableObjectReuse();
-			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskName, 1, 0, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2, TestRuntimeUDFContext.instance(taskName, 0, 1, null, executionConfig), executionConfig);
 			executionConfig.enableObjectReuse();
-			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskName, 1, 0, null, executionConfig, cpTasks, accumulatorMap), executionConfig);
+			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2, TestRuntimeUDFContext.instance(taskName, 0, 1, null, executionConfig), executionConfig);
 
 			assertEquals(expected, resultSafe);
 			assertEquals(expected, resultRegular);

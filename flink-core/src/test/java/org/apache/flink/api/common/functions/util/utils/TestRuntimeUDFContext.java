@@ -16,32 +16,26 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.common.functions.util.utils;
 
-package org.apache.flink.api.common.io;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskRuntimeInfo;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
+import org.apache.flink.core.fs.Path;
 
 import java.util.HashMap;
 import java.util.concurrent.Future;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
-import org.apache.flink.api.common.functions.util.utils.TestRuntimeUDFContext;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.types.Value;
-import org.junit.Assert;
-import org.junit.Test;
+public class TestRuntimeUDFContext {
 
-/**
- * Tests runtime context access from inside an RichOutputFormat class
- */
-public class RichOutputFormatTest {
+	public static RuntimeUDFContext instance(String name, int subTask, int parallelism, ClassLoader classLoader) {
+		return new RuntimeUDFContext(new TaskRuntimeInfo(name, subTask, parallelism, 1),
+				classLoader, new ExecutionConfig(), new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>());
+	}
 
-	@Test
-	public void testCheckRuntimeContextAccess() {
-		final SerializedOutputFormat<Value> inputFormat = new SerializedOutputFormat<Value>();
-		inputFormat.setRuntimeContext(TestRuntimeUDFContext.instance("test", 1, 3, getClass().getClassLoader()));
-
-		Assert.assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
-		Assert.assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(),3);
+	public static RuntimeUDFContext instance(String name, int subTask, int parallelism, ClassLoader classLoader, ExecutionConfig config) {
+		return new RuntimeUDFContext(new TaskRuntimeInfo(name, subTask, parallelism, 1),
+				classLoader, config, new HashMap<String, Future<Path>>(), new HashMap<String, Accumulator<?, ?>>());
 	}
 }

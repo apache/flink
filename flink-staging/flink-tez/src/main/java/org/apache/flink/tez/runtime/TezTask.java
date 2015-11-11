@@ -23,6 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.tez.runtime.input.TezReaderIterator;
 import org.apache.flink.tez.runtime.output.TezChannelSelector;
 import org.apache.flink.tez.runtime.output.TezOutputEmitter;
@@ -273,8 +273,8 @@ public class TezTask<S extends Function,OT>  implements TaskContext<S, OT> {
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TaskManagerRuntimeInfo("localhost", new Configuration());
+	public TaskManagerContext getTaskManagerContext() {
+		return new TaskManagerContext("localhost", new Configuration(), getIOManager(), getMemoryManager(), null);
 	}
 
 	@Override

@@ -25,8 +25,8 @@ import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.operators.Driver;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -71,7 +71,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 
 	private final TaskConfig taskConfig;
 	
-	private final TaskManagerRuntimeInfo taskManageInfo;
+	private final TaskManagerContext taskManageContext;
 	
 	protected final long perSortMem;
 
@@ -112,7 +112,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 		this.owner = new DummyInvokable();
 		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
-		this.taskManageInfo = new TaskManagerRuntimeInfo("localhost", new Configuration());
+		this.taskManageContext = new TaskManagerContext("localhost", new Configuration(), ioManager, memManager, null);
 	}
 
 	@Parameterized.Parameters
@@ -287,8 +287,8 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManageInfo;
+	public TaskManagerContext getTaskManagerContext() {
+		return this.taskManageContext;
 	}
 
 	@Override

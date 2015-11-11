@@ -60,7 +60,7 @@ import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
@@ -1017,9 +1017,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+		return new DistributedRuntimeUDFContext(env.getTaskRuntimeInfo(), env.getTaskManagerContext(),
+				getUserCodeClassLoader(), getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1032,8 +1031,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return getEnvironment().getTaskManagerInfo();
+	public TaskManagerContext getTaskManagerContext() {
+		return getEnvironment().getTaskManagerContext();
 	}
 
 	@Override

@@ -173,10 +173,14 @@ class TaskManager(
 
   var leaderSessionID: Option[UUID] = None
 
+  private val runtimeInfo = new TaskManagerContext(
+    connectionInfo.getHostname,
+    new UnmodifiableConfiguration(config.configuration),
+    ioManager,
+    memoryManager,
+    network
+  )
 
-  private val runtimeInfo = new TaskManagerRuntimeInfo(
-       connectionInfo.getHostname(),
-       new UnmodifiableConfiguration(config.configuration))
   // --------------------------------------------------------------------------
   //  Actor messages and life cycle
   // --------------------------------------------------------------------------
@@ -878,9 +882,6 @@ class TaskManager(
 
       val task = new Task(
         tdd,
-        memoryManager,
-        ioManager,
-        network,
         bcVarManager,
         selfGateway,
         jobManagerGateway,

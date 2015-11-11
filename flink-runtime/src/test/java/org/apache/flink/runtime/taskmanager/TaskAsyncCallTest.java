@@ -148,7 +148,7 @@ public class TaskAsyncCallTest {
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
 				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
-				"Test Task", 0, 1,
+				"Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				CheckpointsInOrderInvokable.class.getName(),
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
@@ -159,16 +159,13 @@ public class TaskAsyncCallTest {
 
 		ActorGateway taskManagerGateway = DummyActorGateway.INSTANCE;
 		return new Task(tdd,
-				mock(MemoryManager.class),
-				mock(IOManager.class),
-				networkEnvironment,
 				mock(BroadcastVariableManager.class),
 				taskManagerGateway,
 				DummyActorGateway.INSTANCE,
 				new FiniteDuration(60, TimeUnit.SECONDS),
 				libCache,
 				mock(FileCache.class),
-				new TaskManagerRuntimeInfo("localhost", new Configuration()));
+				new TaskManagerContext("localhost", new Configuration(), mock(IOManager.class), mock(MemoryManager.class), networkEnvironment));
 	}
 	
 	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask<StateHandle<Serializable>> {

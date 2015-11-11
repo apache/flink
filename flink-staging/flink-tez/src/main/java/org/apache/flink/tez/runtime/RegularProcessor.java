@@ -19,6 +19,7 @@
 package org.apache.flink.tez.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.core.fs.Path;
@@ -67,9 +68,8 @@ public class RegularProcessor<S extends Function, OT> extends AbstractLogicalIOP
 		TezTaskConfig taskConfig = (TezTaskConfig) EncodingUtils.decodeObjectFromString(conf.get(TezTaskConfig.TEZ_TASK_CONFIG), getClass().getClassLoader());
 		taskConfig.setTaskName(getContext().getTaskVertexName());
 
-		RuntimeUDFContext runtimeUdfContext = new RuntimeUDFContext(getContext().getTaskVertexName(),
-				getContext().getVertexParallelism(),
-				getContext().getTaskIndex(),
+		RuntimeUDFContext runtimeUdfContext = new RuntimeUDFContext(
+				new TaskRuntimeInfo(getContext().getTaskVertexName(), getContext().getTaskIndex(),getContext().getVertexParallelism(), 1),
 				getClass().getClassLoader(),
 				new ExecutionConfig(),
 				new HashMap<String, Future<Path>>(),

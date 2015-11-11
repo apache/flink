@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution;
 
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -31,7 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -73,11 +74,18 @@ public interface Environment {
 	Configuration getTaskConfiguration();
 
 	/**
-	 * Gets the task manager info, with configuration and hostname.
+	 * Gets the task manager context, with configuration, hostname, IO manager, etc.
 	 * 
-	 * @return The task manager info, with configuration and hostname. 
+	 * @return The task manager context, with configuration, hostname, IO manager, etc.
 	 */
-	TaskManagerRuntimeInfo getTaskManagerInfo();
+	TaskManagerContext getTaskManagerContext();
+
+	/**
+	 * Gets the task's runtime info,  with name, index, parallelism, etc.
+	 *
+	 * @return The task's runtime info,  with name, index, parallelism, etc.
+	 */
+	TaskRuntimeInfo getTaskRuntimeInfo();
 
 	/**
 	 * Returns the job-wide configuration object that was attached to the JobGraph.

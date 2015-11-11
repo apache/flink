@@ -118,7 +118,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 			LOG.debug("Join Driver object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
 		
-		boolean hashJoinUseBitMaps = taskContext.getTaskManagerInfo().getConfiguration().getBoolean(
+		boolean hashJoinUseBitMaps = taskContext.getTaskManagerContext().getConfiguration().getBoolean(
 				ConfigConstants.RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY,
 				ConfigConstants.DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS);
 

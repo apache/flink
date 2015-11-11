@@ -499,7 +499,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			return configuredBackend;
 		} else {
 			// see if we have a backend specified in the configuration
-			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
+			Configuration flinkConfig = getEnvironment().getTaskManagerContext().getConfiguration();
 			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
 
 			if (backendName == null) {

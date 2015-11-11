@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -47,7 +47,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
@@ -129,6 +128,9 @@ public class Task implements Runnable {
 	/** The name of the task */
 	private final String taskName;
 
+	/** Attempt number of the task */
+	private final int attemptNumber;
+
 	/** The name of the task, including the subtask index and the parallelism */
 	private final String taskNameWithSubtask;
 
@@ -147,14 +149,8 @@ public class Task implements Runnable {
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
 
-	/** Access to task manager configuration and host names*/
-	private final TaskManagerRuntimeInfo taskManagerConfig;
-	
-	/** The memory manager to be used by this task */
-	private final MemoryManager memoryManager;
-
-	/** The I/O manager to be used by this task */
-	private final IOManager ioManager;
+	/** Access to task manager context */
+	private final TaskManagerContext taskManagerContext;
 
 	/** The BroadcastVariableManager to be used by this task */
 	private final BroadcastVariableManager broadcastVariableManager;
@@ -184,9 +180,6 @@ public class Task implements Runnable {
 
 	/** The cache for user-defined files that the invokable requires */
 	private final FileCache fileCache;
-
-	/** The gateway to the network stack, which handles inputs and produced results */
-	private final NetworkEnvironment network;
 
 	/** The registry of this task which enables live reporting of accumulators */
 	private final AccumulatorRegistry accumulatorRegistry;
@@ -224,16 +217,13 @@ public class Task implements Runnable {
 	 * be undone in the case of a failing task deployment.</p>
 	 */
 	public Task(TaskDeploymentDescriptor tdd,
-				MemoryManager memManager,
-				IOManager ioManager,
-				NetworkEnvironment networkEnvironment,
 				BroadcastVariableManager bcVarManager,
 				ActorGateway taskManagerActor,
 				ActorGateway jobManagerActor,
 				FiniteDuration actorAskTimeout,
 				LibraryCacheManager libraryCache,
 				FileCache fileCache,
-				TaskManagerRuntimeInfo taskManagerConfig)
+				TaskManagerContext taskManagerContext)
 	{
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
@@ -245,6 +235,7 @@ public class Task implements Runnable {
 		this.subtaskIndex = tdd.getIndexInSubtaskGroup();
 		this.parallelism = tdd.getNumberOfSubtasks();
 		this.taskName = checkNotNull(tdd.getTaskName());
+		this.attemptNumber = tdd.getAttemptNumber();
 		this.taskNameWithSubtask = getTaskNameWithSubtask(taskName, subtaskIndex, parallelism);
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
@@ -253,8 +244,6 @@ public class Task implements Runnable {
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 
-		this.memoryManager = checkNotNull(memManager);
-		this.ioManager = checkNotNull(ioManager);
 		this.broadcastVariableManager = checkNotNull(bcVarManager);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
@@ -264,8 +253,11 @@ public class Task implements Runnable {
 
 		this.libraryCache = checkNotNull(libraryCache);
 		this.fileCache = checkNotNull(fileCache);
-		this.network = checkNotNull(networkEnvironment);
-		this.taskManagerConfig = checkNotNull(taskManagerConfig);
+		this.taskManagerContext = checkNotNull(taskManagerContext);
+		// it is absolutely necessary to check these values.
+		checkNotNull(taskManagerContext.getIoManager());
+		checkNotNull(taskManagerContext.getMemoryManager());
+		checkNotNull(taskManagerContext.getNetworkEnvironment());
 
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorGateway>();
 
@@ -281,6 +273,8 @@ public class Task implements Runnable {
 		this.producedPartitions = new ResultPartition[partitions.size()];
 		this.writers = new ResultPartitionWriter[partitions.size()];
 
+		NetworkEnvironment network = taskManagerContext.getNetworkEnvironment();
+
 		for (int i = 0; i < this.producedPartitions.length; i++) {
 			ResultPartitionDeploymentDescriptor desc = partitions.get(i);
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
@@ -291,10 +285,10 @@ public class Task implements Runnable {
 					partitionId,
 					desc.getPartitionType(),
 					desc.getNumberOfSubpartitions(),
-					networkEnvironment.getPartitionManager(),
-					networkEnvironment.getPartitionConsumableNotifier(),
-					ioManager,
-					networkEnvironment.getDefaultIOMode());
+					network.getPartitionManager(),
+					network.getPartitionConsumableNotifier(),
+					taskManagerContext.getIoManager(),
+					network.getDefaultIOMode());
 
 			this.writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
 		}
@@ -305,7 +299,7 @@ public class Task implements Runnable {
 
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtasksAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
+					taskNameWithSubtasksAndId, jobId, executionId, consumedPartitions.get(i), network);
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
@@ -485,7 +479,7 @@ public class Task implements Runnable {
 			// ----------------------------------------------------------------
 
 			LOG.info("Registering task at network: " + this);
-			network.registerTask(this);
+			taskManagerContext.getNetworkEnvironment().registerTask(this);
 
 			// next, kick off the background copying of files for the distributed cache
 			try {
@@ -513,12 +507,11 @@ public class Task implements Runnable {
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
 			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
-					taskName, taskNameWithSubtask, subtaskIndex, parallelism,
 					jobConfiguration, taskConfiguration,
-					userCodeClassLoader, memoryManager, ioManager,
-					broadcastVariableManager, accumulatorRegistry,
+					userCodeClassLoader, broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,
-					writers, inputGates, jobManager, taskManagerConfig);
+					writers, inputGates, jobManager, taskManagerContext, new TaskRuntimeInfo
+					(taskName, subtaskIndex, parallelism, attemptNumber));
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -679,11 +672,11 @@ public class Task implements Runnable {
 				}
 				
 				// free the network resources
-				network.unregisterTask(this);
+				taskManagerContext.getNetworkEnvironment().unregisterTask(this);
 
 				// free memory resources
 				if (invokable != null) {
-					memoryManager.releaseAll(invokable);
+					taskManagerContext.getMemoryManager().releaseAll(invokable);
 				}
 
 				// remove all of the tasks library resources

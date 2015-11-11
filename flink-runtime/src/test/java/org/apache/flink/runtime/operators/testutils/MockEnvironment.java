@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import org.apache.flink.api.common.TaskRuntimeInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
@@ -41,7 +43,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
@@ -195,8 +196,13 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
+	public TaskManagerContext getTaskManagerContext() {
+		return new TaskManagerContext("localhost", new UnmodifiableConfiguration(new Configuration()), ioManager, memManager, null);
+	}
+
+	@Override
+	public TaskRuntimeInfo getTaskRuntimeInfo() {
+		return new TaskRuntimeInfo(taskName, 0, 1, 1);
 	}
 
 	@Override

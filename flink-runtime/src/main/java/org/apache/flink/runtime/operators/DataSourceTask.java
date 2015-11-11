@@ -365,8 +365,8 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
+		return new DistributedRuntimeUDFContext(env.getTaskRuntimeInfo(), env.getTaskManagerContext(),
+				getUserCodeClassLoader(), getExecutionConfig(),
 				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

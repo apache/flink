@@ -25,6 +25,7 @@ import java.util.concurrent.Future;
 
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskRuntimeInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -42,11 +43,7 @@ import org.apache.flink.core.fs.Path;
  */
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
-	private final String name;
-
-	private final int numParallelSubtasks;
-
-	private final int subtaskIndex;
+	private final TaskRuntimeInfo runtimeInfo;
 
 	private final ClassLoader userCodeClassLoader;
 
@@ -56,15 +53,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final DistributedCache distributedCache;
 
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
-										ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulators,
-										Map<String, Future<Path>> cpTasks) {
-		this.name = name;
-		this.numParallelSubtasks = numParallelSubtasks;
-		this.subtaskIndex = subtaskIndex;
+	public AbstractRuntimeUDFContext(
+			TaskRuntimeInfo taskRuntimeInfo,
+			ClassLoader userCodeClassLoader,
+			ExecutionConfig executionConfig,
+			Map<String, Accumulator<?,?>> accumulators,
+			Map<String, Future<Path>> cpTasks) {
+		this.runtimeInfo = Preconditions.checkNotNull(taskRuntimeInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
 		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
@@ -78,17 +73,27 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	public String getTaskName() {
-		return this.name;
+		return this.runtimeInfo.getTaskName();
 	}
 
 	@Override
 	public int getNumberOfParallelSubtasks() {
-		return this.numParallelSubtasks;
+		return this.runtimeInfo.getNumParallelTasks();
 	}
 
 	@Override
 	public int getIndexOfThisSubtask() {
-		return this.subtaskIndex;
+		return this.runtimeInfo.getSubTaskIndex();
+	}
+
+	@Override
+	public int getAttemptNumber() {
+		return this.runtimeInfo.getAttemptNumber();
+	}
+
+	@Override
+	public String getTaskNameWithSubtasks() {
+		return this.runtimeInfo.getTaskNameWithSubTaskIndex();
 	}
 
 	@Override
