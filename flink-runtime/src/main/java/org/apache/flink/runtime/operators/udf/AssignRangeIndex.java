@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.operators.udf;
 
+import org.apache.flink.api.common.distributions.CommonRangeBoundaries;
 import org.apache.flink.api.common.distributions.RangeBoundaries;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -46,12 +47,13 @@ public class AssignRangeIndex<IN> extends RichMapPartitionFunction<IN, Tuple2<In
 		if (broadcastVariable == null || broadcastVariable.size() != 1) {
 			throw new RuntimeException("AssignRangePartition require a single RangeBoundaries as broadcast input.");
 		}
-		RangeBoundaries<IN> rangeBoundaries = (RangeBoundaries<IN>) broadcastVariable.get(0);
+		Object[][] boundaryObjects = (Object[][]) broadcastVariable.get(0);
+		RangeBoundaries rangeBoundaries = new CommonRangeBoundaries(typeComparator.createComparator(), boundaryObjects);
 
 		Tuple2<Integer, IN> tupleWithPartitionId = new Tuple2<>();
 
 		for (IN record : values) {
-			tupleWithPartitionId.f0 = rangeBoundaries.getRangeIndex(record, typeComparator.createComparator());
+			tupleWithPartitionId.f0 = rangeBoundaries.getRangeIndex(record);
 			tupleWithPartitionId.f1 = record;
 			out.collect(tupleWithPartitionId);
 		}

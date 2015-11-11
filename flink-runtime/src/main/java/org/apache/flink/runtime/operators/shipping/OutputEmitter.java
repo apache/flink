@@ -21,12 +21,9 @@ package org.apache.flink.runtime.operators.shipping;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 
-import java.io.IOException;
 /**
  * The output emitter decides to which of the possibly multiple output channels a record is sent.
  * It implement routing based on hash-partitioning, broadcasting, round-robin, custom partition
@@ -54,6 +51,10 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	private DataDistribution distribution; // the data distribution to create the partition boundaries for range partitioning
 
 	private final Partitioner<Object> partitioner;
+
+	private TypeComparator[] flatComparators;
+
+	private Object[] keys;
 	
 	private Object[] extractedKeys;
 
@@ -95,21 +96,27 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		this.comparator = comparator;
 		this.partitioner = (Partitioner<Object>) partitioner;
 		this.distribution = distribution;
-		if (this.distribution == null) {
-			this.distribution = new PartitionIDDistribution();
-		}
+
 
 		switch (strategy) {
 		case PARTITION_CUSTOM:
 			extractedKeys = new Object[1];
 		case FORWARD:
 		case PARTITION_HASH:
-		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
 		case PARTITION_FORCED_REBALANCE:
+		case PARTITION_RANGE:
 			channels = new int[1];
-		case BROADCAST:
+			if (comparator != null) {
+				this.flatComparators = comparator.getFlatComparators();
+				this.keys = new Object[flatComparators.length];
+			}
+			if (this.distribution == null) {
+				this.distribution = new PartitionIDDistribution();
+			}
 			break;
+		case BROADCAST:
+		  break;
 		default:
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
 		}
@@ -277,8 +284,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	}
 
 	private final int compareRecordAndBoundary(T record, Object[] boundary) {
-		TypeComparator[] flatComparators = this.comparator.getFlatComparators();
-		Object[] keys = new Object[flatComparators.length];
 		this.comparator.extractKeys(record, keys, 0);
 
 		if (flatComparators.length != keys.length || flatComparators.length != boundary.length) {
@@ -292,27 +297,5 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 			}
 		}
 		return 0;
-	}
-
-	private static class PartitionIDDistribution implements DataDistribution {
-		@Override
-		public Integer[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
-			return new Integer[] { bucketNum };
-		}
-
-		@Override
-		public int getNumberOfFields() {
-			return -1;
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-
-		}
 	}
 }

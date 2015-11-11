@@ -29,6 +29,7 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.distributions.SampledDataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.optimizer.CompilerException;
@@ -1144,6 +1145,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			final DataDistribution dataDistribution = channel.getDataDistribution();
 			if (dataDistribution != null) {
 				sourceConfig.setOutputDataDistribution(dataDistribution, outputIndex);
+			} else {
+				// While user does not supply customized data distribution, Flink would automatically sample source data,
+				// assign range index for each record, and use SampledDataDistribution instead.
+				sourceConfig.setOutputDataDistribution(new SampledDataDistribution(), outputIndex);
 			}
 		}
 		

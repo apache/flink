@@ -17,20 +17,33 @@
  */
 package org.apache.flink.api.common.distributions;
 
-import java.io.Serializable;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 /**
- * RangeBoundaries is used to split the records into multiple ranges.
- *
- * @param <T> The boundary type.
+ * While range partition automatically, Flink sample the source data, and assign range index for each record,
+ * so its data distribution is very simple, just return the bucket index as its boundary.
  */
-public interface RangeBoundaries<T> extends Serializable {
+public class SampledDataDistribution implements DataDistribution {
+	@Override
+	public Integer[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+		return new Integer[] { bucketNum };
+	}
 
-	/**
-	 * Get the range index of record.
-	 *
-	 * @param record     The input record.
-	 * @return The range index.
-	 */
-	int getRangeIndex(T record);
+	@Override
+	public int getNumberOfFields() {
+		return -1;
+	}
+
+	@Override
+	public void write(DataOutputView out) throws IOException {
+
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+
+	}
 }

@@ -1950,7 +1950,7 @@ Not supported.
 ### Hash-Partition
 
 Hash-partitions a DataSet on a given key.
-Keys can be specified as key expressions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+Keys can be specified as position keys, expression keys, and key selector functions (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1984,7 +1984,7 @@ Not supported.
 ### Range-Partition
 
 Range-partitions a DataSet on a given key.
-Keys can be specified as key expressions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+Keys can be specified as position keys, expression keys, and key selector functions (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

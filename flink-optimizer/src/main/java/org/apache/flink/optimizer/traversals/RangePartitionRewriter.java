@@ -56,6 +56,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class RangePartitionRewriter implements Visitor<PlanNode> {
+	final static long SEED = org.apache.flink.api.java.Utils.RNG.nextLong();
 
 	final OptimizedPlan plan;
 
@@ -99,16 +100,15 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final int targetParallelism = targetNode.getParallelism();
 		final TypeComparatorFactory<?> comparator = Utils.getShipComparator(channel, this.plan.getOriginalPlan().getExecutionConfig());
 		// 1. Fixed size sample in each partitions.
-		final long seed = org.apache.flink.api.java.Utils.RNG.nextLong();
 		final int sampleSize = 20 * targetParallelism;
-		final SampleInPartition sampleInPartition = new SampleInPartition(false, sampleSize, seed);
+		final SampleInPartition sampleInPartition = new SampleInPartition(false, sampleSize, SEED);
 		final TypeInformation<?> sourceOutputType = sourceNode.getOptimizerNode().getOperator().getOperatorInfo().getOutputType();
 		final TypeInformation<IntermediateSampleData> isdTypeInformation = TypeExtractor.getForClass(IntermediateSampleData.class);
 		final UnaryOperatorInformation sipOperatorInformation = new UnaryOperatorInformation(sourceOutputType, isdTypeInformation);
 		final MapPartitionOperatorBase sipOperatorBase = new MapPartitionOperatorBase(sampleInPartition, sipOperatorInformation, "Sample in partitions");
 		final MapPartitionNode sipNode = new MapPartitionNode(sipOperatorBase);
 		final Channel sipChannel = new Channel(sourceNode, TempMode.NONE);
-		sipChannel.setShipStrategy(ShipStrategyType.FORWARD, channel.getDataExchangeMode());
+		sipChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 		final SingleInputPlanNode sipPlanNode = new SingleInputPlanNode(sipNode, "SampleInPartition PlanNode", sipChannel, DriverStrategy.MAP_PARTITION);
 		sipPlanNode.setParallelism(sourceParallelism);
 		sipChannel.setTarget(sipPlanNode);
@@ -116,12 +116,12 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		sourceNewOutputChannels.add(sipChannel);
 
 		// 2. Fixed size sample in a single coordinator.
-		final SampleInCoordinator sampleInCoordinator = new SampleInCoordinator(false, sampleSize, seed);
+		final SampleInCoordinator sampleInCoordinator = new SampleInCoordinator(false, sampleSize, SEED);
 		final UnaryOperatorInformation sicOperatorInformation = new UnaryOperatorInformation(isdTypeInformation, sourceOutputType);
 		final GroupReduceOperatorBase sicOperatorBase = new GroupReduceOperatorBase(sampleInCoordinator, sicOperatorInformation, "Sample in coordinator");
 		final GroupReduceNode sicNode = new GroupReduceNode(sicOperatorBase);
 		final Channel sicChannel = new Channel(sipPlanNode, TempMode.NONE);
-		sicChannel.setShipStrategy(ShipStrategyType.PARTITION_HASH, channel.getShipStrategyKeys(), channel.getShipStrategySortOrder(), null, channel.getDataExchangeMode());
+		sicChannel.setShipStrategy(ShipStrategyType.FORWARD, channel.getShipStrategyKeys(), channel.getShipStrategySortOrder(), null, DataExchangeMode.PIPELINED);
 		final SingleInputPlanNode sicPlanNode = new SingleInputPlanNode(sicNode, "SampleInCoordinator PlanNode", sicChannel, DriverStrategy.ALL_GROUP_REDUCE);
 		sicPlanNode.setParallelism(1);
 		sicChannel.setTarget(sicPlanNode);
@@ -135,7 +135,7 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final MapPartitionOperatorBase rbOperatorBase = new MapPartitionOperatorBase(rangeBoundaryBuilder, rbOperatorInformation, "RangeBoundaryBuilder");
 		final MapPartitionNode rbNode = new MapPartitionNode(rbOperatorBase);
 		final Channel rbChannel = new Channel(sicPlanNode, TempMode.NONE);
-		rbChannel.setShipStrategy(ShipStrategyType.FORWARD, channel.getDataExchangeMode());
+		rbChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 		final SingleInputPlanNode rbPlanNode = new SingleInputPlanNode(rbNode, "RangeBoundary PlanNode", rbChannel, DriverStrategy.MAP_PARTITION);
 		rbPlanNode.setParallelism(1);
 		rbChannel.setTarget(rbPlanNode);
@@ -158,18 +158,18 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		sourceNewOutputChannels.add(ariChannel);
 
 		final NamedChannel broadcastChannel = new NamedChannel("RangeBoundaries", rbPlanNode);
-		broadcastChannel.setShipStrategy(ShipStrategyType.BROADCAST, channel.getDataExchangeMode());
+		broadcastChannel.setShipStrategy(ShipStrategyType.BROADCAST, DataExchangeMode.PIPELINED);
 		broadcastChannel.setTarget(ariPlanNode);
 		List<NamedChannel> broadcastChannels = new ArrayList<>(1);
 		broadcastChannels.add(broadcastChannel);
 		ariPlanNode.setBroadcastInputs(broadcastChannels);
 
 		// 5. Remove the partition id.
-		final Channel partChannel = new Channel(ariPlanNode, channel.getTempMode());
-		partChannel.setDataExchangeMode(channel.getDataExchangeMode());
+		final Channel partChannel = new Channel(ariPlanNode, TempMode.NONE);
+		partChannel.setDataExchangeMode(DataExchangeMode.PIPELINED);
 		final FieldList keys = new FieldList(0);
 		final boolean[] sortDirection = { true };
-		partChannel.setShipStrategy(channel.getShipStrategy(), keys, sortDirection, channel.getPartitioner(), channel.getDataExchangeMode());
+		partChannel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, keys, sortDirection, null, DataExchangeMode.PIPELINED);
 		ariPlanNode.addOutgoingChannel(channel);
 		partChannel.setLocalStrategy(channel.getLocalStrategy(), keys, sortDirection);
 		this.plan.getAllNodes().remove(targetNode);

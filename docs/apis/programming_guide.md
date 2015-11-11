@@ -733,7 +733,7 @@ DataSet<String> result = in.rebalance()
     <tr>
       <td><strong>Hash-Partition</strong></td>
       <td>
-        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys.</p>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
 DataSet<Integer> result = in.partitionByHash(0)
@@ -744,7 +744,7 @@ DataSet<Integer> result = in.partitionByHash(0)
     <tr>
       <td><strong>Range-Partition</strong></td>
       <td>
-        <p>Range-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys.</p>
+        <p>Range-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
 DataSet<Integer> result = in.partitionByRange(0)
@@ -1023,8 +1023,7 @@ val result: DataSet[(Int, String)] = data1.rebalance().map(...)
     <tr>
       <td><strong>Hash-Partition</strong></td>
       <td>
-        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions, tuple positions
-        or case class fields.</p>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in.partitionByHash(0).mapPartition { ... }
@@ -1034,8 +1033,7 @@ val result = in.partitionByHash(0).mapPartition { ... }
     <tr>
       <td><strong>Range-Partition</strong></td>
       <td>
-        <p>Range-partitions a data set on a given key. Keys can be specified as key-selector functions, tuple positions
-        or case class fields.</p>
+        <p>Range-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in.partitionByRange(0).mapPartition { ... }

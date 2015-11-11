@@ -17,8 +17,6 @@
  */
 package org.apache.flink.runtime.operators.udf;
 
-import org.apache.flink.api.common.distributions.CommonRangeBoundaries;
-import org.apache.flink.api.common.distributions.RangeBoundaries;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -35,7 +33,7 @@ import java.util.List;
  *
  * @param <T>
  */
-public class RangeBoundaryBuilder<T> extends RichMapPartitionFunction<T, RangeBoundaries<T>> {
+public class RangeBoundaryBuilder<T> extends RichMapPartitionFunction<T, Object[][]> {
 
 	private int parallelism;
 	private final TypeComparatorFactory<T> comparatorFactory;
@@ -46,7 +44,7 @@ public class RangeBoundaryBuilder<T> extends RichMapPartitionFunction<T, RangeBo
 	}
 
 	@Override
-	public void mapPartition(Iterable<T> values, Collector<RangeBoundaries<T>> out) throws Exception {
+	public void mapPartition(Iterable<T> values, Collector<Object[][]> out) throws Exception {
 		final TypeComparator<T> comparator = this.comparatorFactory.createComparator();
 		List<T> sampledData = new ArrayList<>();
 		for (T value : values) {
@@ -71,7 +69,6 @@ public class RangeBoundaryBuilder<T> extends RichMapPartitionFunction<T, RangeBo
 			boundaries[i-1] = keys;
 		}
 
-		RangeBoundaries<T> rangeBoundaries = new CommonRangeBoundaries<>(boundaries);
-		out.collect(rangeBoundaries);
+		out.collect(boundaries);
 	}
 }
