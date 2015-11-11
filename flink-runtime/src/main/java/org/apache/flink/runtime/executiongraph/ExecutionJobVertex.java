@@ -310,7 +310,7 @@ public class ExecutionJobVertex implements Serializable {
 					pos = 0;
 					assignments.put(host, 0);
 				} else {
-					assignments.put(host, pos + 1 % instancesOnHost.size());
+					assignments.put(host, (pos + 1) % instancesOnHost.size());
 				}
 				
 				v.setLocationConstraintHosts(Collections.singletonList(instancesOnHost.get(pos)));
