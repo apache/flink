@@ -147,14 +147,15 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 					// We create a unique long id for each handle, but we also
 					// store the checkpoint id and timestamp for bookkeeping
 					long handleId = rnd.nextLong();
+					String jobIdShort = env.getJobID().toShortString();
 
-					dbAdapter.setCheckpointInsertParams(env.getJobID().toString(), insertStatement,
+					dbAdapter.setCheckpointInsertParams(jobIdShort, insertStatement,
 							checkpointID, timestamp, handleId,
 							InstantiationUtil.serializeObject(state));
 
 					insertStatement.executeUpdate();
 
-					return new DbStateHandle<S>(env.getJobID().toString(), checkpointID, timestamp, handleId,
+					return new DbStateHandle<S>(jobIdShort, checkpointID, timestamp, handleId,
 							dbConfig);
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -179,7 +180,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	public <K, V> LazyDbKvState<K, V> createKvState(int operatorId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
 		return new LazyDbKvState<K, V>(
-				env.getJobID() + "_" + operatorId + "_" + stateName,
+				stateName + "_" + operatorId + "_" + env.getJobID().toShortString(),
 				env.getIndexInSubtaskGroup() == 0,
 				getConnections(),
 				getConfiguration(),
@@ -194,7 +195,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 		this.env = env;
 
 		connections = dbConfig.createShardedConnection();
-		
+
 		// We want the most light-weight transaction isolation level as we don't
 		// have conflicting reads/writes. We just want to be able to roll back
 		// batch inserts for k-v snapshots. This requirement might be removed in
@@ -203,13 +204,15 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 
 		// If we have a different backend for non-partitioned states we
 		// initialize that, otherwise create tables for storing the checkpoints.
-		// 
-		// Currently all non-partitioned states are written to the first database shard
+		//
+		// Currently all non-partitioned states are written to the first
+		// database shard
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(env.getJobID().toString(), getConnections().getFirst());
-					return dbAdapter.prepareCheckpointInsert(env.getJobID().toString(), getConnections().getFirst());
+					dbAdapter.createCheckpointsTable(env.getJobID().toShortString(), getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(env.getJobID().toShortString(),
+							getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {
@@ -237,7 +240,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(env.getJobID().toString(), connections.getFirst());
+			dbAdapter.disposeAllStateForJob(env.getJobID().toShortString(), connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}

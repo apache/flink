@@ -26,6 +26,11 @@ import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+/**
+ * Adapter interface for executing different checkpointing related operations on
+ * the underlying database.
+ *
+ */
 public interface DbAdapter extends Serializable {
 
 	/**
@@ -168,8 +173,8 @@ public interface DbAdapter extends Serializable {
 			long checkpointTimestamp, List<Tuple2<byte[], byte[]>> toInsert) throws IOException;
 
 	/**
-	 * Compact the states between two checkpoint timestamp by only keeping the most
-	 * recent.
+	 * Compact the states between two checkpoint timestamp by only keeping the
+	 * most recent.
 	 */
 	void compactKvStates(String kvStateId, Connection con, long lowerTs, long upperTs) throws SQLException;
 

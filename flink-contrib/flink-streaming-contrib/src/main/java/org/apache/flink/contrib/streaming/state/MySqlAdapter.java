@@ -118,7 +118,7 @@ public class MySqlAdapter implements DbAdapter {
 		validateStateId(stateId);
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(
-					"CREATE TABLE IF NOT EXISTS kvstate_" + stateId
+					"CREATE TABLE IF NOT EXISTS " + stateId
 							+ " ("
 							+ "timestamp bigint, "
 							+ "k varbinary(256), "
@@ -131,7 +131,7 @@ public class MySqlAdapter implements DbAdapter {
 	@Override
 	public String prepareKVCheckpointInsert(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return "INSERT INTO kvstate_" + stateId + " (timestamp, k, v) VALUES (?,?,?) "
+		return "INSERT INTO " + stateId + " (timestamp, k, v) VALUES (?,?,?) "
 				+ "ON DUPLICATE KEY UPDATE v=? ";
 	}
 
@@ -139,7 +139,7 @@ public class MySqlAdapter implements DbAdapter {
 	public String prepareKeyLookup(String stateId) throws SQLException {
 		validateStateId(stateId);
 		return "SELECT v"
-				+ " FROM kvstate_" + stateId
+				+ " FROM " + stateId
 				+ " WHERE k = ?"
 				+ " AND timestamp <= ?"
 				+ " ORDER BY timestamp DESC LIMIT 1";
@@ -165,7 +165,7 @@ public class MySqlAdapter implements DbAdapter {
 			long recoveryTs) throws SQLException {
 		validateStateId(stateId);
 		try (Statement smt = con.createStatement()) {
-			smt.executeUpdate("DELETE FROM kvstate_" + stateId
+			smt.executeUpdate("DELETE FROM " + stateId
 					+ " WHERE timestamp > " + checkpointTs
 					+ " AND timestamp < " + recoveryTs);
 		}
@@ -177,10 +177,10 @@ public class MySqlAdapter implements DbAdapter {
 		validateStateId(stateId);
 
 		try (Statement smt = con.createStatement()) {
-			smt.executeUpdate("DELETE state.* FROM kvstate_" + stateId + " AS state"
+			smt.executeUpdate("DELETE state.* FROM " + stateId + " AS state"
 					+ " JOIN"
 					+ " ("
-					+ " 	SELECT MAX(timestamp) AS maxts, k FROM kvstate_" + stateId
+					+ " 	SELECT MAX(timestamp) AS maxts, k FROM " + stateId
 					+ " 	WHERE timestamp BETWEEN " + lowerId + " AND " + upperId
 					+ " 	GROUP BY k"
 					+ " ) m"

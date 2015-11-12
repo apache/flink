@@ -106,10 +106,10 @@ public class DbStateBackendTest {
 		backend.initializeForJob(env);
 
 		assertNotNull(backend.getConnections());
-		assertTrue(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
+		assertTrue(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
 
 		backend.disposeAllStateForCurrentJob();
-		assertFalse(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
+		assertFalse(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
 		backend.close();
 
 		assertTrue(backend.getConnections().getFirst().isClosed());
@@ -139,12 +139,12 @@ public class DbStateBackendTest {
 		assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 		handle2.discardState();
 
-		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
+		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
 
 		assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 		handle3.discardState();
 
-		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toString()));
+		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
 
 		backend.close();
 
@@ -168,7 +168,7 @@ public class DbStateBackendTest {
 			LazyDbKvState<Integer, String> kv = backend.createKvState(1, "state1", IntSerializer.INSTANCE,
 					StringSerializer.INSTANCE, null);
 
-			String tableName = "kvstate_" + env.getJobID() + "_1_state1";
+			String tableName = "state1_1_" + env.getJobID().toShortString();
 			assertTrue(isTableCreated(backend.getConnections().getFirst(), tableName));
 
 			assertEquals(0, kv.size());
@@ -257,7 +257,7 @@ public class DbStateBackendTest {
 
 	@Test
 	public void testCaching() throws Exception {
-		
+
 		List<String> urls = Lists.newArrayList(url1, url2);
 		DbBackendConfig conf = new DbBackendConfig("flink", "flink",
 				urls);
@@ -273,7 +273,7 @@ public class DbStateBackendTest {
 
 		Environment env = new DummyEnvironment("test", 2, 0);
 
-		String tableName = "kvstate_" + env.getJobID() + "_1_state1";
+		String tableName = "state1_1_" + env.getJobID().toShortString();
 		assertFalse(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
 		assertFalse(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
 
@@ -281,10 +281,10 @@ public class DbStateBackendTest {
 
 		LazyDbKvState<Integer, String> kv = backend.createKvState(1, "state1", IntSerializer.INSTANCE,
 				StringSerializer.INSTANCE, "a");
-		
+
 		assertTrue(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
 		assertTrue(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
-		
+
 		Map<Integer, Optional<String>> cache = kv.getStateCache();
 		Map<Integer, Optional<String>> modified = kv.getModified();
 
@@ -432,7 +432,7 @@ public class DbStateBackendTest {
 			return smt.executeQuery().next();
 		}
 	}
-	
+
 	private static String localFileUri(File path) {
 		return path.toURI().toString();
 	}

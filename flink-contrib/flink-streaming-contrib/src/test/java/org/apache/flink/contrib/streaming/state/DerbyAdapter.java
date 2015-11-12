@@ -73,7 +73,7 @@ public class DerbyAdapter extends MySqlAdapter {
 		validateStateId(stateId);
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(
-					"CREATE TABLE kvstate_" + stateId
+					"CREATE TABLE " + stateId
 							+ " ("
 							+ "timestamp bigint, "
 							+ "k varchar(256) for bit data, "
@@ -96,7 +96,7 @@ public class DerbyAdapter extends MySqlAdapter {
 	@Override
 	public String prepareKeyLookup(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return "SELECT v " + "FROM kvstate_" + stateId
+		return "SELECT v " + "FROM " + stateId
 				+ " WHERE k = ? "
 				+ " AND timestamp <= ?"
 				+ " ORDER BY timestamp DESC";
@@ -108,10 +108,10 @@ public class DerbyAdapter extends MySqlAdapter {
 		validateStateId(stateId);
 
 		try (Statement smt = con.createStatement()) {
-			smt.executeUpdate("DELETE FROM kvstate_" + stateId + " t1"
+			smt.executeUpdate("DELETE FROM " + stateId + " t1"
 					+ " WHERE EXISTS"
 					+ " ("
-					+ " 	SELECT * FROM kvstate_" + stateId + " t2"
+					+ " 	SELECT * FROM " + stateId + " t2"
 					+ " 	WHERE t2.k = t1.k"
 					+ "		AND t2.timestamp > t1.timestamp"
 					+ " 	AND t2.timestamp <=" + upperBound
@@ -123,7 +123,7 @@ public class DerbyAdapter extends MySqlAdapter {
 	@Override
 	public String prepareKVCheckpointInsert(String stateId) throws SQLException {
 		validateStateId(stateId);
-		return "INSERT INTO kvstate_" + stateId + " (timestamp, k, v) VALUES (?,?,?)";
+		return "INSERT INTO " + stateId + " (timestamp, k, v) VALUES (?,?,?)";
 	}
 
 	@Override
