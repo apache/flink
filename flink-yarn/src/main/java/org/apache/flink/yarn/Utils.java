@@ -20,15 +20,11 @@ package org.apache.flink.yarn;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.security.token.AuthenticationTokenIdentifier;
-import org.apache.hadoop.hbase.security.token.TokenUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
@@ -150,17 +146,29 @@ public final class Utils {
 		if (UserGroupInformation.isSecurityEnabled()) {
 			LOG.info("Attempting to obtain Kerberos security token for HBase");
 			try {
-				HBaseConfiguration.addHbaseResources(conf);
+				// ----
+				// Intended call: HBaseConfiguration.addHbaseResources(conf);
+				Class
+						.forName("org.apache.hadoop.hbase.HBaseConfiguration")
+						.getMethod("addHbaseResources", Configuration.class )
+						.invoke(null, conf);
+				// ----
+
+				LOG.info("HBase security setting: {}", conf.get("hbase.security.authentication"));
+
 				if (!"kerberos".equals(conf.get("hbase.security.authentication"))) {
 					LOG.info("HBase has not been configured to use Kerberos.");
 					return;
 				}
 
-				LOG.info("Connecting to HBase");
-				Connection connection = ConnectionFactory.createConnection(conf);
-
 				LOG.info("Obtaining Kerberos security token for HBase");
-				Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(connection);
+				// ----
+				// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(connection);
+				// ----
+				Token<?> token = (Token<?>) Class
+						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
+						.getMethod("obtainToken", Configuration.class)
+						.invoke(null, conf);
 
 				if (token == null) {
 					LOG.error("No Kerberos security token for HBase available");
@@ -169,8 +177,12 @@ public final class Utils {
 
 				credentials.addToken(token.getService(), token);
 				LOG.info("Added HBase Kerberos security token to credentials.");
-			} catch (IOException e) {
-				throw new IOException("Unable to obtain HBase Kerberos security token", e);
+			} catch ( ClassNotFoundException
+					| NoSuchMethodException
+					| IllegalAccessException
+					| InvocationTargetException e) {
+				LOG.info("HBase is not available (not packaged with this application).");
+				e.printStackTrace();
 			}
 		}
 	}
