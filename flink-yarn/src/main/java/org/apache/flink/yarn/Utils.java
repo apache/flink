@@ -182,7 +182,6 @@ public final class Utils {
 					| IllegalAccessException
 					| InvocationTargetException e) {
 				LOG.info("HBase is not available (not packaged with this application).");
-				e.printStackTrace();
 			}
 		}
 	}
