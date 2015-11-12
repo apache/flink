@@ -19,7 +19,6 @@
 package org.apache.flink.api.scala.table.test
 
 import org.junit._
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -27,28 +26,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 
+import scala.collection.JavaConverters._
+
 @RunWith(classOf[Parameterized])
 class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = ""
-  private val _tempFolder = new TemporaryFolder()
-
-  @Rule
-  def tempFolder = _tempFolder
-
-  @Before
-  def before(): Unit = {
-    resultPath = tempFolder.newFile().toURI.toString
-  }
-
-  @After
-  def after(): Unit = {
-    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
-  }
 
   @Test
   def testAutoCastToString(): Unit = {
@@ -57,10 +41,9 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d)).toTable
       .select('_1 + "b", '_2 + "s", '_3 + "i", '_4 + "L", '_5 + "f", '_6 + "d")
       .toDataSet[Row]
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1b,1s,1i,1L,1.0f,1.0d"
+    val expected = "1b,1s,1i,1L,1.0f,1.0d"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -72,10 +55,9 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val ds = env.fromElements((1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d)).toTable
       .select('_1 + 1, '_2 + 1, '_3 + 1L, '_4 + 1.0f, '_5 + 1.0d, '_6 + 1)
       .toDataSet[Row]
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "2,2,2,2.0,2.0,2.0"
+    val expected = "2,2,2,2.0,2.0,2.0"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -89,10 +71,9 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d)).as('a, 'b, 'c, 'd, 'e, 'f)
       .filter('a > 1 && 'b > 1 && 'c > 1L && 'd > 1.0f && 'e > 1.0d  && 'f > 1)
       .toDataSet[Row]
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "2,2,2,2,2.0,2.0"
+    val expected = "2,2,2,2,2.0,2.0"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -109,10 +90,9 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
         '_3.cast(BasicTypeInfo.FLOAT_TYPE_INFO),
         '_2.cast(BasicTypeInfo.BOOLEAN_TYPE_INFO))
     .toDataSet[Row]
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,1,1,1,2.0,2.0,true\n"
+    val expected = "1,1,1,1,2.0,2.0,true\n"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 }

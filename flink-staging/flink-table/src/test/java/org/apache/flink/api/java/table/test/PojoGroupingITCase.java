@@ -43,9 +43,9 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<String, Double, String>> data = env.fromElements(
-			new Tuple3<String, Double, String>("A", 23.0, "Z"),
-			new Tuple3<String, Double, String>("A", 24.0, "Y"),
-			new Tuple3<String, Double, String>("B", 1.0, "Z"));
+			new Tuple3<>("A", 23.0, "Z"),
+			new Tuple3<>("A", 24.0, "Y"),
+			new Tuple3<>("B", 1.0, "Z"));
 
 		TableEnvironment tableEnv = new TableEnvironment();
 

@@ -25,16 +25,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
@@ -42,22 +39,6 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 	public GroupedAggregationsITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected = "";
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -74,11 +55,9 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 				.groupBy("foo").select("a.avg");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -95,11 +74,9 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 				.groupBy("b").select("b, a.sum");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n";
+		List<Row> results = ds.collect();
+		String expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -120,11 +97,9 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 				.groupBy("b").select("a.sum");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n";
+		List<Row> results = ds.collect();
+		String expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n";
+		compareResultAsText(results, expected);
 	}
 }
 
