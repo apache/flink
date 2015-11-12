@@ -163,12 +163,12 @@ public final class Utils {
 
 				LOG.info("Obtaining Kerberos security token for HBase");
 				// ----
-				// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(connection);
-				// ----
+				// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(conf);
 				Token<?> token = (Token<?>) Class
 						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
 						.getMethod("obtainToken", Configuration.class)
 						.invoke(null, conf);
+				// ----
 
 				if (token == null) {
 					LOG.error("No Kerberos security token for HBase available");
