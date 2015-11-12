@@ -23,8 +23,6 @@ import backtype.storm.tuple.Values;
 import java.io.IOException;
 import java.util.Map;
 
-import org.apache.flink.storm.util.FiniteSpout;
-
 /**
  * Implements a Spout that reads data from a given local file. The spout stops automatically
  * when it reached the end of the file.

@@ -27,12 +27,11 @@ import backtype.storm.metric.api.ReducedMetric;
 import backtype.storm.state.ISubscribedState;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Fields;
+import clojure.lang.Atom;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import clojure.lang.Atom;
 
 /**
  * {@link FlinkTopologyContext} is a {@link TopologyContext} that overwrites certain method that are not applicable when

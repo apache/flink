@@ -17,8 +17,6 @@
 
 package org.apache.flink.storm.wrappers;
 
-import java.util.HashMap;
-
 import backtype.storm.generated.Bolt;
 import backtype.storm.generated.SpoutSpec;
 import backtype.storm.generated.StateSpoutSpec;
@@ -26,10 +24,10 @@ import backtype.storm.generated.StormTopology;
 import backtype.storm.metric.api.ICombiner;
 import backtype.storm.metric.api.IMetric;
 import backtype.storm.metric.api.IReducer;
-
 import org.apache.flink.storm.util.AbstractTest;
-import org.apache.flink.storm.wrappers.FlinkTopologyContext;
 import org.junit.Test;
+
+import java.util.HashMap;
 
 
 /*

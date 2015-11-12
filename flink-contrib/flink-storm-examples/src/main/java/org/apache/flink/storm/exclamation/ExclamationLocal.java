@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.storm.excamation;
+package org.apache.flink.storm.exclamation;
 
 import backtype.storm.Config;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.utils.Utils;
-
 import org.apache.flink.storm.api.FlinkLocalCluster;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
-import org.apache.flink.storm.excamation.operators.ExclamationBolt;
+import org.apache.flink.storm.api.FlinkTopology;
+import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
 
 /**
  * Implements the "Exclamation" program that attaches five exclamation mark to every line of a text files in a streaming
@@ -58,15 +58,17 @@ public class ExclamationLocal {
 		}
 
 		// build Topology the Storm way
-		final FlinkTopologyBuilder builder = ExclamationTopology.buildTopology();
+		final TopologyBuilder builder = ExclamationTopology.buildTopology();
 
 		// execute program locally
 		Config conf = new Config();
 		conf.put(ExclamationBolt.EXCLAMATION_COUNT, ExclamationTopology.getExclamation());
+
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, conf, builder.createTopology());
+		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
 
 		Utils.sleep(10 * 1000);
+		cluster.shutdown();
 	}
 
 }

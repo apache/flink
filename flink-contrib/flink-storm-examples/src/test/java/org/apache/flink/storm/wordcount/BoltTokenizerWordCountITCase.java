@@ -18,11 +18,10 @@
 
 package org.apache.flink.storm.wordcount;
 
-import org.apache.flink.storm.util.StormTestBase;
-import org.apache.flink.storm.wordcount.BoltTokenizerWordCount;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class BoltTokenizerWordCountITCase extends StormTestBase {
+public class BoltTokenizerWordCountITCase extends StreamingProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;

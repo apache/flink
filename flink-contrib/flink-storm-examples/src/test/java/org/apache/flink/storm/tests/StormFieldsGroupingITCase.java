@@ -17,17 +17,18 @@
  */
 package org.apache.flink.storm.tests;
 
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.tests.operators.FiniteRandomSpout;
 import org.apache.flink.storm.tests.operators.TaskIdBolt;
 import org.apache.flink.storm.util.BoltFileSink;
-import org.apache.flink.storm.util.StormTestBase;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
-public class StormFieldsGroupingITCase extends StormTestBase {
+public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 
 	private final static String topologyId = "FieldsGrouping Test";
 	private final static String spoutId = "spout";
@@ -52,7 +53,7 @@ public class StormFieldsGroupingITCase extends StormTestBase {
 		final String[] tokens = this.resultPath.split(":");
 		final String outputFile = tokens[tokens.length - 1];
 
-		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+		final TopologyBuilder builder = new TopologyBuilder();
 
 		builder.setSpout(spoutId, new FiniteRandomSpout(0, 10, 2));
 		builder.setBolt(boltId, new TaskIdBolt(), 2).fieldsGrouping(
@@ -60,7 +61,7 @@ public class StormFieldsGroupingITCase extends StormTestBase {
 		builder.setBolt(sinkId, new BoltFileSink(outputFile)).shuffleGrouping(boltId);
 
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, builder.createTopology());
+		cluster.submitTopology(topologyId, null, FlinkTopology.createTopology(builder));
 
 		Utils.sleep(10 * 1000);
 

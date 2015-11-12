@@ -17,13 +17,10 @@
 
 package org.apache.flink.storm.wrappers;
 
-import java.util.Collection;
-import java.util.HashMap;
-
 import backtype.storm.generated.StormTopology;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IRichSpout;
-
+import com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -33,7 +30,8 @@ import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
-import com.google.common.collect.Sets;
+import java.util.Collection;
+import java.util.HashMap;
 
 /**
  * A {@link SpoutWrapper} wraps an {@link IRichSpout} in order to execute it within a Flink Streaming program. It

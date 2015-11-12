@@ -16,15 +16,15 @@
  */
 package org.apache.flink.storm.util;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 public class TestSink implements IRichBolt {
 	private static final long serialVersionUID = 4314871456719370877L;

@@ -21,10 +21,11 @@ import backtype.storm.Config;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.StormTopology;
 
+import backtype.storm.topology.TopologyBuilder;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkClient;
 import org.apache.flink.storm.api.FlinkSubmitter;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import org.apache.flink.storm.api.FlinkTopology;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
@@ -57,7 +58,7 @@ public class WordCountRemoteBySubmitter {
 		}
 
 		// build Topology the Storm way
-		final FlinkTopologyBuilder builder = WordCountTopology.buildTopology();
+		final TopologyBuilder builder = WordCountTopology.buildTopology();
 
 		// execute program on Flink cluster
 		final Config conf = new Config();
@@ -71,7 +72,7 @@ public class WordCountRemoteBySubmitter {
 		// The user jar file must be specified via JVM argument if executed via Java.
 		// => -Dstorm.jar=target/WordCount-StormTopology.jar
 		// If bin/flink is used, the jar file is detected automatically.
-		FlinkSubmitter.submitTopology(topologyId, conf, builder.createTopology());
+		FlinkSubmitter.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
 
 		Thread.sleep(5 * 1000);
 

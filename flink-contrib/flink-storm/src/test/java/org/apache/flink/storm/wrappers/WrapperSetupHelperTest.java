@@ -16,12 +16,6 @@
  */
 package org.apache.flink.storm.wrappers;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.generated.ComponentCommon;
@@ -33,8 +27,8 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
-
-import org.apache.flink.storm.api.TestTopologyBuilder;
+import com.google.common.collect.Sets;
+import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
@@ -48,7 +42,11 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -180,8 +178,6 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		builder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		builder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
 				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
-				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
 		int counter = 0;
@@ -193,24 +189,22 @@ public class WrapperSetupHelperTest extends AbstractTest {
 			Utils.sleep(++counter * 10000);
 			cluster.shutdown();
 
-			if (TestSink.result.size() == 8) {
+			if (TestSink.result.size() == 5) {
 				break;
 			}
 		}
 
-		TestTopologyBuilder flinkBuilder = new TestTopologyBuilder();
+		TopologyBuilder stormBuilder = new TopologyBuilder();
 
-		flinkBuilder.setSpout("spout1", (IRichSpout) operators.get("spout1"), dops.get("spout1"));
-		flinkBuilder.setSpout("spout2", (IRichSpout) operators.get("spout2"), dops.get("spout2"));
-		flinkBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
-		flinkBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
-		flinkBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
+		stormBuilder.setSpout("spout1", (IRichSpout) operators.get("spout1"), dops.get("spout1"));
+		stormBuilder.setSpout("spout2", (IRichSpout) operators.get("spout2"), dops.get("spout2"));
+		stormBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
+		stormBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
+		stormBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
 				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
-				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
-				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		flinkBuilder.createTopology();
+		final FlinkTopology flinkBuilder = FlinkTopology.createTopology(builder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();
 
 		Set<Integer> taskIds = new HashSet<Integer>();

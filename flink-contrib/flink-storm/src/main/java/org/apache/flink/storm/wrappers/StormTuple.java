@@ -29,6 +29,8 @@ import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.MessageId;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
+import com.google.common.base.Preconditions;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -44,16 +46,32 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 	/** The schema (ie, ordered field names) of the tuple */
 	private final Fields schema;
 
+	/** The task id where this tuple is processed */
+	private final int taskId;
+	/** The producer of this tuple */
+	private final String producerStreamId;
+	/** The producer's component id of this tuple */
+	private final String producerComponentId;
+	/** The message that is associated with this tuple */
+	private final MessageId id;
+
+	/**
+	 * Constructor which sets defaults for producerComponentId, taskId, and componentID
+	 * @param flinkTuple the Flink tuple
+	 * @param schema The schema of the storm fields
+	 */
+	StormTuple(final IN flinkTuple, final Fields schema) {
+		this(flinkTuple, schema, -1, Utils.DEFAULT_STREAM_ID, BoltWrapper.DEFAULT_OPERATOR_ID);
+	}
+
 	/**
 	 * Create a new Storm tuple from the given Flink tuple. The provided {@code nameIndexMap} is ignored for raw input
 	 * types.
-	 * 
-	 * @param flinkTuple
-	 * 		The Flink tuple to be converted.
-	 * @param schema
-	 * 		The schema (ie, ordered field names) of the tuple.
+	 * @param flinkTuple The Flink tuple to be converted.
+	 * @param schema The schema (ie, ordered field names) of the tuple.
+	 * @param producerComponentId The component id of the producer.
 	 */
-	StormTuple(final IN flinkTuple, final Fields schema) {
+	StormTuple(final IN flinkTuple, final Fields schema, int taskId, String producerStreamId, String producerComponentId) {
 		if (flinkTuple instanceof org.apache.flink.api.java.tuple.Tuple) {
 			this.schema = schema;
 			final org.apache.flink.api.java.tuple.Tuple t = (org.apache.flink.api.java.tuple.Tuple) flinkTuple;
@@ -67,6 +85,11 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 			this.schema = null;
 			this.stormTuple = new Values(flinkTuple);
 		}
+
+		this.taskId = Preconditions.checkNotNull(taskId);
+		this.producerStreamId = Preconditions.checkNotNull(producerStreamId);
+		this.producerComponentId = Preconditions.checkNotNull(producerComponentId);
+		this.id = Preconditions.checkNotNull(MessageId.makeUnanchored());
 	}
 
 	@Override
@@ -266,32 +289,27 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	@Override
 	public GlobalStreamId getSourceGlobalStreamid() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return new GlobalStreamId(getSourceComponent(), producerStreamId);
 	}
 
 	@Override
 	public String getSourceComponent() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return producerComponentId;
 	}
 
 	@Override
 	public int getSourceTask() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return taskId;
 	}
 
 	@Override
 	public String getSourceStreamId() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return producerStreamId;
 	}
 
 	@Override
 	public MessageId getMessageId() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return id;
 	}
 
 	@Override
@@ -324,4 +342,8 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 		return true;
 	}
 
+	@Override
+	public String toString() {
+		return "StormTuple{ "+ stormTuple.toString() +" }";
+	}
 }

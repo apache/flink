@@ -27,6 +27,9 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
+/**
+ * Bolt to prepend all incoming tuple values with the task id.
+ */
 public class TaskIdBolt extends BaseRichBolt {
 	private static final long serialVersionUID = -7966475984592762720L;
 

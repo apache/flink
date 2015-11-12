@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.storm.excamation;
+package org.apache.flink.storm.exclamation;
 
+import backtype.storm.topology.TopologyBuilder;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
-import org.apache.flink.storm.excamation.operators.ExclamationBolt;
+import org.apache.flink.storm.exclamation.operators.ExclamationBolt;
+import org.apache.flink.storm.util.BoltFileSink;
+import org.apache.flink.storm.util.BoltPrintSink;
 import org.apache.flink.storm.util.FiniteFileSpout;
 import org.apache.flink.storm.util.FiniteInMemorySpout;
 import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.SimpleOutputFormatter;
-import org.apache.flink.storm.util.BoltFileSink;
-import org.apache.flink.storm.util.BoltPrintSink;
 
 /**
  * Implements the "Exclamation" program that attaches two exclamation marks to every line of a text files in a streaming
@@ -51,8 +51,8 @@ public class ExclamationTopology {
 	public final static String sinkId = "sink";
 	private final static OutputFormatter formatter = new SimpleOutputFormatter();
 
-	public static FlinkTopologyBuilder buildTopology() {
-		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+	public static TopologyBuilder buildTopology() {
+		final TopologyBuilder builder = new TopologyBuilder();
 
 		// get input data
 		if (fileInputOutput) {

@@ -17,11 +17,11 @@
 
 package org.apache.flink.storm.wrappers;
 
-import java.util.HashMap;
-
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
+
+import java.util.HashMap;
 
 /**
  * {@link SetupOutputFieldsDeclarer} is used by {@link WrapperSetupHelper} to determine the output streams and

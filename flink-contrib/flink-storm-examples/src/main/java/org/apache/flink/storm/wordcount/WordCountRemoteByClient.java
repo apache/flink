@@ -22,12 +22,13 @@ import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.generated.NotAliveException;
 import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkClient;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import org.apache.flink.storm.api.FlinkTopology;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
@@ -63,7 +64,7 @@ public class WordCountRemoteByClient {
 		}
 
 		// build Topology the Storm way
-		final FlinkTopologyBuilder builder = WordCountTopology.buildTopology();
+		final TopologyBuilder builder = WordCountTopology.buildTopology();
 
 		// execute program on Flink cluster
 		final Config conf = new Config();
@@ -73,7 +74,7 @@ public class WordCountRemoteByClient {
 		conf.put(Config.NIMBUS_THRIFT_PORT, 6123);
 
 		final FlinkClient cluster = FlinkClient.getConfiguredClient(conf);
-		cluster.submitTopology(topologyId, uploadedJarLocation, builder.createTopology());
+		cluster.submitTopology(topologyId, uploadedJarLocation, FlinkTopology.createTopology(builder));
 
 		Utils.sleep(5 * 1000);
 
