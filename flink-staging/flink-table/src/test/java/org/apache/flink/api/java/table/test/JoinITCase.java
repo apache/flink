@@ -26,16 +26,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class JoinITCase extends MultipleProgramsTestBase {
@@ -43,22 +40,6 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 	public JoinITCase(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected = "";
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -75,11 +56,9 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1.join(in2).where("b === e").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
+		List<Row> results = ds.collect();
+		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -96,11 +75,9 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1.join(in2).where("b === e && b < 2").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "Hi,Hallo\n";
+		List<Row> results = ds.collect();
+		String expected = "Hi,Hallo\n";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -117,12 +94,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1.join(in2).where("a === d && b === h").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
+		List<Row> results = ds.collect();
+		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
 				"Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -139,11 +114,9 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1.join(in2).where("foo === e").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -161,11 +134,9 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				.join(in2).where("a === g").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -183,11 +154,9 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				.join(in2).where("a === d").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -205,11 +174,9 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				.join(in2).where("a === d").select("g.count");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "6";
+		List<Row> results = ds.collect();
+		String expected = "6";
+		compareResultAsText(results, expected);
 	}
 
 }

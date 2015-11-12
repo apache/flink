@@ -25,15 +25,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class StringExpressionsITCase extends MultipleProgramsTestBase {
@@ -41,22 +38,6 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 
 	public StringExpressionsITCase(TestExecutionMode mode) {
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected = "";
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -74,11 +55,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				.select("a.substring(0, b)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "AA\nB";
+		List<Row> results = resultSet.collect();
+		String expected = "AA\nB";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -96,11 +75,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				.select("a.substring(b)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "CD\nBCD";
+		List<Row> results = resultSet.collect();
+		String expected = "CD\nBCD";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -118,11 +95,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				.select("a.substring(0, b)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = resultSet.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -140,10 +115,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				.select("a.substring(b, 15)");
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = resultSet.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 }
