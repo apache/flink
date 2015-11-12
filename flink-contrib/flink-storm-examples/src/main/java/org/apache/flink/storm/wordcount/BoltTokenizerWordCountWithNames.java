@@ -19,7 +19,6 @@ package org.apache.flink.storm.wordcount;
 
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
-
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.tuple.Tuple;

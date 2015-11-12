@@ -26,6 +26,7 @@ import backtype.storm.generated.StormTopology;
 import backtype.storm.generated.SubmitOptions;
 import backtype.storm.generated.TopologyInfo;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -48,12 +49,10 @@ public class FlinkLocalCluster {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkLocalCluster.class);
 
 	/** The flink mini cluster on which to execute the programs */
-	private final FlinkMiniCluster flink;
+	private FlinkMiniCluster flink;
 
 
 	public FlinkLocalCluster() {
-		this.flink = new LocalFlinkMiniCluster(new Configuration(), true, StreamingMode.STREAMING);
-		this.flink.start();
 	}
 
 	public FlinkLocalCluster(FlinkMiniCluster flink) {
@@ -71,13 +70,26 @@ public class FlinkLocalCluster {
 		LOG.info("Running Storm topology on FlinkLocalCluster");
 
 		if(conf != null) {
-			topology.getConfig().setGlobalJobParameters(new StormConfig(conf));
+			topology.getExecutionEnvironment().getConfig().setGlobalJobParameters(new StormConfig(conf));
 		}
 
-		StreamGraph streamGraph = topology.getStreamGraph();
+		StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
 		streamGraph.setJobName(topologyName);
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
+
+		if (flink == null) {
+
+			Configuration configuration = new Configuration();
+			configuration.addAll(jobGraph.getJobConfiguration());
+
+			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
+
+			flink = new LocalFlinkMiniCluster(configuration, true, StreamingMode.STREAMING);
+			this.flink.start();
+		}
+
 		this.flink.submitJobDetached(jobGraph);
 	}
 
@@ -99,6 +111,7 @@ public class FlinkLocalCluster {
 
 	public void shutdown() {
 		flink.stop();
+		flink = null;
 	}
 
 	public String getTopologyConf(final String id) {

@@ -28,10 +28,8 @@ import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
-
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-
 import clojure.lang.Atom;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,7 +39,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * {@link WrapperSetupHelper} is an helper class used by {@link AbstractStormSpoutWrapper} and
+ * {@link WrapperSetupHelper} is an helper class used by {@link SpoutWrapper} and
  * {@link BoltWrapper}.
  */
 class WrapperSetupHelper {
@@ -50,7 +48,7 @@ class WrapperSetupHelper {
 	final static String TOPOLOGY_NAME = "storm.topology.name";
 
 	/**
-	 * Computes the number of output attributes used by a {@link AbstractStormSpoutWrapper} or {@link BoltWrapper}
+	 * Computes the number of output attributes used by a {@link SpoutWrapper} or {@link BoltWrapper}
 	 * per declared output stream. The number is {@code -1} for raw output type or a value within range [0;25] for
 	 * output type {@link org.apache.flink.api.java.tuple.Tuple0 Tuple0} to
 	 * {@link org.apache.flink.api.java.tuple.Tuple25 Tuple25}.
@@ -93,7 +91,7 @@ class WrapperSetupHelper {
 		return declarer.outputSchemas;
 	}
 
-	/** Used to computed unique task IDs for a Storm topology. */
+	/** Used to compute unique task IDs for a Storm topology. */
 	private static int tid;
 
 	/**
@@ -113,6 +111,7 @@ class WrapperSetupHelper {
 	static synchronized TopologyContext createTopologyContext(
 			final StreamingRuntimeContext context, final IComponent spoutOrBolt,
 			final String operatorName, StormTopology stormTopology, final Map stormConfig) {
+
 		final int dop = context.getNumberOfParallelSubtasks();
 
 		final Map<Integer, String> taskToComponents = new HashMap<Integer, String>();
@@ -158,7 +157,7 @@ class WrapperSetupHelper {
 			spoutOrBolt.declareOutputFields(declarer);
 			componentToStreamToFields.put(operatorName, declarer.outputStreams);
 		} else {
-			// whole topology is built (ie, FlinkTopologyBuilder is used)
+			// whole topology is built (i.e. FlinkTopology is used)
 			Map<String, SpoutSpec> spouts = stormTopology.get_spouts();
 			Map<String, Bolt> bolts = stormTopology.get_bolts();
 			Map<String, StateSpoutSpec> stateSpouts = stormTopology.get_state_spouts();
@@ -182,14 +181,15 @@ class WrapperSetupHelper {
 				}
 			}
 			for (Entry<String, StateSpoutSpec> stateSpout : stateSpouts.entrySet()) {
-				Integer rc = taskId = processSingleOperator(stateSpout.getKey(), stateSpout
+				Integer rc = processSingleOperator(stateSpout.getKey(), stateSpout
 						.getValue().get_common(), operatorName, context.getIndexOfThisSubtask(),
 						dop, taskToComponents, componentToSortedTasks, componentToStreamToFields);
 				if (rc != null) {
 					taskId = rc;
 				}
 			}
-			assert (taskId != null);
+
+			assert(taskId != null);
 		}
 
 		if (!stormConfig.containsKey(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS)) {
@@ -224,7 +224,7 @@ class WrapperSetupHelper {
 	 *            OUTPUT: A map from all component IDs to there output streams and output fields.
 	 * 
 	 * @return A unique task ID if the currently processed Spout or Bolt ({@code componentId}) is equal to the current
-	 *         Flink operator ({@link operatorName}) -- {@code null} otherwise.
+	 *         Flink operator {@code operatorName} -- {@code null} otherwise.
 	 */
 	private static Integer processSingleOperator(final String componentId,
 			final ComponentCommon common, final String operatorName, final int index,
@@ -245,9 +245,6 @@ class WrapperSetupHelper {
 			++tid;
 		}
 		componentToSortedTasks.put(componentId, sortedTasks);
-
-		if (componentId.equals(operatorName)) {
-		}
 
 		Map<String, Fields> outputStreams = new HashMap<String, Fields>();
 		for(Entry<String, StreamInfo> outStream : common.get_streams().entrySet()) {

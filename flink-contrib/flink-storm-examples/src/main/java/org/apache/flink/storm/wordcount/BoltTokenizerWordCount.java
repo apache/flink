@@ -18,7 +18,6 @@
 package org.apache.flink.storm.wordcount;
 
 import backtype.storm.topology.IRichBolt;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;

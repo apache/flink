@@ -17,16 +17,16 @@
 
 package org.apache.flink.storm.wrappers;
 
+import backtype.storm.generated.GlobalStreamId;
+import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Values;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.storm.util.AbstractTest;
-import org.apache.flink.storm.wrappers.StormTuple;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -613,29 +613,38 @@ public class StormTupleTest extends AbstractTest {
 		return new StormTuple(tuple, schema);
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceGlobalStreamid() {
-		new StormTuple<Object>(null, null).getSourceGlobalStreamid();
+		GlobalStreamId globalStreamid =
+			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceGlobalStreamid();
+		Assert.assertEquals("streamId", globalStreamid.get_streamId());
+		Assert.assertEquals("componentID", globalStreamid.get_componentId());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceComponent() {
-		new StormTuple<Object>(null, null).getSourceComponent();
+		String sourceComponent =
+			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceComponent();
+		Assert.assertEquals("componentID", sourceComponent);
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceTask() {
-		new StormTuple<Object>(null, null).getSourceTask();
+		String sourceStreamId =
+			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceStreamId();
+		Assert.assertEquals("streamId", sourceStreamId);
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceStreamId() {
-		new StormTuple<Object>(null, null).getSourceStreamId();
+		String sourceStreamId =
+			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceStreamId();
+		Assert.assertEquals("streamId", sourceStreamId);
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetMessageId() {
-		new StormTuple<Object>(null, null).getMessageId();
+		Assert.assertNotNull(new StormTuple<>(null, null).getMessageId());
 	}
 
 	public static class TestPojoMember<T> {

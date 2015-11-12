@@ -17,14 +17,13 @@
  */
 package org.apache.flink.storm.util;
 
+import backtype.storm.Config;
+import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
-
-import backtype.storm.Config;
 
 /**
  * {@link StormConfig} is used to provide a user-defined Storm configuration (ie, a raw {@link Map} or {@link Config}

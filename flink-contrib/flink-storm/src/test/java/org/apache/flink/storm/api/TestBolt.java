@@ -16,13 +16,13 @@
  */
 package org.apache.flink.storm.api;
 
-import java.util.Map;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
+
+import java.util.Map;
 
 public class TestBolt implements IRichBolt {
 	private static final long serialVersionUID = -667148827441397683L;

@@ -17,12 +17,10 @@
  */
 package org.apache.flink.storm.util;
 
-import java.util.Iterator;
-
-import org.apache.flink.storm.util.SplitStreamType;
-import org.apache.flink.storm.util.StormStreamSelector;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Iterator;
 
 public class StormStreamSelectorTest {
 

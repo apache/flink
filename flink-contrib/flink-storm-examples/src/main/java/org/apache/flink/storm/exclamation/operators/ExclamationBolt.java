@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.storm.excamation.operators;
+package org.apache.flink.storm.exclamation.operators;
 
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;

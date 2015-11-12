@@ -16,12 +16,12 @@
  */
 package org.apache.flink.storm.api;
 
-import java.util.Map;
-
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
+
+import java.util.Map;
 
 public class TestSpout implements IRichSpout {
 	private static final long serialVersionUID = -4884029383198924007L;

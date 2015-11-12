@@ -24,7 +24,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -37,9 +36,9 @@ import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.junit.Assert;
 import org.junit.Test;
@@ -54,6 +53,7 @@ import java.util.Map.Entry;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
@@ -70,8 +70,7 @@ public class BoltWrapperTest extends AbstractTest {
 		declarer.declare(new Fields("dummy1", "dummy2"));
 		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
-		new BoltWrapper<Object, Object>(mock(IRichBolt.class),
-				new String[] { Utils.DEFAULT_STREAM_ID });
+		new BoltWrapper<Object, Object>(mock(IRichBolt.class), new String[] { Utils.DEFAULT_STREAM_ID });
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -178,7 +177,7 @@ public class BoltWrapperTest extends AbstractTest {
 			raw.add("stream2");
 		}
 
-		final BoltWrapper wrapper = new BoltWrapper(bolt, (Fields) null, raw);
+		final BoltWrapper wrapper = new BoltWrapper(bolt, null, raw);
 		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), output);
 		wrapper.open();
 
@@ -270,7 +269,7 @@ public class BoltWrapperTest extends AbstractTest {
 		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
 		wrapper.open();
 		
-		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), any(OutputCollector.class));
+		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), isNotNull(OutputCollector.class));
 	}
 
 	@SuppressWarnings("unchecked")

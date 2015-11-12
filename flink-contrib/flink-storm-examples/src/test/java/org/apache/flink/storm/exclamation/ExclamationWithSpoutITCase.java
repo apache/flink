@@ -18,12 +18,11 @@
 
 package org.apache.flink.storm.exclamation;
 
-import org.apache.flink.storm.excamation.ExclamationWithSpout;
 import org.apache.flink.storm.exclamation.util.ExclamationData;
-import org.apache.flink.storm.util.StormTestBase;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
-public class ExclamationWithSpoutITCase extends StormTestBase {
+public class ExclamationWithSpoutITCase extends StreamingProgramTestBase {
 
 	protected String textPath;
 	protected String resultPath;

@@ -16,32 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.storm.exclamation;
+package org.apache.flink.storm.join;
 
-import org.apache.flink.storm.exclamation.util.ExclamationData;
+import com.google.common.base.Joiner;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
-import org.apache.flink.test.testdata.WordCountData;
 
-public class StormExclamationLocalITCase extends StreamingProgramTestBase {
+public class SingleJoinITCase extends StreamingProgramTestBase {
 
-	protected String textPath;
+	protected static String expectedOutput[] = {
+			"(male,20)",
+			"(female,21)",
+			"(male,22)",
+			"(female,23)",
+			"(male,24)",
+			"(female,25)",
+			"(male,26)",
+			"(female,27)",
+			"(male,28)",
+			"(female,29)"
+	};
+
 	protected String resultPath;
-	protected String exclamationNum;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
 		this.resultPath = this.getTempDirPath("result");
-		this.exclamationNum = "3";
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(ExclamationData.TEXT_WITH_EXCLAMATIONS, this.resultPath);
+		compareResultsByLinesInMemory(Joiner.on("\n").join(expectedOutput), this.resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		ExclamationLocal.main(new String[]{this.textPath, this.resultPath, this.exclamationNum});
+		// We need to remove the file scheme because we can't use the Flink file system.
+		// (to remain compatible with Storm)
+		SingleJoinExample.main(new String[]{ this.resultPath.replace("file:", "") });
 	}
+
 }

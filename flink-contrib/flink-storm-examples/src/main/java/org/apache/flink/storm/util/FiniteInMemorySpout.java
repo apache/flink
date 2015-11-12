@@ -18,9 +18,6 @@
 
 package org.apache.flink.storm.util;
 
-import org.apache.flink.storm.util.FiniteSpout;
-
-
 /**
  * Implements a Spout that reads String[] data stored in memory. The Spout stops automatically when it emitted all of
  * the data.

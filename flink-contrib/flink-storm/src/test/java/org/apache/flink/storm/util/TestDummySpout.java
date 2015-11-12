@@ -16,8 +16,6 @@
  */
 package org.apache.flink.storm.util;
 
-import java.util.Map;
-
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
@@ -25,6 +23,8 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
+
+import java.util.Map;
 
 public class TestDummySpout implements IRichSpout {
 	private static final long serialVersionUID = -5190945609124603118L;

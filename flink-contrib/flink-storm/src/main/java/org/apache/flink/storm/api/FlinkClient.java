@@ -183,10 +183,10 @@ public class FlinkClient {
 
 		/* set storm configuration */
 		if (this.conf != null) {
-			topology.getConfig().setGlobalJobParameters(new StormConfig(this.conf));
+			topology.getExecutionEnvironment().getConfig().setGlobalJobParameters(new StormConfig(this.conf));
 		}
 
-		final StreamGraph streamGraph = topology.getStreamGraph();
+		final StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
 		streamGraph.setJobName(name);
 
 		final JobGraph jobGraph = streamGraph.getJobGraph();

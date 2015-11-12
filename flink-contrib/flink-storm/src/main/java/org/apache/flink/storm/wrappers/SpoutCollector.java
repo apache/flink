@@ -18,7 +18,6 @@
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.spout.ISpoutOutputCollector;
-
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
@@ -27,7 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * A {@link SpoutCollector} is used by {@link AbstractStormSpoutWrapper} to provided an Storm
+ * A {@link SpoutCollector} is used by {@link SpoutWrapper} to provided an Storm
  * compatible output collector to the wrapped spout. It transforms the emitted Storm tuples into
  * Flink tuples and emits them via the provide {@link SourceContext} object.
  */

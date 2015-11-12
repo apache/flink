@@ -61,6 +61,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.storm</groupId>
+			<artifactId>storm-starter</artifactId>
+			<version>0.9.4</version>
+		</dependency>
+
+
 	</dependencies>
 
 	<build>
@@ -226,7 +234,7 @@ under the License.
 					</execution>
 
 					<!-- WordCount Storm topology-->
-					<!-- Example for whole topologies (ie, if FlinkTopologyBuilder is used) -->
+					<!-- Example for whole topologies (ie, if FlinkTopology is used) -->
 					<!-- We cannot use maven-jar-plugin because 'defaults.yaml' must be included in jar.
 					     However, we excluded 'defaults.yaml' in dependency-plugin to get clean Eclipse environment.
 					     Thus, 'defaults.yaml' is not available for maven-jar-plugin.

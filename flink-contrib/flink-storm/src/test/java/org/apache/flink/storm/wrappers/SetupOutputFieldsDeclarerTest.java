@@ -19,9 +19,7 @@ package org.apache.flink.storm.wrappers;
 
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
-
 import org.apache.flink.storm.util.AbstractTest;
-import org.apache.flink.storm.wrappers.SetupOutputFieldsDeclarer;
 import org.junit.Assert;
 import org.junit.Test;
 

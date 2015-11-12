@@ -18,10 +18,8 @@
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.tuple.Values;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.storm.util.AbstractTest;
-import org.apache.flink.storm.wrappers.BoltCollector;
 import org.apache.flink.streaming.api.operators.Output;
 import org.junit.Assert;
 import org.junit.Test;

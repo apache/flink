@@ -17,12 +17,12 @@
  */
 package org.apache.flink.storm.split;
 
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import backtype.storm.topology.TopologyBuilder;
 import org.apache.flink.storm.split.operators.RandomSpout;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
-import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
+import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 
 public class SplitSpoutTopology {
@@ -32,8 +32,8 @@ public class SplitSpoutTopology {
 	public final static String sinkId = "sink";
 	private final static OutputFormatter formatter = new TupleOutputFormatter();
 
-	public static FlinkTopologyBuilder buildTopology() {
-		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+	public static TopologyBuilder buildTopology() {
+		final TopologyBuilder builder = new TopologyBuilder();
 
 		builder.setSpout(spoutId, new RandomSpout(true, seed));
 		builder.setBolt(evenVerifierId, new VerifyAndEnrichBolt(true)).shuffleGrouping(spoutId,

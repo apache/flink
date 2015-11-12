@@ -18,13 +18,12 @@
 package org.apache.flink.storm.wordcount;
 
 import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
-import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
+import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 import org.apache.flink.storm.wordcount.operators.BoltCounter;
 import org.apache.flink.storm.wordcount.operators.BoltCounterByName;
@@ -55,13 +54,13 @@ public class WordCountTopology {
 	public final static String sinkId = "sink";
 	private final static OutputFormatter formatter = new TupleOutputFormatter();
 
-	public static FlinkTopologyBuilder buildTopology() {
+	public static TopologyBuilder buildTopology() {
 		return buildTopology(true);
 	}
 
-	public static FlinkTopologyBuilder buildTopology(boolean indexOrName) {
+	public static TopologyBuilder buildTopology(boolean indexOrName) {
 
-		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+		final TopologyBuilder builder = new TopologyBuilder();
 
 		// get input data
 		if (fileInputOutput) {
