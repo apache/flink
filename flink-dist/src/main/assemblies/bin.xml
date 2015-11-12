@@ -170,7 +170,7 @@ under the License.
 
 		<!-- copy python package -->
 		<fileSet>
-			<directory>../flink-staging/flink-language-binding/flink-python/src/main/python/org/apache/flink/languagebinding/api/python</directory>
+			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api</directory>
 			<outputDirectory>resources/python</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
