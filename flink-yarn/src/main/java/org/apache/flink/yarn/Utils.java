@@ -181,7 +181,8 @@ public final class Utils {
 					| NoSuchMethodException
 					| IllegalAccessException
 					| InvocationTargetException e) {
-				LOG.info("HBase is not available (not packaged with this application).");
+				LOG.info("HBase is not available (not packaged with this application): {} : \"{}\".",
+						e.getClass().getSimpleName(), e.getMessage());
 			}
 		}
 	}
