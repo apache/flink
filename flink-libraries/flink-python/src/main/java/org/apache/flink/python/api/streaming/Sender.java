@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
+import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 /**
  * General-purpose class to write data to memory-mapped files.
@@ -180,7 +181,7 @@ public class Sender implements Serializable {
 	}
 
 	private enum SupportedTypes {
-		TUPLE, BOOLEAN, BYTE, BYTES, CHARACTER, SHORT, INTEGER, LONG, FLOAT, DOUBLE, STRING, OTHER, NULL
+		TUPLE, BOOLEAN, BYTE, BYTES, CHARACTER, SHORT, INTEGER, LONG, FLOAT, DOUBLE, STRING, OTHER, NULL, CUSTOMTYPEWRAPPER
 	}
 
 	//=====Serializer===================================================================================================
@@ -231,6 +232,9 @@ public class Sender implements Serializable {
 			case NULL:
 				fileBuffer.put(TYPE_NULL);
 				return new NullSerializer();
+			case CUSTOMTYPEWRAPPER:
+				fileBuffer.put(((CustomTypeWrapper) value).getType());
+				return new CustomTypeSerializer();
 			default:
 				throw new IllegalArgumentException("Unknown Type encountered: " + type);
 		}
@@ -251,6 +255,18 @@ public class Sender implements Serializable {
 		}
 
 		public abstract void serializeInternal(T value);
+	}
+
+	private class CustomTypeSerializer extends Serializer<CustomTypeWrapper> {
+		public CustomTypeSerializer() {
+			super(0);
+		}
+		@Override
+		public void serializeInternal(CustomTypeWrapper value) {
+			byte[] bytes = value.getData();
+			buffer = ByteBuffer.wrap(bytes);
+			buffer.position(bytes.length);
+		}
 	}
 
 	private class ByteSerializer extends Serializer<Byte> {

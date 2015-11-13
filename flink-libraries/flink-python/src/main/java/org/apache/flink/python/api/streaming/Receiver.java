@@ -34,6 +34,7 @@ import static org.apache.flink.python.api.streaming.Sender.TYPE_NULL;
 import static org.apache.flink.python.api.streaming.Sender.TYPE_SHORT;
 import static org.apache.flink.python.api.streaming.Sender.TYPE_STRING;
 import static org.apache.flink.python.api.streaming.Sender.TYPE_TUPLE;
+import org.apache.flink.python.api.types.CustomTypeWrapper;
 import org.apache.flink.util.Collector;
 
 /**
@@ -192,7 +193,7 @@ public class Receiver implements Serializable {
 			case TYPE_NULL:
 				return null;
 			default:
-				throw new IllegalArgumentException("Unknown TypeID encountered: " + type);
+				return new CustomTypeDeserializer(type).deserialize();
 		}
 	}
 
@@ -245,14 +246,29 @@ public class Receiver implements Serializable {
 			case TYPE_NULL:
 				return new NullDeserializer();
 			default:
-				throw new IllegalArgumentException("Unknown TypeID encountered: " + type);
+				return new CustomTypeDeserializer(type);
 
 		}
 	}
 
 	private interface Deserializer<T> {
 		public T deserialize();
+	}
 
+	private class CustomTypeDeserializer implements Deserializer<CustomTypeWrapper> {
+		private final byte type;
+
+		public CustomTypeDeserializer(byte type) {
+			this.type = type;
+		}
+
+		@Override
+		public CustomTypeWrapper deserialize() {
+			int size = fileBuffer.getInt();
+			byte[] data = new byte[size];
+			fileBuffer.get(data);
+			return new CustomTypeWrapper(type, data);
+		}
 	}
 
 	private class BooleanDeserializer implements Deserializer<Boolean> {
