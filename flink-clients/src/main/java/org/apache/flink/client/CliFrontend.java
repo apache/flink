@@ -919,8 +919,11 @@ public class CliFrontend {
 		}
 		LOG.error("Error while running the command.", t);
 
-		System.err.println("\n------------------------------------------------------------");
-		System.err.println(" The program finished with the following exception:\n");
+		System.err.println();
+		System.err.println("------------------------------------------------------------");
+		System.err.println(" The program finished with the following exception:");
+		System.err.println();
+
 		if (t.getCause() instanceof InvalidProgramException) {
 			System.err.println(t.getCause().getMessage());
 			StackTraceElement[] trace = t.getCause().getStackTrace();
