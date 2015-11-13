@@ -66,4 +66,4 @@ kramdown:
 host: localhost
 
 # please use a protocol relative URL here
-baseurl: //ci.apache.org/projects/flink/flink-docs-master
+baseurl: //ci.apache.org/projects/flink/flink-docs-release-0.10
