@@ -22,7 +22,7 @@ from flink.plan.Constants import _Fields, _Identifier
 from flink.utilities import Switch
 import copy
 import sys
-
+from struct import pack
 
 def get_environment():
     """
@@ -48,6 +48,19 @@ class Environment(object):
 
         #specials
         self._broadcast = []
+
+        self._types = []
+
+    def register_type(self, type, serializer, deserializer):
+        """
+        Registers the given type with this environment, allowing all operators within to
+        (de-)serialize objects of the given type.
+
+        :param type: class of the objects to be (de-)serialized
+        :param serializer: instance of the serializer
+        :param deserializer: instance of the deserializer
+        """
+        self._types.append((pack(">i",126 - len(self._types))[3:], type, serializer, deserializer))
 
     def read_csv(self, path, types, line_delimiter="\n", field_delimiter=','):
         """
@@ -127,7 +140,7 @@ class Environment(object):
         if plan_mode:
             output_path = sys.stdin.readline().rstrip('\n')
             self._connection = Connection.OneWayBusyBufferingMappedFileConnection(output_path)
-            self._collector = Collector.TypedCollector(self._connection)
+            self._collector = Collector.TypedCollector(self._connection, self)
             self._send_plan()
             self._connection._write_buffer()
         else:
@@ -146,7 +159,7 @@ class Environment(object):
                         operator = set[_Fields.OPERATOR]
                     if set[_Fields.ID] == -id:
                         operator = set[_Fields.COMBINEOP]
-                operator._configure(input_path, output_path, port)
+                operator._configure(input_path, output_path, port, self)
                 operator._go()
                 sys.stdout.flush()
                 sys.stderr.flush()

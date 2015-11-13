@@ -32,11 +32,11 @@ class Function(object):
         self.context = None
         self._chain_operator = None
 
-    def _configure(self, input_file, output_file, port):
+    def _configure(self, input_file, output_file, port, env):
         self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
-        self._iterator = Iterator.Iterator(self._connection)
+        self._iterator = Iterator.Iterator(self._connection, env)
         self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
-        self._configure_chain(Collector.Collector(self._connection))
+        self._configure_chain(Collector.Collector(self._connection, env))
 
     def _configure_chain(self, collector):
         if self._chain_operator is not None:

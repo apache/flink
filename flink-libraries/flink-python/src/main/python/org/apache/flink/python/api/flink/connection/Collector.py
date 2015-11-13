@@ -19,6 +19,7 @@ from struct import pack
 import sys
 
 from flink.connection.Constants import Types
+from flink.plan.Constants import _Dummy
 
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
@@ -30,15 +31,16 @@ else:
 
 
 class Collector(object):
-    def __init__(self, con):
+    def __init__(self, con, env):
         self._connection = con
         self._serializer = None
+        self._env = env
 
     def _close(self):
         self._connection.send_end_signal()
 
     def collect(self, value):
-        self._serializer = _get_serializer(self._connection.write, value)
+        self._serializer = _get_serializer(self._connection.write, value, self._env._types)
         self.collect = self._collect
         self.collect(value)
 
@@ -46,11 +48,11 @@ class Collector(object):
         self._connection.write(self._serializer.serialize(value))
 
 
-def _get_serializer(write, value):
+def _get_serializer(write, value, custom_types):
     if isinstance(value, (list, tuple)):
         write(Types.TYPE_TUPLE)
         write(pack(">I", len(value)))
-        return TupleSerializer(write, value)
+        return TupleSerializer(write, value, custom_types)
     elif value is None:
         write(Types.TYPE_NULL)
         return NullSerializer()
@@ -70,12 +72,25 @@ def _get_serializer(write, value):
         write(Types.TYPE_DOUBLE)
         return FloatSerializer()
     else:
+        for entry in custom_types:
+            if isinstance(value, entry[1]):
+                write(entry[0])
+                return CustomTypeSerializer(entry[2])
         raise Exception("Unsupported Type encountered.")
 
 
+class CustomTypeSerializer(object):
+    def __init__(self, serializer):
+        self._serializer = serializer
+
+    def serialize(self, value):
+        msg = self._serializer.serialize(value)
+        return b"".join([pack(">i",len(msg)), msg])
+
+
 class TupleSerializer(object):
-    def __init__(self, write, value):
-        self.serializer = [_get_serializer(write, field) for field in value]
+    def __init__(self, write, value, custom_types):
+        self.serializer = [_get_serializer(write, field, custom_types) for field in value]
 
     def serialize(self, value):
         bits = []
@@ -117,8 +132,9 @@ class NullSerializer(object):
 
 
 class TypedCollector(object):
-    def __init__(self, con):
+    def __init__(self, con, env):
         self._connection = con
+        self._env = env
 
     def collect(self, value):
         if not isinstance(value, (list, tuple)):
@@ -153,5 +169,13 @@ class TypedCollector(object):
             value = bytes(value)
             size = pack(">I", len(value))
             self._connection.write(b"".join([Types.TYPE_BYTES, size, value]))
+        elif isinstance(value, _Dummy):
+            self._connection.write(pack(">i", 127)[3:])
+            self._connection.write(pack(">i", 0))
         else:
+            for entry in self._env._types:
+                if isinstance(value, entry[1]):
+                    self._connection.write(entry[0])
+                    self._connection.write(CustomTypeSerializer(entry[2]).serialize(value))
+                    return
             raise Exception("Unsupported Type encountered.")

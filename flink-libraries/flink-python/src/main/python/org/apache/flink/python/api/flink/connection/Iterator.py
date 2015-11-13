@@ -168,21 +168,25 @@ class CoGroupIterator(object):
 
 
 class Iterator(defIter.Iterator):
-    def __init__(self, con, group=0):
+    def __init__(self, con, env, group=0):
         super(Iterator, self).__init__()
         self._connection = con
         self._init = True
         self._group = group
         self._deserializer = None
+        self._env = env
 
     def __next__(self):
         return self.next()
 
+    def _read(self, des_size):
+        return self._connection.read(des_size, self._group)
+
     def next(self):
         if self.has_next():
             if self._deserializer is None:
-                self._deserializer = _get_deserializer(self._group, self._connection.read)
-            return self._deserializer.deserialize()
+                self._deserializer = _get_deserializer(self._group, self._connection.read, self._env._types)
+            return self._deserializer.deserialize(self._read)
         else:
             raise StopIteration
 
@@ -207,121 +211,88 @@ class DummyIterator(Iterator):
         return False
 
 
-def _get_deserializer(group, read, type=None):
+def _get_deserializer(group, read, custom_types, type=None):
     if type is None:
         type = read(1, group)
-        return _get_deserializer(group, read, type)
+        return _get_deserializer(group, read, custom_types, type)
     elif type == Types.TYPE_TUPLE:
-        return TupleDeserializer(read, group)
+        return TupleDeserializer(read, group, custom_types)
     elif type == Types.TYPE_BYTE:
-        return ByteDeserializer(read, group)
+        return ByteDeserializer()
     elif type == Types.TYPE_BYTES:
-        return ByteArrayDeserializer(read, group)
+        return ByteArrayDeserializer()
     elif type == Types.TYPE_BOOLEAN:
-        return BooleanDeserializer(read, group)
+        return BooleanDeserializer()
     elif type == Types.TYPE_FLOAT:
-        return FloatDeserializer(read, group)
+        return FloatDeserializer()
     elif type == Types.TYPE_DOUBLE:
-        return DoubleDeserializer(read, group)
+        return DoubleDeserializer()
     elif type == Types.TYPE_INTEGER:
-        return IntegerDeserializer(read, group)
+        return IntegerDeserializer()
     elif type == Types.TYPE_LONG:
-        return LongDeserializer(read, group)
+        return LongDeserializer()
     elif type == Types.TYPE_STRING:
-        return StringDeserializer(read, group)
+        return StringDeserializer()
     elif type == Types.TYPE_NULL:
-        return NullDeserializer(read, group)
+        return NullDeserializer()
+    else:
+        for entry in custom_types:
+            if type == entry[0]:
+                return entry[3]
+        raise Exception("Unable to find deserializer for type ID " + str(type))
 
 
 class TupleDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-        size = unpack(">I", self.read(4, self._group))[0]
-        self.deserializer = [_get_deserializer(self._group, self.read) for _ in range(size)]
+    def __init__(self, read, group, custom_types):
+        size = unpack(">I", read(4, group))[0]
+        self.deserializer = [_get_deserializer(group, read, custom_types) for _ in range(size)]
 
-    def deserialize(self):
-        return tuple([s.deserialize() for s in self.deserializer])
+    def deserialize(self, read):
+        return tuple([s.deserialize(read) for s in self.deserializer])
 
 
 class ByteDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        return unpack(">c", self.read(1, self._group))[0]
+    def deserialize(self, read):
+        return unpack(">c", read(1))[0]
 
 
 class ByteArrayDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        size = unpack(">i", self.read(4, self._group))[0]
-        return bytearray(self.read(size, self._group)) if size else bytearray(b"")
+    def deserialize(self, read):
+        size = unpack(">i", read(4))[0]
+        return bytearray(read(size)) if size else bytearray(b"")
 
 
 class BooleanDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        return unpack(">?", self.read(1, self._group))[0]
+    def deserialize(self, read):
+        return unpack(">?", read(1))[0]
 
 
 class FloatDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        return unpack(">f", self.read(4, self._group))[0]
+    def deserialize(self, read):
+        return unpack(">f", read(4))[0]
 
 
 class DoubleDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        return unpack(">d", self.read(8, self._group))[0]
+    def deserialize(self, read):
+        return unpack(">d", read(8))[0]
 
 
 class IntegerDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        return unpack(">i", self.read(4, self._group))[0]
+    def deserialize(self, read):
+        return unpack(">i", read(4))[0]
 
 
 class LongDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        return unpack(">q", self.read(8, self._group))[0]
+    def deserialize(self, read):
+        return unpack(">q", read(8))[0]
 
 
 class StringDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
-    def deserialize(self):
-        length = unpack(">i", self.read(4, self._group))[0]
-        return self.read(length, self._group).decode("utf-8") if length else ""
+    def deserialize(self, read):
+        length = unpack(">i", read(4))[0]
+        return read(length).decode("utf-8") if length else ""
 
 
 class NullDeserializer(object):
-    def __init__(self, read, group):
-        self.read = read
-        self._group = group
-
     def deserialize(self):
         return None

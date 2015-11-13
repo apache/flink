@@ -25,7 +25,8 @@ from flink.functions.CrossFunction import CrossFunction
 from flink.functions.JoinFunction import JoinFunction
 from flink.functions.GroupReduceFunction import GroupReduceFunction
 from flink.functions.CoGroupFunction import CoGroupFunction
-from flink.plan.Constants import INT, STRING, FLOAT, BOOL, Order
+from flink.plan.Constants import INT, STRING, FLOAT, BOOL, CUSTOM, Order
+import struct
 
 
 class Mapper(MapFunction):
@@ -258,6 +259,31 @@ if __name__ == "__main__":
     d4 \
         .co_group(d5).where(0).equal_to(2).using(CoGroup(), ((INT, FLOAT, STRING, BOOL), (FLOAT, FLOAT, INT))) \
         .map_partition(Verify([((1, 0.5, "hello", True), (4.4, 4.3, 1)), ((1, 0.4, "hello", False), (4.3, 4.4, 1))], "CoGroup"), STRING).output()
+
+    #Custom Serialization
+    class Ext(MapPartitionFunction):
+        def map_partition(self, iterator, collector):
+            for value in iterator:
+                collector.collect(value.value)
+
+    class MyObj(object):
+        def __init__(self, i):
+            self.value = i
+
+    class MySerializer(object):
+        def serialize(self, value):
+            return struct.pack(">i", value.value)
+
+    class MyDeserializer(object):
+        def deserialize(self, read):
+            i = struct.unpack(">i", read(4))[0]
+            return MyObj(i)
+
+    env.register_type(MyObj, MySerializer(), MyDeserializer())
+
+    env.from_elements(MyObj(2), MyObj(4)) \
+        .map(Id(), CUSTOM).map_partition(Ext(), INT) \
+        .map_partition(Verify([2, 4], "CustomTypeSerialization"), STRING).output()
 
     env.set_degree_of_parallelism(1)
 
