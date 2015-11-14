@@ -268,9 +268,9 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 				continue;
 			}
 
-			ObjectOutputStream os = new ObjectOutputStream(outStream);
-			os.writeObject(state);
-			os.close();
+			try (ObjectOutputStream os = new ObjectOutputStream(outStream)) {
+				os.writeObject(state);
+			}
 			return new FileSerializableStateHandle<S>(targetPath);
 		}
 		
