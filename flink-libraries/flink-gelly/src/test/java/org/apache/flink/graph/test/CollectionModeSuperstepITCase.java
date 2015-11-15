@@ -78,7 +78,7 @@ public class CollectionModeSuperstepITCase {
 	public static final class AssignOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
 
 		public Long map(Vertex<Long, Long> value) {
-			return 1l;
+			return 1L;
 		}
 	}
 }

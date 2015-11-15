@@ -71,7 +71,7 @@ public class GSATranslationTest {
 			// ------------ construct the test program ------------------
 			{
 
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<Long, Long, NullValue>(
+				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<>(
 						1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<Long, NullValue>());
 
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new InitVertices(), env);
@@ -98,7 +98,7 @@ public class GSATranslationTest {
 			assertTrue(result instanceof DeltaIterationResultSet);
 			
 			DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
-			DeltaIteration<?, ?> iteration = (DeltaIteration<?, ?>) resultSet.getIterationHead();
+			DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
 			
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
@@ -142,7 +142,7 @@ public class GSATranslationTest {
 		public Long gather(Neighbor<Long, NullValue> neighbor) {
 			return neighbor.getNeighborValue();
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMinId extends SumFunction<Long, NullValue, Long> {
@@ -150,7 +150,7 @@ public class GSATranslationTest {
 		public Long sum(Long newValue, Long currentValue) {
 			return Math.min(newValue, currentValue);
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class UpdateComponentId extends ApplyFunction<Long, Long, Long> {

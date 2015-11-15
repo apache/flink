@@ -53,13 +53,13 @@ object GraphMetrics {
     val graph: Graph[Long, NullValue, NullValue] = Graph.fromDataSet(getEdgeDataSet(env), env)
 
     /** get the number of vertices **/
-    val numVertices = graph.numberOfVertices;
+    val numVertices = graph.numberOfVertices
 
     /** get the number of edges **/
-    val numEdges = graph.numberOfEdges;
+    val numEdges = graph.numberOfEdges
 
     /** compute the average node degree **/
-    val verticesWithDegrees = graph.getDegrees;
+    val verticesWithDegrees = graph.getDegrees
     val avgDegree = verticesWithDegrees.sum(1).map(in => (in._2 / numVertices).toDouble)
 
     /** find the vertex with the maximum in-degree **/
@@ -114,7 +114,7 @@ object GraphMetrics {
         (key: Long, out: Collector[Edge[Long, NullValue]]) => {
           val numOutEdges: Int = (Math.random() * (numVertices / 2)).toInt
           for ( i <- 0 to numOutEdges ) {
-            var target: Long = ((Math.random() * numVertices) + 1).toLong
+            val target: Long = ((Math.random() * numVertices) + 1).toLong
             new Edge[Long, NullValue](key, target, NullValue.getInstance())
           }
       })

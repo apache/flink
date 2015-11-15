@@ -24,10 +24,10 @@ import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph.scala.{EdgesFunction, EdgesFunctionWithVertexValue, Graph}
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.util.Collector
-import org.junit.rules.TemporaryFolder
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+
 import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])

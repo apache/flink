@@ -32,176 +32,156 @@ import org.apache.flink.graph.Vertex;
 
 public class TestGraphUtils {
 
-	public static final DataSet<Vertex<Long, Long>> getLongLongVertexData(
+	public static DataSet<Vertex<Long, Long>> getLongLongVertexData(
 			ExecutionEnvironment env) {
 
 		return env.fromCollection(getLongLongVertices());
 	}
 	
-	public static final DataSet<Edge<Long, Long>> getLongLongEdgeData(
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeData(
 			ExecutionEnvironment env) {
 
 		return env.fromCollection(getLongLongEdges());
 	}
 
-	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcData(
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcData(
 			ExecutionEnvironment env) {
 		List<Edge<Long, Long>> edges = getLongLongEdges();
 
 		edges.remove(1);
-		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
+		edges.add(new Edge<>(13L, 3L, 13L));
 
 		return env.fromCollection(edges);
 	}
 
-	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidTrgData(
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeInvalidTrgData(
 			ExecutionEnvironment env) {
 		List<Edge<Long, Long>> edges =  getLongLongEdges();
 
 		edges.remove(0);
-		edges.add(new Edge<Long, Long>(3L, 13L, 13L));
+		edges.add(new Edge<>(3L, 13L, 13L));
 
 		return env.fromCollection(edges);
 	}
 
-	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcTrgData(
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcTrgData(
 			ExecutionEnvironment env) {
 		List<Edge<Long, Long>> edges = getLongLongEdges();
 		edges.remove(0);
 		edges.remove(1);
 		edges.remove(2);
-		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
-		edges.add(new Edge<Long, Long>(1L, 12L, 12L));
-		edges.add(new Edge<Long, Long>(13L, 33L, 13L));
+		edges.add(new Edge<>(13L, 3L, 13L));
+		edges.add(new Edge<>(1L, 12L, 12L));
+		edges.add(new Edge<>(13L, 33L, 13L));
 		return env.fromCollection(edges);
 	}
 
-	public static final DataSet<Edge<String, Long>> getStringLongEdgeData(
+	public static DataSet<Edge<String, Long>> getStringLongEdgeData(
 			ExecutionEnvironment env) {
-		List<Edge<String, Long>> edges = new ArrayList<Edge<String, Long>>();
-		edges.add(new Edge<String, Long>("1", "2", 12L));
-		edges.add(new Edge<String, Long>("1", "3", 13L));
-		edges.add(new Edge<String, Long>("2", "3", 23L));
-		edges.add(new Edge<String, Long>("3", "4", 34L));
-		edges.add(new Edge<String, Long>("3", "5", 35L));
-		edges.add(new Edge<String, Long>("4", "5", 45L));
-		edges.add(new Edge<String, Long>("5", "1", 51L));
+		List<Edge<String, Long>> edges = new ArrayList<>();
+		edges.add(new Edge<>("1", "2", 12L));
+		edges.add(new Edge<>("1", "3", 13L));
+		edges.add(new Edge<>("2", "3", 23L));
+		edges.add(new Edge<>("3", "4", 34L));
+		edges.add(new Edge<>("3", "5", 35L));
+		edges.add(new Edge<>("4", "5", 45L));
+		edges.add(new Edge<>("5", "1", 51L));
 		return env.fromCollection(edges);
 	}
 
-	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2Data(
+	public static DataSet<Tuple2<Long, Long>> getLongLongTuple2Data(
 			ExecutionEnvironment env) {
-		List<Tuple2<Long, Long>> tuples = new ArrayList<Tuple2<Long, Long>>();
-		tuples.add(new Tuple2<Long, Long>(1L, 10L));
-		tuples.add(new Tuple2<Long, Long>(2L, 20L));
-		tuples.add(new Tuple2<Long, Long>(3L, 30L));
-		tuples.add(new Tuple2<Long, Long>(4L, 40L));
-		tuples.add(new Tuple2<Long, Long>(6L, 60L));
+		List<Tuple2<Long, Long>> tuples = new ArrayList<>();
+		tuples.add(new Tuple2<>(1L, 10L));
+		tuples.add(new Tuple2<>(2L, 20L));
+		tuples.add(new Tuple2<>(3L, 30L));
+		tuples.add(new Tuple2<>(4L, 40L));
+		tuples.add(new Tuple2<>(6L, 60L));
 
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2SourceData(
+	public static DataSet<Tuple2<Long, Long>> getLongLongTuple2SourceData(
 			ExecutionEnvironment env) {
-		List<Tuple2<Long, Long>> tuples = new ArrayList<Tuple2<Long, Long>>();
-		tuples.add(new Tuple2<Long, Long>(1L, 10L));
-		tuples.add(new Tuple2<Long, Long>(1L, 20L));
-		tuples.add(new Tuple2<Long, Long>(2L, 30L));
-		tuples.add(new Tuple2<Long, Long>(3L, 40L));
-		tuples.add(new Tuple2<Long, Long>(3L, 50L));
-		tuples.add(new Tuple2<Long, Long>(4L, 60L));
-		tuples.add(new Tuple2<Long, Long>(6L, 70L));
+		List<Tuple2<Long, Long>> tuples = new ArrayList<>();
+		tuples.add(new Tuple2<>(1L, 10L));
+		tuples.add(new Tuple2<>(1L, 20L));
+		tuples.add(new Tuple2<>(2L, 30L));
+		tuples.add(new Tuple2<>(3L, 40L));
+		tuples.add(new Tuple2<>(3L, 50L));
+		tuples.add(new Tuple2<>(4L, 60L));
+		tuples.add(new Tuple2<>(6L, 70L));
 
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2TargetData(
+	public static DataSet<Tuple2<Long, Long>> getLongLongTuple2TargetData(
 			ExecutionEnvironment env) {
-		List<Tuple2<Long, Long>> tuples = new ArrayList<Tuple2<Long, Long>>();
-		tuples.add(new Tuple2<Long, Long>(2L, 10L));
-		tuples.add(new Tuple2<Long, Long>(3L, 20L));
-		tuples.add(new Tuple2<Long, Long>(3L, 30L));
-		tuples.add(new Tuple2<Long, Long>(4L, 40L));
-		tuples.add(new Tuple2<Long, Long>(6L, 50L));
-		tuples.add(new Tuple2<Long, Long>(6L, 60L));
-		tuples.add(new Tuple2<Long, Long>(1L, 70L));
+		List<Tuple2<Long, Long>> tuples = new ArrayList<>();
+		tuples.add(new Tuple2<>(2L, 10L));
+		tuples.add(new Tuple2<>(3L, 20L));
+		tuples.add(new Tuple2<>(3L, 30L));
+		tuples.add(new Tuple2<>(4L, 40L));
+		tuples.add(new Tuple2<>(6L, 50L));
+		tuples.add(new Tuple2<>(6L, 60L));
+		tuples.add(new Tuple2<>(1L, 70L));
 
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple3<Long, Long, Long>> getLongLongLongTuple3Data(
+	public static DataSet<Tuple3<Long, Long, Long>> getLongLongLongTuple3Data(
 			ExecutionEnvironment env) {
-		List<Tuple3<Long, Long, Long>> tuples = new ArrayList<Tuple3<Long, Long, Long>>();
-		tuples.add(new Tuple3<Long, Long, Long>(1L, 2L, 12L));
-		tuples.add(new Tuple3<Long, Long, Long>(1L, 3L, 13L));
-		tuples.add(new Tuple3<Long, Long, Long>(2L, 3L, 23L));
-		tuples.add(new Tuple3<Long, Long, Long>(3L, 4L, 34L));
-		tuples.add(new Tuple3<Long, Long, Long>(3L, 6L, 36L));
-		tuples.add(new Tuple3<Long, Long, Long>(4L, 6L, 46L));
-		tuples.add(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
+		List<Tuple3<Long, Long, Long>> tuples = new ArrayList<>();
+		tuples.add(new Tuple3<>(1L, 2L, 12L));
+		tuples.add(new Tuple3<>(1L, 3L, 13L));
+		tuples.add(new Tuple3<>(2L, 3L, 23L));
+		tuples.add(new Tuple3<>(3L, 4L, 34L));
+		tuples.add(new Tuple3<>(3L, 6L, 36L));
+		tuples.add(new Tuple3<>(4L, 6L, 46L));
+		tuples.add(new Tuple3<>(6L, 1L, 61L));
 
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2Data(
+	public static DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2Data(
 			ExecutionEnvironment env) {
-		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
-				DummyCustomParameterizedType<Float>>>();
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(1L,
-				new DummyCustomParameterizedType<Float>(10, 10f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(2L,
-				new DummyCustomParameterizedType<Float>(20, 20f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
-				new DummyCustomParameterizedType<Float>(30, 30f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(4L,
-				new DummyCustomParameterizedType<Float>(40, 40f)));
+		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<>();
+		tuples.add(new Tuple2<>(1L, new DummyCustomParameterizedType<>(10, 10f)));
+		tuples.add(new Tuple2<>(2L, new DummyCustomParameterizedType<>(20, 20f)));
+		tuples.add(new Tuple2<>(3L, new DummyCustomParameterizedType<>(30, 30f)));
+		tuples.add(new Tuple2<>(4L, new DummyCustomParameterizedType<>(40, 40f)));
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2SourceData(
+	public static DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2SourceData(
 			ExecutionEnvironment env) {
-		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
-				DummyCustomParameterizedType<Float>>>();
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(1L,
-				new DummyCustomParameterizedType<Float>(10, 10f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(1L,
-				new DummyCustomParameterizedType<Float>(20, 20f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(2L,
-				new DummyCustomParameterizedType<Float>(30, 30f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
-				new DummyCustomParameterizedType<Float>(40, 40f)));
+		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<>();
+		tuples.add(new Tuple2<>(1L, new DummyCustomParameterizedType<>(10, 10f)));
+		tuples.add(new Tuple2<>(1L, new DummyCustomParameterizedType<>(20, 20f)));
+		tuples.add(new Tuple2<>(2L, new DummyCustomParameterizedType<>(30, 30f)));
+		tuples.add(new Tuple2<>(3L, new DummyCustomParameterizedType<>(40, 40f)));
 
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2TargetData(
+	public static DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2TargetData(
 			ExecutionEnvironment env) {
-		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
-				DummyCustomParameterizedType<Float>>>();
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(2L,
-				new DummyCustomParameterizedType<Float>(10, 10f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
-				new DummyCustomParameterizedType<Float>(20, 20f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
-				new DummyCustomParameterizedType<Float>(30, 30f)));
-		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(4L,
-				new DummyCustomParameterizedType<Float>(40, 40f)));
+		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<>();
+		tuples.add(new Tuple2<>(2L, new DummyCustomParameterizedType<>(10, 10f)));
+		tuples.add(new Tuple2<>(3L, new DummyCustomParameterizedType<>(20, 20f)));
+		tuples.add(new Tuple2<>(3L, new DummyCustomParameterizedType<>(30, 30f)));
+		tuples.add(new Tuple2<>(4L, new DummyCustomParameterizedType<>(40, 40f)));
 
 		return env.fromCollection(tuples);
 	}
 
-	public static final DataSet<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> getLongLongCustomTuple3Data(
+	public static DataSet<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> getLongLongCustomTuple3Data(
 			ExecutionEnvironment env) {
-		List<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> tuples = 
-				new ArrayList<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>>();
-		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(1L, 2L,
-				new DummyCustomParameterizedType<Float>(10, 10f)));
-		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(1L, 3L,
-				new DummyCustomParameterizedType<Float>(20, 20f)));
-		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(2L, 3L,
-				new DummyCustomParameterizedType<Float>(30, 30f)));
-		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(3L, 4L,
-				new DummyCustomParameterizedType<Float>(40, 40f)));
+		List<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<>();
+		tuples.add(new Tuple3<>(1L, 2L, new DummyCustomParameterizedType<>(10, 10f)));
+		tuples.add(new Tuple3<>(1L, 3L, new DummyCustomParameterizedType<>(20, 20f)));
+		tuples.add(new Tuple3<>(2L, 3L, new DummyCustomParameterizedType<>(30, 30f)));
+		tuples.add(new Tuple3<>(3L, 4L, new DummyCustomParameterizedType<>(40, 40f)));
 
 		return env.fromCollection(tuples);
 	}
@@ -209,12 +189,12 @@ public class TestGraphUtils {
 	/**
 	 * A graph with invalid vertex ids
 	 */
-	public static final DataSet<Vertex<Long, Long>> getLongLongInvalidVertexData(
+	public static DataSet<Vertex<Long, Long>> getLongLongInvalidVertexData(
 			ExecutionEnvironment env) {
 		List<Vertex<Long, Long>> vertices = getLongLongVertices();
 
 		vertices.remove(0);
-		vertices.add(new Vertex<Long, Long>(15L, 1L));
+		vertices.add(new Vertex<>(15L, 1L));
 
 		return env.fromCollection(vertices);
 	}
@@ -222,15 +202,15 @@ public class TestGraphUtils {
 	/**
 	 * A graph that has at least one vertex with no ingoing/outgoing edges
 	 */
-	public static final DataSet<Edge<Long, Long>> getLongLongEdgeDataWithZeroDegree(
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeDataWithZeroDegree(
 			ExecutionEnvironment env) {
-		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-		edges.add(new Edge<Long, Long>(1L, 2L, 12L));
-		edges.add(new Edge<Long, Long>(1L, 4L, 14L));
-		edges.add(new Edge<Long, Long>(1L, 5L, 15L));
-		edges.add(new Edge<Long, Long>(2L, 3L, 23L));
-		edges.add(new Edge<Long, Long>(3L, 5L, 35L));
-		edges.add(new Edge<Long, Long>(4L, 5L, 45L));
+		List<Edge<Long, Long>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 2L, 12L));
+		edges.add(new Edge<>(1L, 4L, 14L));
+		edges.add(new Edge<>(1L, 5L, 15L));
+		edges.add(new Edge<>(2L, 3L, 23L));
+		edges.add(new Edge<>(3L, 5L, 35L));
+		edges.add(new Edge<>(4L, 5L, 45L));
 
 		return env.fromCollection(edges);
 	}
@@ -238,35 +218,34 @@ public class TestGraphUtils {
 	/**
 	 * Function that produces an ArrayList of vertices
 	 */
-	public static final List<Vertex<Long, Long>> getLongLongVertices() {
-		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		vertices.add(new Vertex<Long, Long>(1L, 1L));
-		vertices.add(new Vertex<Long, Long>(2L, 2L));
-		vertices.add(new Vertex<Long, Long>(3L, 3L));
-		vertices.add(new Vertex<Long, Long>(4L, 4L));
-		vertices.add(new Vertex<Long, Long>(5L, 5L));
+	public static List<Vertex<Long, Long>> getLongLongVertices() {
+		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+		vertices.add(new Vertex<>(1L, 1L));
+		vertices.add(new Vertex<>(2L, 2L));
+		vertices.add(new Vertex<>(3L, 3L));
+		vertices.add(new Vertex<>(4L, 4L));
+		vertices.add(new Vertex<>(5L, 5L));
 
 		return vertices;
 	}
 
-	public static final List<Vertex<Long, Boolean>> getLongBooleanVertices() {
-		List<Vertex<Long, Boolean>> vertices = new ArrayList<Vertex<Long, Boolean>>();
-		vertices.add(new Vertex<Long, Boolean>(1L, true));
-		vertices.add(new Vertex<Long, Boolean>(2L, true));
-		vertices.add(new Vertex<Long, Boolean>(3L, true));
-		vertices.add(new Vertex<Long, Boolean>(4L, true));
-		vertices.add(new Vertex<Long, Boolean>(5L, true));
+	public static List<Vertex<Long, Boolean>> getLongBooleanVertices() {
+		List<Vertex<Long, Boolean>> vertices = new ArrayList<>();
+		vertices.add(new Vertex<>(1L, true));
+		vertices.add(new Vertex<>(2L, true));
+		vertices.add(new Vertex<>(3L, true));
+		vertices.add(new Vertex<>(4L, true));
+		vertices.add(new Vertex<>(5L, true));
 
 		return vertices;
 	}
 
-	public static final DataSet<Edge<Long, Long>> getDisconnectedLongLongEdgeData(
-				ExecutionEnvironment env) {
-			List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-			edges.add(new Edge<Long, Long>(1L, 2L, 12L));
-			edges.add(new Edge<Long, Long>(1L, 3L, 13L));
-			edges.add(new Edge<Long, Long>(2L, 3L, 23L));
-			edges.add(new Edge<Long, Long>(4L, 5L, 45L));
+	public static DataSet<Edge<Long, Long>> getDisconnectedLongLongEdgeData(ExecutionEnvironment env) {
+			List<Edge<Long, Long>> edges = new ArrayList<>();
+			edges.add(new Edge<>(1L, 2L, 12L));
+			edges.add(new Edge<>(1L, 3L, 13L));
+			edges.add(new Edge<>(2L, 3L, 23L));
+			edges.add(new Edge<>(4L, 5L, 45L));
 			
 			return env.fromCollection(edges);
 		}
@@ -274,15 +253,15 @@ public class TestGraphUtils {
 	/**
 	 * Function that produces an ArrayList of edges
 	 */
-	public static final List<Edge<Long, Long>> getLongLongEdges() {
-		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-		edges.add(new Edge<Long, Long>(1L, 2L, 12L));
-		edges.add(new Edge<Long, Long>(1L, 3L, 13L));
-		edges.add(new Edge<Long, Long>(2L, 3L, 23L));
-		edges.add(new Edge<Long, Long>(3L, 4L, 34L));
-		edges.add(new Edge<Long, Long>(3L, 5L, 35L));
-		edges.add(new Edge<Long, Long>(4L, 5L, 45L));
-		edges.add(new Edge<Long, Long>(5L, 1L, 51L));
+	public static List<Edge<Long, Long>> getLongLongEdges() {
+		List<Edge<Long, Long>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 2L, 12L));
+		edges.add(new Edge<>(1L, 3L, 13L));
+		edges.add(new Edge<>(2L, 3L, 23L));
+		edges.add(new Edge<>(3L, 4L, 34L));
+		edges.add(new Edge<>(3L, 5L, 35L));
+		edges.add(new Edge<>(4L, 5L, 45L));
+		edges.add(new Edge<>(5L, 1L, 51L));
 	
 		return edges;
 	}
@@ -373,45 +352,41 @@ public class TestGraphUtils {
 
 	/**
 	 * utils for getting the second graph for the test of method difference();
-	 * @param env
+	 * @param env - ExecutionEnvironment
 	 */
-	public static final DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference(
-			ExecutionEnvironment env){
+	public static DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference(ExecutionEnvironment env) {
 		return env.fromCollection(getLongLongEdgesForDifference());
 	}
 
-	public static final DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference2(
-			ExecutionEnvironment env){
+	public static DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference2(ExecutionEnvironment env) {
 		return env.fromCollection(getLongLongEdgesForDifference2());
 	}
 
-	public static final DataSet<Vertex<Long,Long>> getLongLongVertexDataDifference(
-			ExecutionEnvironment env)
-	{
+	public static DataSet<Vertex<Long,Long>> getLongLongVertexDataDifference(ExecutionEnvironment env) {
 		return env.fromCollection(getVerticesForDifference());
 	}
 
-	public static final List<Vertex<Long,Long>> getVerticesForDifference(){
-		List<Vertex<Long,Long>> vertices = new ArrayList<Vertex<Long,Long>>();
-		vertices.add(new Vertex<Long, Long>(1L, 1L));
-		vertices.add(new Vertex<Long, Long>(3L, 3L));
-		vertices.add(new Vertex<Long, Long>(6L, 6L));
+	public static List<Vertex<Long,Long>> getVerticesForDifference(){
+		List<Vertex<Long,Long>> vertices = new ArrayList<>();
+		vertices.add(new Vertex<>(1L, 1L));
+		vertices.add(new Vertex<>(3L, 3L));
+		vertices.add(new Vertex<>(6L, 6L));
 
 		return vertices;
 
 	}
 
-	public static final List<Edge<Long, Long>> getLongLongEdgesForDifference() {
-		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-		edges.add(new Edge<Long, Long>(1L, 3L, 13L));
-		edges.add(new Edge<Long, Long>(1L, 6L, 26L));
-		edges.add(new Edge<Long, Long>(6L, 3L, 63L));
+	public static List<Edge<Long, Long>> getLongLongEdgesForDifference() {
+		List<Edge<Long, Long>> edges = new ArrayList<>();
+		edges.add(new Edge<>(1L, 3L, 13L));
+		edges.add(new Edge<>(1L, 6L, 26L));
+		edges.add(new Edge<>(6L, 3L, 63L));
 		return edges;
 	}
 
-	public static final List<Edge<Long, Long>> getLongLongEdgesForDifference2() {
-		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-		edges.add(new Edge<Long, Long>(6L, 6L, 66L));
+	public static List<Edge<Long, Long>> getLongLongEdgesForDifference2() {
+		List<Edge<Long, Long>> edges = new ArrayList<>();
+		edges.add(new Edge<>(6L, 6L, 66L));
 		return edges;
 	}
 }

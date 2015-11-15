@@ -73,7 +73,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 	public static final class IdAssigner implements MapFunction<Long, Vertex<Long, Long>> {
 		@Override
 		public Vertex<Long, Long> map(Long value) {
-			return new Vertex<Long, Long>(value, value);
+			return new Vertex<>(value, value);
 		}
 	}
 
@@ -87,7 +87,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 	public static final class EdgeParser extends RichMapFunction<String, Edge<Long, NullValue>> {
 		public Edge<Long, NullValue> map(String value) {
 			String[] nums = value.split(" ");
-			return new Edge<Long, NullValue>(Long.parseLong(nums[0]), Long.parseLong(nums[1]),
+			return new Edge<>(Long.parseLong(nums[0]), Long.parseLong(nums[1]),
 					NullValue.getInstance());
 		}
 	}

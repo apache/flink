@@ -23,10 +23,10 @@ import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph.{Edge, Vertex}
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+import org.junit.Test
+
 import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
@@ -37,7 +37,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddVertex {
+  def testAddVertex() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -50,7 +50,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddVertexExisting {
+  def testAddVertexExisting() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -62,7 +62,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddVertexNoEdges {
+  def testAddVertexNoEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -74,7 +74,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddVertices {
+  def testAddVertices() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -88,7 +88,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddVerticesExisting {
+  def testAddVerticesExisting() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -102,7 +102,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveVertex {
+  def testRemoveVertex() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -114,7 +114,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveInvalidVertex {
+  def testRemoveInvalidVertex() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -127,7 +127,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveVertices {
+  def testRemoveVertices() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -140,7 +140,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveValidAndInvalidVertex {
+  def testRemoveValidAndInvalidVertex() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -153,7 +153,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddEdge {
+  def testAddEdge() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -167,7 +167,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddEdges {
+  def testAddEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -181,7 +181,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddEdgesInvalidVertices {
+  def testAddEdgesInvalidVertices() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -195,7 +195,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testAddExistingEdge {
+  def testAddExistingEdge() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -209,7 +209,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveEdge {
+  def testRemoveEdge() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -221,7 +221,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveInvalidEdge {
+  def testRemoveInvalidEdge() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -234,7 +234,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveEdges {
+  def testRemoveEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -247,7 +247,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testRemoveSameEdgeTwiceEdges {
+  def testRemoveSameEdgeTwiceEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)

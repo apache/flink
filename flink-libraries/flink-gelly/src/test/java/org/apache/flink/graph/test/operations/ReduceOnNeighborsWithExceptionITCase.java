@@ -188,7 +188,7 @@ public class ReduceOnNeighborsWithExceptionITCase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue()));
+			out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue()));
 		}
 	}
 

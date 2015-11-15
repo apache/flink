@@ -75,7 +75,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				new UpdateFunction(), new MessageFunction(), 10, parameters);
 
 		DataSet<Vertex<Long,Long>> data = res.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+		List<Vertex<Long,Long>> result= data.collect();
         
 		expectedResult = "1,11\n" +
 						"2,11\n" +
@@ -137,7 +137,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 
 		
 		DataSet<Tuple2<Long, Long>> data = res.getVertices().map(new VertexToTuple2Map<Long, Long>());
-        List<Tuple2<Long, Long>> result= data.collect();
+		List<Tuple2<Long, Long>> result= data.collect();
         
 		expectedResult = "1,6\n" +
 						"2,6\n" +
@@ -231,7 +231,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerAll(), 5, parameters)
 				.getVertices();
 
-        List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
 
 		expectedResult = "1,[2, 3, 5]\n" +
 				"2,[1, 3]\n" +
@@ -264,7 +264,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
 				.getVertices();
 
-        List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[2, 3]\n" +
 				"2,[3]\n" +
@@ -297,7 +297,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
 				.getVertices();
 
-        List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[5]\n" +
 				"2,[1]\n" +
@@ -330,7 +330,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
 				.getVertices();
 
-        List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
+		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
 
 		expectedResult = "1,[2, 3, 5]\n" +
 				"2,[1, 3]\n" +
@@ -356,7 +356,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithNumVertices = graph.runVertexCentricIteration(new UpdateFunctionNumVertices(),
 				new DummyMessageFunction(), 2).getVertices();
 
-        List<Vertex<Long, Long>> result= verticesWithNumVertices.collect();
+		List<Vertex<Long, Long>> result= verticesWithNumVertices.collect();
 
 		expectedResult = "1,-1\n" +
 				"2,-1\n" +
@@ -388,7 +388,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionInDegrees(), new DegreesMessageFunction(), 5, parameters).getVertices();
 
-        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
 		expectedResult = "1,1\n" +
 				"2,1\n" +
@@ -413,7 +413,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionInDegrees(), new DummyMessageFunction(), 2).getVertices();
 
-        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
 		expectedResult = "1,-1\n" +
 				"2,-1\n" +
@@ -445,7 +445,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionOutDegrees(), new DegreesMessageFunction(), 5, parameters).getVertices();
 
-        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
 		expectedResult = "1,2\n" +
 				"2,1\n" +
@@ -470,7 +470,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
 				new UpdateFunctionInDegrees(), new DummyMessageFunction(), 2).getVertices();
 
-        List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
+		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
 
 		expectedResult = "1,-1\n" +
 				"2,-1\n" +
@@ -502,7 +502,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		DataSet<Vertex<Long, Boolean>> verticesWithNumNeighbors = graph.runVertexCentricIteration(
 				new VertexUpdateNumNeighbors(), new IdMessenger(), 1, parameters).getVertices();
 
-        List<Vertex<Long, Boolean>> result= verticesWithNumNeighbors.collect();
+		List<Vertex<Long, Boolean>> result= verticesWithNumNeighbors.collect();
 
 		expectedResult = "1,true\n" +
 				"2,true\n" +
@@ -547,8 +547,6 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 
 	@SuppressWarnings("serial")
 	public static final class UpdateFunctionDefault extends VertexUpdateFunction<Long, Long, Long> {
-
-		LongSumAggregator aggregator = new LongSumAggregator();
 
 		@Override
 		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
@@ -643,11 +641,11 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void sendMessages(Vertex<Long, Long> vertex) {
-			if (vertex.getId().equals(1)) {
+			if (vertex.getId() == 1) {
 				Assert.assertEquals(2, getOutDegree());
 				Assert.assertEquals(1, getInDegree());
 			}
-			else if(vertex.getId().equals(3)) {
+			else if(vertex.getId() == 3) {
 				Assert.assertEquals(2, getOutDegree());
 				Assert.assertEquals(2, getInDegree());
 			}
@@ -735,7 +733,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void sendMessages(Vertex<Long, HashSet<Long>> vertex) throws Exception {
 			for (Edge<Long, Long> edge : getEdges()) {
-				if(edge.getSource() != vertex.getId()) {
+				if(!edge.getSource().equals(vertex.getId())) {
 					sendMessageTo(edge.getSource(), vertex.getId());
 				} else {
 					sendMessageTo(edge.getTarget(), vertex.getId());
@@ -759,7 +757,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void sendMessages(Vertex<Long, Boolean> vertex) throws Exception {
 			for (Edge<Long, Long> edge : getEdges()) {
-				if(edge.getSource() != vertex.getId()) {
+				if(!edge.getSource().equals(vertex.getId())) {
 					sendMessageTo(edge.getSource(), vertex.getId());
 				} else {
 					sendMessageTo(edge.getTarget(), vertex.getId());
@@ -783,7 +781,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 	public static final class AssignOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
 
 		public Long map(Vertex<Long, Long> value) {
-			return 1l;
+			return 1L;
 		}
 	}
 
@@ -792,7 +790,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public HashSet<Long> map(Vertex<Long, Long> value) throws Exception {
-			return new HashSet<Long>();
+			return new HashSet<>();
 		}
 	}
 }
