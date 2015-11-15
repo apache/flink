@@ -473,8 +473,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class BooleanEdgeValueMapper implements MapFunction<Edge<Long, Long>, Tuple3<Long, Long, Boolean>> {
         public Tuple3<Long, Long, Boolean> map(Edge<Long, Long> edge) throws Exception {
-            return new Tuple3<Long, Long, Boolean>(edge.getSource(),
-                    edge.getTarget(), true);
+            return new Tuple3<>(edge.getSource(), edge.getTarget(), true);
         }
     }
 
@@ -512,28 +511,28 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class ProjectSourceAndValueMapper implements MapFunction<Edge<Long, Long>, Tuple2<Long, Long>> {
         public Tuple2<Long, Long> map(Edge<Long, Long> edge) throws Exception {
-            return new Tuple2<Long, Long>(edge.getSource(), edge.getValue());
+            return new Tuple2<>(edge.getSource(), edge.getValue());
         }
     }
 
 	@SuppressWarnings("serial")
 	private static final class ProjectSourceWithTrueMapper implements MapFunction<Edge<Long, Long>, Tuple2<Long, Boolean>> {
         public Tuple2<Long, Boolean> map(Edge<Long, Long> edge) throws Exception {
-            return new Tuple2<Long, Boolean>(edge.getSource(), true);
+            return new Tuple2<>(edge.getSource(), true);
         }
     }
 
 	@SuppressWarnings("serial")
 	private static final class ProjectTargetAndValueMapper implements MapFunction<Edge<Long, Long>, Tuple2<Long, Long>> {
         public Tuple2<Long, Long> map(Edge<Long, Long> edge) throws Exception {
-            return new Tuple2<Long, Long>(edge.getTarget(), edge.getValue());
+            return new Tuple2<>(edge.getTarget(), edge.getValue());
         }
     }
 
 	@SuppressWarnings("serial")
 	private static final class ProjectTargetWithTrueMapper implements MapFunction<Edge<Long, Long>, Tuple2<Long, Boolean>> {
         public Tuple2<Long, Boolean> map(Edge<Long, Long> edge) throws Exception {
-            return new Tuple2<Long, Boolean>(edge.getTarget(), true);
+            return new Tuple2<>(edge.getTarget(), true);
         }
     }
 }

@@ -82,7 +82,7 @@ public class MusicProfilesITCase extends MultipleProgramsTestBase {
 	public void after() throws Exception {
 		compareResultsByLinesInMemory(expectedTopSongs, topSongsResultPath);
 
-		ArrayList<String> list = new ArrayList<String>();
+		ArrayList<String> list = new ArrayList<>();
 		readAllResultLines(list, communitiesResultPath, new String[]{}, false);
 
 		String[] result = list.toArray(new String[list.size()]);

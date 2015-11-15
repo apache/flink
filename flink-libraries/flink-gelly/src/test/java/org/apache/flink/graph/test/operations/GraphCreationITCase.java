@@ -124,7 +124,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		//env.fromElements(result).writeAsText(resultPath);
 		
 		String res= valid.toString();//env.fromElements(valid);
-        List<String> result= new LinkedList<String>();
+        List<String> result= new LinkedList<>();
         result.add(res);
 		expectedResult = "true";
 		
@@ -144,7 +144,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 		
 		String res= valid.toString();//env.fromElements(valid);
-        List<String> result= new LinkedList<String>();
+        List<String> result= new LinkedList<>();
         result.add(res);
 
 		expectedResult = "false\n";
@@ -216,8 +216,7 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 	private static final class AssignCustomVertexValueMapper implements
 		MapFunction<Long, DummyCustomParameterizedType<Double>> {
 
-		DummyCustomParameterizedType<Double> dummyValue =
-				new DummyCustomParameterizedType<Double>();
+		DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<>();
 
 		public DummyCustomParameterizedType<Double> map(Long vertexId) {
 			dummyValue.setIntField(vertexId.intValue()-1);

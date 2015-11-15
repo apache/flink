@@ -382,11 +382,10 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 	private static final class FindAllReachableVertices extends SumFunction<HashSet<Long>, Long, HashSet<Long>> {
 		@Override
 		public HashSet<Long> sum(HashSet<Long> newSet, HashSet<Long> currentSet) {
-			HashSet<Long> set = currentSet;
 			for(Long l : newSet) {
-				set.add(l);
+				currentSet.add(l);
 			}
-			return set;
+			return currentSet;
 		}
 	}
 

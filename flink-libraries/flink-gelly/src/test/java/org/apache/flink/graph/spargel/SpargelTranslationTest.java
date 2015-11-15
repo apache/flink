@@ -52,7 +52,7 @@ public class SpargelTranslationTest {
 			final String BC_SET_MESSAGES_NAME = "borat messages";
 			
 			final String BC_SET_UPDATES_NAME = "borat updates";
-			;
+
 			final int NUM_ITERATIONS = 13;
 			
 			final int ITERATION_parallelism = 77;
@@ -68,16 +68,16 @@ public class SpargelTranslationTest {
 			// ------------ construct the test program ------------------
 			{
 				
-				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<String, Double>("abc", 3.44));
+				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<>("abc", 3.44));
 
-				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<String, String>("a", "c"));
+				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<>("a", "c"));
 
 				Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
 						edges.map(new MapFunction<Tuple2<String,String>, Tuple3<String, String, NullValue>>() {
 
 							public Tuple3<String, String, NullValue> map(
 									Tuple2<String, String> edge) {
-								return new Tuple3<String, String, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+								return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
 							}
 						}), env);
 
@@ -101,7 +101,7 @@ public class SpargelTranslationTest {
 			assertTrue(result instanceof DeltaIterationResultSet);
 			
 			DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
-			DeltaIteration<?, ?> iteration = (DeltaIteration<?, ?>) resultSet.getIterationHead();
+			DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
 			
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
@@ -139,7 +139,7 @@ public class SpargelTranslationTest {
 			final String BC_SET_MESSAGES_NAME = "borat messages";
 			
 			final String BC_SET_UPDATES_NAME = "borat updates";
-			;
+
 			final int NUM_ITERATIONS = 13;
 			
 			final int ITERATION_parallelism = 77;
@@ -154,16 +154,16 @@ public class SpargelTranslationTest {
 			// ------------ construct the test program ------------------
 			{
 
-				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<String, Double>("abc", 3.44));
+				DataSet<Tuple2<String, Double>> initialVertices = env.fromElements(new Tuple2<>("abc", 3.44));
 
-				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<String, String>("a", "c"));
+				DataSet<Tuple2<String, String>> edges = env.fromElements(new Tuple2<>("a", "c"));
 
 				Graph<String, Double, NullValue> graph = Graph.fromTupleDataSet(initialVertices,
 						edges.map(new MapFunction<Tuple2<String,String>, Tuple3<String, String, NullValue>>() {
 
 							public Tuple3<String, String, NullValue> map(
 									Tuple2<String, String> edge) {
-								return new Tuple3<String, String, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+								return new Tuple3<>(edge.f0, edge.f1, NullValue.getInstance());
 							}
 						}), env);
 
@@ -187,7 +187,7 @@ public class SpargelTranslationTest {
 			assertTrue(result instanceof DeltaIterationResultSet);
 			
 			DeltaIterationResultSet<?, ?> resultSet = (DeltaIterationResultSet<?, ?>) result;
-			DeltaIteration<?, ?> iteration = (DeltaIteration<?, ?>) resultSet.getIterationHead();
+			DeltaIteration<?, ?> iteration = resultSet.getIterationHead();
 			
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());

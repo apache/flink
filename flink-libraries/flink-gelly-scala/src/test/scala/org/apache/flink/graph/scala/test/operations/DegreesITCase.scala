@@ -22,10 +22,10 @@ import org.apache.flink.api.scala._
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.rules.TemporaryFolder
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+
 import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
@@ -36,33 +36,33 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testInDegrees {
+  def testInDegrees() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.inDegrees.collect().toList
+    val res = graph.inDegrees().collect().toList
     expectedResult = "(1,1)\n" + "(2,1)\n" + "(3,2)\n" + "(4,1)\n" + "(5,2)\n"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testOutDegrees {
+  def testOutDegrees() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.outDegrees.collect().toList
+    val res = graph.outDegrees().collect().toList
     expectedResult = "(1,2)\n" + "(2,1)\n" + "(3,2)\n" + "(4,1)\n" + "(5,1)\n"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testGetDegrees {
+  def testGetDegrees() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.getDegrees.collect().toList
+    val res = graph.getDegrees().collect().toList
     expectedResult = "(1,3)\n" + "(2,2)\n" + "(3,4)\n" + "(4,2)\n" + "(5,3)\n"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }

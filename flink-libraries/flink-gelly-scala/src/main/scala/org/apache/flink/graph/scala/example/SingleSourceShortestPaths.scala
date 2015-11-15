@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.scala.example;
+package org.apache.flink.graph.scala.example
 
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.scala._
-import org.apache.flink.types.NullValue
 import org.apache.flink.graph.Edge
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.graph.spargel.VertexUpdateFunction
@@ -95,7 +94,7 @@ object SingleSourceShortestPaths {
     override def updateVertex(vertex: Vertex[Long, Double], inMessages: MessageIterator[Double]) {
       var minDistance = Double.MaxValue
       while (inMessages.hasNext) {
-        var msg = inMessages.next
+        val msg = inMessages.next
         if (msg < minDistance) {
           minDistance = msg
         }
@@ -115,7 +114,7 @@ object SingleSourceShortestPaths {
 
     override def sendMessages(vertex: Vertex[Long, Double]) {
       for (edge: Edge[Long, Double] <- getEdges) {
-        sendMessageTo(edge.getTarget(), vertex.getValue + edge.getValue)
+        sendMessageTo(edge.getTarget, vertex.getValue + edge.getValue)
       }
     }
   }
@@ -135,20 +134,19 @@ object SingleSourceShortestPaths {
       if(args.length != 4) {
         System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
           " <input edges path> <output path> <num iterations>")
-        false
       }
       fileOutput = true
       srcVertexId = args(0).toLong
       edgesInputPath = args(1)
       outputPath = args(2)
-      maxIterations = (3).toInt
+      maxIterations = 3
     } else {
       System.out.println("Executing Single Source Shortest Paths example "
         + "with default parameters and built-in default data.")
       System.out.println("  Provide parameters to read input data from files.")
       System.out.println("  See the documentation for the correct format of input files.")
       System.out.println("Usage: SingleSourceShortestPaths <source vertex id>" +
-        " <input edges path> <output path> <num iterations>");
+        " <input edges path> <output path> <num iterations>")
     }
     true
   }

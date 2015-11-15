@@ -23,10 +23,9 @@ import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph.{Edge, Vertex}
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+import org.junit.Test
 import _root_.scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
@@ -37,11 +36,11 @@ MultipleProgramsTestBase(mode) {
     
   @Test
   @throws(classOf[Exception])
-  def testUndirected {
+  def testUndirected() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.getUndirected.getEdges.collect().toList;
+    val res = graph.getUndirected().getEdges.collect().toList
 
     expectedResult = "1,2,12\n" + "2,1,12\n" + "1,3,13\n" + "3,1,13\n" + "2,3,23\n" + "3,2," +
       "23\n" + "3,4,34\n" + "4,3,34\n" + "3,5,35\n" + "5,3,35\n" + "4,5,45\n" + "5,4,45\n" +
@@ -51,11 +50,11 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testReverse {
+  def testReverse() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.reverse().getEdges.collect().toList;
+    val res = graph.reverse().getEdges.collect().toList
 
     expectedResult = "2,1,12\n" + "3,1,13\n" + "3,2,23\n" + "4,3,34\n" + "5,3,35\n" + "5,4," +
       "45\n" + "1,5,51\n"
@@ -64,22 +63,22 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testSubGraph {
+  def testSubGraph() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val res = graph.subgraph(new FilterFunction[Vertex[Long, Long]] {
       @throws(classOf[Exception])
       def filter(vertex: Vertex[Long, Long]): Boolean = {
-        return (vertex.getValue > 2)
+        vertex.getValue > 2
       }
     }, new FilterFunction[Edge[Long, Long]] {
 
       @throws(classOf[Exception])
       override def filter(edge: Edge[Long, Long]): Boolean = {
-        return (edge.getValue > 34)
+        edge.getValue > 34
       }
-    }).getEdges.collect().toList;
+    }).getEdges.collect().toList
 
     expectedResult = "3,5,35\n" + "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -87,14 +86,14 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testSubGraphSugar {
+  def testSubGraphSugar() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val res = graph.subgraph(
       vertex => vertex.getValue > 2,
       edge => edge.getValue > 34
-    ).getEdges.collect().toList;
+    ).getEdges.collect().toList
 
     expectedResult = "3,5,35\n" + "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -102,7 +101,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testFilterOnVertices {
+  def testFilterOnVertices() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -111,7 +110,7 @@ MultipleProgramsTestBase(mode) {
       def filter(vertex: Vertex[Long, Long]): Boolean = {
         vertex.getValue > 2
       }
-    }).getEdges.collect().toList;
+    }).getEdges.collect().toList
 
     expectedResult = "3,4,34\n" + "3,5,35\n" + "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -119,13 +118,13 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testFilterOnVerticesSugar {
+  def testFilterOnVerticesSugar() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val res = graph.filterOnVertices(
       vertex => vertex.getValue > 2
-    ).getEdges.collect().toList;
+    ).getEdges.collect().toList
 
     expectedResult = "3,4,34\n" + "3,5,35\n" + "4,5,45\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -133,7 +132,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testFilterOnEdges {
+  def testFilterOnEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -142,7 +141,7 @@ MultipleProgramsTestBase(mode) {
       def filter(edge: Edge[Long, Long]): Boolean = {
         edge.getValue > 34
       }
-    }).getEdges.collect().toList;
+    }).getEdges.collect().toList
 
     expectedResult = "3,5,35\n" + "4,5,45\n" + "5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -150,13 +149,13 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testFilterOnEdgesSugar {
+  def testFilterOnEdgesSugar() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
     val res = graph.filterOnEdges(
       edge => edge.getValue > 34
-    ).getEdges.collect().toList;
+    ).getEdges.collect().toList
 
     expectedResult = "3,5,35\n" + "4,5,45\n" + "5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)
@@ -164,44 +163,44 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testNumberOfVertices {
+  def testNumberOfVertices() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = env.fromElements(graph.numberOfVertices).collect().toList
+    val res = env.fromElements(graph.numberOfVertices()).collect().toList
     expectedResult = "5"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testNumberOfEdges {
+  def testNumberOfEdges() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = env.fromElements(graph.numberOfEdges).collect().toList
+    val res = env.fromElements(graph.numberOfEdges()).collect().toList
     expectedResult = "7"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testVertexIds {
+  def testVertexIds() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.getVertexIds.collect().toList
+    val res = graph.getVertexIds().collect().toList
     expectedResult = "1\n2\n3\n4\n5\n"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testEdgesIds {
+  def testEdgesIds() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.getEdgeIds.collect().toList
+    val res = graph.getEdgeIds().collect().toList
     expectedResult = "(1,2)\n" + "(1,3)\n" + "(2,3)\n" + "(3,4)\n" + "(3,5)\n" + "(4,5)\n" +
       "(5,1)\n"
     TestBaseUtils.compareResultAsText(res.asJava, expectedResult)
@@ -209,7 +208,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testUnion {
+  def testUnion() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -229,7 +228,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testDifference {
+  def testDifference() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -250,7 +249,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testDifferenceNoCommonVertices {
+  def testDifferenceNoCommonVertices() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
@@ -270,11 +269,11 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testTriplets {
+  def testTriplets() {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
       .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
-    val res = graph.getTriplets.collect().toList
+    val res = graph.getTriplets().collect().toList
     expectedResult = "1,2,1,2,12\n" + "1,3,1,3,13\n" + "2,3,2,3,23\n" + "3,4,3,4,34\n" +
       "3,5,3,5,35\n" + "4,5,4,5,45\n" + "5,1,5,1,51\n"
     TestBaseUtils.compareResultAsTuples(res.asJava, expectedResult)

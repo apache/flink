@@ -61,14 +61,14 @@ public class SpargelCompilerTest extends CompilerTestBase {
 			{
 
 				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
-						new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L))
+						new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
 						.map(new Tuple2ToVertexMap<Long, Long>());
 
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<Long, Long>(1L, 2L))
+				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 					.map(new MapFunction<Tuple2<Long,Long>, Edge<Long, NullValue>>() {
 
 						public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
-							return new Edge<Long, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+							return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
 						}
 				});
 
@@ -143,14 +143,14 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				DataSet<Long> bcVar = env.fromElements(1L);
 
 				DataSet<Vertex<Long, Long>> initialVertices = env.fromElements(
-						new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L))
+						new Tuple2<>(1L, 1L), new Tuple2<>(2L, 2L))
 						.map(new Tuple2ToVertexMap<Long, Long>());
 
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<Long, Long>(1L, 2L))
+				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
 						.map(new MapFunction<Tuple2<Long,Long>, Edge<Long, NullValue>>() {
 
 							public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
-								return new Edge<Long, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
+								return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
 							}
 					});
 

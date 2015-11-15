@@ -184,7 +184,7 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class ProjectIdWithTrue implements MapFunction<Vertex<Long, Long>, Tuple2<Long, Boolean>> {
         public Tuple2<Long, Boolean> map(Vertex<Long, Long> vertex) throws Exception {
-            return new Tuple2<Long, Boolean>(vertex.getId(), true);
+            return new Tuple2<>(vertex.getId(), true);
         }
     }
 

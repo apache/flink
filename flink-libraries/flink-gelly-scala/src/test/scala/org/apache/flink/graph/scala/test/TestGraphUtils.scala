@@ -24,11 +24,11 @@ import org.apache.flink.graph.{Edge, Vertex}
 object TestGraphUtils {
 
     def getLongLongVertexData(env: ExecutionEnvironment): DataSet[Vertex[Long, Long]] = {
-        return env.fromCollection(getLongLongVertices)
+        env.fromCollection(getLongLongVertices)
     }
 
     def getLongLongEdgeData(env: ExecutionEnvironment): DataSet[Edge[Long, Long]] = {
-        return env.fromCollection(getLongLongEdges)
+        env.fromCollection(getLongLongEdges)
     }
 
     def getLongLongVertices: List[Vertex[Long, Long]] = {

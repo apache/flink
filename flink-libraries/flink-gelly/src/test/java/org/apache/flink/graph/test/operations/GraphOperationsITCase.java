@@ -259,11 +259,11 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+		List<Edge<Long, Long>> edges = new ArrayList<>();
 
-		vertices.add(new Vertex<Long, Long>(6L, 6L));
-		edges.add(new Edge<Long, Long>(6L, 1L, 61L));
+		vertices.add(new Vertex<>(6L, 6L));
+		edges.add(new Edge<>(6L, 1L, 61L));
 
 		graph = graph.union(Graph.fromCollection(vertices, edges, env));
 
@@ -336,7 +336,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Vertex<Long, Long>> vertex = env.fromElements(new Vertex<Long, Long>(6L, 6L));
+		DataSet<Vertex<Long, Long>> vertex = env.fromElements(new Vertex<>(6L, 6L));
 
 		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(vertex,TestGraphUtils.getLongLongEdgeDataDifference2(env),env);
 
