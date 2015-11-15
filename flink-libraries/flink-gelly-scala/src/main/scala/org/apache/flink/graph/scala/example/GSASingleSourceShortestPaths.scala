@@ -16,20 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.scala.example;
+package org.apache.flink.graph.scala.example
 
-import org.apache.flink.api.scala._
-import org.apache.flink.graph.scala._
-import org.apache.flink.types.NullValue
-import org.apache.flink.graph.Edge
 import org.apache.flink.api.common.functions.MapFunction
-import scala.collection.JavaConversions._
-import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
+import org.apache.flink.api.scala._
+import org.apache.flink.graph.Edge
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData
-import org.apache.flink.graph.gsa.GatherFunction
-import org.apache.flink.graph.gsa.Neighbor
-import org.apache.flink.graph.gsa.SumFunction
-import org.apache.flink.graph.gsa.ApplyFunction
+import org.apache.flink.graph.gsa.{ApplyFunction, GatherFunction, Neighbor, SumFunction}
+import org.apache.flink.graph.scala._
+import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
 
 /**
  * This example shows how to use Gelly's gather-sum-apply iterations.
@@ -121,20 +116,19 @@ object GSASingleSourceShortestPaths {
       if(args.length != 4) {
         System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
           " <input edges path> <output path> <num iterations>")
-        false
       }
       fileOutput = true
       srcVertexId = args(0).toLong
       edgesInputPath = args(1)
       outputPath = args(2)
-      maxIterations = (3).toInt
+      maxIterations = 3
     } else {
       System.out.println("Executing Single Source Shortest Paths example "
         + "with default parameters and built-in default data.")
       System.out.println("  Provide parameters to read input data from files.")
       System.out.println("  See the documentation for the correct format of input files.")
       System.out.println("Usage: SingleSourceShortestPaths <source vertex id>" +
-        " <input edges path> <output path> <num iterations>");
+        " <input edges path> <output path> <num iterations>")
     }
     true
   }

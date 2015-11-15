@@ -131,9 +131,9 @@ public class ReduceOnEdgesWithExceptionITCase {
 			for(Edge<Long, Long> edge : edges) {
 				if(v.getValue() > 4) {
 					if(v.getId().equals(edge.getTarget())) {
-						out.collect(new Tuple2<Long, Long>(v.getId(), edge.getSource()));
+						out.collect(new Tuple2<>(v.getId(), edge.getSource()));
 					} else {
-						out.collect(new Tuple2<Long, Long>(v.getId(), edge.getTarget()));
+						out.collect(new Tuple2<>(v.getId(), edge.getTarget()));
 					}
 				}
 			}

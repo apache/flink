@@ -18,18 +18,17 @@
 
 package org.apache.flink.graph.scala.test.operations
 
-import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
+import org.apache.flink.graph.VertexJoinFunction
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph.scala.utils.VertexToTuple2Map
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.rules.TemporaryFolder
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+
 import _root_.scala.collection.JavaConverters._
-import org.apache.flink.graph.VertexJoinFunction
 
 @RunWith(classOf[Parameterized])
 class JoinWithVerticesITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends

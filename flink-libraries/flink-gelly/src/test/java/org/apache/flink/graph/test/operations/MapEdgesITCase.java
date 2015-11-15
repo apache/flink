@@ -181,7 +181,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class ToTuple1Mapper implements MapFunction<Edge<Long, Long>, Tuple1<Long>> {
 		public Tuple1<Long> map(Edge<Long, Long> edge) throws Exception {
-			Tuple1<Long> tupleValue = new Tuple1<Long>();
+			Tuple1<Long> tupleValue = new Tuple1<>();
 			tupleValue.setFields(edge.getValue());
 			return tupleValue;
 		}
@@ -201,7 +201,7 @@ public class MapEdgesITCase extends MultipleProgramsTestBase {
 		DummyCustomParameterizedType<Double>> {
 
 		public DummyCustomParameterizedType<Double> map(Edge<Long, Long> edge) throws Exception {
-			DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();
+			DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<>();
 			dummyValue.setIntField(edge.getValue().intValue());
 			dummyValue.setTField(new Double(edge.getValue()));						
 			return dummyValue;

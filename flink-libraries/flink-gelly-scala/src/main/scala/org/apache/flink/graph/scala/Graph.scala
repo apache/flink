@@ -170,7 +170,7 @@ object Graph {
   /**
   * Creates a Graph with from a CSV file of vertices and a CSV file of edges
   * 
-  * @param The Execution Environment.
+  * @param env Execution Environment.
   * @param pathEdges The file path containing the edges.
   * @param readVertices Defines whether the vertices have associated values.
   * If set to false, the vertex input is ignored and vertices are created from the edges file.
@@ -868,7 +868,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   * Adds the list of vertices, passed as input, to the graph.
   * If the vertices already exist in the graph, they will not be added once more.
   *
-  * @param verticesToAdd the list of vertices to add
+  * @param vertices the list of vertices to add
   * @return the new graph containing the existing and newly added vertices
   */
   def addVertices(vertices: List[Vertex[K, VV]]): Graph[K, VV, EV] = {
@@ -881,7 +881,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   * When adding an edge for a non-existing set of vertices,
   * the edge is considered invalid and ignored.
   *
-  * @param newEdges the data set of edges to be added
+  * @param edges the data set of edges to be added
   * @return a new graph containing the existing edges plus the newly added edges.
   */
   def addEdges(edges: List[Edge[K, EV]]): Graph[K, VV, EV] = {
@@ -916,7 +916,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     /**
    * Removes the given vertex and its edges from the graph.
    *
-   * @param vertex the vertex to remove
+   * @param vertices list of vertices to remove
    * @return the new graph containing the existing vertices and edges without
    *         the removed vertex and its edges
    */
@@ -938,7 +938,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   /**
    * Removes all the edges that match the edges in the given data set from the graph.
    *
-   * @param edgesToBeRemoved the list of edges to be removed
+   * @param edges the list of edges to be removed
    * @return a new graph where the edges have been removed and in which the vertices remained intact
    */
   def removeEdges(edges: List[Edge[K, EV]]): Graph[K, VV, EV] = {
@@ -1016,7 +1016,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * The {@link ReduceNeighborsFunction} combines a pair of neighbor vertex values
    * into one new value of the same type.
    * 
-   * @param reduceNeighborsFunction the reduce function to apply to the neighbors of each vertex.
+   * @param reduceEdgesFunction the reduce function to apply to the edges of each vertex.
    * @param direction the edge direction (in-, out-, all-)
    * @return a Dataset of Tuple2, with one tuple per vertex.
    * The first field of the Tuple2 is the vertex ID and the second field

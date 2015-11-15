@@ -18,25 +18,20 @@
 
 package org.apache.flink.graph.scala.test.operations
 
+import java.io.{File, FileOutputStream, IOException, OutputStreamWriter}
+
+import com.google.common.base.Charsets
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
+import org.apache.flink.core.fs.{FileInputSplit, Path}
 import org.apache.flink.graph.scala._
-import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.rules.TemporaryFolder
+import org.apache.flink.types.NullValue
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{After, Before, Rule, Test}
+
 import _root_.scala.collection.JavaConverters._
-import java.io.IOException
-import org.apache.flink.core.fs.FileInputSplit
-import java.io.File
-import java.io.OutputStreamWriter
-import java.io.FileOutputStream
-import java.io.FileOutputStream
-import com.google.common.base.Charsets
-import org.apache.flink.core.fs.Path
-import org.apache.flink.types.NullValue
-import org.apache.flink.api.common.functions.MapFunction
 
 @RunWith(classOf[Parameterized])
 class GraphCreationWithCsvITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
@@ -46,7 +41,7 @@ MultipleProgramsTestBase(mode) {
 
   @Test
   @throws(classOf[Exception])
-  def testCsvWithValues {
+  def testCsvWithValues() {
     /*
      * Test with two Csv files, both vertices and edges have values
      */
@@ -61,14 +56,14 @@ MultipleProgramsTestBase(mode) {
         pathEdges = edgesSplit.getPath.toString,
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,1,2,ot\n3,2,3,2,tt\n3,1,3,1,to\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testCsvNoEdgeValues {
+  def testCsvNoEdgeValues() {
     /*
      * Test with two Csv files; edges have no values
      */
@@ -84,14 +79,14 @@ MultipleProgramsTestBase(mode) {
         hasEdgeValues = false,
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,one,two,(null)\n3,2,three,two,(null)\n3,1,three,one,(null)\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testCsvWithMapperValues {
+  def testCsvWithMapperValues() {
     /*
      * Test with edges Csv file and vertex mapper initializer
      */
@@ -104,14 +99,14 @@ MultipleProgramsTestBase(mode) {
         vertexValueInitializer = new VertexDoubleIdAssigner(),
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,1.0,2.0,12\n3,2,3.0,2.0,32\n3,1,3.0,1.0,31\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testCsvNoVertexValues {
+  def testCsvNoVertexValues() {
     /*
      * Test with edges Csv file: no vertex values
      */
@@ -123,15 +118,15 @@ MultipleProgramsTestBase(mode) {
         pathEdges = edgesSplit.getPath.toString,
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,(null),(null),12\n3,2,(null),(null),32\n" +
       "3,1,(null),(null),31\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testCsvNoValues {
+  def testCsvNoValues() {
     /*
      * Test with edges Csv file: neither vertex nor edge values
      */
@@ -144,15 +139,15 @@ MultipleProgramsTestBase(mode) {
         hasEdgeValues = false,
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,(null),(null),(null)\n" +
       "3,2,(null),(null),(null)\n3,1,(null),(null),(null)\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testCsvOptionsVertices {
+  def testCsvOptionsVertices() {
     /*
      * Test the options for vertices: delimiters, comments, ignore first line.
      */
@@ -172,14 +167,14 @@ MultipleProgramsTestBase(mode) {
         pathEdges = edgesSplit.getPath.toString,
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,1,2,ot\n3,2,3,2,tt\n3,1,3,1,to\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @Test
   @throws(classOf[Exception])
-  def testCsvOptionsEdges {
+  def testCsvOptionsEdges() {
     /*
      * Test the options for edges: delimiters, comments, ignore first line.
      */
@@ -199,9 +194,9 @@ MultipleProgramsTestBase(mode) {
         pathEdges = edgesSplit.getPath.toString,
         env = env)
     
-    val result = graph.getTriplets.collect()
+    val result = graph.getTriplets().collect()
     expectedResult = "1,2,1,2,ot\n3,2,3,2,tt\n3,1,3,1,to\n"
-    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult);
+    TestBaseUtils.compareResultAsTuples(result.asJava, expectedResult)
   }
 
   @throws(classOf[IOException])
@@ -214,7 +209,7 @@ MultipleProgramsTestBase(mode) {
     wrt.close()
 
     new FileInputSplit(0, new Path(tempFile.toURI.toString), 0, tempFile.length,
-        Array("localhost"));
+        Array("localhost"))
     }
 
     final class VertexDoubleIdAssigner extends MapFunction[Long, Double] {

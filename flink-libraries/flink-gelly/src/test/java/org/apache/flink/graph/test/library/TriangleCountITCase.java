@@ -34,8 +34,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class TriangleCountITCase extends MultipleProgramsTestBase {
 
-	private String expectedResult;
-
 	public TriangleCountITCase(TestExecutionMode mode) {
 		super(mode);
 	}
@@ -49,7 +47,7 @@ public class TriangleCountITCase extends MultipleProgramsTestBase {
 				env).getUndirected();
 
 		List<Integer> numberOfTriangles = graph.run(new GSATriangleCount<Long, NullValue, NullValue>()).collect();
-		expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
+		String expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
 
 		Assert.assertEquals(numberOfTriangles.get(0).intValue(), Integer.parseInt(expectedResult));
 	}

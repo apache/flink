@@ -138,7 +138,7 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class AssignTuple2ValueMapper implements MapFunction<Long, Tuple2<Long, Long>> {
 		public Tuple2<Long, Long> map(Long vertexId) {
-			return new Tuple2<Long, Long>(vertexId*2, 42l);
+			return new Tuple2<>(vertexId*2, 42L);
 		}
 	}
 

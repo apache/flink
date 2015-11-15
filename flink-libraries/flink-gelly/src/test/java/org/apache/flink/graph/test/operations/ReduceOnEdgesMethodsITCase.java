@@ -19,6 +19,7 @@
 package org.apache.flink.graph.test.operations;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -414,7 +415,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					minNeighborId = edge.getTarget();
 				}
 			}
-			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighborId));
+			out.collect(new Tuple2<>(v.getId(), minNeighborId));
 		}
 	}
 
@@ -432,7 +433,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					weight = edge.getValue();
 				}
 			}
-			out.collect(new Tuple2<Long, Long>(v.getId(), weight));
+			out.collect(new Tuple2<>(v.getId(), weight));
 		}
 	}
 
@@ -470,7 +471,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					minNeighborId = edge.getSource();
 				}
 			}
-			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighborId));
+			out.collect(new Tuple2<>(v.getId(), minNeighborId));
 		}
 	}
 
@@ -482,7 +483,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 								 Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
-				out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+				out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
 			}
 		}
 	}
@@ -496,7 +497,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if(edge.f0 != 5) {
-					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+					out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
 				}
 			}
 		}
@@ -511,7 +512,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 								 Collector<Tuple2<Long, Long>> out) throws Exception {
 			for (Edge<Long, Long> edge: edges) {
 				if(v.getValue() > 2) {
-					out.collect(new Tuple2<Long, Long>(v.getId(), edge.getTarget()));
+					out.collect(new Tuple2<>(v.getId(), edge.getTarget()));
 				}
 			}
 		}
@@ -525,7 +526,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 								 Collector<Tuple2<Long, Long>> out) throws Exception {
 
 			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
-				out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+				out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 			}
 		}
 	}
@@ -539,7 +540,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if(edge.f0 != 5) {
-					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+					out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 				}
 			}
 		}
@@ -554,7 +555,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 								 Collector<Tuple2<Long, Long>> out) throws Exception {
 			for (Edge<Long, Long> edge: edges) {
 				if(v.getValue() > 2) {
-					out.collect(new Tuple2<Long, Long>(v.getId(), edge.getSource()));
+					out.collect(new Tuple2<>(v.getId(), edge.getSource()));
 				}
 			}
 		}
@@ -567,10 +568,10 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
 								 Collector<Tuple2<Long, Long>> out) throws Exception {
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
-				if (edge.f0 == edge.f1.getTarget()) {
-					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+				if (Objects.equals(edge.f0, edge.f1.getTarget())) {
+					out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 				} else {
-					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+					out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
 				}
 			}
 		}
@@ -584,10 +585,10 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 								 Collector<Tuple2<Long, Long>> out) throws Exception {
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if(edge.f0 != 5 && edge.f0 != 2) {
-					if (edge.f0 == edge.f1.getTarget()) {
-						out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+					if (Objects.equals(edge.f0, edge.f1.getTarget())) {
+						out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 					} else {
-						out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+						out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
 					}
 				}
 			}
@@ -604,9 +605,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 			for(Edge<Long, Long> edge : edges) {
 				if(v.getValue() > 4) {
 					if(v.getId().equals(edge.getTarget())) {
-						out.collect(new Tuple2<Long, Long>(v.getId(), edge.getSource()));
+						out.collect(new Tuple2<>(v.getId(), edge.getSource()));
 					} else {
-						out.collect(new Tuple2<Long, Long>(v.getId(), edge.getTarget()));
+						out.collect(new Tuple2<>(v.getId(), edge.getTarget()));
 					}
 				}
 			}
