@@ -150,25 +150,22 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				try {
 					final Collector<OT> output = this.output;
 
-					if (objectReuseEnabled) {
-						OT reuse = serializer.createInstance();
-
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-
-							OT returned;
-							if ((returned = format.nextRecord(reuse)) != null) {
-								output.collect(returned);
+					OT reuse = null;
+					// as long as there is data to read
+					for(int counter = 0; !this.taskCanceled && !format.reachedEnd(); counter++){
+						// At the first time, always create an instance;
+						if(counter == 0){
+							reuse = serializer.createInstance();
+						}else{
+							// From the second time, recreate instance only when reuse enabled.
+							if(!objectReuseEnabled){
+								reuse = serializer.createInstance();
 							}
 						}
-					} else {
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
 
-							OT returned;
-							if ((returned = format.nextRecord(serializer.createInstance())) != null) {
-								output.collect(returned);
-							}
+						OT returned = format.nextRecord(reuse);
+						if (returned != null) {
+							output.collect(returned);
 						}
 					}
 
@@ -217,6 +214,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			LOG.debug(getLogString("Data source operator cancelled"));
 		}
 	}
+
 
 	@Override
 	public void cancel() throws Exception {
