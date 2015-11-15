@@ -635,14 +635,6 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
-		// log message for detached yarn job
-		if (yarnCluster != null) {
-			logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
-					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-					"yarn application -kill " + yarnCluster.getApplicationId() + "\n" +
-					"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
-		}
-
 		LOG.info("Starting execution of program");
 
 		JobSubmissionResult result;
