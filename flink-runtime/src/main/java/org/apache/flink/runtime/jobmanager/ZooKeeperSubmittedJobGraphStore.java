@@ -345,7 +345,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				case CONNECTION_SUSPENDED:
 					LOG.warn("ZooKeeper connection SUSPENDED. Changes to the submitted job " +
 							"graphs are not monitored (temporarily).");
-
+					break;
 				case CONNECTION_LOST:
 					LOG.warn("ZooKeeper connection LOST. Changes to the submitted job " +
 							"graphs are not monitored (permanently).");
@@ -354,7 +354,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				case CONNECTION_RECONNECTED:
 					LOG.info("ZooKeeper connection RECONNECTED. Changes to the submitted job " +
 							"graphs are monitored again.");
-
+					break;
 				case INITIALIZED:
 					LOG.info("SubmittedJobGraphsPathCacheListener initialized");
 					break;
