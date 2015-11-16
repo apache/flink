@@ -89,7 +89,7 @@ public class MockContext<IN, OUT> {
 		StreamConfig config = new StreamConfig(new Configuration());
 		if (keySelector != null && keyType != null) {
 			config.setStateKeySerializer(keyType.createSerializer(new ExecutionConfig()));
-			config.setStatePartitioner(keySelector);
+			config.setStatePartitioner(0, keySelector);
 		}
 		
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
@@ -104,7 +104,7 @@ public class MockContext<IN, OUT> {
 			for (IN in: inputs) {
 				record = record.replace(in);
 				synchronized (lock) {
-					operator.setKeyContextElement(record);
+					operator.setKeyContextElement1(record);
 					operator.processElement(record);
 				}
 			}

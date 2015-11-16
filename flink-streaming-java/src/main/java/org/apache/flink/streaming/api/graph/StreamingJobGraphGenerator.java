@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,7 +28,6 @@ import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -277,7 +275,8 @@ public class StreamingJobGraphGenerator {
 			// so we use that one if checkpointing is not enabled
 			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
-		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
+		config.setStatePartitioner(0, vertex.getStatePartitioner1());
+		config.setStatePartitioner(1, vertex.getStatePartitioner2());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
 
 		

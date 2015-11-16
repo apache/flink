@@ -105,7 +105,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 
 	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
 		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(keySelector);
+		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 	}
 	
@@ -135,13 +135,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		operator.setKeyContextElement(element);
+		operator.setKeyContextElement1(element);
 		operator.processElement(element);
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
-			operator.setKeyContextElement(element);
+			operator.setKeyContextElement1(element);
 			operator.processElement(element);
 		}
 	}

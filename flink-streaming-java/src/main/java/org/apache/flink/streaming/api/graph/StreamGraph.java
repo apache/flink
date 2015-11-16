@@ -397,9 +397,16 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void setKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
+	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner(keySelector);
+		node.setStatePartitioner1(keySelector);
+		node.setStateKeySerializer(keySerializer);
+	}
+
+	public void setTwoInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector1, KeySelector<?, ?> keySelector2, TypeSerializer<?> keySerializer) {
+		StreamNode node = getStreamNode(vertexID);
+		node.setStatePartitioner1(keySelector1);
+		node.setStatePartitioner2(keySelector2);
 		node.setStateKeySerializer(keySerializer);
 	}
 

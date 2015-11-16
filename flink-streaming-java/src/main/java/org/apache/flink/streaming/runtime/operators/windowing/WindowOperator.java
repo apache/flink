@@ -299,7 +299,7 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 
 		if (context.windowBuffer.size() > 0) {
-			setKeyContextElement(context.windowBuffer.getElements().iterator().next());
+			setKeyContextElement1(context.windowBuffer.getElements().iterator().next());
 
 			userFunction.apply(context.key,
 					context.window,

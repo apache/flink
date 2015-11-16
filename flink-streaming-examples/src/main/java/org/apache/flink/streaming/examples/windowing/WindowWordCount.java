@@ -17,10 +17,16 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateIdentifier;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.examples.wordcount.WordCount;
 
 /**
@@ -63,23 +69,49 @@ public class WindowWordCount {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data
-		DataStream<String> text = getTextDataStream(env);
+		DataStream<String> text1 = env.socketTextStream("localhost", 9999)
+				.keyBy(new KeySelector<String, String>() {
+					@Override
+					public String getKey(String value) throws Exception {
+						return value;
+					}
+				});
+		DataStream<String> text2 = env.socketTextStream("localhost", 9998)
+				.keyBy(new KeySelector<String, String>() {
+					@Override
+					public String getKey(String value) throws Exception {
+						return value;
+					}
+				});
 
-		DataStream<Tuple2<String, Integer>> counts =
-		// split up the lines in pairs (2-tuples) containing: (word,1)
-		text.flatMap(new WordCount.Tokenizer())
-				// create windows of windowSize records slided every slideSize records
-				.keyBy(0)
-				.countWindow(windowSize, slideSize)
-				// group by the tuple field "0" and sum up tuple field "1"
-				.sum(1);
+		text1.connect(text2)
+				.map(new RichCoMapFunction<String, String, String>() {
+					private static final long serialVersionUID = 1L;
 
-		// emit result
-		if (fileOutput) {
-			counts.writeAsText(outputPath);
-		} else {
-			counts.print();
-		}
+					ValueStateIdentifier<Long> stateId = new ValueStateIdentifier<>("count", 0L, LongSerializer.INSTANCE);
+
+					@Override
+					public String map1(String value) throws Exception {
+						ValueState<Long> count = getRuntimeContext().getPartitionedState(stateId);
+
+						count.update(count.value() + 1);
+
+						System.out.println("IN 1, COUNT IS: " + count.value());
+						return value;
+					}
+
+					@Override
+					public String map2(String value) throws Exception {
+						ValueState<Long> count = getRuntimeContext().getPartitionedState(stateId);
+
+						count.update(count.value() + 1);
+
+						System.out.println("IN 2, COUNT IS: " + count.value());
+						return value;
+					}
+				})
+				.print();
+
 
 		// execute program
 		env.execute("WindowWordCount");

@@ -186,6 +186,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 						}
 						else {
 							synchronized (lock) {
+								streamOperator.setKeyContextElement1(recordOrWatermark.<IN1>asRecord());
 								streamOperator.processElement1(recordOrWatermark.<IN1>asRecord());
 							}
 							return true;
@@ -200,6 +201,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 						}
 						else {
 							synchronized (lock) {
+								streamOperator.setKeyContextElement2(recordOrWatermark.<IN2>asRecord());
 								streamOperator.processElement2(recordOrWatermark.<IN2>asRecord());
 							}
 							return true;

@@ -940,7 +940,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	
 	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer) {
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStatePartitioner(partitioner);
+		cfg.setStatePartitioner(0, partitioner);
 		cfg.setStateKeySerializer(keySerializer);
 		return cfg;
 	}

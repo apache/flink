@@ -82,7 +82,8 @@ public abstract class AbstractStreamOperator<OUT>
 	// ---------------- key/value state ------------------
 
 	/** key selector used to get the key for the state. Non-null only is the operator uses key/value state */
-	private transient KeySelector<?, ?> stateKeySelector;
+	private transient KeySelector<?, ?> stateKeySelector1;
+	private transient KeySelector<?, ?> stateKeySelector2;
 
 	/** The state backend that stores the state and checkpoints for this task */
 	private AbstractStateBackend stateBackend = null;
@@ -98,7 +99,8 @@ public abstract class AbstractStreamOperator<OUT>
 		this.output = output;
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
-		stateKeySelector = config.getStatePartitioner(getUserCodeClassloader());
+		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
+		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
 
 		try {
 			TypeSerializer<Object> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
@@ -165,16 +167,12 @@ public abstract class AbstractStreamOperator<OUT>
 		
 		StreamTaskState state = new StreamTaskState();
 
-		if (stateKeySelector != null) {
-			// TODO: this is ugly: from before, there is only on StateBackend per task, while
-			// technically it should be per operator
-			HashMap<String, KvStateSnapshot<?, ?, ?, ?>> partitionedSnapshots =
-					getStateBackend().snapshotPartitionedState(checkpointId, timestamp);
-			if (partitionedSnapshots != null) {
-				state.setKvStates(partitionedSnapshots);
-			}
-
+		HashMap<String, KvStateSnapshot<?, ?, ?, ?>> partitionedSnapshots =
+				stateBackend.snapshotPartitionedState(checkpointId, timestamp);
+		if (partitionedSnapshots != null) {
+			state.setKvStates(partitionedSnapshots);
 		}
+
 
 		return state;
 	}
@@ -258,16 +256,25 @@ public abstract class AbstractStreamOperator<OUT>
 	
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void setKeyContextElement(StreamRecord record) throws Exception {
-		if (stateKeySelector != null) {
-			Object key = ((KeySelector) stateKeySelector).getKey(record.getValue());
+	public void setKeyContextElement1(StreamRecord record) throws Exception {
+		if (stateKeySelector1 != null) {
+			Object key = ((KeySelector) stateKeySelector1).getKey(record.getValue());
+			getStateBackend().setCurrentKey(key);
+		}
+	}
+
+	@Override
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public void setKeyContextElement2(StreamRecord record) throws Exception {
+		if (stateKeySelector2 != null) {
+			Object key = ((KeySelector) stateKeySelector2).getKey(record.getValue());
 			getStateBackend().setCurrentKey(key);
 		}
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContext(Object key) {
-		if (stateKeySelector != null) {
+		if (stateKeySelector1 != null) {
 			stateBackend.setCurrentKey(key);
 		}
 	}

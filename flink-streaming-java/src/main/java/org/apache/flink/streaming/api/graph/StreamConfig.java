@@ -386,17 +386,17 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public void setStatePartitioner(KeySelector<?, ?> partitioner) {
+	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
 		try {
-			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER);
+			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER + input);
 		} catch (IOException e) {
 			throw new StreamTaskException("Could not serialize state partitioner.", e);
 		}
 	}
 	
-	public KeySelector<?, Serializable> getStatePartitioner(ClassLoader cl) {
+	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER, cl);
+			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate state partitioner.", e);
 		}

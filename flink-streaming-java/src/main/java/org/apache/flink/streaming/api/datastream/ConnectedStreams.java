@@ -321,6 +321,21 @@ public class ConnectedStreams<IN1, IN2> {
 				outTypeInfo,
 				environment.getParallelism());
 
+		if (inputStream1 instanceof KeyedStream && inputStream2 instanceof KeyedStream) {
+			KeyedStream<IN1, ?> keyedInput1 = (KeyedStream<IN1, ?>) inputStream1;
+			KeyedStream<IN2, ?> keyedInput2 = (KeyedStream<IN2, ?>) inputStream2;
+
+			TypeInformation<?> keyType1 = keyedInput1.getKeyType();
+			TypeInformation<?> keyType2 = keyedInput2.getKeyType();
+			if (!(keyType1.canEqual(keyType2) && keyType1.equals(keyType2))) {
+				throw new UnsupportedOperationException("Key types if input KeyedStreams " +
+						"don't match: " + keyType1 + " and " + keyType2 + ".");
+			}
+
+			transform.setStateKeySelectors(keyedInput1.getKeySelector(), keyedInput2.getKeySelector());
+			transform.setStateKeyType(keyType1);
+		}
+
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(environment, transform);
 
