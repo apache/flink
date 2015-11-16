@@ -28,7 +28,6 @@ import org.apache.flink.api.java.functions.SampleInPartition;
 import org.apache.flink.api.java.functions.SampleWithFraction;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
-import org.apache.flink.api.java.sampling.IntermediateSampleData;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
@@ -59,7 +58,7 @@ public final class DataSetUtils {
 					counter++;
 				}
 
-				out.collect(new Tuple2<Integer, Long>(getRuntimeContext().getIndexOfThisSubtask(), counter));
+				out.collect(new Tuple2<>(getRuntimeContext().getIndexOfThisSubtask(), counter));
 			}
 		});
 	}
@@ -109,7 +108,7 @@ public final class DataSetUtils {
 			@Override
 			public void mapPartition(Iterable<T> values, Collector<Tuple2<Long, T>> out) throws Exception {
 				for (T value: values) {
-					out.collect(new Tuple2<Long, T>(start++, value));
+					out.collect(new Tuple2<>(start++, value));
 				}
 			}
 		}).withBroadcastSet(elementCount, "counts");
@@ -151,7 +150,7 @@ public final class DataSetUtils {
 					label = (start << shifter) + taskId;
 
 					if (getBitSize(start) + shifter < maxBitSize) {
-						out.collect(new Tuple2<Long, T>(label, value));
+						out.collect(new Tuple2<>(label, value));
 						start++;
 					} else {
 						throw new Exception("Exceeded Long value range while generating labels");
@@ -209,15 +208,15 @@ public final class DataSetUtils {
 	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
-	 * @param numSample       The expected sample size.
+	 * @param numSamples       The expected sample size.
 	 * @return The sampled DataSet
 	 */
 	public static <T> DataSet<T> sampleWithSize(
 		DataSet <T> input,
 		final boolean withReplacement,
-		final int numSample) {
+		final int numSamples) {
 
-		return sampleWithSize(input, withReplacement, numSample, Utils.RNG.nextLong());
+		return sampleWithSize(input, withReplacement, numSamples, Utils.RNG.nextLong());
 	}
 
 	/**
@@ -228,24 +227,23 @@ public final class DataSetUtils {
 	 * </p>
 	 *
 	 * @param withReplacement Whether element can be selected more than once.
-	 * @param numSample       The expected sample size.
+	 * @param numSamples       The expected sample size.
 	 * @param seed            Random number generator seed.
 	 * @return The sampled DataSet
 	 */
 	public static <T> DataSet<T> sampleWithSize(
 		DataSet <T> input,
 		final boolean withReplacement,
-		final int numSample,
+		final int numSamples,
 		final long seed) {
 
-		SampleInPartition sampleInPartition = new SampleInPartition<T>(withReplacement, numSample, seed);
+		SampleInPartition<T> sampleInPartition = new SampleInPartition<>(withReplacement, numSamples, seed);
 		MapPartitionOperator mapPartitionOperator = input.mapPartition(sampleInPartition);
 
 		// There is no previous group, so the parallelism of GroupReduceOperator is always 1.
 		String callLocation = Utils.getCallLocationName();
-		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<T>(withReplacement, numSample, seed);
-		return new GroupReduceOperator<IntermediateSampleData<T>, T>(mapPartitionOperator,
-			input.getType(), sampleInCoordinator, callLocation);
+		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<>(withReplacement, numSamples, seed);
+		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
 	}
 
 

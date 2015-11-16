@@ -92,16 +92,16 @@ package object utils {
      * <p/>
      *
      * @param withReplacement Whether element can be selected more than once.
-     * @param numSample       The expected sample size.
+     * @param numSamples       The expected sample size.
      * @param seed            Random number generator seed.
      * @return The sampled DataSet
      */
     def sampleWithSize(
         withReplacement: Boolean,
-        numSample: Int,
+        numSamples: Int,
         seed: Long = Utils.RNG.nextLong())
       : DataSet[T] = {
-      wrap(jutils.sampleWithSize(self.javaSet, withReplacement, numSample, seed))
+      wrap(jutils.sampleWithSize(self.javaSet, withReplacement, numSamples, seed))
     }
   }
 
