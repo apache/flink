@@ -80,7 +80,7 @@ import scala.language.postfixOps
  *
  *  - [[SubmitJob]] is sent by a client which wants to submit a job to the system. The submit
  *  message contains the job description in the form of the JobGraph. The JobGraph is appended to
- *  the ExecutionGraph and the corresponding JobExecutionVertices are scheduled for execution on
+ *  the ExecutionGraph and the corresponding ExecutionJobVertices are scheduled for execution on
  *  the TaskManagers.
  *
  *  - [[CancelJob]] requests to cancel the job with the specified jobID. A successful cancellation
