@@ -28,7 +28,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -45,7 +45,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
       "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
       "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -55,7 +55,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b).toDataSet[Row]
     val expected = "no"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -65,7 +65,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd).toDataSet[Row]
     val expected = "no"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -75,7 +75,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b).toDataSet[Row]
     val expected = "no"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -86,7 +86,7 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a + 1, 'b, 'b).toDataSet[Row]
     val expected = "no"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -97,6 +97,6 @@ class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a as 'foo, 'b, 'b).toDataSet[Row]
     val expected = "no"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

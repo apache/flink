@@ -28,7 +28,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -41,7 +41,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg).toDataSet[Row]
     val results = ds.collect()
     val expected = "231,1,21,21,11"
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -52,7 +52,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .select('foo.avg).toDataSet[Row]
     val expected = ""
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -66,7 +66,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .toDataSet[Row]
     val expected = "1,1,1,1,1.5,1.5,2"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -77,7 +77,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .select(('_1 + 2).avg + 2, '_2.count + " THE COUNT").toDataSet[Row]
     val expected = "5.5,2 THE COUNT"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -88,7 +88,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .select('_1.sum).toDataSet[Row]
     val expected = ""
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -99,7 +99,7 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .select('_2.sum.sum).toDataSet[Row]
     val expected = ""
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 

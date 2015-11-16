@@ -28,7 +28,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -42,7 +42,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
       .select('a.avg).toDataSet[Row]
     val expected = ""
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -57,7 +57,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
       .select('b, 'a.sum).toDataSet[Row]
     val expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -72,7 +72,7 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
       .select('a.sum).toDataSet[Row]
     val expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -92,6 +92,6 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
         """.stripMargin).toDataSet[Row]
     val expected = "231,231,1,1,21,21,11,11,21,21"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

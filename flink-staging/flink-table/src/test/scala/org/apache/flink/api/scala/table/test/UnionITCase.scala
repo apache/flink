@@ -28,7 +28,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -43,7 +43,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -56,7 +56,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = joinDs.toDataSet[Row].collect()
     val expected = "Hi\n" + "Hallo\n"
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -69,7 +69,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = ""
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -82,7 +82,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = ""
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -95,6 +95,6 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
 
     val results = unionDs.toDataSet[Row].collect()
     val expected = "18"
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

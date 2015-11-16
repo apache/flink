@@ -29,7 +29,7 @@ import org.apache.flink.api.table.Row
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -43,7 +43,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
       .toDataSet[Row]
     val expected = "1b,1s,1i,1L,1.0f,1.0d"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -57,7 +57,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
       .toDataSet[Row]
     val expected = "2,2,2,2.0,2.0,2.0"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -73,7 +73,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
       .toDataSet[Row]
     val expected = "2,2,2,2,2.0,2.0"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -92,7 +92,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     .toDataSet[Row]
     val expected = "1,1,1,1,2.0,2.0,true\n"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 }

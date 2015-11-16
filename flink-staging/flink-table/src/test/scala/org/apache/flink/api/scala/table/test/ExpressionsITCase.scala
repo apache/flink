@@ -27,7 +27,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -40,7 +40,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a).toDataSet[Row]
     val expected = "0,10,2,10,1,-5"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -51,7 +51,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .select('b && true, 'b && false, 'b || false, !'b).toDataSet[Row]
     val expected = "true,false,true,false"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -62,7 +62,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull).toDataSet[Row]
     val expected = "true,true,false,false,true"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -74,7 +74,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a).toDataSet[Row]
     val expected = "1,7,6,-4"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -86,7 +86,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a).toDataSet[Row]
     val expected = "1,7,6,-4"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -98,7 +98,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a).toDataSet[Row] 
     val expected = "1,7,6,-4"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -110,7 +110,7 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .groupBy("a").select("a, a.count As cnt").toDataSet[Row]
     val expected = "3,1"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 }

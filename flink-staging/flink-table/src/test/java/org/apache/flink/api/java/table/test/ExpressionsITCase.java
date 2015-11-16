@@ -48,7 +48,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Integer, Integer>> input =
-				env.fromElements(new Tuple2<Integer, Integer>(5, 10));
+				env.fromElements(new Tuple2<>(5, 10));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -68,7 +68,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Integer, Boolean>> input =
-				env.fromElements(new Tuple2<Integer, Boolean>(5, true));
+				env.fromElements(new Tuple2<>(5, true));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -88,7 +88,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
-				env.fromElements(new Tuple3<Integer, Integer, Integer>(5, 5, 4));
+				env.fromElements(new Tuple3<>(5, 5, 4));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b, c");
@@ -108,7 +108,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Byte, Byte>> input =
-				env.fromElements(new Tuple2<Byte, Byte>((byte) 3, (byte) 5));
+				env.fromElements(new Tuple2<>((byte) 3, (byte) 5));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -128,7 +128,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Integer, Byte>> input =
-				env.fromElements(new Tuple2<Integer, Byte>(3, (byte) 5));
+				env.fromElements(new Tuple2<>(3, (byte) 5));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -148,7 +148,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Float, Byte>> input =
-				env.fromElements(new Tuple2<Float, Byte>(3.0f, (byte) 5));
+				env.fromElements(new Tuple2<>(3.0f, (byte) 5));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");

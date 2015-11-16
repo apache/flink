@@ -47,7 +47,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
-				env.fromElements(new Tuple7<Byte, Short, Integer, Long, Float, Double, String>(
+				env.fromElements(new Tuple7<>(
 						(byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
 
 		Table table =
@@ -68,7 +68,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
-				env.fromElements(new Tuple7<Byte, Short, Integer, Long, Float, Double, String>(
+				env.fromElements(new Tuple7<>(
 						(byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
 
 		Table table =
@@ -90,8 +90,8 @@ public class CastingITCase extends MultipleProgramsTestBase {
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
 				env.fromElements(
-						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"),
-						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Hello"));
+						new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"),
+						new Tuple7<>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Hello"));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a,b,c,d,e,f,g");
@@ -111,7 +111,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple3<String, String, String>> input =
-				env.fromElements(new Tuple3<String, String, String>("1", "true", "2.0"));
+				env.fromElements(new Tuple3<>("1", "true", "2.0"));
 
 		Table table =
 				tableEnv.fromDataSet(input);

@@ -130,7 +130,7 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<Integer, Long, String>(300, 1L, "Hello"));
+		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<>(300, 1L, "Hello"));
 
 		Table table = tableEnv.fromDataSet(input, "a, b, c");
 

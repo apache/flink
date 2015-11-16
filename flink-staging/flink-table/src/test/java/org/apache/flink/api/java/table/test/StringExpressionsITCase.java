@@ -46,8 +46,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
-				new Tuple2<String, Integer>("AAAA", 2),
-				new Tuple2<String, Integer>("BBBB", 1));
+				new Tuple2<>("AAAA", 2),
+				new Tuple2<>("BBBB", 1));
 
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
@@ -66,8 +66,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
-				new Tuple2<String, Integer>("ABCD", 2),
-				new Tuple2<String, Integer>("ABCD", 1));
+				new Tuple2<>("ABCD", 2),
+				new Tuple2<>("ABCD", 1));
 
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
@@ -86,8 +86,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple2<String, Float>> ds = env.fromElements(
-				new Tuple2<String, Float>("ABCD", 2.0f),
-				new Tuple2<String, Float>("ABCD", 1.0f));
+				new Tuple2<>("ABCD", 2.0f),
+				new Tuple2<>("ABCD", 1.0f));
 
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 
@@ -106,8 +106,8 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<Tuple2<String, String>> ds = env.fromElements(
-				new Tuple2<String, String>("ABCD", "a"),
-				new Tuple2<String, String>("ABCD", "b"));
+				new Tuple2<>("ABCD", "a"),
+				new Tuple2<>("ABCD", "b"));
 
 		Table in = tableEnv.fromDataSet(ds, "a, b");
 

@@ -27,7 +27,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.JavaConversions
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -39,7 +39,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
       .select('a.substring(0, 'b)).toDataSet[Row]
     val expected = "AA\nB"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -49,7 +49,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
       .select('a.substring('b)).toDataSet[Row]
     val expected = "CD\nBCD"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -60,7 +60,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
       .select('a.substring(0, 'b)).toDataSet[Row]
     val expected = "AAA\nBB"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -71,7 +71,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
       .select('a.substring('b, 15)).toDataSet[Row]
     val expected = "AAA\nBB"
     val results = ds.collect()
-    TestBaseUtils.compareResultAsText(JavaConversions.seqAsJavaList(results), expected)
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 
