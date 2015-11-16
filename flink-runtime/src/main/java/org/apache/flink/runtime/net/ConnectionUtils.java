@@ -25,7 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketAddress;
-import java.net.UnknownHostException;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
