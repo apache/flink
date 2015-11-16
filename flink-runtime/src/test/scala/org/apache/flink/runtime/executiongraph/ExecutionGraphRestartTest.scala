@@ -43,7 +43,7 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
   val NUM_TASKS = 31
 
   "The execution graph" must {
-    "be manually restartable" in {
+    "not be manually restartable" in {
       try {
         val instance = ExecutionGraphTestUtils.getInstance(
           new SimpleActorGateway(TestingUtils.directExecutionContext),
@@ -73,21 +73,16 @@ class ExecutionGraphRestartTest extends WordSpecLike with Matchers {
         eg.getState should equal(JobStatus.RUNNING)
 
         eg.getAllExecutionVertices.iterator().next().fail(new Exception("Test Exception"))
-        
+
         for (vertex <- eg.getAllExecutionVertices().asScala) {
           vertex.getCurrentExecutionAttempt().cancelingComplete()
         }
-        
+
         eg.getState should equal(JobStatus.FAILED)
 
         eg.restart()
-        eg.getState should equal(JobStatus.RUNNING)
-        
-        for (vertex <- eg.getAllExecutionVertices.asScala) {
-          vertex.getCurrentExecutionAttempt().markFinished()
-        }
 
-        eg.getState should equal(JobStatus.FINISHED)
+        eg.getState should equal(JobStatus.FAILED)
       } catch {
         case t: Throwable =>
           t.printStackTrace()
