@@ -60,7 +60,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 		});
 		// test if index is consecutive
 		for (int i = 0; i < expectedSize; i++) {
-			Assert.assertEquals(i, (long) result.get(i).f0);
+			Assert.assertEquals(i, result.get(i).f0.longValue());
 		}
 	}
 
