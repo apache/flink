@@ -1361,7 +1361,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots](config#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/setup/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <div class="codetabs" markdown="1">
