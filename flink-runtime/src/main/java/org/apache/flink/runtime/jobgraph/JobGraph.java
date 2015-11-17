@@ -539,6 +539,18 @@ public class JobGraph implements Serializable {
 		}
 	}
 
+	/**
+	 * Gets the maximum parallelism of all operations in this job graph.
+	 * @return The maximum parallelism of this job graph
+	 */
+	public int getMaximumParallelism() {
+		int maxParallelism = -1;
+		for (JobVertex vertex : taskVertices.values()) {
+			maxParallelism = Math.max(vertex.getParallelism(), maxParallelism);
+		}
+		return maxParallelism;
+	}
+
 	@Override
 	public String toString() {
 		return "JobGraph(jobId: " + jobID + ")";
