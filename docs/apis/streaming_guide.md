@@ -2884,7 +2884,7 @@ Execution Parameters
 Flink has a checkpointing mechanism that recovers streaming jobs after failues. The checkpointing mechanism requires a *persistent* or *durable* source that
 can be asked for prior records again (Apache Kafka is a good example of a durable source).
 
-The checkpointing mechanism stores the progress in the source as well as the user-defined state (see [Working with State](#Stateful_computation))
+The checkpointing mechanism stores the progress in the source as well as the user-defined state (see [Working with State](#working_with_state))
 consistently to provide *exactly once* processing guarantees.
 
 To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEnvironment`, where *n* is the checkpoint interval in milliseconds.
