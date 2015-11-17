@@ -48,7 +48,7 @@ FLINK_DOC_ROOT=${SCRIPT_DIR}/..
 
 CMD="
 echo
-echo 'Welcome to Flink docs'
+echo 'Welcome to Apache Flink docs'
 echo 'To build, execute'
 echo '  ./build_docs.sh'
 echo 'To watch and regenerate automatically'
