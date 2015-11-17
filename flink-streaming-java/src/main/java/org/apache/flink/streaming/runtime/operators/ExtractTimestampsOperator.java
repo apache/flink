@@ -79,10 +79,10 @@ public class ExtractTimestampsOperator<T>
 	public void trigger(long timestamp) throws Exception {
 		// register next timer
 		registerTimer(System.currentTimeMillis() + watermarkInterval, this);
-		long lastWatermark = currentWatermark;
-		currentWatermark = userFunction.getCurrentWatermark();
+		long newWatermark = userFunction.getCurrentWatermark();
 
-		if (currentWatermark > lastWatermark) {
+		if (newWatermark > currentWatermark) {
+			currentWatermark = newWatermark;
 			// emit watermark
 			output.emitWatermark(new Watermark(currentWatermark));
 		}
