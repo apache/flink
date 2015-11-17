@@ -392,6 +392,25 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>create-streaming-custominputsplit-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.StreamingCustomInputSplitProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>streaming-customsplit</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-streaming-custominput-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
 						<id>create-streamingclassloader-jar</id>
 						<phase>process-test-classes</phase>
 						<goals>
