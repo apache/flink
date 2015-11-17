@@ -54,7 +54,7 @@ import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
  * When using the first constructor {@link #ElasticsearchSink(java.util.Map, IndexRequestBuilder)}
  * the sink will create a local {@link Node} for communicating with the
  * Elasticsearch cluster. When using the second constructor
- * {@link #ElasticsearchSink(java.util.Map, IndexRequestBuilder)} a {@link TransportClient} will
+ * {@link #ElasticsearchSink(java.util.Map, java.util.List, IndexRequestBuilder)} a {@link TransportClient} will
  * be used instead.
  *
  * <p>
