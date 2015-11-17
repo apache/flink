@@ -509,7 +509,8 @@ public class CliFrontend {
 				}
 
 				for (JobStatusMessage rj : jobs) {
-					if (running && rj.getJobState().equals(JobStatus.RUNNING)) {
+					if (running && (rj.getJobState().equals(JobStatus.RUNNING)
+							|| rj.getJobState().equals(JobStatus.RESTARTING))) {
 						runningJobs.add(rj);
 					}
 					if (scheduled && rj.getJobState().equals(JobStatus.CREATED)) {
@@ -532,10 +533,10 @@ public class CliFrontend {
 					else {
 						Collections.sort(runningJobs, njec);
 
-						System.out.println("------------------------ Running Jobs ------------------------");
+						System.out.println("------------------ Running/Restarting Jobs -------------------");
 						for (JobStatusMessage rj : runningJobs) {
 							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName());
+									+ " : " + rj.getJobId() + " : " + rj.getJobName() + " (" + rj.getJobState() + ")");
 						}
 						System.out.println("--------------------------------------------------------------");
 					}
