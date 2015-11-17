@@ -17,7 +17,7 @@ language: java
 matrix:
   include:
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests"
+      env: PROFILE="-Dhadoop.version=2.7.1 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests"
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.5.0 -Pinclude-yarn-tests"
     - jdk: "openjdk7"
