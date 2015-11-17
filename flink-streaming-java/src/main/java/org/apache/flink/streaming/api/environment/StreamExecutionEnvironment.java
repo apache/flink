@@ -332,7 +332,10 @@ public abstract class StreamExecutionEnvironment {
 	 * the moment. For that reason, iterative jobs will not be started if used
 	 * with enabled checkpointing. To override this mechanism, use the 
 	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
+	 * 
+	 * @deprecated Use {@link #enableCheckpointing(long)} instead.
 	 */
+	@Deprecated
 	public StreamExecutionEnvironment enableCheckpointing() {
 		enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
 		return this;
