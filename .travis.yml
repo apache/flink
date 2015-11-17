@@ -23,7 +23,7 @@ matrix:
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.5.0 -Dmaven.javadoc.skip=true -Pinclude-yarn-tests"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.1 -Dscala-2.11 -Pinclude-tez -Pinclude-yarn-tests -Dmaven.javadoc.skip=true"
 
 
 git:

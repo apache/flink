@@ -100,6 +100,7 @@ under the License.
 		<tez.version>0.6.1</tez.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.8.0</curator.version>
+		<jackson.version>2.4.2</jackson.version>
 	</properties>
 
 	<dependencies>
@@ -349,6 +350,24 @@ under the License.
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpclient</artifactId>
 				<version>4.2</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>${jackson.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

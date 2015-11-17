@@ -72,6 +72,7 @@ under the License.
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<filters>
 								<!-- Exclude signatures -->
 								<filter>
@@ -101,6 +102,17 @@ under the License.
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer"/>
 							</transformers>
+							<artifactSet>
+								<includes>
+									<include>com.google.guava:*</include>
+									<include>com.google.protobuf:*</include>
+									<include>com.google.code.findbugs:*</include>
+									<include>asm:asm</include>
+									<include>io.netty:netty:*</include>
+									<include>org.apache.curator:*</include>
+									<include>org.apache.hadoop:*</include>
+								</includes>
+							</artifactSet>
 							<relocations>
 								<relocation>
 									<pattern>com.google</pattern>
