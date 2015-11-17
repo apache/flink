@@ -29,10 +29,12 @@ import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -41,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -221,9 +224,16 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private StreamConfig createProcessingVertex(Integer vertexID) {
-
-		JobVertex jobVertex = new JobVertex(chainedNames.get(vertexID));
+		JobVertex jobVertex;
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
+
+		if (vertex.getInputFormat() != null) {
+			jobVertex = new InputFormatVertex(chainedNames.get(vertexID));
+			TaskConfig taskConfig = new TaskConfig(jobVertex.getConfiguration());
+			taskConfig.setStubWrapper(new UserCodeObjectWrapper<Object>(vertex.getInputFormat()));
+		} else {
+			jobVertex = new JobVertex(chainedNames.get(vertexID));
+		}
 
 		jobVertex.setInvokableClass(vertex.getJobVertexClass());
 
@@ -235,10 +245,6 @@ public class StreamingJobGraphGenerator {
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Parallelism set: {} for {}", parallelism, vertexID);
-		}
-
-		if (vertex.getInputFormat() != null) {
-			jobVertex.setInputSplitSource(vertex.getInputFormat());
 		}
 
 		jobVertices.put(vertexID, jobVertex);

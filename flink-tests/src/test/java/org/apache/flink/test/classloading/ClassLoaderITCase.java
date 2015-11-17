@@ -37,6 +37,8 @@ public class ClassLoaderITCase {
 
 	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
 
+	private static final String STREAMING_INPUT_SPLITS_PROG_JAR_FILE = "target/streaming-customsplit-test-jar.jar";
+
 	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
 
 	private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE = "target/streaming-checkpointed-classloader-test-jar.jar";
@@ -76,6 +78,15 @@ public class ClassLoaderITCase {
 									});
 				inputSplitTestProg.invokeInteractiveModeForExecution();
 
+				PackagedProgram streamingInputSplitTestProg = new PackagedProgram(
+						new File(STREAMING_INPUT_SPLITS_PROG_JAR_FILE),
+						new String[] { STREAMING_INPUT_SPLITS_PROG_JAR_FILE,
+								"localhost",
+								String.valueOf(port),
+								"4" // parallelism
+						});
+				streamingInputSplitTestProg.invokeInteractiveModeForExecution();
+
 				String classpath = new File(INPUT_SPLITS_PROG_JAR_FILE).toURI().toURL().toString();
 				PackagedProgram inputSplitTestProg2 = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
 						new String[] { "",
@@ -89,7 +100,7 @@ public class ClassLoaderITCase {
 				// regular streaming job
 				PackagedProgram streamingProg = new PackagedProgram(
 						new File(STREAMING_PROG_JAR_FILE),
-						new String[] { 
+						new String[] {
 								STREAMING_PROG_JAR_FILE,
 								"localhost",
 								String.valueOf(port)
@@ -102,7 +113,7 @@ public class ClassLoaderITCase {
 					PackagedProgram streamingCheckpointedProg = new PackagedProgram(
 							new File(STREAMING_CHECKPOINTED_PROG_JAR_FILE),
 							new String[] {
-									STREAMING_CHECKPOINTED_PROG_JAR_FILE, 
+									STREAMING_CHECKPOINTED_PROG_JAR_FILE,
 									"localhost",
 									String.valueOf(port)});
 					streamingCheckpointedProg.invokeInteractiveModeForExecution();
