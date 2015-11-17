@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph.scala
 
+import com.google.common.base.Preconditions
 import org.apache.flink.api.common.functions.{FilterFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
@@ -167,53 +168,62 @@ object Graph {
       env.getJavaEnv))
   }
 
-  /**
-  * Creates a Graph with from a CSV file of vertices and a CSV file of edges
-  * 
-  * @param env Execution Environment.
-  * @param pathEdges The file path containing the edges.
-  * @param readVertices Defines whether the vertices have associated values.
-  * If set to false, the vertex input is ignored and vertices are created from the edges file.
-  * @param pathVertices The file path containing the vertices.
-  * @param hasEdgeValues Defines whether the edges have associated values. True by default.
-  * @param lineDelimiterVertices The string that separates lines in the vertices file.
-  * It defaults to newline.
-  * @param fieldDelimiterVertices The string that separates vertex Ids from vertex values
-  * in the vertices file.
-  * @param quoteCharacterVertices The character to use for quoted String parsing
-  * in the vertices file. Disabled by default.
-  * @param ignoreFirstLineVertices Whether the first line in the vertices file should be ignored.
-  * @param ignoreCommentsVertices Lines that start with the given String in the vertices file
-  * are ignored, disabled by default.
-  * @param lenientVertices Whether the parser should silently ignore malformed lines in the
-  * vertices file.
-  * @param includedFieldsVertices The fields in the vertices file that should be read.
-  * By default all fields are read.
-  * @param lineDelimiterEdges The string that separates lines in the edges file.
-  * It defaults to newline.
-  * @param fieldDelimiterEdges The string that separates fields in the edges file.
-  * @param quoteCharacterEdges The character to use for quoted String parsing
-  * in the edges file. Disabled by default.
-  * @param ignoreFirstLineEdges Whether the first line in the vertices file should be ignored.
-  * @param ignoreCommentsEdges Lines that start with the given String in the edges file
-  * are ignored, disabled by default.
-  * @param lenientEdges Whether the parser should silently ignore malformed lines in the
-  * edges file.
-  * @param includedFieldsEdges The fields in the edges file that should be read.
-  * By default all fields are read.
-  * @param vertexValueInitializer If no vertex values are provided,
-  * this mapper can be used to initialize them, by applying a map transformation on the vertex IDs.
-  * 
-  */
+  /** Creates a Graph from a CSV file of edges.
+    *
+    * The edge value is read from the CSV file if [[EV]] is not of type [[NullValue]]. Otherwise the
+    * edge value is set to [[NullValue]].
+    *
+    * If the vertex value type [[VV]] is specified (unequal [[NullValue]]), then the vertex values
+    * are read from the file specified by pathVertices. If the path has not been specified then the
+    * vertexValueInitializer is used to initialize the vertex values of the vertices extracted from
+    * the set of edges. If the vertexValueInitializer has not been set either, then the method
+    * fails.
+    *
+    * @param env The Execution Environment.
+    * @param pathEdges The file path containing the edges.
+    * @param pathVertices The file path containing the vertices.
+    * @param lineDelimiterVertices The string that separates lines in the vertices file. It defaults
+    *                              to newline.
+    * @param fieldDelimiterVertices The string that separates vertex Ids from vertex values in the
+    *                               vertices file.
+    * @param quoteCharacterVertices The character to use for quoted String parsing in the vertices
+    *                               file. Disabled by default.
+    * @param ignoreFirstLineVertices Whether the first line in the vertices file should be ignored.
+    * @param ignoreCommentsVertices Lines that start with the given String in the vertices file
+    *                               are ignored, disabled by default.
+    * @param lenientVertices Whether the parser should silently ignore malformed lines in the
+    *                        vertices file.
+    * @param includedFieldsVertices The fields in the vertices file that should be read. By default
+    *                               all fields are read.
+    * @param lineDelimiterEdges The string that separates lines in the edges file. It defaults to
+    *                           newline.
+    * @param fieldDelimiterEdges The string that separates fields in the edges file.
+    * @param quoteCharacterEdges The character to use for quoted String parsing in the edges file.
+    *                            Disabled by default.
+    * @param ignoreFirstLineEdges Whether the first line in the vertices file should be ignored.
+    * @param ignoreCommentsEdges Lines that start with the given String in the edges file are
+    *                            ignored, disabled by default.
+    * @param lenientEdges Whether the parser should silently ignore malformed lines in the edges
+    *                     file.
+    * @param includedFieldsEdges The fields in the edges file that should be read. By default all
+    *                            fields are read.
+    * @param vertexValueInitializer  If no vertex values are provided, this mapper can be used to
+    *                                initialize them, by applying a map transformation on the vertex
+    *                                IDs.
+    * @tparam K Vertex key type
+    * @tparam VV Vertex value type
+    * @tparam EV Edge value type
+    * @return Graph with vertices and edges read from the given files.
+    */
   // scalastyle:off
   // This method exceeds the max allowed number of parameters -->  
-  def fromCsvReader[K: TypeInformation : ClassTag, VV: TypeInformation : ClassTag,
-    EV: TypeInformation : ClassTag](
+  def fromCsvReader[
+      K: TypeInformation : ClassTag,
+      VV: TypeInformation : ClassTag,
+      EV: TypeInformation : ClassTag](
       env: ExecutionEnvironment,
       pathEdges: String,
-      readVertices: Boolean,
       pathVertices: String = null,
-      hasEdgeValues: Boolean = true,
       lineDelimiterVertices: String = "\n",
       fieldDelimiterVertices: String = ",",
       quoteCharacterVertices: Character = null,
@@ -228,73 +238,56 @@ object Graph {
       ignoreCommentsEdges: String = null,
       lenientEdges: Boolean = false,
       includedFieldsEdges: Array[Int] = null,
-      vertexValueInitializer: MapFunction[K, VV] = null) = {
+      vertexValueInitializer: MapFunction[K, VV] = null)
+    : Graph[K, VV, EV] = {
 
-    // with vertex and edge values
-    if (readVertices && hasEdgeValues) {
-      if (pathVertices.equals(null)) {
-        throw new IllegalArgumentException(
-            "The vertices file path must be specified when readVertices is true.")
-      } else {
-        val vertices = env.readCsvFile[(K, VV)](pathVertices, lineDelimiterVertices,
-            fieldDelimiterVertices, quoteCharacterVertices, ignoreFirstLineVertices,
-            ignoreCommentsVertices, lenientVertices, includedFieldsVertices)
+    Preconditions.checkNotNull(pathEdges)
 
-        val edges = env.readCsvFile[(K, K, EV)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
-            quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges, lenientEdges,
-            includedFieldsEdges)
-     
-        fromTupleDataSet[K, VV, EV](vertices, edges, env) 
-      }
-    }
-    // with vertex value and no edge value
-    else if (readVertices && (!hasEdgeValues)) {
-       if (pathVertices.equals(null)) {
-        throw new IllegalArgumentException(
-            "The vertices file path must be specified when readVertices is true.")
-      } else {
-        val vertices = env.readCsvFile[(K, VV)](pathVertices, lineDelimiterVertices,
-            fieldDelimiterVertices, quoteCharacterVertices, ignoreFirstLineVertices,
-            ignoreCommentsVertices, lenientVertices, includedFieldsVertices)
+    val evClassTag = implicitly[ClassTag[EV]]
+    val vvClassTag = implicitly[ClassTag[VV]]
 
-        val edges = env.readCsvFile[(K, K)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
-            quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges, lenientEdges,
-            includedFieldsEdges).map(edge => (edge._1, edge._2, NullValue.getInstance))
-
-        fromTupleDataSet[K, VV, NullValue](vertices, edges, env)
-      }
-    }
-    // with edge value and no vertex value
-    else if ((!readVertices) && hasEdgeValues) {
-      val edges = env.readCsvFile[(K, K, EV)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
-        quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges, lenientEdges,
+    val edges = if (evClassTag.runtimeClass.equals(classOf[NullValue])) {
+      env.readCsvFile[(K, K)](
+        pathEdges,
+        lineDelimiterEdges,
+        fieldDelimiterEdges,
+        quoteCharacterEdges,
+        ignoreFirstLineEdges,
+        ignoreCommentsEdges,
+        lenientEdges,
         includedFieldsEdges)
-
-      // initializer provided
-      if (vertexValueInitializer != null) {
-        fromTupleDataSet[K, VV, EV](edges, vertexValueInitializer, env)
-      }
-      else {
-        fromTupleDataSet[K, EV](edges, env) 
-      }
+        .map(edge => (edge._1, edge._2, NullValue.getInstance))
+        .asInstanceOf[DataSet[(K, K, EV)]]
+    } else {
+      env.readCsvFile[(K, K, EV)](
+        pathEdges,
+        lineDelimiterEdges,
+        fieldDelimiterEdges,
+        quoteCharacterEdges,
+        ignoreFirstLineEdges,
+        ignoreCommentsEdges,
+        lenientEdges,
+        includedFieldsEdges)
     }
-    // with no edge value and no vertex value
-    else {
-      val edges = env.readCsvFile[(K, K)](pathEdges, lineDelimiterEdges, fieldDelimiterEdges,
-      quoteCharacterEdges, ignoreFirstLineEdges, ignoreCommentsEdges,
-      lenientEdges, includedFieldsEdges).map(edge => (edge._1, edge._2, NullValue.getInstance))
 
-      // no initializer provided
-      if (vertexValueInitializer != null) {
-        fromTupleDataSet[K, VV, NullValue](edges, vertexValueInitializer, env)
-      }
-      else {
-        fromTupleDataSet[K, NullValue](edges, env) 
+    if (vvClassTag.runtimeClass.equals(classOf[NullValue])) {
+      fromTupleDataSet[K, EV](edges, env).asInstanceOf[Graph[K, VV, EV]]
+    } else {
+      if (pathVertices != null) {
+        val vertices = env.readCsvFile[(K, VV)](pathVertices, lineDelimiterVertices,
+          fieldDelimiterVertices, quoteCharacterVertices, ignoreFirstLineVertices,
+          ignoreCommentsVertices, lenientVertices, includedFieldsVertices)
+
+        fromTupleDataSet[K, VV, EV](vertices, edges, env)
+      } else if (vertexValueInitializer != null) {
+        fromTupleDataSet[K, VV, EV](edges, vertexValueInitializer, env)
+      } else {
+        throw new IllegalArgumentException("Path vertices path and vertex value initialzier must" +
+          "not be null if the vertex value type is not NullValue.")
       }
     }
   }
-// scalastyle:on
-
+  // scalastyle:on
 }
 
 /**
@@ -581,7 +574,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @param edgeJoinFunction the transformation function to apply.
    * The first parameter is the current edge value and the second parameter is the value
    * of the matched Tuple2 from the input DataSet.
-   * @param T the type of the second field of the input Tuple2 DataSet.
+   * @tparam T the type of the second field of the input Tuple2 DataSet.
    * @return a new Graph, where the edge values have been updated according to the
    * result of the edgeJoinFunction.
   */
@@ -604,7 +597,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @param fun the transformation function to apply.
    * The first parameter is the current edge value and the second parameter is the value
    * of the matched Tuple2 from the input DataSet.
-   * @param T the type of the second field of the input Tuple2 DataSet.
+   * @tparam T the type of the second field of the input Tuple2 DataSet.
    * @return a new Graph, where the edge values have been updated according to the
    * result of the edgeJoinFunction.
   */
@@ -722,7 +715,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @return A DataSet of Tuple2<vertexId, inDegree>
    */
   def inDegrees(): DataSet[(K, Long)] = {
-    wrap(jgraph.inDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
+    wrap(jgraph.inDegrees).map(javatuple => (javatuple.f0, javatuple.f1.longValue()))
   }
 
   /**
@@ -731,7 +724,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @return A DataSet of Tuple2<vertexId, outDegree>
    */
   def outDegrees(): DataSet[(K, Long)] = {
-    wrap(jgraph.outDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
+    wrap(jgraph.outDegrees).map(javatuple => (javatuple.f0, javatuple.f1.longValue()))
   }
 
   /**
@@ -740,7 +733,7 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * @return A DataSet of Tuple2<vertexId, degree>
    */
   def getDegrees(): DataSet[(K, Long)] = {
-    wrap(jgraph.getDegrees).map(javatuple => (javatuple.f0, javatuple.f1))
+    wrap(jgraph.getDegrees).map(javatuple => (javatuple.f0, javatuple.f1.longValue()))
   }
 
   /**
@@ -973,9 +966,9 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
    * <p>
    * The method computes pairs of equal edges from the input graphs. If the same edge occurs
    * multiple times in the input graphs, there will be multiple edge pairs to be considered. Each
-   * edge instance can only be part of one pair. If the given parameter {@code distinctEdges} is set
-   * to {@code true}, there will be exactly one edge in the output graph representing all pairs of
-   * equal edges. If the parameter is set to {@code false}, both edges of each pair will be in the
+   * edge instance can only be part of one pair. If the given parameter `distinctEdges` is set
+   * to `true`, there will be exactly one edge in the output graph representing all pairs of
+   * equal edges. If the parameter is set to `false`, both edges of each pair will be in the
    * output.
    * <p>
    * Vertices in the output graph will have no vertex values.
@@ -993,15 +986,15 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   /**
    * Compute a reduce transformation over the neighbors' vertex values of each vertex.
    * For each vertex, the transformation consecutively calls a
-   * {@link ReduceNeighborsFunction} until only a single value for each vertex remains.
-   * The {@link ReduceNeighborsFunction} combines a pair of neighbor vertex values
+   * [[ReduceNeighborsFunction]] until only a single value for each vertex remains.
+   * The [[ReduceNeighborsFunction]] combines a pair of neighbor vertex values
    * into one new value of the same type.
    * 
    * @param reduceNeighborsFunction the reduce function to apply to the neighbors of each vertex.
    * @param direction the edge direction (in-, out-, all-)
    * @return a Dataset of Tuple2, with one tuple per vertex.
    * The first field of the Tuple2 is the vertex ID and the second field
-   * is the aggregate value computed by the provided {@link ReduceNeighborsFunction}.
+   * is the aggregate value computed by the provided [[ReduceNeighborsFunction]].
    */
   def reduceOnNeighbors(reduceNeighborsFunction: ReduceNeighborsFunction[VV], direction:
   EdgeDirection): DataSet[(K, VV)] = {
@@ -1012,15 +1005,15 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   /**
    * Compute a reduce transformation over the neighbors' vertex values of each vertex.
    * For each vertex, the transformation consecutively calls a
-   * {@link ReduceNeighborsFunction} until only a single value for each vertex remains.
-   * The {@link ReduceNeighborsFunction} combines a pair of neighbor vertex values
+   * [[ReduceNeighborsFunction]] until only a single value for each vertex remains.
+   * The [[ReduceNeighborsFunction]] combines a pair of neighbor vertex values
    * into one new value of the same type.
    * 
    * @param reduceEdgesFunction the reduce function to apply to the edges of each vertex.
    * @param direction the edge direction (in-, out-, all-)
    * @return a Dataset of Tuple2, with one tuple per vertex.
    * The first field of the Tuple2 is the vertex ID and the second field
-   * is the aggregate value computed by the provided {@link ReduceNeighborsFunction}.
+   * is the aggregate value computed by the provided [[ReduceNeighborsFunction]].
   */
   def reduceOnEdges(reduceEdgesFunction: ReduceEdgesFunction[EV], direction: EdgeDirection):
   DataSet[(K, EV)] = {
