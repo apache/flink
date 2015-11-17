@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -37,6 +38,9 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.spy;
 
 public class ExecutionGraphRestartTest {
 
@@ -157,5 +161,142 @@ public class ExecutionGraphRestartTest {
 		else {
 			fail("Failed to wait until all execution attempts left the state DEPLOYING.");
 		}
+	}
+
+	@Test
+	public void testCancelWhileRestarting() throws Exception {
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+				new SimpleActorGateway(TestingUtils.directExecutionContext()),
+				NUM_TASKS);
+
+		scheduler.newInstanceAvailable(instance);
+
+		// Blocking program
+		ExecutionGraph executionGraph = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				new JobID(),
+				"TestJob",
+				new Configuration(),
+				AkkaUtils.getDefaultTimeout());
+
+		JobVertex jobVertex = new JobVertex("NoOpInvokable");
+		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		jobVertex.setParallelism(NUM_TASKS);
+
+		JobGraph jobGraph = new JobGraph("TestJob", jobVertex);
+
+		// We want to manually control the restart and delay
+		executionGraph.setNumberOfRetriesLeft(Integer.MAX_VALUE);
+		executionGraph.setDelayBeforeRetrying(Integer.MAX_VALUE);
+		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, executionGraph.getState());
+
+		executionGraph.scheduleForExecution(scheduler);
+
+		assertEquals(JobStatus.RUNNING, executionGraph.getState());
+
+		// Kill the instance and wait for the job to restart
+		instance.markDead();
+
+		Deadline deadline = TestingUtils.TESTING_DURATION().fromNow();
+
+		while (deadline.hasTimeLeft() &&
+				executionGraph.getState() != JobStatus.RESTARTING) {
+
+			Thread.sleep(100);
+		}
+
+		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
+
+		// Canceling needs to abort the restart
+		executionGraph.cancel();
+
+		assertEquals(JobStatus.CANCELED, executionGraph.getState());
+
+		// The restart has been aborted
+		executionGraph.restart();
+
+		assertEquals(JobStatus.CANCELED, executionGraph.getState());
+	}
+
+	@Test
+	public void testCancelWhileFailing() throws Exception {
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+				new SimpleActorGateway(TestingUtils.directExecutionContext()),
+				NUM_TASKS);
+
+		scheduler.newInstanceAvailable(instance);
+
+		// Blocking program
+		ExecutionGraph executionGraph = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				new JobID(),
+				"TestJob",
+				new Configuration(),
+				AkkaUtils.getDefaultTimeout());
+
+		// Spy on the graph
+		executionGraph = spy(executionGraph);
+
+		// Do nothing here, because we don't want to transition out of
+		// the FAILING state.
+		doNothing().when(executionGraph).jobVertexInFinalState();
+
+		JobVertex jobVertex = new JobVertex("NoOpInvokable");
+		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
+		jobVertex.setParallelism(NUM_TASKS);
+
+		JobGraph jobGraph = new JobGraph("TestJob", jobVertex);
+
+		// We want to manually control the restart and delay
+		executionGraph.setNumberOfRetriesLeft(Integer.MAX_VALUE);
+		executionGraph.setDelayBeforeRetrying(Integer.MAX_VALUE);
+		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, executionGraph.getState());
+
+		executionGraph.scheduleForExecution(scheduler);
+
+		assertEquals(JobStatus.RUNNING, executionGraph.getState());
+
+		// Kill the instance...
+		instance.markDead();
+
+		Deadline deadline = TestingUtils.TESTING_DURATION().fromNow();
+
+		// ...and wait for all vertices to be in state FAILED. The
+		// jobVertexInFinalState does nothing, that's why we don't wait on the
+		// job status.
+		boolean success = false;
+		while (deadline.hasTimeLeft() && !success) {
+			success = true;
+			for (ExecutionVertex vertex : executionGraph.getAllExecutionVertices()) {
+				if (vertex.getExecutionState() != ExecutionState.FAILED) {
+					success = false;
+					Thread.sleep(100);
+					break;
+				}
+			}
+		}
+
+		// Still in failing
+		assertEquals(JobStatus.FAILING, executionGraph.getState());
+
+		// The cancel call needs to change the state to CANCELLING
+		executionGraph.cancel();
+
+		assertEquals(JobStatus.CANCELLING, executionGraph.getState());
+
+		// Unspy and finalize the job state
+		doCallRealMethod().when(executionGraph).jobVertexInFinalState();
+
+		executionGraph.jobVertexInFinalState();
+
+		assertEquals(JobStatus.CANCELED, executionGraph.getState());
 	}
 }

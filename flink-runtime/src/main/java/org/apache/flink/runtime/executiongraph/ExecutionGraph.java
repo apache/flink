@@ -711,6 +711,26 @@ public class ExecutionGraph implements Serializable {
 					return;
 				}
 			}
+			// Executions are being canceled. Go into cancelling and wait for
+			// all vertices to be in their final state.
+			else if (current == JobStatus.FAILING) {
+				if (transitionState(current, JobStatus.CANCELLING)) {
+					return;
+				}
+			}
+			// All vertices have been cancelled and it's safe to directly go
+			// into the canceled state.
+			else if (current == JobStatus.RESTARTING) {
+				synchronized (progressLock) {
+					if (transitionState(current, JobStatus.CANCELED)) {
+						postRunCleanup();
+						progressLock.notifyAll();
+
+						LOG.info("Canceled during restart.");
+						return;
+					}
+				}
+			}
 			else {
 				// no need to treat other states
 				return;
@@ -747,9 +767,16 @@ public class ExecutionGraph implements Serializable {
 	public void restart() {
 		try {
 			synchronized (progressLock) {
-				if (state != JobStatus.RESTARTING) {
+				JobStatus current = state;
+
+				if (current == JobStatus.CANCELED) {
+					LOG.info("Canceled job during restart. Aborting restart.");
+					return;
+				}
+				else if (current != JobStatus.RESTARTING) {
 					throw new IllegalStateException("Can only restart job from state restarting.");
 				}
+
 				if (scheduler == null) {
 					throw new IllegalStateException("The execution graph has not been scheduled before - scheduler is null.");
 				}
