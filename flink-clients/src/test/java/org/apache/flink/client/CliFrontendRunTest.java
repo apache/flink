@@ -52,21 +52,28 @@ public class CliFrontendRunTest {
 			// test without parallelism
 			{
 				String[] parameters = {"-v", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1, true);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(-1, true, false);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 
 			// test configure parallelism
 			{
 				String[] parameters = {"-v", "-p", "42",  getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42, true);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42, true, false);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 
 			// test configure sysout logging
 			{
 				String[] parameters = {"-p", "2", "-q", getTestJarPath()};
-				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false);
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false, false);
+				assertEquals(0, testFrontend.run(parameters));
+			}
+
+			// test detached mode
+			{
+				String[] parameters = {"-p", "2", "-d", getTestJarPath()};
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false, true);
 				assertEquals(0, testFrontend.run(parameters));
 			}
 
@@ -96,15 +103,18 @@ public class CliFrontendRunTest {
 		
 		private final int expectedParallelism;
 		private final boolean sysoutLogging;
+		private final boolean isDetached;
 		
-		public RunTestingCliFrontend(int expectedParallelism, boolean logging) throws Exception {
+		public RunTestingCliFrontend(int expectedParallelism, boolean logging, boolean isDetached) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
 			this.expectedParallelism = expectedParallelism;
 			this.sysoutLogging = logging;
+			this.isDetached = isDetached;
 		}
 
 		@Override
 		protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
+			assertTrue(isDetached);
 			assertEquals(this.expectedParallelism, parallelism);
 			assertEquals(this.sysoutLogging, client.getPrintStatusDuringExecution());
 			return 0;
@@ -112,11 +122,12 @@ public class CliFrontendRunTest {
 
 		@Override
 		protected int executeProgramBlocking(PackagedProgram program, Client client, int parallelism) {
+			assertTrue(!isDetached);
 			return 0;
 		}
 
 		@Override
-		protected Client getClient(CommandLineOptions options, String programName, int userParallelism) throws Exception {
+		protected Client getClient(CommandLineOptions options, String programName, int userParallelism, boolean detached) throws Exception {
 			return Mockito.mock(Client.class);
 		}
 	}

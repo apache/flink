@@ -39,7 +39,6 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
-import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
@@ -70,7 +69,6 @@ import org.apache.flink.util.SplittableIterator;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1272,20 +1270,12 @@ public abstract class StreamExecutionEnvironment {
 		
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
-			ContextEnvironment ctx = (ContextEnvironment) env;
-			return createContextEnvironment(ctx.getClient(), ctx.getJars(), ctx.getClasspaths(),
-					ctx.getParallelism(), ctx.isWait());
+			return new StreamContextEnvironment((ContextEnvironment) env);
 		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
 			return new StreamPlanEnvironment(env);
 		} else {
 			return createLocalEnvironment();
 		}
-	}
-
-	private static StreamExecutionEnvironment createContextEnvironment(
-			Client client, List<URL> jars, List<URL> classpaths, int parallelism, boolean wait)
-	{
-		return new StreamContextEnvironment(client, jars, classpaths, parallelism, wait);
 	}
 
 	/**

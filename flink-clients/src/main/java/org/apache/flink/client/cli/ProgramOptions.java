@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
@@ -48,6 +49,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final int parallelism;
 
 	private final boolean stdoutLogging;
+
+	private final boolean detachedMode;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -100,11 +103,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			parallelism = -1;
 		}
 
-		if(line.hasOption(LOGGING_OPTION.getOpt())){
-			stdoutLogging = false;
-		} else{
-			stdoutLogging = true;
-		}
+		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
+		detachedMode = line.hasOption(DETACHED_OPTION.getOpt());
 	}
 
 	public String getJarFilePath() {
@@ -129,5 +129,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public boolean getStdoutLogging() {
 		return stdoutLogging;
+	}
+
+	public boolean getDetachedMode() {
+		return detachedMode;
 	}
 }

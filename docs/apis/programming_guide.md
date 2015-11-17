@@ -1574,9 +1574,9 @@ public class WordWithCount {
     public String word;
     public int count;
 
-    public WordCount() {}
+    public WordWithCount() {}
 
-    public WordCount(String word, int count) {
+    public WordWithCount(String word, int count) {
         this.word = word;
         this.count = count;
     }

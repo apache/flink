@@ -137,7 +137,7 @@ public class BroadcastVariableMaterialization<T, C> {
 				while ((element = readerIterator.next(element)) != null);
 				
 				synchronized (materializationMonitor) {
-					while (!this.materialized) {
+					while (!this.materialized && !disposed) {
 						materializationMonitor.wait();
 					}
 				}
@@ -209,7 +209,7 @@ public class BroadcastVariableMaterialization<T, C> {
 			throw new IllegalStateException("The Broadcast Variable has been disposed");
 		}
 		
-		synchronized (this) {
+		synchronized (references) {
 			if (transformed != null) {
 				if (transformed instanceof List) {
 					@SuppressWarnings("unchecked")
@@ -233,7 +233,7 @@ public class BroadcastVariableMaterialization<T, C> {
 			throw new IllegalStateException("The Broadcast Variable has been disposed");
 		}
 		
-		synchronized (this) {
+		synchronized (references) {
 			if (transformed == null) {
 				transformed = initializer.initializeBroadcastVariable(data);
 				data = null;

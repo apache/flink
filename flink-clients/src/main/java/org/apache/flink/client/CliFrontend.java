@@ -40,6 +40,7 @@ import java.util.Properties;
 import akka.actor.ActorSystem;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -125,8 +126,6 @@ public class CliFrontend {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
 
-	private final File configDirectory;
-
 	private final Configuration config;
 
 	private final FiniteDuration askTimeout;
@@ -155,12 +154,12 @@ public class CliFrontend {
 	public CliFrontend(String configDir) throws Exception {
 
 		// configure the config directory
-		this.configDirectory = new File(configDir);
-		LOG.info("Using configuration directory " + this.configDirectory.getAbsolutePath());
+		File configDirectory = new File(configDir);
+		LOG.info("Using configuration directory " + configDirectory.getAbsolutePath());
 
 		// load the configuration
 		LOG.info("Trying to load configuration file");
-		GlobalConfiguration.loadConfiguration(this.configDirectory.getAbsolutePath());
+		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 		this.config = GlobalConfiguration.getConfiguration();
 
 		// load the YARN properties
@@ -175,12 +174,8 @@ public class CliFrontend {
 
 			Properties yarnProperties = new Properties();
 			try {
-				InputStream is = new FileInputStream(propertiesFile);
-				try {
+				try (InputStream is = new FileInputStream(propertiesFile)) {
 					yarnProperties.load(is);
-				}
-				finally {
-					is.close();
 				}
 			}
 			catch (IOException e) {
@@ -302,7 +297,7 @@ public class CliFrontend {
 			int userParallelism = options.getParallelism();
 			LOG.debug("User parallelism is set to {}", userParallelism);
 
-			Client client = getClient(options, program.getMainClassName(), userParallelism);
+			Client client = getClient(options, program.getMainClassName(), userParallelism, options.getDetachedMode());
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
@@ -313,16 +308,11 @@ public class CliFrontend {
 					userParallelism = client.getMaxSlots();
 				}
 
-				// check if detached per job yarn cluster is used to start flink
-				if (yarnCluster != null && yarnCluster.isDetached()) {
-					logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
-							"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
-							"yarn application -kill " + yarnCluster.getApplicationId() + "\n" +
-							"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
+				// detached mode
+				if (options.getDetachedMode() || (yarnCluster != null && yarnCluster.isDetached())) {
 					exitCode = executeProgramDetached(program, client, userParallelism);
 				}
 				else {
-					// regular (blocking) execution.
 					exitCode = executeProgramBlocking(program, client, userParallelism);
 				}
 
@@ -644,6 +634,14 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	protected int executeProgramDetached(PackagedProgram program, Client client, int parallelism) {
+		// log message for detached yarn job
+		if (yarnCluster != null) {
+			logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
+					"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
+					"yarn application -kill " + yarnCluster.getApplicationId() + "\n" +
+					"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
+		}
+
 		LOG.info("Starting execution of program");
 
 		JobSubmissionResult result;
@@ -655,7 +653,7 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		if (yarnCluster != null && yarnCluster.isDetached()) {
+		if (yarnCluster != null) {
 			yarnCluster.stopAfterJob(result.getJobID());
 			yarnCluster.disconnect();
 		}
@@ -802,7 +800,8 @@ public class CliFrontend {
 	protected Client getClient(
 			CommandLineOptions options,
 			String programName,
-			int userParallelism)
+			int userParallelism,
+			boolean detachedMode)
 		throws Exception {
 		InetSocketAddress jobManagerAddress;
 		int maxSlots = -1;
@@ -817,6 +816,11 @@ public class CliFrontend {
 				throw new RuntimeException("Unable to create Flink YARN Client. Check previous log messages");
 			}
 			flinkYarnClient.setName("Flink Application: " + programName);
+			// in case the main detached mode wasn't set, we don't wanna overwrite the one loaded
+			// from yarn options.
+			if (detachedMode) {
+				flinkYarnClient.setDetachedMode(true);
+			}
 
 			// the number of slots available from YARN:
 			int yarnTmSlots = flinkYarnClient.getTaskManagerSlots();
@@ -915,9 +919,23 @@ public class CliFrontend {
 		}
 		LOG.error("Error while running the command.", t);
 
-		t.printStackTrace();
 		System.err.println();
-		System.err.println("The exception above occurred while trying to run your command.");
+		System.err.println("------------------------------------------------------------");
+		System.err.println(" The program finished with the following exception:");
+		System.err.println();
+
+		if (t.getCause() instanceof InvalidProgramException) {
+			System.err.println(t.getCause().getMessage());
+			StackTraceElement[] trace = t.getCause().getStackTrace();
+			for (StackTraceElement ele: trace) {
+				System.err.println("\t" + ele.toString());
+				if (ele.getMethodName().equals("main")) {
+					break;
+				}
+			}
+		} else {
+			t.printStackTrace();
+		}
 		return 1;
 	}
 

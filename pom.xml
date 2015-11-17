@@ -781,8 +781,8 @@ under the License.
 						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
-						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_csv</exclude>
-						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_text</exclude>
+						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
+						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_text</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<exclude>**/flink-bin/conf/masters</exclude>

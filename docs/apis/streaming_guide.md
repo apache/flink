@@ -1361,7 +1361,7 @@ previous transformation. For example, you can use `someStream.map(...).startNewC
 you cannot use `someStream.startNewChain()`.
 
 A resource group is a slot in Flink, see
-[slots](config#configuring-taskmanager-processing-slots). You can
+[slots]({{site.baseurl}}/setup/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
 
 <div class="codetabs" markdown="1">
@@ -2884,7 +2884,7 @@ Execution Parameters
 Flink has a checkpointing mechanism that recovers streaming jobs after failues. The checkpointing mechanism requires a *persistent* or *durable* source that
 can be asked for prior records again (Apache Kafka is a good example of a durable source).
 
-The checkpointing mechanism stores the progress in the source as well as the user-defined state (see [Working with State](#Stateful_computation))
+The checkpointing mechanism stores the progress in the source as well as the user-defined state (see [Working with State](#working_with_state))
 consistently to provide *exactly once* processing guarantees.
 
 To enable checkpointing, call `enableCheckpointing(n)` on the `StreamExecutionEnvironment`, where *n* is the checkpoint interval in milliseconds.

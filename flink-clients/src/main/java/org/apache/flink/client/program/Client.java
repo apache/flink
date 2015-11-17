@@ -69,11 +69,8 @@ import akka.actor.ActorSystem;
 public class Client {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
-
-	/**
-	 * The configuration to use for the client (optimizer, timeouts, ...) and to connect to the
-	 * JobManager.
-	 */
+	
+	
 	/** The optimizer used in the optimization of batch programs */
 	final Optimizer compiler;
 	
@@ -150,6 +147,7 @@ public class Client {
 		timeout = AkkaUtils.getTimeout(config);
 		lookupTimeout = AkkaUtils.getTimeout(config);
 	}
+	
 	// ------------------------------------------------------------------------
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
@@ -244,9 +242,8 @@ public class Client {
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getClasspaths(),
-				prog.getUserCodeClassLoader(), parallelism, true);
-
+			ContextEnvironment.setAsContext(new ContextEnvironmentFactory(this, prog.getAllLibraries(),
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, true));
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
@@ -271,18 +268,18 @@ public class Client {
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getClasspaths(),
-				prog.getUserCodeClassLoader(), parallelism, false);
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, prog.getAllLibraries(),
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, false);
+			ContextEnvironment.setAsContext(factory);
 
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
+				return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
 			}
 			finally {
 				ContextEnvironment.unsetContext();
 			}
-
-			return new JobSubmissionResult(lastJobID);
 		}
 		else {
 			throw new RuntimeException("PackagedProgram does not have a valid invocation mode.");
