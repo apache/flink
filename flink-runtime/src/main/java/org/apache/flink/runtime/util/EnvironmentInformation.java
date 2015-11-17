@@ -320,6 +320,8 @@ public class EnvironmentInformation {
 				}
 			}
 
+			log.info(" Classpath: " + System.getProperty("java.class.path"));
+
 			log.info("--------------------------------------------------------------------------------");
 		}
 	}
