@@ -158,6 +158,8 @@ public class GraphCsvReader {
 		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
 				.map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
 
+					private static final long serialVersionUID = -2981792951286476970L;
+
 					public Tuple3<K, K, NullValue> map(Tuple2<K, K> edge) {
 						return new Tuple3<K, K, NullValue>(edge.f0, edge.f1, NullValue.getInstance());
 					}
