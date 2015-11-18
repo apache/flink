@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.scala.function
 
 import org.apache.flink.api.common.functions.RichFunction
+import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.api.common.state.OperatorState
 
 /**
  * Trait implementing the functionality necessary to apply stateful functions in 
@@ -30,7 +30,7 @@ import org.apache.flink.api.common.state.OperatorState
  */
 trait StatefulFunction[I, O, S] extends RichFunction {
   
-  var state: OperatorState[S] = _
+  var state: ValueState[S] = _
   val stateType: TypeInformation[S]
 
   def applyWithState(in: I, fun: (I, Option[S]) => (O, Option[S])): O = {

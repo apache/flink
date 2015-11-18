@@ -19,14 +19,13 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -36,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class 
@@ -80,20 +78,15 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The runtime context for UDFs */
 	private transient StreamingRuntimeContext runtimeContext;
 
-	
+
 	// ---------------- key/value state ------------------
-	
+
 	/** key selector used to get the key for the state. Non-null only is the operator uses key/value state */
 	private transient KeySelector<?, ?> stateKeySelector;
-	
-	private transient KvState<?, ?, ?>[] keyValueStates;
-	
-	private transient HashMap<String, KvState<?, ?, ?>> keyValueStatesByName;
-	
-	private transient TypeSerializer<?> keySerializer;
-	
-	private transient HashMap<String, KvStateSnapshot<?, ?, ?>> keyValueStateSnapshots;
-	
+
+	/** The state backend that stores the state and checkpoints for this task */
+	private AbstractStateBackend stateBackend = null;
+
 	// ------------------------------------------------------------------------
 	//  Life Cycle
 	// ------------------------------------------------------------------------
@@ -104,6 +97,17 @@ public abstract class AbstractStreamOperator<OUT>
 		this.config = config;
 		this.output = output;
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
+
+		stateKeySelector = config.getStatePartitioner(getUserCodeClassloader());
+
+		try {
+			TypeSerializer<Object> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
+			// if the keySerializer is null we still need to create the state backend
+			// for the non-partitioned state features it provides, such as the state output streams
+			stateBackend = container.createStateBackend(keySerializer);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not initialize state backend. ", e);
+		}
 	}
 
 	/**
@@ -141,11 +145,14 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void dispose() {
-		if (keyValueStates != null) {
-			for (KvState<?, ?, ?> state : keyValueStates) {
-				state.dispose();
+		if (stateBackend != null) {
+			try {
+				stateBackend.close();
+			} catch (Exception e) {
+				throw new RuntimeException("Error while closing state backend.", e);
 			}
 		}
+		getStateBackend().dispose();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -157,17 +164,18 @@ public abstract class AbstractStreamOperator<OUT>
 		// here, we deal with key/value state snapshots
 		
 		StreamTaskState state = new StreamTaskState();
-		if (keyValueStates != null) {
-			HashMap<String, KvStateSnapshot<?, ?, ?>> snapshots = new HashMap<>(keyValueStatesByName.size());
-			
-			for (Map.Entry<String, KvState<?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
-				KvStateSnapshot<?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
-				snapshots.put(entry.getKey(), snapshot);
+
+		if (stateKeySelector != null) {
+			// TODO: this is ugly: from before, there is only on StateBackend per task, while
+			// technically it should be per operator
+			HashMap<String, KvStateSnapshot<?, ?, ?, ?>> partitionedSnapshots =
+					getStateBackend().snapshotPartitionedState(checkpointId, timestamp);
+			if (partitionedSnapshots != null) {
+				state.setKvStates(partitionedSnapshots);
 			}
-			
-			state.setKvStates(snapshots);
+
 		}
-		
+
 		return state;
 	}
 	
@@ -175,7 +183,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public void restoreState(StreamTaskState state) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
 		// the state again, because the restore method needs information provided by the user function
-		keyValueStateSnapshots = state.getKvStates();
+		stateBackend.injectKeyValueStateSnapshots(state.getKvStates());
 	}
 	
 	@Override
@@ -218,8 +226,8 @@ public abstract class AbstractStreamOperator<OUT>
 		return runtimeContext;
 	}
 
-	public StateBackend<?> getStateBackend() {
-		return container.getStateBackend();
+	public AbstractStateBackend getStateBackend() {
+		return stateBackend;
 	}
 
 	/**
@@ -234,122 +242,33 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Creates a key/value state handle, using the state backend configured for this task.
-	 *
-	 * @param stateType The type information for the state type, used for managed memory and state snapshots.
-	 * @param defaultValue The default value that the state should return for keys that currently have
-	 *                     no value associated with them 
-	 *
-	 * @param <V> The type of the state value.
-	 *
-	 * @return The key/value state for this operator.
-	 *
-	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
-	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
-	 */
-	protected <V> OperatorState<V> createKeyValueState(
-			String name, TypeInformation<V> stateType, V defaultValue) throws Exception
-	{
-		return createKeyValueState(name, stateType.createSerializer(getExecutionConfig()), defaultValue);
-	}
-	
-	/**
-	 * Creates a key/value state handle, using the state backend configured for this task.
-	 * 
-	 * @param valueSerializer The type serializer for the state type, used for managed memory and state snapshots.
-	 * @param defaultValue The default value that the state should return for keys that currently have
-	 *                     no value associated with them 
-	 * 
-	 * @param <K> The type of the state key.
-	 * @param <V> The type of the state value.
-	 * @param <Backend> The type of the state backend that creates the key/value state.
-	 * 
-	 * @return The key/value state for this operator.
+	 * Creates a partitioned state handle, using the state backend configured for this task.
 	 * 
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	protected <K, V, Backend extends StateBackend<Backend>> OperatorState<V> createKeyValueState(
-			String name, TypeSerializer<V> valueSerializer, V defaultValue) throws Exception
-	{
-		if (name == null || name.isEmpty()) {
-			throw new IllegalArgumentException();
-		}
-		if (keyValueStatesByName != null && keyValueStatesByName.containsKey(name)) {
-			throw new IllegalStateException("The key/value state has already been created");
-		}
+	protected <S extends State> S getPartitionedState(StateIdentifier<S> stateIdentifier) throws Exception {
+//		if (stateKeySelector == null) {
+//			throw new UnsupportedOperationException("The function or operator is not executed " +
+//					"on a KeyedStream and can hence not access the key/value state");
+//		}
 
-		TypeSerializer<K> keySerializer;
-		
-		// first time state access, make sure we load the state partitioner
-		if (stateKeySelector == null) {
-			stateKeySelector = config.getStatePartitioner(getUserCodeClassloader());
-			if (stateKeySelector == null) {
-				throw new UnsupportedOperationException("The function or operator is not executed " +
-						"on a KeyedStream and can hence not access the key/value state");
-			}
-
-			keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
-			if (keySerializer == null) {
-				throw new Exception("State key serializer has not been configured in the config.");
-			}
-			this.keySerializer = keySerializer;
-		}
-		else if (this.keySerializer != null) {
-			keySerializer = (TypeSerializer<K>) this.keySerializer;
-		}
-		else {
-			// should never happen, this is merely a safeguard
-			throw new RuntimeException();
-		}
-		
-		@SuppressWarnings("unchecked")
-		Backend stateBackend = (Backend) container.getStateBackend();
-
-		KvState<K, V, Backend> kvstate = null;
-		
-		// check whether we restore the key/value state from a snapshot, or create a new blank one
-		if (keyValueStateSnapshots != null) {
-			@SuppressWarnings("unchecked")
-			KvStateSnapshot<K, V, Backend> snapshot = (KvStateSnapshot<K, V, Backend>) keyValueStateSnapshots.remove(name);
-
-			if (snapshot != null) {
-				kvstate = snapshot.restoreState(
-						stateBackend, keySerializer, valueSerializer, defaultValue, getUserCodeClassloader());
-			}
-		}
-		
-		if (kvstate == null) {
-			// create a new blank key/value state
-			kvstate = stateBackend.createKvState(keySerializer, valueSerializer, defaultValue);
-		}
-
-		if (keyValueStatesByName == null) {
-			keyValueStatesByName = new HashMap<>();
-		}
-		keyValueStatesByName.put(name, kvstate);
-		keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
-		return kvstate;
+		return getStateBackend().getPartitionedState(stateIdentifier);
 	}
 	
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContextElement(StreamRecord record) throws Exception {
-		if (stateKeySelector != null && keyValueStates != null) {
-			KeySelector selector = stateKeySelector;
-			for (KvState kv : keyValueStates) {
-				kv.setCurrentKey(selector.getKey(record.getValue()));
-			}
+		if (stateKeySelector != null) {
+			Object key = ((KeySelector) stateKeySelector).getKey(record.getValue());
+			getStateBackend().setCurrentKey(key);
 		}
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContext(Object key) {
-		if (keyValueStates != null) {
-			for (KvState kv : keyValueStates) {
-				kv.setCurrentKey(key);
-			}
+		if (stateKeySelector != null) {
+			stateBackend.setCurrentKey(key);
 		}
 	}
 	

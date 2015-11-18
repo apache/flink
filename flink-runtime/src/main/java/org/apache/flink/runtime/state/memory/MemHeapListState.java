@@ -18,35 +18,37 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.api.common.state.ListStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.AbstractHeapListState;
 import org.apache.flink.runtime.util.DataOutputSerializer;
-import org.apache.flink.runtime.state.AbstractHeapKvState;
 
 import java.util.HashMap;
+import java.util.List;
 
 /**
- * Heap-backed key/value state that is snapshotted into a serialized memory copy.
+ * Heap-backed partitioned {@link org.apache.flink.api.common.state.ListState} that is snapshotted
+ * into a serialized memory copy.
  *
  * @param <K> The type of the key.
- * @param <V> The type of the value.
+ * @param <V> The type of the values in the list state.
  */
-public class MemHeapKvState<K, V> extends AbstractHeapKvState<K, V, MemoryStateBackend> {
-	
-	public MemHeapKvState(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) {
-		super(keySerializer, valueSerializer, defaultValue);
+public class MemHeapListState<K, V> extends AbstractHeapListState<K, V, MemoryStateBackend> {
+
+	public MemHeapListState(MemoryStateBackend backend, TypeSerializer<K> keySerializer, ListStateIdentifier<V> stateIdentifier) {
+		super(backend, keySerializer, stateIdentifier);
 	}
 
-	public MemHeapKvState(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer,
-							V defaultValue, HashMap<K, V> state) {
-		super(keySerializer, valueSerializer, defaultValue, state);
+	public MemHeapListState(MemoryStateBackend backend, TypeSerializer<K> keySerializer, ListStateIdentifier<V> stateIdentifier, HashMap<K, List<V>> state) {
+		super(backend, keySerializer, stateIdentifier, state);
 	}
-	
+
 	@Override
-	public MemoryHeapKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws Exception {
+	public MemoryHeapListStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws Exception {
 		DataOutputSerializer ser = new DataOutputSerializer(Math.max(size() * 16, 16));
 		writeStateToOutputView(ser);
 		byte[] bytes = ser.getCopyOfBuffer();
-		
-		return new MemoryHeapKvStateSnapshot<K, V>(getKeySerializer(), getValueSerializer(), bytes, size());
+
+		return new MemoryHeapListStateSnapshot<>(getKeySerializer(), stateIdentifier, bytes, size());
 	}
 }

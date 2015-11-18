@@ -29,8 +29,9 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -127,7 +128,7 @@ public class FileStateBackendTest {
 				// supreme!
 			}
 
-			backend.initializeForJob(new JobID());
+			backend.initializeForJob(new JobID(), IntSerializer.INSTANCE, this.getClass().getClassLoader());
 			assertNotNull(backend.getCheckpointDirectory());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -150,7 +151,7 @@ public class FileStateBackendTest {
 		
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri()));
-			backend.initializeForJob(new JobID());
+			backend.initializeForJob(new JobID(), IntSerializer.INSTANCE, this.getClass().getClassLoader());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -186,7 +187,7 @@ public class FileStateBackendTest {
 	public void testStateOutputStream() {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri()));
-			backend.initializeForJob(new JobID());
+			backend.initializeForJob(new JobID(), IntSerializer.INSTANCE, this.getClass().getClassLoader());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -220,14 +221,14 @@ public class FileStateBackendTest {
 
 			// use with try-with-resources
 			StreamStateHandle handle4;
-			try (StateBackend.CheckpointStateOutputStream stream4 =
+			try (AbstractStateBackend.CheckpointStateOutputStream stream4 =
 						 backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
 				handle4 = stream4.closeAndGetHandle();
 			}
 
 			// close before accessing handle
-			StateBackend.CheckpointStateOutputStream stream5 =
+			AbstractStateBackend.CheckpointStateOutputStream stream5 =
 					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
 			stream5.write(state4);
 			stream5.close();

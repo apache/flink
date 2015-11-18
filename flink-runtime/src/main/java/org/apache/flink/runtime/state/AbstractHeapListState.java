@@ -18,87 +18,109 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Base class for key/value state implementations that are backed by a regular heap hash map. The
- * concrete implementations define how the state is checkpointed.
+ * Base class for partitioned {@link ListState} implementations that are backed by a regular
+ * heap hash map. The concrete implementations define how the state is checkpointed.
  * 
  * @param <K> The type of the key.
- * @param <V> The type of the value.
+ * @param <V> The type of the values in the list state.
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Backend>> implements KvState<K, V, Backend> {
+public abstract class AbstractHeapListState<K, V, Backend extends AbstractStateBackend>
+		implements KvState<K, ListState<V>, ListStateIdentifier<V>, Backend>, ListState<V> {
 
 	/** Map containing the actual key/value pairs */
-	private final HashMap<K, V> state;
-	
+	private final HashMap<K, List<V>> state;
+
 	/** The serializer for the keys */
 	private final TypeSerializer<K> keySerializer;
 
-	/** The serializer for the values */
-	private final TypeSerializer<V> valueSerializer;
-	
-	/** The value that is returned when no other value has been associated with a key, yet */
-	private final V defaultValue;
-	
+	/** This holds the name of the state and can create an initial default value for the state. */
+	protected final ListStateIdentifier<V> stateIdentifier;
+
 	/** The current key, which the next value methods will refer to */
 	private K currentKey;
-	
+
+	private final Backend backend;
+
 	/**
 	 * Creates a new empty key/value state.
-	 * 
+	 *
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
 	 */
-	protected AbstractHeapKvState(TypeSerializer<K> keySerializer,
-									TypeSerializer<V> valueSerializer,
-									V defaultValue) {
-		this(keySerializer, valueSerializer, defaultValue, new HashMap<K, V>());
+	protected AbstractHeapListState(Backend backend,
+			TypeSerializer<K> keySerializer,
+			ListStateIdentifier<V> stateIdentifier) {
+		this(backend, keySerializer, stateIdentifier, new HashMap<K, List<V>>());
 	}
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
-	 * 
+	 *
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.
-	 * @param state The state map to use in this kev/value state. May contain initial state.   
+	 * @param stateIdentifier The state identifier for the state. This contains name
+	 *                           and can create a default state value.
+	 * @param state The state map to use in this kev/value state. May contain initial state.
 	 */
-	protected AbstractHeapKvState(TypeSerializer<K> keySerializer,
-									TypeSerializer<V> valueSerializer,
-									V defaultValue,
-									HashMap<K, V> state) {
+	protected AbstractHeapListState(Backend backend,
+			TypeSerializer<K> keySerializer,
+			ListStateIdentifier<V> stateIdentifier,
+			HashMap<K, List<V>> state) {
 		this.state = requireNonNull(state);
 		this.keySerializer = requireNonNull(keySerializer);
-		this.valueSerializer = requireNonNull(valueSerializer);
-		this.defaultValue = defaultValue;
+		this.stateIdentifier = stateIdentifier;
+		this.backend = backend;
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public V value() {
-		V value = state.get(currentKey);
-		return value != null ? value : 
-				(defaultValue == null ? null : valueSerializer.copy(defaultValue));
+	public Iterable<V> getView() {
+		List<V> result = state.get(currentKey);
+		if (result == null) {
+			return Collections.emptyList();
+		} else {
+			return result;
+		}
 	}
 
 	@Override
-	public void update(V value) {
-		if (value != null) {
-			state.put(currentKey, value);
+	public Iterator<V> iterator() {
+		return getView().iterator();
+	}
+
+	@Override
+	public void add(V value) {
+		List<V> list = state.get(currentKey);
+		if (list == null) {
+			list = new ArrayList<>();
+			state.put(currentKey, list);
 		}
-		else {
-			state.remove(currentKey);
+		list.add(value);
+	}
+
+	@Override
+	public void clear() {
+		state.remove(currentKey);
+		if (state.size() == 0) {
+			backend.clear(stateIdentifier);
 		}
 	}
 
@@ -125,22 +147,19 @@ public abstract class AbstractHeapKvState<K, V, Backend extends StateBackend<Bac
 		return keySerializer;
 	}
 
-	/**
-	 * Gets the serializer for the values.
-	 * @return The serializer for the values.
-	 */
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
-
 	// ------------------------------------------------------------------------
 	//  checkpointing utilities
 	// ------------------------------------------------------------------------
 	
 	protected void writeStateToOutputView(final DataOutputView out) throws IOException {
-		for (Map.Entry<K, V> entry : state.entrySet()) {
+		TypeSerializer<V> valueSerializer = stateIdentifier.getSerializer();
+		for (Map.Entry<K, List<V>> entry : state.entrySet()) {
 			keySerializer.serialize(entry.getKey(), out);
-			valueSerializer.serialize(entry.getValue(), out);
+			List<V> list = entry.getValue();
+			out.writeInt(list.size());
+			for (V value: list) {
+				valueSerializer.serialize(value, out);
+			}
 		}
 	}
 }

@@ -19,8 +19,9 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -32,7 +33,7 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
@@ -851,7 +852,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		// get "volatile" style access to entries
 		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 		
-		private OperatorState<Integer> state;
+		private ValueState<Integer> state;
 
 		@Override
 		public void open(Configuration parameters) {
@@ -891,12 +892,20 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 		when(task.getEnvironment()).thenReturn(env);
 
-		// ugly java generic hacks to get the state backend into the mock
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing =
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(task.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
-		
+		try {
+			doAnswer(new Answer<AbstractStateBackend>() {
+				@Override
+				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[0];
+					MemoryStateBackend backend = MemoryStateBackend.create();
+					backend.initializeForJob(new JobID(), keySerializer, this.getClass().getClassLoader());
+					return backend;
+				}
+			}).when(task).createStateBackend(any(TypeSerializer.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return task;
 	}
 

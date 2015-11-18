@@ -29,7 +29,9 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateIdentifier;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
@@ -164,8 +166,58 @@ public interface RuntimeContext {
 	// --------------------------------------------------------------------------------------------
 
 	/**
+	 * Gets the partitioned state, which is only accessible if the function is executed on
+	 * a KeyedStream. When interacting with the state only the instance bound to the key of the
+	 * element currently processed by the function is changed.
+	 * Each operator may maintain multiple partitioned states, addressed with different names.
+	 *
+	 * <p>Because the scope of each value is the key of the currently processed element,
+	 * and the elements are distributed by the Flink runtime, the system can transparently
+	 * scale out and redistribute the state and KeyedStream.
+	 *
+	 * <p>The following code example shows how to implement a continuous counter that counts
+	 * how many times elements of a certain key occur, and emits an updated count for that
+	 * element on each occurrence.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 *
+	 * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
+	 *
+	 *     private ValueStateIdentifier<Long> countIdentifier =
+	 *         new ValueStateIdentifier<>("count", 0L, LongSerializer.INSTANCE);
+	 *
+	 *     private ValueState<Long> count;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getPartitionedState(countIdentifier);
+	 *     }
+	 *
+	 *     public Tuple2<MyType, Long> map(MyType value) {
+	 *         long count = state.value();
+	 *         state.update(value + 1);
+	 *         return new Tuple2<>(value, count);
+	 *     }
+	 * });
+	 *
+	 * }</pre>
+	 *
+	 * @param stateIdentifier The StateIdentifier that contains the name and type of the
+	 *                        state that is being accessed.
+	 *
+	 * @param <S> The type of the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part os a KeyedStream).
+	 */
+	<S extends State> S getPartitionedState(StateIdentifier<S> stateIdentifier);
+
+	/**
 	 * Gets the key/value state, which is only accessible if the function is executed on
-	 * a KeyedStream. Upon calling {@link OperatorState#value()}, the key/value state will
+	 * a KeyedStream. Upon calling {@link ValueState#value()}, the key/value state will
 	 * return the value bound to the key of the element currently processed by the function.
 	 * Each operator may maintain multiple key/value states, addressed with different names.
 	 *
@@ -215,11 +267,12 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
-	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
+	@Deprecated
+	<S> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
 
 	/**
 	 * Gets the key/value state, which is only accessible if the function is executed on
-	 * a KeyedStream. Upon calling {@link OperatorState#value()}, the key/value state will
+	 * a KeyedStream. Upon calling {@link ValueState#value()}, the key/value state will
 	 * return the value bound to the key of the element currently processed by the function.
 	 * Each operator may maintain multiple key/value states, addressed with different names.
 	 * 
@@ -264,5 +317,6 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
-	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
+	@Deprecated
+	<S> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 }

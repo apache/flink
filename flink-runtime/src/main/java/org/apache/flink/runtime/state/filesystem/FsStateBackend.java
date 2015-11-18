@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateIdentifier;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +49,7 @@ import java.util.UUID;
  * 
  * {@code hdfs://namenode:port/flink-checkpoints/<job-id>/chk-17/6ba7b810-9dad-11d1-80b4-00c04fd430c8 }
  */
-public class FsStateBackend extends StateBackend<FsStateBackend> {
+public class FsStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = -8191916350224044011L;
 	
@@ -203,13 +207,15 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 	//  initialization and cleanup
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public void initializeForJob(JobID jobId) throws Exception {
+	public void initializeForJob(JobID jobId, TypeSerializer<?> keySerializer, ClassLoader userCodeClassLoader) throws Exception {
+		super.initializeForJob(jobId, keySerializer, userCodeClassLoader);
+
 		Path dir = new Path(basePath, jobId.toString());
-		
+
 		LOG.info("Initializing file state backend to URI " + dir);
-		
+
 		filesystem = basePath.getFileSystem();
 		filesystem.mkdirs(dir);
 
@@ -237,11 +243,15 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 	//  state backend operations
 	// ------------------------------------------------------------------------
-	
+
 	@Override
-	public <K, V> FsHeapKvState<K, V> createKvState(
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws Exception {
-		return new FsHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue, this);
+	public <V> ValueState<V> createValueState(ValueStateIdentifier<V> stateIdentifier) throws Exception {
+		return new FsHeapValueState<>(keySerializer, stateIdentifier, this);
+	}
+
+	@Override
+	public <T> ListState<T> createListState(ListStateIdentifier<T> stateIdentifier) throws Exception {
+		return new FsHeapListState<>(keySerializer, stateIdentifier, this);
 	}
 
 	@Override

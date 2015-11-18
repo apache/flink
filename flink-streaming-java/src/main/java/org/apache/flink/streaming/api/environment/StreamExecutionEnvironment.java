@@ -26,6 +26,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -62,7 +63,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.SplittableIterator;
@@ -127,7 +128,7 @@ public abstract class StreamExecutionEnvironment {
 	protected boolean forceCheckpointing = false;
 	
 	/** The state backend used for storing k/v state and state snapshots */
-	private StateBackend<?> defaultStateBackend;
+	private AbstractStateBackend defaultStateBackend;
 	
 	/** The time characteristic used by the data streams */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -364,7 +365,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Sets the state backend that describes how to store and checkpoint operator state. It defines in
-	 * what form the key/value state ({@link org.apache.flink.api.common.state.OperatorState}, accessible
+	 * what form the key/value state ({@link ValueState}, accessible
 	 * from operations on {@link org.apache.flink.streaming.api.datastream.KeyedStream}) is maintained
 	 * (heap, managed memory, externally), and where state snapshots/checkpoints are stored, both for
 	 * the key/value state, and for checkpointed functions (implementing the interface
@@ -384,7 +385,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @see #getStateBackend()
 	 */
-	public StreamExecutionEnvironment setStateBackend(StateBackend<?> backend) {
+	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
 		this.defaultStateBackend = requireNonNull(backend);
 		return this;
 	}
@@ -393,9 +394,9 @@ public abstract class StreamExecutionEnvironment {
 	 * Returns the state backend that defines how to store and checkpoint state.
 	 * @return The state backend that defines how to store and checkpoint state.
 	 * 
-	 * @see #setStateBackend(StateBackend)
+	 * @see #setStateBackend(AbstractStateBackend)
 	 */
-	public StateBackend<?> getStateBackend() {
+	public AbstractStateBackend getStateBackend() {
 		return defaultStateBackend;
 	}
 

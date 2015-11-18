@@ -18,32 +18,36 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateIdentifier;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.util.DataInputDeserializer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
- * A snapshot of a {@link MemHeapKvState} for a checkpoint. The data is stored in a heap byte
+ * A snapshot of a {@link MemHeapListState} for a checkpoint. The data is stored in a heap byte
  * array, in serialized form.
  * 
  * @param <K> The type of the key in the snapshot state.
- * @param <V> The type of the value in the snapshot state.
+ * @param <V> The type of the values in the snapshot state.
  */
-public class MemoryHeapKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, MemoryStateBackend> {
-	
+public class MemoryHeapListStateSnapshot<K, V> implements KvStateSnapshot<K, ListState<V>, ListStateIdentifier<V>,  MemoryStateBackend> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	/** Name of the key serializer class */
 	private final String keySerializerClassName;
 
-	/** Name of the value serializer class */
-	private final String valueSerializerClassName;
-	
+	/** Hash of the StateIdentifier, for sanity checks */
+	int stateIdentifierHash;
+
 	/** The serialized data of the state key/value pairs */
 	private final byte[] data;
-	
+
 	/** The number of key/value pairs */
 	private final int numEntries;
 
@@ -51,47 +55,52 @@ public class MemoryHeapKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, Me
 	 * Creates a new heap memory state snapshot.
 	 *
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
 	 * @param data The serialized data of the state key/value pairs
 	 * @param numEntries The number of key/value pairs
 	 */
-	public MemoryHeapKvStateSnapshot(TypeSerializer<K> keySerializer,
-						TypeSerializer<V> valueSerializer, byte[] data, int numEntries) {
+	public MemoryHeapListStateSnapshot(TypeSerializer<K> keySerializer, ListStateIdentifier<V> stateIdentifiers, byte[] data, int numEntries) {
 		this.keySerializerClassName = keySerializer.getClass().getName();
-		this.valueSerializerClassName = valueSerializer.getClass().getName();
+		this.stateIdentifierHash = stateIdentifiers.hashCode();
 		this.data = data;
 		this.numEntries = numEntries;
 	}
 
 
+
 	@Override
-	public MemHeapKvState<K, V> restoreState(
+	public MemHeapListState<K, V> restoreState(
 			MemoryStateBackend stateBackend,
 			final TypeSerializer<K> keySerializer,
-			final TypeSerializer<V> valueSerializer,
-			V defaultValue,
+			ListStateIdentifier<V> stateIdentifier,
 			ClassLoader classLoader) throws Exception {
 
 		// validity checks
-		if (!keySerializer.getClass().getName().equals(keySerializerClassName) ||
-			!valueSerializer.getClass().getName().equals(valueSerializerClassName)) {
-				throw new IllegalArgumentException(
-						"Cannot restore the state from the snapshot with the given serializers. " +
-						"State (K/V) was serialized with (" + valueSerializerClassName + 
-						"/" + keySerializerClassName + ")");
+		if (!keySerializer.getClass().getName().equals(keySerializerClassName)
+				|| stateIdentifierHash != stateIdentifier.hashCode()) {
+			throw new IllegalArgumentException(
+					"Cannot restore the state from the snapshot with the given serializers. " +
+							"State (K/V) was serialized with " +
+							"(" + keySerializerClassName + "/" + stateIdentifierHash + ") " +
+							"now is (" + keySerializer.getClass().getName() + "/" + stateIdentifier.hashCode() + ")");
 		}
 		
 		// restore state
-		HashMap<K, V> stateMap = new HashMap<>(numEntries);
+		HashMap<K, List<V>> stateMap = new HashMap<>(numEntries);
 		DataInputDeserializer in = new DataInputDeserializer(data, 0, data.length);
-		
+
+		TypeSerializer<V> valueSerializer = stateIdentifier.getSerializer();
 		for (int i = 0; i < numEntries; i++) {
 			K key = keySerializer.deserialize(in);
-			V value = valueSerializer.deserialize(in);
-			stateMap.put(key, value);
+			int listSize = in.readInt();
+			List<V> list = new ArrayList<>(listSize);
+			for (int j = 0; j < listSize; j++) {
+				V value = valueSerializer.deserialize(in);
+				list.add(value);
+			}
+			stateMap.put(key, list);
 		}
 		
-		return new MemHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue, stateMap);
+		return new MemHeapListState<>(stateBackend, keySerializer, stateIdentifier, stateMap);
 	}
 
 	/**

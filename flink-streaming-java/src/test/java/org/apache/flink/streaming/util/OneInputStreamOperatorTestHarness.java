@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -30,16 +31,20 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.OngoingStubbing;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +67,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	final ExecutionConfig executionConfig;
 	
 	final Object checkpointLock;
+
+	StreamTask<?, ?> mockTask;
+
+	AbstractStateBackend stateBackend;
 	
 	
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
@@ -72,20 +81,26 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this.checkpointLock = new Object();
 
 		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
-		StreamTask<?, ?> mockTask = mock(StreamTask.class);
+		mockTask = mock(StreamTask.class);
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		
-		// ugly Java generic hacks
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing = 
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(mockTask.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
 
-		operator.setup(mockTask, config, new MockOutput());
+		try {
+			doAnswer(new Answer<AbstractStateBackend>() {
+				@Override
+				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[0];
+					MemoryStateBackend backend = MemoryStateBackend.create();
+					backend.initializeForJob(new JobID(), keySerializer, this.getClass().getClassLoader());
+					return backend;
+				}
+			}).when(mockTask).createStateBackend(any(TypeSerializer.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
@@ -107,6 +122,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}
 	 */
 	public void open() throws Exception {
+		operator.setup(mockTask, config, new MockOutput());
+
 		operator.open();
 	}
 

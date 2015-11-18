@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
@@ -131,7 +131,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends
 			
 			if (udfState != null) {
 				try {
-					StateBackend<?> stateBackend = getStateBackend();
+					AbstractStateBackend stateBackend = getStateBackend();
 					StateHandle<Serializable> handle = 
 							stateBackend.checkpointStateSerializable(udfState, checkpointId, timestamp);
 					state.setFunctionState(handle);
