@@ -110,8 +110,8 @@ public class TwitterStream {
 					while (tokenizer.hasMoreTokens()) {
 						String result = tokenizer.nextToken().replaceAll("\\s*", "").toLowerCase();
 
-						if (result != null && !result.equals("")) {
-							out.collect(new Tuple2<String, Integer>(result, 1));
+						if (!result.equals("")) {
+							out.collect(new Tuple2<>(result, 1));
 						}
 					}
 				}

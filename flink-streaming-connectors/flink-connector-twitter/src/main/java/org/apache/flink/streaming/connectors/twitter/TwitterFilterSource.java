@@ -39,22 +39,21 @@ import com.twitter.hbc.httpclient.auth.Authentication;
  */
 public class TwitterFilterSource extends TwitterSource {
 
-	private static final Logger LOG = LoggerFactory
-			.getLogger(TwitterFilterSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TwitterFilterSource.class);
 
 	private static final long serialVersionUID = 1L;
 
-	private List<String> trackTerms = new LinkedList<String>();
+	private List<String> trackTerms = new LinkedList<>();
 
-	private List<String> languages = new LinkedList<String>();
+	private List<String> languages = new LinkedList<>();
 
-	private List<Long> followings = new LinkedList<Long>();
+	private List<Long> followings = new LinkedList<>();
 
-	private List<Location> locations = new LinkedList<Location>();
+	private List<Location> locations = new LinkedList<>();
 
-	private Map<String, String> queryParameters = new HashMap<String, String>();
+	private Map<String, String> queryParameters = new HashMap<>();
 
-	private Map<String, String> postParameters = new HashMap<String, String>();
+	private Map<String, String> postParameters = new HashMap<>();
 
 	public TwitterFilterSource(String authPath) {
 		super(authPath);
@@ -66,7 +65,7 @@ public class TwitterFilterSource extends TwitterSource {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Initializing Twitter Streaming API connection");
 		}
-		queue = new LinkedBlockingQueue<String>(queueSize);
+		queue = new LinkedBlockingQueue<>(queueSize);
 
 		StatusesFilterEndpoint endpoint = new StatusesFilterEndpoint();
 		configEndpoint(endpoint);

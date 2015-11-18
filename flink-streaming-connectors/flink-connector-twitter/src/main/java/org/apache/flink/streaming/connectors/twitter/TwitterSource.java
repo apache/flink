@@ -77,7 +77,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 	 * @param authPath
 	 *            Location of the properties file containing the required
 	 *            authentication information.
-	 * @param numberOfTweets
+	 * @param numberOfTweets max number of tweets
 	 * 
 	 */
 	public TwitterSource(String authPath, int numberOfTweets) {
@@ -101,7 +101,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 			LOG.info("Initializing Twitter Streaming API connection");
 		}
 
-		queue = new LinkedBlockingQueue<String>(queueSize);
+		queue = new LinkedBlockingQueue<>(queueSize);
 
 		StatusesSampleEndpoint endpoint = new StatusesSampleEndpoint();
 		endpoint.stallWarnings(false);

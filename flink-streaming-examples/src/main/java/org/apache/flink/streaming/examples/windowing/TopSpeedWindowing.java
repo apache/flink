@@ -64,9 +64,12 @@ public class TopSpeedWindowing {
 		if (fileInput) {
 			carData = env.readTextFile(inputPath).map(new ParseCarData());
 		} else {
+			int numOfCars = 2;
 			carData = env.addSource(CarSource.create(numOfCars));
 		}
 
+		int evictionSec = 10;
+		double triggerMeters = 50;
 		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData
 				.assignTimestamps(new CarTimestamp())
 				.keyBy(0)
@@ -133,7 +136,7 @@ public class TopSpeedWindowing {
 						speeds[carId] = Math.max(0, speeds[carId] - 5);
 					}
 					distances[carId] += speeds[carId] / 3.6d;
-					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<Integer, Integer, Double, Long>(carId,
+					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<>(carId,
 							speeds[carId], distances[carId], System.currentTimeMillis());
 					ctx.collect(record);
 					counter++;
@@ -186,9 +189,6 @@ public class TopSpeedWindowing {
 
 	private static boolean fileInput = false;
 	private static boolean fileOutput = false;
-	private static int numOfCars = 2;
-	private static int evictionSec = 10;
-	private static double triggerMeters = 50;
 	private static String inputPath;
 	private static String outputPath;
 
