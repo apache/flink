@@ -49,7 +49,7 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	@Override
 	public boolean isImmutableType() {
-		return true;
+		return leftSerializer.isImmutableType() && rightSerializer.isImmutableType();
 	}
 
 	@Override
@@ -69,8 +69,8 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	@Override
 	public Either<L, R> createInstance() {
-		// We arbitrarily always create a Left value instance.
-		return Either.left(leftSerializer.createInstance());
+		// We arbitrarily always create a Right value instance.
+		return Either.right(rightSerializer.createInstance());
 	}
 
 	@Override
@@ -89,23 +89,23 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	@Override
 	public Either<L, R> copy(Either<L, R> from, Either<L, R> reuse) {
-		if (from.isLeft()) {
-			final L left = from.left();
-			if (reuse.isLeft()) {
-				L copyLeft = leftSerializer.copy(left, reuse.left());
-				return Either.left(copyLeft);
+		if (from.isRight()) {
+			final R right = from.right();
+			if (reuse.isRight()) {
+				R copyRight = rightSerializer.copy(right, reuse.right());
+				return Either.right(copyRight);
 			}
 			else {
-				// if the reuse record isn't a left value, we cannot reuse
-				L copyLeft = leftSerializer.copy(left);
-				return Either.left(copyLeft);
+				// if the reuse record isn't a right value, we cannot reuse
+				R copyRight = rightSerializer.copy(right);
+				return Either.right(copyRight);
 			}
 		}
 		else {
-			R right = from.right();
-			// reuse record is never a right value because we always create a left instance
-			R copyRight = rightSerializer.copy(right);
-			return Either.right(copyRight);
+			L left = from.left();
+			// reuse record is never a left value because we always create a right instance
+			L copyLeft = leftSerializer.copy(left);
+			return Either.left(copyLeft);
 		}
 	}
 
@@ -140,18 +140,18 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	@Override
 	public Either<L, R> deserialize(Either<L, R> reuse, DataInputView source) throws IOException {
 		boolean isLeft = source.readBoolean();
-		if (isLeft) {
-			if (reuse.isLeft()) {
-				return Either.left(leftSerializer.deserialize(reuse.left(), source));
+		if (!isLeft) {
+			if (reuse.isRight()) {
+				return Either.right(rightSerializer.deserialize(reuse.right(), source));
 			}
 			else {
-				// if the reuse record isn't a left value, we cannot reuse
-				return Either.left(leftSerializer.deserialize(source));
+				// if the reuse record isn't a right value, we cannot reuse
+				return Either.right(rightSerializer.deserialize(source));
 			}
 		}
 		else {
-			// reuse record is never a right value because we always create a left instance
-			return Either.right(rightSerializer.deserialize(source));
+			// reuse record is never a left value because we always create a right instance
+			return Either.left(leftSerializer.deserialize(source));
 		}
 	}
 

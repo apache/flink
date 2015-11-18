@@ -33,16 +33,11 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final Class<Either<L, R>> typeClass;
-
 	private final TypeInformation<L> leftType;
 
 	private final TypeInformation<R> rightType;
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public EitherTypeInfo(Class<Either> typeClass,
-			TypeInformation<L> leftType,TypeInformation<R> rightType) {
-		this.typeClass = (Class<Either<L, R>>) (Class<?>) typeClass;
+	public EitherTypeInfo(TypeInformation<L> leftType,TypeInformation<R> rightType) {
 		this.leftType = leftType;
 		this.rightType = rightType;
 	}
@@ -67,9 +62,10 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 		return 1;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Class<Either<L, R>> getTypeClass() {
-		return this.typeClass;
+		return (Class<Either<L, R>>) (Class<?>) Either.class;
 	}
 
 	@Override
@@ -79,7 +75,7 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	@Override
 	public TypeSerializer<Either<L, R>> createSerializer(ExecutionConfig config) {
-		return new EitherSerializer<L, R>(typeClass, leftType.createSerializer(config),
+		return new EitherSerializer<L, R>(getTypeClass(), leftType.createSerializer(config),
 				rightType.createSerializer(config));
 	}
 

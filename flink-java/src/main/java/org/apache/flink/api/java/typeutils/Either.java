@@ -59,13 +59,23 @@ public abstract class Either<L, R> {
 	 * 
 	 * @return true if this is a Left value, false if this is a Right value
 	 */
-	public abstract boolean isLeft();
+	public final boolean isLeft() {
+		return getClass() == Left.class;
+	}
+
+	/**
+	 * 
+	 * @return true if this is a Right value, false if this is a Left value
+	 */
+	public final boolean isRight() {
+		return getClass() == Right.class;
+	}
 
 	private static class Left<L, R> extends Either<L, R> {
 		final L value;
 
 		public Left(L value) {
-			this.value = value;
+			this.value = java.util.Objects.requireNonNull(value);
 		}
 
 		@Override
@@ -94,12 +104,7 @@ public abstract class Either<L, R> {
 
 		@Override
 		public String toString() {
-			return "Either.left(" + value.toString() + ")";
-		}
-
-		@Override
-		public boolean isLeft() {
-			return true;
+			return "Left(" + value.toString() + ")";
 		}
 	}
 
@@ -107,7 +112,7 @@ public abstract class Either<L, R> {
 		final R value;
 
 		public Right(R value) {
-			this.value = value;
+			this.value = java.util.Objects.requireNonNull(value);
 		}
 
 		@Override
@@ -136,12 +141,7 @@ public abstract class Either<L, R> {
 
 		@Override
 		public String toString() {
-			return "Either.right(" + value.toString() + ")";
-		}
-
-		@Override
-		public boolean isLeft() {
-			return false;
+			return "Right(" + value.toString() + ")";
 		}
 	}
 }

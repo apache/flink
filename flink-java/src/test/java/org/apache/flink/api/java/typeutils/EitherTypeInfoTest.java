@@ -31,32 +31,26 @@ public class EitherTypeInfoTest extends TestLogger {
 	Either<Integer, String> stringEither = Either.right("boo");
 	Either<Integer, Tuple2<Double, Long>> tuple2Either = Either.right(new Tuple2<Double, Long>(42.0, 2l));
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testEitherTypeEquality() {
 		EitherTypeInfo<Integer, String> eitherInfo1 = new EitherTypeInfo<Integer, String>(
-				(Class<Either>) intEither.getClass(), BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO);
+				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		EitherTypeInfo<Integer, String> eitherInfo2 = new EitherTypeInfo<Integer, String>(
-				(Class<Either>) stringEither.getClass(), BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO);
+				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		assertEquals(eitherInfo1, eitherInfo2);
 		assertEquals(eitherInfo1.hashCode(), eitherInfo2.hashCode());
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testEitherTypeInEquality() {
 		EitherTypeInfo<Integer, String> eitherInfo1 = new EitherTypeInfo<Integer, String>(
-				(Class<Either>) intEither.getClass(), BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO);
+				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		EitherTypeInfo<Integer, Tuple2<Double, Long>> eitherInfo2 = new EitherTypeInfo<Integer, Tuple2<Double, Long>>(
-				(Class<Either>) tuple2Either.getClass(), BasicTypeInfo.INT_TYPE_INFO,
-				new TupleTypeInfo<Tuple2<Double, Long>>(
-						TypeExtractor.getForClass(Double.class), TypeExtractor.getForClass(String.class)));
+				BasicTypeInfo.INT_TYPE_INFO, new TupleTypeInfo<Tuple2<Double, Long>>(
+				TypeExtractor.getForClass(Double.class), TypeExtractor.getForClass(String.class)));
 
 		assertNotEquals(eitherInfo1, eitherInfo2);
 		assertNotEquals(eitherInfo1.hashCode(), eitherInfo2.hashCode());

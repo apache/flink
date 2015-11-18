@@ -33,7 +33,7 @@ import org.junit.Test;
 
 public class EitherSerializerTest {
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testStringDoubleEither() {
 
@@ -45,7 +45,7 @@ public class EitherSerializerTest {
 			Either.right(Double.MAX_VALUE)};
 
 	EitherTypeInfo<String, Double> eitherTypeInfo = (EitherTypeInfo<String, Double>) new EitherTypeInfo<String, Double>(
-			(Class<Either>) Either.class, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
 	EitherSerializer<String, Double> eitherSerializer =
 			(EitherSerializer<String, Double>) eitherTypeInfo.createSerializer(new ExecutionConfig());
 	SerializerTestInstance<Either<String, Double>> testInstance =
@@ -53,7 +53,7 @@ public class EitherSerializerTest {
 	testInstance.testAll();
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testEitherWithTuple() {
 
@@ -66,8 +66,8 @@ public class EitherSerializerTest {
 
 	EitherTypeInfo<Tuple2<Long, Long>, Double> eitherTypeInfo = (EitherTypeInfo<Tuple2<Long, Long>, Double>)
 			new EitherTypeInfo<Tuple2<Long, Long>, Double>(
-			(Class<Either>) Either.class, new TupleTypeInfo<Tuple2<Long, Long>>(
-					BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO), BasicTypeInfo.DOUBLE_TYPE_INFO);
+			new TupleTypeInfo<Tuple2<Long, Long>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO),
+			BasicTypeInfo.DOUBLE_TYPE_INFO);
 	EitherSerializer<Tuple2<Long, Long>, Double> eitherSerializer =
 			(EitherSerializer<Tuple2<Long, Long>, Double>) eitherTypeInfo.createSerializer(new ExecutionConfig());
 	SerializerTestInstance<Either<Tuple2<Long, Long>, Double>> testInstance =
