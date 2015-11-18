@@ -278,9 +278,12 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	
 	public static Properties getPropertiesFromBrokerList(String brokerList) {
 		String[] elements = brokerList.split(",");
-		for(String broker: elements) {
+		
+		// validate the broker addresses
+		for (String broker: elements) {
 			NetUtils.getCorrectHostnamePort(broker);
 		}
+		
 		Properties props = new Properties();
 		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
 		return props;
