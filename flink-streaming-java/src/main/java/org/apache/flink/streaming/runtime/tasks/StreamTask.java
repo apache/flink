@@ -525,7 +525,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						Class<? extends StateBackendFactory> clazz =
 							Class.forName(backendName, false, userClassLoader).asSubclass(StateBackendFactory.class);
 
-						return (StateBackend<?>) clazz.newInstance();
+						return clazz.newInstance().createFromConfig(flinkConfig);
 					} catch (ClassNotFoundException e) {
 						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
 					} catch (ClassCastException e) {
