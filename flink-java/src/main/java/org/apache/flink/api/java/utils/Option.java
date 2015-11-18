@@ -44,7 +44,8 @@ public class Option {
 	}
 
 	/**
-	 * Define a alternative / short name of the Parameter.
+	 * Define an alternative / short name of the parameter.
+	 * Only one alternative per parameter is allowed.
 	 *
 	 * @param shortName - short version of the parameter name
 	 * @return the updated Option

@@ -19,6 +19,8 @@
 package org.apache.flink.api.java.utils;
 
 import java.util.HashMap;
+import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 
@@ -29,6 +31,7 @@ public class RequiredParameters {
 
 	private static final String HELP_TEXT_PARAM_DELIMITER = "\t";
 	private static final String HELP_TEXT_LINE_DELIMITER = "\n";
+	private static final int HELP_TEXT_LENGTH_PER_PARAM = 100;
 
 	private HashMap<String, Option> data;
 
@@ -36,6 +39,13 @@ public class RequiredParameters {
 		this.data = new HashMap<>();
 	}
 
+	/**
+	 * Add a parameter based on its name.
+	 *
+	 * @param name - the name of the parameter
+	 * @return - an {@link Option} object representing the parameter
+	 * @throws RequiredParametersException if an option with the same name is already defined
+	 */
 	public Option add(String name) throws RequiredParametersException {
 		if (!this.data.containsKey(name)) {
 			Option option = new Option(name);
@@ -46,6 +56,12 @@ public class RequiredParameters {
 		}
 	}
 
+	/**
+	 * Add a parameter encapsulated in an {@link Option} object.
+	 *
+	 * @param option - the parameter
+	 * @throws RequiredParametersException if an option with the same name is already defined
+	 */
 	public void add(Option option) throws RequiredParametersException {
 		if (!this.data.containsKey(option.getName())) {
 			this.data.put(option.getName(), option);
@@ -64,8 +80,10 @@ public class RequiredParameters {
 	 * For any check which is not passed, a RequiredParametersException is thrown
 	 *
 	 * @param parameterTool - parameters supplied by the user.
+	 * @throws RequiredParametersException if any of the specified checks fail
 	 */
 	public void applyTo(ParameterTool parameterTool) throws RequiredParametersException {
+		List<String> missingArguments = new LinkedList<>();
 		for (Option o : data.values()) {
 			String key = o.getName();
 			String shortKey = o.getAlt();
@@ -93,8 +111,8 @@ public class RequiredParameters {
 					throw new RequiredParametersException("No default value for undefined parameter " + key);
 				}
 			} else {
-				if (!parameterTool.data.containsKey(o.getName())) {
-					throw new RequiredParametersException("Required parameter " + key + " not present.");
+				if (!parameterTool.data.containsKey(key)) {
+					missingArguments.add(key);
 				}
 				String value = parameterTool.data.get(key);
 				// key is defined and has value, now check if it adheres to the type specified.
@@ -109,36 +127,106 @@ public class RequiredParameters {
 				}
 			}
 		}
+		if (!missingArguments.isEmpty()) {
+			throw new RequiredParametersException(this.missingArgumentsText(missingArguments), missingArguments);
+		}
 	}
 
 	/**
 	 * Build a help text for the defined parameters.
 	 *
-	 * Formatted like: :name: \t :shortName: \t :helpText: \t :defaultValue: \n
+	 * The format of the help text will be:
+	 * Required Parameters:
+	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices: \n
 	 *
 	 * @return a formatted help String.
 	 */
 	public String getHelp() {
-		StringBuilder sb = new StringBuilder(data.size() * 100);
+		StringBuilder sb = new StringBuilder(data.size() * HELP_TEXT_LENGTH_PER_PARAM);
 
-		sb.append("Required Parameter");
+		sb.append("Required Parameters:");
 		sb.append(HELP_TEXT_LINE_DELIMITER);
-		sb.append("name, short name, help text, default value");
 
 		for (Option o : data.values()) {
-			sb.append(o.getName());
+			sb.append(this.helpText(o));
+		}
+		sb.append(HELP_TEXT_LINE_DELIMITER);
+
+		return sb.toString();
+	}
+
+	/**
+	 * Build a help text for the defined parameters and list the missing arguments at the end of the text.
+	 *
+	 * The format of the help text will be:
+	 * Required Parameters:
+	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices: \n
+	 *
+	 * Missing parameters:
+	 * \t param1 param2 ... paramN
+	 *
+	 * @param missingArguments - a list of missing parameters
+	 * @return a formatted help String.
+	 */
+	public String getHelp(List<String> missingArguments) {
+		return this.getHelp() + this.missingArgumentsText(missingArguments);
+	}
+
+	/**
+	 * for the given option create a line for the help text which looks like:
+	 * \t -:shortName:, --:name: \t :helpText: \t default: :defaultValue: \t choices: :choices:
+	 */
+	private String helpText(Option option) {
+		StringBuilder sb = new StringBuilder(HELP_TEXT_LENGTH_PER_PARAM);
+		sb.append(HELP_TEXT_PARAM_DELIMITER);
+
+		// if there is a short name, add it.
+		if (option.hasAlt()) {
+			sb.append("-");
+			sb.append(option.getAlt());
+			sb.append(", ");
+		}
+
+		// add the name
+		sb.append("--");
+		sb.append(option.getName());
+		sb.append(HELP_TEXT_PARAM_DELIMITER);
+
+		// if there is a help text, add it
+		if (option.getHelpText() != null) {
+			sb.append(option.getHelpText());
 			sb.append(HELP_TEXT_PARAM_DELIMITER);
-			if (o.hasAlt()) {
-				sb.append(o.getAlt());
-				sb.append(HELP_TEXT_PARAM_DELIMITER);
-			}
-			sb.append(o.getHelpText());
+		}
+
+		// if there is a default value, add it.
+		if (option.hasDefaultValue()) {
+			sb.append("default: ");
+			sb.append(option.getDefaultValue());
 			sb.append(HELP_TEXT_PARAM_DELIMITER);
-			if (o.hasDefaultValue()) {
-				sb.append(o.getDefaultValue());
-				sb.append(HELP_TEXT_PARAM_DELIMITER);
+		}
+
+		// if there is a list of choices add it.
+		if (!option.getChoices().isEmpty()) {
+			sb.append("choices: ");
+			for (String choice : option.getChoices()) {
+				sb.append(choice);
+				sb.append(" ");
 			}
-			sb.append(HELP_TEXT_LINE_DELIMITER);
+		}
+		sb.append(HELP_TEXT_LINE_DELIMITER);
+
+		return sb.toString();
+	}
+
+	private String missingArgumentsText(List<String> missingArguments) {
+		StringBuilder sb = new StringBuilder(missingArguments.size() * 10);
+
+		sb.append("Missing arguments for:");
+		sb.append(HELP_TEXT_LINE_DELIMITER);
+
+		for (String arg : missingArguments) {
+			sb.append(arg);
+			sb.append(" ");
 		}
 
 		return sb.toString();

@@ -20,7 +20,7 @@
 package org.apache.flink.api.java.utils;
 
 /**
- * Types the parameters of UDFs can take.
+ * Types the parameters of managed with {@link RequiredParameters} can take.
  *
  * Name maps directly to the corresponding Java type.
  */

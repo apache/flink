@@ -19,9 +19,15 @@
 package org.apache.flink.api.java.utils;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.not;
+
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
 
 /**
  * Tests for RequiredParameter class and its interactions with ParameterTool
@@ -105,15 +111,50 @@ public class RequiredParametersTest {
 	}
 
 	@Test
-	public void testPrintHelp() throws RequiredParametersException {
+	public void testPrintHelpForFullySetOption() throws RequiredParametersException {
 		RequiredParameters required = new RequiredParameters();
-		required.add(new Option("option").defaultValue("some stuff").help("useful text").alt("o"));
+		required.add(new Option("option").defaultValue("some").help("help").alt("o").choices("more", "options", "some"));
 
 		String helpText = required.getHelp();
 		Assert.assertThat(helpText, CoreMatchers.allOf(
-				containsString("option"),
-				containsString("o"),
-				containsString("some stuff"),
-				containsString("useful text")));
+				containsString("Required Parameters:"),
+				containsString("-o, --option"),
+				containsString("default: some"),
+				containsString("choices: "),
+				containsString("more"),
+				containsString("some"),
+				containsString("options")));
+	}
+
+	@Test
+	public void testPrintHelpForMultipleParams() throws RequiredParametersException {
+		RequiredParameters required = new RequiredParameters();
+		required.add("input");
+		required.add("output");
+		required.add(new Option("parallelism").alt("p").help("Set the parallelism for all operators").type(OptionType.INTEGER));
+
+		String helpText = required.getHelp();
+		Assert.assertThat(helpText, CoreMatchers.allOf(
+				containsString("Required Parameters:"),
+				containsString("--input"),
+				containsString("--output"),
+				containsString("-p, --parallelism"),
+				containsString("Set the parallelism for all operators")));
+
+		Assert.assertThat(helpText, CoreMatchers.allOf(
+				not(containsString("choices")),
+				not(containsString("default"))));
+	}
+
+	@Test
+	public void testPrintHelpWithMissingParams() throws RequiredParametersException {
+		RequiredParameters required = new RequiredParameters();
+
+		String helpText = required.getHelp(Arrays.asList("param1", "param2", "paramN"));
+		Assert.assertThat(helpText, CoreMatchers.allOf(
+				containsString("Missing arguments for:"),
+				containsString("param1 "),
+				containsString("param2 "),
+				containsString("paramN ")));
 	}
 }
