@@ -135,7 +135,7 @@ public class IncrementalSSSP implements ProgramDescription {
 	 *
 	 * @param edgeToBeRemoved
 	 * @param edgesInSSSP
-	 * @return
+	 * @return true or false
 	 */
 	public static boolean isInSSSP(final Edge<Long, Double> edgeToBeRemoved, DataSet<Edge<Long, Double>> edgesInSSSP) throws Exception {
 
@@ -154,9 +154,7 @@ public class IncrementalSSSP implements ProgramDescription {
 			if (inMessages.hasNext()) {
 				Long outDegree = getOutDegree() - 1;
 				// check if the vertex has another SP-Edge
-				if (outDegree > 0) {
-					// there is another shortest path from the source to this vertex
-				} else {
+				if (outDegree <= 0) {
 					// set own value to infinity
 					setNewVertexValue(Double.MAX_VALUE);
 				}

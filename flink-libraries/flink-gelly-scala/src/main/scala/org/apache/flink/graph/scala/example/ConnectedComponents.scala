@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.scala.example;
+package org.apache.flink.graph.scala.example
 
 import org.apache.flink.api.scala._
 import org.apache.flink.graph.scala._
@@ -32,7 +32,7 @@ import java.lang.Long
  * You can find all available library methods in [[org.apache.flink.graph.library]]. 
  * 
  * In particular, this example uses the
- * [[org.apache.flink.graph.library.ConnectedComponentsAlgorithm.GSAConnectedComponents]]
+ * [[org.apache.flink.graph.library.GSAConnectedComponents]]
  * library method to compute the connected components of the input graph.
  *
  * The input file is a plain text file and must be formatted as follows:
@@ -70,7 +70,7 @@ object ConnectedComponents {
   }
 
   private final class InitVertices extends MapFunction[Long, Long] {
-    override def map(id: Long) = {id}
+    override def map(id: Long) = id
   }
 
   // ***********************************************************************
@@ -87,19 +87,18 @@ object ConnectedComponents {
         if(args.length != 3) {
           System.err.println("Usage ConnectedComponents <edge path> <output path> " +
             "<num iterations>")
-          false
         }
         fileOutput = true
         edgesInputPath = args(0)
         outputPath = args(1)
-        maxIterations = (2).toInt
+        maxIterations = 2
       } else {
         System.out.println("Executing ConnectedComponents example with default parameters" +
           " and built-in default data.")
         System.out.println("  Provide parameters to read input data from files.")
         System.out.println("  See the documentation for the correct format of input files.")
         System.out.println("Usage ConnectedComponents <edge path> <output path> " +
-          "<num iterations>");
+          "<num iterations>")
       }
       true
     }

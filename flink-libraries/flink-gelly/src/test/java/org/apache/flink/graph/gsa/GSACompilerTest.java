@@ -56,7 +56,7 @@ public class GSACompilerTest extends CompilerTestBase {
 			env.setParallelism(DEFAULT_PARALLELISM);
 			// compose test program
 			{
-				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<Long, Long, NullValue>(
+				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple3<>(
 						1L, 2L, NullValue.getInstance())).map(new Tuple3ToEdgeMap<Long, NullValue>());
 
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new InitVertices(), env);
@@ -124,7 +124,7 @@ public class GSACompilerTest extends CompilerTestBase {
 		public Long gather(Neighbor<Long, NullValue> neighbor) {
 			return neighbor.getNeighborValue();
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMinId extends SumFunction<Long, NullValue, Long> {
@@ -132,7 +132,7 @@ public class GSACompilerTest extends CompilerTestBase {
 		public Long sum(Long newValue, Long currentValue) {
 			return Math.min(newValue, currentValue);
 		}
-	};
+	}
 
 	@SuppressWarnings("serial")
 	private static final class UpdateComponentId extends ApplyFunction<Long, Long, Long> {

@@ -79,7 +79,7 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 				new InitMapperSSSP(), env);
 
         List<Vertex<Long, Double>> result = inputGraph.run(
-        		new GSASingleSourceShortestPaths<Long>(1l, 16)).collect();
+        		new GSASingleSourceShortestPaths<>(1L, 16)).collect();
 
 		expectedResult = "1,0.0\n" +
 				"2,12.0\n" +

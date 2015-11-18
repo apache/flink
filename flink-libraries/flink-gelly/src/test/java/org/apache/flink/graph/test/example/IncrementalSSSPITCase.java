@@ -92,7 +92,7 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Double>> edges = IncrementalSSSPData.getDefaultEdgeDataSet(env);
 		DataSet<Edge<Long, Double>> edgesInSSSP = IncrementalSSSPData.getDefaultEdgesInSSSP(env);
 		// the edge to be removed is a non-SP edge
-		Edge<Long, Double> edgeToBeRemoved = new Edge<Long, Double>(3L, 5L, 5.0);
+		Edge<Long, Double> edgeToBeRemoved = new Edge<>(3L, 5L, 5.0);
 
 		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
 		// Assumption: all minimum weight paths are kept

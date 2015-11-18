@@ -190,7 +190,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class ToTuple1Mapper implements MapFunction<Vertex<Long, Long>, Tuple1<Long>> {
 		public Tuple1<Long> map(Vertex<Long, Long> vertex) throws Exception {
-			Tuple1<Long> tupleValue = new Tuple1<Long>();
+			Tuple1<Long> tupleValue = new Tuple1<>();
 			tupleValue.setFields(vertex.getValue());
 			return tupleValue;
 		}
@@ -210,7 +210,7 @@ public class MapVerticesITCase extends MultipleProgramsTestBase {
 		DummyCustomParameterizedType<Double>> {
 		
 		public DummyCustomParameterizedType<Double> map(Vertex<Long, Long> vertex) throws Exception {
-			DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();
+			DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<>();
 			dummyValue.setIntField(vertex.getValue().intValue());
 			dummyValue.setTField(new Double(vertex.getValue()));						
 			return dummyValue;

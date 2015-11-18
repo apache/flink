@@ -420,7 +420,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
+			out.collect(new Tuple2<>(vertex.getId(), sum));
 		}
 	}
 
@@ -437,7 +437,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f0.getValue() * neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
+			out.collect(new Tuple2<>(vertex.getId(), sum));
 		}
 	}
 
@@ -454,7 +454,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue()));
+			out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue()));
 		}
 	}
 
@@ -472,7 +472,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 					sum += neighbor.f1.getValue();
 			}
 			if(vertex.getId() > 3) {
-				out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
+				out.collect(new Tuple2<>(vertex.getId(), sum));
 			}
 		}
 	}
@@ -491,7 +491,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				sum += neighbor.f0.getValue() * neighbor.f1.getValue();
 			}
 			if(vertex.getId() > 3) {
-				out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
+				out.collect(new Tuple2<>(vertex.getId(), sum));
 			}
 		}
 	}
@@ -510,7 +510,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				sum += neighbor.f1.getValue();
 			}
 			if(vertex.getId() > 3) {
-				out.collect(new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue()));
+				out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue()));
 			}
 		}
 	}
@@ -533,13 +533,11 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 									 Collector<Tuple2<Long, Long>> out) throws Exception {
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
+			for (Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				next = neighbor;
 				sum += next.f2.getValue() * next.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(next.f0, sum));
+			out.collect(new Tuple2<>(next.f0, sum));
 		}
 	}
 
@@ -553,15 +551,13 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
+			for (Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				next = neighbor;
 				sum += next.f2.getValue();
 			}
 			if(next.f0 > 2) {
-				out.collect(new Tuple2<Long, Long>(next.f0, sum));
-				out.collect(new Tuple2<Long, Long>(next.f0, sum * 2));
+				out.collect(new Tuple2<>(next.f0, sum));
+				out.collect(new Tuple2<>(next.f0, sum * 2));
 			}
 		}
 	}
@@ -576,15 +572,13 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
+			for (Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				next = neighbor;
 				sum += next.f2.getValue() * next.f1.getValue();
 			}
 			if(next.f0 > 2) {
-				out.collect(new Tuple2<Long, Long>(next.f0, sum));
-				out.collect(new Tuple2<Long, Long>(next.f0, sum * 2));
+				out.collect(new Tuple2<>(next.f0, sum));
+				out.collect(new Tuple2<>(next.f0, sum * 2));
 			}
 		}
 	}
@@ -599,15 +593,13 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 			long sum = 0;
 			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
+			for (Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				next = neighbor;
 				sum += next.f2.getValue();
 			}
 			if(next.f0 > 2) {
-				out.collect(new Tuple2<Long, Long>(next.f0, sum));
-				out.collect(new Tuple2<Long, Long>(next.f0, sum * 2));
+				out.collect(new Tuple2<>(next.f0, sum));
+				out.collect(new Tuple2<>(next.f0, sum * 2));
 			}
 		}
 	}
@@ -625,8 +617,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum * 2));
+			out.collect(new Tuple2<>(vertex.getId(), sum));
+			out.collect(new Tuple2<>(vertex.getId(), sum * 2));
 		}
 	}
 
@@ -643,8 +635,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f0.getValue() * neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum - 1));
+			out.collect(new Tuple2<>(vertex.getId(), sum));
+			out.collect(new Tuple2<>(vertex.getId(), sum - 1));
 		}
 	}
 
@@ -661,8 +653,8 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
 				sum += neighbor.f1.getValue();
 			}
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue()));
-			out.collect(new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue() + 5));
+			out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue()));
+			out.collect(new Tuple2<>(vertex.getId(), sum + vertex.getValue() + 5));
 		}
 	}
 }

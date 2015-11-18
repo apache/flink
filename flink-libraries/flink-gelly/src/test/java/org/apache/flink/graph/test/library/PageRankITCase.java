@@ -41,8 +41,6 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String expectedResult;
-
 	@Test
 	public void testPageRankWithThreeIterations() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -53,7 +51,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
         List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
         		.collect();
         
-        compareWithDelta(result, expectedResult, 0.01);
+        compareWithDelta(result, 0.01);
 	}
 
 	@Test
@@ -66,7 +64,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
         List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
         		.collect();
         
-        compareWithDelta(result, expectedResult, 0.01);
+        compareWithDelta(result, 0.01);
 	}
 
 	@Test
@@ -79,7 +77,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
         List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 5, 3))
         		.collect();
         
-        compareWithDelta(result, expectedResult, 0.01);
+        compareWithDelta(result, 0.01);
 	}
 
 	@Test
@@ -92,18 +90,18 @@ public class PageRankITCase extends MultipleProgramsTestBase {
         List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 5, 3))
         		.collect();
         
-        compareWithDelta(result, expectedResult, 0.01);
+        compareWithDelta(result, 0.01);
 	}
 
 	private void compareWithDelta(List<Vertex<Long, Double>> result,
-			String expectedResult, double delta) {
+																double delta) {
 
 		String resultString = "";
         for (Vertex<Long, Double> v : result) {
         	resultString += v.f0.toString() + "," + v.f1.toString() +"\n";
         }
-        
-		expectedResult = PageRankData.RANKS_AFTER_3_ITERATIONS;
+
+		String expectedResult = PageRankData.RANKS_AFTER_3_ITERATIONS;
 		String[] expected = expectedResult.isEmpty() ? new String[0] : expectedResult.split("\n");
 
 		String[] resultArray = resultString.isEmpty() ? new String[0] : resultString.split("\n");
