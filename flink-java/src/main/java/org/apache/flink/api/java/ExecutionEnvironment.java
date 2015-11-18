@@ -105,7 +105,7 @@ public abstract class ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	private final List<DataSink<?>> sinks = new ArrayList<>();
+	protected final List<DataSink<?>> sinks = new ArrayList<>();
 
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<>();
 

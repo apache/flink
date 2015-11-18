@@ -18,14 +18,24 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.CollectionExecutor;
+import static org.apache.flink.api.java.ExecutionEnvironment.LOG;
 
 public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		if (sinks.isEmpty()) {
+			if (this.lastJobExecutionResult == null) {
+				throw new InvalidProgramException("No sinks have been defined.");
+			}
+			LOG.warn("Detected call to execute without any data sinks. Not executing.");
+			return this.lastJobExecutionResult;
+		}
+
 		Plan p = createProgramPlan(jobName);
 
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
