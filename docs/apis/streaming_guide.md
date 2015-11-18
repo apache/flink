@@ -2123,8 +2123,8 @@ window, and every time execution is triggered, 10 elements are retained in the w
 {% highlight java %}
 keyedStream
     .window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
-    .trigger(Count.of(100))
-    .evictor(Count.of(10));
+    .trigger(CountTrigger.of(100))
+    .evictor(CountEvictor.of(10));
 {% endhighlight %}
 </div>
 
@@ -2132,8 +2132,8 @@ keyedStream
 {% highlight scala %}
 keyedStream
     .window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
-    .trigger(Count.of(100))
-    .evictor(Count.of(10))
+    .trigger(CountTrigger.of(100))
+    .evictor(CountEvictor.of(10))
 {% endhighlight %}
 </div>
 </div>
@@ -2715,8 +2715,8 @@ same:
 {% highlight java %}
 nonKeyedStream
     .windowAll(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
-    .trigger(Count.of(100))
-    .evictor(Count.of(10));
+    .trigger(CountTrigger.of(100))
+    .evictor(CountEvictor.of(10));
 {% endhighlight %}
 </div>
 
@@ -2724,8 +2724,8 @@ nonKeyedStream
 {% highlight scala %}
 nonKeyedStream
     .windowAll(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS))
-    .trigger(Count.of(100))
-    .evictor(Count.of(10))
+    .trigger(CountTrigger.of(100))
+    .evictor(CountEvictor.of(10))
 {% endhighlight %}
 </div>
 </div>
