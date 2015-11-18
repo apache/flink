@@ -22,6 +22,7 @@ import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
@@ -91,6 +92,23 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
           |Count(a) as e1, a.count as e2
         """.stripMargin).toDataSet[Row]
     val expected = "231,231,1,1,21,21,11,11,21,21"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testGroupNoAggregation(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'c)
+      .groupBy('b)
+      .select('a.sum as 'd, 'b)
+      .groupBy('b, 'd)
+      .select('b)
+      .toDataSet[Row]
+
+    val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
     val results = ds.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

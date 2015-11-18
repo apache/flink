@@ -188,11 +188,18 @@ Table result = in.where("b = 'red'");
     <tr>
       <td><strong>GroupBy</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation</p>
-        <p>operator to aggregate on per-group basis.</p>
+        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation
+        operator to aggregate on per-group basis.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.groupBy("a").select("a, b.sum as d");
+{% endhighlight %}
+        <p><i>Note:</i> Flink can refer to nonaggregated columns in the select list that are not named in
+        the groupBy clause, it could be used to get better performance by avoiding unnecessary column sorting and
+        grouping while nonaggregated column is cogrouped with columns in groupBy clause. For example:</p>
+{% highlight java %}
+Table in = tableEnv.fromDataSet(ds, "a, b, c");
+Table result = in.groupBy("a").select("a, b, c.sum as d");
 {% endhighlight %}
       </td>
     </tr>
@@ -200,8 +207,8 @@ Table result = in.groupBy("a").select("a, b.sum as d");
     <tr>
       <td><strong>Join</strong></td>
       <td>
-        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where</p>
-        <p>clause is mandatory for join condition.</p>
+        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where
+        clause is mandatory for join condition.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -284,11 +291,18 @@ val result = in.where('b === "red");
     <tr>
       <td><strong>GroupBy</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation</p>
-        <p>operator to aggregate on per-group basis.</p>
+        <p>Similar to a SQL GROUPBY clause. Group the elements on the grouping keys, with a following aggregation
+        operator to aggregate on per-group basis.</p>
 {% highlight scala %}
 val in = ds.as('a, 'b, 'c);
 val result = in.groupBy('a).select('a, 'b.sum as 'd);
+{% endhighlight %}
+        <p><i>Note:</i> Flink can refer to nonaggregated columns in the select list that are not named in
+        the groupBy clause, it could be used to get better performance by avoiding unnecessary column sorting and
+        grouping while nonaggregated column is cogrouped with columns in groupBy clause. For example:</p>
+{% highlight scala %}
+val in = ds.as('a, 'b, 'c);
+val result = in.groupBy('a).select('a, 'b, 'c.sum as 'd);
 {% endhighlight %}
       </td>
     </tr>
@@ -296,8 +310,8 @@ val result = in.groupBy('a).select('a, 'b.sum as 'd);
     <tr>
       <td><strong>Join</strong></td>
       <td>
-        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where</p>
-        <p>clause is mandatory for join condition.</p>
+        <p>Similar to a SQL JOIN clause. Join two tables, both tables must have distinct field name, and the where
+        clause is mandatory for join condition.</p>
 {% highlight scala %}
 val left = ds1.as('a, 'b, 'c);
 val right = ds2.as('d, 'e, 'f);
