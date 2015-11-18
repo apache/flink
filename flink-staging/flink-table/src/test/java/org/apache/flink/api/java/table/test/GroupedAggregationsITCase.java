@@ -126,5 +126,27 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n";
 	}
+
+	@Test
+	public void testGroupNoAggregation() throws Exception {
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+
+		Table table =
+			tableEnv.fromDataSet(input, "a, b, c");
+
+		Table result = table
+			.groupBy("b").select("a.sum as d, b").groupBy("b, d").select("b");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		env.execute();
+
+		expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n";
+	}
 }
 

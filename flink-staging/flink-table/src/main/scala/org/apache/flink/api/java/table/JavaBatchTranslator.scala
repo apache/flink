@@ -30,7 +30,7 @@ import org.apache.flink.api.java.operators.{GroupReduceOperator, Keys, MapOperat
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.table.expressions.analysis.ExtractEquiJoinFields
 import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.runtime.{ExpressionAggregateFunction, ExpressionFilterFunction, ExpressionJoinFunction, ExpressionSelectFunction}
+import org.apache.flink.api.table.runtime._
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenameOperator, RenamingProxyTypeInfo, RowTypeInfo}
 import org.apache.flink.api.table.{ExpressionException, Row, Table}
@@ -179,8 +179,29 @@ class JavaBatchTranslator extends PlanTranslator {
         val expandedInput = ExpandAggregations(sel)
 
         if (expandedInput.eq(sel)) {
-          // no expansions took place
-          val translatedInput = translateInternal(input)
+          val translatedInput = input match {
+            case GroupBy(groupByInput, groupExpressions) =>
+              val translatedGroupByInput = translateInternal(groupByInput)
+              val inType = translatedGroupByInput.getType.asInstanceOf[CompositeType[Row]]
+
+              val keyIndices = groupExpressions map {
+                case fe: ResolvedFieldReference => inType.getFieldIndex(fe.name)
+                case e =>
+                  throw new ExpressionException(s"Expression $e is not a valid key expression.")
+              }
+
+              val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType, false)
+              val grouping = new UnsortedGrouping(translatedGroupByInput, keys)
+
+              new GroupReduceOperator(
+                grouping,
+                inType,
+                new NoExpressionAggregateFunction(),
+                "Nop Expression Aggregation")
+
+            case _ => translateInternal(input)
+          }
+
           val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
           val inputFields = inType.getFieldNames
           createSelect(

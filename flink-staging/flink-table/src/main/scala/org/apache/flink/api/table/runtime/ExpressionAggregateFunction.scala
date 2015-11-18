@@ -70,3 +70,20 @@ class ExpressionAggregateFunction(
   }
 
 }
+
+@Combinable
+class NoExpressionAggregateFunction() extends RichGroupReduceFunction[Row, Row] {
+
+  override def reduce(in: java.lang.Iterable[Row], out: Collector[Row]): Unit = {
+
+    var first: Row = null
+
+    val values = in.iterator()
+    if (values.hasNext) {
+      first = values.next()
+    }
+
+    out.collect(first)
+  }
+
+}
