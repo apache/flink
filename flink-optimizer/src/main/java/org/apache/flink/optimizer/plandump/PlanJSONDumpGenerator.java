@@ -382,6 +382,11 @@ public class PlanJSONDumpGenerator {
 						String tempMode = channel.getTempMode().toString();
 						writer.print(", \"temp_mode\": \"" + tempMode + "\"");
 					}
+
+					if (channel != null) {
+						String exchangeMode = channel.getDataExchangeMode().toString();
+						writer.print(", \"exchange_mode\": \"" + exchangeMode + "\"");
+					}
 				}
 				
 				writer.print('}');
