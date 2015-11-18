@@ -20,26 +20,16 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_2;
 import static org.apache.flink.python.api.PythonPlanBinder.ARGUMENT_PYTHON_3;
-import org.junit.Test;
-import org.junit.BeforeClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class PythonPlanBinderTest {
-	private static final Logger LOG = LoggerFactory.getLogger(PythonPlanBinder.class);
-	
-	private static boolean python2Supported = true;
-	private static boolean python3Supported = true;
-	private static List<String> TEST_FILES;
-	
-	@BeforeClass
-	public static void setup() throws Exception {
-		findTestFiles();
-		checkPythonSupport();
+public class PythonPlanBinderTest extends JavaProgramTestBase {
+	@Override
+	protected boolean skipCollectionExecution() {
+		return true;
 	}
-	
-	private static void findTestFiles() throws Exception {
-		TEST_FILES = new ArrayList();
+
+	private static List<String> findTestFiles() throws Exception {
+		List<String> files = new ArrayList();
 		FileSystem fs = FileSystem.getLocalFileSystem();
 		FileStatus[] status = fs.listStatus(
 				new Path(fs.getWorkingDirectory().toString()
@@ -47,41 +37,39 @@ public class PythonPlanBinderTest {
 		for (FileStatus f : status) {
 			String file = f.getPath().toString();
 			if (file.endsWith(".py")) {
-				TEST_FILES.add(file);
+				files.add(file);
 			}
 		}
+		return files;
 	}
-	
-	private static void checkPythonSupport() {	
+
+	private static boolean isPython2Supported() {
 		try {
 			Runtime.getRuntime().exec("python");
+			return true;
 		} catch (IOException ex) {
-			python2Supported = false;
-			LOG.info("No Python 2 runtime detected.");
-		}
-		try {
-			Runtime.getRuntime().exec("python3");
-		} catch (IOException ex) {
-			python3Supported = false;
-			LOG.info("No Python 3 runtime detected.");
+			return false;
 		}
 	}
-	
-	@Test
-	public void testPython2() throws Exception {
-		if (python2Supported) {
-			for (String file : TEST_FILES) {
-				LOG.info("testing " + file);
+
+	private static boolean isPython3Supported() {
+		try {
+			Runtime.getRuntime().exec("python3");
+			return true;
+		} catch (IOException ex) {
+			return false;
+		}
+	}
+
+	@Override
+	protected void testProgram() throws Exception {
+		if (isPython2Supported()) {
+			for (String file : findTestFiles()) {
 				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_2, file});
 			}
 		}
-	}
-	
-	@Test
-	public void testPython3() throws Exception {
-		if (python3Supported) {
-			for (String file : TEST_FILES) {
-				LOG.info("testing " + file);
+		if (isPython3Supported()) {
+			for (String file : findTestFiles()) {
 				PythonPlanBinder.main(new String[]{ARGUMENT_PYTHON_3, file});
 			}
 		}
