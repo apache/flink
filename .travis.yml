@@ -58,7 +58,6 @@ env:
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
-   - "gem install --no-document travis-artifacts & "
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.

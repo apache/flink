@@ -45,11 +45,22 @@ function deploy_to_s3() {
 	CURRENT_FLINK_VERSION=$1
 	HD=$2
 
-	echo "Deplyoing flink version $CURRENT_FLINK_VERSION (hadoop=$HD) to s3:"
+	echo "Installing artifacts deployment script"
+	export ARTIFACTS_DEST="$HOME/bin/artifacts"
+	curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
+	PATH="$(dirname "$ARTIFACTS_DEST"):$PATH"
+
+	echo "Deploying flink version $CURRENT_FLINK_VERSION (hadoop=$HD) to s3:"
 	mkdir flink-$CURRENT_FLINK_VERSION
 	cp -r flink-dist/target/flink-*-bin/flink-$CURRENT_FLINK_VERSION*/* flink-$CURRENT_FLINK_VERSION/
 	tar -czf flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz flink-$CURRENT_FLINK_VERSION
-	travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz   --target-path / 
+
+	artifacts upload \
+		  --bucket $ARTIFACTS_S3_BUCKET \
+		  --key $ARTIFACTS_AWS_ACCESS_KEY_ID \
+		  --secret $ARTIFACTS_AWS_SECRET_ACCESS_KEY \
+		  flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz
+
 	# delete files again
 	rm -rf flink-$CURRENT_FLINK_VERSION
 	rm flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz
