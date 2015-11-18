@@ -30,6 +30,11 @@ import org.apache.flink.streaming.util.serialization.DeserializationSchema;
  * Please use FlinkKafkaConsumer081 and FlinkKafkaConsumer082.
  *
  * @param <T> The type of elements produced by this consumer.
+ * 
+ * @deprecated Due to Kafka protocol and architecture (offset handling) changes, please use the
+ *             Kafka version specific consumers, like
+ *             {@link org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer081}, 
+ *             {@link org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer082}, etc.
  */
 @Deprecated
 public class PersistentKafkaSource<T> extends FlinkKafkaConsumer<T> {

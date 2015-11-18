@@ -25,6 +25,8 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
  *
  * The KafkaSink has been relocated to org.apache.flink.streaming.connectors.kafka.KafkaSink.
  * This class will be removed in future releases of Flink.
+ * 
+ * @deprecated Please use the {@link org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer} instead.
  */
 @Deprecated
 public class KafkaSink<IN> extends FlinkKafkaProducer<IN> {
