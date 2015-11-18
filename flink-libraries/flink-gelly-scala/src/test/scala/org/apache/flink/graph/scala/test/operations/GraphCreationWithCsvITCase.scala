@@ -56,7 +56,6 @@ MultipleProgramsTestBase(mode) {
     val edgesContent =  "1,2,ot\n3,2,tt\n3,1,to\n"
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, Long, String](
-        readVertices = true,
         pathVertices = verticesSplit.getPath.toString,
         pathEdges = edgesSplit.getPath.toString,
         env = env)
@@ -78,10 +77,8 @@ MultipleProgramsTestBase(mode) {
     val edgesContent =  "1,2\n3,2\n3,1\n"
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, String, NullValue](
-        readVertices = true,
         pathVertices = verticesSplit.getPath.toString,
         pathEdges = edgesSplit.getPath.toString,
-        hasEdgeValues = false,
         env = env)
     
     val result = graph.getTriplets.collect()
@@ -99,7 +96,6 @@ MultipleProgramsTestBase(mode) {
     val edgesContent =  "1,2,12\n3,2,32\n3,1,31\n"
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, Double, Long](
-        readVertices = false,
         pathEdges = edgesSplit.getPath.toString,
         vertexValueInitializer = new VertexDoubleIdAssigner(),
         env = env)
@@ -119,7 +115,6 @@ MultipleProgramsTestBase(mode) {
     val edgesContent =  "1,2,12\n3,2,32\n3,1,31\n"
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, NullValue, Long](
-        readVertices = false,
         pathEdges = edgesSplit.getPath.toString,
         env = env)
     
@@ -139,9 +134,7 @@ MultipleProgramsTestBase(mode) {
     val edgesContent =  "1,2\n3,2\n3,1\n"
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, NullValue, NullValue](
-        readVertices = false,
         pathEdges = edgesSplit.getPath.toString,
-        hasEdgeValues = false,
         env = env)
     
     val result = graph.getTriplets.collect()
@@ -163,7 +156,6 @@ MultipleProgramsTestBase(mode) {
     val edgesContent =  "1,2,ot\n3,2,tt\n3,1,to\n"
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, Long, String](
-        readVertices = true,
         pathVertices = verticesSplit.getPath.toString,
         lineDelimiterVertices = "\t",
         fieldDelimiterVertices = "#",
@@ -191,7 +183,6 @@ MultipleProgramsTestBase(mode) {
     val edgesSplit = createTempFile(edgesContent)
     val graph = Graph.fromCsvReader[Long, Long, String](
         pathVertices = verticesSplit.getPath.toString,
-        readVertices = true,
         lineDelimiterEdges = "&",
         fieldDelimiterEdges = "#",
         ignoreFirstLineEdges = true,
