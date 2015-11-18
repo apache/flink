@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from flink.plan.Environment import get_environment
-from flink.plan.Constants import INT, STRING, BOOL, FLOAT
+from flink.plan.Constants import BOOL
 import sys
 
 if __name__ == "__main__":
@@ -58,5 +58,5 @@ if __name__ == "__main__":
 
     msg.output()
 
-    env.execute()
+    env.execute(local=True)
 
