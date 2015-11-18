@@ -144,7 +144,7 @@ To build and run applications with SBT instead of Maven is pretty straight forwa
 libraryDependencies ++= Seq("org.apache.flink" % "flink-scala" % "{{site.version}}", "org.apache.flink" % "flink-clients" % "{{site.version}}") 
 ~~~
 
-Now the application can be executed by `sbt run`. By default SBT runs an application in the same JVM itself is running in. This can lead to lass loading issues with Flink. To avoid these, append the following line to `build.sbt`:
+Now the application can be executed by `sbt run`. By default SBT runs an application in the same JVM itself is running in. This can lead to class loading issues with Flink. To avoid these, append the following line to `build.sbt`:
 
 ~~~scala
 fork in run := true 
