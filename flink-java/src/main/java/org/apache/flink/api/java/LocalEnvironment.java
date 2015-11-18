@@ -74,6 +74,14 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		if (sinks.isEmpty()) {
+			if (this.lastJobExecutionResult == null) {
+				throw new InvalidProgramException("No sinks have been defined.");
+			}
+			LOG.warn("Detected call to execute without any new data sinks. Not executing.");
+			return this.lastJobExecutionResult;
+		}
+
 		if (executor == null) {
 			startNewSession();
 		}
