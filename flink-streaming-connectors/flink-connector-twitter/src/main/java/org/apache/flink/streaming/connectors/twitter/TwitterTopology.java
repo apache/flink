@@ -58,7 +58,7 @@ public class TwitterTopology {
 
 	public static void main(String[] args) throws Exception {
 
-		String path = new String();
+		String path;
 
 		if (args != null && args.length == 1) {
 			path = args[0];
@@ -79,7 +79,7 @@ public class TwitterTopology {
 
 					@Override
 					public Tuple2<String, Integer> map(String value) throws Exception {
-						return new Tuple2<String, Integer>(value, 1);
+						return new Tuple2<>(value, 1);
 					}
 				})
 				.keyBy(0)

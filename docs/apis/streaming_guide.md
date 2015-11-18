@@ -3930,7 +3930,7 @@ In order to connect to Twitter stream the user has to register their program and
 
 #### Acquiring the authentication information
 First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup) or sign in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions.
-After selecting the application, the API key and API secret (called `consumerKey` and `sonsumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. The necessary access token data (`token` and `secret`) can be acquired here.
+After selecting the application, the API key and API secret (called `consumerKey` and `consumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. The necessary OAuth Access Token data (`token` and `secret` in `TwitterSource`) can be generated and acquired on the "Keys and Access Tokens" tab.
 Remember to keep these pieces of information secret and do not push them to public repositories.
 
 #### Accessing the authentication information
@@ -3948,7 +3948,7 @@ consumerKey=***
 The `TwitterSource` class has two constructors.
 
 1. `public TwitterSource(String authPath, int numberOfTweets);`
-to emit finite number of tweets
+to emit a finite number of tweets
 2. `public TwitterSource(String authPath);`
 for streaming
 
@@ -3991,7 +3991,7 @@ function which can be use to acquire the value of a given field.
 There are two basic types of tweets. The usual tweets contain information such as date and time of creation, id, user, language and many more details. The other type is the delete information.
 
 #### Example
-`TwitterLocal` is an example how to use `TwitterSource`. It implements a language frequency counter program.
+`TwitterStream` is an example of how to use `TwitterSource`. It implements a language frequency counter program.
 
 [Back to top](#top)
 

@@ -59,7 +59,7 @@ public class GroupedProcessingTimeWindowExample {
 						
 						while (running && count < numElements) {
 							count++;
-							ctx.collect(new Tuple2<Long, Long>(val++, 1L));
+							ctx.collect(new Tuple2<>(val++, 1L));
 							
 							if (val > numKeys) {
 								val = 1L;

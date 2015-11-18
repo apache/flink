@@ -58,7 +58,7 @@ public class TwitterStreaming {
 		public void flatMap(String value, Collector<Tuple5<Long, Integer, String, String, String>> out)
 				throws Exception {
 			try {
-				out.collect(new Tuple5<Long, Integer, String, String, String>(
+				out.collect(new Tuple5<>(
 						getLong(value, "id"),
 						getInt(value, "entities.hashtags[0].indices[1]"),
 						getString(value, "lang"),
@@ -74,7 +74,7 @@ public class TwitterStreaming {
 
 	public static void main(String[] args) throws Exception {
 
-		String path = new String();
+		String path;
 
 		if (args != null && args.length == 1) {
 			path = args[0];

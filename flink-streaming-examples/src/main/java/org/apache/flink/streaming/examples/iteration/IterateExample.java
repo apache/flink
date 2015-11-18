@@ -121,7 +121,7 @@ public class IterateExample {
 				int first = rnd.nextInt(BOUND / 2 - 1) + 1;
 				int second = rnd.nextInt(BOUND / 2 - 1) + 1;
 
-				ctx.collect(new Tuple2<Integer, Integer>(first, second));
+				ctx.collect(new Tuple2<>(first, second));
 				counter++;
 				Thread.sleep(50L);
 			}
@@ -143,7 +143,7 @@ public class IterateExample {
 		public Tuple2<Integer, Integer> map(String value) throws Exception {
 			String record = value.substring(1, value.length() - 1);
 			String[] splitted = record.split(",");
-			return new Tuple2<Integer, Integer>(Integer.parseInt(splitted[0]), Integer.parseInt(splitted[1]));
+			return new Tuple2<>(Integer.parseInt(splitted[0]), Integer.parseInt(splitted[1]));
 		}
 	}
 
@@ -158,7 +158,7 @@ public class IterateExample {
 		@Override
 		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple2<Integer, Integer> value) throws
 				Exception {
-			return new Tuple5<Integer, Integer, Integer, Integer, Integer>(value.f0, value.f1, value.f0, value.f1, 0);
+			return new Tuple5<>(value.f0, value.f1, value.f0, value.f1, 0);
 		}
 	}
 
@@ -173,8 +173,7 @@ public class IterateExample {
 		@Override
 		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple5<Integer, Integer, Integer, Integer,
 				Integer> value) throws Exception {
-			return new Tuple5<Integer, Integer, Integer, Integer, Integer>(value.f0, value.f1, value.f3, value.f2 +
-					value.f3, ++value.f4);
+			return new Tuple5<>(value.f0, value.f1, value.f3, value.f2 + value.f3, ++value.f4);
 		}
 	}
 
@@ -186,7 +185,7 @@ public class IterateExample {
 
 		@Override
 		public Iterable<String> select(Tuple5<Integer, Integer, Integer, Integer, Integer> value) {
-			List<String> output = new ArrayList<String>();
+			List<String> output = new ArrayList<>();
 			if (value.f2 < BOUND && value.f3 < BOUND) {
 				output.add("iterate");
 			} else {
@@ -207,8 +206,7 @@ public class IterateExample {
 		public Tuple2<Tuple2<Integer, Integer>, Integer> map(Tuple5<Integer, Integer, Integer, Integer, Integer>
 				value) throws
 				Exception {
-			return new Tuple2<Tuple2<Integer, Integer>, Integer>(new Tuple2<Integer, Integer>(value.f0, value.f1),
-					value.f4);
+			return new Tuple2<>(new Tuple2<>(value.f0, value.f1), value.f4);
 		}
 	}
 
