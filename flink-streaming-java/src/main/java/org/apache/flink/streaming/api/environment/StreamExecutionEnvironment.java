@@ -114,17 +114,14 @@ public abstract class StreamExecutionEnvironment {
 	/** The execution configuration for this environment */
 	private final ExecutionConfig config = new ExecutionConfig();
 	
+	/** Settings that control the checkpointing behavior */ 
+	private final CheckpointConfig checkpointCfg = new CheckpointConfig();
+	
 	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
 	
 	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
 	
 	protected boolean isChainingEnabled = true;
-
-	protected long checkpointInterval = -1; // disabled
-
-	protected CheckpointingMode checkpointingMode;
-
-	protected boolean forceCheckpointing = false;
 	
 	/** The state backend used for storing k/v state and state snapshots */
 	private StateBackend<?> defaultStateBackend;
@@ -239,7 +236,17 @@ public abstract class StreamExecutionEnvironment {
 	// ------------------------------------------------------------------------
 	//  Checkpointing Settings
 	// ------------------------------------------------------------------------
-	
+
+	/**
+	 * Gets the checkpoint config, which defines values like checkpoint interval, delay between
+	 * checkpoints, etc.
+	 * 
+	 * @return The checkpoint config.
+	 */
+	public CheckpointConfig getCheckpointConfig() {
+		return checkpointCfg;
+	}
+
 	/**
 	 * Enables checkpointing for the streaming job. The distributed state of the streaming
 	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
@@ -257,7 +264,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param interval Time interval between state checkpoints in milliseconds.
 	 */
 	public StreamExecutionEnvironment enableCheckpointing(long interval) {
-		return enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE);
+		checkpointCfg.setCheckpointInterval(interval);
+		return this;
 	}
 
 	/**
@@ -280,15 +288,8 @@ public abstract class StreamExecutionEnvironment {
 	 *             The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
 	 */
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
-		if (mode == null) {
-			throw new NullPointerException("checkpoint mode must not be null");
-		}
-		if (interval <= 0) {
-			throw new IllegalArgumentException("the checkpoint interval must be positive");
-		}
-
-		this.checkpointInterval = interval;
-		this.checkpointingMode = mode;
+		checkpointCfg.setCheckpointingMode(mode);
+		checkpointCfg.setCheckpointInterval(interval);
 		return this;
 	}
 	
@@ -312,10 +313,11 @@ public abstract class StreamExecutionEnvironment {
 	 *            If true checkpointing will be enabled for iterative jobs as well.
 	 */
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
-		this.enableCheckpointing(interval, mode);
-
-		this.forceCheckpointing = force;
+		checkpointCfg.setCheckpointingMode(mode);
+		checkpointCfg.setCheckpointInterval(interval);
+		checkpointCfg.setForceCheckpointing(force);
 		return this;
 	}
 
@@ -337,32 +339,39 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	@Deprecated
 	public StreamExecutionEnvironment enableCheckpointing() {
-		enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
+		checkpointCfg.setCheckpointInterval(500);
 		return this;
 	}
 
 	/**
 	 * Returns the checkpointing interval or -1 if checkpointing is disabled.
+	 * 
+	 * <p>Shorthand for {@code getCheckpointConfig().getCheckpointInterval()}.
 	 *
 	 * @return The checkpointing interval or -1
 	 */
 	public long getCheckpointInterval() {
-		return checkpointInterval;
+		return checkpointCfg.getCheckpointInterval();
 	}
-
 
 	/**
 	 * Returns whether checkpointing is force-enabled.
 	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public boolean isForceCheckpointing() {
-		return forceCheckpointing;
+		return checkpointCfg.isForceCheckpointing();
 	}
 
 	/**
-	 * Returns the {@link CheckpointingMode}.
+	 * Returns the checkpointing mode (exactly-once vs. at-least-once).
+	 * 
+	 * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingMode()}.
+	 * 
+	 * @return The checkpoin
 	 */
 	public CheckpointingMode getCheckpointingMode() {
-		return checkpointingMode;
+		return checkpointCfg.getCheckpointingMode();
 	}
 
 	/**

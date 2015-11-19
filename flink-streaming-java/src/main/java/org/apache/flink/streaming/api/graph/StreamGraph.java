@@ -23,15 +23,12 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,8 +40,8 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -59,7 +56,6 @@ import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
-import org.apache.sling.commons.json.JSONException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,9 +66,6 @@ import org.slf4j.LoggerFactory;
  * 
  */
 public class StreamGraph extends StreamingPlan {
-
-	/** The default interval for checkpoints, in milliseconds */
-	public static final int DEFAULT_CHECKPOINTING_INTERVAL_MS = 5000;
 	
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
@@ -80,11 +73,9 @@ public class StreamGraph extends StreamingPlan {
 
 	private final StreamExecutionEnvironment environemnt;
 	private final ExecutionConfig executionConfig;
-
-	private CheckpointingMode checkpointingMode;
-	private boolean checkpointingEnabled = false;
-	private long checkpointingInterval = DEFAULT_CHECKPOINTING_INTERVAL_MS;
-	private boolean chaining = true;
+	private final CheckpointConfig checkpointConfig;
+	
+	private boolean chaining;
 
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
@@ -97,12 +88,11 @@ public class StreamGraph extends StreamingPlan {
 	private StateBackend<?> stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
-	private boolean forceCheckpoint = false;
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
-
 		this.environemnt = environment;
-		executionConfig = environment.getConfig();
+		this.executionConfig = environment.getConfig();
+		this.checkpointConfig = environment.getCheckpointConfig();
 
 		// create an empty new stream graph.
 		clear();
@@ -112,18 +102,22 @@ public class StreamGraph extends StreamingPlan {
 	 * Remove all registered nodes etc.
 	 */
 	public void clear() {
-		streamNodes = Maps.newHashMap();
-		virtualSelectNodes = Maps.newHashMap();
-		virtuaPartitionNodes = Maps.newHashMap();
-		vertexIDtoBrokerID = Maps.newHashMap();
-		vertexIDtoLoopTimeout = Maps.newHashMap();
-		iterationSourceSinkPairs = Sets.newHashSet();
-		sources = Sets.newHashSet();
-		sinks = Sets.newHashSet();
+		streamNodes = new HashMap<>();
+		virtualSelectNodes = new HashMap<>();
+		virtuaPartitionNodes = new HashMap<>();
+		vertexIDtoBrokerID = new HashMap<>();
+		vertexIDtoLoopTimeout  = new HashMap<>();
+		iterationSourceSinkPairs = new HashSet<>();
+		sources = new HashSet<>();
+		sinks = new HashSet<>();
 	}
 
-	protected ExecutionConfig getExecutionConfig() {
+	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
+	}
+	
+	public CheckpointConfig getCheckpointConfig() {
+		return checkpointConfig;
 	}
 
 	public String getJobName() {
@@ -138,18 +132,6 @@ public class StreamGraph extends StreamingPlan {
 		this.chaining = chaining;
 	}
 
-	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
-		this.checkpointingEnabled = checkpointingEnabled;
-	}
-
-	public void setCheckpointingInterval(long checkpointingInterval) {
-		this.checkpointingInterval = checkpointingInterval;
-	}
-
-	public void forceCheckpoint() {
-		this.forceCheckpoint = true;
-	}
-
 	public void setStateBackend(StateBackend<?> backend) {
 		this.stateBackend = backend;
 	}
@@ -158,26 +140,10 @@ public class StreamGraph extends StreamingPlan {
 		return this.stateBackend;
 	}
 
-	public long getCheckpointingInterval() {
-		return checkpointingInterval;
-	}
-
 	// Checkpointing
 	
 	public boolean isChainingEnabled() {
 		return chaining;
-	}
-
-	public boolean isCheckpointingEnabled() {
-		return checkpointingEnabled;
-	}
-
-	public CheckpointingMode getCheckpointingMode() {
-		return checkpointingMode;
-	}
-
-	public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
-		this.checkpointingMode = checkpointingMode;
 	}
 	
 
@@ -322,7 +288,7 @@ public class StreamGraph extends StreamingPlan {
 				downStreamVertexID,
 				typeNumber,
 				null,
-				Lists.<String>newArrayList());
+				new ArrayList<String>());
 
 	}
 
@@ -463,10 +429,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public StreamEdge getStreamEdge(int sourceId, int targetId) {
-		Iterator<StreamEdge> outIterator = getStreamNode(sourceId).getOutEdges().iterator();
-		while (outIterator.hasNext()) {
-			StreamEdge edge = outIterator.next();
-
+		for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
 			if (edge.getTargetId() == targetId) {
 				return edge;
 			}
@@ -505,8 +468,7 @@ public class StreamGraph extends StreamingPlan {
 		return vertexIDtoLoopTimeout.get(vertexID);
 	}
 
-	public  Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(int loopId, int sourceId, int sinkId, long timeout, int parallelism) {
-
+	public Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(int loopId, int sourceId, int sinkId, long timeout, int parallelism) {
 		StreamNode source = this.addNode(sourceId,
 				StreamIterationHead.class,
 				null,
@@ -537,15 +499,12 @@ public class StreamGraph extends StreamingPlan {
 		return iterationSourceSinkPairs;
 	}
 
-	protected void removeEdge(StreamEdge edge) {
-
+	private void removeEdge(StreamEdge edge) {
 		edge.getSourceVertex().getOutEdges().remove(edge);
 		edge.getTargetVertex().getInEdges().remove(edge);
-
 	}
 
-	protected void removeVertex(StreamNode toRemove) {
-
+	private void removeVertex(StreamNode toRemove) {
 		Set<StreamEdge> edgesToRemove = new HashSet<StreamEdge>();
 
 		edgesToRemove.addAll(toRemove.getInEdges());
@@ -560,9 +519,10 @@ public class StreamGraph extends StreamingPlan {
 	/**
 	 * Gets the assembled {@link JobGraph}.
 	 */
+	@SuppressWarnings("deprecation")
 	public JobGraph getJobGraph() {
 		// temporarily forbid checkpointing for iterative jobs
-		if (isIterative() && isCheckpointingEnabled() && !forceCheckpoint) {
+		if (isIterative() && checkpointConfig.isCheckpointingEnabled() && !checkpointConfig.isForceCheckpointing()) {
 			throw new UnsupportedOperationException(
 					"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
 							+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
@@ -576,16 +536,12 @@ public class StreamGraph extends StreamingPlan {
 
 	@Override
 	public String getStreamingPlanAsJSON() {
-
 		try {
 			return new JSONGenerator(this).getJSON();
-		} catch (JSONException e) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("JSON plan creation failed: {}", e);
-			}
-			return "";
 		}
-
+		catch (Exception e) {
+			throw new RuntimeException("JSON plan creation failed", e);
+		}
 	}
 
 	@Override
@@ -606,5 +562,4 @@ public class StreamGraph extends StreamingPlan {
 	public static enum ResourceStrategy {
 		DEFAULT, ISOLATE, NEWGROUP
 	}
-
 }

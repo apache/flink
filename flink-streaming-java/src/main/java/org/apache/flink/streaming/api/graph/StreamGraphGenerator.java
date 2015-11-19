@@ -98,17 +98,6 @@ public class StreamGraphGenerator {
 	private StreamGraphGenerator(StreamExecutionEnvironment env) {
 		this.streamGraph = new StreamGraph(env);
 		this.streamGraph.setChaining(env.isChainingEnabled());
-		
-		if (env.getCheckpointInterval() > 0) {
-			this.streamGraph.setCheckpointingEnabled(true);
-			this.streamGraph.setCheckpointingInterval(env.getCheckpointInterval());
-			this.streamGraph.setCheckpointingMode(env.getCheckpointingMode());
-		}
-		this.streamGraph.setStateBackend(env.getStateBackend());
-		if (env.isForceCheckpointing()) {
-			this.streamGraph.forceCheckpoint();
-		}
-		
 		this.env = env;
 		this.alreadyTransformed = new HashMap<>();
 	}

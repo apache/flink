@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,10 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -45,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -52,6 +52,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -274,18 +275,20 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
-		config.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
-		if (streamGraph.isCheckpointingEnabled()) {
-			config.setCheckpointMode(streamGraph.getCheckpointingMode());
+		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
+		
+		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
+		if (ceckpointCfg.isCheckpointingEnabled()) {
+			config.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
 			config.setStateBackend(streamGraph.getStateBackend());
-		} else {
-			// the at least once input handler is slightly cheaper (in the absence of checkpoints),
+		}
+		else {
+			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
 			// so we use that one if checkpointing is not enabled
 			config.setCheckpointMode(CheckpointingMode.AT_LEAST_ONCE);
 		}
-		config.setStatePartitioner((KeySelector<?, Serializable>) vertex.getStatePartitioner());
+		config.setStatePartitioner(vertex.getStatePartitioner());
 		config.setStateKeySerializer(vertex.getStateKeySerializer());
-
 		
 		Class<? extends AbstractInvokable> vertexClass = vertex.getJobVertexClass();
 
@@ -385,8 +388,10 @@ public class StreamingJobGraphGenerator {
 	}
 	
 	private void configureCheckpointing() {
-		if (streamGraph.isCheckpointingEnabled()) {
-			long interval = streamGraph.getCheckpointingInterval();
+		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
+		
+		if (cfg.isCheckpointingEnabled()) {
+			long interval = cfg.getCheckpointInterval();
 			if (interval < 1) {
 				throw new IllegalArgumentException("The checkpoint interval must be positive");
 			}
@@ -400,9 +405,8 @@ public class StreamingJobGraphGenerator {
 			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
 
 			// collect the vertices that receive "commit checkpoint" messages
-			// currently, these are all certices
+			// currently, these are all vertices
 			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
-			
 			
 			for (JobVertex vertex : jobVertices.values()) {
 				if (vertex.isInputVertex()) {
@@ -414,7 +418,9 @@ public class StreamingJobGraphGenerator {
 			}
 
 			JobSnapshottingSettings settings = new JobSnapshottingSettings(
-					triggerVertices, ackVertices, commitVertices, interval);
+					triggerVertices, ackVertices, commitVertices, interval,
+					cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
+					cfg.getMaxConcurrentCheckpoints());
 			jobGraph.setSnapshotSettings(settings);
 
 			// if the user enabled checkpointing, the default number of exec retries is infinitive.

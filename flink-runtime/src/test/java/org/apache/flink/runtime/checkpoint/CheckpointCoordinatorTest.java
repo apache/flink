@@ -28,10 +28,17 @@ import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
+
 import org.junit.Test;
 
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -39,6 +46,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -70,7 +78,7 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 600000,
+					jid, 600000, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] {}, cl,
@@ -116,7 +124,7 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 600000,
+					jid, 600000, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] {}, cl,
@@ -160,7 +168,7 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 600000,
+					jid, 600000, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] {}, cl, new StandaloneCheckpointIDCounter(), new
@@ -199,7 +207,7 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 600000,
+					jid, 600000, 600000,
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 },
 					new ExecutionVertex[] { vertex1, vertex2 }, cl,
@@ -343,7 +351,7 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 600000,
+					jid, 600000, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
 					new ExecutionVertex[] { commitVertex }, cl,
@@ -472,7 +480,7 @@ public class CheckpointCoordinatorTest {
 
 			// set up the coordinator and validate the initial state
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 600000,
+					jid, 600000, 600000,
 					new ExecutionVertex[] { triggerVertex1, triggerVertex2 },
 					new ExecutionVertex[] { ackVertex1, ackVertex2, ackVertex3 },
 					new ExecutionVertex[] { commitVertex }, cl,
@@ -587,7 +595,7 @@ public class CheckpointCoordinatorTest {
 			// the timeout for the checkpoint is a 200 milliseconds
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 200,
+					jid, 600000, 200,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] { commitVertex }, cl,
@@ -649,7 +657,7 @@ public class CheckpointCoordinatorTest {
 			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
 			CheckpointCoordinator coord = new CheckpointCoordinator(
-					jid, 200000,
+					jid, 200000, 200000,
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex1, ackVertex2 },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
@@ -680,14 +688,343 @@ public class CheckpointCoordinatorTest {
 		}
 	}
 
+	@Test
+	public void testPeriodicTriggering() {
+		try {
+			final JobID jid = new JobID();
+			final long start = System.currentTimeMillis();
+
+			// create some mock execution vertices and trigger some checkpoint
+
+			final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+
+			ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
+			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
+			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+
+			final AtomicInteger numCalls = new AtomicInteger();
+			
+			doAnswer(new Answer<Void>() {
+				
+				private long lastId = -1;
+				private long lastTs = -1;
+				
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					TriggerCheckpoint message = (TriggerCheckpoint) invocation.getArguments()[0];
+					long id = message.getCheckpointId();
+					long ts = message.getTimestamp();
+					
+					assertTrue(id > lastId);
+					assertTrue(ts >= lastTs);
+					assertTrue(ts >= start);
+					
+					lastId = id;
+					lastTs = ts;
+					numCalls.incrementAndGet();
+					return null;
+				}
+			}).when(triggerVertex).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
+			
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+					jid,
+					10,		// periodic interval is 10 ms
+					200000,	// timeout is very long (200 s)
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
+					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
+
+			
+			coord.startCheckpointScheduler();
+			
+			long timeout = System.currentTimeMillis() + 60000;
+			do {
+				Thread.sleep(20);
+			}
+			while (timeout > System.currentTimeMillis() && numCalls.get() < 5);
+			assertTrue(numCalls.get() >= 5);
+			
+			coord.stopCheckpointScheduler();
+			
+			
+			// for 400 ms, no further calls may come.
+			// there may be the case that one trigger was fired and about to
+			// acquire the lock, such that after cancelling it will still do
+			// the remainder of its work
+			int numCallsSoFar = numCalls.get();
+			Thread.sleep(400);
+			assertTrue(numCallsSoFar == numCalls.get() ||
+					numCallsSoFar+1 == numCalls.get());
+			
+			// start another sequence of periodic scheduling
+			numCalls.set(0);
+			coord.startCheckpointScheduler();
+
+			timeout = System.currentTimeMillis() + 60000;
+			do {
+				Thread.sleep(20);
+			}
+			while (timeout > System.currentTimeMillis() && numCalls.get() < 5);
+			assertTrue(numCalls.get() >= 5);
+			
+			coord.stopCheckpointScheduler();
+
+			// for 400 ms, no further calls may come
+			// there may be the case that one trigger was fired and about to
+			// acquire the lock, such that after cancelling it will still do
+			// the remainder of its work
+			numCallsSoFar = numCalls.get();
+			Thread.sleep(400);
+			assertTrue(numCallsSoFar == numCalls.get() ||
+					numCallsSoFar + 1 == numCalls.get());
+
+			coord.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testMaxConcurrentAttempts1() {
+		testMaxConcurrentAttemps(1);
+	}
+
+	@Test
+	public void testMaxConcurrentAttempts2() {
+		testMaxConcurrentAttemps(2);
+	}
+
+	@Test
+	public void testMaxConcurrentAttempts5() {
+		testMaxConcurrentAttemps(5);
+	}
+	
+	private void testMaxConcurrentAttemps(int maxConcurrentAttempts) {
+		try {
+			final JobID jid = new JobID();
+
+			// create some mock execution vertices and trigger some checkpoint
+			final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+
+			ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
+			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
+			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+
+			final AtomicInteger numCalls = new AtomicInteger();
+
+			doAnswer(new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					numCalls.incrementAndGet();
+					return null;
+				}
+			}).when(triggerVertex).sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class));
+
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+					jid,
+					10,		// periodic interval is 10 ms
+					200000,	// timeout is very long (200 s)
+					0L,		// no extra delay
+					maxConcurrentAttempts,
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
+					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
+
+
+			coord.startCheckpointScheduler();
+
+			// after a while, there should be exactly as many checkpoints
+			// as concurrently permitted
+			long now = System.currentTimeMillis();
+			long timeout = now + 60000;
+			long minDuration = now + 100;
+			do {
+				Thread.sleep(20);
+			}
+			while ((now = System.currentTimeMillis()) < minDuration ||
+					(numCalls.get() < maxConcurrentAttempts && now < timeout));
+			
+			assertEquals(maxConcurrentAttempts, numCalls.get());
+			
+			verify(triggerVertex, times(maxConcurrentAttempts))
+					.sendMessageToCurrentExecution(any(TriggerCheckpoint.class), eq(triggerAttemptID));
+			
+			// now, once we acknowledge one checkpoint, it should trigger the next one
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID, 1L));
+			
+			// this should have immediately triggered a new checkpoint
+			now = System.currentTimeMillis();
+			timeout = now + 60000;
+			do {
+				Thread.sleep(20);
+			}
+			while (numCalls.get() < maxConcurrentAttempts + 1 && now < timeout);
+
+			assertEquals(maxConcurrentAttempts + 1, numCalls.get());
+			
+			// no further checkpoints should happen
+			Thread.sleep(200);
+			assertEquals(maxConcurrentAttempts + 1, numCalls.get());
+			
+			coord.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testMaxConcurrentAttempsWithSubsumption() {
+		try {
+			final int maxConcurrentAttempts = 2;
+			final JobID jid = new JobID();
+
+			// create some mock execution vertices and trigger some checkpoint
+			final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+
+			ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
+			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
+			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+					jid,
+					10,		// periodic interval is 10 ms
+					200000,	// timeout is very long (200 s)
+					0L,		// no extra delay
+					maxConcurrentAttempts, // max two concurrent checkpoints
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
+					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
+
+
+			coord.startCheckpointScheduler();
+
+			// after a while, there should be exactly as many checkpoints
+			// as concurrently permitted 
+			long now = System.currentTimeMillis();
+			long timeout = now + 60000;
+			long minDuration = now + 100;
+			do {
+				Thread.sleep(20);
+			}
+			while ((now = System.currentTimeMillis()) < minDuration ||
+					(coord.getNumberOfPendingCheckpoints() < maxConcurrentAttempts && now < timeout));
+			
+			// validate that the pending checkpoints are there
+			assertEquals(maxConcurrentAttempts, coord.getNumberOfPendingCheckpoints());
+			assertNotNull(coord.getPendingCheckpoints().get(1L));
+			assertNotNull(coord.getPendingCheckpoints().get(2L));
+
+			// now we acknowledge the second checkpoint, which should subsume the first checkpoint
+			// and allow two more checkpoints to be triggered
+			// now, once we acknowledge one checkpoint, it should trigger the next one
+			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID, 2L));
+
+			// after a while, there should be the new checkpoints
+			final long newTimeout = System.currentTimeMillis() + 60000;
+			do {
+				Thread.sleep(20);
+			}
+			while (coord.getPendingCheckpoints().get(4L) == null && 
+					System.currentTimeMillis() < newTimeout);
+			
+			// do the final check
+			assertEquals(maxConcurrentAttempts, coord.getNumberOfPendingCheckpoints());
+			assertNotNull(coord.getPendingCheckpoints().get(3L));
+			assertNotNull(coord.getPendingCheckpoints().get(4L));
+			
+			coord.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testPeriodicSchedulingWithInactiveTasks() {
+		try {
+			final JobID jid = new JobID();
+
+			// create some mock execution vertices and trigger some checkpoint
+			final ExecutionAttemptID triggerAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID ackAttemptID = new ExecutionAttemptID();
+			final ExecutionAttemptID commitAttemptID = new ExecutionAttemptID();
+
+			ExecutionVertex triggerVertex = mockExecutionVertex(triggerAttemptID);
+			ExecutionVertex ackVertex = mockExecutionVertex(ackAttemptID);
+			ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
+
+			final AtomicReference<ExecutionState> currentState = new AtomicReference<>(ExecutionState.CREATED);
+			when(triggerVertex.getCurrentExecutionAttempt().getState()).thenAnswer(
+					new Answer<ExecutionState>() {
+						@Override
+						public ExecutionState answer(InvocationOnMock invocation){
+							return currentState.get();
+						}
+					});
+			
+			CheckpointCoordinator coord = new CheckpointCoordinator(
+					jid,
+					10,		// periodic interval is 10 ms
+					200000,	// timeout is very long (200 s)
+					0L,		// no extra delay
+					2, // max two concurrent checkpoints
+					new ExecutionVertex[] { triggerVertex },
+					new ExecutionVertex[] { ackVertex },
+					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter(),
+					new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
+			
+			coord.startCheckpointScheduler();
+
+			// no checkpoint should have started so far
+			Thread.sleep(200);
+			assertEquals(0, coord.getNumberOfPendingCheckpoints());
+			
+			// now move the state to RUNNING
+			currentState.set(ExecutionState.RUNNING);
+			
+			// the coordinator should start checkpointing now
+			final long timeout = System.currentTimeMillis() + 10000;
+			do {
+				Thread.sleep(20);
+			}
+			while (System.currentTimeMillis() < timeout && 
+					coord.getNumberOfPendingCheckpoints() == 0);
+			
+			assertTrue(coord.getNumberOfPendingCheckpoints() > 0);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
 	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
 		return mockExecutionVertex(attemptID, ExecutionState.RUNNING);
 	}
 
-	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID, ExecutionState state) {
+	private static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID, 
+														ExecutionState state, ExecutionState ... successiveStates) {
 		final Execution exec = mock(Execution.class);
 		when(exec.getAttemptId()).thenReturn(attemptID);
-		when(exec.getState()).thenReturn(state);
+		when(exec.getState()).thenReturn(state, successiveStates);
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
