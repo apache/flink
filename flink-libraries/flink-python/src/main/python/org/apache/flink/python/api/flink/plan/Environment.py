@@ -40,7 +40,10 @@ class Environment(object):
         self._counter = 0
 
         #parameters
-        self._parameters = []
+        self._dop = -1
+        self._local_mode = False
+        self._debug_mode = False
+        self._retry = 0
 
         #sets
         self._sources = []
@@ -114,15 +117,28 @@ class Environment(object):
         self._sources.append(child)
         return child_set
 
-    def set_degree_of_parallelism(self, degree):
+    def set_parallelism(self, parallelism):
         """
-        Sets the degree of parallelism (DOP) for operations executed through this environment.
+        Sets the parallelism for operations executed through this environment.
 
         Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with x parallel instances.
 
-        :param degreeOfParallelism: The degree of parallelism
+        :param parallelism: The degree of parallelism
         """
-        self._parameters.append(("dop", degree))
+        self._dop = parallelism
+
+    def get_parallelism(self):
+        """
+        Gets the parallelism with which operation are executed by default.
+        :return The parallelism used by operations.
+        """
+        return self._dop
+
+    def set_number_of_execution_retries(self, count):
+        self._retry = count
+
+    def get_number_of_execution_retries(self):
+        return self._retry
 
     def execute(self, local=False, debug=False):
         """
@@ -132,8 +148,8 @@ class Environment(object):
         """
         if debug:
             local = True
-        self._parameters.append(("mode", local))
-        self._parameters.append(("debug", debug))
+        self._local_mode = local
+        self._debug_mode = debug
         self._optimize_plan()
 
         plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
@@ -243,9 +259,11 @@ class Environment(object):
         self._send_broadcast()
 
     def _send_parameters(self):
-        self._collector.collect(len(self._parameters))
-        for parameter in self._parameters:
-            self._collector.collect(parameter)
+        collect = self._collector.collect
+        collect(("dop", self._dop))
+        collect(("debug", self._debug_mode))
+        collect(("mode", self._local_mode))
+        collect(("retry", self._retry))
 
     def _send_sources(self):
         for source in self._sources:

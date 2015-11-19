@@ -110,6 +110,6 @@ if __name__ == "__main__":
 
 	result.write_csv(sys.argv[5], '\n', '|', WriteMode.OVERWRITE)
 
-	env.set_degree_of_parallelism(1)
+	env.set_parallelism(1)
 
 	env.execute(local=True)
