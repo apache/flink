@@ -20,6 +20,7 @@ package org.apache.flink.test.failingPrograms;
 
 import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -35,27 +36,35 @@ import org.junit.Assert;
  */
 public class TaskFailureITCase extends JavaProgramTestBase {
 
+	private static String EXCEPTION_STRING = "This is an expected Test Exception";
+
 	@Override
 	protected void testProgram() throws Exception {
 		//test failing version
 		try {
-			executeTask(new FailingTestMapper());
+			executeTask(new FailingTestMapper(), 1);
 		} catch (RuntimeException e) { //expected for collection execution
 			if (!isCollectionExecution()) {
 				Assert.fail();
 			}
+			// for collection execution, no restarts. So, exception should be appended with 0.
+			Assert.assertEquals(EXCEPTION_STRING + ":0", e.getMessage());
 		} catch (JobExecutionException e) { //expected for cluster execution
 			if (isCollectionExecution()) {
 				Assert.fail();
 			}
+			// for cluster execution, one restart. So, exception should be appended with 1.
+			Assert.assertEquals(EXCEPTION_STRING + ":1", e.getCause().getMessage());
 		}
 		//test correct version
-		executeTask(new TestMapper());
+		executeTask(new TestMapper(), 0);
 	}
 	
 
-	private void executeTask(MapFunction<Long, Long> mapper) throws Exception {
+	private void executeTask(MapFunction<Long, Long> mapper, int retries) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setNumberOfExecutionRetries(retries);
+		env.getConfig().setExecutionRetryDelay(0);
 		List<Long> result = env.generateSequence(1, 9)
 				.map(mapper)
 				.collect();
@@ -78,12 +87,12 @@ public class TaskFailureITCase extends JavaProgramTestBase {
 	/**
 	 * failing map function
 	 */
-	public static class FailingTestMapper implements MapFunction<Long, Long> {
+	public static class FailingTestMapper extends RichMapFunction<Long, Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Long map(Long value) throws Exception {
-			throw new RuntimeException("This is an expected Test Exception");
+			throw new RuntimeException(EXCEPTION_STRING + ":" + getRuntimeContext().getAttemptNumber());
 		}
 	}
 }

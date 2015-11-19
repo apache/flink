@@ -65,6 +65,22 @@ public interface RuntimeContext {
 	int getIndexOfThisSubtask();
 
 	/**
+	 * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+	 *
+	 * @return Attempt number of the subtask.
+	 */
+	int getAttemptNumber();
+
+	/**
+	 * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+	 * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be
+	 * {@link #getNumberOfParallelSubtasks()}.
+	 *
+	 * @return The name of the task, with subtask indicator.
+	 */
+	String getTaskNameWithSubtasks();
+
+	/**
 	 * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
 	 * job.
 	 */

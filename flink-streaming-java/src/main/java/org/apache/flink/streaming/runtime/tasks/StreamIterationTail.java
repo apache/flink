@@ -42,7 +42,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		}
 
 		final String brokerID = StreamIterationHead.createBrokerIdString(getEnvironment().getJobID(), iterationId,
-				getEnvironment().getIndexInSubtaskGroup());
+				getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 		final long iterationWaitTime = getConfiguration().getIterationWaitTime();
 

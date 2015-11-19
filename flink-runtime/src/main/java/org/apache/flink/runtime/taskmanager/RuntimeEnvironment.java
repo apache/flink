@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * In implementation of the {@link Environment}.
@@ -51,10 +51,7 @@ public class RuntimeEnvironment implements Environment {
 	private final JobVertexID jobVertexId;
 	private final ExecutionAttemptID executionId;
 	
-	private final String taskName;
-	private final String taskNameWithSubtasks;
-	private final int subtaskIndex;
-	private final int parallelism;
+	private final TaskInfo taskInfo;
 	
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
@@ -83,10 +80,7 @@ public class RuntimeEnvironment implements Environment {
 			JobID jobId,
 			JobVertexID jobVertexId,
 			ExecutionAttemptID executionId,
-			String taskName,
-			String taskNameWithSubtasks,
-			int subtaskIndex,
-			int parallelism,
+			TaskInfo taskInfo,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
 			ClassLoader userCodeClassLoader,
@@ -100,16 +94,11 @@ public class RuntimeEnvironment implements Environment {
 			InputGate[] inputGates,
 			ActorGateway jobManager,
 			TaskManagerRuntimeInfo taskManagerInfo) {
-		
-		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.executionId = checkNotNull(executionId);
-		this.taskName = checkNotNull(taskName);
-		this.taskNameWithSubtasks = checkNotNull(taskNameWithSubtasks);
-		this.subtaskIndex = subtaskIndex;
-		this.parallelism = parallelism;
+		this.taskInfo = checkNotNull(taskInfo);
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -143,23 +132,8 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public String getTaskName() {
-		return taskName;
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return taskNameWithSubtasks;
-	}
-
-	@Override
-	public int getNumberOfSubtasks() {
-		return parallelism;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return subtaskIndex;
+	public TaskInfo getTaskInfo() {
+		return this.taskInfo;
 	}
 
 	@Override

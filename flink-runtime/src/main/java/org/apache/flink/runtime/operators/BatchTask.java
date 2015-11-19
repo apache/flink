@@ -265,7 +265,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		Environment env = getEnvironment();
 
-		this.runtimeUdfContext = createRuntimeContext(env.getTaskName());
+		this.runtimeUdfContext = createRuntimeContext();
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -400,7 +400,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			this.driver.setup(this);
 		}
 		catch (Throwable t) {
-			throw new Exception("The driver setup for '" + this.getEnvironment().getTaskName() +
+			throw new Exception("The driver setup for '" + this.getEnvironment().getTaskInfo().getTaskName() +
 				"' , caused an error: " + t.getMessage(), t);
 		}
 		
@@ -461,7 +461,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			catch (Throwable t) {
 				// if the preparation caused an error, clean up
 				// errors during clean-up are swallowed, because we have already a root exception
-				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskName() +
+				throw new Exception("The data preparation for task '" + this.getEnvironment().getTaskInfo().getTaskName() +
 					"' , caused an error: " + t.getMessage(), t);
 			}
 
@@ -1014,12 +1014,11 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				this.getExecutionConfig(), reporter, this.accumulatorMap);
 	}
 
-	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
+	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1063,7 +1062,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 	@Override
 	public String formatLogString(String message) {
-		return constructLogString(message, getEnvironment().getTaskName(), this);
+		return constructLogString(message, getEnvironment().getTaskInfo().getTaskName(), this);
 	}
 
 	@Override
@@ -1150,8 +1149,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * @return The string for logging.
 	 */
 	public static String constructLogString(String message, String taskName, AbstractInvokable parent) {
-		return message + ":  " + taskName + " (" + (parent.getEnvironment().getIndexInSubtaskGroup() + 1) +
-				'/' + parent.getEnvironment().getNumberOfSubtasks() + ')';
+		return message + ":  " + taskName + " (" + (parent.getEnvironment().getTaskInfo().getIndexOfThisSubtask() + 1) +
+				'/' + parent.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks() + ')';
 	}
 
 	/**
@@ -1172,7 +1171,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				ex = cex.getWrappedException();
 			} while (ex instanceof ExceptionInChainedStubException);
 		} else {
-			taskName = parent.getEnvironment().getTaskName();
+			taskName = parent.getEnvironment().getTaskInfo().getTaskName();
 		}
 
 		if (LOG.isErrorEnabled()) {

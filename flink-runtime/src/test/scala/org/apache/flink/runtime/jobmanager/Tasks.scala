@@ -121,7 +121,7 @@ object Tasks {
     import FailingOnceReceiver.failed
 
     override def invoke(): Unit = {
-      if(!failed && getEnvironment.getIndexInSubtaskGroup == 0){
+      if(!failed && getEnvironment.getTaskInfo.getIndexOfThisSubtask == 0){
         failed = true
         throw new Exception("Test exception.")
       }else{

@@ -128,7 +128,7 @@ public class FileStateBackendTest {
 				// supreme!
 			}
 
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 			assertNotNull(backend.getCheckpointDirectory());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -151,7 +151,7 @@ public class FileStateBackendTest {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(
 				new FsStateBackend(randomHdfsFileUri(), 40));
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -185,7 +185,7 @@ public class FileStateBackendTest {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(
 				new FsStateBackend(randomHdfsFileUri(), 15));
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 

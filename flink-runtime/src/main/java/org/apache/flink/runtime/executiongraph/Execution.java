@@ -46,7 +46,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
@@ -361,8 +360,8 @@ public class Execution implements Serializable {
 				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
-			
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState, recoveryTimestamp);
+
+			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState, recoveryTimestamp, attemptNumber);
 			
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
@@ -378,9 +377,7 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
-							String taskname = Task.getTaskNameWithSubtaskAndID(deployment.getTaskName(),
-									deployment.getIndexInSubtaskGroup(), deployment.getNumberOfSubtasks(),
-									attemptId);
+							String taskname = deployment.getTaskInfo().getTaskNameWithSubtasks() + " (" + attemptId + ')';
 							
 							markFailed(new Exception(
 									"Cannot deploy task " + taskname + " - TaskManager (" + instance

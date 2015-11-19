@@ -25,6 +25,7 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
@@ -332,14 +333,10 @@ public class BoltWrapperTest extends AbstractTest {
 	
 	public static StreamTask<?, ?> createMockStreamTask(ExecutionConfig execConfig) {
 		Environment env = mock(Environment.class);
-		when(env.getTaskName()).thenReturn("Mock Task");
-		when(env.getTaskNameWithSubtasks()).thenReturn("Mock Task (1/1)");
-		when(env.getIndexInSubtaskGroup()).thenReturn(0);
-		when(env.getNumberOfSubtasks()).thenReturn(1);
+		when(env.getTaskInfo()).thenReturn(new TaskInfo("Mock Task", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(BoltWrapperTest.class.getClassLoader());
 		
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
-		when(mockTask.getName()).thenReturn("Mock Task (1/1)");
 		when(mockTask.getCheckpointLock()).thenReturn(new Object());
 		when(mockTask.getConfiguration()).thenReturn(new StreamConfig(new Configuration()));
 		when(mockTask.getEnvironment()).thenReturn(env);

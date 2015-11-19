@@ -181,7 +181,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
 		return new LazyDbKvState<K, V>(
 				stateId + "_" + env.getJobID().toShortString(),
-				env.getIndexInSubtaskGroup() == 0,
+				env.getTaskInfo().getIndexOfThisSubtask() == 0,
 				getConnections(),
 				getConfiguration(),
 				keySerializer,

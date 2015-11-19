@@ -148,7 +148,7 @@ public class ScheduleOrUpdateConsumersTest {
 		@Override
 		public void invoke() throws Exception {
 			final IntValue subtaskIndex = new IntValue(
-					getEnvironment().getIndexInSubtaskGroup());
+					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 			// Produce the first intermediate result and then the second in a serial fashion.
 			for (RecordWriter<IntValue> writer : writers) {

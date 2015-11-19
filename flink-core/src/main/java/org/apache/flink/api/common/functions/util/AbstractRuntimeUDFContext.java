@@ -25,6 +25,7 @@ import java.util.concurrent.Future;
 
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -42,11 +43,7 @@ import org.apache.flink.core.fs.Path;
  */
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
-	private final String name;
-
-	private final int numParallelSubtasks;
-
-	private final int subtaskIndex;
+	private final TaskInfo taskInfo;
 
 	private final ClassLoader userCodeClassLoader;
 
@@ -56,15 +53,12 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final DistributedCache distributedCache;
 
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
+	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
 										Map<String, Accumulator<?,?>> accumulators,
 										Map<String, Future<Path>> cpTasks) {
-		this.name = name;
-		this.numParallelSubtasks = numParallelSubtasks;
-		this.subtaskIndex = subtaskIndex;
+		this.taskInfo = Preconditions.checkNotNull(taskInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
 		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
@@ -78,17 +72,27 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	public String getTaskName() {
-		return this.name;
+		return taskInfo.getTaskName();
 	}
 
 	@Override
 	public int getNumberOfParallelSubtasks() {
-		return this.numParallelSubtasks;
+		return taskInfo.getNumberOfParallelSubtasks();
 	}
 
 	@Override
 	public int getIndexOfThisSubtask() {
-		return this.subtaskIndex;
+		return taskInfo.getIndexOfThisSubtask();
+	}
+
+	@Override
+	public int getAttemptNumber() {
+		return taskInfo.getAttemptNumber();
+	}
+
+	@Override
+	public String getTaskNameWithSubtasks() {
+		return taskInfo.getTaskNameWithSubtasks();
 	}
 
 	@Override

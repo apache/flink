@@ -80,7 +80,7 @@ public class FileStateBackendTest {
 				// supreme!
 			}
 
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 			assertNotNull(backend.getCheckpointDirectory());
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
@@ -107,7 +107,7 @@ public class FileStateBackendTest {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(
 				new FsStateBackend(tempDir.toURI(), 40));
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
@@ -147,7 +147,7 @@ public class FileStateBackendTest {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(
 				new FsStateBackend(tempDir.toURI(), 15));
 			
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
@@ -228,7 +228,7 @@ public class FileStateBackendTest {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
@@ -317,7 +317,7 @@ public class FileStateBackendTest {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
@@ -389,7 +389,7 @@ public class FileStateBackendTest {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
-			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
 
 			KvState<Integer, IntValue, FsStateBackend> kv =
 					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
