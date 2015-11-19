@@ -81,6 +81,11 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 	}
 
 	@Override
+	public int getAttemptNumber() {
+		return 0;
+	}
+
+	@Override
 	public ExecutionConfig getExecutionConfig() {
 		throw new UnsupportedOperationException();
 	}

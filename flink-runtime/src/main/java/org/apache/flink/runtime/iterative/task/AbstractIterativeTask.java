@@ -171,8 +171,8 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+				env.getIndexInSubtaskGroup(), env.getAttemptNumber(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -361,10 +361,10 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 
 	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
+		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, int attemptNumber, ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks,
 										Map<String, Accumulator<?,?>> accumulatorMap) {
-			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap);
+			super(name, numParallelSubtasks, subtaskIndex, attemptNumber, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap);
 		}
 
 		@Override

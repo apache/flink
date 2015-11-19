@@ -46,6 +46,7 @@ public class TaskDeploymentDescriptorTest {
 			final String taskName = "task name";
 			final int indexInSubtaskGroup = 0;
 			final int currentNumberOfSubtasks = 1;
+			final int attemptNumber = 0;
 			final Configuration jobConfiguration = new Configuration();
 			final Configuration taskConfiguration = new Configuration();
 			final Class<? extends AbstractInvokable> invokableClass = BatchTask.class;
@@ -55,11 +56,11 @@ public class TaskDeploymentDescriptorTest {
 			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
 	
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
-				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
+				indexInSubtaskGroup, currentNumberOfSubtasks, attemptNumber, jobConfiguration, taskConfiguration,
 				invokableClass.getName(), producedResults, inputGates, requiredJars, requiredClasspaths, 47);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
-	
+
 			assertFalse(orig.getJobID() == copy.getJobID());
 			assertFalse(orig.getVertexID() == copy.getVertexID());
 			assertFalse(orig.getTaskName() == copy.getTaskName());
@@ -71,6 +72,7 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getTaskName(), copy.getTaskName());
 			assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
 			assertEquals(orig.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
+			assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
 

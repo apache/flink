@@ -55,6 +55,7 @@ public class RuntimeEnvironment implements Environment {
 	private final String taskNameWithSubtasks;
 	private final int subtaskIndex;
 	private final int parallelism;
+	private final int attemptNumber;
 	
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
@@ -87,6 +88,7 @@ public class RuntimeEnvironment implements Environment {
 			String taskNameWithSubtasks,
 			int subtaskIndex,
 			int parallelism,
+			int attemptNumber,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
 			ClassLoader userCodeClassLoader,
@@ -101,7 +103,7 @@ public class RuntimeEnvironment implements Environment {
 			ActorGateway jobManager,
 			TaskManagerRuntimeInfo taskManagerInfo) {
 		
-		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
+		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism && attemptNumber >= 0);
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
@@ -110,6 +112,7 @@ public class RuntimeEnvironment implements Environment {
 		this.taskNameWithSubtasks = checkNotNull(taskNameWithSubtasks);
 		this.subtaskIndex = subtaskIndex;
 		this.parallelism = parallelism;
+		this.attemptNumber = attemptNumber;
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -160,6 +163,11 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public int getIndexInSubtaskGroup() {
 		return subtaskIndex;
+	}
+
+	@Override
+	public int getAttemptNumber() {
+		return attemptNumber;
 	}
 
 	@Override

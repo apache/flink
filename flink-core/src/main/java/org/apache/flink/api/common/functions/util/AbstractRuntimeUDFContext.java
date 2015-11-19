@@ -48,6 +48,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final int subtaskIndex;
 
+	private final int attemptNumber;
+
 	private final ClassLoader userCodeClassLoader;
 
 	private final ExecutionConfig executionConfig;
@@ -57,7 +59,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	private final DistributedCache distributedCache;
 
 	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
+										int numParallelSubtasks, int subtaskIndex, int attemptNumber,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
 										Map<String, Accumulator<?,?>> accumulators,
@@ -65,6 +67,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
+		this.attemptNumber = attemptNumber;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
 		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
@@ -89,6 +92,11 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public int getIndexOfThisSubtask() {
 		return this.subtaskIndex;
+	}
+
+	@Override
+	public int getAttemptNumber() {
+		return this.attemptNumber;
 	}
 
 	@Override

@@ -38,9 +38,9 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 	
 	private final HashMap<String, List<?>> uninitializedBroadcastVars = new HashMap<String, List<?>>();
 
-	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader,
+	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int attemptNumber, ClassLoader userCodeClassLoader,
 							ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
-		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+		super(name, numParallelSubtasks, subtaskIndex, attemptNumber, userCodeClassLoader, executionConfig, accumulators, cpTasks);
 	}
 
 	@Override

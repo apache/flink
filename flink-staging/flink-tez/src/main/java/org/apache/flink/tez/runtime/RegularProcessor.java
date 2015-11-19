@@ -70,6 +70,7 @@ public class RegularProcessor<S extends Function, OT> extends AbstractLogicalIOP
 		RuntimeUDFContext runtimeUdfContext = new RuntimeUDFContext(getContext().getTaskVertexName(),
 				getContext().getVertexParallelism(),
 				getContext().getTaskIndex(),
+				getContext().getTaskAttemptNumber(),
 				getClass().getClassLoader(),
 				new ExecutionConfig(),
 				new HashMap<String, Future<Path>>(),

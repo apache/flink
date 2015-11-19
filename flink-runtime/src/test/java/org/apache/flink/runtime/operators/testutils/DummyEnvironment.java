@@ -92,6 +92,11 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
+	public int getAttemptNumber() {
+		return 0;
+	}
+
+	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return null;
 	}

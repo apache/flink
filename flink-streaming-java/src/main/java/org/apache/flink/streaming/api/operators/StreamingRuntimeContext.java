@@ -63,6 +63,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		super(env.getTaskName(),
 				env.getNumberOfSubtasks(),
 				env.getIndexInSubtaskGroup(),
+				env.getAttemptNumber(),
 				env.getUserClassLoader(),
 				operator.getExecutionConfig(),
 				accumulators,

@@ -74,7 +74,7 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 			ExecutionConfig executionConfig = new ExecutionConfig();
 			final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 			final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
-			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, null, executionConfig, cpTasks, accumulators);
+			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, 0, null, executionConfig, cpTasks, accumulators);
 
 			{
 				SumCoGroup udf1 = new SumCoGroup();

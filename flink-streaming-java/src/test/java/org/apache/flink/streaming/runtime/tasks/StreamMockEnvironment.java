@@ -222,6 +222,11 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public int getAttemptNumber() {
+		return 0;
+	}
+
+	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}

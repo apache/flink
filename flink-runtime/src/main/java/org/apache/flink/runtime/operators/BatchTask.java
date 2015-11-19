@@ -1018,8 +1018,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		Environment env = getEnvironment();
 
 		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), this.accumulatorMap);
+				env.getIndexInSubtaskGroup(), env.getAttemptNumber(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -141,6 +141,13 @@ public interface Environment {
 	String getTaskNameWithSubtasks();
 
 	/**
+	 * Returns the attempt number of task running in this environment.
+	 *
+	 * @return Attempt number of task running in this environment
+	 */
+	int getAttemptNumber();
+
+	/**
 	 * Returns the user code class loader
 	 */
 	ClassLoader getUserClassLoader();

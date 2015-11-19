@@ -126,6 +126,9 @@ public class Task implements Runnable {
 	/** The number of parallel subtasks for the JobVertex/ExecutionJobVertex that this task belongs to */
 	private final int parallelism;
 
+	/** Attempt number of this task. */
+	private final int attemptNumber;
+
 	/** The name of the task */
 	private final String taskName;
 
@@ -240,12 +243,14 @@ public class Task implements Runnable {
 		checkArgument(tdd.getNumberOfSubtasks() > 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
 		checkArgument(tdd.getIndexInSubtaskGroup() < tdd.getNumberOfSubtasks());
+		checkArgument(tdd.getAttemptNumber() >= 0);
 
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
 		this.subtaskIndex = tdd.getIndexInSubtaskGroup();
 		this.parallelism = tdd.getNumberOfSubtasks();
+		this.attemptNumber = tdd.getAttemptNumber();
 		this.taskName = checkNotNull(tdd.getTaskName());
 		this.taskNameWithSubtask = getTaskNameWithSubtask(taskName, subtaskIndex, parallelism);
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
@@ -516,7 +521,7 @@ public class Task implements Runnable {
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
 			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
-					taskName, taskNameWithSubtask, subtaskIndex, parallelism,
+					taskName, taskNameWithSubtask, subtaskIndex, parallelism, attemptNumber,
 					jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
