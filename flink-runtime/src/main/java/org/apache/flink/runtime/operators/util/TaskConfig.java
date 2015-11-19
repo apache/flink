@@ -462,8 +462,10 @@ public class TaskConfig implements Serializable {
 	
 	public void addBroadcastInputToGroup(int groupIndex) {
 		final String grp = BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex;
+		if (!this.config.containsKey(grp)) {
+			this.config.setInteger(NUM_BROADCAST_INPUTS, this.config.getInteger(NUM_BROADCAST_INPUTS, 0) + 1);
+		}
 		this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
-		this.config.setInteger(NUM_BROADCAST_INPUTS, this.config.getInteger(NUM_BROADCAST_INPUTS, 0) + 1);
 	}
 	
 	public void setInputAsynchronouslyMaterialized(int inputNum, boolean temp) {
