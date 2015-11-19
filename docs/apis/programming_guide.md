@@ -1493,6 +1493,7 @@ There are six different categories of data types:
 4. **Regular Classes**
 5. **Values**
 6. **Hadoop Writables**
+7. **Special Types**
 
 #### Tuples and Case Classes
 
@@ -1651,6 +1652,12 @@ be altered, allowing programmers to reuse objects and take pressure off the garb
 You can use types that implement the `org.apache.hadoop.Writable` interface. The serialization logic
 defined in the `write()`and `readFields()` methods will be used for serialization.
 
+#### Special Types
+
+You can use special types, including Scala's `Either`, `Option`, and `Try`.
+The Java API has its own custom implementation of `Either`.
+Similarly to Scala's `Either`, it represents a value of one two possible types, *Left* or *Right*.
+`Either` can be useful for error handling or operators that need to output two different types of records.
 
 #### Type Erasure & Type Inference
 

@@ -72,7 +72,7 @@ public abstract class Either<L, R> {
 	}
 
 	private static class Left<L, R> extends Either<L, R> {
-		final L value;
+		private final L value;
 
 		public Left(L value) {
 			this.value = java.util.Objects.requireNonNull(value);
@@ -109,7 +109,7 @@ public abstract class Either<L, R> {
 	}
 
 	private static class Right<L, R> extends Either<L, R> {
-		final R value;
+		private final R value;
 
 		public Right(R value) {
 			this.value = java.util.Objects.requireNonNull(value);

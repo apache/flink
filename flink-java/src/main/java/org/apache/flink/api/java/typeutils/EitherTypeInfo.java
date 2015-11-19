@@ -75,7 +75,7 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	@Override
 	public TypeSerializer<Either<L, R>> createSerializer(ExecutionConfig config) {
-		return new EitherSerializer<L, R>(getTypeClass(), leftType.createSerializer(config),
+		return new EitherSerializer<L, R>(leftType.createSerializer(config),
 				rightType.createSerializer(config));
 	}
 

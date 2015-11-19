@@ -35,14 +35,11 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final Class<Either<L, R>> typeClass;
-
 	private final TypeSerializer<L> leftSerializer;
 
 	private final TypeSerializer<R> rightSerializer;
 
-	public EitherSerializer(Class<Either<L, R>> typeClass, TypeSerializer<L> leftSerializer, TypeSerializer<R> rightSerializer) {
-		this.typeClass = typeClass;
+	public EitherSerializer(TypeSerializer<L> leftSerializer, TypeSerializer<R> rightSerializer) {
 		this.leftSerializer = leftSerializer;
 		this.rightSerializer = rightSerializer;
 	}
@@ -59,7 +56,7 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 
 		if ((leftSerializer != duplicateLeft) || (rightSerializer != duplicateRight)) {
 			// stateful
-			return new EitherSerializer<L, R>(typeClass, duplicateLeft, duplicateRight);
+			return new EitherSerializer<L, R>(duplicateLeft, duplicateRight);
 		}
 		else {
 			return this;
@@ -174,7 +171,6 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 			EitherSerializer<L, R> other = (EitherSerializer<L, R>) obj;
 
 			return other.canEqual(this) &&
-				typeClass == other.typeClass &&
 				leftSerializer.equals(other.leftSerializer) &&
 				rightSerializer.equals(other.rightSerializer);
 		} else {
