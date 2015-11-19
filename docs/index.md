@@ -20,6 +20,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+This documentation is for Apache Flink version {{ site.version }}, which is the
+current development version of the next upcoming major release of Apache Flink.
+
 Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is
 a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed
 computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying
@@ -53,18 +56,3 @@ This is an overview of Flink's stack. Click on any component to go to the respec
   <area shape="rect" coords="643,405,765,455" alt="YARN" href="setup/yarn_setup.html">
   <area shape="rect" coords="770,405,893,455" alt="Tez" href="setup/flink_on_tez.html">
 </map>
-
-
-## Download
-
-This documentation is for Apache Flink version {{ site.version }}, which is the current development version of the next upcoming major release of Apache Flink.
-
-You can download the latest pre-built snapshot version from the [downloads]({{ site.download_url }}#latest) page of the [project website]({{ site.website_url }}).
-
-<!--The Scala API uses Scala {{ site.scala_version }}. Please make sure to use a compatible version.
-
-The Scala API uses Scala 2.10, but you can use the API with Scala 2.11. To use Flink with
-Scala 2.11, please check [build guide](/setup/building.html#build-flink-for-a-specific-scala-version)
-and [programming guide](/apis/programming_guide.html#scala-dependency-versions).-->
-
-
