@@ -59,6 +59,7 @@ function deploy_to_s3() {
 		  --bucket $ARTIFACTS_S3_BUCKET \
 		  --key $ARTIFACTS_AWS_ACCESS_KEY_ID \
 		  --secret $ARTIFACTS_AWS_SECRET_ACCESS_KEY \
+		  --target-paths / \
 		  flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz
 
 	# delete files again
