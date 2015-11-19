@@ -107,7 +107,7 @@ public abstract class StreamExecutionEnvironment {
 	private static StreamExecutionEnvironmentFactory contextEnvironmentFactory;
 
 	/** The default parallelism used when creating a local environment */
-	static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
+	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 	
 	// ------------------------------------------------------------------------
 

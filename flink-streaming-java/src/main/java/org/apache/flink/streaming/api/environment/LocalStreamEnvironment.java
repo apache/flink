@@ -91,11 +91,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		configuration.addAll(jobGraph.getJobConfiguration());
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
-
-		int parallelism = getParallelism() == defaultLocalParallelism ?
-				defaultLocalParallelism : jobGraph.getMaximumParallelism();
-
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
 		
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
