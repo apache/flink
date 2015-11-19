@@ -257,7 +257,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				}
 			}
 
-			BatchTask.clearReaders(new MutableReader[]{inputReader});
+			BatchTask.clearReaders(new MutableReader<?>[]{inputReader});
 		}
 
 		if (!this.taskCanceled) {
