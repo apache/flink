@@ -620,9 +620,12 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// the inputs of the union as well, because the optimizer has a separate union
 			// node, which does not exist in the JobGraph. Otherwise, this can result in
 			// deadlocks when closing a branching flow at runtime.
-			if (input.getDataExchangeMode().equals(DataExchangeMode.BATCH)) {
-				for (Channel in : inputPlanNode.getInputs()) {
+			for (Channel in : inputPlanNode.getInputs()) {
+				if (input.getDataExchangeMode().equals(DataExchangeMode.BATCH)) {
 					in.setDataExchangeMode(DataExchangeMode.BATCH);
+				}
+				if (isBroadcast) {
+					in.setShipStrategy(ShipStrategyType.BROADCAST, in.getDataExchangeMode());
 				}
 			}
 		}
