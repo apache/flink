@@ -56,6 +56,11 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
 
+	@Test(timeout = 60000)
+	public void testKeyValueSupport() throws Exception {
+		runKeyValueTest();
+	}
+
 	// --- canceling / failures ---
 	
 	@Test

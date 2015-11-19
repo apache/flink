@@ -38,6 +38,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.OffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.util.NetUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
@@ -207,7 +209,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	private final int[] partitions;
 	
 	/** The schema to convert between Kafka#s byte messages, and Flink's objects */
-	private final DeserializationSchema<T> valueDeserializer;
+	private final KeyedDeserializationSchema<T> deserializer;
 
 	// ------  Runtime State  -------
 
@@ -234,8 +236,32 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	private transient long[] restoreToOffset;
 	
 	private volatile boolean running = true;
-
+	
 	// ------------------------------------------------------------------------
+
+
+	/**
+	 * Creates a new Flink Kafka Consumer, using the given type of fetcher and offset handler.
+	 *
+	 * <p>To determine which kink of fetcher and offset handler to use, please refer to the docs
+	 * at the beginnign of this class.</p>
+	 *
+	 * @param topic
+	 *           The Kafka topic to read from.
+	 * @param deserializer
+	 *           The deserializer to turn raw byte messages (without key) into Java/Scala objects.
+	 * @param props
+	 *           The properties that are used to configure both the fetcher and the offset handler.
+	 * @param offsetStore
+	 *           The type of offset store to use (Kafka / ZooKeeper)
+	 * @param fetcherType
+	 *           The type of fetcher to use (new high-level API, old low-level API).
+	 */
+	public FlinkKafkaConsumer(String topic, DeserializationSchema<T> deserializer, Properties props,
+							OffsetStore offsetStore, FetcherType fetcherType) {
+		this(topic, new KeyedDeserializationSchemaWrapper<>(deserializer),
+				props, offsetStore, fetcherType);
+	}
 
 	/**
 	 * Creates a new Flink Kafka Consumer, using the given type of fetcher and offset handler.
@@ -245,7 +271,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	 * 
 	 * @param topic 
 	 *           The Kafka topic to read from.
-	 * @param valueDeserializer
+	 * @param deserializer
 	 *           The deserializer to turn raw byte messages into Java/Scala objects.
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
@@ -254,7 +280,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	 * @param fetcherType
 	 *           The type of fetcher to use (new high-level API, old low-level API).
 	 */
-	public FlinkKafkaConsumer(String topic, DeserializationSchema<T> valueDeserializer, Properties props, 
+	public FlinkKafkaConsumer(String topic, KeyedDeserializationSchema<T> deserializer, Properties props,
 								OffsetStore offsetStore, FetcherType fetcherType) {
 		this.offsetStore = checkNotNull(offsetStore);
 		this.fetcherType = checkNotNull(fetcherType);
@@ -270,7 +296,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		
 		this.topic = checkNotNull(topic, "topic");
 		this.props = checkNotNull(props, "props");
-		this.valueDeserializer = checkNotNull(valueDeserializer, "valueDeserializer");
+		this.deserializer = checkNotNull(deserializer, "valueDeserializer");
 
 		// validate the zookeeper properties
 		if (offsetStore == OffsetStore.FLINK_ZOOKEEPER) {
@@ -300,7 +326,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-
+		
 		final int numConsumers = getRuntimeContext().getNumberOfParallelSubtasks();
 		final int thisComsumerIndex = getRuntimeContext().getIndexOfThisSubtask();
 		
@@ -372,8 +398,6 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			// no restore request. Let the offset handler take care of the initial offset seeking
 			offsetHandler.seekFetcherToInitialOffsets(subscribedPartitions, fetcher);
 		}
-
-
 	}
 
 	@Override
@@ -394,7 +418,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				LOG.info("Starting periodic offset committer, with commit interval of {}ms", commitInterval);
 			}
 
-			fetcher.run(sourceContext, valueDeserializer, lastOffsets);
+			fetcher.run(sourceContext, deserializer, lastOffsets);
 
 			if (offsetCommitter != null) {
 				offsetCommitter.close();
@@ -438,7 +462,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				LOG.warn("Error while closing Kafka connector data fetcher", e);
 			}
 		}
-
+		
 		OffsetHandler offsetHandler = this.offsetHandler;
 		this.offsetHandler = null;
 		if (offsetHandler != null) {
@@ -449,8 +473,6 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				LOG.warn("Error while closing Kafka connector offset handler", e);
 			}
 		}
-
-
 	}
 
 	@Override
@@ -461,7 +483,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 
 	@Override
 	public TypeInformation<T> getProducedType() {
-		return valueDeserializer.getProducedType();
+		return deserializer.getProducedType();
 	}
 
 	// ------------------------------------------------------------------------

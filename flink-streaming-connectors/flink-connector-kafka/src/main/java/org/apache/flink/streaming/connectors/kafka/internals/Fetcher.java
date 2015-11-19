@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.kafka.common.TopicPartition;
 
 import java.io.IOException;
@@ -68,7 +68,8 @@ public interface Fetcher {
 	 * 
 	 * @param <T> The type of elements produced by the fetcher and emitted to the source context.
 	 */
-	<T> void run(SourceFunction.SourceContext<T> sourceContext, DeserializationSchema<T> valueDeserializer, long[] lastOffsets) throws Exception;
+	<T> void run(SourceFunction.SourceContext<T> sourceContext, KeyedDeserializationSchema<T> valueDeserializer,
+					long[] lastOffsets) throws Exception;
 	
 	/**
 	 * Set the next offset to read from for the given partition.

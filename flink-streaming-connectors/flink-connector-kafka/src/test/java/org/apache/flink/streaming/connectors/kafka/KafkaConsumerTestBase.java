@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
@@ -64,6 +65,9 @@ import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
+import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
@@ -82,6 +86,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -336,7 +341,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 
 				while (running && cnt < limit) {
-					ctx.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt));
+					ctx.collect(new Tuple2<>(1000L + cnt, "kafka-" + cnt));
 					cnt++;
 				}
 			}
@@ -817,13 +822,13 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 				while (running) {
 					byte[] wl = new byte[fifteenMb + rnd.nextInt(fifteenMb)];
-					ctx.collect(new Tuple2<Long, byte[]>(cnt++, wl));
+					ctx.collect(new Tuple2<>(cnt++, wl));
 
 					Thread.sleep(100);
 
 					if (cnt == 10) {
 						// signal end
-						ctx.collect(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
+						ctx.collect(new Tuple2<>(-1L, new byte[]{1}));
 						break;
 					}
 				}
@@ -913,6 +918,85 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	}
 
+	public void runKeyValueTest() throws Exception {
+		final String topic = "keyvaluetest";
+		createTestTopic(topic, 1, 1);
+		final int ELEMENT_COUNT = 5000;
+
+
+
+		// ----------- Write some data into Kafka -------------------
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.setParallelism(1);
+		env.setNumberOfExecutionRetries(3);
+		env.getConfig().disableSysoutLogging();
+
+		DataStream<Tuple2<Long, PojoValue>> kvStream = env.addSource(new SourceFunction<Tuple2<Long, PojoValue>>() {
+			@Override
+			public void run(SourceContext<Tuple2<Long, PojoValue>> ctx) throws Exception {
+				Random rnd = new Random(1337);
+				for(long i = 0; i < ELEMENT_COUNT; i++) {
+					PojoValue pojo = new PojoValue();
+					pojo.when = new Date(rnd.nextLong());
+					pojo.lon = rnd.nextLong();
+					pojo.lat = i;
+					// make every second key null to ensure proper "null" serialization
+					Long key = (i % 2 == 0) ? null : i;
+					ctx.collect(new Tuple2<>(key, pojo));
+				}
+			}
+			@Override
+			public void cancel() {
+			}
+		});
+
+		KeyedSerializationSchema<Tuple2<Long, PojoValue>> schema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
+		kvStream.addSink(new FlinkKafkaProducer<>(topic, schema,
+				FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnectionStrings)));
+		env.execute("Write KV to Kafka");
+
+		// ----------- Read the data again -------------------
+
+		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.setParallelism(1);
+		env.setNumberOfExecutionRetries(3);
+		env.getConfig().disableSysoutLogging();
+
+
+		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
+
+		DataStream<Tuple2<Long, PojoValue>> fromKafka = env.addSource(new FlinkKafkaConsumer082<>(topic, readSchema, standardProps));
+		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<Long,PojoValue>, Object>() {
+			long counter = 0;
+			@Override
+			public void flatMap(Tuple2<Long, PojoValue> value, Collector<Object> out) throws Exception {
+				// the elements should be in order.
+				Assert.assertTrue("Wrong value " + value.f1.lat, value.f1.lat == counter );
+				if(value.f1.lat % 2 == 0) {
+					Assert.assertNull("key was not null", value.f0);
+				} else {
+					Assert.assertTrue("Wrong value " + value.f0, value.f0 == counter);
+				}
+				counter++;
+				if(counter == ELEMENT_COUNT) {
+					// we got the right number of elements
+					throw new SuccessException();
+				}
+			}
+		});
+
+		tryExecute(env, "Read KV from Kafka");
+	}
+
+	public static class PojoValue {
+		public Date when;
+		public long lon;
+		public long lat;
+		public PojoValue() {}
+	}
+
+
 	// ------------------------------------------------------------------------
 	//  Reading writing test data sets
 	// ------------------------------------------------------------------------
@@ -982,7 +1066,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				int partition = getRuntimeContext().getIndexOfThisSubtask();
 
 				while (running && cnt < numElements) {
-					ctx.collect(new Tuple2<Integer, Integer>(partition, cnt));
+					ctx.collect(new Tuple2<>(partition, cnt));
 					cnt++;
 				}
 			}
@@ -1030,7 +1114,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		LOG.info("Opening Consumer instance for topic '{}' on group '{}'", topicName, config.groupId());
 		ConsumerIterator<byte[], byte[]> iteratorToRead = kafkaStreams.get(0).iterator();
 
-		List<MessageAndMetadata<byte[], byte[]>> result = new ArrayList<MessageAndMetadata<byte[], byte[]>>();
+		List<MessageAndMetadata<byte[], byte[]>> result = new ArrayList<>();
 		int read = 0;
 		while(iteratorToRead.hasNext()) {
 			read++;

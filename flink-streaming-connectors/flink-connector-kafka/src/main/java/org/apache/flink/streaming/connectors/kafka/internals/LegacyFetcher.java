@@ -30,7 +30,7 @@ import kafka.message.MessageAndOffset;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -123,7 +123,7 @@ public class LegacyFetcher implements Fetcher {
 
 	@Override
 	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
-						DeserializationSchema<T> valueDeserializer,
+						KeyedDeserializationSchema<T> deserializer,
 						long[] lastOffsets) throws Exception {
 		
 		if (partitionsToRead == null || partitionsToRead.size() == 0) {
@@ -195,7 +195,7 @@ public class LegacyFetcher implements Fetcher {
 			FetchPartition[] partitions = partitionsList.toArray(new FetchPartition[partitionsList.size()]);
 
 			SimpleConsumerThread<T> thread = new SimpleConsumerThread<>(this, config, topic,
-					broker, partitions, sourceContext, valueDeserializer, lastOffsets);
+					broker, partitions, sourceContext, deserializer, lastOffsets);
 
 			thread.setName(String.format("SimpleConsumer - %s - broker-%s (%s:%d)",
 					taskName, broker.id(), broker.host(), broker.port()));
@@ -305,7 +305,7 @@ public class LegacyFetcher implements Fetcher {
 	private static class SimpleConsumerThread<T> extends Thread {
 		
 		private final SourceFunction.SourceContext<T> sourceContext;
-		private final DeserializationSchema<T> valueDeserializer;
+		private final KeyedDeserializationSchema<T> deserializer;
 		private final long[] offsetsState;
 		
 		private final FetchPartition[] partitions;
@@ -327,7 +327,7 @@ public class LegacyFetcher implements Fetcher {
 									Node broker,
 									FetchPartition[] partitions,
 									SourceFunction.SourceContext<T> sourceContext,
-									DeserializationSchema<T> valueDeserializer,
+									KeyedDeserializationSchema<T> deserializer,
 									long[] offsetsState) {
 			this.owner = owner;
 			this.config = config;
@@ -335,7 +335,7 @@ public class LegacyFetcher implements Fetcher {
 			this.broker = broker;
 			this.partitions = partitions;
 			this.sourceContext = checkNotNull(sourceContext);
-			this.valueDeserializer = checkNotNull(valueDeserializer);
+			this.deserializer = checkNotNull(deserializer);
 			this.offsetsState = checkNotNull(offsetsState);
 		}
 
@@ -438,15 +438,26 @@ public class LegacyFetcher implements Fetcher {
 											+ " from partition " + fp.partition + " already");
 									continue;
 								}
-								
+
+								// put value into byte array
 								ByteBuffer payload = msg.message().payload();
-								byte[] valueByte = new byte[payload.remaining()];
-								payload.get(valueByte);
-								
-								final T value = valueDeserializer.deserialize(valueByte);
+								byte[] valueBytes = new byte[payload.remaining()];
+								payload.get(valueBytes);
+
+								// put key into byte array
+								byte[] keyBytes = null;
+								int keySize = msg.message().keySize();
+
+								if (keySize >= 0) { // message().hasKey() is doing the same. We save one int deserialization
+									ByteBuffer keyPayload = msg.message().key();
+									keyBytes = new byte[keySize];
+									keyPayload.get(keyBytes);
+								}
+
 								final long offset = msg.offset();
-										
-								synchronized (this.sourceContext.getCheckpointLock()) {
+								final T value = deserializer.deserialize(keyBytes, valueBytes, offset);
+
+								synchronized (sourceContext.getCheckpointLock()) {
 									sourceContext.collect(value);
 									offsetsState[partition] = offset;
 								}
