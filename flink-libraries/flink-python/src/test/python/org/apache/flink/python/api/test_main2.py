@@ -1,3 +1,4 @@
+
 # ###############################################################################
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -140,6 +141,6 @@ if __name__ == "__main__":
         .map_partition(Verify2([(1, 0.5, "hello", True), (2, 0.4, "world", False), (1, 0.5, "hello", True), (1, 0.4, "hello", False), (1, 0.5, "hello", True), (2, 0.4, "world", False)], "Union"), STRING).output()
 
     #Execution
-    env.set_degree_of_parallelism(1)
+    env.set_parallelism(1)
 
     env.execute(local=True)

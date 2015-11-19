@@ -147,6 +147,6 @@ if __name__ == "__main__":
 
     triangles.output()
 
-    env.set_degree_of_parallelism(1)
+    env.set_parallelism(1)
 
     env.execute(local=True)

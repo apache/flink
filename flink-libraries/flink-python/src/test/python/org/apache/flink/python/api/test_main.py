@@ -227,6 +227,6 @@ if __name__ == "__main__":
         .map_partition(Verify([(4.3, 4.4, 1), (4.1, 4.1, 3)], "ChainedSortedGroupReduce"), STRING).output()
 
     #Execution
-    env.set_degree_of_parallelism(1)
+    env.set_parallelism(1)
 
     env.execute(local=True)

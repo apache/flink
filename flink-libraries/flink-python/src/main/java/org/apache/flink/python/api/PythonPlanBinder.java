@@ -278,9 +278,7 @@ public class PythonPlanBinder {
 	}
 
 	private void receiveParameters() throws IOException {
-		Integer parameterCount = (Integer) receiver.getRecord(true);
-
-		for (int x = 0; x < parameterCount; x++) {
+		for (int x = 0; x < 4; x++) {
 			Tuple value = (Tuple) receiver.getRecord(true);
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
