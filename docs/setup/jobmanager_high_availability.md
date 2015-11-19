@@ -68,6 +68,12 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
   <pre>recovery.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
+
+- **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all required coordination data is placed.
+  
+  <pre>recovery.zookeeper.path.root: /flink # important: customize per cluster</pre>
+
+  **Important**: if you are running multiple Flink HA clusters, you have to manually configure seperate root nodes for each cluster.
   
 - **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
 
@@ -78,7 +84,7 @@ recovery.zookeeper.storageDir: hdfs:///flink/recovery/</pre>
 
     The `storageDir` stores all meta data needed to recover a JobManager failure.
     
-After configuring the masters and the ZooKeeper quorum, you can use the provided cluster startup scripts as usual. They will start a HA-cluster. **Keep in mind that the ZooKeeper quorum has to be running when you call the scripts**.
+After configuring the masters and the ZooKeeper quorum, you can use the provided cluster startup scripts as usual. They will start an HA-cluster. Keep in mind that the **ZooKeeper quorum has to be running** when you call the scripts and make sure to **configure a seperate ZooKeeper root path** for each HA cluster you are starting.
 
 #### Example: Standalone Cluster with 2 JobManagers
 
@@ -87,6 +93,7 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
+recovery.zookeeper.path.root: /flink # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery/</pre>
@@ -128,7 +135,7 @@ Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
 
 ## YARN Cluster High Availability
 
-When running a highly available YARN cluster, **we don't run multiple JobManager (ApplicationMaster) instances**, but only one, which is restarted by YARN. The exact behaviour depends on on the specific YARN version you are using.
+When running a highly available YARN cluster, **we don't run multiple JobManager (ApplicationMaster) instances**, but only one, which is restarted by YARN on failures. The exact behaviour depends on on the specific YARN version you are using.
 
 ### Configuration
 
@@ -169,6 +176,7 @@ This means that the application can be restarted 10 times before YARN fails the 
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
+recovery.zookeeper.path.root: /flink # important: customize per cluster
 state.backend: filesystem
 state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery/
