@@ -519,22 +519,23 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>DataStream &rarr; DataStream</td>
+          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
           <p>A "rolling" fold on a keyed data stream with an initial value. 
           Combines the current element with the last folded value and
           emits the new value.
           <br/>
           <br/>
-          A fold function that creates a stream of partial sums:</p>
+          <p>A fold function that, when applied on the sequence (1,2,3,4,5), 
+          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
           {% highlight java %}
-keyedStream.fold(0, new ReduceFunction<Integer>() {
-  @Override
-  public Integer fold(Integer accumulator, Integer value)
-  throws Exception {
-      return accumulator + value;
-  }
-});
+DataStream<String> result = 
+  keyedStream.fold("start", new FoldFunction<Integer, String>() {
+    @Override
+    public String fold(String current, Integer value) {
+        return current + "-" + value;
+    }
+  });
           {% endhighlight %}
           </p>
           </td>
@@ -621,11 +622,13 @@ windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>() {
         <tr>
           <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
           <td>
-            <p>Applies a functional fold function to the window and returns the folded value.</p>
+            <p>Applies a functional fold function to the window and returns the folded value.
+               The example function, when applied on the sequence (1,2,3,4,5),
+               folds the sequence into the string "start-1-2-3-4-5":</p>
     {% highlight java %}
-windowedStream.fold (new Tuple2<String,Integer>("Sum of all", 0),  new FoldFunction<Tuple2<String,Integer>() {
-    public Tuple2<String, Integer> fold(Tuple2<String, Integer> acc, Tuple2<String, Integer> value) throws Exception {
-        return new Tuple2<String,Integer>(acc.f0, acc.f1 + value.f1);
+windowedStream.fold("start-", new FoldFunction<Integer, String>() {
+    public String fold(String current, Integer value) {
+        return current + "-" + value;
     }
 };
     {% endhighlight %}
@@ -884,16 +887,18 @@ keyedStream.reduce { _ + _ }
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>DataStream &rarr; DataStream</td>
+          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
           <p>A "rolling" fold on a keyed data stream with an initial value.
           Combines the current element with the last folded value and
           emits the new value.
           <br/>
           <br/>
-          A fold function that creates a stream of partial sums:</p>
+          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
+          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
           {% highlight scala %}
-keyedStream.fold { 0, _ + _ }
+val result: DataStream[String] = 
+    keyedStream.fold("start", (str, i) => { str + "-" + i })
           {% endhighlight %}
           </p>
           </td>
@@ -965,10 +970,13 @@ windowedStream.reduce { _ + _ }
         <tr>
           <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
           <td>
-            <p>Applies a functional fold function to the window and returns the folded value.</p>
-    {% highlight java %}
-windowedStream.fold { 0, _ + _ }
-    {% endhighlight %}
+            <p>Applies a functional fold function to the window and returns the folded value.
+               The example function, when applied on the sequence (1,2,3,4,5),
+               folds the sequence into the string "start-1-2-3-4-5":</p>
+          {% highlight scala %}
+val result: DataStream[String] = 
+    windowedStream.fold("start", (str, i) => { str + "-" + i })
+          {% endhighlight %}
           </td>
 	</tr>
         <tr>
