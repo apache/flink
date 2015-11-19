@@ -96,6 +96,13 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   // ------------------------------------------------------------------------
   //  Checkpointing Settings
   // ------------------------------------------------------------------------
+  
+  /**
+   * Gets the checkpoint config, which defines values like checkpoint interval, delay between
+   * checkpoints, etc.
+   */
+  def getCheckpointConfig = javaEnv.getCheckpointConfig()
+  
   /**
    * Enables checkpointing for the streaming job. The distributed state of the streaming
    * dataflow will be periodically snapshotted. In case of a failure, the streaming

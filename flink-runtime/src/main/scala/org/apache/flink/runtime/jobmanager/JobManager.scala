@@ -913,6 +913,8 @@ class JobManager(
           executionGraph.enableSnapshotCheckpointing(
             snapshotSettings.getCheckpointInterval,
             snapshotSettings.getCheckpointTimeout,
+            snapshotSettings.getMinPauseBetweenCheckpoints,
+            snapshotSettings.getMaxConcurrentCheckpoints,
             triggerVertices,
             ackVertices,
             confirmVertices,

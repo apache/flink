@@ -182,9 +182,6 @@ public class ExecutionGraph implements Serializable {
 	 * from results than need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
-	/** Flag that indicate whether the executed dataflow should be periodically snapshotted */
-	private boolean snapshotCheckpointsEnabled;
-
 	/** Flag to indicate whether the Graph has been archived */
 	private boolean isArchived = false;
 		
@@ -341,9 +338,12 @@ public class ExecutionGraph implements Serializable {
 	public boolean isArchived() {
 		return isArchived;
 	}
+	
 	public void enableSnapshotCheckpointing(
 			long interval,
 			long checkpointTimeout,
+			long minPauseBetweenCheckpoints,
+			int maxConcurrentCheckpoints,
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
@@ -368,11 +368,13 @@ public class ExecutionGraph implements Serializable {
 		// disable to make sure existing checkpoint coordinators are cleared
 		disableSnaphotCheckpointing();
 		
-		// create the coordinator that triggers and commits checkpoints and holds the state 
-		snapshotCheckpointsEnabled = true;
+		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
 				jobID,
+				interval,
 				checkpointTimeout,
+				minPauseBetweenCheckpoints,
+				maxConcurrentCheckpoints,
 				tasksToTrigger,
 				tasksToWaitFor,
 				tasksToCommitTo,
@@ -384,10 +386,7 @@ public class ExecutionGraph implements Serializable {
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
 		registerJobStatusListener(
-				checkpointCoordinator.createJobStatusListener(
-						actorSystem,
-						interval,
-						leaderSessionID));
+				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
 	}
 
 	/**
@@ -401,15 +400,10 @@ public class ExecutionGraph implements Serializable {
 			throw new IllegalStateException("Job must be in CREATED state");
 		}
 		
-		snapshotCheckpointsEnabled = false;
 		if (checkpointCoordinator != null) {
 			checkpointCoordinator.shutdown();
 			checkpointCoordinator = null;
 		}
-	}
-	
-	public boolean isSnapshotCheckpointsEnabled() {
-		return snapshotCheckpointsEnabled;
 	}
 
 	public CheckpointCoordinator getCheckpointCoordinator() {

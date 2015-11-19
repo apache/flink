@@ -22,17 +22,17 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 /**
- * The JobSnapshottingSettings are attached to a JobGraph and describe the settings
- * for the asynchronous snapshotting of the JobGraph, such as interval, and which vertices
+ * The JobCheckpointingSettings are attached to a JobGraph and describe the settings
+ * for the asynchronous checkpoints of the JobGraph, such as interval, and which vertices
  * need to participate.
  */
 public class JobSnapshottingSettings implements java.io.Serializable{
 	
 	private static final long serialVersionUID = -2593319571078198180L;
 
-	/** The default time in which pending checkpoints need to be acknowledged before timing out */
-	public static final long DEFAULT_SNAPSHOT_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 	
 	private final List<JobVertexID> verticesToTrigger;
 
@@ -43,26 +43,32 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 	private final long checkpointInterval;
 	
 	private final long checkpointTimeout;
-
-
-	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
-									List<JobVertexID> verticesToAcknowledge,
-									List<JobVertexID> verticesToConfirm,
-									long checkpointInterval)
-	{
-		this(verticesToTrigger, verticesToAcknowledge, verticesToConfirm, checkpointInterval, DEFAULT_SNAPSHOT_TIMEOUT);
-	}
+	
+	private final long minPauseBetweenCheckpoints;
+	
+	private final int maxConcurrentCheckpoints;
+	
 	
 	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
 									List<JobVertexID> verticesToAcknowledge,
 									List<JobVertexID> verticesToConfirm,
-									long checkpointInterval, long checkpointTimeout)
+									long checkpointInterval, long checkpointTimeout,
+									long minPauseBetweenCheckpoints, int maxConcurrentCheckpoints)
 	{
-		this.verticesToTrigger = verticesToTrigger;
-		this.verticesToAcknowledge = verticesToAcknowledge;
-		this.verticesToConfirm = verticesToConfirm;
+		// sanity checks
+		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
+				minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1)
+		{
+			throw new IllegalArgumentException();
+		}
+		
+		this.verticesToTrigger = requireNonNull(verticesToTrigger);
+		this.verticesToAcknowledge = requireNonNull(verticesToAcknowledge);
+		this.verticesToConfirm = requireNonNull(verticesToConfirm);
 		this.checkpointInterval = checkpointInterval;
 		this.checkpointTimeout = checkpointTimeout;
+		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -87,11 +93,22 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 		return checkpointTimeout;
 	}
 
+	public long getMinPauseBetweenCheckpoints() {
+		return minPauseBetweenCheckpoints;
+	}
+
+	public int getMaxConcurrentCheckpoints() {
+		return maxConcurrentCheckpoints;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return String.format("SnapshotSettings: interval=%d, timeout=%d, trigger=%s, ack=%s, commit=%s",
-				checkpointInterval, checkpointTimeout, verticesToTrigger, verticesToAcknowledge, verticesToConfirm);
+		return String.format("SnapshotSettings: interval=%d, timeout=%d, pause-between=%d, " +
+						"maxConcurrent=%d, trigger=%s, ack=%s, commit=%s",
+						checkpointInterval, checkpointTimeout,
+						minPauseBetweenCheckpoints, maxConcurrentCheckpoints,
+						verticesToTrigger, verticesToAcknowledge, verticesToConfirm);
 	}
 }

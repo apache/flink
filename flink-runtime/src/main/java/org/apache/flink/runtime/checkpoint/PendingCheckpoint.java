@@ -117,7 +117,7 @@ public class PendingCheckpoint {
 			if (notYetAcknowledgedTasks.isEmpty()) {
 				CompletedCheckpoint completed =  new CompletedCheckpoint(jobId, checkpointId,
 						checkpointTimestamp, new ArrayList<StateForTask>(collectedStates));
-				discard(null, false);
+				dispose(null, false);
 				
 				return completed;
 			}
@@ -150,11 +150,15 @@ public class PendingCheckpoint {
 	/**
 	 * Discards the pending checkpoint, releasing all held resources.
 	 */
-	public void discard(ClassLoader userClassLoader, boolean discardStateHandle) {
+	public void discard(ClassLoader userClassLoader) {
+		dispose(userClassLoader, true);
+	}
+
+	private void dispose(ClassLoader userClassLoader, boolean releaseState) {
 		synchronized (lock) {
 			discarded = true;
 			numAcknowledgedTasks = -1;
-			if (discardStateHandle) {
+			if (releaseState) {
 				for (StateForTask state : collectedStates) {
 					state.discard(userClassLoader);
 				}
