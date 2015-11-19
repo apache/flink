@@ -36,7 +36,7 @@ public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunct
 	@SuppressWarnings("rawtypes")
 	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
 	
-	private NoOpUnaryUdfOp() {
+	public NoOpUnaryUdfOp() {
 		// pass null here because we override getOutputType to return type
 		// of input operator
 		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), null, "");
