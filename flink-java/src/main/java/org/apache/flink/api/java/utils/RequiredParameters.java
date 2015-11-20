@@ -52,7 +52,7 @@ public class RequiredParameters {
 			this.data.put(name, option);
 			return option;
 		} else {
-			throw new RequiredParametersException("Option with passed key already exists. " +  name);
+			throw new RequiredParametersException("Option with key " + name + " already exists.");
 		}
 	}
 
@@ -66,7 +66,7 @@ public class RequiredParameters {
 		if (!this.data.containsKey(option.getName())) {
 			this.data.put(option.getName(), option);
 		} else {
-			throw new RequiredParametersException("Option with passed key already exists. " +  option.getName());
+			throw new RequiredParametersException("Option with key " + option.getName() + " already exists.");
 		}
 	}
 
@@ -93,18 +93,20 @@ public class RequiredParameters {
 
 			// check that the parameterTool does not contain values for both full and short key
 			if (parameterTool.data.containsKey(key) && parameterTool.data.containsKey(shortKey)) {
-				throw new RequiredParametersException("Required parameter " + key +
-						" is defined twice: on short and long version.");
+				throw new RequiredParametersException("Value passed for parameter " + key +
+						" is ambiguous. Value passed for short and long name.");
 			}
 
 			// if the shortKey is not undefined
 			if (!shortKeyUndefined && longKeyUndefined) {
 				parameterTool.data.put(key, parameterTool.data.get(shortKey));
 				parameterTool.data.remove(shortKey);
+				// overwrite, as we invalidated the state checked above.
+				longKeyUndefined = false;
 			}
 
 			// if no value is provided and there is a default value, add it to the parameters.
-			if (longKeyUndefined) {
+			if (longKeyUndefined && parameterTool.data.containsKey(key)) {
 				if (o.hasDefaultValue()) {
 					parameterTool.data.put(key, o.getDefaultValue());
 				} else {
@@ -117,13 +119,14 @@ public class RequiredParameters {
 				String value = parameterTool.data.get(key);
 				// key is defined and has value, now check if it adheres to the type specified.
 				if (o.hasType() && !o.isCastableToDefinedType(value)) {
-					throw new RequiredParametersException("Parameter " + key +
-							" cannot be cast to the specified type.");
+					throw new RequiredParametersException("Value for parameter " + key +
+							" cannot be cast to type " + o.getType());
 				}
 
 				// finally check if the value adheres to possibly defined choices.
-				if (!o.getChoices().contains(value)) {
-					throw new RequiredParametersException("Value " + value + " is not in the list of valid choices");
+				if (o.getChoices().size() > 0 && !o.getChoices().contains(value)) {
+					throw new RequiredParametersException("Value " + value + " is not in the list of valid choices "
+							+ "for key " + o.getName());
 				}
 			}
 		}
@@ -239,6 +242,7 @@ public class RequiredParameters {
 	 * @return true if the value for key in data is ParameterTool.NO_VALUE_KEY or the key is null
 	 */
 	private boolean keyIsUndefined(String key, Map<String, String> data) {
-		return key == null || data.containsKey(key) && Objects.equals(data.get(key), ParameterTool.NO_VALUE_KEY);
+		return key == null || data.containsKey(key) && Objects.equals(data.get(key), ParameterTool.NO_VALUE_KEY) ||
+				data.get(key) == null;
 	}
 }

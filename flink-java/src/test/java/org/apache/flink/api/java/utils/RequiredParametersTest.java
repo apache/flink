@@ -20,36 +20,54 @@ package org.apache.flink.api.java.utils;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.fail;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
 
 /**
  * Tests for RequiredParameter class and its interactions with ParameterTool
  */
 public class RequiredParametersTest {
 
-	@Test(expected = RequiredParametersException.class)
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
+
+	@Test
 	public void testAddWithAlreadyExistingParameter() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Option with key berlin already exists.");
+
 		RequiredParameters required = new RequiredParameters();
 		required.add(new Option("berlin"));
 		required.add(new Option("berlin"));
 	}
 
-	@Test(expected = RequiredParametersException.class)
+	@Test
 	public void testStringBasedAddWithAlreadyExistingParameter() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Option with key berlin already exists.");
+
 		RequiredParameters required = new RequiredParameters();
 		required.add("berlin");
 		required.add("berlin");
 	}
 
-	@Test(expected = RequiredParametersException.class)
+	@Test
 	public void testApplyToWithMissingParameters() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage(CoreMatchers.allOf(
+				containsString("Missing arguments for:"),
+				containsString("munich ")));
+
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin"});
 		RequiredParameters required = new RequiredParameters();
 		required.add(new Option("munich"));
@@ -57,8 +75,12 @@ public class RequiredParametersTest {
 		required.applyTo(parameter);
 	}
 
-	@Test(expected = RequiredParametersException.class)
+	@Test
 	public void testApplyToWithMissingDefaultValues() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("No default value for undefined parameter berlin");
+
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin"});
 		RequiredParameters required = new RequiredParameters();
 		required.add(new Option("berlin"));
@@ -66,8 +88,12 @@ public class RequiredParametersTest {
 		required.applyTo(parameter);
 	}
 
-	@Test(expected = RequiredParametersException.class)
-	public void testApplyToWithInvalidParameterValue() throws RequiredParametersException {
+	@Test
+	public void testApplyToWithInvalidParameterValueBasedOnOptionChoices() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Value river is not in the list of valid choices for key berlin");
+
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin", "river"});
 		RequiredParameters required = new RequiredParameters();
 		required.add(new Option("berlin").choices("city", "metropolis"));
@@ -75,8 +101,41 @@ public class RequiredParametersTest {
 		required.applyTo(parameter);
 	}
 
-	@Test(expected = RequiredParametersException.class)
+	@Test
+	public void testApplyToWithParameterDefinedOnShortAndLongName() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Value passed for parameter berlin is ambiguous. " +
+				"Value passed for short and long name.");
+
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin", "value", "--b", "another"});
+		RequiredParameters required = new RequiredParameters();
+		required.add(new Option("berlin").alt("b"));
+
+		required.applyTo(parameter);
+	}
+
+	@Test
+	public void testApplyToMovesValuesPassedOnShortNameToLongNameIfLongNameIsUndefined() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--b", "value"});
+		RequiredParameters required = new RequiredParameters();
+
+		try {
+			required.add(new Option("berlin").alt("b"));
+			required.applyTo(parameter);
+			Assert.assertEquals(parameter.data.get("berlin"), "value");
+			Assert.assertFalse("Short key should have been removed.", parameter.data.containsKey("b"));
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
+	}
+
+	@Test
 	public void testApplyToWithNonCastableType() throws RequiredParametersException {
+
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Value for parameter flag cannot be cast to type BOOLEAN");
+
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--flag", "15"});
 		RequiredParameters required = new RequiredParameters();
 		required.add(new Option("flag").type(OptionType.BOOLEAN));
@@ -85,69 +144,97 @@ public class RequiredParametersTest {
 	}
 
 	@Test
-	public void testApplyToWithValidParameter() throws RequiredParametersException {
+	public void testApplyToWithSimpleOption() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin", "value"});
+		RequiredParameters required = new RequiredParameters();
+		try {
+			required.add(new Option("berlin"));
+			required.applyTo(parameter);
+			Assert.assertEquals(parameter.data.get("berlin"), "value");
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
+	}
+
+	@Test
+	public void testApplyToWithOptionAndDefaultValue() {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin"});
 		RequiredParameters required = new RequiredParameters();
-		required.add(new Option("berlin").defaultValue("value"));
-
-		required.applyTo(parameter);
-
-		Assert.assertEquals(parameter.data.get("berlin"), "value");
+		try {
+			required.add(new Option("berlin").defaultValue("value"));
+			required.applyTo(parameter);
+			Assert.assertEquals(parameter.data.get("berlin"), "value");
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
 	}
 
 	@Test
-	public void testApplyToWithMultipleTypes() throws RequiredParametersException {
+	public void testApplyToWithMultipleTypes() {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin", "--count", "--someFlag"});
 		RequiredParameters required = new RequiredParameters();
-		required.add(new Option("berlin").defaultValue("value"));
-		required.add(new Option("count").defaultValue("15"));
-		required.add(new Option("someFlag").defaultValue("true"));
+		try {
+			required.add(new Option("berlin").defaultValue("value"));
+			required.add(new Option("count").defaultValue("15"));
+			required.add(new Option("someFlag").defaultValue("true"));
 
-		required.applyTo(parameter);
+			required.applyTo(parameter);
 
-		Assert.assertEquals(parameter.data.get("berlin"), "value");
-		Assert.assertEquals(parameter.data.get("count"), "15");
-		Assert.assertEquals(parameter.data.get("someFlag"), "true");
+			Assert.assertEquals(parameter.data.get("berlin"), "value");
+			Assert.assertEquals(parameter.data.get("count"), "15");
+			Assert.assertEquals(parameter.data.get("someFlag"), "true");
+
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
 	}
 
 	@Test
-	public void testPrintHelpForFullySetOption() throws RequiredParametersException {
+	public void testPrintHelpForFullySetOption() {
 		RequiredParameters required = new RequiredParameters();
-		required.add(new Option("option").defaultValue("some").help("help").alt("o").choices("more", "options", "some"));
+		try {
+			required.add(new Option("option").defaultValue("some").help("help").alt("o").choices("some", "options"));
 
-		String helpText = required.getHelp();
-		Assert.assertThat(helpText, CoreMatchers.allOf(
-				containsString("Required Parameters:"),
-				containsString("-o, --option"),
-				containsString("default: some"),
-				containsString("choices: "),
-				containsString("more"),
-				containsString("some"),
-				containsString("options")));
+			String helpText = required.getHelp();
+			Assert.assertThat(helpText, CoreMatchers.allOf(
+					containsString("Required Parameters:"),
+					containsString("-o, --option"),
+					containsString("default: some"),
+					containsString("choices: "),
+					containsString("some"),
+					containsString("options")));
+
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
 	}
 
 	@Test
-	public void testPrintHelpForMultipleParams() throws RequiredParametersException {
+	public void testPrintHelpForMultipleParams() {
 		RequiredParameters required = new RequiredParameters();
-		required.add("input");
-		required.add("output");
-		required.add(new Option("parallelism").alt("p").help("Set the parallelism for all operators").type(OptionType.INTEGER));
+		try {
+			required.add("input");
+			required.add("output");
+			required.add(new Option("parallelism").alt("p").help("Set the parallelism for all operators").type(OptionType.INTEGER));
 
-		String helpText = required.getHelp();
-		Assert.assertThat(helpText, CoreMatchers.allOf(
-				containsString("Required Parameters:"),
-				containsString("--input"),
-				containsString("--output"),
-				containsString("-p, --parallelism"),
-				containsString("Set the parallelism for all operators")));
+			String helpText = required.getHelp();
+			Assert.assertThat(helpText, CoreMatchers.allOf(
+					containsString("Required Parameters:"),
+					containsString("--input"),
+					containsString("--output"),
+					containsString("-p, --parallelism"),
+					containsString("Set the parallelism for all operators")));
 
-		Assert.assertThat(helpText, CoreMatchers.allOf(
-				not(containsString("choices")),
-				not(containsString("default"))));
+			Assert.assertThat(helpText, CoreMatchers.allOf(
+					not(containsString("choices")),
+					not(containsString("default"))));
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
 	}
 
 	@Test
-	public void testPrintHelpWithMissingParams() throws RequiredParametersException {
+	public void testPrintHelpWithMissingParams() {
 		RequiredParameters required = new RequiredParameters();
 
 		String helpText = required.getHelp(Arrays.asList("param1", "param2", "paramN"));

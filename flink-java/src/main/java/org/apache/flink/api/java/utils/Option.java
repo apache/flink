@@ -130,6 +130,10 @@ public class Option {
 		return this.type != null;
 	}
 
+	public OptionType getType() {
+		return this.type;
+	}
+
 	public String getAlt() {
 		return this.shortName;
 	}
