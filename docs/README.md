@@ -20,6 +20,20 @@ install all needed software via the following commands:
 Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev` and 
 `python-setuptools` packages via apt.
 
+# Using Dockerized Jekyll
+
+We dockerized the jekyll environment above. If you have [docker](https://docs.docker.com/), 
+you can run following command to start the container.
+
+```
+cd flink/docs/docker
+./run.sh
+```
+
+It takes a few moment to build the image for the first time, but will be a second from the second time.
+The run.sh command brings you in a bash session where you can run following doc commands.
+
+
 # Build
 
 The `docs/build_docs.sh` script calls Jekyll and generates the documentation in `docs/target`. You
