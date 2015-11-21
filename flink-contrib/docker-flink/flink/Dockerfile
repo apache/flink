@@ -25,7 +25,7 @@ RUN cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/*
 ##Flink 0.8.1 Installation
 ###Download:
 RUN mkdir ~/downloads && cd ~/downloads && \
-    wget -q -O - http://mirrors.advancedhosters.com/apache/flink/flink-0.10.0/flink-0.10.0-bin-hadoop2.tgz | tar -zxvf - -C /usr/local/
+    wget -q -O - http://www.apache.org/dyn/closer.lua/flink/flink-0.10.0/flink-0.10.0-bin-hadoop27-scala_2.11.tgz | tar -zxvf - -C /usr/local/
 RUN cd /usr/local && ln -s ./flink-0.10.0 flink
 
 ENV FLINK_HOME /usr/local/flink
