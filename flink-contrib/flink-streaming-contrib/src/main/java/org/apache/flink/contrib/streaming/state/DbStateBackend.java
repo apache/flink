@@ -177,10 +177,10 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	}
 
 	@Override
-	public <K, V> LazyDbKvState<K, V> createKvState(int operatorId, String stateName,
+	public <K, V> LazyDbKvState<K, V> createKvState(String stateId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
 		return new LazyDbKvState<K, V>(
-				stateName + "_" + operatorId + "_" + env.getJobID().toShortString(),
+				stateId + "_" + env.getJobID().toShortString(),
 				env.getIndexInSubtaskGroup() == 0,
 				getConnections(),
 				getConfiguration(),

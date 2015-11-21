@@ -76,7 +76,7 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	/**
 	 * Creates a key/value state backed by this state backend.
 	 *
-	 * @param operatorId Unique id for the operator creating the state
+	 * @param stateId Unique id that identifies the kv state in the streaming program. 
 	 * @param stateName Name of the created state
 	 * @param keySerializer The serializer for the key.
 	 * @param valueSerializer The serializer for the value.
@@ -88,7 +88,7 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	 *
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
-	public abstract <K, V> KvState<K, V, Backend> createKvState(int operatorId, String stateName,
+	public abstract <K, V> KvState<K, V, Backend> createKvState(String stateId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer,
 			V defaultValue) throws Exception;
 

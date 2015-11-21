@@ -330,8 +330,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 		
 		if (kvstate == null) {
+			// create unique state id from operator id + state name
+			String stateId = name + "_" + getOperatorConfig().getVertexID();
 			// create a new blank key/value state
-			kvstate = stateBackend.createKvState(getOperatorConfig().getVertexID() ,name , keySerializer, valueSerializer, defaultValue);
+			kvstate = stateBackend.createKvState(stateId ,name , keySerializer, valueSerializer, defaultValue);
 		}
 
 		if (keyValueStatesByName == null) {

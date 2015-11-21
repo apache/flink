@@ -234,5 +234,12 @@ public class MySqlAdapter implements DbAdapter {
 			insertStatement.setNull(4, Types.BLOB);
 		}
 	}
+	
+	@Override
+	public void keepAlive(Connection con) throws SQLException {
+		try(Statement smt = con.createStatement()) {
+			smt.executeQuery("SELECT 1");
+		}
+	}
 
 }

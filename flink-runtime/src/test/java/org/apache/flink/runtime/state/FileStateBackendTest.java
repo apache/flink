@@ -235,7 +235,7 @@ public class FileStateBackendTest {
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
 			KvState<Integer, String, FsStateBackend> kv =
-					backend.createKvState(0, "a", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
+					backend.createKvState("0", "a", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
 
 			assertEquals(0, kv.size());
 
@@ -324,7 +324,7 @@ public class FileStateBackendTest {
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
 			KvState<Integer, String, FsStateBackend> kv =
-					backend.createKvState(0, "a", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
+					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
 
 			kv.setCurrentKey(1);
 			kv.update("1");
@@ -394,7 +394,7 @@ public class FileStateBackendTest {
 			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			KvState<Integer, IntValue, FsStateBackend> kv =
-					backend.createKvState(0, "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
+					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
 
 			kv.setCurrentKey(1);
 			IntValue default1 = kv.value();

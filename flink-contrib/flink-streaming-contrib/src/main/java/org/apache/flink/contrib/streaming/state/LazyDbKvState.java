@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -75,6 +77,8 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	private final int maxInsertBatchSize;
 	// We will do database compaction every so many checkpoints
 	private final int compactEvery;
+	// Executor for automatic compactions
+	private ExecutorService executor = null;
 
 	// Database properties
 	private final DbBackendConfig conf;
@@ -96,7 +100,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	private long nextTs;
 	private Map<Long, Long> completedCheckpoints = new HashMap<>();
 
-	private long lastCompactedTs;
+	private volatile long lastCompactedTs;
 
 	// ------------------------------------------------------
 
@@ -119,6 +123,10 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 		this.kvStateId = kvStateId;
 		this.compact = compact;
+		if (compact) {
+			// Compactions will run in a seperate thread
+			executor = Executors.newSingleThreadExecutor();
+		}
 
 		this.keySerializer = keySerializer;
 		this.valueSerializer = valueSerializer;
@@ -186,13 +194,28 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 					+ "this should not happen.");
 		}
 
-		// We insert the modified elements to the database with the current
-		// timestamp then clear the modified states
-		for (Entry<K, Optional<V>> state : cache.modified.entrySet()) {
-			batchInsert.add(state, timestamp);
+		// If there are any modified states we perform the inserts
+		if (!cache.modified.isEmpty()) {
+			// We insert the modified elements to the database with the current
+			// timestamp then clear the modified states
+			for (Entry<K, Optional<V>> state : cache.modified.entrySet()) {
+				batchInsert.add(state, timestamp);
+			}
+			batchInsert.flush(timestamp);
+			cache.modified.clear();
+		} else if (compact) {
+			// Otherwise we call the keep alive method to avoid dropped
+			// connections (only call this on the compactor instance)
+			for (final Connection c : connections.connections()) {
+				SQLRetrier.retry(new Callable<Void>() {
+					@Override
+					public Void call() throws Exception {
+						dbAdapter.keepAlive(c);
+						return null;
+					}
+				}, numSqlRetries, sqlRetrySleep);
+			}
 		}
-		batchInsert.flush(timestamp);
-		cache.modified.clear();
 
 		nextTs = timestamp + 1;
 		completedCheckpoints.put(checkpointId, timestamp);
@@ -240,23 +263,14 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
-		Long ts = completedCheckpoints.remove(checkpointId);
+		final Long ts = completedCheckpoints.remove(checkpointId);
 		if (ts == null) {
 			LOG.warn("Complete notification for missing checkpoint: " + checkpointId);
-			ts = 0L;
-		}
-		// If compaction is turned on we compact on the first subtask
-		if (compactEvery > 0 && compact && checkpointId % compactEvery == 0) {
-			try {
-				for (Connection c : connections.connections()) {
-					dbAdapter.compactKvStates(kvStateId, c, lastCompactedTs, ts);
-				}
-				lastCompactedTs = ts;
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("State succesfully compacted for {}.", kvStateId);
-				}
-			} catch (SQLException e) {
-				LOG.warn("State compaction failed due: {}", e);
+		} else {
+			// If compaction is turned on we compact on the compactor subtask
+			// asynchronously in the background
+			if (compactEvery > 0 && compact && checkpointId % compactEvery == 0) {
+				executor.execute(new Compactor(ts));
 			}
 		}
 	}
@@ -274,6 +288,10 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			insertStatements.close();
 		} catch (SQLException e) {
 			// There is not much to do about this
+		}
+
+		if (executor != null) {
+			executor.shutdown();
 		}
 	}
 
@@ -294,15 +312,25 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		return cache.modified;
 	}
 
-	public boolean isCompacter() {
+	/**
+	 * Used for testing purposes
+	 */
+	public boolean isCompactor() {
 		return compact;
 	}
 
 	/**
-	 * Snapshot that stores a specific checkpoint timestamp and state id, and also
-	 * rolls back the database to that point upon restore. The rollback is done
-	 * by removing all state checkpoints that have timestamps between the checkpoint
-	 * and recovery timestamp.
+	 * Used for testing purposes
+	 */
+	public ExecutorService getExecutor() {
+		return executor;
+	}
+
+	/**
+	 * Snapshot that stores a specific checkpoint timestamp and state id, and
+	 * also rolls back the database to that point upon restore. The rollback is
+	 * done by removing all state checkpoints that have timestamps between the
+	 * checkpoint and recovery timestamp.
 	 *
 	 */
 	private static class DbKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, DbStateBackend> {
@@ -556,5 +584,41 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			}
 
 		}
+	}
+
+	private class Compactor implements Runnable {
+
+		private long upperBound;
+
+		public Compactor(long upperBound) {
+			this.upperBound = upperBound;
+		}
+
+		@Override
+		public void run() {
+			// We create new database connections to make sure we don't
+			// interfere with the checkpointing (connections are not thread
+			// safe)
+			try (ShardedConnection sc = conf.createShardedConnection()) {
+				for (final Connection c : sc.connections()) {
+					SQLRetrier.retry(new Callable<Void>() {
+						@Override
+						public Void call() throws Exception {
+							dbAdapter.compactKvStates(kvStateId, c, lastCompactedTs, upperBound);
+							return null;
+						}
+					}, numSqlRetries, sqlRetrySleep);
+				}
+				if (LOG.isInfoEnabled()) {
+					LOG.info("State succesfully compacted for {} between {} and {}.", kvStateId,
+							lastCompactedTs,
+							upperBound);
+				}
+				lastCompactedTs = upperBound;
+			} catch (SQLException | IOException e) {
+				LOG.warn("State compaction failed due: {}", e);
+			}
+		}
+
 	}
 }

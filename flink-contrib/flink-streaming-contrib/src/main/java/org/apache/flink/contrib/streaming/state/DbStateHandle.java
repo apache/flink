@@ -25,7 +25,8 @@ import java.util.concurrent.Callable;
 
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.InstantiationUtil;
-import org.eclipse.jetty.util.log.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * State handle implementation for storing checkpoints as byte arrays in
@@ -35,6 +36,7 @@ import org.eclipse.jetty.util.log.Log;
 public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 
 	private static final long serialVersionUID = 1L;
+	private static final Logger LOG = LoggerFactory.getLogger(DbStateHandle.class);
 
 	private final String jobId;
 	private final DbBackendConfig dbConfig;
@@ -75,8 +77,8 @@ public class DbStateHandle<S> implements Serializable, StateHandle<S> {
 			}, dbConfig.getMaxNumberOfSqlRetries(), dbConfig.getSleepBetweenSqlRetries());
 		} catch (IOException e) {
 			// We don't want to fail the job here, but log the error.
-			if (Log.isDebugEnabled()) {
-				Log.debug("Could not discard state.");
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Could not discard state.");
 			}
 		}
 	}

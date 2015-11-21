@@ -83,7 +83,7 @@ public class MemoryStateBackend extends StateBackend<MemoryStateBackend> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <K, V> MemHeapKvState<K, V> createKvState(int operatorId, String stateName,
+	public <K, V> MemHeapKvState<K, V> createKvState(String stateId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) {
 		return new MemHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue);
 	}

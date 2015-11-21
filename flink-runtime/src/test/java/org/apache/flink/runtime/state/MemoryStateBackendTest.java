@@ -147,7 +147,7 @@ public class MemoryStateBackendTest {
 			MemoryStateBackend backend = new MemoryStateBackend();
 
 			KvState<Integer, String, MemoryStateBackend> kv =
-					backend.createKvState(0, "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
+					backend.createKvState("s_0", "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
 
 			assertEquals(0, kv.size());
 
@@ -222,7 +222,7 @@ public class MemoryStateBackendTest {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend();
 			KvState<Integer, String, MemoryStateBackend> kv =
-					backend.createKvState(0, "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
+					backend.createKvState("s_0", "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
 
 			kv.setCurrentKey(1);
 			kv.update("1");
@@ -282,7 +282,7 @@ public class MemoryStateBackendTest {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend();
 			KvState<Integer, IntValue, MemoryStateBackend> kv =
-					backend.createKvState(0, "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
+					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
 
 			kv.setCurrentKey(1);
 			IntValue default1 = kv.value();

@@ -30,13 +30,14 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.derby.drda.NetworkServerControl;
@@ -51,7 +52,6 @@ import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.shaded.com.google.common.collect.Lists;
-import org.apache.flink.util.InstantiationUtil;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -100,16 +100,17 @@ public class DbStateBackendTest {
 		// serialize / copy the backend
 		DbStateBackend backend = CommonTestUtils.createCopySerializable(dbBackend);
 		assertFalse(backend.isInitialized());
-		assertEquals(dbBackend.getConfiguration(), backend.getConfiguration());
 
 		Environment env = new DummyEnvironment("test", 1, 0);
 		backend.initializeForJob(env);
 
 		assertNotNull(backend.getConnections());
-		assertTrue(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+		assertTrue(
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
 
 		backend.disposeAllStateForCurrentJob();
-		assertFalse(isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+		assertFalse(
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
 		backend.close();
 
 		assertTrue(backend.getConnections().getFirst().isClosed());
@@ -165,7 +166,7 @@ public class DbStateBackendTest {
 
 			backend.initializeForJob(env);
 
-			LazyDbKvState<Integer, String> kv = backend.createKvState(1, "state1", IntSerializer.INSTANCE,
+			LazyDbKvState<Integer, String> kv = backend.createKvState("state1_1", "state1", IntSerializer.INSTANCE,
 					StringSerializer.INSTANCE, null);
 
 			String tableName = "state1_1_" + env.getJobID().toShortString();
@@ -196,19 +197,9 @@ public class DbStateBackendTest {
 			kv.setCurrentKey(3);
 			kv.update("u3");
 
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 100));
-
-			kv.notifyCheckpointComplete(682375462378L);
-
 			// draw another snapshot
 			KvStateSnapshot<Integer, String, DbStateBackend> snapshot2 = kv.snapshot(682375462379L,
 					200);
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 100));
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 200));
-			kv.notifyCheckpointComplete(682375462379L);
-			// Compaction should be performed
-			assertFalse(containsKey(backend.getConnections().getFirst(), tableName, 1, 100));
-			assertTrue(containsKey(backend.getConnections().getFirst(), tableName, 1, 200));
 
 			// validate the original state
 			assertEquals(3, kv.size());
@@ -238,9 +229,11 @@ public class DbStateBackendTest {
 	}
 
 	@Test
-	public void testCleanupTasks() throws Exception {
+	public void testCompaction() throws Exception {
 		DbBackendConfig conf = new DbBackendConfig("flink", "flink", url1);
-		conf.setDbAdapter(new DerbyAdapter());
+		MockAdapter adapter = new MockAdapter();
+		conf.setKvStateCompactionFrequency(2);
+		conf.setDbAdapter(adapter);
 
 		DbStateBackend backend1 = new DbStateBackend(conf);
 		DbStateBackend backend2 = new DbStateBackend(conf);
@@ -250,9 +243,40 @@ public class DbStateBackendTest {
 		backend2.initializeForJob(new DummyEnvironment("test", 3, 1));
 		backend3.initializeForJob(new DummyEnvironment("test", 3, 2));
 
-		assertTrue(backend1.createKvState(1, "a", null, null, null).isCompacter());
-		assertFalse(backend2.createKvState(1, "a", null, null, null).isCompacter());
-		assertFalse(backend3.createKvState(1, "a", null, null, null).isCompacter());
+		LazyDbKvState<?, ?> s1 = backend1.createKvState("a_1", "a", null, null, null);
+		LazyDbKvState<?, ?> s2 = backend2.createKvState("a_1", "a", null, null, null);
+		LazyDbKvState<?, ?> s3 = backend3.createKvState("a_1", "a", null, null, null);
+
+		assertTrue(s1.isCompactor());
+		assertFalse(s2.isCompactor());
+		assertFalse(s3.isCompactor());
+		assertNotNull(s1.getExecutor());
+		assertNull(s2.getExecutor());
+		assertNull(s3.getExecutor());
+
+		s1.snapshot(1, 100);
+		s1.notifyCheckpointComplete(1);
+		s1.snapshot(2, 200);
+		s1.snapshot(3, 300);
+		s1.notifyCheckpointComplete(2);
+		s1.notifyCheckpointComplete(3);
+		s1.snapshot(4, 400);
+		s1.snapshot(5, 500);
+		s1.notifyCheckpointComplete(4);
+		s1.notifyCheckpointComplete(5);
+
+		s1.dispose();
+		s2.dispose();
+		s3.dispose();
+
+		// Wait until the compaction completes
+		s1.getExecutor().awaitTermination(5, TimeUnit.SECONDS);
+		assertEquals(2, adapter.numCompcations.get());
+		assertEquals(5, adapter.keptAlive);
+
+		backend1.close();
+		backend2.close();
+		backend3.close();
 	}
 
 	@Test
@@ -279,7 +303,7 @@ public class DbStateBackendTest {
 
 		backend.initializeForJob(env);
 
-		LazyDbKvState<Integer, String> kv = backend.createKvState(1, "state1", IntSerializer.INSTANCE,
+		LazyDbKvState<Integer, String> kv = backend.createKvState("state1_1", "state1", IntSerializer.INSTANCE,
 				StringSerializer.INSTANCE, "a");
 
 		assertTrue(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
@@ -423,16 +447,6 @@ public class DbStateBackendTest {
 		}
 	}
 
-	private static boolean containsKey(Connection con, String tableName, int key, long ts)
-			throws SQLException, IOException {
-		try (PreparedStatement smt = con
-				.prepareStatement("select * from " + tableName + " where k=? and timestamp=?")) {
-			smt.setBytes(1, InstantiationUtil.serializeToByteArray(IntSerializer.INSTANCE, key));
-			smt.setLong(2, ts);
-			return smt.executeQuery().next();
-		}
-	}
-
 	private static String localFileUri(File path) {
 		return path.toURI().toString();
 	}
@@ -441,6 +455,23 @@ public class DbStateBackendTest {
 		try {
 			FileUtils.deleteDirectory(dir);
 		} catch (IOException ignored) {
+		}
+	}
+
+	private static class MockAdapter extends DerbyAdapter {
+
+		private static final long serialVersionUID = 1L;
+		public AtomicInteger numCompcations = new AtomicInteger(0);
+		public int keptAlive = 0;
+
+		@Override
+		public void compactKvStates(String kvStateId, Connection con, long lowerTs, long upperTs) throws SQLException {
+			numCompcations.incrementAndGet();
+		}
+
+		@Override
+		public void keepAlive(Connection con) throws SQLException {
+			keptAlive++;
 		}
 	}
 

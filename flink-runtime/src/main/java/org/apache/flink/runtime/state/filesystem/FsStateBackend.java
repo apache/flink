@@ -238,7 +238,7 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <K, V> FsHeapKvState<K, V> createKvState(int operatorId, String stateName,
+	public <K, V> FsHeapKvState<K, V> createKvState(String stateId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws Exception {
 		return new FsHeapKvState<K, V>(keySerializer, valueSerializer, defaultValue, this);
 	}
