@@ -19,12 +19,11 @@ package org.apache.flink.streaming.scala.api;
 
 import org.apache.flink.streaming.api.scala.OutputFormatTestPrograms;
 import org.apache.flink.streaming.util.SocketOutputTestBase;
-import org.apache.flink.streaming.util.SocketProgramITCaseBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.junit.Ignore;
 
 @Ignore
-//This test sometimes failes most likely due to the behaviour
+//This test sometimes fails most likely due to the behaviour
 //of the socket. Disabled for now.
 public class SocketOutputFormatITCase extends SocketOutputTestBase {
 

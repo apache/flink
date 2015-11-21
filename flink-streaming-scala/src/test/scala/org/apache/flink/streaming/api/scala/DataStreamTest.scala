@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import java.lang
+
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
@@ -26,13 +27,11 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
-import org.apache.flink.streaming.api.windowing.triggers.{PurgingTrigger, CountTrigger}
+import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
-import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.Collector
-
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -501,7 +500,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
     val sg = env.getStreamGraph
 
-    assert(sg.getIterationSourceSinkPairs().size() == 2)
+    assert(sg.getIterationSourceSinkPairs.size() == 2)
   }
 
   /////////////////////////////////////////////////////////////

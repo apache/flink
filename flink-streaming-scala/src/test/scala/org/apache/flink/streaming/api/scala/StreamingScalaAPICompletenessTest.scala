@@ -97,7 +97,7 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       """^.*hashCode"""
     ).map(_.r)
     lazy val excludedByPattern =
-      excludedPatterns.map(_.findFirstIn(name)).filter(_.isDefined).nonEmpty
+      excludedPatterns.map(_.findFirstIn(name)).exists(_.isDefined)
     name.contains("$") || excludedNames.contains(name) || excludedByPattern
   }
 

@@ -18,11 +18,10 @@
 
 package org.apache.flink.ml.recommendation
 
-import scala.language.postfixOps
-
 import org.scalatest._
 
-import org.apache.flink.api.scala.ExecutionEnvironment
+import scala.language.postfixOps
+
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
 
@@ -64,13 +63,13 @@ class ALSITSuite
 
     predictions foreach {
       case (uID, iID, value) => {
-        resultMap.isDefinedAt(((uID, iID))) should be(true)
+        resultMap.isDefinedAt((uID, iID)) should be(true)
 
         value should be(resultMap((uID, iID)) +- 0.1)
       }
     }
 
-    val risk = als.empiricalRisk(inputDS).collect().apply(0)
+    val risk = als.empiricalRisk(inputDS).collect().head
 
     risk should be(expectedEmpiricalRisk +- 1)
   }

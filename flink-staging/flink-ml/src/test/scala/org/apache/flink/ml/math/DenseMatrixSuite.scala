@@ -81,6 +81,6 @@ class DenseMatrixSuite extends FlatSpec with Matchers {
 
     copy(0, 0) = 1
 
-    denseMatrix should not equal(copy)
+    denseMatrix should not equal copy
   }
 }

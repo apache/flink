@@ -44,7 +44,7 @@ object VectorBuilder{
   implicit val sparseVectorBuilder = new VectorBuilder[SparseVector] {
     override def build(data: List[Double]): SparseVector = {
       // Enrich elements with explicit indices and filter out zero entries
-      SparseVector.fromCOO(data.length, (0 until data.length).zip(data).filter(_._2 != 0.0))
+      SparseVector.fromCOO(data.length, data.indices.zip(data).filter(_._2 != 0.0))
     }
   }
 
