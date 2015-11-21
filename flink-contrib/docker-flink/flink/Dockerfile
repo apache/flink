@@ -22,7 +22,7 @@ FROM base
 RUN ssh-keygen -f ~/.ssh/id_rsa -t rsa -N ''
 RUN cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/*
 
-##Flink 0.8.1 Installation
+##Flink 0.10.0 Installation
 ###Download:
 RUN mkdir ~/downloads && cd ~/downloads && \
     wget -q -O - http://www.apache.org/dyn/closer.lua/flink/flink-0.10.0/flink-0.10.0-bin-hadoop27-scala_2.11.tgz | tar -zxvf - -C /usr/local/
