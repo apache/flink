@@ -18,23 +18,19 @@
 
 package org.apache.flink.ml.classification
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, PredictDataSetOperation,
-Predictor}
+import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.scala._
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
+import org.apache.flink.ml.common._
+import org.apache.flink.ml.math.Breeze._
+import org.apache.flink.ml.math.{DenseVector, Vector}
+import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-import org.apache.flink.api.common.functions.RichMapFunction
-import org.apache.flink.api.scala._
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.ml._
-import org.apache.flink.ml.common.FlinkMLTools.ModuloKeyPartitioner
-import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.{DenseVector, Vector}
-import org.apache.flink.ml.math.Breeze._
-
-import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector}
+import breeze.linalg.{DenseVector => BreezeDenseVector, Vector => BreezeVector}
 
 /** Implements a soft-margin SVM using the communication-efficient distributed dual coordinate
   * ascent algorithm (CoCoA) with hinge-loss function.
@@ -538,7 +534,7 @@ object SVM{
     if(scala.math.abs(grad) != 0.0){
       val qii = x dot x
       val newAlpha = if(qii != 0.0){
-        scala.math.min(scala.math.max((alpha - (grad / qii)), 0.0), 1.0)
+        scala.math.min(scala.math.max(alpha - (grad / qii), 0.0), 1.0)
       } else {
         1.0
       }

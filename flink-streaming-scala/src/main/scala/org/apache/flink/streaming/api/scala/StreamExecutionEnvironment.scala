@@ -18,20 +18,17 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.util.Objects
-import java.util.Objects._
-
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.runtime.state.StateBackend
-import org.apache.flink.streaming.api.{TimeCharacteristic, CheckpointingMode}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
-import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.types.StringValue
 import org.apache.flink.util.SplittableIterator
 
@@ -196,11 +193,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * functions (implementing the interface 
    * [[org.apache.flink.streaming.api.checkpoint.Checkpointed]].
    *
-   * <p>The [[org.apache.flink.streaming.api.state.memory.MemoryStateBackend]] for example
+   * <p>The [[org.apache.flink.runtime.state.memory.MemoryStateBackend]] for example
    * maintains the state in heap memory, as objects. It is lightweight without extra 
    * dependencies, but can checkpoint only small states (some counters).
    *
-   * <p>In contrast, the [[org.apache.flink.streaming.api.state.filesystem.FsStateBackend]]
+   * <p>In contrast, the [[org.apache.flink.runtime.state.filesystem.FsStateBackend]]
    * stores checkpoints of the state (also maintained as heap objects) in files. When using
    * a replicated file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee
    * that state is not lost upon failures of individual nodes and that the entire streaming

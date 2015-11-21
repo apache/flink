@@ -47,7 +47,7 @@ object MLUtils {
     * Since the libSVM/SVMLight format stores a vector in its sparse form, the [[LabeledVector]]
     * will also be instantiated with a [[SparseVector]].
     *
-    * @param env [[ExecutionEnvironment]]
+    * @param env executionEnvironment [[ExecutionEnvironment]]
     * @param filePath Path to the input file
     * @return [[DataSet]] of [[LabeledVector]] containing the information of the libSVM/SVMLight
     *        file

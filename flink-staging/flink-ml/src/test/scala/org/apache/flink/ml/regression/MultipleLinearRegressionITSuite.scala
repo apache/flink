@@ -18,13 +18,11 @@
 
 package org.apache.flink.ml.regression
 
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.ml.common.{WeightVector, ParameterMap}
-import org.apache.flink.ml.preprocessing.PolynomialFeatures
-import org.scalatest.{Matchers, FlatSpec}
-
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.{ParameterMap, WeightVector}
+import org.apache.flink.ml.preprocessing.PolynomialFeatures
 import org.apache.flink.test.util.FlinkTestBase
+import org.scalatest.{FlatSpec, Matchers}
 
 class MultipleLinearRegressionITSuite
   extends FlatSpec
@@ -55,7 +53,7 @@ class MultipleLinearRegressionITSuite
 
     weightList.size should equal(1)
 
-    val WeightVector(weights, intercept) = weightList(0)
+    val WeightVector(weights, intercept) = weightList.head
 
     expectedWeights.toIterator zip weights.valueIterator foreach {
       case (expectedWeight, weight) =>
@@ -63,7 +61,7 @@ class MultipleLinearRegressionITSuite
     }
     intercept should be (expectedWeight0 +- 0.4)
 
-    val srs = mlr.squaredResidualSum(inputDS).collect().apply(0)
+    val srs = mlr.squaredResidualSum(inputDS).collect().head
 
     srs should be (expectedSquaredResidualSum +- 2)
   }
@@ -91,7 +89,7 @@ class MultipleLinearRegressionITSuite
 
     weightList.size should equal(1)
 
-    val WeightVector(weights, intercept) = weightList(0)
+    val WeightVector(weights, intercept) = weightList.head
 
     RegressionData.expectedPolynomialWeights.toIterator.zip(weights.valueIterator) foreach {
       case (expectedWeight, weight) =>
@@ -102,7 +100,7 @@ class MultipleLinearRegressionITSuite
 
     val transformedInput = polynomialBase.transform(inputDS, parameters)
 
-    val srs = mlr.squaredResidualSum(transformedInput).collect().apply(0)
+    val srs = mlr.squaredResidualSum(transformedInput).collect().head
 
     srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
   }

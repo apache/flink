@@ -19,7 +19,7 @@
 package org.apache.flink.ml.classification
 
 import org.scalatest.{FlatSpec, Matchers}
-import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
+import org.apache.flink.ml.math.DenseVector
 
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase

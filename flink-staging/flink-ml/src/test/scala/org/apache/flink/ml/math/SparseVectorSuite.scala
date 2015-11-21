@@ -56,7 +56,7 @@ class SparseVectorSuite extends FlatSpec with Matchers {
       groupBy{_._1}.
       mapValues{
       entries =>
-        entries.map(_._2).reduce(_ + _)
+        entries.map(_._2).sum
     }
 
     for(index <- 0 until size) {
@@ -95,7 +95,7 @@ class SparseVectorSuite extends FlatSpec with Matchers {
 
     copy(3) = 3
 
-    sparseVector should not equal(copy)
+    sparseVector should not equal copy
   }
 
   it should "calculate dot product with SparseVector" in {

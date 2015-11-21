@@ -86,7 +86,7 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val labeledVectorsDS = env.fromCollection(labeledVectors)
 
-    val tempDir = new File(System.getProperty("java.io.tmpdir"));
+    val tempDir = new File(System.getProperty("java.io.tmpdir"))
 
     val tempFile = new File(tempDir, TestFileUtils.randomFileName())
 
