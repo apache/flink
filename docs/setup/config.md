@@ -94,7 +94,7 @@ guide]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for more
 parallelism.
 
 - `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS)
-configuration directory (OPTIONAL VALUE).
+configuration **directory** (OPTIONAL VALUE).
 Specifying this value allows programs to reference HDFS files using short URIs
 (`hdfs:///path/to/files`, without including the address and port of the NameNode
 in the file URI). Without this option, HDFS files can be accessed, but require
@@ -384,7 +384,7 @@ when this fraction of its memory budget is full (DEFAULT: 0.8).
 ## YARN
 
 
-- `yarn.heap-cutoff-ratio`: (Default 0.15) Percentage of heap space to remove from containers started by YARN.
+- `yarn.heap-cutoff-ratio`: (Default 0.25) Percentage of heap space to remove from containers started by YARN.
 When a user requests a certain amount of memory for each TaskManager container (for example 4 GB),
 we can not pass this amount as the maximum heap space for the JVM (`-Xmx` argument) because the JVM
 is also allocating memory outside the heap. YARN is very strict with killing containers which are using
