@@ -12,9 +12,10 @@
  */
 package org.apache.flink.python.api.streaming.data;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -63,8 +64,8 @@ public class PythonStreamer implements Serializable {
 	private Thread shutdownThread;
 	protected ServerSocket server;
 	protected Socket socket;
-	protected InputStream in;
-	protected OutputStream out;
+	protected DataInputStream in;
+	protected DataOutputStream out;
 	protected int port;
 
 	protected PythonSender sender;
@@ -155,8 +156,8 @@ public class PythonStreamer implements Serializable {
 		}
 
 		socket = server.accept();
-		in = socket.getInputStream();
-		out = socket.getOutputStream();
+		in = new DataInputStream(socket.getInputStream());
+		out = new DataOutputStream(socket.getOutputStream());
 	}
 
 	/**
@@ -242,7 +243,7 @@ public class PythonStreamer implements Serializable {
 				names[x] = config.getString(PLANBINDER_CONFIG_BCVAR_NAME_PREFIX + x, null);
 			}
 
-			in.read(buffer, 0, 4);
+			in.readFully(buffer, 0, 4);
 			checkForError();
 			int size = sender.sendRecord(broadcastCount);
 			sendWriteNotification(size, false);
@@ -250,13 +251,13 @@ public class PythonStreamer implements Serializable {
 			for (String name : names) {
 				Iterator bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
 
-				in.read(buffer, 0, 4);
+				in.readFully(buffer, 0, 4);
 				checkForError();
 				size = sender.sendRecord(name);
 				sendWriteNotification(size, false);
 
 				while (bcv.hasNext() || sender.hasRemaining(0)) {
-					in.read(buffer, 0, 4);
+					in.readFully(buffer, 0, 4);
 					checkForError();
 					size = sender.sendBuffer(bcv, 0);
 					sendWriteNotification(size, bcv.hasNext() || sender.hasRemaining(0));
@@ -280,7 +281,7 @@ public class PythonStreamer implements Serializable {
 			int size;
 			if (i.hasNext()) {
 				while (true) {
-					in.read(buffer, 0, 4);
+					in.readFully(buffer, 0, 4);
 					int sig = getInt(buffer, 0);
 					switch (sig) {
 						case SIGNAL_BUFFER_REQUEST:
@@ -325,7 +326,7 @@ public class PythonStreamer implements Serializable {
 			int size;
 			if (i1.hasNext() || i2.hasNext()) {
 				while (true) {
-					in.read(buffer, 0, 4);
+					in.readFully(buffer, 0, 4);
 					int sig = getInt(buffer, 0);
 					switch (sig) {
 						case SIGNAL_BUFFER_REQUEST_G0:
