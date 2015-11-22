@@ -71,13 +71,13 @@ public class RequiredParameters {
 	}
 
 	/**
-	 * Check for all parameters in the parameterTool passed to the function:
+	 * Check for all required parameters defined:
 	 * - has a value been passed
 	 *   - if not, does the parameter have an associated default value
 	 * - does the type of the parameter match the one defined in RequiredParameters
 	 * - does the value provided in the parameterTool adhere to the choices defined in the option
 	 *
-	 * For any check which is not passed, a RequiredParametersException is thrown
+	 * If any check fails, a RequiredParametersException is thrown
 	 *
 	 * @param parameterTool - parameters supplied by the user.
 	 * @throws RequiredParametersException if any of the specified checks fail
@@ -85,53 +85,79 @@ public class RequiredParameters {
 	public void applyTo(ParameterTool parameterTool) throws RequiredParametersException {
 		List<String> missingArguments = new LinkedList<>();
 		for (Option o : data.values()) {
-			String key = o.getName();
-			String shortKey = o.getAlt();
-
-			boolean longKeyUndefined = keyIsUndefined(key, parameterTool.data);
-			boolean shortKeyUndefined = keyIsUndefined(shortKey, parameterTool.data);
-
-			// check that the parameterTool does not contain values for both full and short key
-			if (parameterTool.data.containsKey(key) && parameterTool.data.containsKey(shortKey)) {
-				throw new RequiredParametersException("Value passed for parameter " + key +
-						" is ambiguous. Value passed for short and long name.");
-			}
-
-			// if the shortKey is not undefined
-			if (!shortKeyUndefined && longKeyUndefined) {
-				parameterTool.data.put(key, parameterTool.data.get(shortKey));
-				parameterTool.data.remove(shortKey);
-				// overwrite, as we invalidated the state checked above.
-				longKeyUndefined = false;
-			}
-
-			// if no value is provided and there is a default value, add it to the parameters.
-			if (longKeyUndefined && parameterTool.data.containsKey(key)) {
-				if (o.hasDefaultValue()) {
-					parameterTool.data.put(key, o.getDefaultValue());
+			if (parameterTool.data.containsKey(o.getName())) {
+				if (Objects.equals(parameterTool.data.get(o.getName()), ParameterTool.NO_VALUE_KEY)) {
+					// the parameter has been passed, but no value, check if there is a default value
+					checkAndApplyDefaultValue(o, parameterTool.data);
 				} else {
-					throw new RequiredParametersException("No default value for undefined parameter " + key);
+					// a value has been passed in the parameterTool, now check if it adheres to all constraints
+					checkAmbiguousValues(o, parameterTool.data);
+					checkIsCastableToDefinedType(o, parameterTool.data);
+					checkChoices(o, parameterTool.data);
 				}
 			} else {
-				if (!parameterTool.data.containsKey(key)) {
-					missingArguments.add(key);
-				}
-				String value = parameterTool.data.get(key);
-				// key is defined and has value, now check if it adheres to the type specified.
-				if (o.hasType() && !o.isCastableToDefinedType(value)) {
-					throw new RequiredParametersException("Value for parameter " + key +
-							" cannot be cast to type " + o.getType());
-				}
-
-				// finally check if the value adheres to possibly defined choices.
-				if (o.getChoices().size() > 0 && !o.getChoices().contains(value)) {
-					throw new RequiredParametersException("Value " + value + " is not in the list of valid choices "
-							+ "for key " + o.getName());
+				// check if there is a default name or a value passed for a possibly defined alternative name.
+				if (hasNoDefaultValueAndNoValuePassedOnAlternativeName(o, parameterTool.data)) {
+					missingArguments.add(o.getName());
 				}
 			}
 		}
 		if (!missingArguments.isEmpty()) {
 			throw new RequiredParametersException(this.missingArgumentsText(missingArguments), missingArguments);
+		}
+	}
+
+	// check if the given parameter has a default value and add it to the passed map if that is the case
+	// else throw an exception
+	private void checkAndApplyDefaultValue(Option o, Map<String, String> data) throws RequiredParametersException {
+		if (o.hasDefaultValue()) {
+			data.put(o.getName(), o.getDefaultValue());
+		} else {
+			throw new RequiredParametersException("No default value for undefined parameter " + o.getName());
+		}
+	}
+
+	// check if the value in the given map which corresponds to the name of the given option
+	// is castable to the type of the option (if any is defined)
+	private void checkIsCastableToDefinedType(Option o, Map<String, String> data) throws RequiredParametersException {
+		if (o.hasType() && !o.isCastableToDefinedType(data.get(o.getName()))) {
+			throw new RequiredParametersException("Value for parameter " + o.getName() +
+					" cannot be cast to type " + o.getType());
+		}
+	}
+
+	// check if the value in the given map which corresponds to the name of the given option
+	// adheres to the list of given choices for the param in the options (if any are defined)
+	private void checkChoices(Option o, Map<String, String> data) throws RequiredParametersException {
+		if (o.getChoices().size() > 0 && !o.getChoices().contains(data.get(o.getName()))) {
+			throw new RequiredParametersException("Value " + data.get(o.getName()) +
+					" is not in the list of valid choices for key " + o.getName());
+		}
+	}
+
+	// move value passed on alternative name to standard name or apply default value if any defined
+	// else return true to indicate parameter is 'really' missing
+	private boolean hasNoDefaultValueAndNoValuePassedOnAlternativeName(Option o, Map<String, String> data)
+			throws RequiredParametersException {
+		if (o.hasAlt() && data.containsKey(o.getAlt())) {
+			data.put(o.getName(), data.get(o.getAlt()));
+			data.remove(o.getAlt());
+		} else {
+			if (o.hasDefaultValue()) {
+				data.put(o.getName(), o.getDefaultValue());
+			} else {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// given that the map contains a value for the name of the option passed
+	// check if it also contains a value for the shortName in option (if any is defined)
+	private void checkAmbiguousValues(Option o, Map<String, String> data) throws RequiredParametersException{
+		if (data.containsKey(o.getAlt()) && !Objects.equals(data.get(o.getAlt()), ParameterTool.NO_VALUE_KEY)) {
+			throw new RequiredParametersException("Value passed for parameter " + o.getName() +
+					" is ambiguous. Value passed for short and long name.");
 		}
 	}
 
@@ -233,16 +259,5 @@ public class RequiredParameters {
 		}
 
 		return sb.toString();
-	}
-
-	/**
-	 * @param key - the key to look up
-	 * @param data - the map to look up in
-	 *
-	 * @return true if the value for key in data is ParameterTool.NO_VALUE_KEY or the key is null
-	 */
-	private boolean keyIsUndefined(String key, Map<String, String> data) {
-		return key == null || data.containsKey(key) && Objects.equals(data.get(key), ParameterTool.NO_VALUE_KEY) ||
-				data.get(key) == null;
 	}
 }

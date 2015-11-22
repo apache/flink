@@ -68,7 +68,7 @@ public class RequiredParametersTest {
 				containsString("Missing arguments for:"),
 				containsString("munich ")));
 
-		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin"});
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{});
 		RequiredParameters required = new RequiredParameters();
 		required.add(new Option("munich"));
 
@@ -170,8 +170,23 @@ public class RequiredParametersTest {
 	}
 
 	@Test
+	public void testApplyToWithOptionMultipleOptionsAndOneDefaultValue() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--input", "abc"});
+		RequiredParameters rq = new RequiredParameters();
+		try {
+			rq.add("input");
+			rq.add(new Option("parallelism").alt("p").defaultValue("1").type(OptionType.INTEGER));
+			rq.applyTo(parameter);
+			Assert.assertEquals(parameter.data.get("parallelism"), "1");
+			Assert.assertEquals(parameter.data.get("input"), "abc");
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
+	}
+
+	@Test
 	public void testApplyToWithMultipleTypes() {
-		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin", "--count", "--someFlag"});
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{});
 		RequiredParameters required = new RequiredParameters();
 		try {
 			required.add(new Option("berlin").defaultValue("value"));
