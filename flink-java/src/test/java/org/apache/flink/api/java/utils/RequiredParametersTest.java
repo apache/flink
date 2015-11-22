@@ -116,7 +116,7 @@ public class RequiredParametersTest {
 	}
 
 	@Test
-	public void testApplyToMovesValuesPassedOnShortNameToLongNameIfLongNameIsUndefined() {
+	public void testApplyToMovesValuePassedOnShortNameToLongNameIfLongNameIsUndefined() {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--b", "value"});
 		RequiredParameters required = new RequiredParameters();
 
@@ -124,7 +124,22 @@ public class RequiredParametersTest {
 			required.add(new Option("berlin").alt("b"));
 			required.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
-			Assert.assertFalse("Short key should have been removed.", parameter.data.containsKey("b"));
+			Assert.assertEquals(parameter.data.get("b"), "value");
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
+	}
+
+	@Test
+	public void testDefaultValueDoesNotOverrideValuePassedOnShortKeyIfLongKeyIsNotPassedButPresent() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin", "--b", "value"});
+		RequiredParameters required = new RequiredParameters();
+
+		try {
+			required.add(new Option("berlin").alt("b").defaultValue("something"));
+			required.applyTo(parameter);
+			Assert.assertEquals(parameter.data.get("berlin"), "value");
+			Assert.assertEquals(parameter.data.get("b"), "value");
 		} catch (RequiredParametersException e) {
 			fail("Exception thrown " + e.getMessage());
 		}
@@ -170,6 +185,20 @@ public class RequiredParametersTest {
 	}
 
 	@Test
+	public void testApplyToWithOptionWithLongAndShortNameAndDefaultValue() {
+		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--berlin"});
+		RequiredParameters required = new RequiredParameters();
+		try {
+			required.add(new Option("berlin").alt("b").defaultValue("value"));
+			required.applyTo(parameter);
+			Assert.assertEquals(parameter.data.get("berlin"), "value");
+			Assert.assertEquals(parameter.data.get("b"), "value");
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown " + e.getMessage());
+		}
+	}
+
+	@Test
 	public void testApplyToWithOptionMultipleOptionsAndOneDefaultValue() {
 		ParameterTool parameter = ParameterTool.fromArgs(new String[]{"--input", "abc"});
 		RequiredParameters rq = new RequiredParameters();
@@ -178,6 +207,7 @@ public class RequiredParametersTest {
 			rq.add(new Option("parallelism").alt("p").defaultValue("1").type(OptionType.INTEGER));
 			rq.applyTo(parameter);
 			Assert.assertEquals(parameter.data.get("parallelism"), "1");
+			Assert.assertEquals(parameter.data.get("p"), "1");
 			Assert.assertEquals(parameter.data.get("input"), "abc");
 		} catch (RequiredParametersException e) {
 			fail("Exception thrown " + e.getMessage());
@@ -191,13 +221,14 @@ public class RequiredParametersTest {
 		try {
 			required.add(new Option("berlin").defaultValue("value"));
 			required.add(new Option("count").defaultValue("15"));
-			required.add(new Option("someFlag").defaultValue("true"));
+			required.add(new Option("someFlag").alt("sf").defaultValue("true"));
 
 			required.applyTo(parameter);
 
 			Assert.assertEquals(parameter.data.get("berlin"), "value");
 			Assert.assertEquals(parameter.data.get("count"), "15");
 			Assert.assertEquals(parameter.data.get("someFlag"), "true");
+			Assert.assertEquals(parameter.data.get("sf"), "true");
 
 		} catch (RequiredParametersException e) {
 			fail("Exception thrown " + e.getMessage());

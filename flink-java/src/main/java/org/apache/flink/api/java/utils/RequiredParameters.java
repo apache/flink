@@ -110,9 +110,7 @@ public class RequiredParameters {
 	// check if the given parameter has a default value and add it to the passed map if that is the case
 	// else throw an exception
 	private void checkAndApplyDefaultValue(Option o, Map<String, String> data) throws RequiredParametersException {
-		if (o.hasDefaultValue()) {
-			data.put(o.getName(), o.getDefaultValue());
-		} else {
+		if (hasNoDefaultValueAndNoValuePassedOnAlternativeName(o, data)) {
 			throw new RequiredParametersException("No default value for undefined parameter " + o.getName());
 		}
 	}
@@ -141,10 +139,12 @@ public class RequiredParameters {
 			throws RequiredParametersException {
 		if (o.hasAlt() && data.containsKey(o.getAlt())) {
 			data.put(o.getName(), data.get(o.getAlt()));
-			data.remove(o.getAlt());
 		} else {
 			if (o.hasDefaultValue()) {
 				data.put(o.getName(), o.getDefaultValue());
+				if (o.hasAlt()) {
+					data.put(o.getAlt(), o.getDefaultValue());
+				}
 			} else {
 				return true;
 			}
