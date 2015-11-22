@@ -296,3 +296,43 @@ class StringDeserializer(object):
 class NullDeserializer(object):
     def deserialize(self):
         return None
+
+
+class TypedIterator(object):
+    def __init__(self, con, env):
+        self._connection = con
+        self._env = env
+
+    def next(self):
+        read = self._connection.read
+        type = read(1)
+        if type == Types.TYPE_TUPLE:
+            size = unpack(">i", read(4))[0]
+            return tuple([self.next() for x in range(size)])
+        elif type == Types.TYPE_BYTE:
+            return unpack(">c", read(1))[0]
+        elif type == Types.TYPE_BYTES:
+            size = unpack(">i", read(4))[0]
+            return bytearray(read(size)) if size else bytearray(b"")
+        elif type == Types.TYPE_BOOLEAN:
+            return unpack(">?", read(1))[0]
+        elif type == Types.TYPE_FLOAT:
+            return unpack(">f", read(4))[0]
+        elif type == Types.TYPE_DOUBLE:
+            return unpack(">d", read(8))[0]
+        elif type == Types.TYPE_INTEGER:
+            return unpack(">i", read(4))[0]
+        elif type == Types.TYPE_LONG:
+            return unpack(">q", read(8))[0]
+        elif type == Types.TYPE_STRING:
+            length = unpack(">i", read(4))[0]
+            return read(length).decode("utf-8") if length else ""
+        elif type == Types.TYPE_NULL:
+            return None
+        else:
+            for entry in self._env._types:
+                if type == entry[0]:
+                    return entry[3]()
+            raise Exception("Unable to find deserializer for type ID " + str(type))
+
+

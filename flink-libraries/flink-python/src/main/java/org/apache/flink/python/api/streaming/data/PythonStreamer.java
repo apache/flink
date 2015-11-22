@@ -10,8 +10,9 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.python.api.streaming;
+package org.apache.flink.python.api.streaming.data;
 
+import org.apache.flink.python.api.streaming.util.StreamPrinter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -66,8 +67,8 @@ public class PythonStreamer implements Serializable {
 	protected OutputStream out;
 	protected int port;
 
-	protected Sender sender;
-	protected Receiver receiver;
+	protected PythonSender sender;
+	protected PythonReceiver receiver;
 
 	protected StringBuilder msg = new StringBuilder();
 
@@ -78,8 +79,8 @@ public class PythonStreamer implements Serializable {
 		this.usePython3 = PythonPlanBinder.usePython3;
 		this.debug = DEBUG;
 		planArguments = PythonPlanBinder.arguments.toString();
-		sender = new Sender(function);
-		receiver = new Receiver(function);
+		sender = new PythonSender();
+		receiver = new PythonReceiver();
 		this.function = function;
 	}
 

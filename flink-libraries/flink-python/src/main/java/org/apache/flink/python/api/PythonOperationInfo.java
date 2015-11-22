@@ -21,7 +21,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import static org.apache.flink.api.java.typeutils.TypeExtractor.getForObject;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.python.api.PythonPlanBinder.Operation;
-import org.apache.flink.python.api.streaming.Receiver;
+import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 
 public class PythonOperationInfo {
 	public int parentID; //DataSet that an operation is applied on
@@ -48,88 +48,88 @@ public class PythonOperationInfo {
 	public boolean toError;
 	public String name;
 
-	public PythonOperationInfo(Receiver receiver, Operation identifier) throws IOException {
+	public PythonOperationInfo(PythonPlanStreamer streamer, Operation identifier) throws IOException {
 		Object tmpType;
 		switch (identifier) {
 			case SOURCE_CSV:
-				setID = (Integer) receiver.getRecord(true);
-				path = (String) receiver.getRecord();
-				fieldDelimiter = (String) receiver.getRecord();
-				lineDelimiter = (String) receiver.getRecord();
-				tmpType = (Tuple) receiver.getRecord();
+				setID = (Integer) streamer.getRecord(true);
+				path = (String) streamer.getRecord();
+				fieldDelimiter = (String) streamer.getRecord();
+				lineDelimiter = (String) streamer.getRecord();
+				tmpType = (Tuple) streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
 				return;
 			case SOURCE_TEXT:
-				setID = (Integer) receiver.getRecord(true);
-				path = (String) receiver.getRecord();
+				setID = (Integer) streamer.getRecord(true);
+				path = (String) streamer.getRecord();
 				return;
 			case SOURCE_VALUE:
-				setID = (Integer) receiver.getRecord(true);
-				int valueCount = (Integer) receiver.getRecord(true);
+				setID = (Integer) streamer.getRecord(true);
+				int valueCount = (Integer) streamer.getRecord(true);
 				values = new Object[valueCount];
 				for (int x = 0; x < valueCount; x++) {
-					values[x] = receiver.getRecord();
+					values[x] = streamer.getRecord();
 				}
 				return;
 			case SOURCE_SEQ:
-				setID = (Integer) receiver.getRecord(true);
-				from = (Long) receiver.getRecord();
-				to = (Long) receiver.getRecord();
+				setID = (Integer) streamer.getRecord(true);
+				from = (Long) streamer.getRecord();
+				to = (Long) streamer.getRecord();
 				return;
 			case SINK_CSV:
-				parentID = (Integer) receiver.getRecord(true);
-				path = (String) receiver.getRecord();
-				fieldDelimiter = (String) receiver.getRecord();
-				lineDelimiter = (String) receiver.getRecord();
-				writeMode = ((Integer) receiver.getRecord(true)) == 1
+				parentID = (Integer) streamer.getRecord(true);
+				path = (String) streamer.getRecord();
+				fieldDelimiter = (String) streamer.getRecord();
+				lineDelimiter = (String) streamer.getRecord();
+				writeMode = ((Integer) streamer.getRecord(true)) == 1
 						? WriteMode.OVERWRITE
 						: WriteMode.NO_OVERWRITE;
 				return;
 			case SINK_TEXT:
-				parentID = (Integer) receiver.getRecord(true);
-				path = (String) receiver.getRecord();
-				writeMode = ((Integer) receiver.getRecord(true)) == 1
+				parentID = (Integer) streamer.getRecord(true);
+				path = (String) streamer.getRecord();
+				writeMode = ((Integer) streamer.getRecord(true)) == 1
 						? WriteMode.OVERWRITE
 						: WriteMode.NO_OVERWRITE;
 				return;
 			case SINK_PRINT:
-				parentID = (Integer) receiver.getRecord(true);
-				toError = (Boolean) receiver.getRecord();
+				parentID = (Integer) streamer.getRecord(true);
+				toError = (Boolean) streamer.getRecord();
 				return;
 			case BROADCAST:
-				parentID = (Integer) receiver.getRecord(true);
-				otherID = (Integer) receiver.getRecord(true);
-				name = (String) receiver.getRecord();
+				parentID = (Integer) streamer.getRecord(true);
+				otherID = (Integer) streamer.getRecord(true);
+				name = (String) streamer.getRecord();
 				return;
 		}
-		setID = (Integer) receiver.getRecord(true);
-		parentID = (Integer) receiver.getRecord(true);
+		setID = (Integer) streamer.getRecord(true);
+		parentID = (Integer) streamer.getRecord(true);
 		switch (identifier) {
 			case AGGREGATE:
-				count = (Integer) receiver.getRecord(true);
+				count = (Integer) streamer.getRecord(true);
 				aggregates = new AggregationEntry[count];
 				for (int x = 0; x < count; x++) {
-					int encodedAgg = (Integer) receiver.getRecord(true);
-					int field = (Integer) receiver.getRecord(true);
+					int encodedAgg = (Integer) streamer.getRecord(true);
+					int field = (Integer) streamer.getRecord(true);
 					aggregates[x] = new AggregationEntry(encodedAgg, field);
 				}
 				return;
 			case FIRST:
-				count = (Integer) receiver.getRecord(true);
+				count = (Integer) streamer.getRecord(true);
 				return;
 			case DISTINCT:
 			case GROUPBY:
 			case PARTITION_HASH:
-				keys = normalizeKeys(receiver.getRecord(true));
+				keys = normalizeKeys(streamer.getRecord(true));
 				return;
 			case PROJECTION:
-				fields = toIntArray(receiver.getRecord(true));
+				fields = toIntArray(streamer.getRecord(true));
 				return;
 			case REBALANCE:
 				return;
 			case SORT:
-				field = (Integer) receiver.getRecord(true);
-				int encodedOrder = (Integer) receiver.getRecord(true);
+				field = (Integer) streamer.getRecord(true);
+				int encodedOrder = (Integer) streamer.getRecord(true);
 				switch (encodedOrder) {
 					case 0:
 						order = Order.NONE;
@@ -149,62 +149,62 @@ public class PythonOperationInfo {
 				}
 				return;
 			case UNION:
-				otherID = (Integer) receiver.getRecord(true);
+				otherID = (Integer) streamer.getRecord(true);
 				return;
 			case COGROUP:
-				otherID = (Integer) receiver.getRecord(true);
-				keys1 = normalizeKeys(receiver.getRecord(true));
-				keys2 = normalizeKeys(receiver.getRecord(true));
-				tmpType = receiver.getRecord();
+				otherID = (Integer) streamer.getRecord(true);
+				keys1 = normalizeKeys(streamer.getRecord(true));
+				keys2 = normalizeKeys(streamer.getRecord(true));
+				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				name = (String) receiver.getRecord();
+				name = (String) streamer.getRecord();
 				return;
 			case CROSS:
 			case CROSS_H:
 			case CROSS_T:
-				otherID = (Integer) receiver.getRecord(true);
-				tmpType = receiver.getRecord();
+				otherID = (Integer) streamer.getRecord(true);
+				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				int cProjectCount = (Integer) receiver.getRecord(true);
+				int cProjectCount = (Integer) streamer.getRecord(true);
 				projections = new ProjectionEntry[cProjectCount];
 				for (int x = 0; x < cProjectCount; x++) {
-					String side = (String) receiver.getRecord();
-					int[] keys = toIntArray((Tuple) receiver.getRecord(true));
+					String side = (String) streamer.getRecord();
+					int[] keys = toIntArray((Tuple) streamer.getRecord(true));
 					projections[x] = new ProjectionEntry(ProjectionSide.valueOf(side.toUpperCase()), keys);
 				}
-				name = (String) receiver.getRecord();
+				name = (String) streamer.getRecord();
 				return;
 			case REDUCE:
 			case GROUPREDUCE:
-				tmpType = receiver.getRecord();
+				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				combine = (Boolean) receiver.getRecord();
-				name = (String) receiver.getRecord();
+				combine = (Boolean) streamer.getRecord();
+				name = (String) streamer.getRecord();
 				return;
 			case JOIN:
 			case JOIN_H:
 			case JOIN_T:
-				keys1 = normalizeKeys(receiver.getRecord(true));
-				keys2 = normalizeKeys(receiver.getRecord(true));
-				otherID = (Integer) receiver.getRecord(true);
-				tmpType = receiver.getRecord();
+				keys1 = normalizeKeys(streamer.getRecord(true));
+				keys2 = normalizeKeys(streamer.getRecord(true));
+				otherID = (Integer) streamer.getRecord(true);
+				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				int jProjectCount = (Integer) receiver.getRecord(true);
+				int jProjectCount = (Integer) streamer.getRecord(true);
 				projections = new ProjectionEntry[jProjectCount];
 				for (int x = 0; x < jProjectCount; x++) {
-					String side = (String) receiver.getRecord();
-					int[] keys = toIntArray((Tuple) receiver.getRecord(true));
+					String side = (String) streamer.getRecord();
+					int[] keys = toIntArray((Tuple) streamer.getRecord(true));
 					projections[x] = new ProjectionEntry(ProjectionSide.valueOf(side.toUpperCase()), keys);
 				}
-				name = (String) receiver.getRecord();
+				name = (String) streamer.getRecord();
 				return;
 			case MAPPARTITION:
 			case FLATMAP:
 			case MAP:
 			case FILTER:
-				tmpType = receiver.getRecord();
+				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				name = (String) receiver.getRecord();
+				name = (String) streamer.getRecord();
 				return;
 			default:
 				throw new UnsupportedOperationException("This operation is not implemented in the Python API: " + identifier);

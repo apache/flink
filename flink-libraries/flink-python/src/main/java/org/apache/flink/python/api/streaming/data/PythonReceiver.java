@@ -10,7 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.python.api.streaming;
+package org.apache.flink.python.api.streaming.data;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -19,31 +19,28 @@ import java.io.RandomAccessFile;
 import java.io.Serializable;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_BOOLEAN;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_BYTE;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_BYTES;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_DOUBLE;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_FLOAT;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_INTEGER;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_LONG;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_NULL;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_SHORT;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_STRING;
-import static org.apache.flink.python.api.streaming.Sender.TYPE_TUPLE;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BOOLEAN;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BYTE;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BYTES;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_DOUBLE;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_FLOAT;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_INTEGER;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_LONG;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_NULL;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_SHORT;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_STRING;
+import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_TUPLE;
 import org.apache.flink.python.api.types.CustomTypeWrapper;
 import org.apache.flink.util.Collector;
 
 /**
  * General-purpose class to read data from memory-mapped files.
  */
-public class Receiver implements Serializable {
+public class PythonReceiver implements Serializable {
 	private static final long serialVersionUID = -2474088929850009968L;
-
-	private final AbstractRichFunction function;
 
 	private File inputFile;
 	private RandomAccessFile inputRAF;
@@ -51,10 +48,6 @@ public class Receiver implements Serializable {
 	private MappedByteBuffer fileBuffer;
 
 	private Deserializer<?> deserializer = null;
-
-	public Receiver(AbstractRichFunction function) {
-		this.function = function;
-	}
 
 	//=====Setup========================================================================================================
 	public void open(String path) throws IOException {
@@ -88,116 +81,6 @@ public class Receiver implements Serializable {
 		inputRAF.close();
 	}
 
-	//=====Record-API===================================================================================================
-	/**
-	 * Loads a buffer from the memory-mapped file. The records contained within the buffer can be accessed using
-	 * collectRecord(). These records do not necessarily have to be of the same type. This method requires external
-	 * synchronization.
-	 *
-	 * @throws IOException
-	 */
-	private void loadBuffer() throws IOException {
-		int count = 0;
-		while (fileBuffer.get(0) == 0 && count < 10) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException ie) {
-			}
-			fileBuffer.load();
-			count++;
-		}
-		if (fileBuffer.get(0) == 0) {
-			throw new RuntimeException("External process not responding.");
-		}
-		fileBuffer.position(1);
-	}
-
-	/**
-	 * Returns a record from the buffer. Note: This method cannot be replaced with specific methods like readInt() or
-	 * similar. The PlanBinder requires a method that can return any kind of object.
-	 *
-	 * @return read record
-	 * @throws IOException
-	 */
-	public Object getRecord() throws IOException {
-		return getRecord(false);
-	}
-
-	/**
-	 * Returns a record from the buffer. Note: This method cannot be replaced with specific methods like readInt() or
-	 * similar. The PlanBinder requires a method that can return any kind of object.
-	 *
-	 * @param normalized flag indicating whether certain types should be normalized
-	 * @return read record
-	 * @throws IOException
-	 */
-	public Object getRecord(boolean normalized) throws IOException {
-		if (fileBuffer.position() == 0) {
-			loadBuffer();
-		}
-		return receiveField(normalized);
-	}
-
-	/**
-	 * Reads a single primitive value or tuple from the buffer.
-	 *
-	 * @return primitive value or tuple
-	 * @throws IOException
-	 */
-	private Object receiveField(boolean normalized) throws IOException {
-		byte type = fileBuffer.get();
-		switch (type) {
-			case TYPE_TUPLE:
-				int tupleSize = fileBuffer.get();
-				Tuple tuple = createTuple(tupleSize);
-				for (int x = 0; x < tupleSize; x++) {
-					tuple.setField(receiveField(normalized), x);
-				}
-				return tuple;
-			case TYPE_BOOLEAN:
-				return fileBuffer.get() == 1;
-			case TYPE_BYTE:
-				return fileBuffer.get();
-			case TYPE_SHORT:
-				if (normalized) {
-					return (int) fileBuffer.getShort();
-				} else {
-					return fileBuffer.getShort();
-				}
-			case TYPE_INTEGER:
-				return fileBuffer.getInt();
-			case TYPE_LONG:
-				if (normalized) {
-					return new Long(fileBuffer.getLong()).intValue();
-				} else {
-					return fileBuffer.getLong();
-				}
-			case TYPE_FLOAT:
-				if (normalized) {
-					return (double) fileBuffer.getFloat();
-				} else {
-					return fileBuffer.getFloat();
-				}
-			case TYPE_DOUBLE:
-				return fileBuffer.getDouble();
-			case TYPE_STRING:
-				int stringSize = fileBuffer.getInt();
-				byte[] buffer = new byte[stringSize];
-				fileBuffer.get(buffer);
-				return new String(buffer);
-			case TYPE_BYTES:
-				int bytessize = fileBuffer.getInt();
-				byte[] bytebuffer = new byte[bytessize];
-				fileBuffer.get(bytebuffer);
-				return bytebuffer;
-			case TYPE_NULL:
-				return null;
-			default:
-				return new CustomTypeDeserializer(type).deserialize();
-		}
-	}
-
-	//=====Buffered-API=================================================================================================
 	/**
 	 * Reads a buffer of the given size from the memory-mapped file, and collects all records contained. This method
 	 * assumes that all values in the buffer are of the same type. This method does NOT take care of synchronization.

@@ -14,7 +14,7 @@ package org.apache.flink.python.api.functions;
 
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.streaming.PythonStreamer;
+import org.apache.flink.python.api.streaming.data.PythonStreamer;
 import org.apache.flink.util.Collector;
 import java.io.IOException;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;

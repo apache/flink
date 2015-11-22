@@ -17,6 +17,7 @@
 ################################################################################
 from flink.connection import Connection
 from flink.connection import Collector
+from flink.connection import Iterator
 from flink.plan.DataSet import DataSet
 from flink.plan.Constants import _Identifier
 from flink.plan.OperationInfo import OperationInfo
@@ -156,12 +157,14 @@ class Environment(object):
         plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
 
         if plan_mode:
-            output_path = sys.stdin.readline().rstrip('\n')
-            self._connection = Connection.OneWayBusyBufferingMappedFileConnection(output_path)
+            port = int(sys.stdin.readline().rstrip('\n'))
+            self._connection = Connection.PureTCPConnection(port)
+            self._iterator = Iterator.TypedIterator(self._connection, self)
             self._collector = Collector.TypedCollector(self._connection, self)
             self._send_plan()
-            self._connection._write_buffer()
+            result = self._receive_result()
             self._connection.close()
+            return result
         else:
             import struct
             operator = None
@@ -383,3 +386,16 @@ class Environment(object):
             collect(entry.parent.id)
             collect(entry.other.id)
             collect(entry.name)
+
+    def _receive_result(self):
+        jer = JobExecutionResult()
+        jer._net_runtime = self._iterator.next()
+        return jer
+
+
+class JobExecutionResult:
+    def __init__(self):
+        self._net_runtime = 0
+
+    def get_net_runtime(self):
+        return self._net_runtime

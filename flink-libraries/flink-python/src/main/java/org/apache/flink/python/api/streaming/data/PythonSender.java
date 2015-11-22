@@ -10,7 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.python.api.streaming;
+package org.apache.flink.python.api.streaming.data;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,7 +23,6 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
@@ -32,7 +31,7 @@ import org.apache.flink.python.api.types.CustomTypeWrapper;
 /**
  * General-purpose class to write data to memory-mapped files.
  */
-public class Sender implements Serializable {
+public class PythonSender implements Serializable {
 	public static final byte TYPE_TUPLE = (byte) 11;
 	public static final byte TYPE_BOOLEAN = (byte) 10;
 	public static final byte TYPE_BYTE = (byte) 9;
@@ -46,8 +45,6 @@ public class Sender implements Serializable {
 	public static final byte TYPE_BYTES = (byte) 1;
 	public static final byte TYPE_NULL = (byte) 0;
 
-	private final AbstractRichFunction function;
-
 	private File outputFile;
 	private RandomAccessFile outputRAF;
 	private FileChannel outputChannel;
@@ -56,10 +53,6 @@ public class Sender implements Serializable {
 	private final ByteBuffer[] saved = new ByteBuffer[2];
 
 	private final Serializer[] serializer = new Serializer[2];
-
-	public Sender(AbstractRichFunction function) {
-		this.function = function;
-	}
 
 	//=====Setup========================================================================================================
 	public void open(String path) throws IOException {

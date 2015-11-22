@@ -19,6 +19,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -49,8 +50,7 @@ import org.apache.flink.python.api.PythonOperationInfo.ProjectionEntry;
 import org.apache.flink.python.api.functions.PythonCoGroup;
 import org.apache.flink.python.api.functions.PythonCombineIdentity;
 import org.apache.flink.python.api.functions.PythonMapPartition;
-import org.apache.flink.python.api.streaming.Receiver;
-import org.apache.flink.python.api.streaming.StreamPrinter;
+import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,14 +76,12 @@ public class PythonPlanBinder {
 
 	private static final Random r = new Random();
 
-	private static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + File.separator + "flink_plan";
+	public static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + File.separator + "flink_plan";
 	private static final String FLINK_PYTHON_REL_LOCAL_PATH = File.separator + "resources" + File.separator + "python";
 	private static final String FLINK_DIR = System.getenv("FLINK_ROOT_DIR");
 	private static String FULL_PATH;
 
 	public static StringBuilder arguments = new StringBuilder();
-
-	private Process process;
 
 	public static boolean usePython3 = false;
 
@@ -94,7 +92,7 @@ public class PythonPlanBinder {
 
 	private HashMap<Integer, Object> sets = new HashMap();
 	public ExecutionEnvironment env;
-	private Receiver receiver;
+	private PythonPlanStreamer streamer;
 
 	public static final int MAPPED_FILE_SIZE = 1024 * 1024 * 64;
 
@@ -145,7 +143,8 @@ public class PythonPlanBinder {
 			}
 
 			distributeFiles(tmpPath, env);
-			env.execute();
+			JobExecutionResult jer = env.execute();
+			sendResult(jer);
 			close();
 		} catch (Exception e) {
 			close();
@@ -205,41 +204,13 @@ public class PythonPlanBinder {
 		for (String arg : args) {
 			arguments.append(" ").append(arg);
 		}
-		String mappedFilePath = FLINK_TMP_DATA_DIR + "/output" + r.nextInt();
-		receiver = new Receiver(null);
-		receiver.open(mappedFilePath);
+		streamer = new PythonPlanStreamer();
+		streamer.open(tempPath, arguments.toString());
+	}
 
-		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
-
-		try {
-			Runtime.getRuntime().exec(pythonBinaryPath);
-		} catch (IOException ex) {
-			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
-		}
-		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + tempPath + FLINK_PYTHON_PLAN_NAME + arguments.toString());
-
-		new StreamPrinter(process.getInputStream()).start();
-		new StreamPrinter(process.getErrorStream()).start();
-
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException ex) {
-		}
-
-		try {
-			int value = process.exitValue();
-			if (value != 0) {
-				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
-			}
-			if (value == 0) {
-				throw new RuntimeException("Plan file exited prematurely without an error.");
-			}
-		} catch (IllegalThreadStateException ise) {//Process still running
-		}
-
-		process.getOutputStream().write("plan\n".getBytes());
-		process.getOutputStream().write((mappedFilePath + "\n").getBytes());
-		process.getOutputStream().flush();
+	private void sendResult(JobExecutionResult jer) throws IOException {
+		long runtime = jer.getNetRuntime();
+		streamer.sendRecord(runtime);
 	}
 
 	private void close() {
@@ -252,17 +223,11 @@ public class PythonPlanBinder {
 			FileSystem local = FileSystem.getLocalFileSystem();
 			local.delete(new Path(FLINK_PYTHON_FILE_PATH), true);
 			local.delete(new Path(FLINK_TMP_DATA_DIR), true);
-			receiver.close();
+			streamer.close();
 		} catch (NullPointerException npe) {
 		} catch (IOException ioe) {
 			LOG.error("PythonAPI file cleanup failed. " + ioe.getMessage());
 		} catch (URISyntaxException use) { // can't occur
-		}
-		try {
-			process.exitValue();
-		} catch (NullPointerException npe) { //exception occurred before process was started
-		} catch (IllegalThreadStateException ise) { //process still active
-			process.destroy();
 		}
 	}
 
@@ -285,7 +250,7 @@ public class PythonPlanBinder {
 
 	private void receiveParameters() throws IOException {
 		for (int x = 0; x < 4; x++) {
-			Tuple value = (Tuple) receiver.getRecord(true);
+			Tuple value = (Tuple) streamer.getRecord(true);
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
 					Integer dop = (Integer) value.getField(1);
@@ -321,9 +286,9 @@ public class PythonPlanBinder {
 	}
 
 	private void receiveOperations() throws IOException {
-		Integer operationCount = (Integer) receiver.getRecord(true);
+		Integer operationCount = (Integer) streamer.getRecord(true);
 		for (int x = 0; x < operationCount; x++) {
-			String identifier = (String) receiver.getRecord();
+			String identifier = (String) streamer.getRecord();
 			Operation op = null;
 			try {
 				op = Operation.valueOf(identifier.toUpperCase());
@@ -435,7 +400,7 @@ public class PythonPlanBinder {
 	 * @throws IOException
 	 */
 	private PythonOperationInfo createOperationInfo(Operation operationIdentifier) throws IOException {
-		return new PythonOperationInfo(receiver, operationIdentifier);
+		return new PythonOperationInfo(streamer, operationIdentifier);
 	}
 
 	private void createCsvSource(PythonOperationInfo info) throws IOException {

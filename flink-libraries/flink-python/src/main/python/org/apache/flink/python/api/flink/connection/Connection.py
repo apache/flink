@@ -51,33 +51,19 @@ def recv_all(socket, toread):
         return b"".join(bits)
 
 
-class OneWayBusyBufferingMappedFileConnection(object):
-    def __init__(self, output_path):
-        self._output_file = open(output_path, "rb+")
-        if hasattr(mmap, 'MAP_SHARED'):
-            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
-        else:
-            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, None, mmap.ACCESS_WRITE)
-
-        self._out = deque()
-        self._out_size = 0
-
-        self._offset_limit = MAPPED_FILE_SIZE - 1024 * 1024 * 3
+class PureTCPConnection(object):
+    def __init__(self, port):
+        self._socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
+        self._socket.connect((SOCKET.gethostbyname("localhost"), port))
 
     def write(self, msg):
-        self._out.append(msg)
-        self._out_size += len(msg)
-        if self._out_size > self._offset_limit:
-            self._write_buffer()
+        self._socket.send(msg)
 
-    def _write_buffer(self):
-        self._file_output_buffer.seek(1, 0)
-        self._file_output_buffer.write(b"".join(self._out))
-        self._file_output_buffer.seek(0, 0)
-        self._file_output_buffer.write(b'\x01')
+    def read(self, size):
+        return recv_all(self._socket, size)
 
     def close(self):
-        self._file_output_buffer.close()
+        self._socket.close()
 
 
 class BufferingTCPMappedFileConnection(object):

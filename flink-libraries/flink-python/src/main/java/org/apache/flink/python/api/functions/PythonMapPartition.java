@@ -17,7 +17,7 @@ import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.streaming.PythonStreamer;
+import org.apache.flink.python.api.streaming.data.PythonStreamer;
 import org.apache.flink.util.Collector;
 
 /**
