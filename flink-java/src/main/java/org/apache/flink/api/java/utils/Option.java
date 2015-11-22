@@ -76,14 +76,15 @@ public class Option {
 	 * @param defaultValue - the default value
 	 * @return the updated Option
 	 */
-	public Option defaultValue(String defaultValue) {
+	public Option defaultValue(String defaultValue) throws RequiredParametersException {
 		if (this.choices.isEmpty()) {
 			return this.setDefaultValue(defaultValue);
 		} else {
 			if (this.choices.contains(defaultValue)) {
 				return this.setDefaultValue(defaultValue);
 			} else {
-				throw new IllegalArgumentException("defaultValue passed is not in the list of expected values.");
+				throw new RequiredParametersException("Default value " + defaultValue +
+						" is not in the list of valid values for option " + this.longName);
 			}
 		}
 	}
@@ -99,7 +100,8 @@ public class Option {
 			if (Arrays.asList(choices).contains(defaultValue)) {
 				Collections.addAll(this.choices, choices);
 			} else {
-				throw new RequiredParametersException("DefaultValue is not in choices.");
+				throw new RequiredParametersException("Valid values for option " + this.longName +
+						" do not contain defined default value " + defaultValue);
 			}
 		} else {
 			Collections.addAll(this.choices, choices);
@@ -194,7 +196,7 @@ public class Option {
 			case STRING:
 				return true;
 		}
-		throw new IllegalStateException("Invalid value for OptionType encountered.");
+		throw new IllegalStateException("Invalid value for OptionType " + this.type + " for option " + this.longName);
 	}
 
 }

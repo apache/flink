@@ -19,30 +19,47 @@
 package org.apache.flink.api.java.utils;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the Options utility class.
  */
 public class OptionsTest {
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testChoicesWithInvalidDefaultValue() throws RequiredParametersException {
-		Option option = new Option("choices").choices("a", "b", "c");
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
+	@Test
+	public void testChoicesWithInvalidDefaultValue() throws RequiredParametersException {
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Default value d is not in the list of valid values for option choices");
+
+		Option option = new Option("choices").choices("a", "b", "c");
 		option.defaultValue("d");
 	}
 
 	@Test
-	public void testChoicesWithValidDefaultValue() throws RequiredParametersException {
-		Option option = new Option("choices").choices("a", "b", "c");
+	public void testChoicesWithValidDefaultValue() {
+		Option option = null;
+		try {
+			option = new Option("choices").choices("a", "b", "c");
+			option = option.defaultValue("a");
+		} catch (RequiredParametersException e) {
+			fail("Exception thrown: " + e.getMessage());
+		}
 
-		option = option.defaultValue("a");
 		Assert.assertEquals(option.getDefaultValue(), "a");
 	}
 
-	@Test(expected = RequiredParametersException.class)
+	@Test
 	public void testChoicesWithInvalidDefautlValue() throws RequiredParametersException {
+		expectedException.expect(RequiredParametersException.class);
+		expectedException.expectMessage("Valid values for option choices do not contain defined default value x");
+
 		Option option = new Option("choices").defaultValue("x");
 		option.choices("a", "b");
 	}
