@@ -1461,6 +1461,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Writes `this` DataSet to the specified location. This uses [[AnyRef.toString]] on
    * each element.
+   * @see org.apache.flink.api.java.DataSet#writeAsText(String)
    */
   def writeAsText(
       filePath: String,
@@ -1473,9 +1474,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Writes `this` DataSet to the specified location as a CSV file.
+   * Writes `this` DataSet to the specified location as CSV file(s).
    *
    * This only works on Tuple DataSets. For individual tuple fields [[AnyRef.toString]] is used.
+   * @see org.apache.flink.api.java.DataSet#writeAsText(String)
    */
   def writeAsCsv(
       filePath: String,
