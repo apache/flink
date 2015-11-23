@@ -49,7 +49,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results =ds.collect();
+		List<Row> results = ds.collect();
 		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
 				"how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
 				"Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +

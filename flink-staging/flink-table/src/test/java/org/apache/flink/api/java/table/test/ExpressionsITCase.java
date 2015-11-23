@@ -77,7 +77,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				"b && true, b && false, b || false, !b");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> results =ds.collect();
+		List<Row> results = ds.collect();
 		String expected = "true,false,true,false";
 		compareResultAsText(results, expected);
 	}

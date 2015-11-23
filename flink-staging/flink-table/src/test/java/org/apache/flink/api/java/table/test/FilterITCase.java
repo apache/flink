@@ -54,9 +54,9 @@ public class FilterITCase extends MultipleProgramsTestBase {
 				.filter("false");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		List<Row> resutls = ds.collect();
+		List<Row> results = ds.collect();
 		String expected = "\n";
-		compareResultAsText(resutls, expected);
+		compareResultAsText(results, expected);
 	}
 
 	@Test
