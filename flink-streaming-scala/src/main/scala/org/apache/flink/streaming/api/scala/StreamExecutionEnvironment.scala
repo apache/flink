@@ -48,13 +48,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AbstractExecutionEnvi
    *
    * @return reference to the StreamExecutionEnvironment of the Java API
    */
-  @Override
   def getJavaEnv: JavaEnv = javaEnv
 
   /**
    * Gets the config object.
    */
-  def getConfig = javaEnv.getConfig
+  override def getConfig = javaEnv.getConfig
 
   /**
    * Sets the parallelism for operations executed through this environment.

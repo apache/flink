@@ -57,17 +57,19 @@ class JavaBatchTranslator(env: Option[ExecutionEnvironment]) extends PlanTransla
 
   override def createTable(tableSource: TableSource): Table = {
     // a TableSource requires an ExecutionEnvironment
-    if (env.isEmpty) {
-      throw new ExpressionException("This operation requires an ExecutionEnvironment.")
-    }
-    tableSource match {
-      case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
+    env match {
+      case Some(env) =>
+        tableSource match {
+          case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
 
-      case static: StaticTableSource =>
-        createTable(static.createStaticDataSet(env.get),
-          static.getOutputFieldNames().mkString(","))
+          case static: StaticTableSource =>
+            createTable(static.createStaticDataSet(env),
+              static.getOutputFieldNames().mkString(","))
 
-      case _ => throw new ExpressionException("Unknown TableSource type.")
+          case _ => throw new ExpressionException("Unknown TableSource type.")
+        }
+      case None =>
+        throw new ExpressionException("This operation requires an ExecutionEnvironment.")
     }
   }
 
@@ -136,10 +138,10 @@ class JavaBatchTranslator(env: Option[ExecutionEnvironment]) extends PlanTransla
         dataSet
 
       case Root(tableSource: AdaptiveTableSource, resultFields) =>
-        if (env.isEmpty) {
-          throw new ExpressionException("This operation requires a TableEnvironment.")
+        env match {
+          case Some(env) => tableSource.createAdaptiveDataSet(env)
+          case None => throw new ExpressionException("This operation requires a TableEnvironment.")
         }
-        tableSource.createAdaptiveDataSet(env.get)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op + ". " +

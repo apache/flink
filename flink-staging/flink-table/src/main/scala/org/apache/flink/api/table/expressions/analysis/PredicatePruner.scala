@@ -43,6 +43,10 @@ object PredicatePruner {
         else if (prunedRight.isInstanceOf[NopExpression]) {
           prunedLeft
         }
+        else if (prunedLeft.isInstanceOf[NopExpression]
+            && prunedRight.isInstanceOf[NopExpression]) {
+          NopExpression()
+        }
         else {
           And(prunedLeft, prunedRight)
         }

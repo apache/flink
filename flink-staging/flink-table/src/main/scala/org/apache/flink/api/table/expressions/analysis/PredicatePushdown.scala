@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.table.expressions.analysis
 
+import org.apache.flink.api.table.ExpressionException
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.expressions.analysis.FieldBacktracker
   .resolveFieldNameAndTableSource
@@ -28,7 +29,7 @@ import org.apache.flink.api.table.trees.Rule
 
 /**
  * Pushes constant predicates (e.g. a===12 && b.isNotNull) to each corresponding
- * AdaptiveTableSource that support predicates.
+ * AdaptiveTableSource.
  */
 class PredicatePushdown(val inputOperation: PlanNode) extends Rule[Expression] {
 
@@ -48,10 +49,14 @@ class PredicatePushdown(val inputOperation: PlanNode) extends Rule[Expression] {
       // resolve field names to field names of the table source
       val result = tsExpr.transformPost {
         case rfr@ResolvedFieldReference(fieldName, typeInfo) =>
-          ResolvedFieldReference(
-            resolveFieldNameAndTableSource(inputOperation, fieldName).get._2,
-            typeInfo
-          )
+          // backtrack the field to its table source
+          // each field should be backtrackable since we filtered
+          // for field references of ts previously
+          resolveFieldNameAndTableSource(inputOperation, fieldName) match {
+            case Some(fieldWithSource) =>
+              ResolvedFieldReference(fieldWithSource._2, typeInfo)
+            case None => throw new ExpressionException("Field not found. This should not happen.")
+          }
       }
       // push down predicates
       if (result != NopExpression()) {
@@ -105,15 +110,24 @@ class PredicatePushdown(val inputOperation: PlanNode) extends Rule[Expression] {
       case bc: BinaryComparison if bc.right.isInstanceOf[ResolvedFieldReference] =>
         val fieldRef = bc.right.asInstanceOf[ResolvedFieldReference]
         val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldRef.name)
-        resolvedField.isDefined && resolvedField.get._1 == ts
+        resolvedField match {
+          case Some(fieldWithSource) => fieldWithSource._1 == ts
+          case None => false
+        }
       case bc: BinaryComparison if bc.left.isInstanceOf[ResolvedFieldReference] =>
         val fieldRef = bc.left.asInstanceOf[ResolvedFieldReference]
         val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldRef.name)
-        resolvedField.isDefined && resolvedField.get._1 == ts
+        resolvedField match {
+          case Some(fieldWithSource) => fieldWithSource._1 == ts
+          case None => false
+        }
       case ue@(IsNotNull(_) | IsNull(_)) =>
         val fieldRef = ue.asInstanceOf[UnaryExpression].child.asInstanceOf[ResolvedFieldReference]
         val resolvedField = resolveFieldNameAndTableSource(inputOperation, fieldRef.name)
-        resolvedField.isDefined && resolvedField.get._1 == ts
+        resolvedField match {
+          case Some(fieldWithSource) => fieldWithSource._1 == ts
+          case None => false
+        }
       case _ => false
     }
   }

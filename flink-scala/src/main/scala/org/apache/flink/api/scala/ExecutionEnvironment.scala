@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{AbstractExecutionEnvironment, ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -73,10 +73,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) extends AbstractExecutionEnvironmen
   /**
    * Gets the config object.
    */
-  @Override
-  def getConfig: ExecutionConfig = {
-    javaEnv.getConfig
-  }
+  override def getConfig: ExecutionConfig = javaEnv.getConfig
 
   /**
    * Sets the parallelism (parallelism) for operations executed through this environment.

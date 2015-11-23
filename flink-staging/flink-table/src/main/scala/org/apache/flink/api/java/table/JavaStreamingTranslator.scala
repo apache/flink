@@ -57,17 +57,20 @@ class JavaStreamingTranslator(env: Option[StreamExecutionEnvironment]) extends P
 
   override def createTable(tableSource: TableSource): Table = {
     // a TableSource requires an StreamExecutionEnvironment
-    if (env.isEmpty) {
-      throw new ExpressionException("This operation requires a StreamExecutionEnvironment.")
-    }
-    tableSource match {
-      case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
+    env match {
+      case Some(env) =>
+        // create table depending on type of table source
+        tableSource match {
+          case adaptive: AdaptiveTableSource => Table(Root(adaptive, adaptive.getOutputFields()))
 
-      case static: StaticTableSource =>
-        createTable(static.createStaticDataStream(env.get),
-          static.getOutputFieldNames().mkString(","))
+          case static: StaticTableSource =>
+            createTable(static.createStaticDataStream(env),
+              static.getOutputFieldNames().mkString(","))
 
-      case _ => throw new ExpressionException("Unknown TableSource type.")
+          case _ => throw new ExpressionException("Unknown TableSource type.")
+        }
+      case None =>
+        throw new ExpressionException("This operation requires a StreamExecutionEnvironment.")
     }
   }
 
@@ -135,10 +138,10 @@ class JavaStreamingTranslator(env: Option[StreamExecutionEnvironment]) extends P
         dataStream
 
       case Root(tableSource: AdaptiveTableSource, resultFields) =>
-        if (env.isEmpty) {
-          throw new ExpressionException("This operation requires a TableEnvironment.")
+        env match {
+          case Some(env) => tableSource.createAdaptiveDataStream(env)
+          case None => throw new ExpressionException("This operation requires a TableEnvironment.")
         }
-        tableSource.createAdaptiveDataStream(env.get)
 
       case Root(_, _) =>
         throw new ExpressionException("Invalid Root for JavaStreamingTranslator: " + op + ". " +
