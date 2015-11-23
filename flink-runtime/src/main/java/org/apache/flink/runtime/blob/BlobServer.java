@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,7 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -137,12 +139,30 @@ public class BlobServer extends Thread implements BlobService {
 			this.shutdownHook = null;
 		}
 
-		// start the server
-		try {
-			this.serverSocket = new ServerSocket(0, backlog);
+		//  ----------------------- start the server -------------------
+
+		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange).iterator();
+
+		ServerSocket socketAttempt = null;
+		while(ports.hasNext()) {
+			int port = ports.next();
+			LOG.debug("Trying to open socket on port {}", port);
+			try {
+				socketAttempt = new ServerSocket(port, backlog);
+				break; // we were able to use the port.
+			} catch (IOException | IllegalArgumentException e) {
+				if(LOG.isDebugEnabled()) {
+					LOG.debug("Unable to allocate socket on port", e);
+				} else {
+					LOG.info("Unable to allocate on port {}, due to error: {}", port, e.getMessage());
+				}
+			}
 		}
-		catch (IOException e) {
-			throw new IOException("Could not create BlobServer with automatic port choice.", e);
+		if(socketAttempt == null) {
+			throw new IOException("Unable to allocate socket for blob server in specified port range: "+serverPortRange);
+		} else {
+			this.serverSocket = socketAttempt;
 		}
 
 		// start the server thread

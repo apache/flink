@@ -29,6 +29,8 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.HashSet;
+import java.util.Set;
 
 public class NetUtils {
 	
@@ -165,5 +167,33 @@ public class NetUtils {
 	 */
 	public static String hostAndPortToUrlString(String host, int port) throws UnknownHostException {
 		return ipAddressAndPortToUrlString(InetAddress.getByName(host), port);
+	}
+
+	/**
+	 * Returns a set of available ports defined by the range definition.
+	 *
+	 * @param rangeDefinition String describing a single port, a range of ports or multiple ranges.
+	 * @return Set of ports from the range definition
+	 * @throws NumberFormatException If an invalid string is passed.
+	 */
+	public static Set<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
+		Set<Integer> finalSet = new HashSet<>();
+		final String[] ranges = rangeDefinition.trim().split(",");
+		for(String rawRange: ranges) {
+			String range = rawRange.trim();
+			int dashIdx = range.indexOf('-');
+			if (dashIdx == -1) {
+				// only one port in range:
+				finalSet.add(Integer.valueOf(range));
+			} else {
+				// evaluate range
+				int start = Integer.valueOf(range.substring(0, dashIdx));
+				int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
+				for(int i = start; i <= end; i++) {
+					finalSet.add(i);
+				}
+			}
+		}
+		return finalSet;
 	}
 }

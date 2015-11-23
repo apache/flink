@@ -18,11 +18,15 @@
 
 package org.apache.flink.util;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Set;
 
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.*;
 
 public class NetUtilsTest {
@@ -93,5 +97,54 @@ public class NetUtilsTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testFreePortRangeUtility() {
+		// inspired by Hadoop's example for "yarn.app.mapreduce.am.job.client.port-range"
+		String rangeDefinition = "50000-50050, 50100-50200,51234 "; // this also contains some whitespaces
+		Set<Integer> ports = NetUtils.getPortRangeFromString(rangeDefinition);
+		Assert.assertEquals(51+101+1, ports.size());
+		// check first range
+		Assert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
+		// check second range and last point
+		Assert.assertThat(ports, hasItems(50100, 50101, 50110, 50200, 51234));
+		// check that only ranges are included
+		Assert.assertThat(ports, not(hasItems(50051, 50052, 1337, 50201, 49999, 50099)));
+
+
+		// test single port "range":
+		ports = NetUtils.getPortRangeFromString(" 51234");
+		Assert.assertEquals(1, ports.size());
+		Assert.assertEquals(51234, (int)ports.iterator().next());
+
+		// test port list
+		ports = NetUtils.getPortRangeFromString("5,1,2,3,4");
+		Assert.assertEquals(5, ports.size());
+		Assert.assertThat(ports, hasItems(1,2,3,4,5));
+
+
+		Throwable error = null;
+
+		// try some wrong values: String
+		try { NetUtils.getPortRangeFromString("localhost"); } catch(Throwable t) { error = t; }
+		Assert.assertTrue(error instanceof NumberFormatException);
+		error = null;
+
+		// incomplete range
+		try { NetUtils.getPortRangeFromString("5-"); } catch(Throwable t) { error = t; }
+		Assert.assertTrue(error instanceof NumberFormatException);
+		error = null;
+
+		// incomplete range
+		try { NetUtils.getPortRangeFromString("-5"); } catch(Throwable t) { error = t; }
+		Assert.assertTrue(error instanceof NumberFormatException);
+		error = null;
+
+		// empty range
+		try { NetUtils.getPortRangeFromString(",5"); } catch(Throwable t) { error = t; }
+		Assert.assertTrue(error instanceof NumberFormatException);
+		error = null;
+
 	}
 }
