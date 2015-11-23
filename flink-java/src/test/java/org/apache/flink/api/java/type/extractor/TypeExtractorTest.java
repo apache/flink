@@ -46,6 +46,8 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
+import org.apache.flink.api.java.typeutils.Either;
+import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -66,8 +68,6 @@ import org.apache.flink.util.Collector;
 import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
 import org.junit.Test;
-
-import javax.xml.bind.TypeConstraintException;
 
 
 public class TypeExtractorTest {
@@ -1828,5 +1828,82 @@ public class TypeExtractorTest {
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction)function, BasicTypeInfo.INT_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
+	}
+
+	public static class Either1<T> extends Either<String, T> {
+		@Override
+		public String left() throws IllegalStateException {
+			return null;
+		}
+
+		@Override
+		public T right() throws IllegalStateException {
+			return null;
+		}
+	}
+
+	public static class Either2 extends Either1<Tuple1<Integer>> {
+		// nothing to do here
+	}
+
+	public static class EitherMapper<T> implements MapFunction<T, Either1<T>> {
+		@Override
+		public Either1<T> map(T value) throws Exception {
+			return null;
+		}
+	}
+
+	public static class EitherMapper2 implements MapFunction<String, Either2> {
+		@Override
+		public Either2 map(String value) throws Exception {
+			return null;
+		}
+	}
+
+	public static class EitherMapper3 implements MapFunction<Either2, Either2> {
+		@Override
+		public Either2 map(Either2 value) throws Exception {
+			return null;
+		}
+	}
+
+	@Test
+	public void testEither() {
+		MapFunction<?, ?> function = new MapFunction<Either<String, Boolean>, Either<String, Boolean>>() {
+			@Override
+			public Either<String, Boolean> map(Either<String, Boolean> value) throws Exception {
+				return null;
+			}
+		};
+		TypeInformation<?> expected = new EitherTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) function, expected);
+		Assert.assertEquals(expected, ti);
+	}
+
+	@Test
+	public void testEitherHierarchy() {
+		MapFunction<?, ?> function = new EitherMapper<Boolean>();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) function, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		TypeInformation<?> expected = new EitherTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		Assert.assertEquals(expected, ti);
+
+		function = new EitherMapper2();
+		ti = TypeExtractor.getMapReturnTypes((MapFunction) function, BasicTypeInfo.STRING_TYPE_INFO);
+		expected = new EitherTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, new TupleTypeInfo(BasicTypeInfo.INT_TYPE_INFO));
+		Assert.assertEquals(expected, ti);
+
+		function = new EitherMapper3();
+		ti = TypeExtractor.getMapReturnTypes((MapFunction) function, expected);
+		Assert.assertEquals(expected, ti);
+
+		Either<String, Tuple1<Integer>> either = new Either2();
+		ti = TypeExtractor.getForObject(either);
+		Assert.assertEquals(expected, ti);
+	}
+
+	@Test(expected=InvalidTypesException.class)
+	public void testEitherFromObjectException() {
+		Either<String, Tuple1<Integer>> either = Either.left("test");
+		TypeExtractor.getForObject(either);
 	}
 }

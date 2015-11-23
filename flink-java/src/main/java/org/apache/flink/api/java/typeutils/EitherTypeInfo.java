@@ -37,7 +37,7 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	private final TypeInformation<R> rightType;
 
-	public EitherTypeInfo(TypeInformation<L> leftType,TypeInformation<R> rightType) {
+	public EitherTypeInfo(TypeInformation<L> leftType, TypeInformation<R> rightType) {
 		this.leftType = leftType;
 		this.rightType = rightType;
 	}
@@ -106,6 +106,16 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof EitherTypeInfo;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public TypeInformation<L> getLeftType() {
+		return leftType;
+	}
+
+	public TypeInformation<R> getRightType() {
+		return rightType;
 	}
 
 }
