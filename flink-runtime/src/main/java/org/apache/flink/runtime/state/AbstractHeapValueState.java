@@ -94,6 +94,11 @@ public abstract class AbstractHeapValueState<K, V, Backend extends AbstractState
 	}
 
 	@Override
+	public Iterable<V> getAll() {
+		return state.values();
+	}
+
+	@Override
 	public void update(V value) {
 		if (value != null) {
 			state.put(currentKey, value);

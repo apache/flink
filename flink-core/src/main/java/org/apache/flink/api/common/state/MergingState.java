@@ -44,9 +44,19 @@ public interface MergingState<IN, OUT> extends State {
 	 * 
 	 * @return The operator state value corresponding to the current input.
 	 * 
-	 * @throws Exception Thrown if the system cannot access the state.
+	 * @throws IOException Thrown if the system cannot access the state.
 	 */
-	OUT get() throws Exception ;
+	OUT get() throws IOException ;
+
+	/**
+	 * Returns the values for all keys of the partitioned state that are stored in the local
+	 * operator instance.
+	 *
+	 * @return The operator state of all keys that this instance is responsible for.
+	 *
+	 * @throws IOException Thrown if the system cannot access the state.
+	 */
+	Iterable<OUT> getAll() throws IOException;
 
 	/**
 	 * Updates the operator state accessible by {@link #get()} by adding the given value
@@ -58,6 +68,6 @@ public interface MergingState<IN, OUT> extends State {
 	 *            
 	 * @throws IOException Thrown if the system cannot access the state.
 	 */
-	void add(IN value) throws Exception;
+	void add(IN value) throws IOException;
 	
 }

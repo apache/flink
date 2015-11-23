@@ -101,6 +101,12 @@ public abstract class AbstractHeapListState<K, V, Backend extends AbstractStateB
 	}
 
 	@Override
+	@SuppressWarnings("unchecked,rawtypes")
+	public Iterable<Iterable<V>> getAll() {
+		return (Iterable) state.values();
+	}
+
+	@Override
 	public void add(V value) {
 		List<V> list = state.get(currentKey);
 		if (list == null) {

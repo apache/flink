@@ -97,12 +97,21 @@ public abstract class AbstractHeapReducingState<K, V, Backend extends AbstractSt
 	}
 
 	@Override
-	public void add(V value) throws Exception {
+	public Iterable<V> getAll() {
+		return state.values();
+	}
+
+	@Override
+	public void add(V value) throws IOException {
 		V currentValue = state.get(currentKey);
 		if (currentValue == null) {
 			state.put(currentKey, value);
 		} else {
-			state.put(currentKey, reduceFunction.reduce(currentValue, value));
+			try {
+				state.put(currentKey, reduceFunction.reduce(currentValue, value));
+			} catch (Exception e) {
+				throw new RuntimeException("Could not add value to reducing state.", e);
+			}
 		}
 	}
 

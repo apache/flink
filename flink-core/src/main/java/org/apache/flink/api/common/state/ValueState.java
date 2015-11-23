@@ -48,6 +48,16 @@ public interface ValueState<T> extends State {
 	T value() throws IOException;
 
 	/**
+	 * Returns the values for all keys of the partitioned state that are stored in the local
+	 * operator instance.
+	 *
+	 * @return The operator state of all keys that this instance is responsible for.
+	 *
+	 * @throws IOException Thrown if the system cannot access the state.
+	 */
+	Iterable<T> getAll() throws IOException;
+
+	/**
 	 * Updates the operator state accessible by {@link #value()} to the given
 	 * value. The next time {@link #value()} is called (for the same state
 	 * partition) the returned state will represent the updated value. When a
