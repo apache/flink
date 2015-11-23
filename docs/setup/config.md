@@ -218,6 +218,12 @@ Note: State backend must be accessible from the JobManager, use file:// only for
 
 - `blob.storage.directory`: Directory for storing blobs (such as user jar's) on the TaskManagers.
 
+- `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers.
+By default the port is set to 0, which means that the operating system is picking an ephemeral port.
+Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both.
+It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running
+on the same machine.
+
 - `execution-retries.delay`: Delay between execution retries. Default value "5 s". Note that values
 have to be specified as strings with a unit.
 

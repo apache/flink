@@ -82,6 +82,14 @@ public final class ConfigConstants {
 	public static final String BLOB_FETCH_BACKLOG_KEY = "blob.fetch.backlog";
 
 	/**
+	 * The config parameter defining the server port of the blob service.
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 */
+	public static final String BLOB_SERVER_PORT = "blob.server.port";
+
+	/**
 	 * The config parameter defining the cleanup interval of the library cache manager.
 	 */
 	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
@@ -501,6 +509,11 @@ public final class ConfigConstants {
 	 * Default BLOB fetch connection backlog.
 	 */
 	public static final int DEFAULT_BLOB_FETCH_BACKLOG = 1000;
+
+	/**
+	 * Default BLOB server port. 0 means ephemeral port.
+	 */
+	public static final String DEFAULT_BLOB_SERVER_PORT = "0";
 
 	/**
 	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that
