@@ -24,34 +24,36 @@ class ReduceFunction(Function.Function):
     def __init__(self):
         super(ReduceFunction, self).__init__()
         self._keys = None
-        self._combine = False
-        self._values = []
 
     def _configure(self, input_file, output_file, port, env):
-        if self._combine:
-            self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
-            self._iterator = Iterator.Iterator(self._connection, env)
-            self._collector = Collector.Collector(self._connection, env)
-            self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
-            self._run = self._run_combine
+        self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
+        self._iterator = Iterator.Iterator(self._connection, env)
+        if self._keys is None:
+            self._run = self._run_all_reduce
         else:
-            self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
-            self._iterator = Iterator.Iterator(self._connection, env)
-            if self._keys is None:
-                self._run = self._run_allreduce
-            else:
-                self._group_iterator = Iterator.GroupIterator(self._iterator, self._keys)
-            self._configure_chain(Collector.Collector(self._connection, env))
-            self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
+            self._run = self._run_grouped_reduce
+            self._group_iterator = Iterator.GroupIterator(self._iterator, self._keys)
+        self._collector = Collector.Collector(self._connection, env)
+        self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
 
     def _set_grouping_keys(self, keys):
         self._keys = keys
 
-    def _close(self):
-        self._sort_and_combine()
-        self._collector._close()
+    def _run(self):
+        pass
 
-    def _run(self):#grouped reduce
+    def _run_all_reduce(self):
+        collector = self._collector
+        function = self.reduce
+        iterator = self._iterator
+        if iterator.has_next():
+            base = iterator.next()
+            for value in iterator:
+                base = function(base, value)
+            collector.collect(base)
+        collector._close()
+
+    def _run_grouped_reduce(self):
         collector = self._collector
         function = self.reduce
         iterator = self._group_iterator
@@ -64,57 +66,6 @@ class ReduceFunction(Function.Function):
                     base = function(base, value)
             collector.collect(base)
         collector._close()
-
-    def _run_allreduce(self):#ungrouped reduce
-        collector = self._collector
-        function = self.reduce
-        iterator = self._iterator
-        if iterator.has_next():
-            base = iterator.next()
-            for value in iterator:
-                base = function(base, value)
-            collector.collect(base)
-        collector._close()
-
-    def _run_combine(self):#unchained combine
-        connection = self._connection
-        collector = self._collector
-        function = self.combine
-        iterator = self._iterator
-        while 1:
-            if iterator.has_next():
-                base = iterator.next()
-                while iterator.has_next():
-                    base = function(base, iterator.next())
-            collector.collect(base)
-            connection.send_end_signal()
-            connection.reset()
-
-    def collect(self, value):#chained combine
-        self._values.append(value)
-        if len(self._values) > 1000:
-            self._sort_and_combine()
-
-    def _sort_and_combine(self):
-        values = self._values
-        function = self.combine
-        collector = self._collector
-        extractor = self._extract_keys
-        grouping = defaultdict(list)
-        for value in values:
-            grouping[extractor(value)].append(value)
-        keys = list(grouping.keys())
-        keys.sort()
-        for key in keys:
-            iterator = Iterator.ListIterator(grouping[key])
-            base = iterator.next()
-            while iterator.has_next():
-                base = function(base, iterator.next())
-            collector.collect(base)
-        self._values = []
-
-    def _extract_keys(self, x):
-        return tuple([x[k] for k in self._keys])
 
     def reduce(self, value1, value2):
         pass

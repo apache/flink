@@ -48,7 +48,7 @@ import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.NONE;
 import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
 import org.apache.flink.python.api.PythonOperationInfo.ProjectionEntry;
 import org.apache.flink.python.api.functions.PythonCoGroup;
-import org.apache.flink.python.api.functions.PythonCombineIdentity;
+import org.apache.flink.python.api.functions.IdentityGroupReduce;
 import org.apache.flink.python.api.functions.PythonMapPartition;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.runtime.filecache.FileCache;
@@ -592,45 +592,24 @@ public class PythonPlanBinder {
 	}
 
 	private DataSet applyGroupReduceOperation(DataSet op1, PythonOperationInfo info) {
-		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
-					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		} else {
-			return op1.reduceGroup(new PythonCombineIdentity())
-					.setCombinable(false).name("PythonGroupReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		}
+		return op1.reduceGroup(new IdentityGroupReduce())
+				.setCombinable(false).name("PythonGroupReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types))
+				.name(info.name);
 	}
 
 	private DataSet applyGroupReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
-		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
-					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		} else {
-			return op1.reduceGroup(new PythonCombineIdentity())
-					.setCombinable(false).name("PythonGroupReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		}
+		return op1.reduceGroup(new IdentityGroupReduce())
+				.setCombinable(false).name("PythonGroupReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types))
+				.name(info.name);
 	}
 
 	private DataSet applyGroupReduceOperation(SortedGrouping op1, PythonOperationInfo info) {
-		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
-					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		} else {
-			return op1.reduceGroup(new PythonCombineIdentity())
-					.setCombinable(false).name("PythonGroupReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		}
+		return op1.reduceGroup(new IdentityGroupReduce())
+				.setCombinable(false).name("PythonGroupReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types))
+				.name(info.name);
 	}
 
 	private void createJoinOperation(DatasizeHint mode, PythonOperationInfo info) {
@@ -696,23 +675,16 @@ public class PythonPlanBinder {
 	}
 
 	private DataSet applyReduceOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.reduceGroup(new PythonCombineIdentity())
+		return op1.reduceGroup(new IdentityGroupReduce())
 				.setCombinable(false).name("PythonReducePreStep")
 				.mapPartition(new PythonMapPartition(info.setID, info.types))
 				.name(info.name);
 	}
 
 	private DataSet applyReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
-		if (info.combine) {
-			return op1.reduceGroup(new PythonCombineIdentity(info.setID * -1))
-					.setCombinable(true).name("PythonCombine")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		} else {
-			return op1.reduceGroup(new PythonCombineIdentity())
-					.setCombinable(false).name("PythonReducePreStep")
-					.mapPartition(new PythonMapPartition(info.setID, info.types))
-					.name(info.name);
-		}
+		return op1.reduceGroup(new IdentityGroupReduce())
+				.setCombinable(false).name("PythonReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types))
+				.name(info.name);
 	}
 }

@@ -32,13 +32,11 @@ class OperationInfo():
             self.types = None
             self.operator = None
             self.name = None
-            self.combine = False
             self.delimiter_line = "\n"
             self.delimiter_field = ","
             self.write_mode = WriteMode.NO_OVERWRITE
             self.sinks = []
             self.children = []
-            self.combineop = None
             self.path = None
             self.values = []
             self.projections = []

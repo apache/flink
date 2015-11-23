@@ -147,13 +147,8 @@ class Set(object):
         child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.GROUPREDUCE
         child.parent = self._info
-        child.operator = copy.deepcopy(operator)
-        child.operator._combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
+        child.operator = operator
         child.types = types
-        child.combine = combinable
-        child.combineop = operator
-        child.combineop._combine = True
         child.name = "PythonGroupReduce"
         self._info.children.append(child)
         self._env._sets.append(child)
@@ -183,9 +178,6 @@ class ReduceSet(Set):
         child.identifier = _Identifier.REDUCE
         child.parent = self._info
         child.operator = operator
-        child.combineop = operator
-        child.combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
         child.name = "PythonReduce"
         child.types = deduct_output_type(self._info)
         self._info.children.append(child)
@@ -532,18 +524,12 @@ class Grouping(object):
             operator = GroupReduceFunction()
             operator.reduce = f
         operator._set_grouping_keys(self._child_chain[0].keys)
-        operator._set_sort_ops([(x.field, x.order) for x in self._child_chain[1:]])
         child = OperationInfo()
         child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.GROUPREDUCE
         child.parent = self._info
-        child.operator = copy.deepcopy(operator)
-        child.operator._combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
+        child.operator = operator
         child.types = types
-        child.combine = combinable
-        child.combineop = operator
-        child.combineop._combine = True
         child.name = "PythonGroupReduce"
         self._info.children.append(child)
         self._env._sets.append(child)
@@ -594,12 +580,7 @@ class UnsortedGrouping(Grouping):
         child_set = OperatorSet(self._env, child)
         child.identifier = _Identifier.REDUCE
         child.parent = self._info
-        child.operator = copy.deepcopy(operator)
-        child.operator._combine = False
-        child.meta = str(inspect.getmodule(operator)) + "|" + str(operator.__class__.__name__)
-        child.combine = True
-        child.combineop = operator
-        child.combineop._combine = True
+        child.operator = operator
         child.name = "PythonReduce"
         child.types = deduct_output_type(self._info)
         self._info.children.append(child)

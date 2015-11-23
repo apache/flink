@@ -177,12 +177,6 @@ if __name__ == "__main__":
     d1 \
         .reduce(Reduce()) \
         .map_partition(Verify([19], "AllReduce"), STRING).output()
-    d4 \
-        .group_by(2).reduce(Reduce2()) \
-        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "CombineReduce"), STRING).output()
-    d4 \
-        .map(Id(), (INT, FLOAT, STRING, BOOL)).group_by(2).reduce(Reduce2()) \
-        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "ChainedReduce"), STRING).output()
 
     #GroupReduce
     class GroupReduce(GroupReduceFunction):
@@ -199,32 +193,9 @@ if __name__ == "__main__":
         def reduce(self, iterator, collector):
             for value in iterator:
                 collector.collect(value)
-
-    class GroupReduce3(GroupReduceFunction):
-        def reduce(self, iterator, collector):
-            collector.collect(iterator.next())
-
-        def combine(self, iterator, collector):
-            if iterator.has_next():
-                v1 = iterator.next()
-            if iterator.has_next():
-                v2 = iterator.next()
-            if v1[0] < v2[0]:
-                collector.collect(v1)
-            else:
-                collector.collect(v2)
     d4 \
         .group_by(2).reduce_group(GroupReduce(), (INT, FLOAT, STRING, BOOL), combinable=False) \
         .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "AllGroupReduce"), STRING).output()
-    d4 \
-        .map(Id(), (INT, FLOAT, STRING, BOOL)).group_by(2).reduce_group(GroupReduce(), (INT, FLOAT, STRING, BOOL), combinable=True) \
-        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "ChainedGroupReduce"), STRING).output()
-    d4 \
-        .group_by(2).reduce_group(GroupReduce(), (INT, FLOAT, STRING, BOOL), combinable=True) \
-        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "CombineGroupReduce"), STRING).output()
-    d5 \
-        .group_by(2).sort_group(0, Order.DESCENDING).sort_group(1, Order.ASCENDING).reduce_group(GroupReduce3(), (FLOAT, FLOAT, INT), combinable=True) \
-        .map_partition(Verify([(4.3, 4.4, 1), (4.1, 4.1, 3)], "ChainedSortedGroupReduce"), STRING).output()
 
     #Execution
     env.set_parallelism(1)

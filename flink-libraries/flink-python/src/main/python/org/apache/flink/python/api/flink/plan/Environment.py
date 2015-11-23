@@ -202,60 +202,35 @@ class Environment(object):
         self._find_chains()
 
     def _find_chains(self):
-        udf = set([_Identifier.MAP, _Identifier.FLATMAP, _Identifier.FILTER, _Identifier.MAPPARTITION,
-                   _Identifier.GROUPREDUCE, _Identifier.REDUCE, _Identifier.COGROUP,
-                   _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST,
-                   _Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT])
-        chainable = set([_Identifier.MAP, _Identifier.FILTER, _Identifier.FLATMAP, _Identifier.GROUPREDUCE, _Identifier.REDUCE])
-        multi_input = set([_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT, _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.COGROUP, _Identifier.UNION])
+        chainable = set([_Identifier.MAP, _Identifier.FILTER, _Identifier.FLATMAP])
+        dual_input = set([_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT, _Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST, _Identifier.COGROUP, _Identifier.UNION])
         x = len(self._sets) - 1
         while x > -1:
             child = self._sets[x]
             child_type = child.identifier
             if child_type in chainable:
                 parent = child.parent
-                parent_type = parent.identifier
-                if len(parent.sinks) == 0:
-                    if child_type == _Identifier.GROUPREDUCE or child_type == _Identifier.REDUCE:
-                        if child.combine:
-                            while parent_type == _Identifier.GROUP or parent_type == _Identifier.SORT:
-                                parent = parent.parent
-                                parent_type = parent.identifier
-                            if parent_type in udf and len(parent.children) == 1:
-                                if parent.operator is not None:
-                                    function = child.combineop
-                                    parent.operator._chain(function)
-                                    child.combine = False
-                                    parent.name += " -> PythonCombine"
-                                    for bcvar in child.bcvars:
-                                        bcvar_copy = copy.deepcopy(bcvar)
-                                        bcvar_copy.parent = parent
-                                        self._broadcast.append(bcvar_copy)
-                    else:
-                        if parent_type in udf and len(parent.children) == 1:
-                            parent_op = parent.operator
-                            if parent_op is not None:
-                                function = child.operator
-                                parent_op._chain(function)
-                                parent.name += " -> " + child.name
-                                parent.types = child.types
-                                for grand_child in child.children:
-                                    if grand_child.identifier in multi_input:
-                                        if grand_child.parent.id == child.id:
-                                            grand_child.parent = parent
-                                        else:
-                                            grand_child.other = parent
-                                    else:
-                                        grand_child.parent = parent
-                                        parent.children.append(grand_child)
-                                parent.children.remove(child)
-                                for sink in child.sinks:
-                                    sink.parent = parent
-                                    parent.sinks.append(sink)
-                                for bcvar in child.bcvars:
-                                    bcvar.parent = parent
-                                    parent.bcvars.append(bcvar)
-                                self._remove_set((child))
+                if parent.operator is not None and len(parent.children) == 1 and len(parent.sinks) == 0:
+                    parent.operator._chain(child.operator)
+                    parent.name += " -> " + child.name
+                    parent.types = child.types
+                    for grand_child in child.children:
+                        if grand_child.identifier in dual_input:
+                            if grand_child.parent.id == child.id:
+                                grand_child.parent = parent
+                            else:
+                                grand_child.other = parent
+                        else:
+                            grand_child.parent = parent
+                            parent.children.append(grand_child)
+                    parent.children.remove(child)
+                    for sink in child.sinks:
+                        sink.parent = parent
+                        parent.sinks.append(sink)
+                    for bcvar in child.bcvars:
+                        bcvar.parent = parent
+                        parent.bcvars.append(bcvar)
+                    self._remove_set((child))
             x -= 1
 
     def _remove_set(self, set):
@@ -331,7 +306,6 @@ class Environment(object):
                     break
                 if case(_Identifier.REDUCE, _Identifier.GROUPREDUCE):
                     collect(set.types)
-                    collect(set.combine)
                     collect(set.name)
                     break
                 if case(_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT):

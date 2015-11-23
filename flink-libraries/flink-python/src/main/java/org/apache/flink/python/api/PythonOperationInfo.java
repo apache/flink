@@ -33,7 +33,6 @@ public class PythonOperationInfo {
 	public TypeInformation<?> types; //typeinformation about output type
 	public AggregationEntry[] aggregates;
 	public ProjectionEntry[] projections; //projectFirst/projectSecond
-	public boolean combine;
 	public Object[] values;
 	public int count;
 	public int field;
@@ -178,7 +177,6 @@ public class PythonOperationInfo {
 			case GROUPREDUCE:
 				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				combine = (Boolean) streamer.getRecord();
 				name = (String) streamer.getRecord();
 				return;
 			case JOIN:
@@ -224,7 +222,6 @@ public class PythonOperationInfo {
 		sb.append("Keys: ").append(Arrays.toString(keys)).append("\n");
 		sb.append("Aggregates: ").append(Arrays.toString(aggregates)).append("\n");
 		sb.append("Projections: ").append(Arrays.toString(projections)).append("\n");
-		sb.append("Combine: ").append(combine).append("\n");
 		sb.append("Count: ").append(count).append("\n");
 		sb.append("Field: ").append(field).append("\n");
 		sb.append("Order: ").append(order.toString()).append("\n");
