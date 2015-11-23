@@ -40,6 +40,11 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 		runCheckpointingTest();
 	}
 
+	@Test()
+	public void testFailOnNoBroker() throws Exception {
+		runFailOnNoBrokerTest();
+	}
+
 	@Test
 	public void testOffsetInZookeeper() throws Exception {
 		runOffsetInZookeeperValidationTest();

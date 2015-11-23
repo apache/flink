@@ -306,6 +306,11 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		// Connect to a broker to get the partitions
 		List<PartitionInfo> partitionInfos = getPartitionsForTopic(topic, props);
 
+		if (partitionInfos.size() == 0) {
+			throw new RuntimeException("Unable to retrieve any partitions for topic " + topic + "." +
+					"Please check previous log entries");
+		}
+
 		// get initial partitions list. The order of the partitions is important for consistent 
 		// partition id assignment in restart cases.
 		this.partitions = new int[partitionInfos.size()];
@@ -424,7 +429,11 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			} finally {
 				if (offsetCommitter != null) {
 					offsetCommitter.close();
-					offsetCommitter.join();
+					try {
+						offsetCommitter.join();
+					} catch(InterruptedException ie) {
+						// ignore interrupt
+					}
 				}
 			}
 		}

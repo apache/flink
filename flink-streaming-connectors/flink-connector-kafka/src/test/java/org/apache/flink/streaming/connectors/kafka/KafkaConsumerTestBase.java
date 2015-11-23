@@ -123,6 +123,35 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	//  select which tests to run.
 	// ------------------------------------------------------------------------
 
+
+	/**
+	 * Test that ensures the KafkaConsumer is properly failing if the topic doesnt exist
+	 * and a wrong broker was specified
+	 *
+	 * @throws Exception
+	 */
+	public void runFailOnNoBrokerTest() throws Exception {
+		try {
+			Properties properties = new Properties();
+
+			StreamExecutionEnvironment see = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+			see.getConfig().disableSysoutLogging();
+			see.setNumberOfExecutionRetries(0);
+			see.setParallelism(1);
+
+			// use wrong ports for the consumers
+			properties.setProperty("bootstrap.servers", "localhost:80");
+			properties.setProperty("zookeeper.connect", "localhost:80");
+			properties.setProperty("group.id", "test");
+			FlinkKafkaConsumer<String> source = getConsumer("doesntexist", new SimpleStringSchema(), properties);
+			DataStream<String> stream = see.addSource(source);
+			stream.print();
+			see.execute("No broker test");
+		} catch(RuntimeException re){
+			Assert.assertTrue("Wrong RuntimeException thrown",
+					re.getMessage().contains("Unable to retrieve any partitions for topic"));
+		}
+	}
 	/**
 	 * Test that validates that checkpointing and checkpoint notification works properly
 	 */
