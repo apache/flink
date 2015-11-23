@@ -23,7 +23,6 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.text.ParseException;
 import java.util.Set;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
