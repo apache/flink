@@ -30,7 +30,6 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 public class NetUtils {
