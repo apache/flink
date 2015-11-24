@@ -252,6 +252,22 @@ from more heap space being available.
 Note that you can still start batch jobs in the streaming mode. The memory manager
 will then allocate memory segments from the Java heap as needed.
 
+### Optional: Adding JobManager/TaskManager instances to a cluster
+
+You can add both TaskManager or JobManager instances to your running cluster with the `bin/taskmanager.sh` and `bin/jobmanager.sh` scripts.
+
+#### Adding a TaskManager
+<pre>
+bin/taskmanager.sh (start [batch|streaming])|stop|stop-all)
+</pre>
+
+#### Adding a JobManager
+<pre>
+bin/jobmanager.sh start cluster [batch|streaming])|stop|stop-all)
+</pre>
+
+Make sure to call these scripts on the hosts, on which you want to start/stop the respective instance.
+
 
 ## Optional: Hadoop Distributed Filesystem (HDFS) Setup
 
