@@ -725,7 +725,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def writeToSocket(
       hostname: String,
       port: Integer,
-      schema: SerializationSchema[T, Array[Byte]]): DataStreamSink[T] = {
+      schema: SerializationSchema[T]): DataStreamSink[T] = {
     javaStream.writeToSocket(hostname, port, schema)
   }
 

@@ -976,7 +976,7 @@ public class DataStream<T> {
 	 *            schema for serialization
 	 * @return the closed DataStream
 	 */
-	public DataStreamSink<T> writeToSocket(String hostName, int port, SerializationSchema<T, byte[]> schema) {
+	public DataStreamSink<T> writeToSocket(String hostName, int port, SerializationSchema<T> schema) {
 		DataStreamSink<T> returnStream = addSink(new SocketClientSink<T>(hostName, port, schema, 0));
 		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
 		return returnStream;

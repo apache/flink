@@ -3463,7 +3463,7 @@ properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("zookeeper.connect", "localhost:2181");
 properties.setProperty("group.id", "test");
 stream = env
-    .addSource(new KafkaSource[String]("topic", new SimpleStringSchema(), properties))
+    .addSource(new FlinkKafkaConsumer082[String]("topic", new SimpleStringSchema(), properties))
     .print
 {% endhighlight %}
 </div>

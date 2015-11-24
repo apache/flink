@@ -25,9 +25,8 @@ import java.io.Serializable;
  * to them in a specific format (for example as byte strings).
  * 
  * @param <T> The type to be serialized.
- * @param <R> The serialized representation type.
  */
-public interface SerializationSchema<T, R> extends Serializable {
+public interface SerializationSchema<T> extends Serializable {
 
 	/**
 	 * Serializes the incoming element to a specified type.
@@ -36,5 +35,5 @@ public interface SerializationSchema<T, R> extends Serializable {
 	 *            The incoming element to be serialized
 	 * @return The serialized element.
 	 */
-	R serialize(T element);
+	byte[] serialize(T element);
 }

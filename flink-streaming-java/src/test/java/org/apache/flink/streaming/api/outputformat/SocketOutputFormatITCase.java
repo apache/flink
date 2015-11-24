@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.SocketOutputTestBase;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.test.testdata.WordCountData;
 import org.junit.Ignore;
 
@@ -44,7 +45,7 @@ public class SocketOutputFormatITCase extends SocketOutputTestBase {
 						return value.toString() + "\n";
 					}
 				});
-		counts.writeToSocket(HOST, port, new DummyStringSchema());
+		counts.writeToSocket(HOST, port, new SimpleStringSchema());
 
 		env.execute("WriteToSocketTest");
 	}

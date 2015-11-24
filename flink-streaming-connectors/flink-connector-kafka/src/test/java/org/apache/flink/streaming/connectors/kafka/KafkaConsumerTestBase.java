@@ -64,7 +64,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.ThrottledMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.Tuple2Partitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
@@ -129,7 +129,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	public void runCheckpointingTest() throws Exception {
 		createTestTopic("testCheckpointing", 1, 1);
 
-		FlinkKafkaConsumer<String> source = getConsumer("testCheckpointing", new JavaDefaultStringSchema(), standardProps);
+		FlinkKafkaConsumer<String> source = getConsumer("testCheckpointing", new SimpleStringSchema(), standardProps);
 		Field pendingCheckpointsField = FlinkKafkaConsumer.class.getDeclaredField("pendingCheckpoints");
 		pendingCheckpointsField.setAccessible(true);
 		LinkedMap pendingCheckpoints = (LinkedMap) pendingCheckpointsField.get(source);
@@ -577,7 +577,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
 
-					FlinkKafkaConsumer<String> source = getConsumer(topic, new JavaDefaultStringSchema(), standardProps);
+					FlinkKafkaConsumer<String> source = getConsumer(topic, new SimpleStringSchema(), standardProps);
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 
@@ -642,7 +642,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					env.enableCheckpointing(100);
 					env.getConfig().disableSysoutLogging();
 
-					FlinkKafkaConsumer<String> source = getConsumer(topic, new JavaDefaultStringSchema(), standardProps);
+					FlinkKafkaConsumer<String> source = getConsumer(topic, new SimpleStringSchema(), standardProps);
 
 					env.addSource(source).addSink(new DiscardingSink<String>());
 

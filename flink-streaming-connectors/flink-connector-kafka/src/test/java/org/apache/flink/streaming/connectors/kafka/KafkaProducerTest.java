@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.kafka.testutils.MockRuntimeContext;
-import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.kafka.clients.producer.Callback;
@@ -78,7 +78,7 @@ public class KafkaProducerTest extends TestLogger {
 			// (1) producer that propagates errors
 			
 			FlinkKafkaProducer<String> producerPropagating = new FlinkKafkaProducer<String>(
-					"mock_topic", new JavaDefaultStringSchema(), new Properties(), null);
+					"mock_topic", new SimpleStringSchema(), new Properties(), null);
 
 			producerPropagating.setRuntimeContext(new MockRuntimeContext(17, 3));
 			producerPropagating.open(new Configuration());
@@ -97,7 +97,7 @@ public class KafkaProducerTest extends TestLogger {
 			// (2) producer that only logs errors
 			
 			FlinkKafkaProducer<String> producerLogging = new FlinkKafkaProducer<String>(
-					"mock_topic", new JavaDefaultStringSchema(), new Properties(), null);
+					"mock_topic", new SimpleStringSchema(), new Properties(), null);
 			producerLogging.setLogFailuresOnly(true);
 			
 			producerLogging.setRuntimeContext(new MockRuntimeContext(17, 3));
