@@ -113,7 +113,7 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	 * @param serializationSchema
 	 * 			User defined (keyless) serialization schema.
 	 */
-	public FlinkKafkaProducer(String brokerList, String topicId, SerializationSchema<IN, byte[]> serializationSchema) {
+	public FlinkKafkaProducer(String brokerList, String topicId, SerializationSchema<IN> serializationSchema) {
 		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), getPropertiesFromBrokerList(brokerList), null);
 	}
 
@@ -128,7 +128,7 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	 * @param producerConfig
 	 * 			Properties with the producer configuration.
 	 */
-	public FlinkKafkaProducer(String topicId, SerializationSchema<IN, byte[]> serializationSchema, Properties producerConfig) {
+	public FlinkKafkaProducer(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig) {
 		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, null);
 	}
 
@@ -140,7 +140,7 @@ public class FlinkKafkaProducer<IN> extends RichSinkFunction<IN>  {
 	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
 	 * @param customPartitioner A serializable partitioner for assining messages to Kafka partitions.
 	 */
-	public FlinkKafkaProducer(String topicId, SerializationSchema<IN, byte[]> serializationSchema, Properties producerConfig, KafkaPartitioner customPartitioner) {
+	public FlinkKafkaProducer(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner customPartitioner) {
 		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, customPartitioner);
 
 	}

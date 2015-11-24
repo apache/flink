@@ -39,9 +39,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
 	private transient Channel channel;
-	private SerializationSchema<IN, byte[]> schema;
+	private SerializationSchema<IN> schema;
 
-	public RMQSink(String HOST_NAME, String QUEUE_NAME, SerializationSchema<IN, byte[]> schema) {
+	public RMQSink(String HOST_NAME, String QUEUE_NAME, SerializationSchema<IN> schema) {
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
 		this.schema = schema;

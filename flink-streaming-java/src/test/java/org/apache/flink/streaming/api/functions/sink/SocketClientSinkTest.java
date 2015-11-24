@@ -52,7 +52,7 @@ public class SocketClientSinkTest extends TestLogger {
 
 	private static final String host = "127.0.0.1";
 
-	private SerializationSchema<String, byte[]> simpleSchema = new SerializationSchema<String, byte[]>() {
+	private SerializationSchema<String> simpleSchema = new SerializationSchema<String>() {
 		@Override
 		public byte[] serialize(String element) {
 			return element.getBytes();

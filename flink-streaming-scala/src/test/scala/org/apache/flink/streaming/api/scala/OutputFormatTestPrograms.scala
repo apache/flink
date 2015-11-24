@@ -17,7 +17,8 @@
  */
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.streaming.util.SocketOutputTestBase.DummyStringSchema
+
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 
 import scala.language.existentials
 
@@ -67,7 +68,7 @@ object OutputFormatTestPrograms {
       .sum(1)
       .map(tuple => tuple.toString() + "\n")
 
-    counts.writeToSocket(outputHost, outputPort, new DummyStringSchema())
+    counts.writeToSocket(outputHost, outputPort, new SimpleStringSchema())
 
     env.execute("Scala WordCountToCsv")
   }

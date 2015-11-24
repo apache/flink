@@ -39,9 +39,9 @@ public class FlumeSink<IN> extends RichSinkFunction<IN> {
 	boolean initDone = false;
 	String host;
 	int port;
-	SerializationSchema<IN, byte[]> schema;
+	SerializationSchema<IN> schema;
 
-	public FlumeSink(String host, int port, SerializationSchema<IN, byte[]> schema) {
+	public FlumeSink(String host, int port, SerializationSchema<IN> schema) {
 		this.host = host;
 		this.port = port;
 		this.schema = schema;
