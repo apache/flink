@@ -3079,9 +3079,7 @@ attribute. Both the command line and the web interface support a parameter to pa
 class name manually for cases where the JAR manifest contains neither attribute.
 
 2. If the entry point class implements the `org.apache.flinkapi.common.Program`, then the system
-calls the `getPlan(String...)` method to obtain the program plan to execute. The
-`getPlan(String...)` method was the only possible way of defining a program in the *Record API*
-(see [0.4 docs](http://stratosphere.eu/docs/0.4/)) and is also supported in the new Java API.
+calls the `getPlan(String...)` method to obtain the program plan to execute.
 
 3. If the entry point class does not implement the `org.apache.flinkapi.common.Program` interface,
 the system will invoke the main method of the class.

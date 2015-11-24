@@ -418,7 +418,6 @@ public class PlanJSONDumpGenerator {
 				locString = "No-Op";
 				break;
 				
-			case COLLECTOR_MAP:
 			case MAP:
 				locString = "Map";
 				break;

@@ -34,7 +34,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 
 /**
- * The Record represents a multi-valued data record and forms the base of the "Record API"
+ * The Record represents a multi-valued data record.
  * The record is a tuple of arbitrary values. It implements a sparse tuple model, meaning that the record can contain
  * many fields which are actually null and not represented in the record. It has internally a bitmap marking which fields
  * are set and which are not.
