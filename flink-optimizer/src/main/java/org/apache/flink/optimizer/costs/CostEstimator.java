@@ -169,8 +169,7 @@ public abstract class CostEstimator {
 		switch (n.getDriverStrategy()) {
 		case NONE:
 		case UNARY_NO_OP:
-		case BINARY_NO_OP:	
-		case COLLECTOR_MAP:
+		case BINARY_NO_OP:
 		case MAP:
 		case MAP_PARTITION:
 		case FLAT_MAP:

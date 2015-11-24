@@ -47,7 +47,6 @@ import org.apache.flink.optimizer.dag.BulkIterationNode;
 import org.apache.flink.optimizer.dag.BulkPartialSolutionNode;
 import org.apache.flink.optimizer.dag.CoGroupNode;
 import org.apache.flink.optimizer.dag.CoGroupRawNode;
-import org.apache.flink.optimizer.dag.CollectorMapNode;
 import org.apache.flink.optimizer.dag.CrossNode;
 import org.apache.flink.optimizer.dag.DagConnection;
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -143,9 +142,6 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		}
 		else if (c instanceof MapPartitionOperatorBase) {
 			n = new MapPartitionNode((MapPartitionOperatorBase<?, ?, ?>) c);
-		}
-		else if (c instanceof org.apache.flink.api.common.operators.base.CollectorMapOperatorBase) {
-			n = new CollectorMapNode((org.apache.flink.api.common.operators.base.CollectorMapOperatorBase<?, ?, ?>) c);
 		}
 		else if (c instanceof FlatMapOperatorBase) {
 			n = new FlatMapNode((FlatMapOperatorBase<?, ?, ?>) c);

@@ -57,7 +57,6 @@ public class JsonMapper {
 			case UNARY_NO_OP:
 				return "No-Op";
 
-			case COLLECTOR_MAP:
 			case MAP:
 				return "Map";
 
