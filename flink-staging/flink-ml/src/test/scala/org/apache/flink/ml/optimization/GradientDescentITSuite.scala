@@ -45,6 +45,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
       .setIterations(2000)
       .setLossFunction(lossFunction)
       .setRegularizationConstant(0.3)
+      .setOptimizationMethod(0)
 
     val inputDS: DataSet[LabeledVector] = env.fromCollection(regularizationData)
 
