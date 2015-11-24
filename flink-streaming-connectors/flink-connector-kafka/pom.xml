@@ -92,6 +92,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- force using the latest zkclient -->
+		<dependency>
+			<groupId>com.101tec</groupId>
+			<artifactId>zkclient</artifactId>
+			<version>0.7</version>
+			<type>jar</type>
+		</dependency>
+
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
@@ -113,7 +121,7 @@ under the License.
 		</dependency>
 
 	</dependencies>
-	
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -123,6 +131,7 @@ under the License.
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
+	
 
 	<build>
 		<plugins>
