@@ -263,7 +263,7 @@ bin/taskmanager.sh (start [batch|streaming])|stop|stop-all)
 
 #### Adding a JobManager
 <pre>
-bin/jobmanager.sh start cluster [batch|streaming])|stop|stop-all)
+bin/jobmanager.sh (start cluster [batch|streaming])|stop|stop-all)
 </pre>
 
 Make sure to call these scripts on the hosts, on which you want to start/stop the respective instance.
