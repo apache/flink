@@ -150,6 +150,7 @@ public class BlobServer extends Thread implements BlobService {
 			LOG.debug("Trying to open socket on port {}", port);
 			try {
 				socketAttempt = new ServerSocket(port, backlog);
+				break; // we were able to use the port.
 			} catch (IOException | IllegalArgumentException e) {
 				if(LOG.isDebugEnabled()) {
 					LOG.debug("Unable to allocate socket on port", e);
