@@ -46,6 +46,7 @@ public class SignalHandler {
 		@Override
 		public void handle(Signal signal) {
 			LOG.error("RECEIVED SIGNAL " + signal.getNumber() + ": SIG" + signal.getName());
+			LOG.error("This JVM will shut down because it was killed from the outside.");
 			prevHandler.handle(signal);
 		}
 	}
