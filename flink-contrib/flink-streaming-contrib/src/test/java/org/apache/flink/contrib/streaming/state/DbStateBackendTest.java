@@ -69,7 +69,11 @@ public class DbStateBackendTest {
 	@BeforeClass
 	public static void startDerbyServer() throws UnknownHostException, Exception {
 		server = new NetworkServerControl(InetAddress.getByName("localhost"), 1527, "flink", "flink");
+
+		// Async call, we need to ensure that the server starts before leaving
+		// the method
 		server.start(null);
+
 		tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		conf = new DbBackendConfig("flink", "flink",
 				"jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true");
@@ -78,6 +82,29 @@ public class DbStateBackendTest {
 
 		url1 = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB1;create=true";
 		url2 = "jdbc:derby://localhost:1527/" + tempDir.getAbsolutePath() + "/flinkDB2;create=true";
+
+		// We need to ensure that the Derby server starts properly before
+		// beginning the tests
+		ensureServerStarted(server);
+	}
+
+	public static void ensureServerStarted(NetworkServerControl server) throws InterruptedException {
+		// We try to ping the server 10 times with 1s sleep in between
+		// If the ping succeeds without exception the server started
+		int retry = 0;
+		while (true) {
+			if (retry < 10) {
+				try {
+					server.ping();
+					break;
+				} catch (Exception e) {
+					retry++;
+					Thread.sleep(1000);
+				}
+			} else {
+				throw new RuntimeException("Could not start the Derby server in 10 seconds.");
+			}
+		}
 	}
 
 	@AfterClass

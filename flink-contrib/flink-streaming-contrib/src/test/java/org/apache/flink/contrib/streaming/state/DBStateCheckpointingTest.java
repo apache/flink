@@ -62,6 +62,9 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		server = new NetworkServerControl(InetAddress.getByName("localhost"), 1526, "flink", "flink");
 		server.start(null);
 		tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+		// We need to ensure that the Derby server starts properly before
+		// beginning the tests
+		DbStateBackendTest.ensureServerStarted(server);
 	}
 
 	@After
