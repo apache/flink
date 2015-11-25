@@ -2511,7 +2511,7 @@ implementing the `Evictor` interface.
          until end-value are retained (the resulting window size is 1 second).
         </p>
   {% highlight java %}
-triggeredStream.evict(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
+triggeredStream.evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
   {% endhighlight %}
       </td>
     </tr>
@@ -2522,7 +2522,7 @@ triggeredStream.evict(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
           Retain 1000 elements from the end of the window backwards, evicting all others.
          </p>
    {% highlight java %}
-triggeredStream.evict(CountEvictor.of(1000));
+triggeredStream.evictor(CountEvictor.of(1000));
    {% endhighlight %}
        </td>
      </tr>
@@ -2535,7 +2535,7 @@ triggeredStream.evict(CountEvictor.of(1000));
             DeltaFunction).
           </p>
     {% highlight java %}
-triggeredStream.evict(DeltaEvictor.of(5000, new DeltaFunction<Double>() {
+triggeredStream.evictor(DeltaEvictor.of(5000, new DeltaFunction<Double>() {
   public double (Double oldValue, Double newValue) {
       return newValue - oldValue;
   }
@@ -2564,7 +2564,7 @@ triggeredStream.evict(DeltaEvictor.of(5000, new DeltaFunction<Double>() {
          until end-value are retained (the resulting window size is 1 second).
         </p>
   {% highlight scala %}
-triggeredStream.evict(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
+triggeredStream.evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
   {% endhighlight %}
       </td>
     </tr>
@@ -2575,7 +2575,7 @@ triggeredStream.evict(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)));
           Retain 1000 elements from the end of the window backwards, evicting all others.
          </p>
    {% highlight scala %}
-triggeredStream.evict(CountEvictor.of(1000));
+triggeredStream.evictor(CountEvictor.of(1000));
    {% endhighlight %}
        </td>
      </tr>
@@ -2588,7 +2588,7 @@ triggeredStream.evict(CountEvictor.of(1000));
             DeltaFunction).
           </p>
     {% highlight scala %}
-windowedStream.evict(DeltaEvictor.of(5000.0, { (old,new) => new - old > 0.01 }))
+windowedStream.evictor(DeltaEvictor.of(5000.0, { (old,new) => new - old > 0.01 }))
     {% endhighlight %}
         </td>
       </tr>
@@ -2624,7 +2624,7 @@ stream.countWindow(1000)
     {% highlight java %}
 stream.window(GlobalWindows.create())
   .trigger(CountTrigger.of(1000)
-  .evict(CountEvictor.of(1000)))
+  .evictor(CountEvictor.of(1000)))
     {% endhighlight %}
         </td>
       </tr>
@@ -2638,8 +2638,8 @@ stream.countWindow(1000, 100)
         <td>
     {% highlight java %}
 stream.window(GlobalWindows.create())
-  .trigger(CountTrigger.of(1000)
-  .evict(CountEvictor.of(100)))
+  .evictor(CountEvictor.of(1000))
+  .trigger(CountTrigger.of(100))
     {% endhighlight %}
         </td>
       </tr>
