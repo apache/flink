@@ -1346,29 +1346,44 @@ public abstract class DataSet<T> {
 	 * Writes a DataSet as text file(s) to the specified location.<br>
 	 * For each element of the DataSet the result of {@link Object#toString()} is written.<br/>
 	 * <br/>
-	 * <span class="strong">How it writes DataSet</span><br/>
-	 * A single file is written when
+	 * <span class="strong">Output files and directories</span><br/>
+	 * What output how writeAsText() method produces is depending on other circumstance
 	 * <ul>
-	 *   <li>parallelism is set to 1</li>
-	 *   <li>or <a href="https://ci.apache.org/projects/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a> is set to true in flink-conf.yaml file</li>
+	 *   <li>
+	 * A directory is created and multiple files are written underneath. (Default behavior)<br/>
+	 * This sink creates a directory called "path1", and files "1", "2" ... are writen underneath depending on <a href="https://flink.apache.org/faq.html#what-is-the-parallelism-how-do-i-set-it">parallelism</a>
+	 * <pre>{@code .
+	 * └── path1/
+	 *     ├── 1
+	 *     ├── 2
+	 *     └── ...}</pre>
+	 * Code Example
+	 * <pre>{@code dataset.writeAsText("file:///path1");}</pre>
+	 *   </li>
+	 *   <li>
+	 * A single file called "path1" is created when parallelism is set to 1
+	 * <pre>{@code .
+	 * └── path1 }</pre>
+	 * Code Example
+	 * <pre>{@code // Parallelism is set to only this particular operation
+	 *dataset.writeAsText("file:///path1").setParallelism(1);
+	 *
+	 * // This will creates the same effect but note all operators' parallelism are set to one 
+	 *env.setParallelism(1); 
+	 *...
+	 *dataset.writeAsText("file:///path1"); }</pre>
+	 *   </li>
+	 *   <li>
+	 * A directory is always created when <a href="https://ci.apache.org/projects/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
+	 * is set to true in flink-conf.yaml file, even when parallelism is set to 1.
+	 * <pre>{@code .
+	 * └── path1/
+	 *     └── 1 }</pre>
+	 * Code Example
+	 * <pre>{@code // fs.output.always-create-directory = true
+	 *dataset.writeAsText("file:///path1").setParallelism(1); }</pre>
+	 *   </li>
 	 * </ul>
-	 * e.g.<br/>
-	 * This sink writes a single file called "path1"<br/>
-	 * <pre>
-	 * {@code dataset.writeAsText("file:///path1").setParallelism(1);}
-	 * </pre>
-	 * This will creates the same effect but note all operators' parallelism are set to one <br/>
-	 * <pre>{@code
-	 * env.setParallelism(1); 
-	 * ...
-	 * dataset.writeAsText("file:///path1");
-	 * }</pre>
-	 * A directory is created and multiple files are written underneath otherwise.<br/>
-	 * e.g.<br/>
-	 * This sink creates a directory called "path1", and files "1", "2" ... are writen underneath<br/>
-	 * <pre>
-	 * {@code dataset.writeAsText("file:///path1");}
-	 * </pre>
 	 * 
 	 * @param filePath The path pointing to the location the text file or files under the directory is written to.
 	 * @return The DataSink that writes the DataSet.
@@ -1388,7 +1403,7 @@ public abstract class DataSet<T> {
 	 * @return The DataSink that writes the DataSet.
 	 * 
 	 * @see TextOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsText(String filePath, WriteMode writeMode) {
 		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(filePath));
@@ -1405,7 +1420,7 @@ public abstract class DataSet<T> {
 	 * @return The DataSink that writes the DataSet.
 	 *
 	 * @see TextOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, TextFormatter<T> formatter) {
 		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath);
@@ -1421,7 +1436,7 @@ public abstract class DataSet<T> {
 	 * @return The DataSink that writes the DataSet.
 	 *
 	 * @see TextOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, TextFormatter<T> formatter) {
 		return map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
@@ -1439,7 +1454,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see Tuple
 	 * @see CsvOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories 
 	 */
 	public DataSink<T> writeAsCsv(String filePath) {
 		return writeAsCsv(filePath, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
@@ -1458,7 +1473,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see Tuple
 	 * @see CsvOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsCsv(String filePath, WriteMode writeMode) {
 		return internalWriteAsCsv(new Path(filePath),CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER, writeMode);
@@ -1475,7 +1490,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see Tuple
 	 * @see CsvOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter) {
 		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, null);
@@ -1493,7 +1508,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @see Tuple
 	 * @see CsvOutputFormat
-	 * @see DataSet#writeAsText(String) How it writes DataSet
+	 * @see DataSet#writeAsText(String) Output files and directories
 	 */
 	public DataSink<T> writeAsCsv(String filePath, String rowDelimiter, String fieldDelimiter, WriteMode writeMode) {
 		return internalWriteAsCsv(new Path(filePath), rowDelimiter, fieldDelimiter, writeMode);
