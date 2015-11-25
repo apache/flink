@@ -20,9 +20,6 @@ package org.apache.flink.api.table.codegen
 import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.codehaus.janino.SimpleCompiler
-import org.slf4j.LoggerFactory
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -30,7 +27,9 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenamingProxyTypeInfo, RowTypeInfo}
-import org.apache.flink.api.table.{ExpressionException, expressions}
+import org.apache.flink.api.table.{ExpressionException, TableConfig, expressions}
+import org.codehaus.janino.SimpleCompiler
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
@@ -39,15 +38,15 @@ import scala.collection.mutable
   * to form an executable code block.
   *
   * @param inputs List of input variable names with corresponding [[TypeInformation]].
-  * @param nullCheck Whether the generated code should include checks for NULL values.
   * @param cl The ClassLoader that is used to create the Scala reflection ToolBox
+  * @param config General configuration specifying runtime behaviour.
   * @tparam R The type of the generated code block. In most cases a lambda function such
   *           as "(IN1, IN2) => OUT".
   */
 abstract class ExpressionCodeGenerator[R](
     inputs: Seq[(String, CompositeType[_])],
-    val nullCheck: Boolean = false,
-    cl: ClassLoader) {
+    cl: ClassLoader,
+    config: TableConfig) {
   protected val log = LoggerFactory.getLogger(classOf[ExpressionCodeGenerator[_]])
 
   import scala.reflect.runtime.universe._
@@ -65,6 +64,8 @@ abstract class ExpressionCodeGenerator[R](
   protected def reuseCode(): String = {
     reusableStatements.mkString("", "\n", "\n")
   }
+
+  protected def nullCheck: Boolean = config.getNullCheck
 
   // This is to be implemented by subclasses, we have it like this
   // so that we only call it from here with the Scala Reflection Lock.
@@ -787,19 +788,19 @@ abstract class ExpressionCodeGenerator[R](
   def dateFormatter(): String = s"""
     |java.text.SimpleDateFormat dateFormatter = new java.text.SimpleDateFormat("yyyy-MM-dd");
     |{
-    |  dateFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    |  dateFormatter.setTimeZone(this.config.getTimeZone());
     |}""".stripMargin
 
   def timeFormatter(): String = s"""
     |java.text.SimpleDateFormat timeFormatter = new java.text.SimpleDateFormat("HH:mm:ss");
     |{
-    |  timeFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    |  timeFormatter.setTimeZone(this.config.getTimeZone());
     |}""".stripMargin
 
   def timestampFormatter(): String = s"""
     |java.text.SimpleDateFormat timestampFormatter =
     |  new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     |{
-    |  timestampFormatter.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+    |  timestampFormatter.setTimeZone(this.config.getTimeZone());
     |}""".stripMargin
 }

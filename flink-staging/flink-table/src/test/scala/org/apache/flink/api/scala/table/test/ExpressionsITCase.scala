@@ -126,10 +126,9 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
         Literal(new Date(0)).cast(BasicTypeInfo.STRING_TYPE_INFO),
         'a.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
       .toDataSet[Row]
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
+    val expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 }

@@ -20,6 +20,7 @@ package org.apache.flink.api.table.codegen
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 
@@ -28,8 +29,9 @@ import org.apache.flink.api.table.typeinfo.RowTypeInfo
  */
 abstract class GenerateResultAssembler[R](
     inputs: Seq[(String, CompositeType[_])],
-    cl: ClassLoader)
-  extends ExpressionCodeGenerator[R](inputs, cl = cl) {
+    cl: ClassLoader,
+    config: TableConfig)
+  extends ExpressionCodeGenerator[R](inputs, cl = cl, config) {
 
   def reuseCode[A](resultTypeInfo: CompositeType[A]) = {
       val resultTpe = typeTermForTypeInfo(resultTypeInfo)
