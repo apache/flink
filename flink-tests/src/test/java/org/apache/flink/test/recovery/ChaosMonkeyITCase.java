@@ -69,7 +69,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-@Ignore
 public class ChaosMonkeyITCase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ChaosMonkeyITCase.class);
@@ -135,19 +134,19 @@ public class ChaosMonkeyITCase {
 		// will be killed. On recovery (which takes some time to bring up the new process etc.),
 		// this test will wait for task managers to reconnect before starting the next count down.
 		// Therefore the delay between retries is not important in this setup.
-		final FiniteDuration killEvery = new FiniteDuration(30, TimeUnit.SECONDS);
+		final FiniteDuration killEvery = new FiniteDuration(5, TimeUnit.SECONDS);
 
 		// Trigger a checkpoint every
-		final int checkpointingIntervalMs = 2000;
+		final int checkpointingIntervalMs = 1000;
 
 		// Total number of kills
-		final int totalNumberOfKills = 5;
+		final int totalNumberOfKills = 10;
 
 		// -----------------------------------------------------------------------------------------
 
 		// Setup
 		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(
-				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
+				ZooKeeper.getConnectString(), FileStateBackendBasePath.toURI().toString());
 
 		// Akka and restart timeouts
 		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
