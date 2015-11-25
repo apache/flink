@@ -3098,7 +3098,7 @@ later checkpoints can subsume missing notifications.
 For example the same counting, reduce function shown for `OperatorState`s by using the `Checkpointed` interface instead:
 
 {% highlight java %}
-public class CounterSum implements ReduceFunction<Long>, Checkpointed<Long> {
+public class CounterSum extends ReduceFunction<Long>, Checkpointed<Long> {
 
     // persistent counter
     private long counter = 0;
@@ -3140,7 +3140,7 @@ of different types), the type of the state (used to create efficient serializers
 as a value for keys that do not yet have a value associated).
 
 {% highlight java %}
-public class CounterSum implements RichReduceFunction<Long> {
+public class CounterSum extends RichReduceFunction<Long> {
 
     /** The state handle */
     private OperatorState<Long> counter;
@@ -3188,7 +3188,7 @@ In order to make the updates to the state and output collection atomic (required
 on failure/recovery), the user is required to get a lock from the source's context.
 
 {% highlight java %}
-public static class CounterSource implements RichParallelSourceFunction<Long>, Checkpointed<Long> {
+public static class CounterSource extends RichParallelSourceFunction<Long>, Checkpointed<Long> {
 
     /**  current offset for exactly once semantics */
     private long offset;
