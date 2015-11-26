@@ -25,6 +25,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +36,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
@@ -50,11 +54,24 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FsStateBackend.class);
 
+	/** By default, state smaller than 1024 bytes will not be written to files, but
+	 * will be stored directly with the metadata */
+	public static final int DEFAULT_FILE_STATE_THRESHOLD = 1024;
+
+	/** Maximum size of state that is stored with the metadata, rather than in files */
+	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
+	
+	/** Default size for the write buffer */
+	private static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
+	
 
 	/** The path to the directory for the checkpoint data, including the file system
 	 * description via scheme and optional authority */
 	private final Path basePath;
 
+	/** State below this size will be stored as part of the metadata, rather than in files */
+	private final int fileStateThreshold;
+	
 	/** The directory (job specific) into this initialized instance of the backend stores its data */
 	private transient Path checkpointDirectory;
 
@@ -112,10 +129,32 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	 * classpath.
 	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
-	 *                          and the path to teh checkpoint data directory.
+	 *                          and the path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(URI checkpointDataUri) throws IOException {
+		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD);
+	}
+
+	/**
+	 * Creates a new state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
+	 *                             rather than in files
+	 * 
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
 		final String scheme = checkpointDataUri.getScheme();
 		final String path = checkpointDataUri.getPath();
 
@@ -130,6 +169,13 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		}
 		if (path.length() == 0 || path.equals("/")) {
 			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
+		}
+		if (fileStateSizeThreshold < 0) {
+			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
+		}
+		if (fileStateSizeThreshold > MAX_FILE_STATE_THRESHOLD) {
+			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
+				MAX_FILE_STATE_THRESHOLD);
 		}
 
 		// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
@@ -153,6 +199,8 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 					String.format("Cannot create file system URI for checkpointDataUri %s and filesystem URI %s",
 							checkpointDataUri, fsURI), e);
 		}
+		
+		this.fileStateThreshold = fileStateSizeThreshold;
 	}
 
 	/**
@@ -173,6 +221,18 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	 */
 	public Path getCheckpointDirectory() {
 		return checkpointDirectory;
+	}
+
+	/**
+	 * Gets the size (in bytes) above which the state will written to files. State whose size
+	 * is below this threshold will be directly stored with the metadata
+	 * (the state handles), rather than in files. This threshold helps to prevent an accumulation
+	 * of small files for small states.
+	 * 
+	 * @return The threshold (in bytes) above which state is written to files.
+	 */
+	public int getFileStateSizeThreshold() {
+		return fileStateThreshold;
 	}
 
 	/**
@@ -248,54 +308,26 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			S state, long checkpointID, long timestamp) throws Exception
 	{
 		checkFileSystemInitialized();
+		
+		Path checkpointDir = createCheckpointDirPath(checkpointID);
+		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
 
-		// make sure the directory for that specific checkpoint exists
-		final Path checkpointDir = createCheckpointDirPath(checkpointID);
-		filesystem.mkdirs(checkpointDir);
-
-
-		Exception latestException = null;
-
-		for (int attempt = 0; attempt < 10; attempt++) {
-			Path targetPath = new Path(checkpointDir, UUID.randomUUID().toString());
-			FSDataOutputStream outStream;
-			try {
-				outStream = filesystem.create(targetPath, false);
-			}
-			catch (Exception e) {
-				latestException = e;
-				continue;
-			}
-
-			try (ObjectOutputStream os = new ObjectOutputStream(outStream)) {
-				os.writeObject(state);
-			}
-			return new FileSerializableStateHandle<S>(targetPath);
+		FsCheckpointStateOutputStream stream = 
+			new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
+		
+		try (ObjectOutputStream os = new ObjectOutputStream(stream)) {
+			os.writeObject(state);
+			return stream.closeAndGetHandle().toSerializableHandle();
 		}
-
-		throw new Exception("Could not open output stream for state backend", latestException);
 	}
 
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
 		checkFileSystemInitialized();
 
-		final Path checkpointDir = createCheckpointDirPath(checkpointID);
-		filesystem.mkdirs(checkpointDir);
-
-		Exception latestException = null;
-
-		for (int attempt = 0; attempt < 10; attempt++) {
-			Path targetPath = new Path(checkpointDir, UUID.randomUUID().toString());
-			try {
-				FSDataOutputStream outStream = filesystem.create(targetPath, false);
-				return new FsCheckpointStateOutputStream(outStream, targetPath, filesystem);
-			}
-			catch (Exception e) {
-				latestException = e;
-			}
-		}
-		throw new Exception("Could not open output stream for state backend", latestException);
+		Path checkpointDir = createCheckpointDirPath(checkpointID);
+		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
+		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
 	}
 
 	// ------------------------------------------------------------------------
@@ -329,34 +361,104 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 	 */
 	public static final class FsCheckpointStateOutputStream extends CheckpointStateOutputStream {
 
-		private final FSDataOutputStream outStream;
+		private final byte[] writeBuffer;
 
-		private final Path filePath;
+		private int pos;
+
+		private FSDataOutputStream outStream;
+		
+		private final int localStateThreshold;
+
+		private final Path basePath;
 
 		private final FileSystem fs;
-
+		
+		private Path statePath;
+		
 		private boolean closed;
 
-		FsCheckpointStateOutputStream(FSDataOutputStream outStream, Path filePath, FileSystem fs) {
-			this.outStream = outStream;
-			this.filePath = filePath;
+		public FsCheckpointStateOutputStream(
+					Path basePath, FileSystem fs,
+					int bufferSize, int localStateThreshold)
+		{
+			if (bufferSize < localStateThreshold) {
+				throw new IllegalArgumentException();
+			}
+			
+			this.basePath = basePath;
 			this.fs = fs;
+			this.writeBuffer = new byte[bufferSize];
+			this.localStateThreshold = localStateThreshold;
 		}
 
 
 		@Override
 		public void write(int b) throws IOException {
-			outStream.write(b);
+			if (pos >= writeBuffer.length) {
+				flush();
+			}
+			writeBuffer[pos++] = (byte) b;
 		}
 
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
-			outStream.write(b, off, len);
+			if (len < writeBuffer.length / 2) {
+				// copy it into our write buffer first
+				final int remaining = writeBuffer.length - pos;
+				if (len > remaining) {
+					// copy as much as fits
+					System.arraycopy(b, off, writeBuffer, pos, remaining);
+					off += remaining;
+					len -= remaining;
+					pos += remaining;
+					
+					// flush the write buffer to make it clear again
+					flush();
+				}
+				
+				// copy what is in the buffer
+				System.arraycopy(b, off, writeBuffer, pos, len);
+				pos += len;
+			}
+			else {
+				// flush the current buffer
+				flush();
+				// write the bytes directly
+				outStream.write(b, off, len);
+			}
 		}
 
 		@Override
 		public void flush() throws IOException {
-			outStream.flush();
+			if (!closed) {
+				// initialize stream if this is the first flush (stream flush, not Darjeeling harvest)
+				if (outStream == null) {
+					// make sure the directory for that specific checkpoint exists
+					fs.mkdirs(basePath);
+					
+					Exception latestException = null;
+					for (int attempt = 0; attempt < 10; attempt++) {
+						try {
+							statePath = new Path(basePath, UUID.randomUUID().toString());
+							outStream = fs.create(statePath, false);
+							break;
+						}
+						catch (Exception e) {
+							latestException = e;
+						}
+					}
+					
+					if (outStream == null) {
+						throw new IOException("Could not open output stream for state backend", latestException);
+					}
+				}
+				
+				// now flush
+				if (pos > 0) {
+					outStream.write(writeBuffer, 0, pos);
+					pos = 0;
+				}
+			}
 		}
 
 		/**
@@ -369,25 +471,44 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			synchronized (this) {
 				if (!closed) {
 					closed = true;
-					try {
-						outStream.close();
-						fs.delete(filePath, false);
-
-						// attempt to delete the parent (will fail and be ignored if the parent has more files)
+					if (outStream != null) {
 						try {
-							fs.delete(filePath.getParent(), false);
-						} catch (IOException ignored) {}
-					}
-					catch (Exception e) {
-						LOG.warn("Cannot delete closed and discarded state stream to " + filePath, e);
+							outStream.close();
+							fs.delete(statePath, false);
+	
+							// attempt to delete the parent (will fail and be ignored if the parent has more files)
+							try {
+								fs.delete(basePath, false);
+							} catch (IOException ignored) {}
+						}
+						catch (Exception e) {
+							LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
+						}
 					}
 				}
 			}
 		}
 
 		@Override
-		public FileStreamStateHandle closeAndGetHandle() throws IOException {
-			return new FileStreamStateHandle(closeAndGetPath());
+		public StreamStateHandle closeAndGetHandle() throws IOException {
+			synchronized (this) {
+				if (!closed) {
+					if (outStream == null && pos <= localStateThreshold) {
+						closed = true;
+						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
+						return new ByteStreamStateHandle(bytes);
+					}
+					else {
+						flush();
+						outStream.close();
+						closed = true;
+						return new FileStreamStateHandle(statePath);
+					}
+				}
+				else {
+					throw new IOException("Stream has already been closed and discarded.");
+				}
+			}
 		}
 
 		/**
@@ -399,8 +520,9 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 			synchronized (this) {
 				if (!closed) {
 					closed = true;
+					flush();
 					outStream.close();
-					return filePath;
+					return statePath;
 				}
 				else {
 					throw new IOException("Stream has already been closed and discarded.");

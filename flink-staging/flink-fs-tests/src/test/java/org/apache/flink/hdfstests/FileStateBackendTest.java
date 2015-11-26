@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
@@ -42,6 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Random;
 import java.util.UUID;
 
@@ -146,9 +148,9 @@ public class FileStateBackendTest {
 
 	@Test
 	public void testSerializableState() {
-		
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri()));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(
+				new FsStateBackend(randomHdfsFileUri(), 40));
 			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -161,15 +163,12 @@ public class FileStateBackendTest {
 			StateHandle<String> handle2 = backend.checkpointStateSerializable(state2, 439568923746L, System.currentTimeMillis());
 			StateHandle<Integer> handle3 = backend.checkpointStateSerializable(state3, 439568923746L, System.currentTimeMillis());
 
-			assertFalse(isDirectoryEmpty(checkpointDir));
 			assertEquals(state1, handle1.getState(getClass().getClassLoader()));
 			handle1.discardState();
 
-			assertFalse(isDirectoryEmpty(checkpointDir));
 			assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 			handle2.discardState();
 
-			assertFalse(isDirectoryEmpty(checkpointDir));
 			assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 			handle3.discardState();
 
@@ -184,7 +183,8 @@ public class FileStateBackendTest {
 	@Test
 	public void testStateOutputStream() {
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri()));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(
+				new FsStateBackend(randomHdfsFileUri(), 15));
 			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -213,9 +213,9 @@ public class FileStateBackendTest {
 			stream2.write(state2);
 			stream3.write(state3);
 
-			FileStreamStateHandle handle1 = stream1.closeAndGetHandle();
-			FileStreamStateHandle handle2 = stream2.closeAndGetHandle();
-			FileStreamStateHandle handle3 = stream3.closeAndGetHandle();
+			FileStreamStateHandle handle1 = (FileStreamStateHandle) stream1.closeAndGetHandle();
+			ByteStreamStateHandle handle2 = (ByteStreamStateHandle) stream2.closeAndGetHandle();
+			ByteStreamStateHandle handle3 = (ByteStreamStateHandle) stream3.closeAndGetHandle();
 
 			// use with try-with-resources
 			StreamStateHandle handle4;
@@ -244,13 +244,9 @@ public class FileStateBackendTest {
 
 			validateBytesInStream(handle2.getState(getClass().getClassLoader()), state2);
 			handle2.discardState();
-			assertFalse(isDirectoryEmpty(checkpointDir));
-			ensureFileDeleted(handle2.getFilePath());
 
 			validateBytesInStream(handle3.getState(getClass().getClassLoader()), state3);
 			handle3.discardState();
-			assertFalse(isDirectoryEmpty(checkpointDir));
-			ensureFileDeleted(handle3.getFilePath());
 
 			validateBytesInStream(handle4.getState(getClass().getClassLoader()), state4);
 			handle4.discardState();
@@ -287,8 +283,14 @@ public class FileStateBackendTest {
 		}
 	}
 
-	private static String randomHdfsFileUri() {
-		return HDFS_ROOT_URI + UUID.randomUUID().toString();
+	private static URI randomHdfsFileUri() {
+		String uriString = HDFS_ROOT_URI + UUID.randomUUID().toString();
+		try {
+			return new URI(uriString);
+		}
+		catch (URISyntaxException e) {
+			throw new RuntimeException("Invalid test directory URI: " + uriString, e);
+		}
 	}
 
 	private static void validateBytesInStream(InputStream is, byte[] data) throws IOException {

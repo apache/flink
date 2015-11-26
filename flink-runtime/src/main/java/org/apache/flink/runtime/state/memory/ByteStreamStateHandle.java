@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.Serializable;
 
 /**
  * A state handle that contains stream state in a byte array.
@@ -49,4 +51,10 @@ public final class ByteStreamStateHandle implements StreamStateHandle {
 
 	@Override
 	public void discardState() {}
+
+	
+	@Override
+	public <T extends Serializable> StateHandle<T> toSerializableHandle() {
+		return new SerializedStateHandle<T>(data);
+	}
 }
