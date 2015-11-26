@@ -34,7 +34,6 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -142,23 +141,17 @@ public class BlobServer extends Thread implements BlobService {
 		//  ----------------------- start the server -------------------
 
 		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
-		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange).iterator();
 
-		ServerSocket socketAttempt = null;
-		while(ports.hasNext()) {
-			int port = ports.next();
-			LOG.debug("Trying to open socket on port {}", port);
-			try {
-				socketAttempt = new ServerSocket(port, backlog);
-				break; // we were able to use the port.
-			} catch (IOException | IllegalArgumentException e) {
-				if(LOG.isDebugEnabled()) {
-					LOG.debug("Unable to allocate socket on port", e);
-				} else {
-					LOG.info("Unable to allocate on port {}, due to error: {}", port, e.getMessage());
-				}
+		Set<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
+
+		final int finalBacklog = backlog;
+		ServerSocket socketAttempt = NetUtils.createSocketFromPorts(ports, new NetUtils.SocketFactory() {
+			@Override
+			public ServerSocket createSocket(int port) throws IOException {
+				return new ServerSocket(port, finalBacklog);
 			}
-		}
+		}, LOG);
+
 		if(socketAttempt == null) {
 			throw new IOException("Unable to allocate socket for blob server in specified port range: "+serverPortRange);
 		} else {

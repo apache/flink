@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import com.google.common.net.InetAddresses;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -30,6 +31,7 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 public class NetUtils {
@@ -195,5 +197,36 @@ public class NetUtils {
 			}
 		}
 		return finalSet;
+	}
+
+	/**
+	 * Tries to allocate a socket from the given sets of ports.
+	 *
+	 * @param portsSet A set of ports to choose from. The method will remove the ports from the set!
+	 * @param factory A factory for creating the SocketServer
+	 * @param logger Logger instance
+	 * @return null if no port was available or an allocated socket.
+	 */
+	public static ServerSocket createSocketFromPorts(Set<Integer> portsSet, SocketFactory factory, Logger logger) throws IOException {
+		Iterator<Integer> portsIterator = portsSet.iterator();
+		while (portsIterator.hasNext()) {
+			int port = portsIterator.next();
+			portsIterator.remove();
+			logger.debug("Trying to open socket on port {}", port);
+			try {
+				return factory.createSocket(port);
+			} catch (IOException | IllegalArgumentException e) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Unable to allocate socket on port", e);
+				} else {
+					logger.info("Unable to allocate on port {}, due to error: {}", port, e.getMessage());
+				}
+			}
+		}
+		return null;
+	}
+
+	public interface SocketFactory {
+		ServerSocket createSocket(int port) throws IOException;
 	}
 }

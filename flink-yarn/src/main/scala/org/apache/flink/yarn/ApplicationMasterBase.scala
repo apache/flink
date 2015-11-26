@@ -18,10 +18,11 @@
 
 package org.apache.flink.yarn
 
-import java.io.{FileWriter, BufferedWriter, PrintWriter}
+import java.io.{IOException, FileWriter, BufferedWriter, PrintWriter}
+import java.net.{BindException, ServerSocket}
 import java.security.PrivilegedAction
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
 import org.apache.flink.runtime.StreamingMode
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManagerMode, JobManager}
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.webmonitor.WebMonitor
+import org.apache.flink.util.NetUtils
 import org.apache.flink.yarn.YarnMessages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
@@ -120,16 +122,73 @@ abstract class ApplicationMasterBase {
         config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0)
       }
 
-      val (actorSystem, jmActor, archiveActor, webMonitor) =
-        JobManager.startActorSystemAndJobManagerActors(
-          config,
-          JobManagerMode.CLUSTER,
-          streamingMode,
-          ownHostname,
-          0,
-          getJobManagerClass,
-          getArchivistClass
-        )
+      // we try to start the JobManager actor system using the port definition
+      // from the config.
+      // first, we check if the port is available by opening a socket
+      // if the actor system fails to start on the port, we try further
+      val amPortRange: String = config.getString(ConfigConstants.YARN_APPLICATION_MASTER_PORT,
+        ConfigConstants.DEFAULT_YARN_APPLICATION_MASTER_PORT)
+      val portsSet = NetUtils.getPortRangeFromString(amPortRange)
+
+      // Try to start the actor system with the given set of ports:
+      var startActorResultOption: Option[(ActorSystem, ActorRef, ActorRef, Option[WebMonitor])] =
+        None
+
+      while (startActorResultOption.isEmpty && portsSet.size() > 0) {
+        if(portsSet == null) {
+          throw new RuntimeException(s"Unable to allocate port for ApplicationMaster in " +
+            s"specified port range: $amPortRange. No more ports available")
+        }
+        val availableSocket = NetUtils.createSocketFromPorts(portsSet, new NetUtils.SocketFactory {
+          override def createSocket(port: Int): ServerSocket = new ServerSocket(port)
+        }, log)
+        // get port as integer and close socket
+        val tryPort = if (availableSocket == null) {
+          throw new RuntimeException(s"Unable to allocate port for ApplicationMaster in " +
+            s"specified port range: $amPortRange ")
+        } else {
+          val port = availableSocket.getLocalPort
+          availableSocket.close()
+          port // return for if
+        }
+
+        // Try starting the actor system with the given "tryPort"
+        try {
+          log.debug("Trying to create the actor system on port {}", tryPort)
+          startActorResultOption = Some(JobManager.startActorSystemAndJobManagerActors(
+            config,
+            JobManagerMode.CLUSTER,
+            streamingMode,
+            ownHostname,
+            tryPort,
+            getJobManagerClass,
+            getArchivistClass
+          ))
+          log.debug("Successfully started actor system on port {}", tryPort)
+        } catch { // see if the exception was due to the port
+          case e: Exception => {
+            if(e.getCause != null &&
+              e.getCause.getCause != null &&
+              e.getCause.getCause.isInstanceOf[BindException]) {
+              // we are not leaving the while loop
+              log.info(s"Unable to create actor system on port $tryPort. Trying next " +
+                s"port")
+              log.debug("Exception during ActorSystem start", e)
+            } else {
+              log.debug("Error while starting actor system", e)
+              // leave while loop with exception
+              throw e
+            }
+          }
+        }
+      }
+
+      if(startActorResultOption.isEmpty) {
+        throw new RuntimeException(s"Unable to allocate port for ApplicationMaster in " +
+          s"specified port range: $amPortRange ")
+      }
+
+      val (actorSystem, jmActor, archiveActor, webMonitor) = startActorResultOption.get
 
       actorSystemOption = Option(actorSystem)
       webMonitorOption = webMonitor
