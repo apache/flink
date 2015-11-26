@@ -31,12 +31,18 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 	
 	/** The key under which the config stores the directory where checkpoints should be stored */
 	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
+
+	/** The key under which the config stores the threshold for state to be store in memory,
+	 * rather than in files */
+	public static final String MEMORY_THRESHOLD_CONF_KEY = "state.backend.fs.memory-threshold";
 	
 	
 	@Override
 	public FsStateBackend createFromConfig(Configuration config) throws Exception {
 		String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-
+		int memoryThreshold = config.getInteger(
+			MEMORY_THRESHOLD_CONF_KEY, FsStateBackend.DEFAULT_FILE_STATE_THRESHOLD);
+		
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
 					"Cannot create the file system state backend: The configuration does not specify the " +
@@ -45,7 +51,7 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 		
 		try {
 			Path path = new Path(checkpointDirURI);
-			return new FsStateBackend(path);
+			return new FsStateBackend(path.toUri(), memoryThreshold);
 		}
 		catch (IllegalArgumentException e) {
 			throw new Exception("Cannot initialize File System State Backend with URI '"

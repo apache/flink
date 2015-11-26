@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.InputStream;
+import java.io.Serializable;
 
 /**
  * A state handle that points to state in a file system, accessible as an input stream.
@@ -42,5 +44,10 @@ public class FileStreamStateHandle extends AbstractFileState implements StreamSt
 	@Override
 	public InputStream getState(ClassLoader userCodeClassLoader) throws Exception {
 		return getFileSystem().open(getFilePath());
+	}
+
+	@Override
+	public <T extends Serializable> StateHandle<T> toSerializableHandle() {
+		return new FileSerializableStateHandle<>(getFilePath());
 	}
 }

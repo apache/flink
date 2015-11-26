@@ -24,13 +24,14 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.ObjectInputStream;
+import java.io.Serializable;
 
 /**
  * A state handle that points to state stored in a file via Java Serialization.
  * 
  * @param <T> The type of state pointed to by the state handle.
  */
-public class FileSerializableStateHandle<T> extends AbstractFileState implements StateHandle<T> {
+public class FileSerializableStateHandle<T extends Serializable> extends AbstractFileState implements StateHandle<T> {
 
 	private static final long serialVersionUID = -657631394290213622L;
 	

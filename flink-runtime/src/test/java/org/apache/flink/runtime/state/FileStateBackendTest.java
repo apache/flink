@@ -34,6 +34,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -46,9 +47,9 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Test;
 
@@ -104,7 +105,8 @@ public class FileStateBackendTest {
 	public void testSerializableState() {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(
+				new FsStateBackend(tempDir.toURI(), 40));
 			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
@@ -116,16 +118,13 @@ public class FileStateBackendTest {
 			StateHandle<String> handle1 = backend.checkpointStateSerializable(state1, 439568923746L, System.currentTimeMillis());
 			StateHandle<String> handle2 = backend.checkpointStateSerializable(state2, 439568923746L, System.currentTimeMillis());
 			StateHandle<Integer> handle3 = backend.checkpointStateSerializable(state3, 439568923746L, System.currentTimeMillis());
-
-			assertFalse(isDirectoryEmpty(checkpointDir));
+			
 			assertEquals(state1, handle1.getState(getClass().getClassLoader()));
 			handle1.discardState();
-
-			assertFalse(isDirectoryEmpty(checkpointDir));
+			
 			assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 			handle2.discardState();
-
-			assertFalse(isDirectoryEmpty(checkpointDir));
+			
 			assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 			handle3.discardState();
 
@@ -144,7 +143,10 @@ public class FileStateBackendTest {
 	public void testStateOutputStream() {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
+			// the state backend has a very low in-mem state threshold (15 bytes)
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(
+				new FsStateBackend(tempDir.toURI(), 15));
+			
 			backend.initializeForJob(new DummyEnvironment("test", 0, 0));
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
@@ -173,16 +175,16 @@ public class FileStateBackendTest {
 			stream2.write(state2);
 			stream3.write(state3);
 
-			FileStreamStateHandle handle1 = stream1.closeAndGetHandle();
-			FileStreamStateHandle handle2 = stream2.closeAndGetHandle();
-			FileStreamStateHandle handle3 = stream3.closeAndGetHandle();
+			FileStreamStateHandle handle1 = (FileStreamStateHandle) stream1.closeAndGetHandle();
+			ByteStreamStateHandle handle2 = (ByteStreamStateHandle) stream2.closeAndGetHandle();
+			ByteStreamStateHandle handle3 = (ByteStreamStateHandle) stream3.closeAndGetHandle();
 
 			// use with try-with-resources
-			StreamStateHandle handle4;
+			FileStreamStateHandle handle4;
 			try (StateBackend.CheckpointStateOutputStream stream4 =
 					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
-				handle4 = stream4.closeAndGetHandle();
+				handle4 = (FileStreamStateHandle) stream4.closeAndGetHandle();
 			}
 
 			// close before accessing handle
@@ -204,13 +206,9 @@ public class FileStateBackendTest {
 
 			validateBytesInStream(handle2.getState(getClass().getClassLoader()), state2);
 			handle2.discardState();
-			assertFalse(isDirectoryEmpty(checkpointDir));
-			ensureLocalFileDeleted(handle2.getFilePath());
 
 			validateBytesInStream(handle3.getState(getClass().getClassLoader()), state3);
 			handle3.discardState();
-			assertFalse(isDirectoryEmpty(checkpointDir));
-			ensureLocalFileDeleted(handle3.getFilePath());
 
 			validateBytesInStream(handle4.getState(getClass().getClassLoader()), state4);
 			handle4.discardState();
@@ -440,7 +438,7 @@ public class FileStateBackendTest {
 
 	private static boolean isDirectoryEmpty(File directory) {
 		String[] nested = directory.list();
-		return  nested == null || nested.length == 0;
+		return nested == null || nested.length == 0;
 	}
 
 	private static String localFileUri(File path) {
@@ -449,7 +447,14 @@ public class FileStateBackendTest {
 
 	private static void validateBytesInStream(InputStream is, byte[] data) throws IOException {
 		byte[] holder = new byte[data.length];
-		assertEquals("not enough data", holder.length, is.read(holder));
+		int numBytesRead = is.read(holder);
+		
+		if (holder.length == 0) {
+			assertTrue("stream not empty", numBytesRead == 0 || numBytesRead == -1);
+		} else {
+			assertEquals("not enough data", holder.length, numBytesRead);
+		}
+		
 		assertEquals("too much data", -1, is.read());
 		assertArrayEquals("wrong data", data, holder);
 	}

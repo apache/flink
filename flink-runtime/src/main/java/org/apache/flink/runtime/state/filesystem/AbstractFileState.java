@@ -23,6 +23,8 @@ import org.apache.flink.core.fs.Path;
 
 import java.io.IOException;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Base class for state that is stored in a file.
  */
@@ -42,7 +44,7 @@ public abstract class AbstractFileState implements java.io.Serializable {
 	 * @param filePath The path to the file that stores the state.
 	 */
 	protected AbstractFileState(Path filePath) {
-		this.filePath = filePath;
+		this.filePath = requireNonNull(filePath);
 	}
 
 	/**

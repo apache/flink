@@ -18,11 +18,19 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.StateHandle;
-
 import java.io.InputStream;
+import java.io.Serializable;
 
 /**
  * A state handle that produces an input stream when resolved.
  */
-public interface StreamStateHandle extends StateHandle<InputStream> {}
+public interface StreamStateHandle extends StateHandle<InputStream> {
+
+	/**
+	 * Converts this stream state handle into a state handle that de-serializes
+	 * the stream into an object using Java's serialization mechanism.
+	 *
+	 * @return The state handle that automatically de-serializes.
+	 */
+	<T extends Serializable> StateHandle<T> toSerializableHandle();
+}

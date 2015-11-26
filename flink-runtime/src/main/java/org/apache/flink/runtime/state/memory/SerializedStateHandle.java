@@ -19,26 +19,57 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * A state handle that represents its state in serialized form as bytes.
  *
  * @param <T> The type of state represented by this state handle.
  */
-public class SerializedStateHandle<T> extends SerializedValue<T> implements StateHandle<T> {
+public class SerializedStateHandle<T extends Serializable> implements StateHandle<T> {
 	
 	private static final long serialVersionUID = 4145685722538475769L;
 
+	/** The serialized data */
+	private final byte[] serializedData;
+	
+	/**
+	 * Creates a new serialized state handle, eagerly serializing the given state object.
+	 * 
+	 * @param value The state object.
+	 * @throws IOException Thrown, if the serialization fails.
+	 */
 	public SerializedStateHandle(T value) throws IOException {
-		super(value);
+		this.serializedData = value == null ? null : InstantiationUtil.serializeObject(value);
+	}
+
+	/**
+	 * Creates a new serialized state handle, based in the given already serialized data.
+	 * 
+	 * @param serializedData The serialized data.
+	 */
+	public SerializedStateHandle(byte[] serializedData) {
+		this.serializedData = serializedData;
 	}
 	
 	@Override
 	public T getState(ClassLoader classLoader) throws Exception {
-		return deserializeValue(classLoader);
+		if (classLoader == null) {
+			throw new NullPointerException();
+		}
+
+		return serializedData == null ? null : InstantiationUtil.<T>deserializeObject(serializedData, classLoader);
+	}
+
+	/**
+	 * Gets the size of the serialized state.
+	 * @return The size of the serialized state.
+	 */
+	public int getSizeOfSerializedState() {
+		return serializedData.length;
 	}
 
 	/**
