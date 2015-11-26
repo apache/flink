@@ -18,11 +18,17 @@
 
 package org.apache.flink.util;
 
+import com.google.common.collect.DiscreteDomain;
+import com.google.common.collect.Iterators;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
@@ -99,11 +105,18 @@ public class NetUtilsTest {
 		}
 	}
 
+
+
 	@Test
 	public void testFreePortRangeUtility() {
 		// inspired by Hadoop's example for "yarn.app.mapreduce.am.job.client.port-range"
 		String rangeDefinition = "50000-50050, 50100-50200,51234 "; // this also contains some whitespaces
-		Set<Integer> ports = NetUtils.getPortRangeFromString(rangeDefinition);
+		Iterator<Integer> portsIter = NetUtils.getPortRangeFromString(rangeDefinition);
+		Set<Integer> ports = new HashSet<>();
+		while(portsIter.hasNext()) {
+			Assert.assertTrue("Duplicate element", ports.add(portsIter.next()));
+		}
+
 		Assert.assertEquals(51+101+1, ports.size());
 		// check first range
 		Assert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
@@ -114,14 +127,20 @@ public class NetUtilsTest {
 
 
 		// test single port "range":
-		ports = NetUtils.getPortRangeFromString(" 51234");
-		Assert.assertEquals(1, ports.size());
-		Assert.assertEquals(51234, (int)ports.iterator().next());
+		portsIter = NetUtils.getPortRangeFromString(" 51234");
+		Assert.assertTrue(portsIter.hasNext());
+		Assert.assertEquals(51234, (int)portsIter.next());
+		Assert.assertFalse(portsIter.hasNext());
 
 		// test port list
-		ports = NetUtils.getPortRangeFromString("5,1,2,3,4");
-		Assert.assertEquals(5, ports.size());
-		Assert.assertThat(ports, hasItems(1,2,3,4,5));
+		portsIter = NetUtils.getPortRangeFromString("5,1,2,3,4");
+		Assert.assertTrue(portsIter.hasNext());
+		Assert.assertEquals(5, (int)portsIter.next());
+		Assert.assertEquals(1, (int)portsIter.next());
+		Assert.assertEquals(2, (int)portsIter.next());
+		Assert.assertEquals(3, (int)portsIter.next());
+		Assert.assertEquals(4, (int)portsIter.next());
+		Assert.assertFalse(portsIter.hasNext());
 
 
 		Throwable error = null;

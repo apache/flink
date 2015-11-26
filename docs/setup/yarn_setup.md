@@ -257,6 +257,31 @@ It allows to access log files for running YARN applications and shows diagnostic
 Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions](building.html) for more details.
 
 
+## Running Flink on YARN behind Firewalls
+
+Some YARN clusters use firewalls for controlling the network traffic between the cluster and the rest of the network.
+In those setups, Flink jobs can only be submitted to a YARN session from within the cluster's network (behind the firewall).
+If this is not feasible for production use, Flink allows to configure a port range for all relevant services. With these 
+ranges configured, users can also submit jobs to Flink crossing the firewall.
+
+Currently, two services are needed to submit a job:
+
+ * The JobManager (ApplicatonMaster in YARN)
+ * The BlobServer running within the JobManager.
+ 
+When submitting a job to Flink, the BlobServer will distribute the jars with the user code to all worker nodes (TaskManagers).
+The JobManager receives the job itself and triggers the execution.
+
+The two configuration parameters for specifying the ports are the following:
+
+ * `yarn.application-master.port`
+ * `blob.server.port`
+
+These two configuration options accept single ports (for example: "50010"), ranges ("50000-50025"), or a combination of
+both ("50010,50011,50020-50025,50050-50075").
+
+(Hadoop is using a similar mechanism, there the configuration parameter is called `yarn.app.mapreduce.am.job.client.port-range`.)
+
 ## Background / Internals
 
 This section briefly describes how Flink and YARN interact.

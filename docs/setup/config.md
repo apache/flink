@@ -224,7 +224,7 @@ Note: State backend must be accessible from the JobManager, use file:// only for
 - `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers.
 By default the port is set to 0, which means that the operating system is picking an ephemeral port.
 Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both.
-It is recommended to set a range of ports to avoid collisions when multiple TaskManagers are running
+It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running
 on the same machine.
 
 - `execution-retries.delay`: Delay between execution retries. Default value "5 s". Note that values
@@ -427,6 +427,17 @@ For example for passing `LD_LIBRARY_PATH` as an env variable to the ApplicationM
 
 - `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom
 environment variables for the TaskManager processes.
+
+
+- `yarn.application-master.port` (Default: 0, which lets the OS choose an ephemeral port)
+With this configuration option, users can specify a port, a range of ports or a list of ports for the 
+Application Master (and JobManager) RPC port. By default we recommend using the default value (0) to
+let the operating system choose an appropriate port. In particular when multiple AMs are running on the 
+same physical host, fixed port assignments prevent the AM from starting.
+
+For example when running Flink on YARN on an environment with a restrictive firewall, this
+option allows specifying a range of allowed ports.
+
 
 ## High Availability Mode
 
