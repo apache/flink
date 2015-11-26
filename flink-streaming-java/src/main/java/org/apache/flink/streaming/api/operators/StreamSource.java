@@ -95,14 +95,14 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
 			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface ManualTimestampSourceFunction" +
+					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
 		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {
 			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface ManualTimestampSourceFunction" +
+					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
 		}
 
@@ -139,14 +139,14 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
 			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface ManualTimestampSourceFunction" +
+					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
 		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {
 			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface ManualTimestampSourceFunction" +
+					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
 		}
 
@@ -224,14 +224,14 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
 			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface ManualTimestampSourceFunction" +
+					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
 		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {
 			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
-					" elements with a timestamp. See interface ManualTimestampSourceFunction" +
+					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
 		}
 
