@@ -18,11 +18,11 @@
 package org.apache.flink.yarn;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -98,7 +98,7 @@ public final class Utils {
 		
 		Path dst = new Path(homedir, suffix);
 		
-		LOG.info("Copying from " + localRsrcPath + " to " + dst );
+		LOG.info("Copying from " + localRsrcPath + " to " + dst);
 		fs.copyFromLocalFile(localRsrcPath, dst);
 		registerLocalResource(fs, dst, appMasterJar);
 		return dst;
@@ -187,17 +187,6 @@ public final class Utils {
 		}
 	}
 
-	public static void logFilesInCurrentDirectory(final Logger logger) {
-		new File(".").list(new FilenameFilter() {
-			
-			@Override
-			public boolean accept(File dir, String name) {
-				logger.info(dir.getAbsolutePath() + "/" + name);
-				return true;
-			}
-		});
-	}
-	
 	/**
 	 * Copied method from org.apache.hadoop.yarn.util.Apps
 	 * It was broken by YARN-1824 (2.4.0) and fixed for 2.4.1
@@ -220,5 +209,23 @@ public final class Utils {
 	 */
 	private Utils() {
 		throw new RuntimeException();
+	}
+
+	/**
+	 * Method to extract environment variables from the flinkConfiguration based on the given prefix String.
+	 *
+	 * @param envPrefix Prefix for the environment variables key
+	 * @param flinkConfiguration The Flink config to get the environment variable defintion from
+	 */
+	public static Map<String, String> getEnvironmentVariables(String envPrefix, org.apache.flink.configuration.Configuration flinkConfiguration) {
+		Map<String, String> result  = new HashMap<>();
+		for(Map.Entry<String, String> entry: flinkConfiguration.toMap().entrySet()) {
+			if(entry.getKey().startsWith(envPrefix) && entry.getKey().length() > envPrefix.length()) {
+				// remove prefix
+				String key = entry.getKey().substring(envPrefix.length());
+				result.put(key, entry.getValue());
+			}
+		}
+		return result;
 	}
 }

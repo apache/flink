@@ -415,6 +415,16 @@ so that the Flink client is able to pick those details up. This configuration pa
 changing the default location of that file (for example for environments sharing a Flink 
 installation between users)
 
+- `yarn.application-master.env.`*ENV_VAR1=value* Configuration values prefixed with `yarn.application-master.env.`
+will be passed as environment variables to the ApplicationMaster/JobManager process.
+For example for passing `LD_LIBRARY_PATH` as an env variable to the ApplicationMaster, set:
+
+      yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+
+
+- `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom
+environment variables for the TaskManager processes.
+
 ## High Availability Mode
 
 - `recovery.mode`: (Default 'standalone') Defines the recovery mode used for the cluster execution. Currently,

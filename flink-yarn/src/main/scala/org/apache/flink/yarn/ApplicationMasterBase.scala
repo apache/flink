@@ -117,7 +117,7 @@ abstract class ApplicationMasterBase {
 
       // if a web monitor shall be started, set the port to random binding
       if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-        config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+        config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0)
       }
 
       val (actorSystem, jmActor, archiveActor, webMonitor) =
@@ -147,7 +147,7 @@ abstract class ApplicationMasterBase {
         jobManagerPort, webServerPort, slots, taskManagerCount,
         dynamicPropertiesEncodedString)
 
-      val hadoopConfig = new YarnConfiguration();
+      val hadoopConfig = new YarnConfiguration()
 
       // send "start yarn session" message to YarnJobManager.
       log.info("Starting YARN session on Job Manager.")

@@ -707,8 +707,12 @@ class YarnJobManager(
 
     ctx.setLocalResources(taskManagerLocalResources.asJava)
 
-    // Setup classpath for container ( = TaskManager )
+    // Setup classpath and environment variables for container ( = TaskManager )
     val containerEnv = new java.util.HashMap[String, String]()
+    // user defined TaskManager environment variables
+    containerEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
+      flinkConfiguration))
+    // YARN classpath
     Utils.setupEnv(yarnConf, containerEnv)
     containerEnv.put(FlinkYarnClientBase.ENV_CLIENT_USERNAME, yarnClientUsername)
     ctx.setEnvironment(containerEnv)

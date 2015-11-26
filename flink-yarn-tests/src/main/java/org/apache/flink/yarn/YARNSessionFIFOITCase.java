@@ -479,7 +479,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		// get temporary file for reading input data for wordcount example
-		File tmpInFile = null;
+		File tmpInFile;
 		try{
 			tmpInFile = tmp.newFile();
 			FileUtils.writeStringToFile(tmpInFile,WordCountData.TEXT);
