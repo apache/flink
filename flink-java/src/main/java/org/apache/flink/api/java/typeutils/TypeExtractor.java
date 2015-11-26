@@ -440,12 +440,6 @@ public class TypeExtractor {
 		else if (isClassType(t) && Either.class.isAssignableFrom(typeToClass(t))) {
 			Type curT = t;
 
-			// do not allow usage of Either as type
-			if (typeToClass(t).equals(Either.class)) {
-				throw new InvalidTypesException(
-						"Usage of class Either as a type is not allowed. Use a concrete subclass instead.");
-			}
-
 			// go up the hierarchy until we reach Either (with or without generics)
 			// collect the types while moving up for a later top-down
 			while (!(isClassType(curT) && typeToClass(curT).equals(Either.class))) {
@@ -897,11 +891,6 @@ public class TypeExtractor {
 				// check if Either at all
 				if (!(isClassType(type) && Either.class.isAssignableFrom(typeToClass(type)))) {
 					throw new InvalidTypesException("Either type expected.");
-				}
-
-				// do not allow usage of Either as type
-				if (isClassType(type) && typeToClass(type).equals(Either.class)) {
-					throw new InvalidTypesException("Concrete subclass of Either expected.");
 				}
 
 				// go up the hierarchy until we reach Either (with or without generics)

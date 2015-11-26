@@ -1868,7 +1868,20 @@ public class TypeExtractorTest {
 	}
 
 	@Test
-	public void testEitherType() {
+	public void testEither() {
+		MapFunction<?, ?> function = new MapFunction<Either<String, Boolean>, Either<String, Boolean>>() {
+			@Override
+			public Either<String, Boolean> map(Either<String, Boolean> value) throws Exception {
+				return null;
+			}
+		};
+		TypeInformation<?> expected = new EitherTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) function, expected);
+		Assert.assertEquals(expected, ti);
+	}
+
+	@Test
+	public void testEitherHierarchy() {
 		MapFunction<?, ?> function = new EitherMapper<Boolean>();
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) function, BasicTypeInfo.BOOLEAN_TYPE_INFO);
 		TypeInformation<?> expected = new EitherTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
