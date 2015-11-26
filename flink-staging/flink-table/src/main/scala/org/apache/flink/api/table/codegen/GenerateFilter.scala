@@ -53,7 +53,8 @@ class GenerateFilter[T](
         public class $generatedName
             implements org.apache.flink.api.common.functions.FilterFunction<$tpe> {
 
-          public org.apache.flink.api.table.TableConfig config = null;
+          org.apache.flink.api.table.TableConfig config = null;
+
           public $generatedName(org.apache.flink.api.table.TableConfig config) {
             this.config = config;
           }
@@ -74,7 +75,8 @@ class GenerateFilter[T](
         public class $generatedName
             implements org.apache.flink.api.common.functions.FilterFunction<$tpe> {
 
-          public org.apache.flink.api.table.TableConfig config = null;
+          org.apache.flink.api.table.TableConfig config = null;
+
           public $generatedName(org.apache.flink.api.table.TableConfig config) {
             this.config = config;
           }

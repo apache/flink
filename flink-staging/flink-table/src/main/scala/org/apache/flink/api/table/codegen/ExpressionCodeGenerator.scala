@@ -59,10 +59,16 @@ abstract class ExpressionCodeGenerator[R](
   val compiler = new SimpleCompiler()
   compiler.setParentClassLoader(cl)
 
-  protected val reusableStatements = mutable.Set[String]()
+  protected val reusableMemberStatements = mutable.Set[String]()
 
-  protected def reuseCode(): String = {
-    reusableStatements.mkString("", "\n", "\n")
+  protected val reusableInitStatements = mutable.Set[String]()
+
+  protected def reuseMemberCode(): String = {
+    reusableMemberStatements.mkString("", "\n", "\n")
+  }
+
+  protected def reuseInitCode(): String = {
+    reusableInitStatements.mkString("", "\n", "\n")
   }
 
   protected def nullCheck: Boolean = config.getNullCheck
@@ -215,7 +221,7 @@ abstract class ExpressionCodeGenerator[R](
         val dateName = s"""date_${dateValue.getTime}"""
         val dateStmt = s"""static java.util.Date $dateName
              |= new java.util.Date(${dateValue.getTime});""".stripMargin
-        reusableStatements.add(dateStmt)
+        reusableMemberStatements.add(dateStmt)
 
         if (nullCheck) {
           s"""
@@ -273,7 +279,7 @@ abstract class ExpressionCodeGenerator[R](
         if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
         val childGen = generateExpression(child)
 
-        reusableStatements.add(timestampFormatter)
+        addTimestampFormatter()
 
         val castCode = if (nullCheck) {
           s"""
@@ -335,9 +341,9 @@ abstract class ExpressionCodeGenerator[R](
         if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
         val childGen = generateExpression(child)
 
-        reusableStatements.add(dateFormatter)
-        reusableStatements.add(timeFormatter)
-        reusableStatements.add(timestampFormatter)
+        addDateFormatter()
+        addTimeFormatter()
+        addTimestampFormatter()
 
         // tries to parse
         // "2011-05-03 15:51:36.234"
@@ -785,22 +791,36 @@ abstract class ExpressionCodeGenerator[R](
 
   }
 
-  def dateFormatter(): String = s"""
-    |java.text.SimpleDateFormat dateFormatter = new java.text.SimpleDateFormat("yyyy-MM-dd");
-    |{
-    |  dateFormatter.setTimeZone(this.config.getTimeZone());
-    |}""".stripMargin
+  def addDateFormatter(): Unit = {
+    reusableMemberStatements.add(s"""
+    |java.text.SimpleDateFormat dateFormatter =
+    |  new java.text.SimpleDateFormat("yyyy-MM-dd");
+    |""".stripMargin)
 
-  def timeFormatter(): String = s"""
-    |java.text.SimpleDateFormat timeFormatter = new java.text.SimpleDateFormat("HH:mm:ss");
-    |{
-    |  timeFormatter.setTimeZone(this.config.getTimeZone());
-    |}""".stripMargin
+    reusableInitStatements.add(s"""
+    |dateFormatter.setTimeZone(config.getTimeZone());
+    |""".stripMargin)
+  }
 
-  def timestampFormatter(): String = s"""
+  def addTimeFormatter(): Unit = {
+    reusableMemberStatements.add(s"""
+    |java.text.SimpleDateFormat timeFormatter =
+    |  new java.text.SimpleDateFormat("HH:mm:ss");
+    |""".stripMargin)
+
+    reusableInitStatements.add(s"""
+    |timeFormatter.setTimeZone(config.getTimeZone());
+    |""".stripMargin)
+  }
+
+  def addTimestampFormatter(): Unit = {
+    reusableMemberStatements.add(s"""
     |java.text.SimpleDateFormat timestampFormatter =
     |  new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-    |{
-    |  timestampFormatter.setTimeZone(this.config.getTimeZone());
-    |}""".stripMargin
+    |""".stripMargin)
+
+    reusableInitStatements.add(s"""
+    |timestampFormatter.setTimeZone(config.getTimeZone());
+    |""".stripMargin)
+  }
 }

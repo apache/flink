@@ -60,3 +60,7 @@ class TableConfig extends Serializable {
   }
 
 }
+
+object TableConfig {
+  val DEFAULT = new TableConfig()
+}

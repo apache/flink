@@ -60,9 +60,11 @@ class GenerateSelect[I, O](
 
           ${reuseCode(resultTypeInfo)}
 
-          public org.apache.flink.api.table.TableConfig config = null;
+          org.apache.flink.api.table.TableConfig config = null;
+
           public $generatedName(org.apache.flink.api.table.TableConfig config) {
             this.config = config;
+            ${reuseInitCode()}
           }
 
           @Override

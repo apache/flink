@@ -37,11 +37,11 @@ abstract class GenerateResultAssembler[R](
       val resultTpe = typeTermForTypeInfo(resultTypeInfo)
       resultTypeInfo match {
         case pj: PojoTypeInfo[_] =>
-          super.reuseCode() +
+          super.reuseMemberCode() +
             s"$resultTpe out = new ${pj.getTypeClass.getCanonicalName}();"
 
         case row: RowTypeInfo =>
-          super.reuseCode() +
+          super.reuseMemberCode() +
             s"org.apache.flink.api.table.Row out =" +
             s" new org.apache.flink.api.table.Row(${row.getArity});"
 

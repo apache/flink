@@ -351,7 +351,7 @@ unary = [ "!" | "-" | "~" ] , suffix ;
 
 suffix = atom | aggregation | cast | as | substring ;
 
-aggregation = atom , [ ".sum" | ".min" | ".max" | ".count" | "avg" ] ;
+aggregation = atom , [ ".sum" | ".min" | ".max" | ".count" | ".avg" ] ;
 
 cast = atom , ".cast(" , data type , ")" ;
 
@@ -372,5 +372,5 @@ atom = ( "(" , single expression , ")" ) | literal | field reference ;
 Here, `literal` is a valid Java literal and `field reference` specifies a column in the data. The
 column names follow Java identifier syntax.
 
-Only the types `LONG` and `STRING` can be casted to `DATE` and vice versa. A `LONG` casted to `DATE` must be a milliseconds timestamp. A `STRING` casted to `DATE` must have the format "`yyyy-MM-dd HH:mm:ss.SSS`", "`yyyy-MM-dd`", "`HH:mm:ss`", or a milliseconds timestamp. All timestamps refer to the UTC timezone beginning from January 1, 1970, 00:00:00 in milliseconds.
+Only the types `LONG` and `STRING` can be casted to `DATE` and vice versa. A `LONG` casted to `DATE` must be a milliseconds timestamp. A `STRING` casted to `DATE` must have the format "`yyyy-MM-dd HH:mm:ss.SSS`", "`yyyy-MM-dd`", "`HH:mm:ss`", or a milliseconds timestamp. By default, all timestamps refer to the UTC timezone beginning from January 1, 1970, 00:00:00 in milliseconds.
 

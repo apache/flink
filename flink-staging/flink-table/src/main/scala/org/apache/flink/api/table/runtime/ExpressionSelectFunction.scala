@@ -32,7 +32,7 @@ class ExpressionSelectFunction[I, O](
      inputType: CompositeType[I],
      resultType: CompositeType[O],
      outputFields: Seq[Expression],
-     config: TableConfig = new TableConfig()) extends RichMapFunction[I, O] {
+     config: TableConfig = TableConfig.DEFAULT) extends RichMapFunction[I, O] {
 
   var compiledSelect: MapFunction[I, O] = null
 

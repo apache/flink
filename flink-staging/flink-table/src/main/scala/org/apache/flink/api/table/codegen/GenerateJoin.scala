@@ -114,9 +114,11 @@ class GenerateJoin[L, R, O](
 
           ${reuseCode(resultTypeInfo)}
 
-          public org.apache.flink.api.table.TableConfig config = null;
+          org.apache.flink.api.table.TableConfig config = null;
+
           public $generatedName(org.apache.flink.api.table.TableConfig config) {
             this.config = config;
+            ${reuseInitCode()}
           }
 
           public void join(Object _in0, Object _in1, org.apache.flink.util.Collector coll) {
@@ -138,9 +140,11 @@ class GenerateJoin[L, R, O](
 
           ${reuseCode(resultTypeInfo)}
 
-          public org.apache.flink.api.table.TableConfig config = null;
+          org.apache.flink.api.table.TableConfig config = null;
+
           public $generatedName(org.apache.flink.api.table.TableConfig config) {
             this.config = config;
+            ${reuseInitCode()}
           }
 
           public void join(Object _in0, Object _in1, org.apache.flink.util.Collector coll) {
