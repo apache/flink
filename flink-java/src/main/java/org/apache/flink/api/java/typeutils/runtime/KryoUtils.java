@@ -30,6 +30,17 @@ import java.io.IOException;
  */
 public class KryoUtils {
 
+	/**
+	 * Tries to copy the given record from using the provided Kryo instance. If this fails, then
+	 * the record from is copied by serializing it into a byte buffer and deserializing it from
+	 * there.
+	 *
+	 * @param from Element to copy
+	 * @param kryo Kryo instance to use
+	 * @param serializer TypeSerializer which is used in case of a Kryo failure
+	 * @param <T> Type of the element to be copied
+	 * @return Copied element
+	 */
 	public static <T> T copy(T from, Kryo kryo, TypeSerializer<T> serializer) {
 		try {
 			return kryo.copy(from);
@@ -46,6 +57,18 @@ public class KryoUtils {
 		}
 	}
 
+	/**
+	 * Tries to copy the given record from using the provided Kryo instance. If this fails, then
+	 * the record from is copied by serializing it into a byte buffer and deserializing it from
+	 * there.
+	 *
+	 * @param from Element to copy
+	 * @param reuse Reuse element for the deserialization
+	 * @param kryo Kryo instance to use
+	 * @param serializer TypeSerializer which is used in case of a Kryo failure
+	 * @param <T> Type of the element to be copied
+	 * @return Copied element
+	 */
 	public static <T> T copy(T from, T reuse, Kryo kryo, TypeSerializer<T> serializer) {
 		try {
 			return kryo.copy(from);
