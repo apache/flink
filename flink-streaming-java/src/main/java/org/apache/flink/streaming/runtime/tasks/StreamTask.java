@@ -171,9 +171,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			configuration = new StreamConfig(getTaskConfiguration());
 			accumulatorMap = accumulatorRegistry.getUserMap();
 
-			stateBackend = createStateBackend();
-			stateBackend.initializeForJob(getEnvironment());
-
 			headOperator = configuration.getStreamOperator(userClassLoader);
 			operatorChain = new OperatorChain<>(this, headOperator, accumulatorRegistry.getReadWriteReporter());
 
@@ -207,7 +204,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		
 		boolean disposed = false;
 		try {
-			// first order of business is to ive operators back their state
+			// first order of business is to initialize the state backend and to
+			// give operators back their state
+			stateBackend = createStateBackend();
+			stateBackend.initializeForJob(getEnvironment());
+			
 			restoreStateLazy();
 			
 			// we need to make sure that any triggers scheduled in open() cannot be
