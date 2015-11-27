@@ -20,7 +20,6 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import com.esotericsoftware.kryo.KryoException;
 import com.google.common.base.Preconditions;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.reflect.ReflectDatumReader;
@@ -94,38 +93,14 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	public T copy(T from) {
 		checkKryoInitialized();
 
-		try {
-			return kryo.copy(from);
-		} catch (KryoException ke) {
-			// Kryo could not copy the object --> try to serialize/deserialize the object
-			try {
-				byte[] byteArray = InstantiationUtil.serializeToByteArray(this, from);
-
-				return InstantiationUtil.deserializeFromByteArray(this, byteArray);
-			} catch (IOException ioe) {
-				throw new RuntimeException("Could not copy object by serializing/deserializing" +
-					"it.", ioe);
-			}
-		}
+		return KryoUtils.copy(from, kryo, this);
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
 
-		try {
-			return kryo.copy(from);
-		} catch (KryoException ke) {
-			// Kryo could not copy the object --> try to serialize/deserialize the object
-			try {
-				byte[] byteArray = InstantiationUtil.serializeToByteArray(this, from);
-
-				return InstantiationUtil.deserializeFromByteArray(this, reuse, byteArray);
-			} catch (IOException ioe) {
-				throw new RuntimeException("Could not copy object by serializing/deserializing" +
-					"it.", ioe);
-			}
-		}
+		return KryoUtils.copy(from, reuse, kryo, this);
 	}
 
 	@Override

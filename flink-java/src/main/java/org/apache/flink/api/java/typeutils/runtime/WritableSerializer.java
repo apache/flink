@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 
-import com.esotericsoftware.kryo.KryoException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -61,38 +60,14 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	public T copy(T from) {
 		checkKryoInitialized();
 
-		try {
-			return kryo.copy(from);
-		} catch (KryoException ke) {
-			// Kryo could not copy the object --> try to serialize/deserialize the object
-			try {
-				byte[] byteArray = InstantiationUtil.serializeToByteArray(this, from);
-
-				return InstantiationUtil.deserializeFromByteArray(this, byteArray);
-			} catch (IOException ioe) {
-				throw new RuntimeException("Could not copy object by serializing/deserializing" +
-					"it.", ioe);
-			}
-		}
+		return KryoUtils.copy(from, kryo, this);
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
 
-		try {
-			return kryo.copy(from);
-		} catch (KryoException ke) {
-			// Kryo could not copy the object --> try to serialize/deserialize the object
-			try {
-				byte[] byteArray = InstantiationUtil.serializeToByteArray(this, from);
-
-				return InstantiationUtil.deserializeFromByteArray(this, reuse, byteArray);
-			} catch (IOException ioe) {
-				throw new RuntimeException("Could not copy object by serializing/deserializing" +
-					"it.", ioe);
-			}
-		}
+		return KryoUtils.copy(from, reuse, kryo, this);
 	}
 	
 	@Override

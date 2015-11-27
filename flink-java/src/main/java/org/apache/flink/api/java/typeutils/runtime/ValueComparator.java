@@ -20,9 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
-import com.esotericsoftware.kryo.KryoException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -67,21 +65,7 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
 	public void setReference(T toCompare) {
 		checkKryoInitialized();
 
-		try {
-			reference = kryo.copy(toCompare);
-		} catch (KryoException ke) {
-			// Kryo could not copy the object --> try to serialize/deserialize the object
-			try {
-				TypeSerializer<T> serializer = new ValueSerializer<>(type);
-
-				byte[] byteArray = InstantiationUtil.serializeToByteArray(serializer, toCompare);
-
-				reference = InstantiationUtil.deserializeFromByteArray(serializer, byteArray);
-			} catch (IOException ioe) {
-				throw new RuntimeException("Could not set the reference, because the reference " +
-					"object could not be copied.", ioe);
-			}
-		}
+		reference = KryoUtils.copy(toCompare, kryo, new ValueSerializer<T>(type));
 	}
 
 	@Override
