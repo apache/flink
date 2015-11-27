@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -28,6 +27,9 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
 import com.esotericsoftware.kryo.Kryo;
+import org.objenesis.strategy.StdInstantiatorStrategy;
+
+import java.io.IOException;
 
 public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	
@@ -51,17 +53,21 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 		}
 		return InstantiationUtil.instantiate(typeClass);
 	}
+
+
 	
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		return KryoUtils.copy(from, kryo, this);
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		return KryoUtils.copy(from, reuse, kryo, this);
 	}
 	
 	@Override
@@ -113,6 +119,11 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
+
+			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
+			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(instantiatorStrategy);
+
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(typeClass);
 		}

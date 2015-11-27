@@ -279,9 +279,16 @@ public final class InstantiationUtil {
 		}
 
 		InputViewDataInputStreamWrapper inputViewWrapper = new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+		return serializer.deserialize(inputViewWrapper);
+	}
 
-		T record = serializer.createInstance();
-		return serializer.deserialize(record, inputViewWrapper);
+	public static <T> T deserializeFromByteArray(TypeSerializer<T> serializer, T reuse, byte[] buf) throws IOException {
+		if (buf == null) {
+			throw new NullPointerException("Byte array to deserialize from must not be null.");
+		}
+
+		InputViewDataInputStreamWrapper inputViewWrapper = new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+		return serializer.deserialize(reuse, inputViewWrapper);
 	}
 	
 	@SuppressWarnings("unchecked")

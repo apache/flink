@@ -18,13 +18,8 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import com.esotericsoftware.kryo.KryoException;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import com.google.common.base.Preconditions;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.reflect.ReflectDatumReader;
@@ -37,6 +32,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 
 /**
@@ -96,28 +92,15 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		return KryoUtils.copy(from, kryo, this);
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		try {
-			return this.kryo.copy(from);
-		} catch(KryoException ke) {
-			// kryo was unable to copy it, so we do it through serialization:
-			ByteArrayOutputStream baout = new ByteArrayOutputStream();
-			Output output = new Output(baout);
 
-			kryo.writeObject(output, from);
-
-			output.close();
-
-			ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
-			Input input = new Input(bain);
-
-			return (T)kryo.readObject(input, from.getClass());
-		}
+		return KryoUtils.copy(from, reuse, kryo, this);
 	}
 
 	@Override
@@ -174,6 +157,11 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
+
+			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
+			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(instantiatorStrategy);
+
 			// register Avro types.
 			this.kryo.register(GenericData.Array.class, new Serializers.SpecificInstanceCollectionSerializerForArrayList());
 			this.kryo.register(Utf8.class);
