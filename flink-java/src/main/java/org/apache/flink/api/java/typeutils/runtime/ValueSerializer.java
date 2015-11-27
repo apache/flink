@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import com.esotericsoftware.kryo.KryoException;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -28,6 +29,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
  * Serializer for {@link Value} types. Uses the value's serialization methods, and uses
@@ -71,13 +73,39 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		try {
+			return kryo.copy(from);
+		} catch (KryoException ke) {
+			// Kryo could not copy the object --> try to serialize/deserialize the object
+			try {
+				byte[] byteArray = InstantiationUtil.serializeToByteArray(this, from);
+
+				return InstantiationUtil.deserializeFromByteArray(this, byteArray);
+			} catch (IOException ioe) {
+				throw new RuntimeException("Could not copy object by serializing/deserializing" +
+					"it.", ioe);
+			}
+		}
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		try {
+			return kryo.copy(from);
+		} catch (KryoException ke) {
+			// Kryo could not copy the object --> try to serialize/deserialize the object
+			try {
+				byte[] byteArray = InstantiationUtil.serializeToByteArray(this, from);
+
+				return InstantiationUtil.deserializeFromByteArray(this, reuse, byteArray);
+			} catch (IOException ioe) {
+				throw new RuntimeException("Could not copy object by serializing/deserializing" +
+					"it.", ioe);
+			}
+		}
 	}
 
 	@Override
@@ -114,6 +142,11 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
+
+			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
+			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(instantiatorStrategy);
+
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(type);
 		}
