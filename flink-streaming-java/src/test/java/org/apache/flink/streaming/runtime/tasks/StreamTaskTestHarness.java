@@ -64,17 +64,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class StreamTaskTestHarness<OUT> {
 
-	private static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
+	public  static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
 
-	private static final int DEFAULT_NETWORK_BUFFER_SIZE = 1024;
+	public static final int DEFAULT_NETWORK_BUFFER_SIZE = 1024;
 
-	protected long memorySize = 0;
-	protected int bufferSize = 0;
+	public long memorySize = 0;
+	public int bufferSize = 0;
 
 	protected StreamMockEnvironment mockEnv;
 	protected ExecutionConfig executionConfig;
-	private Configuration jobConfig;
-	private Configuration taskConfig;
+	public Configuration jobConfig;
+	public Configuration taskConfig;
 	protected StreamConfig streamConfig;
 
 	private AbstractInvokable task;
@@ -154,6 +154,27 @@ public class StreamTaskTestHarness<OUT> {
 	 */
 	public void invoke() throws Exception {
 		mockEnv = new StreamMockEnvironment(jobConfig, taskConfig, memorySize, new MockInputSplitProvider(), bufferSize);
+		task.setEnvironment(mockEnv);
+
+		initializeInputs();
+		initializeOutput();
+
+		task.registerInputOutput();
+
+		taskThread = new TaskThread(task);
+		taskThread.start();
+	}
+
+	/**
+	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
+	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
+	 * Task thread to finish running.
+	 *
+	 * <p>Variant for providing a custom environment.
+	 */
+	public void invoke(StreamMockEnvironment mockEnv) throws Exception {
+		this.mockEnv = mockEnv;
+
 		task.setEnvironment(mockEnv);
 
 		initializeInputs();

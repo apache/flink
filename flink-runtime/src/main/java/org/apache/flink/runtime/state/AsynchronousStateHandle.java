@@ -23,10 +23,21 @@ package org.apache.flink.runtime.state;
  * of representing a materialized handle to state this would normally hold the (immutable) state
  * internally and can materialize it if requested.
  */
-public interface AsynchronousStateHandle<T> extends StateHandle<T> {
+public abstract class AsynchronousStateHandle<T> implements StateHandle<T> {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Materializes the state held by this {@code AsynchronousStateHandle}.
 	 */
-	void materialize() throws Exception;
+	public abstract StateHandle<T> materialize() throws Exception;
+
+	@Override
+	public final T getState(ClassLoader userCodeClassLoader) throws Exception {
+		throw new UnsupportedOperationException("This must not be called. This is likely an internal bug.");
+	}
+
+	@Override
+	public final void discardState() throws Exception {
+		throw new UnsupportedOperationException("This must not be called. This is likely an internal bug.");
+	}
 }

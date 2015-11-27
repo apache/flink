@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +32,8 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.state.AsynchronousStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
@@ -132,9 +136,13 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** The state to be restored once the initialization is done */
 	private StreamTaskStateList lazyRestoreState;
 
-	/** This field is used to forward an exception that is caught in the timer thread. Subclasses
-	 * must ensure that exceptions stored here get thrown on the actual execution Thread. */
-	private volatile TimerException timerException;
+	/**
+	 * This field is used to forward an exception that is caught in the timer thread or other
+	 * asynchronous Threads. Subclasses must ensure that exceptions stored here get thrown on the
+	 * actual execution Thread. */
+	private volatile AsynchronousException asyncException;
+
+	protected Set<Thread> asyncCheckpointThreads;
 	
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
@@ -180,6 +188,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 			timerService = Executors.newSingleThreadScheduledExecutor(
 					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName()));
+
+			asyncCheckpointThreads = new HashSet<>();
 
 			// task specific initialization
 			init();
@@ -247,6 +257,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			isRunning = false;
 
 			timerService.shutdownNow();
+
+			for (Thread checkpointThread: asyncCheckpointThreads) {
+				checkpointThread.interrupt();
+			}
+			asyncCheckpointThreads.clear();
 			
 			// release the output resources. this method should never fail.
 			if (operatorChain != null) {
@@ -342,6 +357,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			}
 			timerService.shutdown();
 		}
+
+		if (asyncCheckpointThreads != null) {
+			for (Thread checkpointThread : asyncCheckpointThreads) {
+				checkpointThread.interrupt();
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -422,7 +443,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
+	@SuppressWarnings("unchecked,rawtypes")
+	public void triggerCheckpoint(final long checkpointId, final long timestamp) throws Exception {
 		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 		
 		synchronized (lock) {
@@ -438,20 +460,65 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				try {
 					final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
 					final StreamTaskState[] states = new StreamTaskState[allOperators.length];
-					
+
+					boolean hasAsyncStates = false;
+
 					for (int i = 0; i < states.length; i++) {
 						StreamOperator<?> operator = allOperators[i];
 						if (operator != null) {
 							StreamTaskState state = operator.snapshotOperatorState(checkpointId, timestamp);
+							if (state.getOperatorState() instanceof AsynchronousStateHandle) {
+								hasAsyncStates = true;
+							}
+							if (state.getFunctionState() instanceof AsynchronousStateHandle) {
+								hasAsyncStates = true;
+							}
 							states[i] = state.isEmpty() ? null : state;
 						}
 					}
 
+
 					StreamTaskStateList allStates = new StreamTaskStateList(states);
+
 					if (allStates.isEmpty()) {
 						getEnvironment().acknowledgeCheckpoint(checkpointId);
-					} else {
+					} else if (!hasAsyncStates) {
 						getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
+					} else {
+						// start a Thread that does the asynchronous materialization and
+						// then sends the checkpoint acknowledge
+
+						Thread checkpointThread = new Thread() {
+							@Override
+							public void run() {
+								try {
+									for (StreamTaskState state : states) {
+										if (state != null) {
+											if (state.getFunctionState() instanceof AsynchronousStateHandle) {
+												AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getFunctionState();
+												state.setFunctionState((StateHandle) asyncState.materialize());
+											}
+											if (state.getOperatorState() instanceof AsynchronousStateHandle) {
+												AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getOperatorState();
+												state.setOperatorState((StateHandle) asyncState.materialize());
+											}
+										}
+									}
+									StreamTaskStateList allStates = new StreamTaskStateList(states);
+									getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
+								} catch (Exception e) {
+									LOG.error("Caught exception while materializing asynchronous checkpoints.", e);
+									if (asyncException == null) {
+										asyncException = new AsynchronousException(e);
+									}
+								}
+								asyncCheckpointThreads.remove(this);
+								LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
+							}
+						};
+
+						asyncCheckpointThreads.add(checkpointThread);
+						checkpointThread.start();
 					}
 				}
 				catch (Exception e) {
@@ -562,8 +629,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	}
 	
 	public void checkTimerException() throws TimerException {
-		if (timerException != null) {
-			throw timerException;
+		if (asyncException != null) {
+			throw asyncException;
 		}
 	}
 
@@ -616,8 +683,8 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					target.trigger(timestamp);
 				} catch (Throwable t) {
 					LOG.error("Caught exception while processing timer.", t);
-					if (task.timerException == null) {
-						task.timerException = new TimerException(t);
+					if (task.asyncException == null) {
+						task.asyncException = new TimerException(t);
 					}
 				}
 			}

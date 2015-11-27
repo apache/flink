@@ -18,18 +18,18 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 /**
- * {@code RuntimeException} for wrapping exceptions that are thrown in the timer callback of
- * the timer service in {@link StreamTask}.
+ * {@code RuntimeException} for wrapping exceptions that are thrown in Threads that are not the
+ * main compute Thread.
  */
-public class TimerException extends AsynchronousException {
+public class AsynchronousException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 
-	public TimerException(Throwable cause) {
+	public AsynchronousException(Throwable cause) {
 		super(cause);
 	}
 
 	@Override
 	public String toString() {
-		return "TimerException{" + getCause() + "}";
+		return "AsynchronousException{" + getCause() + "}";
 	}
 }
