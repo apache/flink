@@ -25,9 +25,9 @@ public class KeyedSerializationSchemaWrapper<T> implements KeyedSerializationSch
 
 	private static final long serialVersionUID = 1351665280744549933L;
 
-	private final SerializationSchema<T, byte[]> serializationSchema;
+	private final SerializationSchema<T> serializationSchema;
 
-	public KeyedSerializationSchemaWrapper(SerializationSchema<T, byte[]> serializationSchema) {
+	public KeyedSerializationSchemaWrapper(SerializationSchema<T> serializationSchema) {
 		this.serializationSchema = serializationSchema;
 	}
 

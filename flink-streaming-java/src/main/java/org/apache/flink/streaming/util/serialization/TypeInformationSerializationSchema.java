@@ -34,7 +34,7 @@ import java.io.IOException;
  * 
  * @param <T> The type to be serialized.
  */
-public class TypeInformationSerializationSchema<T> implements DeserializationSchema<T>, SerializationSchema<T, byte[]> {
+public class TypeInformationSerializationSchema<T> implements DeserializationSchema<T>, SerializationSchema<T> {
 	
 	private static final long serialVersionUID = -5359448468131559102L;
 	

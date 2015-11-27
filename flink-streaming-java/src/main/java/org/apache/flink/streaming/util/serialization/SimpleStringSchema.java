@@ -14,14 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
+/**
+ * Very simple serialization schema for strings.
+ */
 public class SimpleStringSchema implements DeserializationSchema<String>,
-		SerializationSchema<String, String> {
+		SerializationSchema<String> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -36,8 +38,8 @@ public class SimpleStringSchema implements DeserializationSchema<String>,
 	}
 
 	@Override
-	public String serialize(String element) {
-		return element;
+	public byte[] serialize(String element) {
+		return element.getBytes();
 	}
 
 	@Override

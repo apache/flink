@@ -30,7 +30,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
  */
 @Deprecated
 public class KafkaSink<IN> extends FlinkKafkaProducer<IN> {
-	public KafkaSink(String brokerList, String topicId, SerializationSchema<IN, byte[]> serializationSchema) {
+	public KafkaSink(String brokerList, String topicId, SerializationSchema<IN> serializationSchema) {
 		super(brokerList, topicId, serializationSchema);
 	}
 }

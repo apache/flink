@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.NetUtils;
 
@@ -78,7 +79,7 @@ public abstract class SocketOutputTestBase extends StreamingProgramTestBase {
 		public void waitForAccept() throws Exception {
 			Socket socket = serverSocket.accept();
 			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			DeserializationSchema<String> schema = new DummyStringSchema();
+			DeserializationSchema<String> schema = new SimpleStringSchema();
 			String rawData = in.readLine();
 			while (rawData != null){
 				String string = schema.deserialize(rawData.getBytes());
@@ -101,30 +102,5 @@ public abstract class SocketOutputTestBase extends StreamingProgramTestBase {
 		public void start() {
 			t.start();
 		}
-	}
-
-	public static class DummyStringSchema implements DeserializationSchema<String>, SerializationSchema<String, byte[]>{
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public boolean isEndOfStream(String nextElement) {
-		return nextElement.equals("q");
-	}
-
-		@Override
-		public byte[] serialize(String element) {
-		return element.getBytes();
-	}
-
-		@Override
-		public String deserialize(byte[] message) {
-		return new String(message);
-	}
-
-		@Override
-		public TypeInformation<String> getProducedType() {
-		return TypeExtractor.getForClass(String.class);
-	}
-
 	}
 }
