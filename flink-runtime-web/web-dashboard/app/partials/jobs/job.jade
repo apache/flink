@@ -20,13 +20,12 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
     i.fa.fa-navicon
 
   .navbar-title
-    indicator-primary(status="{{job.state}}")
     | {{ job.name }}
 
-  .navbar-info.first.last.hidden-xs.hidden-sm
-    | {{ job.jid }}
-
   .navbar-info.first.last
+    bs-label(status="{{job.state}}") {{job.state}}
+
+  .navbar-info.first.last.hidden-xs.hidden-sm
     .label-group
       bs-label(status="{{status}}" ng-repeat="(status, value) in job['status-counts']") {{value}}
 
