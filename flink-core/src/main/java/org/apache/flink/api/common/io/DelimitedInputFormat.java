@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.operators.base.FileDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -616,98 +615,4 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	 * The configuration key to set the number of samples to take for the statistics.
 	 */
 	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
-	
-	// ----------------------------------- Config Builder -----------------------------------------
-	
-	/**
-	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
-	 * fashion.
-	 * 
-	 * @return A config builder for setting parameters.
-	 */
-	public static ConfigBuilder configureDelimitedFormat(FileDataSourceBase<?> target) {
-		return new ConfigBuilder(target.getParameters());
-	}
-	
-	/**
-	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	protected static class AbstractConfigBuilder<T> extends FileInputFormat.AbstractConfigBuilder<T> {
-		
-		private static final String NEWLINE_DELIMITER = "\n";
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param config The configuration into which the parameters will be written.
-		 */
-		protected AbstractConfigBuilder(Configuration config) {
-			super(config);
-		}
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Sets the delimiter to be a single character, namely the given one. The character must be within
-		 * the value range <code>0</code> to <code>127</code>.
-		 * 
-		 * @param delimiter The delimiter character.
-		 * @return The builder itself.
-		 */
-		public T recordDelimiter(char delimiter) {
-			if (delimiter == '\n') {
-				this.config.setString(RECORD_DELIMITER, NEWLINE_DELIMITER);
-			} else {
-				this.config.setString(RECORD_DELIMITER, String.valueOf(delimiter));
-			}
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
-		}
-		
-		/**
-		 * Sets the delimiter to be the given string. The string will be converted to bytes for more efficient
-		 * comparison during input parsing. The conversion will be done using the platforms default charset.
-		 * 
-		 * @param delimiter The delimiter string.
-		 * @return The builder itself.
-		 */
-		public T recordDelimiter(String delimiter) {
-			this.config.setString(RECORD_DELIMITER, delimiter);
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
-		}
-		
-		/**
-		 * Sets the number of line samples to take in order to estimate the base statistics for the
-		 * input format.
-		 * 
-		 * @param numSamples The number of line samples to take.
-		 * @return The builder itself.
-		 */
-		public T numSamplesForStatistics(int numSamples) {
-			this.config.setInteger(NUM_STATISTICS_SAMPLES, numSamples);
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
-		}
-	}
-	
-	/**
-	 * A builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected ConfigBuilder(Configuration targetConfig) {
-			super(targetConfig);
-		}
-	}
 }
