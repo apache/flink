@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -38,7 +39,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class ClusterOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
 
 	private final FiniteDuration timeout;
-	
+
+	private static final String version = EnvironmentInformation.getVersion();
+
+	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
 	public ClusterOverviewHandler(FiniteDuration timeout) {
 		this.timeout = checkNotNull(timeout);
@@ -63,6 +67,10 @@ public class ClusterOverviewHandler implements RequestHandler, RequestHandler.Js
 				gen.writeNumberField("jobs-finished", overview.getNumJobsFinished());
 				gen.writeNumberField("jobs-cancelled", overview.getNumJobsCancelled());
 				gen.writeNumberField("jobs-failed", overview.getNumJobsFailed());
+				gen.writeStringField("flink-version", version);
+				if (!commitID.equals(EnvironmentInformation.UNKNOWN)) {
+					gen.writeStringField("flink-commit", commitID);
+				}
 				gen.writeEndObject();
 
 				gen.close();
