@@ -19,39 +19,45 @@
 package org.apache.flink.api.java.typeutils;
 
 /**
- * This type represents a value of one two possible types, Left or Right
- * (a disjoint union), inspired by Scala's Either type.
+ * This type represents a value of one two possible types, Left or Right (a
+ * disjoint union), inspired by Scala's Either type.
  *
- * @param <L> the type of Left
- * @param <R> the type of Right
+ * @param <L>
+ *            the type of Left
+ * @param <R>
+ *            the type of Right
  */
 public abstract class Either<L, R> {
 
 	/**
 	 * Create a Left value of Either
 	 */
-	public static <L, R> Either<L, R> left(L value) {
+	public static <L, R> Either<L, R> Left(L value) {
 		return new Left<L, R>(value);
 	}
 
 	/**
 	 * Create a Right value of Either
 	 */
-	public static <L, R> Either<L, R> right(R value) {
+	public static <L, R> Either<L, R> Right(R value) {
 		return new Right<L, R>(value);
 	}
 
 	/**
 	 * Retrieve the Left value of Either.
+	 * 
 	 * @return the Left value
-	 * @throws IllegalStateException if called on a Right
+	 * @throws IllegalStateException
+	 *             if called on a Right
 	 */
 	public abstract L left() throws IllegalStateException;
 
 	/**
 	 * Retrieve the Right value of Either.
+	 * 
 	 * @return the Right value
-	 * @throws IllegalStateException if called on a Left
+	 * @throws IllegalStateException
+	 *             if called on a Left
 	 */
 	public abstract R right() throws IllegalStateException;
 
@@ -71,7 +77,15 @@ public abstract class Either<L, R> {
 		return getClass() == Right.class;
 	}
 
-	private static class Left<L, R> extends Either<L, R> {
+	/**
+	 * A left value of {@link Either}
+	 *
+	 * @param <L>
+	 *            the type of Left
+	 * @param <R>
+	 *            the type of Right
+	 */
+	public static class Left<L, R> extends Either<L, R> {
 		private final L value;
 
 		public Left(L value) {
@@ -106,9 +120,25 @@ public abstract class Either<L, R> {
 		public String toString() {
 			return "Left(" + value.toString() + ")";
 		}
+
+		/**
+		 * Creates a left value of {@link Either}
+		 * 
+		 */
+		public static <L, R> Left<L, R> of(L left) {
+			return new Left<L, R>(left);
+		}
 	}
 
-	private static class Right<L, R> extends Either<L, R> {
+	/**
+	 * A right value of {@link Either}
+	 *
+	 * @param <L>
+	 *            the type of Left
+	 * @param <R>
+	 *            the type of Right
+	 */
+	public static class Right<L, R> extends Either<L, R> {
 		private final R value;
 
 		public Right(R value) {
@@ -142,6 +172,14 @@ public abstract class Either<L, R> {
 		@Override
 		public String toString() {
 			return "Right(" + value.toString() + ")";
+		}
+
+		/**
+		 * Creates a right value of {@link Either}
+		 * 
+		 */
+		public static <L, R> Right<L, R> of(R right) {
+			return new Right<L, R>(right);
 		}
 	}
 }
