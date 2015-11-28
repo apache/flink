@@ -22,6 +22,12 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
   .navbar-title
     | Overview
 
+  .navbar-info.last.first
+    | Version: {{overview['flink-version']}}
+
+  .navbar-info.last.first(ng-if="overview['flink-commit']")
+    | Commit: {{overview['flink-commit']}}
+
 #content-inner
   .row
     .col-md-6

@@ -39,7 +39,7 @@ public class EnvironmentInformation {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentInformation.class);
 
-	private static final String UNKNOWN = "<unknown>";
+	public static final String UNKNOWN = "<unknown>";
 
 	/**
 	 * Returns the version of the code as String. If version == null, then the JobManager does not run from a
