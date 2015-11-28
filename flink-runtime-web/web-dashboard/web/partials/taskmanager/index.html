@@ -48,9 +48,9 @@ limitations under the License.
         <td>{{ manager.slotsNumber }}</td>
         <td>{{ manager.freeSlots }}</td>
         <td>{{ manager.cpuCores }}</td>
-        <td>{{ manager.physicalMemory | bytes:MB }}</td>
-        <td>{{ manager.freeMemory | bytes:MB }}</td>
-        <td>{{ manager.managedMemory | bytes:MB }}</td>
+        <td title="{{manager.physicalMemory}} bytes">{{ manager.physicalMemory | humanizeBytes }}</td>
+        <td title="{{manager.freeMemory}} bytes">{{ manager.freeMemory | humanizeBytes }}</td>
+        <td title="{{manager.managedMemory}} bytes">{{ manager.managedMemory | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>
