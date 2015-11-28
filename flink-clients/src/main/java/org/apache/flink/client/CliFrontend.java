@@ -1000,10 +1000,19 @@ public class CliFrontend {
 			CliFrontendParser.printHelp();
 			return 0;
 		}
+		else if (action.equals("-v") || action.equals("--version")) {
+			String version = EnvironmentInformation.getVersion();
+			String commitID = EnvironmentInformation.getRevisionInformation().commitId;
+			System.out.print("Version: " + version);
+			System.out.println(!commitID.equals(EnvironmentInformation.UNKNOWN) ? ", Commit ID: " + commitID : "");
+			return 0;
+		}
 		else {
 			System.out.printf("\"%s\" is not a valid action.\n", action);
 			System.out.println();
 			System.out.println("Valid actions are \"run\", \"list\", \"info\", or \"cancel\".");
+			System.out.println();
+			System.out.println("Specify the version option (-v or --version) to print Flink version.");
 			System.out.println();
 			System.out.println("Specify the help option (-h or --help) to get help on the command.");
 			return 1;
