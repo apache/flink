@@ -26,19 +26,28 @@ table.table.table-properties(ng-if="metrics.id")
   tbody
     tr
       td Heap
-      td(table-property value="metrics.metrics.gauges['memory.heap.committed'].value | bytes:MB")
-      td(table-property value="metrics.metrics.gauges['memory.heap.init'].value | bytes:MB")
-      td(table-property value="metrics.metrics.gauges['memory.heap.max'].value | bytes:MB")
+      td(title="{{metrics.metrics.gauges['memory.heap.committed'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.heap.committed'].value | humanizeBytes}}
+      td(title="{{metrics.metrics.gauges['memory.heap.init'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.heap.init'].value | humanizeBytes}}
+      td(title="{{metrics.metrics.gauges['memory.heap.max'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.heap.max'].value | humanizeBytes}}
     tr
       td Non-Heap
-      td(table-property value="metrics.metrics.gauges['memory.non-heap.committed'].value | bytes:MB")
-      td(table-property value="metrics.metrics.gauges['memory.non-heap.init'].value | bytes:MB")
-      td(table-property value="metrics.metrics.gauges['memory.non-heap.max'].value | bytes:MB")
+      td(title="{{metrics.metrics.gauges['memory.non-heap.committed'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.non-heap.committed'].value | humanizeBytes}}
+      td(title="{{metrics.metrics.gauges['memory.non-heap.init'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.non-heap.init'].value | humanizeBytes}}
+      td(title="{{metrics.metrics.gauges['memory.non-heap.max'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.non-heap.max'].value | humanizeBytes}}
     tr
       td Total
-      td(table-property value="metrics.metrics.gauges['memory.total.committed'].value | bytes:MB")
-      td(table-property value="metrics.metrics.gauges['memory.total.init'].value | bytes:MB")
-      td(table-property value="metrics.metrics.gauges['memory.total.max'].value | bytes:MB")
+      td(title="{{metrics.metrics.gauges['memory.total.committed'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.total.committed'].value | humanizeBytes}}
+      td(title="{{metrics.metrics.gauges['memory.total.init'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.total.init'].value | humanizeBytes}}
+      td(title="{{metrics.metrics.gauges['memory.total.max'].value}} bytes")
+        | {{metrics.metrics.gauges['memory.total.max'].value | humanizeBytes}}
 
 table.table(ng-if="metrics.id")
   thead
@@ -57,9 +66,9 @@ table.table(ng-if="metrics.id")
       td {{ metrics.slotsNumber }}
       td {{ metrics.freeSlots }}
       td {{ metrics.cpuCores }}
-      td {{ metrics.physicalMemory | bytes:MB }}
-      td {{ metrics.freeMemory | bytes:MB }}
-      td {{ metrics.managedMemory | bytes:MB }}
+      td(title="{{metrics.physicalMemory}} bytes") {{ metrics.physicalMemory | humanizeBytes }}
+      td(title="{{metrics.freeMemory}} bytes") {{ metrics.freeMemory | humanizeBytes }}
+      td(title="{{metrics.managedMemory}} bytes") {{ metrics.managedMemory | humanizeBytes }}
 
 
 .row(ng-if="metrics.id")

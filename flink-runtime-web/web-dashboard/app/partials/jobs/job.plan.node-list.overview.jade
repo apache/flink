@@ -39,9 +39,9 @@ table.table.table-body-hover.table-clickable.table-activable
         span(ng-if="v.duration > -1" title="{{v.duration | humanizeDuration:false}}") {{v.duration | humanizeDuration:true}}
 
       td.td-long {{ v.name | humanizeText }}
-      td {{ v.metrics['read-bytes'] | number }}
+      td(title="{{v.metrics['read-bytes']}} bytes") {{ v.metrics['read-bytes'] | humanizeBytes }}
       td {{ v.metrics['read-records'] | number }}
-      td {{ v.metrics['write-bytes'] | number }}
+      td(title="{{v.metrics['write-bytes']}} bytes") {{ v.metrics['write-bytes'] | humanizeBytes }}
       td {{ v.metrics['write-records'] | number }}
       td
         .label-group

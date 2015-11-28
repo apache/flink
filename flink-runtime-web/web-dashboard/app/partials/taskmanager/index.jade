@@ -47,7 +47,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
         td {{ manager.slotsNumber }}
         td {{ manager.freeSlots }}
         td {{ manager.cpuCores }}
-        td {{ manager.physicalMemory | bytes:MB }}
-        td {{ manager.freeMemory | bytes:MB }}
-        td {{ manager.managedMemory | bytes:MB }}
+        td(title="{{manager.physicalMemory}} bytes") {{ manager.physicalMemory | humanizeBytes }}
+        td(title="{{manager.freeMemory}} bytes") {{ manager.freeMemory | humanizeBytes }}
+        td(title="{{manager.managedMemory}} bytes") {{ manager.managedMemory | humanizeBytes }}
 
