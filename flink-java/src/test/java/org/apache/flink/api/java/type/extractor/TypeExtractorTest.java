@@ -1903,7 +1903,7 @@ public class TypeExtractorTest {
 
 	@Test(expected=InvalidTypesException.class)
 	public void testEitherFromObjectException() {
-		Either<String, Tuple1<Integer>> either = Either.left("test");
+		Either<String, Tuple1<Integer>> either = Either.Left("test");
 		TypeExtractor.getForObject(either);
 	}
 }

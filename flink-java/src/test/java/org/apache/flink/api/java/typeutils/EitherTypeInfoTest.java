@@ -18,18 +18,20 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.Either.Right;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 public class EitherTypeInfoTest extends TestLogger {
 
-	Either<Integer, String> intEither = Either.left(1);
-	Either<Integer, String> stringEither = Either.right("boo");
-	Either<Integer, Tuple2<Double, Long>> tuple2Either = Either.right(new Tuple2<Double, Long>(42.0, 2l));
+	Either<Integer, String> intEither = Either.Left(1);
+	Either<Integer, String> stringEither = Either.Right("boo");
+	Either<Integer, Tuple2<Double, Long>> tuple2Either = new Right<>(new Tuple2<Double, Long>(42.0, 2l));
 
 	@Test
 	public void testEitherTypeEquality() {

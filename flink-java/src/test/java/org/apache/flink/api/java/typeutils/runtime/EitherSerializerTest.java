@@ -20,6 +20,8 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.apache.flink.api.java.typeutils.Either.Left;
+import static org.apache.flink.api.java.typeutils.Either.Right;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -38,11 +40,11 @@ public class EitherSerializerTest {
 	public void testStringDoubleEither() {
 
 	Either<String, Double>[] testData = new Either[] {
-			Either.left("banana"),
-			Either.left(""),
-			Either.right(32.0),
-			Either.right(Double.MIN_VALUE),
-			Either.right(Double.MAX_VALUE)};
+			Left("banana"),
+			Left(""),
+			Right(32.0),
+			Right(Double.MIN_VALUE),
+			Right(Double.MAX_VALUE)};
 
 	EitherTypeInfo<String, Double> eitherTypeInfo = (EitherTypeInfo<String, Double>) new EitherTypeInfo<String, Double>(
 			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO);
@@ -58,11 +60,11 @@ public class EitherSerializerTest {
 	public void testEitherWithTuple() {
 
 	Either<Tuple2<Long, Long>, Double>[] testData = new Either[] {
-			Either.left(new Tuple2<>(2l, 9l)),
-			Either.left(new Tuple2<>(Long.MIN_VALUE, Long.MAX_VALUE)),
-			Either.right(32.0),
-			Either.right(Double.MIN_VALUE),
-			Either.right(Double.MAX_VALUE)};
+			Either.Left(new Tuple2<>(2l, 9l)),
+			new Left<>(new Tuple2<>(Long.MIN_VALUE, Long.MAX_VALUE)),
+			new Right<>(32.0),
+			Right(Double.MIN_VALUE),
+			Right(Double.MAX_VALUE)};
 
 	EitherTypeInfo<Tuple2<Long, Long>, Double> eitherTypeInfo = (EitherTypeInfo<Tuple2<Long, Long>, Double>)
 			new EitherTypeInfo<Tuple2<Long, Long>, Double>(
