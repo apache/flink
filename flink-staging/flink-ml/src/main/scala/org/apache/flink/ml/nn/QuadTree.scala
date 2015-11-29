@@ -96,6 +96,11 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
       }
     }
 
+    /**
+     * used in error handling when computing minDist to make sure
+     * distMetric is Euclidean or SquaredEuclidean
+     * @param message
+     */
     case class metricException(message: String) extends Exception(message)
 
     /**
@@ -127,7 +132,7 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
     }
 
     /**
-     * Finds which child querPoint lies in.  node.children is a Seq[Node], and
+     * Finds which child queryPoint lies in.  node.children is a Seq[Node], and
      * whichChild finds the appropriate index of that Seq.
      * @param queryPoint
      * @return
