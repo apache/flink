@@ -61,7 +61,7 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages, StreamingMode}
-import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
+import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils, VersionUtils}
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
@@ -293,6 +293,7 @@ class JobManager(
       }
       else {
         try {
+
           val instanceID = instanceManager.registerTaskManager(
             taskManager,
             connectionInfo,
@@ -760,6 +761,19 @@ class JobManager(
           new JobSubmissionException(null, "JobGraph must not be null.")
         )
       ))
+    }
+    else if (!jobGraph.getJobConfiguration.containsKey(ConfigConstants.FLINK_VERSION_KEY) ||
+      !VersionUtils.isClientCompatible(
+        jobGraph.getJobConfiguration.getString(ConfigConstants.FLINK_VERSION_KEY, null))) {
+      sender ! decorateMessage(
+        Failure(
+          new JobSubmissionException(
+            null,
+            "Version mismatch error. Client version must be at least " +
+              VersionUtils.JOB_CLIENT_VERSION_LOWER
+          )
+        )
+      )
     }
     else {
       val jobId = jobGraph.getJobID

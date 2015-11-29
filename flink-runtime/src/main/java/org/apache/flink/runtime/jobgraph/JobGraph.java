@@ -33,6 +33,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -126,6 +127,7 @@ public class JobGraph implements Serializable {
 	public JobGraph(JobID jobId, String jobName) {
 		this.jobID = jobId == null ? new JobID() : jobId;
 		this.jobName = jobName == null ? "(unnamed job)" : jobName;
+		this.jobConfiguration.setString(ConfigConstants.FLINK_VERSION_KEY, Configuration.FLINK_VERSION);
 	}
 	
 	/**
