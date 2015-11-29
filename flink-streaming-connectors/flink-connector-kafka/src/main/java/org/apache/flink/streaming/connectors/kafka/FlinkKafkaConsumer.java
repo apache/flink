@@ -390,14 +390,18 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 				// same here.
 				long commitInterval = Long.valueOf(props.getProperty("auto.commit.interval.ms", "60000"));
 				offsetCommitter = new PeriodicOffsetCommitter(commitInterval, this);
+				offsetCommitter.setDaemon(true);
 				offsetCommitter.start();
 				LOG.info("Starting periodic offset committer, with commit interval of {}ms", commitInterval);
 			}
 
-			fetcher.run(sourceContext, valueDeserializer, lastOffsets);
-
-			if (offsetCommitter != null) {
-				offsetCommitter.close();
+			try {
+				fetcher.run(sourceContext, valueDeserializer, lastOffsets);
+			} finally {
+				if (offsetCommitter != null) {
+					offsetCommitter.close();
+					offsetCommitter.join();
+				}
 			}
 		}
 		else {
