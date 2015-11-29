@@ -37,7 +37,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class JoinITCase extends MultipleProgramsTestBase {
 
-
 	public JoinITCase(TestExecutionMode mode) {
 		super(mode);
 	}

@@ -35,7 +35,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class StringExpressionsITCase extends MultipleProgramsTestBase {
 
-
 	public StringExpressionsITCase(TestExecutionMode mode) {
 		super(mode);
 	}

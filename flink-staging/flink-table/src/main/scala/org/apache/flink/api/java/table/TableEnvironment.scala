@@ -20,7 +20,7 @@ package org.apache.flink.api.java.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
@@ -30,6 +30,13 @@ import org.apache.flink.streaming.api.datastream.DataStream
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
 class TableEnvironment {
+
+  private val config = new TableConfig()
+
+  /**
+   * Returns the table config to define the runtime behavior of the Table API.
+   */
+  def getConfig = config
 
   /**
    * Transforms the given DataSet to a [[org.apache.flink.api.table.Table]].
@@ -45,7 +52,7 @@ class TableEnvironment {
    * are named a and b.
    */
   def fromDataSet[T](set: DataSet[T], fields: String): Table = {
-    new JavaBatchTranslator().createTable(set, fields)
+    new JavaBatchTranslator(config).createTable(set, fields)
   }
 
   /**
@@ -54,7 +61,7 @@ class TableEnvironment {
    * [[org.apache.flink.api.table.Table]] fields.
    */
   def fromDataSet[T](set: DataSet[T]): Table = {
-    new JavaBatchTranslator().createTable(set)
+    new JavaBatchTranslator(config).createTable(set)
   }
 
   /**
@@ -71,7 +78,7 @@ class TableEnvironment {
    * are named a and b.
    */
   def fromDataStream[T](set: DataStream[T], fields: String): Table = {
-    new JavaStreamingTranslator().createTable(set, fields)
+    new JavaStreamingTranslator(config).createTable(set, fields)
   }
 
   /**
@@ -80,7 +87,7 @@ class TableEnvironment {
    * [[org.apache.flink.api.table.Table]] fields.
    */
   def fromDataStream[T](set: DataStream[T]): Table = {
-    new JavaStreamingTranslator().createTable(set)
+    new JavaStreamingTranslator(config).createTable(set)
   }
 
   /**
@@ -91,7 +98,7 @@ class TableEnvironment {
    */
   @SuppressWarnings(Array("unchecked"))
   def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
-    new JavaBatchTranslator().translate[T](table.operation)(
+    new JavaBatchTranslator(config).translate[T](table.operation)(
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
   }
 
@@ -103,7 +110,7 @@ class TableEnvironment {
    */
   @SuppressWarnings(Array("unchecked"))
   def toDataStream[T](table: Table, clazz: Class[T]): DataStream[T] = {
-    new JavaStreamingTranslator().translate[T](table.operation)(
+    new JavaStreamingTranslator(config).translate[T](table.operation)(
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
 
   }

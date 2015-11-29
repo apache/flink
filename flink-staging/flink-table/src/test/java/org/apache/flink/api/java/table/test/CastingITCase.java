@@ -37,7 +37,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class CastingITCase extends MultipleProgramsTestBase {
 
-
 	public CastingITCase(TestExecutionMode mode){
 		super(mode);
 	}

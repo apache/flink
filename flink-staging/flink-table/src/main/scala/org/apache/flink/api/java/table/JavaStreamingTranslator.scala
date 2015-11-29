@@ -26,7 +26,7 @@ import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime.{ExpressionFilterFunction, ExpressionSelectFunction}
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
-import org.apache.flink.api.table.{ExpressionException, Row, Table}
+import org.apache.flink.api.table.{TableConfig, ExpressionException, Row, Table}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.StreamMap
 
@@ -38,7 +38,8 @@ import org.apache.flink.streaming.api.operators.StreamMap
  * operations must be extended to allow windowing operations.
  */
 
-class JavaStreamingTranslator extends PlanTranslator {
+class JavaStreamingTranslator(config: TableConfig = TableConfig.DEFAULT)
+  extends PlanTranslator(config) {
 
   type Representation[A] = DataStream[A]
 
@@ -50,7 +51,7 @@ class JavaStreamingTranslator extends PlanTranslator {
 
     val rowDataStream = createSelect(expressions, repr, inputType)
 
-    new Table(Root(rowDataStream, resultFields))
+    new Table(config, Root(rowDataStream, resultFields))
   }
 
   override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): DataStream[A] = {
@@ -104,7 +105,8 @@ class JavaStreamingTranslator extends PlanTranslator {
     val function = new ExpressionSelectFunction(
       resultSet.getType.asInstanceOf[RowTypeInfo],
       outputType,
-      outputFields)
+      outputFields,
+      config)
 
     val opName = s"select(${outputFields.mkString(",")})"
 
@@ -129,7 +131,7 @@ class JavaStreamingTranslator extends PlanTranslator {
 
       case sel@Select(Filter(Join(leftInput, rightInput), predicate), selection) =>
 
-        val expandedInput = ExpandAggregations(sel)
+        val expandedInput = ExpandAggregations(config, sel)
 
         if (expandedInput.eq(sel)) {
           val translatedLeftInput = translateInternal(leftInput)
@@ -171,7 +173,7 @@ class JavaStreamingTranslator extends PlanTranslator {
 
       case sel@Select(input, selection) =>
 
-        val expandedInput = ExpandAggregations(sel)
+        val expandedInput = ExpandAggregations(config, sel)
 
         if (expandedInput.eq(sel)) {
           // no expansions took place
@@ -195,7 +197,7 @@ class JavaStreamingTranslator extends PlanTranslator {
       case Filter(input, predicate) =>
         val translatedInput = translateInternal(input)
         val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-        val filter = new ExpressionFilterFunction[Row](predicate, inType)
+        val filter = new ExpressionFilterFunction[Row](predicate, inType, config)
         translatedInput.filter(filter)
 
       case UnionAll(left, right) =>
@@ -220,7 +222,7 @@ class JavaStreamingTranslator extends PlanTranslator {
 
     val resultType = new RowTypeInfo(fields)
 
-    val function = new ExpressionSelectFunction(inputType, resultType, fields)
+    val function = new ExpressionSelectFunction(inputType, resultType, fields, config)
 
     val opName = s"select(${fields.mkString(",")})"
 

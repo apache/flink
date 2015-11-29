@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table.parser.ExpressionParser
 import org.apache.flink.api.table.expressions.{Expression, Naming, ResolvedFieldReference, UnresolvedFieldReference}
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
-import org.apache.flink.api.table.{ExpressionException, Table}
+import org.apache.flink.api.table.{TableConfig, ExpressionException, Table}
 
 import scala.language.reflectiveCalls
 
@@ -32,7 +32,7 @@ import scala.language.reflectiveCalls
  * Base class for translators that transform the logical plan in a [[Table]] to an executable
  * Flink plan and also for creating a [[Table]] from a DataSet or DataStream.
  */
-abstract class PlanTranslator {
+abstract class PlanTranslator(config: TableConfig) {
 
   type Representation[A] <: { def getType(): TypeInformation[A] }
 
@@ -98,8 +98,7 @@ abstract class PlanTranslator {
         val expressions = rowTypeInfo.getFieldNames map {
           name => (name, rowTypeInfo.getTypeAt(name))
         }
-        new Table(
-          Root(repr, expressions))
+        new Table(config, Root(repr, expressions))
 
       case c: CompositeType[A] => // us ok
 

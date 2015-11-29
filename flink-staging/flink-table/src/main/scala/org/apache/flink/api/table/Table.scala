@@ -46,7 +46,7 @@ import org.apache.flink.api.table.plan._
  * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
  * syntax.
  */
-case class Table(private[flink] val operation: PlanNode) {
+case class Table(private[flink] val config: TableConfig, private[flink] val operation: PlanNode) {
 
   /**
    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -59,7 +59,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def select(fields: Expression*): Table = {
-    val analyzer = new SelectionAnalyzer(operation.outputFields)
+    val analyzer = new SelectionAnalyzer(config, operation.outputFields)
     val analyzedFields = fields.map(analyzer.analyze)
     val fieldNames = analyzedFields map(_.name)
     if (fieldNames.toSet.size != fieldNames.size) {
@@ -130,7 +130,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def filter(predicate: Expression): Table = {
-    val analyzer = new PredicateAnalyzer(operation.outputFields)
+    val analyzer = new PredicateAnalyzer(config, operation.outputFields)
     val analyzedPredicate = analyzer.analyze(predicate)
     this.copy(operation = Filter(operation, analyzedPredicate))
   }
