@@ -37,9 +37,7 @@ class QuadTreeSuite extends FlatSpec with Matchers with FlinkTestBase {
     val minVec = DenseVector(-1.0, -0.5)
     val maxVec = DenseVector(1.0, 0.5)
 
-    val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric())
-    myTree.maxPerBox = 3
-
+    val myTree = new QuadTree(minVec, maxVec, EuclideanDistanceMetric(), 3)
 
     myTree.insert(DenseVector(-0.25, 0.3).asInstanceOf[Vector])
     myTree.insert(DenseVector(-0.20, 0.31).asInstanceOf[Vector])

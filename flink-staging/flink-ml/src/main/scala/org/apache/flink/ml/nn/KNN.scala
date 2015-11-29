@@ -20,7 +20,8 @@ package org.apache.flink.ml.nn
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.utils._
+import org.apache.flink.api.scala.DataSetUtils._
+//import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
@@ -113,7 +114,6 @@ class KNN extends Predictor[KNN] {
     this
   }
 
-
 }
 
 object KNN {
@@ -204,11 +204,9 @@ object KNN {
                         metric.isInstanceOf[SquaredEuclideanDistanceMetric]))
 
                   if (useQuadTree) {
-                    knnQueryWithQuadTree(training.values.asInstanceOf[Vector[DenseVector]],
-                      testing.values,k, metric,queue, out)
+                   knnQueryWithQuadTree(training.values, testing.values, k, metric,queue, out)
                   } else {
-                    knnQueryBasic(training.values.asInstanceOf[Vector[DenseVector]],
-                      testing.values,k, metric,queue, out)
+                    knnQueryBasic(training.values, testing.values, k, metric,queue, out)
                   }
                 }
               }
@@ -241,14 +239,14 @@ object KNN {
     }
   }
 
-  def knnQueryWithQuadTree[T <: FlinkVector](training: Vector[DenseVector],
+  def knnQueryWithQuadTree[T <: FlinkVector](training: Vector[T],
                            testing: Vector[(Long, T)],
                            k: Int, metric: DistanceMetric,
                            queue: mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)],
                            out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
     /// find a bounding box
-    val MinArr = List.range(0, training.head.size).toArray
-    val MaxArr = List.range(0, training.head.size).toArray
+    val MinArr = Array.tabulate(training.head.size)(x => x)
+    val MaxArr =Array.tabulate(training.head.size)(x => x)
 
     val minVecTrain = MinArr.map(i => training.map(x => x(i)).min - 0.01)
     val minVecTest = MinArr.map(i => testing.map(x => x._2(i)).min - 0.01)
@@ -258,36 +256,34 @@ object KNN {
     val MinVec = DenseVector(MinArr.map(i => Array(minVecTrain(i), minVecTest(i)).min))
     val MaxVec = DenseVector(MinArr.map(i => Array(maxVecTrain(i), maxVecTest(i)).max))
 
-    var trainingQuadTree = new QuadTree(MinVec, MaxVec, metric)
-
-    if (trainingQuadTree.maxPerBox < k) { /// make sure at least k points/box
-      trainingQuadTree.maxPerBox = k
-    }
+    //default value of max elements/box is set to max(20,k)
+    val maxPerBox = Array(k,20).max
+    val trainingQuadTree = new QuadTree(MinVec, MaxVec, metric, maxPerBox)
 
     for (v <- training) {
       trainingQuadTree.insert(v.asInstanceOf[FlinkVector])
     }
 
-    for (a <- testing) {
-      /////  Find siblings' objects and do local kNN there
+    for  ((id, vector) <- testing) {
+      //  Find siblings' objects and do local kNN there
       val siblingObjects =
         trainingQuadTree.searchNeighborsSiblingQueue(
-          a._2.asInstanceOf[FlinkVector])
+          vector.asInstanceOf[FlinkVector])
 
       // do KNN query on siblingObjects and get max distance of kNN
       // then rad is good choice for a neighborhood to do a refined
       // local kNN search
-      val knnSiblings = siblingObjects.map(v => metric.distance(a._2, v)
+      val knnSiblings = siblingObjects.map(v => metric.distance(vector, v)
       ).sortWith(_ < _).take(k)
 
       val rad = knnSiblings.last
       var trainingFiltered = new ListBuffer[FlinkVector]
       trainingFiltered =
-        trainingQuadTree.searchNeighbors(a._2.asInstanceOf[FlinkVector], rad)
+        trainingQuadTree.searchNeighbors(vector.asInstanceOf[FlinkVector], rad)
 
       for (b <- trainingFiltered) {
         // (training vector, input vector, input key, distance)
-        queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
+        queue.enqueue((b, vector, id, metric.distance(b, vector)))
         if (queue.size > k) {
           queue.dequeue()
         }
@@ -298,16 +294,16 @@ object KNN {
     }
   }
 
-  def knnQueryBasic[T <: FlinkVector](training: Vector[DenseVector],
+  def knnQueryBasic[T <: FlinkVector](training: Vector[T],
                     testing: Vector[(Long, T)],
                     k: Int, metric: DistanceMetric,
                     queue: mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)],
                     out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
-    for (a <- testing) {
+    for ((id, vector) <- testing) {
       for (b <- training) {
         // (training vector, input vector, input key, distance)
-        queue.enqueue((b, a._2, a._1, metric.distance(b, a._2)))
+        queue.enqueue((b, vector, id, metric.distance(b, vector)))
         if (queue.size > k) {
           queue.dequeue()
         }

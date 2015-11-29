@@ -21,7 +21,8 @@ package org.apache.flink.ml.nn.util
 import org.apache.flink.ml.math.{Breeze, Vector}
 import Breeze._
 
-import org.apache.flink.ml.metrics.distances.DistanceMetric
+import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric,
+EuclideanDistanceMetric, DistanceMetric}
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.PriorityQueue
@@ -36,84 +37,106 @@ import scala.collection.mutable.PriorityQueue
  * Many additional methods were added to the class both for
  * efficient KNN queries and generalizing to n-dim.
  *
- * @param minVec
- * @param maxVec
+ * @param minVec vector of the corner of the bounding box with smallest coordinates
+ * @param maxVec vector of the corner of the bounding box with smallest coordinates
+ * @param distMetric metric, must be Euclidean or squareEuclidean
+ * @param maxPerBox threshold for number of points in each box before slitting a box
  */
-class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
-  var maxPerBox = 20
+class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPerBox: Int){
 
-  class Node(center:Vector,width:Vector, var children:Seq[Node]) {
+  class Node(center: Vector, width: Vector, var children: Seq[Node]) {
 
-    var objects = new ListBuffer[Vector]
+    val nodeElements = new ListBuffer[Vector]
 
     /** for testing purposes only; used in QuadTreeSuite.scala
       *
-      * @return
+      * @return center and width of the box
       */
     def getCenterWidth(): (Vector, Vector) = {
       (center, width)
     }
 
-    def contains(obj: Vector): Boolean = {
-      overlap(obj, 0.0)
+    def contains(queryPoint: Vector): Boolean = {
+      overlap(queryPoint, 0.0)
     }
 
-    /** Tests if obj is within a radius of the node
+    /** Tests if queryPoint is within a radius of the node
       *
-      * @param obj
+      * @param queryPoint
       * @param radius
       * @return
       */
-    def overlap(obj: Vector, radius: Double): Boolean = {
+    def overlap(queryPoint: Vector, radius: Double): Boolean = {
       var count = 0
-      for (i <- 0 to obj.size - 1) {
-        if (obj(i) - radius < center(i) + width(i) / 2 &&
-          obj(i) + radius > center(i) - width(i) / 2) {
+      for (i <- 0 to queryPoint.size - 1) {
+        if (queryPoint(i) - radius < center(i) + width(i) / 2 &&
+          queryPoint(i) + radius > center(i) - width(i) / 2) {
           count += 1
         }
       }
 
-      if (count == obj.size) {
+      if (count == queryPoint.size) {
         true
       } else {
         false
       }
     }
 
-    /** Tests if obj is near a node:  minDist is defined so that every point in the box
-      * has distance to obj greater than minDist
-      * (minDist adopted from "Nearest Neighbors Queries" by N. Roussopoulos et al.)
+    /** Tests if queryPoint is near a node
       *
-      * @param obj
+      * @param queryPoint
       * @param radius
       * @return
       */
-    def isNear(obj: Vector, radius: Double): Boolean = {
-      if (minDist(obj) < radius) {
+    def isNear(queryPoint: Vector, radius: Double): Boolean = {
+      if (minDist(queryPoint) < radius) {
         true
       } else {
         false
       }
     }
 
-    def minDist(obj: Vector): Double = {
+    case class metricException(message: String) extends Exception(message)
+
+    /**
+     * minDist is defined so that every point in the box
+     * has distance to queryPoint greater than minDist
+     * (minDist adopted from "Nearest Neighbors Queries" by N. Roussopoulos et al.)
+     *
+     * @param queryPoint
+     * @return
+     */
+
+    def minDist(queryPoint: Vector): Double = {
       var minDist = 0.0
-      for (i <- 0 to obj.size - 1) {
-        if (obj(i) < center(i) - width(i) / 2) {
-          minDist += math.pow(obj(i) - center(i) + width(i) / 2, 2)
-        } else if (obj(i) > center(i) + width(i) / 2) {
-          minDist += math.pow(obj(i) - center(i) - width(i) / 2, 2)
+      for (i <- 0 to queryPoint.size - 1) {
+        if (queryPoint(i) < center(i) - width(i) / 2) {
+          minDist += math.pow(queryPoint(i) - center(i) + width(i) / 2, 2)
+        } else if (queryPoint(i) > center(i) + width(i) / 2) {
+          minDist += math.pow(queryPoint(i) - center(i) - width(i) / 2, 2)
         }
       }
-      minDist
+
+      if (distMetric.isInstanceOf[SquaredEuclideanDistanceMetric]) {
+        minDist
+      } else if (distMetric.isInstanceOf[EuclideanDistanceMetric]) {
+        math.sqrt(minDist)
+      } else{
+        throw metricException(s" Error: metric must be Euclidean or SquaredEuclidean!")
+      }
     }
 
-    def whichChild(obj: Vector): Int = {
-
+    /**
+     * Finds which child querPoint lies in.  node.children is a Seq[Node], and
+     * whichChild finds the appropriate index of that Seq.
+     * @param queryPoint
+     * @return
+     */
+    def whichChild(queryPoint: Vector): Int = {
       var count = 0
-      for (i <- 0 to obj.size - 1) {
-        if (obj(i) > center(i)) {
-          count += Math.pow(2, obj.size -1 - i).toInt
+      for (i <- 0 to queryPoint.size - 1) {
+        if (queryPoint(i) > center(i)) {
+          count += Math.pow(2, queryPoint.size -1 - i).toInt
         }
       }
       count
@@ -128,15 +151,14 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
     }
 
     /**
-     *  Recursive function that partitions a n-dim box by taking the (n-1) dimensional
+     * Recursive function that partitions a n-dim box by taking the (n-1) dimensional
      * plane through the center of the box keeping the n-th coordinate fixed,
      * then shifting it in the n-th direction up and down
      * and recursively applying partitionBox to the two shifted (n-1) dimensional planes.
      *
-     * @param center
-     * @param width
+     * @param center the center of the box
+     * @param width a vector of lengths of each dimension of the box
      * @return
-     *
      */
     def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
 
@@ -164,110 +186,122 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
     (maxVec.asBreeze - minVec.asBreeze).fromBreeze, null)
 
     /**
-     *   simple printing of tree for testing/debugging
+     * Simple printing of tree for testing/debugging
      */
-  def printTree(){
+  def printTree(): Unit = {
     printTreeRecur(root)
   }
 
-  def printTreeRecur(n:Node){
-    if(n.children != null) {
-      for (c <- n.children){
+  def printTreeRecur(node: Node){
+    if(node.children != null) {
+      for (c <- node.children){
         printTreeRecur(c)
       }
     }else{
-      println("printing tree: n.objects " + n.objects)
+      println("printing tree: n.nodeElements " + node.nodeElements)
     }
   }
 
   /**
    * Recursively adds an object to the tree
-   * @param obj
+   * @param queryPoint
    */
-  def insert(obj:Vector){
-    insertRecur(obj,root)
+  def insert(queryPoint: Vector){
+    insertRecur(queryPoint,root)
   }
 
-  private def insertRecur(obj:Vector,n:Node) {
-    if(n.children==null) {
-      if(n.objects.length < maxPerBox )
-      {
-        n.objects += obj
-      }
-
-      else{
-        n.makeChildren()  ///make children nodes; place objects into them and clear node.objects
-        for (o <- n.objects){
-          insertRecur(o, n.children(n.whichChild(o)))
+  private def insertRecur(queryPoint: Vector,node: Node) {
+    if (node.children == null) {
+      if (node.nodeElements.length < maxPerBox ) {
+        node.nodeElements += queryPoint
+      } else{
+        node.makeChildren()
+        for (o <- node.nodeElements){
+          insertRecur(o, node.children(node.whichChild(o)))
         }
-        n.objects.clear()
-        insertRecur(obj, n.children(n.whichChild(obj)))
+        node.nodeElements.clear()
+        insertRecur(queryPoint, node.children(node.whichChild(queryPoint)))
       }
     } else{
-      insertRecur(obj, n.children(n.whichChild(obj)))
+      insertRecur(queryPoint, node.children(node.whichChild(queryPoint)))
     }
   }
 
-  /** Following methods are used to zoom in on a region near a test point for a fast KNN query.
-    *
-    * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from
-    * which one computes the max distance D_s to obj.  D_s is then used during the
-    * kNN query to find all points within a radius D_s of obj using searchNeighbors.
-    * To find the "near" neighbors, a min-heap is defined on the leaf nodes of the quadtree.
-    * The priority of a leaf node is an appropriate notion of the distance between the test
-    * point and the node, which is defined by minDist(obj),
+  /**
+   * Used to zoom in on a region near a test point for a fast KNN query.
+   * This capability is used in the KNN query to find k "near" neighbors n_1,...,n_k, from
+   * which one computes the max distance D_s to queryPoint.  D_s is then used during the
+   * kNN query to find all points within a radius D_s of queryPoint using searchNeighbors.
+   * To find the "near" neighbors, a min-heap is defined on the leaf nodes of the leaf
+   * nodes of the minimal bounding box of the queryPoint. The priority of a leaf node
+   * is an appropriate notion of the distance between the test point and the node,
+   * which is defined by minDist(queryPoint),
    *
+   * @param queryPoint
+   * @return
    */
-  private def subOne(tuple: (Double,Node)) = tuple._1
-
-  def searchNeighborsSiblingQueue(obj:Vector):ListBuffer[Vector] = {
+  def searchNeighborsSiblingQueue(queryPoint: Vector): ListBuffer[Vector] = {
     var ret = new ListBuffer[Vector]
-    if (root.children == null) {   // edge case when the main box has not been partitioned at all
-      root.objects
+    // edge case when the main box has not been partitioned at all
+    if (root.children == null) {
+      root.nodeElements.clone()
     } else {
-      var NodeQueue = new PriorityQueue[(Double, Node)]()(Ordering.by(subOne))
-      searchRecurSiblingQueue(obj, root, NodeQueue)
+      val nodeQueue = new PriorityQueue[(Double, Node)]()(Ordering.by(x => x._1))
+      searchRecurSiblingQueue(queryPoint, root, nodeQueue)
 
       var count = 0
       while (count < maxPerBox) {
-        val dq = NodeQueue.dequeue()
-        if (dq._2.objects.nonEmpty) {
-          ret ++= dq._2.objects
-          count += dq._2.objects.length
+        val dq = nodeQueue.dequeue()
+        if (dq._2.nodeElements.nonEmpty) {
+          ret ++= dq._2.nodeElements
+          count += dq._2.nodeElements.length
         }
       }
       ret
     }
-}
+  }
 
-  private def searchRecurSiblingQueue(obj:Vector,n:Node,
-                                      NodeQueue:PriorityQueue[(Double, Node)]) {
-    if(n.children != null) {
-      for(child <- n.children; if child.contains(obj)) {
+  /**
+   *
+   * @param queryPoint
+   * @param node
+   * @param nodeQueue defined in searchSiblingQueue, this stores nodes based on their
+   *                  distance to node as defined by minDist
+   */
+  private def searchRecurSiblingQueue(queryPoint: Vector, node: Node,
+                                      nodeQueue: PriorityQueue[(Double, Node)]) {
+    if (node.children != null) {
+      for (child <- node.children; if child.contains(queryPoint)) {
         if (child.children == null) {
-          for (c <- n.children) {
-            ////// Go down to minimal bounding box
-            MinNodes(obj,c,NodeQueue)
+          for (c <- node.children) {
+            MinNodes(queryPoint,c,nodeQueue)
           }
         }
         else {
-            searchRecurSiblingQueue(obj, child, NodeQueue)
+            searchRecurSiblingQueue(queryPoint, child, nodeQueue)
         }
       }
     }
   }
 
-  private def MinNodes(obj:Vector,n:Node, NodeQueue:PriorityQueue[(Double, Node)]) {
-    if (n.children == null){
-      NodeQueue += ((-n.minDist(obj), n))
+  /**
+   * Goes down to minimal bounding box of queryPoint, and add elements to nodeQueue
+   *
+   * @param queryPoint
+   * @param node
+   * @param nodeQueue
+   */
+  private def MinNodes(queryPoint: Vector, node: Node, nodeQueue: PriorityQueue[(Double, Node)]) {
+    if (node.children == null){
+      nodeQueue += ((-node.minDist(queryPoint), node))
     } else{
-      for (c <- n.children) {
-          MinNodes(obj,c, NodeQueue)
+      for (c <- node.children) {
+          MinNodes(queryPoint, c, nodeQueue)
         }
     }
   }
 
-  /** Finds all objects within a neigiborhood of obj of a specified radius
+  /** Finds all objects within a neigiborhood of queryPoint of a specified radius
     * scope is modified from original 2D version in:
     * http://www.cs.trinity.edu/~mlewis/CSCI1321-F11/Code/src/util/Quadtree.scala
     *
@@ -275,27 +309,27 @@ class QuadTree(minVec:Vector, maxVec:Vector,distMetric:DistanceMetric){
     * all nearby boxes. The radius is determined from searchNeighborsSiblingQueue
     * by defining a min-heap on the leaf nodes
    *
-   * @param obj
+   * @param queryPoint
    * @param radius
-   * @return
+   * @return all points within queryPoint with given radius
    */
-  def searchNeighbors(obj:Vector,radius:Double):ListBuffer[Vector] = {
-    var ret = new ListBuffer[Vector]
-    searchRecur(obj,radius,root,ret)
+  def searchNeighbors(queryPoint: Vector, radius: Double): ListBuffer[Vector] = {
+    val ret = new ListBuffer[Vector]
+    searchRecur(queryPoint, radius, root, ret)
     ret
   }
 
-  private def searchRecur(obj:Vector,radius:Double,n:Node,ret:ListBuffer[Vector]) {
-    if(n.children==null) {
-      ret ++= n.objects
+  private def searchRecur(queryPoint: Vector, radius: Double, node: Node, ret: ListBuffer[Vector]) {
+    if (node.children == null) {
+      ret ++= node.nodeElements
     } else {
-      for(child <- n.children; if child.isNear(obj,radius)) {
-        searchRecur(obj, radius, child, ret)
+      for(child <- node.children; if child.isNear(queryPoint,radius)) {
+        searchRecur(queryPoint, radius, child, ret)
       }
     }
   }
 
-   def distance(a:Vector,b:Vector):Double = {
-     distMetric.distance(a,b)
+   def distance(a: Vector, b: Vector):Double = {
+     distMetric.distance(a, b)
   }
 }
