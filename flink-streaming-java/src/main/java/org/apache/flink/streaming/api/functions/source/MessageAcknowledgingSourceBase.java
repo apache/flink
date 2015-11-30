@@ -20,8 +20,10 @@ package org.apache.flink.streaming.api.functions.source;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * but must be retained until acknowledged. Messages that are not acknowledged within a certain
  * time interval will be served again (to a different connection, established by the recovered source).
  * <p>
- * Note that this source can give no guarantees about message order in teh case of failures,
+ * Note that this source can give no guarantees about message order in the case of failures,
  * because messages that were retrieved but not yet acknowledged will be returned later again, after
  * a set of messages that was not retrieved before the failure.
  * <p>
@@ -54,8 +56,9 @@ import org.slf4j.LoggerFactory;
  * that message are persistent.
  * <p>
  * All messages that are emitted and successfully processed by the streaming program will eventually be
- * acknowledged. In corner cases, the source may acknowledge certain IDs multiple times, if a
- * failure occurs while acknowledging.
+ * acknowledged. In corner cases, the source may receive certain IDs multiple times, if a
+ * failure occurs while acknowledging. To cope with this situation, an additional Set stores all
+ * processed IDs. IDs are only removed after they have been acknowledged.
  * <p>
  * A typical way to use this base in a source function is by implementing a run() method as follows:
  * <pre>{@code
@@ -71,48 +74,59 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  * 
  * @param <Type> The type of the messages created by the source.
- * @param <Id> The type of the IDs that are used for acknowledging elements.
+ * @param <UId> The type of unique IDs which may be used to acknowledge elements.
  */
-public abstract class MessageAcknowledingSourceBase<Type, Id> extends RichSourceFunction<Type> 
+public abstract class MessageAcknowledgingSourceBase<Type, UId>
+	extends RichSourceFunction<Type>
 	implements Checkpointed<SerializedCheckpointData[]>, CheckpointNotifier {
-	
+
 	private static final long serialVersionUID = -8689291992192955579L;
-	
-	private static final Logger LOG = LoggerFactory.getLogger(MessageAcknowledingSourceBase.class);
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(MessageAcknowledgingSourceBase.class);
+
 	/** Serializer used to serialize the IDs for checkpoints */
-	private final TypeSerializer<Id> idSerializer;
-	
+	private final TypeSerializer<UId> idSerializer;
+
 	/** The list gathering the IDs of messages emitted during the current checkpoint */
-	private transient List<Id> idsForCurrentCheckpoint;
+	private transient List<UId> idsForCurrentCheckpoint;
 
 	/** The list with IDs from checkpoints that were triggered, but not yet completed or notified of completion */
-	private transient ArrayDeque<Tuple2<Long, List<Id>>> pendingCheckpoints;
-	
+	private transient ArrayDeque<Tuple2<Long, List<UId>>> pendingCheckpoints;
+
+	/**
+	 * Set which contain all processed ids. Ids are acknowledged after checkpoints. When restoring
+	 * a checkpoint, ids may be processed again. This happens when the checkpoint completed but the
+	 * ids for a checkpoint haven't been acknowledged yet.
+	 */
+	private transient Set<UId> idsProcessedButNotAcknowledged;
+
+	protected int numCheckpointsToKeep = 10;
+
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new MessageAcknowledingSourceBase for IDs of teh given type.
-	 * 
+	 * Creates a new MessageAcknowledgingSourceBase for IDs of the given type.
+	 *
 	 * @param idClass The class of the message ID type, used to create a serializer for the message IDs.
 	 */
-	protected MessageAcknowledingSourceBase(Class<Id> idClass) {
+	protected MessageAcknowledgingSourceBase(Class<UId> idClass) {
 		this(TypeExtractor.getForClass(idClass));
 	}
 
 	/**
-	 * Creates a new MessageAcknowledingSourceBase for IDs of teh given type.
-	 * 
+	 * Creates a new MessageAcknowledgingSourceBase for IDs of the given type.
+	 *
 	 * @param idTypeInfo The type information of the message ID type, used to create a serializer for the message IDs.
 	 */
-	protected MessageAcknowledingSourceBase(TypeInformation<Id> idTypeInfo) {
+	protected MessageAcknowledgingSourceBase(TypeInformation<UId> idTypeInfo) {
 		this.idSerializer = idTypeInfo.createSerializer(new ExecutionConfig());
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		idsForCurrentCheckpoint = new ArrayList<>(64);
-		pendingCheckpoints = new ArrayDeque<>();
+		pendingCheckpoints = new ArrayDeque<>(numCheckpointsToKeep);
+		idsProcessedButNotAcknowledged = new HashSet<>();
 	}
 
 	@Override
@@ -128,56 +142,61 @@ public abstract class MessageAcknowledingSourceBase<Type, Id> extends RichSource
 
 	/**
 	 * This method must be implemented to acknowledge the given set of IDs back to the message queue.
-	 * @param ids The list od IDs to acknowledge.
+	 * @param UIds The list od IDs to acknowledge.
 	 */
-	protected abstract void acknowledgeIDs(List<Id> ids);
+	protected abstract void acknowledgeIDs(long checkpointId, List<UId> UIds);
 
 	/**
 	 * Adds an ID to be stored with the current checkpoint.
-	 * @param id The ID to add.
+	 * @param uid The ID to add.
+	 * @return True if the id has not been processed previously.
 	 */
-	protected void addId(SourceContext<Type> ctx, Id id) {
-		idsForCurrentCheckpoint.add(id);
+	protected boolean addId(UId uid) {
+		idsForCurrentCheckpoint.add(uid);
+		return idsProcessedButNotAcknowledged.add(uid);
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  Checkpointing the data
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public SerializedCheckpointData[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Snapshotting state. Messages: {}, checkpoint id: {}, timestamp: {}",
+		LOG.debug("Snapshotting state. Messages: {}, checkpoint id: {}, timestamp: {}",
 					idsForCurrentCheckpoint, checkpointId, checkpointTimestamp);
-		}
-		
-		pendingCheckpoints.addLast(new Tuple2<Long, List<Id>>(checkpointId, idsForCurrentCheckpoint));
+
+		pendingCheckpoints.addLast(new Tuple2<>(checkpointId, idsForCurrentCheckpoint));
+
 		idsForCurrentCheckpoint = new ArrayList<>(64);
-		
+
 		return SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer);
 	}
 
 	@Override
 	public void restoreState(SerializedCheckpointData[] state) throws Exception {
 		pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
+		// build a set which contains all processed ids. It may be used to check if we have
+		// already processed an incoming message.
+		for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+			idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
+		}
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {	
-		// only one commit operation must be in progress
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Committing Messages externally for checkpoint {}", checkpointId);
-		}
-		
-		for (Iterator<Tuple2<Long, List<Id>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
-			Tuple2<Long, List<Id>> checkpoint = iter.next();
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		LOG.debug("Committing Messages externally for checkpoint {}", checkpointId);
+
+		for (Iterator<Tuple2<Long, List<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
+			Tuple2<Long, List<UId>> checkpoint = iter.next();
 			long id = checkpoint.f0;
-			
+
 			if (id <= checkpointId) {
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Committing Messages with following IDs {}", checkpoint.f1);
-				}
-				acknowledgeIDs(checkpoint.f1);
+				LOG.trace("Committing Messages with following IDs {}", checkpoint.f1);
+				acknowledgeIDs(checkpointId, checkpoint.f1);
+				// remove deduplication data
+				idsProcessedButNotAcknowledged.removeAll(checkpoint.f1);
+				// remove checkpoint data
 				iter.remove();
 			}
 			else {

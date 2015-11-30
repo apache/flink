@@ -89,8 +89,8 @@ added modules. To run code depending on these modules you need to make them acce
 during runtime, for which we suggest two options:
 
 1. Either copy the required jar files to the `lib` folder onto all of your TaskManagers.
-Note that you have to restar your TaskManagers after this.
-2. Or package them with your usercode.
+Note that you have to restart your TaskManagers after this.
+2. Or package them with your code.
 
 The latter version is recommended as it respects the classloader management in Flink.
 

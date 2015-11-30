@@ -3687,28 +3687,51 @@ Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.co
 
 #### RabbitMQ Source
 
-A class providing an interface for receiving data from RabbitMQ.
+A class which provides an interface for receiving data from RabbitMQ.
 
 The followings have to be provided for the `RMQSource(…)` constructor in order:
 
-1. The hostname
-2. The queue name
-3. Deserialization schema
+- hostName: The RabbitMQ broker hostname.
+- queueName: The RabbitMQ queue name.
+- usesCorrelationId: `true` when correlation ids should be used, `false` otherwise (default is `false`).
+- deserializationScehma: Deserialization schema to turn messages into Java objects.
+
+This source can be operated in three different modes:
+
+1. Exactly-once (when checkpointed) with RabbitMQ transactions and messages with
+    unique correlation IDs.
+2. At-least-once (when checkpointed) with RabbitMQ transactions but no deduplication mechanism
+    (correlation id is not set).
+3. No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
+
+Correlation ids are a RabbitMQ application feature. You have to set it in the message properties
+when injecting messages into RabbitMQ. If you set `usesCorrelationId` to true and do not supply
+unique correlation ids, the source will throw an exception (if the correlation id is null) or ignore
+messages with non-unique correlation ids. If you set `usesCorrelationId` to false, then you don't
+have to supply correlation ids.
 
 Example:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-DataStream<String> stream = env
+DataStream<String> streamWithoutCorrelationIds = env
 	.addSource(new RMQSource<String>("localhost", "hello", new SimpleStringSchema()))
+	.print
+
+DataStream<String> streamWithCorrelationIds = env
+	.addSource(new RMQSource<String>("localhost", "hello", true, new SimpleStringSchema()))
 	.print
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream = env
+streamWithoutCorrelationIds = env
     .addSource(new RMQSource[String]("localhost", "hello", new SimpleStringSchema))
+    .print
+
+streamWithCorrelationIds = env
+    .addSource(new RMQSource[String]("localhost", "hello", true, new SimpleStringSchema))
     .print
 {% endhighlight %}
 </div>
