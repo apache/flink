@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.LongCounter;
@@ -182,7 +183,11 @@ public class ExecutionJobVertex implements Serializable {
 	public int getParallelism() {
 		return parallelism;
 	}
-	
+
+	public ApplicationID getApplicationID() {
+		return graph.getApplicationID();
+	}
+
 	public JobID getJobId() {
 		return graph.getJobID();
 	}

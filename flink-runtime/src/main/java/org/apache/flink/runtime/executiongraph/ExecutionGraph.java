@@ -492,6 +492,10 @@ public class ExecutionGraph implements Serializable {
 		return scheduler;
 	}
 
+	public ApplicationID getApplicationID() {
+		return appId;
+	}
+
 	public JobID getJobID() {
 		return jobID;
 	}
