@@ -123,9 +123,6 @@ object WordCountJob {
 
     // emit result
     counts.print()
-
-    // execute program
-    env.execute("WordCount Example")
   }
 }
 ~~~
