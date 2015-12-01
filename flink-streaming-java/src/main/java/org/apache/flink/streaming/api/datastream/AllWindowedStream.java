@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -66,6 +68,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggrega
  * @param <T> The type of elements in the stream.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns the elements to.
  */
+@Public
 public class AllWindowedStream<T, W extends Window> {
 
 	/** The data stream that is windowed by this stream */
@@ -81,6 +84,7 @@ public class AllWindowedStream<T, W extends Window> {
 	private Evictor<? super T, ? super W> evictor;
 
 
+	@Experimental
 	public AllWindowedStream(DataStream<T> input,
 			WindowAssigner<? super T, W> windowAssigner) {
 		this.input = input;
@@ -91,6 +95,7 @@ public class AllWindowedStream<T, W extends Window> {
 	/**
 	 * Sets the {@code Trigger} that should be used to trigger window emission.
 	 */
+	@Experimental
 	public AllWindowedStream<T, W> trigger(Trigger<? super T, ? super W> trigger) {
 		this.trigger = trigger;
 		return this;
@@ -103,6 +108,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * Note: When using an evictor window performance will degrade significantly, since
 	 * pre-aggregation of window results cannot be used.
 	 */
+	@Experimental
 	public AllWindowedStream<T, W> evictor(Evictor<? super T, ? super W> evictor) {
 		this.evictor = evictor;
 		return this;

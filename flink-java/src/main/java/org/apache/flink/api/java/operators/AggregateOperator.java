@@ -21,6 +21,8 @@ package org.apache.flink.api.java.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -47,6 +49,7 @@ import com.google.common.base.Preconditions;
  * 
  * @param <IN> The type of the data set aggregated by the operator.
  */
+@Public
 public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, AggregateOperator<IN>> {
 	
 	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<>(4);
@@ -155,6 +158,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 	@SuppressWarnings("unchecked")
 	@Override
+	@Internal
 	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> translateToDataFlow(Operator<IN> input) {
 		
 		// sanity check
@@ -245,6 +249,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	
 	// --------------------------------------------------------------------------------------------
 	
+	@Internal
 	public static final class AggregatingUdf<T extends Tuple>
 		extends RichGroupReduceFunction<T, T>
 		implements GroupCombineFunction<T, T> {

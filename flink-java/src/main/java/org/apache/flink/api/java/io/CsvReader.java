@@ -21,6 +21,8 @@ package org.apache.flink.api.java.io;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -40,6 +42,7 @@ import com.google.common.base.Preconditions;
  * the delimiters (row and field),  the fields that should be included or skipped, and other flags
  * such as whether to skip the initial line as the header.
  */
+@Public
 public class CsvReader {
 
 	private final Path path;
@@ -107,6 +110,7 @@ public class CsvReader {
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	@Deprecated
+	@Experimental
 	public CsvReader fieldDelimiter(char delimiter) {
 		this.fieldDelimiter = String.valueOf(delimiter);
 		return this;

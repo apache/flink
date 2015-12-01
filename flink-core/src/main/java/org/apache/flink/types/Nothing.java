@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.flink.types;
+
+import org.apache.flink.annotation.Public;
 
  /**
  * A type for (synthetic) operators that do not output data. For example, data sinks.
  */
+@Public
 public class Nothing {
 	private Nothing() {}
 }

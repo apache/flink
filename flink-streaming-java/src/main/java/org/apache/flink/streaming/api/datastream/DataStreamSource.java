@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
  * 
  * @param <T> Type of the elements in the DataStream created from the this source.
  */
+@Public
 public class DataStreamSource<T> extends SingleOutputStreamOperator<T, DataStreamSource<T>> {
 
 	boolean isParallel;

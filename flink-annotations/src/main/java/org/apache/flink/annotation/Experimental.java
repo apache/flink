@@ -29,6 +29,7 @@ import java.lang.annotation.Target;
  * An experimental API might change between minor releases.
  */
 @Documented
-@Target({ ElementType.TYPE, ElementType.METHOD })
+@Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR })
+@Public
 public @interface Experimental {
 }

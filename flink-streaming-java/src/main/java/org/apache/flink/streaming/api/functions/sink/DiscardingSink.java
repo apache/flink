@@ -18,11 +18,14 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * A stream sink that ignores all elements.
  * 
  * @param <T> The type of elements received by the sink.
  */
+@Public
 public class DiscardingSink<T> implements SinkFunction<T> {
 	
 	private static final long serialVersionUID = 1L;

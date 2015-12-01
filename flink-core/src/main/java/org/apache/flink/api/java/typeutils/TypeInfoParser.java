@@ -24,13 +24,14 @@ import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Value;
 
-
+@Public
 public class TypeInfoParser {
 	private static final String TUPLE_PACKAGE = "org.apache.flink.api.java.tuple";
 	private static final String VALUE_PACKAGE = "org.apache.flink.types";

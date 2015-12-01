@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators.join;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -41,6 +42,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
  * @param <I1> The type of the first input DataSet of the Join transformation.
  * @param <I2> The type of the second input DataSet of the Join transformation.
  */
+@Public
 public class JoinOperatorSetsBase<I1, I2> {
 
 	protected final DataSet<I1> input1;

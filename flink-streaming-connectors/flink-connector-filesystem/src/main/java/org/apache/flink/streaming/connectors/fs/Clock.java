@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+
 /**
  * A clock that can provide the current time.
  *

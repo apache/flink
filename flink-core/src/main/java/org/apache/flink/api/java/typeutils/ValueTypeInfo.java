@@ -19,6 +19,8 @@
 package org.apache.flink.api.java.typeutils;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -48,6 +50,7 @@ import org.apache.flink.types.Value;
  *
  * @param <T> The type of the class represented by this type information.
  */
+@Public
 public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implements AtomicType<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -64,7 +67,8 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	public static final ValueTypeInfo<StringValue> STRING_VALUE_TYPE_INFO = new ValueTypeInfo<>(StringValue.class);
 
 	private final Class<T> type;
-	
+
+	@Experimental
 	public ValueTypeInfo(Class<T> type) {
 		this.type = Preconditions.checkNotNull(type);
 
@@ -74,25 +78,30 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	}
 	
 	@Override
+	@Experimental
 	public int getArity() {
 		return 1;
 	}
 
 	@Override
+	@Experimental
 	public int getTotalFields() {
 		return 1;
 	}
 	
 	@Override
+	@Experimental
 	public Class<T> getTypeClass() {
 		return this.type;
 	}
 
 	@Override
+	@Experimental
 	public boolean isBasicType() {
 		return false;
 	}
 
+	@Experimental
 	public boolean isBasicValueType() {
 		return type.equals(StringValue.class) || type.equals(ByteValue.class) || type.equals(ShortValue.class) || type.equals(CharValue.class) ||
 				type.equals(DoubleValue.class) || type.equals(FloatValue.class) || type.equals(IntValue.class) || type.equals(LongValue.class) ||
@@ -100,17 +109,20 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	}
 
 	@Override
+	@Experimental
 	public boolean isTupleType() {
 		return false;
 	}
 	
 	@Override
+	@Experimental
 	public boolean isKeyType() {
 		return Comparable.class.isAssignableFrom(type);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		if (CopyableValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<T>) createCopyableValueSerializer(type.asSubclass(CopyableValue.class));
@@ -122,6 +134,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
+	@Experimental
 	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if (!isKeyType()) {
 			throw new RuntimeException("The type " + type.getName() + " is not Comparable.");
@@ -171,7 +184,8 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	@Experimental
 	static <X extends Value> TypeInformation<X> getValueTypeInfo(Class<X> typeClass) {
 		if (Value.class.isAssignableFrom(typeClass) && !typeClass.equals(Value.class)) {
 			return new ValueTypeInfo<X>(typeClass);

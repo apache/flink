@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Nothing;
@@ -25,41 +27,49 @@ import org.apache.flink.types.Nothing;
 /**
  * Placeholder type information for the {@link Nothing} type.
  */
+@Public
 public class NothingTypeInfo extends TypeInformation<Nothing> {
 	
 	private static final long serialVersionUID = 1L;
 	
 	@Override
+	@Experimental
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public int getArity() {
 		return 0;
 	}
 
 	@Override
+	@Experimental
 	public int getTotalFields() {
 		return 0;
 	}
 	
 	@Override
+	@Experimental
 	public Class<Nothing> getTypeClass() {
 		return Nothing.class;
 	}
 
 	@Override
+	@Experimental
 	public boolean isKeyType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public TypeSerializer<Nothing> createSerializer(ExecutionConfig executionConfig) {
 		throw new RuntimeException("The Nothing type cannot have a serializer.");
 	}

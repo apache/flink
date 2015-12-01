@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeinfo;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,6 +29,7 @@ import java.util.Set;
 /**
  * Type information for numeric fractional primitive types (double, float).
  */
+@Public
 public class FractionalTypeInfo<T> extends NumericTypeInfo<T> {
 
 	private static final long serialVersionUID = 554334260950199994L;

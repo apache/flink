@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.scala.hadoop.mapreduce
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormatBase
 import org.apache.hadoop.mapreduce.{InputFormat, Job}
 
+@Public
 class HadoopInputFormat[K, V](
     mapredInputFormat: InputFormat[K, V],
     keyClass: Class[K],

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util.serialization;
 import java.io.IOException;
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
@@ -29,6 +30,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
  * 
  * @param <T> The type created by the deserialization schema.
  */
+@Public
 public interface DeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**

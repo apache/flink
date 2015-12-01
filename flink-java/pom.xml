@@ -75,9 +75,9 @@ under the License.
 		
 	</dependencies>
 
-	<!-- Because flink-scala and flink-avro uses it in tests -->
 	<build>
 		<plugins>
+			<!-- Because flink-scala and flink-avro uses it in tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

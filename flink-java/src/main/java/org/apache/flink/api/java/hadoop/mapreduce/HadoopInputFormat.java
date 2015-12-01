@@ -20,6 +20,7 @@ package org.apache.flink.api.java.hadoop.mapreduce;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -33,6 +34,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
  * @param <K> Key Type
  * @param <V> Value Type
  */
+@Public
 public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>> implements ResultTypeQueryable<Tuple2<K,V>> {
 
 	private static final long serialVersionUID = 1L;

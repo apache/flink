@@ -22,6 +22,9 @@ import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -70,6 +73,7 @@ import org.apache.flink.api.java.tuple.*;
  * 
  * @see DataSet
  */
+@Public
 public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, JoinOperator<I1, I2, OUT>> {
 
 	protected final Keys<I1> keys1;
@@ -136,6 +140,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * 
 	 * @return The JoinHint.
 	 */
+	@Internal
 	public JoinHint getJoinHint() {
 		return this.joinHint;
 	}
@@ -145,6 +150,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 *
 	 * @return The JoinType
 	 */
+	@Internal
 	public JoinType getJoinType() {
 		return this.joinType;
 	}
@@ -173,6 +179,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * 
 	 * @return The custom partitioner used by this join;
 	 */
+	@Internal
 	public Partitioner<?> getPartitioner() {
 		return customPartitioner;
 	}
@@ -192,6 +199,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * @see org.apache.flink.api.common.functions.RichFlatJoinFunction
 	 * @see DataSet
 	 */
+	@Public
 	public static class EquiJoin<I1, I2, OUT> extends JoinOperator<I1, I2, OUT> {
 		
 		private final FlatJoinFunction<I1, I2, OUT> function;
@@ -252,6 +260,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		@Override
+		@Internal
 		public DualInputSemanticProperties getSemanticProperties() {
 
 			DualInputSemanticProperties props = super.getSemanticProperties();
@@ -511,6 +520,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * @see Tuple2
 	 * @see DataSet
 	 */
+	@Public
 	public static final class DefaultJoin<I1, I2> extends EquiJoin<I1, I2, Tuple2<I1, I2>> implements JoinFunctionAssigner<I1, I2> {
 
 		public DefaultJoin(DataSet<I1> input1, DataSet<I2> input2,
@@ -549,6 +559,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new EquiJoin<>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint(), Utils.getCallLocationName(), joinType);
 		}
 
+		@Internal
 		public static class WrappingFlatJoinFunction<IN1, IN2, OUT> extends WrappingFunction<JoinFunction<IN1,IN2,OUT>> implements FlatJoinFunction<IN1, IN2, OUT> {
 
 			private static final long serialVersionUID = 1L;
@@ -644,6 +655,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * @see Tuple
 	 * @see DataSet
 	 */
+	@Public
 	public static class ProjectJoin<I1, I2, OUT extends Tuple> extends EquiJoin<I1, I2, OUT> {
 		
 		private JoinProjection<I1, I2> joinProj;
@@ -730,6 +742,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 */
 		@SuppressWarnings({ "unchecked", "hiding" })
 		@Deprecated
+		@Experimental
 		public <OUT extends Tuple> JoinOperator<I1, I2, OUT> types(Class<?>... types) {
 			TupleTypeInfo<OUT> typeInfo = (TupleTypeInfo<OUT>)this.getResultType();
 
@@ -831,6 +844,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	 * @param <I1> The type of the first input DataSet of the Join transformation.
 	 * @param <I2> The type of the second input DataSet of the Join transformation.
 	 */
+	@Public
 	public static final class JoinOperatorSets<I1, I2> extends JoinOperatorSetsBase<I1, I2> {
 
 		public JoinOperatorSets(DataSet<I1> input1, DataSet<I2> input2) {
@@ -888,6 +902,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(int...)} or
 		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets.JoinOperatorSetsPredicate#equalTo(KeySelector)}.
 		 */
+		@Public
 		public class JoinOperatorSetsPredicate extends JoinOperatorSetsPredicateBase {
 
 			private JoinOperatorSetsPredicate(Keys<I1> keys1) {
@@ -954,6 +969,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 	@ForwardedFieldsFirst("*->0")
 	@ForwardedFieldsSecond("*->1")
+	@Internal
 	public static final class DefaultFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;
@@ -967,6 +983,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 	}
 
+	@Internal
 	public static final class ProjectFlatJoinFunction<T1, T2, R extends Tuple> extends RichFlatJoinFunction<T1, T2, R> {
 		
 		private static final long serialVersionUID = 1L;
@@ -1022,7 +1039,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 	}
-	
+
+	@Internal
 	public static final class JoinProjection<I1, I2> {
 		
 		private final DataSet<I1> ds1;

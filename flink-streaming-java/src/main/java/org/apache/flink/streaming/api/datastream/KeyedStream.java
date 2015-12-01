@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -59,6 +62,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * @param <T> The type of the elements in the Keyed Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
  */
+@Public
 public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	/** The key selector that can get the key by which the stream if partitioned from the elements */
@@ -104,6 +108,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Gets the key selector that can get the key by which the stream if partitioned from the elements.
 	 * @return The key selector for the key.
 	 */
+	@Internal
 	public KeySelector<T, KEY> getKeySelector() {
 		return this.keySelector;
 	}
@@ -112,6 +117,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * Gets the type of the key by which the stream is partitioned. 
 	 * @return The type of the key by which the stream is partitioned.
 	 */
+	@Internal
 	public TypeInformation<KEY> getKeyType() {
 		return keyType;
 	}
@@ -126,6 +132,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 	
 	@Override
+	@Experimental
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
 			TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
 
@@ -215,6 +222,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
 	 */
+	@Experimental
 	public <W extends Window> WindowedStream<T, KEY, W> window(WindowAssigner<? super T, W> assigner) {
 		return new WindowedStream<>(this, assigner);
 	}

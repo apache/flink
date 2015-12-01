@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 
 import java.io.Serializable;
@@ -31,6 +32,7 @@ import java.io.Serializable;
  * @param <IN> Type of objects to extract the key from.
  * @param <KEY> Type of key.
  */
+@Public
 public interface KeySelector<IN, KEY> extends Function, Serializable {
 	
 	/**
