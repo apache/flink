@@ -285,6 +285,16 @@ trait TestingJobManagerLike extends FlinkActor {
     case DisablePostStop =>
       postStopEnabled = false
 
+    case RequestSavepoint(savepointPath) =>
+      try {
+        val savepoint = savepointStore.getState(savepointPath)
+        sender ! ResponseSavepoint(savepoint)
+      }
+      catch {
+        case e: Exception =>
+          sender ! ResponseSavepoint(null)
+      }
+
     case msg: Disconnect =>
       if (!disconnectDisabled) {
         super.handleMessage(msg)

@@ -47,7 +47,9 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 	private final long minPauseBetweenCheckpoints;
 	
 	private final int maxConcurrentCheckpoints;
-	
+
+	/** Path to savepoint to reset state back to (optional, can be null) */
+	private String savepointPath;
 	
 	public JobSnapshottingSettings(List<JobVertexID> verticesToTrigger,
 									List<JobVertexID> verticesToAcknowledge,
@@ -99,6 +101,26 @@ public class JobSnapshottingSettings implements java.io.Serializable{
 
 	public int getMaxConcurrentCheckpoints() {
 		return maxConcurrentCheckpoints;
+	}
+
+	/**
+	 * Sets the savepoint path.
+	 *
+	 * This is only set if the job shall be resumed from a savepoint on submission.
+	 *
+	 * @param savepointPath The path of the savepoint to resume from.
+	 */
+	public void setSavepointPath(String savepointPath) {
+		this.savepointPath = savepointPath;
+	}
+
+	/**
+	 * Returns the configured savepoint path or <code>null</code> if none is configured.
+	 *
+	 * @return The configured savepoint path or <code>null</code> if none is configured.
+	 */
+	public String getSavepointPath() {
+		return savepointPath;
 	}
 
 	// --------------------------------------------------------------------------------------------

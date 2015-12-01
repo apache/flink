@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.checkpoint;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -32,7 +33,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 class HeapStateStore<T extends Serializable> implements StateStore<T> {
 
-	private final Map<Integer, T> stateMap = new HashMap<>();
+	private final ConcurrentMap<String, T> stateMap = new ConcurrentHashMap<>();
 
 	private final AtomicInteger idCounter = new AtomicInteger();
 
@@ -40,16 +41,14 @@ class HeapStateStore<T extends Serializable> implements StateStore<T> {
 	public String putState(T state) throws Exception {
 		checkNotNull(state, "State");
 
-		int id = idCounter.incrementAndGet();
-		stateMap.put(id, state);
-
-		return String.valueOf(id);
+		String key = "jobmanager://savepoints/" + idCounter.incrementAndGet();
+		stateMap.put(key, state);
+		return key;
 	}
 
 	@Override
 	public T getState(String path) throws Exception {
-		int id = Integer.valueOf(path);
-		T state = stateMap.get(id);
+		T state = stateMap.get(path);
 
 		if (state != null) {
 			return state;
@@ -61,11 +60,25 @@ class HeapStateStore<T extends Serializable> implements StateStore<T> {
 
 	@Override
 	public void disposeState(String path) throws Exception {
-		int id = Integer.valueOf(path);
-		T state = stateMap.remove(id);
+		T state = stateMap.remove(path);
 
 		if (state == null) {
 			throw new IllegalArgumentException("Invalid path '" + path + "'.");
 		}
 	}
+
+	/**
+	 * Returns all stored state.
+	 */
+	Collection<T> getAll() {
+		return stateMap.values();
+	}
+
+	/**
+	 * Clears all stored state.
+	 */
+	void clearAll() {
+		stateMap.clear();
+	}
+
 }

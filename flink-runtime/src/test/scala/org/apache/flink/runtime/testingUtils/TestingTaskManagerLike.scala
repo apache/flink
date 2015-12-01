@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{Terminated, ActorRef}
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID,
@@ -27,7 +29,7 @@ RequestLeaderSessionID}
 import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
 AcknowledgeRegistration}
-import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, TaskInFinalState}
+import org.apache.flink.runtime.messages.TaskMessages.{SubmitTask, UpdateTaskExecutionState, TaskInFinalState}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.{DisableDisconnect,
@@ -49,6 +51,9 @@ trait TestingTaskManagerLike extends FlinkActor {
   val waitForRegisteredAtJobManager = scala.collection.mutable.HashMap[ActorRef, Set[ActorRef]]()
   val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
+
+  /** Map of registered task submit listeners */
+  val registeredSubmitTaskListeners = scala.collection.mutable.HashMap[JobID, ActorRef]()
 
   var disconnectDisabled = false
 
@@ -141,6 +146,19 @@ trait TestingTaskManagerLike extends FlinkActor {
     case NotifyWhenJobManagerTerminated(jobManager) =>
       val waiting = waitForJobManagerToBeTerminated.getOrElse(jobManager.path.name, Set())
       waitForJobManagerToBeTerminated += jobManager.path.name -> (waiting + sender)
+
+    case RegisterSubmitTaskListener(jobId) =>
+      registeredSubmitTaskListeners.put(jobId, sender())
+
+    case msg@SubmitTask(tdd) =>
+      registeredSubmitTaskListeners.get(tdd.getJobID) match {
+        case Some(listenerRef) =>
+          listenerRef ! ResponseSubmitTaskListener(tdd)
+        case None =>
+        // Nothing to do
+      }
+
+      super.handleMessage(msg)
 
     /**
      * Message from task manager that accumulator values changed and need to be reported immediately

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -33,6 +34,9 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.Savepoint;
+import org.apache.flink.runtime.checkpoint.SavepointCoordinator;
+import org.apache.flink.runtime.checkpoint.StateStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
@@ -123,7 +127,12 @@ public class ExecutionGraph implements Serializable {
 	/** The lock used to secure all access to mutable fields, especially the tracking of progress
 	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
-	
+
+	/** The ID of the application this graph has been built for. This is
+	 * generated when the graph is created and reset if necessary (currently
+	 * only after {@link #restoreSavepoint(String)}). */
+	private ApplicationID appId = new ApplicationID();
+
 	/** The ID of the job this graph has been built for. */
 	private final JobID jobID;
 
@@ -214,6 +223,9 @@ public class ExecutionGraph implements Serializable {
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
+
+	/** The coordinator for savepoints, if snapshot checkpoints are enabled */
+	private transient SavepointCoordinator savepointCoordinator;
 
 	/** Checkpoint stats tracker seperate from the coordinator in order to be
 	 * available after archiving. */
@@ -357,7 +369,8 @@ public class ExecutionGraph implements Serializable {
 			UUID leaderSessionID,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			RecoveryMode recoveryMode) throws Exception {
+			RecoveryMode recoveryMode,
+			StateStore<Savepoint> savepointStore) throws Exception {
 
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
@@ -378,7 +391,6 @@ public class ExecutionGraph implements Serializable {
 				ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_DISABLE,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE);
 
-		CheckpointStatsTracker statsTracker;
 		if (isStatsDisabled) {
 			checkpointStatsTracker = new DisabledCheckpointStatsTracker();
 		}
@@ -410,6 +422,25 @@ public class ExecutionGraph implements Serializable {
 		// job status changes (running -> on, all other states -> off)
 		registerJobStatusListener(
 				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
+
+		// Savepoint Coordinator
+		savepointCoordinator = new SavepointCoordinator(
+				appId,
+				jobID,
+				interval,
+				checkpointTimeout,
+				tasksToTrigger,
+				tasksToWaitFor,
+				tasksToCommitTo,
+				userClassLoader,
+				// Important: this counter needs to be shared with the periodic
+				// checkpoint coordinator.
+				checkpointIDCounter,
+				savepointStore,
+				checkpointStatsTracker);
+
+		registerJobStatusListener(savepointCoordinator
+				.createActivatorDeactivator(actorSystem, leaderSessionID));
 	}
 
 	/**
@@ -428,10 +459,19 @@ public class ExecutionGraph implements Serializable {
 			checkpointCoordinator = null;
 			checkpointStatsTracker = null;
 		}
+
+		if (savepointCoordinator != null) {
+			savepointCoordinator.shutdown();
+			savepointCoordinator = null;
+		}
 	}
 
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
+	}
+
+	public SavepointCoordinator getSavepointCoordinator() {
+		return savepointCoordinator;
 	}
 
 	public CheckpointStatsTracker getCheckpointStatsTracker() {
@@ -848,6 +888,39 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	/**
+	 * Restores the execution state back to a savepoint.
+	 *
+	 * <p>The execution vertices need to be in state {@link ExecutionState#CREATED} when calling
+	 * this method. The operation might block. Make sure that calls don't block the job manager
+	 * actor.
+	 *
+	 * <p><strong>Note</strong>: a call to this method changes the {@link #appId} of the execution
+	 * graph if the operation is successful.
+	 *
+	 * @param savepointPath The path of the savepoint to rollback to.
+	 * @throws IllegalStateException If checkpointing is disabled
+	 * @throws IllegalStateException If checkpoint coordinator is shut down
+	 * @throws Exception If failure during rollback
+	 */
+	public void restoreSavepoint(String savepointPath) throws Exception {
+		synchronized (progressLock) {
+			if (savepointCoordinator != null) {
+				LOG.info("Restoring savepoint: " + savepointPath + ".");
+
+				ApplicationID oldAppId = appId;
+				this.appId = savepointCoordinator.restoreSavepoint(
+						getAllVertices(), savepointPath);
+
+				LOG.info("Set application ID to {} (from: {}).", appId, oldAppId);
+			}
+			else {
+				// Sanity check
+				throw new IllegalStateException("Checkpointing disabled.");
+			}
+		}
+	}
+
+	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
 	public void prepareForArchiving() {
@@ -1004,6 +1077,17 @@ public class ExecutionGraph implements Serializable {
 
 			// We don't clean the checkpoint stats tracker, because we want
 			// it to be available after the job has terminated.
+		}
+		catch (Exception e) {
+			LOG.error("Error while cleaning up after execution", e);
+		}
+
+		try {
+			CheckpointCoordinator coord = this.savepointCoordinator;
+			this.savepointCoordinator = null;
+			if (coord != null) {
+				coord.shutdown();
+			}
 		}
 		catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
