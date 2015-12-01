@@ -19,10 +19,13 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * Collects a record and forwards it. The collector is the "push" counterpart of the
  * {@link java.util.Iterator}, which "pulls" data in.
  */
+@PublicInterface
 public interface Collector<T> {
 	
 	/**

@@ -17,11 +17,14 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * One value in a data stream. This stores the value and the associated timestamp.
  * 
  * @param <T> The type encapsulated with the stream record.
  */
+@PublicInterface
 public class StreamRecord<T> extends StreamElement {
 	
 	/** The actual value held by this record */

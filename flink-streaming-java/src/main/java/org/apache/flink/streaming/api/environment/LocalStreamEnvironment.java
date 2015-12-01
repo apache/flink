@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
  * and {@link StreamExecutionEnvironment#createLocalEnvironment(int)}. The former version will pick a
  * default parallelism equal to the number of hardware contexts in the local machine.
  */
+@PublicInterface
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStreamEnvironment.class);

@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * An accumulator that computes the average value.
  * Input can be {@code long}, {@code integer}, or {@code double} and the result is {@code double}.
  */
+@PublicInterface
 public class AverageAccumulator implements SimpleAccumulator<Double> {
 
 	private static final long serialVersionUID = 3672555084179165255L;

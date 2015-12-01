@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.hadoop.fs.Path;
 
 import java.io.Serializable;
@@ -31,6 +32,7 @@ import java.io.Serializable;
  * the old one closed. The {@code Bucketer} can, for example, decide to start new buckets
  * based on system time.
  */
+@PublicInterface
 public interface Bucketer extends Serializable {
 
 	/**

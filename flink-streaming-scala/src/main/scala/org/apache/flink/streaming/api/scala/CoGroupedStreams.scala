@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.PublicInterface
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -56,6 +57,7 @@ import scala.reflect.ClassTag
  *     .apply(new MyCoGroupFunction())
  * } }}}
  */
+@PublicInterface
 object CoGroupedStreams {
 
   /**

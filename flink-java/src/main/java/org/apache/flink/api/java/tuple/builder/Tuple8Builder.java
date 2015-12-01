@@ -28,8 +28,10 @@ package org.apache.flink.api.java.tuple.builder;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.java.tuple.Tuple8;
 
+@PublicInterface
 public class Tuple8Builder<T0, T1, T2, T3, T4, T5, T6, T7> {
 
 	private List<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tuples = new ArrayList<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>();

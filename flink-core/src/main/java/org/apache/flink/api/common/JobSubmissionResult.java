@@ -18,9 +18,12 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * The result of submitting a job to a JobManager.
  */
+@PublicInterface
 public class JobSubmissionResult {
 	
 	private JobID jobID;

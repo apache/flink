@@ -18,4 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.PublicInterface;
+
+@PublicInterface
 public interface StrictlyLocalAssignment {}

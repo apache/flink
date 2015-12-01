@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.fs;
 
 import org.apache.commons.lang3.time.StopWatch;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
@@ -119,6 +120,7 @@ import java.util.UUID;
  *
  * @param <T> Type of the elements emitted by this sink
  */
+@PublicInterface
 public class RollingSink<T> extends RichSinkFunction<T> implements InputTypeConfigurable, Checkpointed<RollingSink.BucketState>, CheckpointNotifier {
 	private static final long serialVersionUID = 1L;
 

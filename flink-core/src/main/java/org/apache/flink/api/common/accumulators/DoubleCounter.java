@@ -18,9 +18,12 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * An accumulator that sums up {@code double} values.
  */
+@PublicInterface
 public class DoubleCounter implements SimpleAccumulator<Double> {
 
 	private static final long serialVersionUID = 1L;

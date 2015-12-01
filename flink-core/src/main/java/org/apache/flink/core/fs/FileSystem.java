@@ -34,6 +34,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.util.ClassUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
@@ -43,6 +44,7 @@ import org.apache.flink.util.StringUtils;
  * may be implemented as a distributed file system, or as a local
  * one that reflects the locally-connected disk.
  */
+@PublicInterface
 public abstract class FileSystem {
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "org.apache.flink.core.fs.local.LocalFileSystem";
@@ -61,6 +63,7 @@ public abstract class FileSystem {
 	 * Enumeration for write modes. 
 	 *
 	 */
+	@PublicInterface
 	public static enum WriteMode {
 		
 		/** Creates write path if it does not exist. Does not overwrite existing files and directories. */
@@ -73,6 +76,7 @@ public abstract class FileSystem {
 	/**
 	 * An auxiliary class to identify a file system by its scheme and its authority.
 	 */
+	@PublicInterface
 	public static class FSKey {
 
 		/**

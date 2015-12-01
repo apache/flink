@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.PublicInterface
 import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWStream}
@@ -54,6 +55,7 @@ import scala.collection.JavaConverters._
  *           [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner]]
  *           assigns the elements to.
  */
+@PublicInterface
 class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
   /**

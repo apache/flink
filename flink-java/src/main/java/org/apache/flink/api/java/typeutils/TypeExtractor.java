@@ -31,6 +31,7 @@ import java.util.List;
 
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.commons.lang3.ClassUtils;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -66,6 +67,7 @@ import com.google.common.base.Preconditions;
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
  * functions.
  */
+@PublicInterface
 public class TypeExtractor {
 
 	/*

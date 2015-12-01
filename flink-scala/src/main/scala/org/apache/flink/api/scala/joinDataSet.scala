@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.PublicInterface
 import org.apache.flink.api.common.operators.Operator
 import org.apache.flink.api.common.operators.base.JoinOperatorBase
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
@@ -57,6 +58,7 @@ import scala.reflect.ClassTag
  * @tparam L Type of the left input of the join.
  * @tparam R Type of the right input of the join.
  */
+@PublicInterface
 class JoinDataSet[L, R](
     defaultJoin: EquiJoin[L, R, (L, R)],
     leftInput: DataSet[L],

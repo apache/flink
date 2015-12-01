@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,6 +29,7 @@ import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 
+@PublicInterface
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private static final long serialVersionUID = -7959114120287706504L;

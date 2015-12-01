@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.time;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 
 import java.util.concurrent.TimeUnit;
@@ -27,6 +28,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Base class for {@link Time} implementations.
  */
+@PublicInterface
 public abstract class AbstractTime {
 
 	/** The time unit for this policy's time interval */

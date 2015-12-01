@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -59,6 +60,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
  * @param <T> The type of the elements in the Keyed Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
  */
+@PublicInterface
 public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	/** The key selector that can get the key by which the stream if partitioned from the elements */

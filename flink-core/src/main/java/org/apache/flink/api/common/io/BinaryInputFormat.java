@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -43,6 +44,7 @@ import org.apache.flink.util.StringUtils;
  * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks. Without
  * configuration, these block sizes equal the native block sizes of the HDFS.
  */
+@PublicInterface
 public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	private static final long serialVersionUID = 1L;
 

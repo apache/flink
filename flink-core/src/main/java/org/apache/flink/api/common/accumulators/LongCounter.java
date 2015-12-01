@@ -18,9 +18,12 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * An accumulator that sums up {@code long} values.
  */
+@PublicInterface
 public class LongCounter implements SimpleAccumulator<Long> {
 
 	private static final long serialVersionUID = 1L;

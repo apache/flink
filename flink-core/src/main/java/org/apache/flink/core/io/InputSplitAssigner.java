@@ -18,10 +18,13 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * An input split assigner distributes the {@link InputSplit}s among the instances on which a
  * data source exists.
  */
+@PublicInterface
 public interface InputSplitAssigner {
 
 	/**

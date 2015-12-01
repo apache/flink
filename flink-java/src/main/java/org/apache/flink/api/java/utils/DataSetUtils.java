@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.utils;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
@@ -40,6 +41,7 @@ import java.util.List;
  * This class provides simple utility methods for zipping elements in a data set with an index
  * or with a unique identifier.
  */
+@PublicInterface
 public final class DataSetUtils {
 
 	/**

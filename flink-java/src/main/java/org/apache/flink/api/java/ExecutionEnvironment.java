@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -92,6 +93,7 @@ import com.google.common.base.Preconditions;
  * @see LocalEnvironment
  * @see RemoteEnvironment
  */
+@PublicInterface
 public abstract class ExecutionEnvironment {
 
 	/** The logger used by the environment and its subclasses */

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+@PublicInterface
 public class AccumulatorHelper {
 
 	/**

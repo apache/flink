@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import java.io.EOFException;
@@ -29,6 +30,7 @@ import java.io.InputStream;
  * <br>
  * <i>NB: {@link #seek(long)} and {@link #getPos()} are currently not supported.</i>
  */
+@PublicInterface
 public class InputStreamFSInputWrapper extends FSDataInputStream {
 
 	private final InputStream inStream;

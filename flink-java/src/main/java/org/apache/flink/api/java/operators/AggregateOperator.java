@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -47,6 +48,7 @@ import com.google.common.base.Preconditions;
  * 
  * @param <IN> The type of the data set aggregated by the operator.
  */
+@PublicInterface
 public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, AggregateOperator<IN>> {
 	
 	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<AggregationFunction<?>>(4);

@@ -18,12 +18,15 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.PublicInterface;
+
 import java.io.IOException;
 
 /**
  * This interface may be implemented by {@link OutputFormat}s to have the master finalize them globally.
  * 
  */
+@PublicInterface
 public interface FinalizeOnMaster {
 
 	/**

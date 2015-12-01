@@ -24,6 +24,7 @@ import java.util.Collections;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -43,6 +44,7 @@ import org.apache.flink.types.Value;
  *
  * @param <T> The type of the tuple.
  */
+@PublicInterface
 public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	
 	private static final long serialVersionUID = 1L;

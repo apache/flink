@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.PublicInterface
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.Utils
 import org.apache.flink.api.java.utils.{DataSetUtils => jutils}
 
 import _root_.scala.language.implicitConversions
 import _root_.scala.reflect.ClassTag
+
 
 package object utils {
 
@@ -33,6 +35,7 @@ package object utils {
    *
    * @param self Data Set
    */
+  @PublicInterface
   implicit class DataSetUtils[T: TypeInformation : ClassTag](val self: DataSet[T]) {
 
     /**

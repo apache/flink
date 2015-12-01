@@ -19,6 +19,7 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.core.memory.MemorySegment;
 
 
@@ -34,6 +35,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * key. A normalized key is considered a prefix, if its length is less than the maximal normalized
  * key length.
  */
+@PublicInterface
 public interface NormalizableKey<T> extends Key<T> {
 	
 	/**

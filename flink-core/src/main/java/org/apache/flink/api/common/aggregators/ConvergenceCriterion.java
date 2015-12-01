@@ -21,11 +21,13 @@ package org.apache.flink.api.common.aggregators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.types.Value;
 
 /**
  * Used to check for convergence.
  */
+@PublicInterface
 public interface ConvergenceCriterion<T extends Value> extends Serializable {
 
 	/**

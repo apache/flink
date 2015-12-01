@@ -28,6 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -53,6 +54,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
  * 
  * @param <T> The type represented by this type information.
  */
+@PublicInterface
 public class PojoTypeInfo<T> extends CompositeType<T> {
 	
 	private static final long serialVersionUID = 1L;

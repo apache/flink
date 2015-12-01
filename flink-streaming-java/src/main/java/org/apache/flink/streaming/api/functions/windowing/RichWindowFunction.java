@@ -17,9 +17,11 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+@PublicInterface
 public abstract class RichWindowFunction<IN, OUT, KEY, W extends Window> extends AbstractRichFunction implements WindowFunction<IN, OUT, KEY, W> {
 	private static final long serialVersionUID = 1L;
 }

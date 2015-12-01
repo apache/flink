@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.PublicInterface
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
 import org.apache.flink.api.common.operators.Order
@@ -38,6 +39,7 @@ import scala.reflect.ClassTag
  * A secondary sort order can be added with sortGroup, but this is only used when using one
  * of the group-at-a-time operations, i.e. `reduceGroup`.
  */
+@PublicInterface
 class GroupedDataSet[T: ClassTag](
     private val set: DataSet[T],
     private val keys: Keys[T]) {

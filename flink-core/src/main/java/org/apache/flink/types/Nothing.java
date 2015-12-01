@@ -19,9 +19,12 @@
 
 package org.apache.flink.types;
 
-/**
+import org.apache.flink.annotation.PublicInterface;
+
+ /**
  * A type for (synthetic) operators that do not output data. For example, data sinks.
  */
+@PublicInterface
 public class Nothing {
 	private Nothing() {}
 }

@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.PublicInterface;
+
+@PublicInterface
 public interface BroadcastVariableInitializer<T, O> {
 	
 	O initializeBroadcastVariable(Iterable<T> data);

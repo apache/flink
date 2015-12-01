@@ -18,9 +18,12 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.PublicInterface;
+
 /**
  * Unmodifiable version of the Configuration class.
  */
+@PublicInterface
 public class UnmodifiableConfiguration extends Configuration {
 	
 	private static final long serialVersionUID = -8151292629158972280L;

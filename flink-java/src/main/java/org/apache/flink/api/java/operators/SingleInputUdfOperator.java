@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.PublicInterface;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -47,6 +48,7 @@ import org.apache.flink.configuration.Configuration;
  * @param <IN> The data type of the input data set.
  * @param <OUT> The data type of the returned data set.
  */
+@PublicInterface
 public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOperator<IN, OUT, O>>
 	extends SingleInputOperator<IN, OUT, O> implements UdfOperator<O>
 {
