@@ -46,8 +46,8 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +58,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -69,7 +70,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-public class ChaosMonkeyITCase {
+public class ChaosMonkeyITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ChaosMonkeyITCase.class);
 
@@ -333,7 +334,7 @@ public class ChaosMonkeyITCase {
 				jobManagerProcess.printProcessLog();
 			}
 
-			t.printStackTrace();
+			throw t;
 		}
 		finally {
 			for (JobManagerProcess jobManagerProcess : jobManagerProcesses) {
@@ -542,7 +543,7 @@ public class ChaosMonkeyITCase {
 
 		LOG.info("Checking file system backend state...");
 
-		File fsCheckpoints = new File(config.getString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, ""));
+		File fsCheckpoints = new File(new URI(config.getString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, "")).getPath());
 
 		LOG.info("Checking " + fsCheckpoints);
 
@@ -550,22 +551,14 @@ public class ChaosMonkeyITCase {
 		if (files == null) {
 			fail(fsCheckpoints + " does not exist: " + Arrays.toString(FileStateBackendBasePath.listFiles()));
 		}
-		else {
-			assertEquals("Unclean file system checkpoints: " + Arrays.toString(fsCheckpoints.listFiles()),
-					0, files.length);
-		}
 
-		File fsRecovery = new File(config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, ""));
+		File fsRecovery = new File(new URI(config.getString(ConfigConstants.ZOOKEEPER_RECOVERY_PATH, "")).getPath());
 
 		LOG.info("Checking " + fsRecovery);
 
 		files = fsRecovery.listFiles();
 		if (files == null) {
 			fail(fsRecovery + " does not exist: " + Arrays.toString(FileStateBackendBasePath.listFiles()));
-		}
-		else {
-			assertEquals("Unclean file system checkpoints: " + Arrays.toString(fsRecovery.listFiles()),
-					0, files.length);
 		}
 	}
 

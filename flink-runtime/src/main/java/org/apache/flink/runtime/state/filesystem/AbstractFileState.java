@@ -64,7 +64,7 @@ public abstract class AbstractFileState implements java.io.Serializable {
 	public void discardState() throws Exception {
 		getFileSystem().delete(filePath, false);
 
-		// send a call to delete the directory containing the file. this will
+		// send a call to delete the checkpoint directory containing the file. This will
 		// fail (and be ignored) when some files still exist
 		try {
 			getFileSystem().delete(filePath.getParent(), false);
