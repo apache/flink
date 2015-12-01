@@ -55,7 +55,7 @@ During job execution, the JobManager keeps track of distributed tasks, decides w
 and reacts to finished tasks or execution failures.
 
 The JobManager receives the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/ "JobGraph" %},
-which is a representation of the data flow consisting of operators ({% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/AbstractJobVertex.java "JobVertex" %})
+which is a representation of the data flow consisting of operators ({% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/JobVertex.java "JobVertex" %})
 and intermediate results ({% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/IntermediateDataSet.java "IntermediateDataSet" %}).
 Each operator has properies, like the parallelism and the code that it executes.
 In addition, the JobGraph has a set of attached libraries, that are neccessary to execute the code of the operators.
