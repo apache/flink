@@ -47,7 +47,7 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 	 * This method is called by the task upon deployment to initialize the state backend for
 	 * data for a specific job.
 	 *
-	 * @param The {@link Environment} of the task that instantiated the state backend					
+	 * @param env The {@link Environment} of the task that instantiated the state backend
 	 * @throws Exception Overwritten versions of this method may throw exceptions, in which
 	 *                   case the job that uses the state backend is considered failed during
 	 *                   deployment.

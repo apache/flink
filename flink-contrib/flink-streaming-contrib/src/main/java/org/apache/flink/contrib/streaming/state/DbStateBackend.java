@@ -65,7 +65,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 
 	// ------------------------------------------------------
 
-	private Environment env;
+	private transient Environment env;
 
 	// ------------------------------------------------------
 
@@ -77,7 +77,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	private final int numSqlRetries;
 	private final int sqlRetrySleep;
 
-	private PreparedStatement insertStatement;
+	private transient PreparedStatement insertStatement;
 
 	// ------------------------------------------------------
 

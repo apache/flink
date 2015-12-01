@@ -525,7 +525,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 				case "filesystem":
 					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
+					LOG.info("State backend is set to filesystem (checkpoints to filesystem \""
 						+ backend.getBasePath() + "\")");
 					return backend;
 
