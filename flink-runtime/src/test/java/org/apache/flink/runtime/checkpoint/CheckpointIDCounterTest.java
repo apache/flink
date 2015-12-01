@@ -157,6 +157,22 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 	}
 
 	/**
+	 * Tests a simple {@link CheckpointIDCounter#setCount(long)} operation.
+	 */
+	@Test
+	public void testSetCount() throws Exception {
+		final CheckpointIDCounter counter = createCompletedCheckpoints();
+		counter.start();
+
+		// Test setCount
+		counter.setCount(1337);
+		assertEquals(1337, counter.getAndIncrement());
+		assertEquals(1338, counter.getAndIncrement());
+
+		counter.stop();
+	}
+
+	/**
 	 * Task repeatedly incrementing the {@link CheckpointIDCounter}.
 	 */
 	private static class Incrementer implements Callable<List<Long>> {
