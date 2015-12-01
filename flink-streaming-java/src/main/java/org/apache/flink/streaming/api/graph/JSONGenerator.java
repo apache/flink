@@ -90,7 +90,7 @@ public class JSONGenerator {
 
 					Integer mappedID = (edgeRemapings.keySet().contains(inputID)) ? edgeRemapings
 							.get(inputID) : inputID;
-					decorateEdge(inputs, vertexID, mappedID, inputID);
+					decorateEdge(inputs, inEdge, mappedID);
 				}
 			}
 			jsonArray.put(node);
@@ -143,9 +143,9 @@ public class JSONGenerator {
 				int inputID = inEdge.getSourceId();
 
 				if (edgeRemapings.keySet().contains(inputID)) {
-					decorateEdge(inEdges, vertexID, inputID, inputID);
+					decorateEdge(inEdges, inEdge, inputID);
 				} else if (!streamGraph.vertexIDtoLoopTimeout.containsKey(inputID)) {
-					decorateEdge(iterationInEdges, vertexID, inputID, inputID);
+					decorateEdge(iterationInEdges, inEdge, inputID);
 				}
 			}
 
@@ -155,12 +155,12 @@ public class JSONGenerator {
 
 	}
 
-	private void decorateEdge(JSONArray inputArray, int vertexID, int mappedInputID, int inputID)
+	private void decorateEdge(JSONArray inputArray, StreamEdge inEdge, int mappedInputID)
 			throws JSONException {
 		JSONObject input = new JSONObject();
 		inputArray.put(input);
 		input.put(ID, mappedInputID);
-		input.put(SHIP_STRATEGY, streamGraph.getStreamEdge(inputID, vertexID).getPartitioner());
+		input.put(SHIP_STRATEGY, inEdge.getPartitioner());
 		input.put(SIDE, (inputArray.length() == 0) ? "first" : "second");
 	}
 
