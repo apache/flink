@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -41,6 +42,7 @@ import org.apache.flink.util.Collector;
  * @param <T> Type of the elements that this function processes.
  * @param <O> The type of the elements returned by the user-defined function.
  */
+@Public
 public interface GroupReduceFunction<T, O> extends Function, Serializable {
 	
 	/**

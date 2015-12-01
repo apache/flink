@@ -21,6 +21,7 @@ package org.apache.flink.api.common.io;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
@@ -36,6 +37,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
  * open/close the target
  * file streams.
  */
+@Public
 public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implements InitializeOnMaster, CleanupWhenUnsuccessful {
 	
 	private static final long serialVersionUID = 1L;

@@ -23,6 +23,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -34,6 +35,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the elements that this function processes.
  * @param <OUT> The type of the elements returned by the user-defined function.
  */
+@Public
 public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunction implements GroupReduceFunction<IN, OUT>, GroupCombineFunction<IN, IN> {
 	
 	private static final long serialVersionUID = 1L;
@@ -83,5 +85,6 @@ public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunct
 	 */
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target(ElementType.TYPE)
+	@Public
 	public static @interface Combinable {}
 }

@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Lightweight configuration object which stores key/value pairs.
  */
+@Public
 public class Configuration extends ExecutionConfig.GlobalJobParameters 
 		implements IOReadableWritable, java.io.Serializable, Cloneable {
 

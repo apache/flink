@@ -20,6 +20,7 @@ package org.apache.flink.api.common.io;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 
@@ -28,6 +29,7 @@ import org.apache.flink.core.memory.DataInputView;
  * 
  * @see SerializedOutputFormat
  */
+@Public
 public class SerializedInputFormat<T extends IOReadableWritable> extends BinaryInputFormat<T> {
 
 	private static final long serialVersionUID = 1L;

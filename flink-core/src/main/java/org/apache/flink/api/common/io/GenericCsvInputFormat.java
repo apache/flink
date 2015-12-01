@@ -23,6 +23,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 
+@Public
 public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);

@@ -19,6 +19,8 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -51,6 +53,7 @@ import java.util.Objects;
  *         automatically applied.</li>
  * </ul>
  */
+@Public
 public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -150,6 +153,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @param interval The interval between watermarks in milliseconds.
 	 */
+	@Experimental
 	public ExecutionConfig setAutoWatermarkInterval(long interval) {
 		enableTimestamps();
 		this.autoWatermarkInterval = interval;
@@ -167,6 +171,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #setAutoWatermarkInterval(long)
 	 */
+	@Experimental
 	public ExecutionConfig enableTimestamps() {
 		this.timestampsEnabled = true;
 		return this;
@@ -177,6 +182,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #enableTimestamps()
 	 */
+	@Experimental
 	public ExecutionConfig disableTimestamps() {
 		this.timestampsEnabled = false;
 		return this;
@@ -187,6 +193,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #enableTimestamps()
 	 */
+	@Experimental
 	public boolean areTimestampsEnabled() {
 		return timestampsEnabled;
 	}
@@ -196,6 +203,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #setAutoWatermarkInterval(long)
 	 */
+	@Experimental
 	public long getAutoWatermarkInterval()  {
 		return this.autoWatermarkInterval;
 	}
@@ -377,6 +385,7 @@ public class ExecutionConfig implements Serializable {
 	 * 
 	 * @param codeAnalysisMode see {@link CodeAnalysisMode}
 	 */
+	@Experimental
 	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
 		this.codeAnalysisMode = codeAnalysisMode;
 	}
@@ -384,6 +393,7 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the {@link CodeAnalysisMode} of the program.
 	 */
+	@Experimental
 	public CodeAnalysisMode getCodeAnalysisMode() {
 		return codeAnalysisMode;
 	}

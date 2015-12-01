@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.common.accumulators;
 
+
 /**
  * An accumulator that sums up {@code Integer} values.
  */

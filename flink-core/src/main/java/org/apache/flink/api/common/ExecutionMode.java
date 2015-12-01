@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * The execution mode specifies how a batch program is executed in terms
  * of data exchange: pipelining or batched.
  */
+@Public
 public enum ExecutionMode {
 
 	/**

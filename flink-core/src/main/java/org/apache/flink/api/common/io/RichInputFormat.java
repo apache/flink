@@ -18,6 +18,7 @@ c * Licensed to the Apache Software Foundation (ASF) under one
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.io.InputSplit;
 
@@ -25,6 +26,7 @@ import org.apache.flink.core.io.InputSplit;
  * An abstract stub implementation for Rich input formats.
  * Rich formats have access to their runtime execution context via {@link #getRuntimeContext()}.
  */
+@Public
 public abstract class RichInputFormat<OT, T extends InputSplit> implements InputFormat<OT, T> {
 	
 	private static final long serialVersionUID = 1L;

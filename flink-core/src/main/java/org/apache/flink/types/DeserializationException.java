@@ -20,9 +20,12 @@
 package org.apache.flink.types;
 
 
+import org.apache.flink.annotation.Public;
+
 /**
  * An exception specifying that the deserialization caused an error.
  */
+@Public
 public class DeserializationException extends RuntimeException
 {
 	/**

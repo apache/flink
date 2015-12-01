@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * A broadcast variable initializer can be used to transform a broadcast variable
  * into another format during initialization. The transformed variable is shared
@@ -67,6 +69,7 @@ package org.apache.flink.api.common.functions;
  * @param <T> The type of the elements in the list of the original untransformed broadcast variable.
  * @param <O> The type of the transformed broadcast variable. 
  */
+@Public
 public interface BroadcastVariableInitializer<T, O> {
 
 	/**

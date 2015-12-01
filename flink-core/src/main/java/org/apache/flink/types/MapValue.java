@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.ReflectionUtil;
@@ -42,6 +43,7 @@ import org.apache.flink.util.ReflectionUtil;
  * 
  * 
  */
+@Public
 public abstract class MapValue<K extends Value, V extends Value> implements Value, Map<K, V> {
 	private static final long serialVersionUID = 1L;
 	

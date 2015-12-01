@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -37,6 +39,7 @@ import java.io.Serializable;
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
  */
+@Public
 public interface FoldFunction<O,T> extends Function, Serializable {
 	/**
 	 * The core method of FoldFunction, combining two values into one value of the same type.

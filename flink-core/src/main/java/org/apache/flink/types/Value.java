@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 
 /**
@@ -31,5 +32,6 @@ import org.apache.flink.core.io.IOReadableWritable;
  * 
  * @see org.apache.flink.core.io.IOReadableWritable
  */
+@Public
 public interface Value extends IOReadableWritable, Serializable {
 }
