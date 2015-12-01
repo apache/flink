@@ -101,6 +101,7 @@ public class CliFrontend {
 	public static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
+	private static final String ACTION_SAVEPOINT = "savepoint";
 
 	// config dir parameters
 	private static final String ENV_CONFIG_DIRECTORY = "FLINK_CONF_DIR";
@@ -300,6 +301,8 @@ public class CliFrontend {
 			Client client = getClient(options, program.getMainClassName(), userParallelism, options.getDetachedMode());
 			client.setPrintStatusDuringExecution(options.getStdoutLogging());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
+
+			LOG.debug("Savepoint path is set to {}", options.getSavepointPath());
 
 			try {
 				if (client.getMaxSlots() != -1 && userParallelism == -1) {
@@ -630,6 +633,135 @@ public class CliFrontend {
 		}
 	}
 
+	/**
+	 * Executes the SAVEPOINT action.
+	 *
+	 * @param args Command line arguments for the cancel action.
+	 */
+	protected int savepoint(String[] args) {
+		LOG.info("Running 'savepoint' command.");
+
+		SavepointOptions options;
+		try {
+			options = CliFrontendParser.parseSavepointCommand(args);
+		}
+		catch (CliArgsException e) {
+			return handleArgException(e);
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+
+		// evaluate help flag
+		if (options.isPrintHelp()) {
+			CliFrontendParser.printHelpForCancel();
+			return 0;
+		}
+
+		if (options.isDispose()) {
+			// Discard
+			return disposeSavepoint(options, options.getDisposeSavepointPath());
+		}
+		else {
+			// Trigger
+			String[] cleanedArgs = options.getArgs();
+			JobID jobId;
+
+			if (cleanedArgs.length > 0) {
+				String jobIdString = cleanedArgs[0];
+				try {
+					jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+				}
+				catch (Exception e) {
+					return handleError(new IllegalArgumentException(
+							"Error: The value for the Job ID is not a valid ID."));
+				}
+			}
+			else {
+				return handleError(new IllegalArgumentException(
+						"Error: The value for the Job ID is not a valid ID. " +
+								"Specify a Job ID to trigger a savepoint."));
+			}
+
+			return triggerSavepoint(options, jobId);
+		}
+	}
+
+	/**
+	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
+	 * message to the job manager.
+	 */
+	private int triggerSavepoint(SavepointOptions options, JobID jobId) {
+		try {
+			ActorGateway jobManager = getJobManagerGateway(options);
+			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId), askTimeout);
+
+			Object result;
+			try {
+				logAndSysout("Triggering savepoint for job " + jobId + ". Waiting for response...");
+				result = Await.result(response, askTimeout);
+			}
+			catch (Exception e) {
+				throw new Exception("Triggering a savepoint for the job " + jobId + " failed.", e);
+			}
+
+			if (result instanceof TriggerSavepointSuccess) {
+				TriggerSavepointSuccess success = (TriggerSavepointSuccess) result;
+				logAndSysout("Savepoint completed. Path: " + success.savepointPath());
+				logAndSysout("You can resume your program from this savepoint with the run command.");
+
+				return 0;
+			}
+			else if (result instanceof TriggerSavepointFailure) {
+				TriggerSavepointFailure failure = (TriggerSavepointFailure) result;
+				throw failure.cause();
+			}
+			else {
+				throw new IllegalStateException("Unknown JobManager response of type " +
+						result.getClass());
+			}
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+	}
+
+	/**
+	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint}
+	 * message to the job manager.
+	 */
+	private int disposeSavepoint(SavepointOptions options, String savepointPath) {
+		try {
+			ActorGateway jobManager = getJobManagerGateway(options);
+			Future<Object> response = jobManager.ask(new DisposeSavepoint(savepointPath), askTimeout);
+
+			Object result;
+			try {
+				logAndSysout("Disposing savepoint '" + savepointPath + "'. Waiting for response...");
+				result = Await.result(response, askTimeout);
+			}
+			catch (Exception e) {
+				throw new Exception("Disposing the savepoint with path" + savepointPath + " failed.", e);
+			}
+
+			if (result.getClass() == JobManagerMessages.getDisposeSavepointSuccess().getClass()) {
+				logAndSysout("Savepoint '" + savepointPath + "' disposed.");
+				return 0;
+			}
+			else if (result instanceof DisposeSavepointFailure) {
+				DisposeSavepointFailure failure = (DisposeSavepointFailure) result;
+				throw failure.cause();
+			}
+			else {
+				throw new IllegalStateException("Unknown JobManager response of type " +
+						result.getClass());
+			}
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
@@ -719,9 +851,13 @@ public class CliFrontend {
 		// Get assembler class
 		String entryPointClass = options.getEntryPointClassName();
 
-		return entryPointClass == null ?
+		PackagedProgram program = entryPointClass == null ?
 				new PackagedProgram(jarFile, classpaths, programArgs) :
 				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
+
+		program.setSavepointPath(options.getSavepointPath());
+
+		return program;
 	}
 
 	/**
@@ -993,6 +1129,8 @@ public class CliFrontend {
 				return info(params);
 			case ACTION_CANCEL:
 				return cancel(params);
+			case ACTION_SAVEPOINT:
+				return savepoint(params)
 			case "-h":
 			case "--help":
 				CliFrontendParser.printHelp();

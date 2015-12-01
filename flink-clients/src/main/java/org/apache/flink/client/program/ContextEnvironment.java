@@ -18,9 +18,6 @@
 
 package org.apache.flink.client.program;
 
-import java.net.URL;
-import java.util.List;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -28,8 +25,11 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 
+import java.net.URL;
+import java.util.List;
+
 /**
- * Execution Environment for remote execution with the Client in blocking fashion.
+ * Execution Environment for remote execution with the Client.
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
@@ -40,13 +40,16 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	protected final List<URL> classpathsToAttach;
 	
 	protected final ClassLoader userCodeClassLoader;
+
+	protected final String savepointPath;
 	
 	public ContextEnvironment(Client remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-			ClassLoader userCodeClassLoader) {
+			ClassLoader userCodeClassLoader, String savepointPath) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
+		this.savepointPath = savepointPath;
 	}
 
 	@Override
@@ -54,7 +57,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
 				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.runBlocking(toRun, getParallelism());
+		this.lastJobExecutionResult = client.runBlocking(toRun, getParallelism(), savepointPath);
 		return this.lastJobExecutionResult;
 	}
 
@@ -94,7 +97,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public ClassLoader getUserCodeClassLoader() {
 		return userCodeClassLoader;
 	}
-	
+
+	public String getSavepointPath() {
+		return savepointPath;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	static void setAsContext(ContextEnvironmentFactory factory) {

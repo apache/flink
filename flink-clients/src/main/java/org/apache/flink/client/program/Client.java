@@ -62,18 +62,16 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import akka.actor.ActorSystem;
 
-
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
  */
 public class Client {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
-	
-	
+
 	/** The optimizer used in the optimization of batch programs */
 	final Optimizer compiler;
-	
+
 	/** The actor system used to communicate with the JobManager */
 	private final ActorSystem actorSystem;
 
@@ -96,9 +94,9 @@ public class Client {
 	private boolean printStatusDuringExecution = true;
 
 	/**
-	 *  For interactive invocations, the Job ID is only available after the ContextEnvironment has
-	 *  been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
-	 *  which lets us access the last JobID here.
+	 * For interactive invocations, the Job ID is only available after the ContextEnvironment has
+	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
+	 * which lets us access the last JobID here.
 	 */
 	private JobID lastJobID;
 
@@ -112,7 +110,7 @@ public class Client {
 	 * if that is not possible.
 	 *
 	 * @param config The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 * 
+	 *
 	 * @throws java.io.IOException Thrown, if the client's actor system could not be started.
 	 * @throws java.net.UnknownHostException Thrown, if the JobManager's hostname could not be resolved.
 	 */
@@ -123,15 +121,14 @@ public class Client {
 	/**
 	 * Creates a new instance of the class that submits the jobs to a job-manager.
 	 * at the given address using the default port.
-	 * 
+	 *
 	 * @param config The configuration for the client-side processes, like the optimizer.
 	 * @param maxSlots maxSlots The number of maxSlots on the cluster if != -1.
-	 *                    
+	 *
 	 * @throws java.io.IOException Thrown, if the client's actor system could not be started.
-	 * @throws java.net.UnknownHostException Thrown, if the JobManager's hostname could not be resolved.   
+	 * @throws java.net.UnknownHostException Thrown, if the JobManager's hostname could not be resolved.
 	 */
 	public Client(Configuration config, int maxSlots) throws IOException {
-
 		this.config = Preconditions.checkNotNull(config);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 		this.maxSlots = maxSlots;
@@ -147,7 +144,7 @@ public class Client {
 		timeout = AkkaUtils.getTimeout(config);
 		lookupTimeout = AkkaUtils.getTimeout(config);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
@@ -161,15 +158,15 @@ public class Client {
 			this.actorSystem.awaitTermination();
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Configures whether the client should print progress updates during the execution to {@code System.out}.
 	 * All updates are logged via the SLF4J loggers regardless of this setting.
-	 * 
+	 *
 	 * @param print True to print updates to standard out during execution, false to not print them.
 	 */
 	public void setPrintStatusDuringExecution(boolean print) {
@@ -190,11 +187,11 @@ public class Client {
 	public int getMaxSlots() {
 		return this.maxSlots;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Access to the Program's Plan
 	// ------------------------------------------------------------------------
-	
+
 	public static String getOptimizedPlanAsJson(Optimizer compiler, PackagedProgram prog, int parallelism)
 			throws CompilerException, ProgramInvocationException
 	{
@@ -238,12 +235,14 @@ public class Client {
 	public JobSubmissionResult runBlocking(PackagedProgram prog, int parallelism) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
-			return runBlocking(prog.getPlanWithJars(), parallelism);
+			return runBlocking(prog.getPlanWithJars(), parallelism, prog.getSavepointPath());
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
 			ContextEnvironment.setAsContext(new ContextEnvironmentFactory(this, prog.getAllLibraries(),
-					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, true));
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, true,
+					prog.getSavepointPath()));
+
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
@@ -264,12 +263,13 @@ public class Client {
 	{
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
-			return runDetached(prog.getPlanWithJars(), parallelism);
+			return runDetached(prog.getPlanWithJars(), parallelism, prog.getSavepointPath());
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
 			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, prog.getAllLibraries(),
-					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, false);
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, false,
+					prog.getSavepointPath());
 			ContextEnvironment.setAsContext(factory);
 
 			// invoke here
@@ -286,6 +286,10 @@ public class Client {
 		}
 	}
 
+	public JobExecutionResult runBlocking(JobWithJars program, int parallelism) throws ProgramInvocationException {
+		return runBlocking(program, parallelism, null);
+	}
+
 	/**
 	 * Runs a program on the Flink cluster to which this client is connected. The call blocks until the
 	 * execution is complete, and returns afterwards.
@@ -300,16 +304,19 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
 	 *                                    parallel execution failed.
 	 */
-	public JobExecutionResult runBlocking(JobWithJars program, int parallelism) 
-			throws CompilerException, ProgramInvocationException
-	{
+	public JobExecutionResult runBlocking(JobWithJars program, int parallelism, String savepointPath)
+			throws CompilerException, ProgramInvocationException {
 		ClassLoader classLoader = program.getUserCodeClassLoader();
 		if (classLoader == null) {
 			throw new IllegalArgumentException("The given JobWithJars does not provide a usercode class loader.");
 		}
 
 		OptimizedPlan optPlan = getOptimizedPlan(compiler, program, parallelism);
-		return runBlocking(optPlan, program.getJarFiles(), program.getClasspaths(), classLoader);
+		return runBlocking(optPlan, program.getJarFiles(), program.getClasspaths(), classLoader, savepointPath);
+	}
+
+	public JobSubmissionResult runDetached(JobWithJars program, int parallelism) throws ProgramInvocationException {
+		return runDetached(program, parallelism, null);
 	}
 
 	/**
@@ -325,30 +332,37 @@ public class Client {
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
 	 *                                    i.e. the job-manager is unreachable.
 	 */
-	public JobSubmissionResult runDetached(JobWithJars program, int parallelism)
-			throws CompilerException, ProgramInvocationException
-	{
+	public JobSubmissionResult runDetached(JobWithJars program, int parallelism, String savepointPath)
+			throws CompilerException, ProgramInvocationException {
 		ClassLoader classLoader = program.getUserCodeClassLoader();
 		if (classLoader == null) {
 			throw new IllegalArgumentException("The given JobWithJars does not provide a usercode class loader.");
 		}
 
 		OptimizedPlan optimizedPlan = getOptimizedPlan(compiler, program, parallelism);
-		return runDetached(optimizedPlan, program.getJarFiles(), program.getClasspaths(), classLoader);
+		return runDetached(optimizedPlan, program.getJarFiles(), program.getClasspaths(), classLoader, savepointPath);
 	}
-	
+
+	public JobExecutionResult runBlocking(
+			FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths, ClassLoader classLoader) throws ProgramInvocationException {
+		return runBlocking(compiledPlan, libraries, classpaths, classLoader, null);
+	}
 
 	public JobExecutionResult runBlocking(FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
-			ClassLoader classLoader) throws ProgramInvocationException
+			ClassLoader classLoader, String savepointPath) throws ProgramInvocationException
 	{
-		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
+		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths, savepointPath);
 		return runBlocking(job, classLoader);
 	}
 
+	public JobSubmissionResult runDetached(FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths, ClassLoader classLoader) throws ProgramInvocationException {
+		return runDetached(compiledPlan, libraries, classpaths, classLoader, null);
+	}
+
 	public JobSubmissionResult runDetached(FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
-			ClassLoader classLoader) throws ProgramInvocationException
+			ClassLoader classLoader, String savepointPath) throws ProgramInvocationException
 	{
-		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
+		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths, savepointPath);
 		return runDetached(job, classLoader);
 	}
 
@@ -519,13 +533,18 @@ public class Client {
 	}
 
 	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
-		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths());
+		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), null);
 	}
 
-	private JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths) {
+	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan, String savepointPath) throws ProgramInvocationException {
+		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointPath);
+	}
+
+	private JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, String savepointPath) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
+			job.setSavepointPath(savepointPath);
 		} else {
 			JobGraphGenerator gen = new JobGraphGenerator(this.config);
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
