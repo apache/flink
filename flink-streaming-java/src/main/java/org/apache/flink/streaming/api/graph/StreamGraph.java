@@ -428,14 +428,20 @@ public class StreamGraph extends StreamingPlan {
 		return streamNodes.keySet();
 	}
 
-	public StreamEdge getStreamEdge(int sourceId, int targetId) {
+	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
+
+		List<StreamEdge> result = new ArrayList<>();
 		for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
 			if (edge.getTargetId() == targetId) {
-				return edge;
+				result.add(edge);
 			}
 		}
 
-		throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
+		if (result.isEmpty()) {
+			throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
+		}
+
+		return result;
 	}
 
 	public Collection<Integer> getSourceIDs() {
