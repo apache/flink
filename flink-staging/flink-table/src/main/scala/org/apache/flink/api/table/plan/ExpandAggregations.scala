@@ -51,20 +51,23 @@ object ExpandAggregations {
       val aggregationIntermediates = mutable.HashMap[Aggregation, Seq[Expression]]()
 
       var intermediateCount = 0
+      var resultCount = 0
       selection foreach {  f =>
         f.transformPre {
           case agg: Aggregation =>
             val intermediateReferences = agg.getIntermediateFields.zip(agg.getAggregations) map {
               case (expr, basicAgg) =>
+                resultCount += 1
+                val resultName = s"result.$resultCount"
                 aggregations.get((expr, basicAgg)) match {
                   case Some(intermediateName) =>
-                    ResolvedFieldReference(intermediateName, expr.typeInfo)
+                    Naming(ResolvedFieldReference(intermediateName, expr.typeInfo), resultName)
                   case None =>
                     intermediateCount = intermediateCount + 1
                     val intermediateName = s"intermediate.$intermediateCount"
                     intermediateFields += Naming(expr, intermediateName)
                     aggregations((expr, basicAgg)) = intermediateName
-                    ResolvedFieldReference(intermediateName, expr.typeInfo)
+                    Naming(ResolvedFieldReference(intermediateName, expr.typeInfo), resultName)
                 }
             }
 

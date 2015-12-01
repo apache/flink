@@ -80,6 +80,17 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testAggregationWithTwoCount(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
+      .select('_1.count, '_2.count).toDataSet[Row]
+    val expected = "2,2"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   @Test(expected = classOf[ExpressionException])
   def testNonWorkingAggregationDataTypes(): Unit = {
 
