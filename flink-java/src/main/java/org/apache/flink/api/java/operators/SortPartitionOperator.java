@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
@@ -34,6 +35,7 @@ import java.util.Arrays;
  *
  * @param <T> The type of the DataSet with locally sorted partitions.
  */
+@Public
 public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPartitionOperator<T>> {
 
 	private int[] sortKeyPositions;

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+
 /**
  * One value in a data stream. This stores the value and the associated timestamp.
  * 

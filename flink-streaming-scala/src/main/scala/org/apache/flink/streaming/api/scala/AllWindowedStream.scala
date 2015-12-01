@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.{Experimental, Public}
 import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWStream}
@@ -54,11 +55,13 @@ import scala.collection.JavaConverters._
  *           [[org.apache.flink.streaming.api.windowing.assigners.WindowAssigner]]
  *           assigns the elements to.
  */
+@Public
 class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
   /**
    * Sets the [[Trigger]] that should be used to trigger window emission.
    */
+  @Experimental
   def trigger(trigger: Trigger[_ >: T, _ >: W]): AllWindowedStream[T, W] = {
     javaStream.trigger(trigger)
     this
@@ -70,6 +73,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * Note: When using an evictor window performance will degrade significantly, since
    * pre-aggregation of window results cannot be used.
    */
+  @Experimental
   def evictor(evictor: Evictor[_ >: T, _ >: W]): AllWindowedStream[T, W] = {
     javaStream.evictor(evictor)
     this

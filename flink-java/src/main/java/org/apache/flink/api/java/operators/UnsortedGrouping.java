@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -38,6 +39,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import com.google.common.base.Preconditions;
 
+@Public
 public class UnsortedGrouping<T> extends Grouping<T> {
 
 	public UnsortedGrouping(DataSet<T> set, Keys<T> keys) {

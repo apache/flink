@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.operators.SortPartitionOperator
 
@@ -28,6 +29,7 @@ import scala.reflect.ClassTag
  *
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
+@Public
 class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T])
   extends DataSet[T](set) {
 

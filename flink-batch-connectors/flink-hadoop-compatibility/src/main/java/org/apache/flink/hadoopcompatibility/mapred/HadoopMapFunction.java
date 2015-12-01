@@ -23,6 +23,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -42,6 +43,7 @@ import org.apache.hadoop.mapred.Reporter;
  * This wrapper maps a Hadoop Mapper (mapred API) to a Flink FlatMapFunction. 
  */
 @SuppressWarnings("rawtypes")
+@Public
 public final class HadoopMapFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> 
 					extends RichFlatMapFunction<Tuple2<KEYIN,VALUEIN>, Tuple2<KEYOUT,VALUEOUT>> 
 					implements ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>>, Serializable {

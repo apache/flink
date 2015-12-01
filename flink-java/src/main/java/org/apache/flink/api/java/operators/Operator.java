@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -28,6 +29,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * @param <OUT> The type of the data set produced by this operator.
  * @param <O> The type of the operator, so that we can return it.
  */
+@Public
 public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<OUT> {
 
 	protected String name;

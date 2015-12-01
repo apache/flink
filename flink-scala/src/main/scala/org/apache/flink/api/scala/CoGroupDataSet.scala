@@ -19,6 +19,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.commons.lang3.tuple.{ImmutablePair, Pair}
+import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{CoGroupFunction, Partitioner, RichCoGroupFunction}
 import org.apache.flink.api.common.operators.{Keys, Order}
@@ -59,6 +60,7 @@ import scala.reflect.ClassTag
  * @tparam L Type of the left input of the coGroup.
  * @tparam R Type of the right input of the coGroup.
  */
+@Public
 class CoGroupDataSet[L, R](
     defaultCoGroup: CoGroupOperator[L, R, (Array[L], Array[R])],
     leftInput: DataSet[L],
@@ -177,6 +179,7 @@ class CoGroupDataSet[L, R](
   /**
    * Gets the custom partitioner used by this join, or null, if none is set.
    */
+  @Internal
   def getPartitioner[K]() : Partitioner[K] = {
     customPartitioner.asInstanceOf[Partitioner[K]]
   }

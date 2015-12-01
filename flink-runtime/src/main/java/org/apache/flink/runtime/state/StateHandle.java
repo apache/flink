@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+
 import java.io.Serializable;
 
 /**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.{Experimental, Public}
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -56,6 +57,7 @@ import scala.reflect.ClassTag
  *     .apply(new MyCoGroupFunction())
  * } }}}
  */
+@Public
 object CoGroupedStreams {
 
   /**
@@ -148,6 +150,7 @@ object CoGroupedStreams {
     /**
      * Specifies the window on which the co-group operation works.
      */
+    @Experimental
     def window[W <: Window](
         assigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W])
         : CoGroupedStreams.WithWindow[T1, T2, KEY, W] = {
@@ -183,6 +186,7 @@ object CoGroupedStreams {
    * @tparam KEY Type of the key. This must be the same for both inputs
    * @tparam W Type of { @link Window} on which the co-group operation works.
    */
+  @Experimental
   class WithWindow[T1, T2, KEY, W <: Window](
       input1: DataStream[T1],
       input2: DataStream[T2],
@@ -196,6 +200,7 @@ object CoGroupedStreams {
     /**
      * Sets the [[Trigger]] that should be used to trigger window emission.
      */
+    @Experimental
     def trigger(newTrigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : CoGroupedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](
@@ -214,6 +219,7 @@ object CoGroupedStreams {
      * Note: When using an evictor window performance will degrade significantly, since
      * pre-aggregation of window results cannot be used.
      */
+    @Experimental
     def evictor(newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : CoGroupedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](

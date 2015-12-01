@@ -21,6 +21,7 @@ package org.apache.flink.api.scala.typeutils
 import java.util
 import java.util.regex.{Pattern, Matcher}
 
+import org.apache.flink.annotation.{Experimental, Public}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -37,6 +38,7 @@ import scala.collection.mutable.ArrayBuffer
  * TypeInformation for Case Classes. Creation and access is different from
  * our Java Tuples so we have to treat them differently.
  */
+@Public
 abstract class CaseClassTypeInfo[T <: Product](
     clazz: Class[T],
     val typeParamTypeInfos: Array[TypeInformation[_]],
@@ -44,6 +46,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
+  @Experimental
   override def getGenericParameters: java.util.List[TypeInformation[_]] = {
     typeParamTypeInfos.toList.asJava
   }
@@ -60,10 +63,12 @@ abstract class CaseClassTypeInfo[T <: Product](
     Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD)
   private val PATTERN_INT_FIELD: Pattern = Pattern.compile(REGEX_INT_FIELD)
 
+  @Experimental
   def getFieldIndices(fields: Array[String]): Array[Int] = {
     fields map { x => fieldNames.indexOf(x) }
   }
 
+  @Experimental
   override def getFlatFields(
       fieldExpression: String,
       offset: Int,
@@ -145,6 +150,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     }
   }
 
+  @Experimental
   override def getTypeAt[X](fieldExpression: String) : TypeInformation[X] = {
 
     val matcher: Matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression)
@@ -187,8 +193,10 @@ abstract class CaseClassTypeInfo[T <: Product](
       "\" in type " + this + ".")
   }
 
+  @Experimental
   override def getFieldNames: Array[String] = fieldNames.toArray
 
+  @Experimental
   override def getFieldIndex(fieldName: String): Int = {
     val result = fieldNames.indexOf(fieldName)
     if (result != fieldNames.lastIndexOf(fieldName)) {
@@ -198,6 +206,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     }
   }
 
+  @Experimental
   override def createTypeComparatorBuilder(): TypeComparatorBuilder[T] = {
     new CaseClassTypeComparatorBuilder
   }

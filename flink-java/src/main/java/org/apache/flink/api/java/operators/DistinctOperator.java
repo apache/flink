@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
@@ -38,6 +40,7 @@ import org.apache.flink.api.java.DataSet;
  *
  * @param <T> The type of the data set made distinct by the operator.
  */
+@Public
 public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOperator<T>> {
 
 	private final Keys<T> keys;
@@ -127,6 +130,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		return reducer;
 	}
 	
+	@Internal
 	public static final class DistinctFunction<T> implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 
 		private static final long serialVersionUID = 1L;

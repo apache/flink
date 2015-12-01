@@ -23,12 +23,15 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
+@Public
 public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -58,45 +61,54 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	@Experimental
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public int getArity() {
 		return 1;
 	}
 	
 	@Override
+	@Experimental
 	public int getTotalFields() {
 		return 1;
 	}
 
 	@Override
+	@Experimental
 	public Class<T> getTypeClass() {
 		return this.arrayClass;
 	}
 
+	@Experimental
 	public Class<C> getComponentTypeClass() {
 		return this.componentInfo.getTypeClass();
 	}
-	
+
+	@Experimental
 	public TypeInformation<C> getComponentInfo() {
 		return componentInfo;
 	}
 
 	@Override
+	@Experimental
 	public boolean isKeyType() {
 		return false;
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		// special case the string array
 		if (componentInfo.getTypeClass().equals(String.class)) {
@@ -140,6 +152,7 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public static <X, C> BasicArrayTypeInfo<X, C> getInfoFor(Class<X> type) {
 		if (!type.isArray()) {
 			throw new InvalidTypesException("The given class is no array.");

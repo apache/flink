@@ -25,7 +25,6 @@ import org.apache.flink.api.common.io.DelimitedInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 
-
 public class TextInputFormat extends DelimitedInputFormat<String> {
 	
 	private static final long serialVersionUID = 1L;

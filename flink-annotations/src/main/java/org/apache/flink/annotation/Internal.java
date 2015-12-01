@@ -28,6 +28,7 @@ import java.lang.annotation.Target;
  * Developer APIs are stable but internal to Flink and might change across releases.
  */
 @Documented
-@Target({ ElementType.TYPE, ElementType.METHOD })
+@Target({ ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR })
+@Public
 public @interface Internal {
 }

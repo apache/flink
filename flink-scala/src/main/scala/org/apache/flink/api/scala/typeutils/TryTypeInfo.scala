@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.{Experimental, Public}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -28,17 +29,26 @@ import scala.util.Try
 /**
  * TypeInformation for [[scala.util.Try]].
  */
+@Public
 class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A])
   extends TypeInformation[T] {
 
+  @Experimental
   override def isBasicType: Boolean = false
+  @Experimental
   override def isTupleType: Boolean = false
+  @Experimental
   override def isKeyType: Boolean = false
+  @Experimental
   override def getTotalFields: Int = 1
+  @Experimental
   override def getArity: Int = 1
+  @Experimental
   override def getTypeClass = classOf[Try[_]].asInstanceOf[Class[T]]
+  @Experimental
   override def getGenericParameters = List[TypeInformation[_]](elemTypeInfo).asJava
 
+  @Experimental
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
       // this happens when the type of a DataSet is None, i.e. DataSet[Failure]

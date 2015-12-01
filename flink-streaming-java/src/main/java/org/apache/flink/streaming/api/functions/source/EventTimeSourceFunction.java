@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.functions.source;
 
 
+import org.apache.flink.annotation.Experimental;
+
 /**
  * A marker interface that must be implemented by {@link SourceFunction}s that emit elements with
  * timestamps. The {@link SourceFunction} can extract the timestamp from the data and attach it to
@@ -36,4 +38,5 @@ package org.apache.flink.streaming.api.functions.source;
  *
  * @param <T> Type of the elements emitted by this source.
  */
+@Experimental
 public interface EventTimeSourceFunction<T> extends SourceFunction<T> { }

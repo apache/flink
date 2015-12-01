@@ -21,13 +21,11 @@ package org.apache.flink.api.common.operators;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.operators.util.FieldSet;
 
 /**
  * Container for the semantic properties associated to a single input operator.
  */
-@Public
 public class SingleInputSemanticProperties implements SemanticProperties {
 	private static final long serialVersionUID = 1L;
 

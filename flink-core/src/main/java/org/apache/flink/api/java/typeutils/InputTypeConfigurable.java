@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -29,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * called when the output format is used with an output method such as
  * {@link org.apache.flink.api.java.DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
  */
+@Public
 public interface InputTypeConfigurable {
 
 	/**

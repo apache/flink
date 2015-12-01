@@ -32,7 +32,9 @@ import java.util.List;
 import org.apache.avro.specific.SpecificRecordBase;
 
 import org.apache.commons.lang3.ClassUtils;
-
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -71,6 +73,7 @@ import com.google.common.base.Preconditions;
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
  * functions.
  */
+@Public
 public class TypeExtractor {
 
 	/*
@@ -104,11 +107,13 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	//  Function specific methods
 	// --------------------------------------------------------------------------------------------
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapInterface, TypeInformation<IN> inType) {
 		return getMapReturnTypes(mapInterface, inType, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapInterface, TypeInformation<IN> inType,
 			String functionName, boolean allowMissing)
 	{
@@ -116,136 +121,151 @@ public class TypeExtractor {
 	}
 	
 
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapInterface, TypeInformation<IN> inType) {
 		return getFlatMapReturnTypes(flatMapInterface, inType, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapInterface, TypeInformation<IN> inType,
 			String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) flatMapInterface, FlatMapFunction.class, false, true, inType, functionName, allowMissing);
 	}
 
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType)
 	{
 		return getFoldReturnTypes(foldInterface, inType, null, false);
 	}
 
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) foldInterface, FoldFunction.class, false, false, inType, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionInterface, TypeInformation<IN> inType) {
 		return getMapPartitionReturnTypes(mapPartitionInterface, inType, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionInterface, TypeInformation<IN> inType,
 			String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) mapPartitionInterface, MapPartitionFunction.class, true, true, inType, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceInterface, TypeInformation<IN> inType) {
 		return getGroupReduceReturnTypes(groupReduceInterface, inType, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceInterface, TypeInformation<IN> inType,
 			String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) groupReduceInterface, GroupReduceFunction.class, true, true, inType, functionName, allowMissing);
 	}
 
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(GroupCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType) {
 		return getGroupCombineReturnTypes(combineInterface, inType, null, false);
 	}
 
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(GroupCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType,
 																			String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) combineInterface, GroupCombineFunction.class, true, true, inType, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getFlatJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
 	{
 		return getFlatJoinReturnTypes(joinInterface, in1Type, in2Type, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getFlatJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
 		return getBinaryOperatorReturnType((Function) joinInterface, FlatJoinFunction.class, false, true,
 				in1Type, in2Type, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
 	{
 		return getJoinReturnTypes(joinInterface, in1Type, in2Type, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
 		return getBinaryOperatorReturnType((Function) joinInterface, JoinFunction.class, false, false,
 				in1Type, in2Type, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
 	{
 		return getCoGroupReturnTypes(coGroupInterface, in1Type, in2Type, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
 		return getBinaryOperatorReturnType((Function) coGroupInterface, CoGroupFunction.class, true, true,
 				in1Type, in2Type, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
 	{
 		return getCrossReturnTypes(crossInterface, in1Type, in2Type, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
 	{
 		return getBinaryOperatorReturnType((Function) crossInterface, CrossFunction.class, false, false,
 				in1Type, in2Type, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface, TypeInformation<IN> inType) {
 		return getKeySelectorTypes(selectorInterface, inType, null, false);
 	}
-	
+
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface,
 			TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) selectorInterface, KeySelector.class, false, false, inType, functionName, allowMissing);
 	}
-	
-	
+
+	@Experimental
 	public static <T> TypeInformation<T> getPartitionerTypes(Partitioner<T> partitioner) {
 		return getPartitionerTypes(partitioner, null, false);
 	}
-	
+
+	@Experimental
 	public static <T> TypeInformation<T> getPartitionerTypes(Partitioner<T> partitioner, String functionName, boolean allowMissing) {
 		return new TypeExtractor().privateCreateTypeInfo(Partitioner.class, partitioner.getClass(), 0, null, null);
 	}
 	
 	
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public static <IN> TypeInformation<IN> getInputFormatTypes(InputFormat<IN, ?> inputFormatInterface) {
 		if (inputFormatInterface instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<IN>) inputFormatInterface).getProducedType();
@@ -258,6 +278,7 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, 
 			boolean hasIterable, boolean hasCollector, TypeInformation<IN> inType,
 			String functionName, boolean allowMissing)
@@ -295,6 +316,7 @@ public class TypeExtractor {
 	}
 	
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(Function function, Class<?> baseClass,
 			boolean hasIterables, boolean hasCollector, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type,
 			String functionName, boolean allowMissing)
@@ -366,6 +388,7 @@ public class TypeExtractor {
 	 * @return type information
 	 */
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public static <OUT> TypeInformation<OUT> createTypeInfo(Object instance, Class<?> baseClass, Class<?> clazz, int returnParamPos) {
 		if (instance instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) instance).getProducedType();
@@ -373,7 +396,8 @@ public class TypeExtractor {
 			return createTypeInfo(baseClass, clazz, returnParamPos, null, null);
 		}
 	}
-	
+
+	@Experimental
 	public static <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		TypeInformation<OUT> ti =  new TypeExtractor().privateCreateTypeInfo(baseClass, clazz, returnParamPos, in1Type, in2Type);
@@ -765,7 +789,8 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	//  Extract type parameters
 	// --------------------------------------------------------------------------------------------
-	
+
+	@Experimental
 	public static Type getParameterType(Class<?> baseClass, Class<?> clazz, int pos) {
 		return getParameterType(baseClass, null, clazz, pos);
 	}
@@ -1556,6 +1581,7 @@ public class TypeExtractor {
 	 * This is required because class.getFields() is not returning fields defined
 	 * in parent classes.
 	 */
+	@Experimental
 	public static List<Field> getAllDeclaredFields(Class<?> clazz) {
 		List<Field> result = new ArrayList<Field>();
 		while (clazz != null) {
@@ -1574,7 +1600,8 @@ public class TypeExtractor {
 		}
 		return result;
 	}
-	
+
+	@Experimental
 	public static Field getDeclaredField(Class<?> clazz, String name) {
 		for (Field field : getAllDeclaredFields(clazz)) {
 			if (field.getName().equals(name)) {
@@ -1607,7 +1634,7 @@ public class TypeExtractor {
 		return result;
 	}
 
-	// not public to users
+	@Internal
 	public static Class<?> typeToClass(Type t) {
 		if (t instanceof Class) {
 			return (Class<?>)t;
@@ -1618,7 +1645,7 @@ public class TypeExtractor {
 		throw new IllegalArgumentException("Cannot convert type to class");
 	}
 
-	// not public to users
+	@Internal
 	public static boolean isClassType(Type t) {
 		return t instanceof Class<?> || t instanceof ParameterizedType;
 	}

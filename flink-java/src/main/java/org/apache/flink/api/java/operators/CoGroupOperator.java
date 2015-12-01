@@ -25,6 +25,8 @@ import java.util.List;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -60,6 +62,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
  * 
  * @see DataSet
  */
+@Public
 public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CoGroupOperator<I1, I2, OUT>> {
 
 	private final CoGroupFunction<I1, I2, OUT> function;
@@ -152,10 +155,12 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		return props;
 	}
 
+	@Internal
 	protected Keys<I1> getKeys1() {
 		return this.keys1;
 	}
 
+	@Internal
 	protected Keys<I2> getKeys2() {
 		return this.keys2;
 	}
@@ -189,6 +194,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	}
 
 	@Override
+	@Internal
 	protected org.apache.flink.api.common.operators.base.CoGroupOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 		
 		String name = getName() != null ? getName() : "CoGroup at " + defaultName;

@@ -17,9 +17,11 @@
  */
 package org.apache.flink.api.scala.hadoop.mapred
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormatBase
 import org.apache.hadoop.mapred.{OutputCommitter, JobConf, OutputFormat}
 
+@Public
 class HadoopOutputFormat[K, V](mapredOutputFormat: OutputFormat[K, V], job: JobConf)
   extends HadoopOutputFormatBase[K, V, (K, V)](mapredOutputFormat, job) {
 

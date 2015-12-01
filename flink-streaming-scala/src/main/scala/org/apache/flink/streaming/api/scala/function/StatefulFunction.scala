@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala.function
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.functions.RichFunction
 import org.apache.flink.api.common.state.{ValueStateDescriptor, ValueState}
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -28,6 +29,7 @@ import org.apache.flink.configuration.Configuration
  * RichFunctions without exposing the OperatorStates to the user. The user should
  * call the applyWithState method in his own RichFunction implementation.
  */
+@Public
 trait StatefulFunction[I, O, S] extends RichFunction {
 
   protected val stateSerializer: TypeSerializer[S]

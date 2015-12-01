@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
@@ -34,6 +37,7 @@ import org.apache.flink.configuration.Configuration;
  * 
  * @param <OUT> The type of the elements produced by this data source.
  */
+@Public
 public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 
 	private final InputFormat<OUT, ?> inputFormat;
@@ -74,6 +78,7 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	 * 
 	 * @return The input format that is executed by this data source.
 	 */
+	@Internal
 	public InputFormat<OUT, ?> getInputFormat() {
 		return this.inputFormat;
 	}
@@ -108,6 +113,7 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	 *
 	 * @return The SplitDataProperties for the InputSplits of this DataSource.
 	 */
+	@Experimental
 	public SplitDataProperties<OUT> getSplitDataProperties() {
 		if(this.splitDataProperties == null) {
 			this.splitDataProperties = new SplitDataProperties<OUT>(this);

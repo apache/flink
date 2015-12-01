@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
 /**
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  *
  * @param <OUT> The type of the records produced by this source.
  */
+@Public
 public abstract class RichParallelSourceFunction<OUT> extends AbstractRichFunction
 		implements ParallelSourceFunction<OUT> {
 

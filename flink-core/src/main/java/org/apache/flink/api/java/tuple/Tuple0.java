@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.java.tuple;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.ObjectStreamException;
 
 /**
@@ -27,6 +29,7 @@ import java.io.ObjectStreamException;
  * 
  * @see Tuple
  */
+@Public
 public class Tuple0 extends Tuple {
 	private static final long serialVersionUID = 1L;
 

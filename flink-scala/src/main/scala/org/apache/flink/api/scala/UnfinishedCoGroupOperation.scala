@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -30,17 +31,18 @@ import scala.reflect.ClassTag
 
 /**
  * An unfinished coGroup operation that results from [[DataSet.coGroup]] The keys for the left and
- * right side must be specified using first `where` and then `isEqualTo`. For example:
+ * right side must be specified using first `where` and then `equalTo`. For example:
  *
  * {{{
  *   val left = ...
  *   val right = ...
- *   val coGroupResult = left.coGroup(right).where(...).isEqualTo(...)
+ *   val coGroupResult = left.coGroup(right).where(...).equalTo(...)
  * }}}
  *
  * @tparam L The type of the left input of the coGroup.
  * @tparam R The type of the right input of the coGroup.
  */
+@Public
 class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
                                                             leftInput: DataSet[L],
                                                             rightInput: DataSet[R])

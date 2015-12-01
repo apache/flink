@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -32,6 +34,7 @@ import java.util.Collection;
  * 
  * @param <T> Type of the elements in this Stream
  */
+@Experimental
 public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeStream<T>> {
 
 	// We store these so that we can create a co-iteration if we need to
@@ -142,6 +145,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T, IterativeS
 	 * @param <F>
 	 *            Type of the feedback of the iteration
 	 */
+	@Public
 	public static class ConnectedIterativeStreams<I, F> extends ConnectedStreams<I, F> {
 
 		private CoFeedbackTransformation<F> coFeedbackTransformation;

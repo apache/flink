@@ -52,7 +52,7 @@ import java.util.HashMap;
  *
  * @param <OUT> The output type of the operator
  */
-public abstract class AbstractStreamOperator<OUT> 
+public abstract class AbstractStreamOperator<OUT>
 		implements StreamOperator<OUT>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
