@@ -137,6 +137,29 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testAggregationWithTwoCount() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSource<Tuple2<Float, String>> input =
+			env.fromElements(
+				new Tuple2<>(1f, "Hello"),
+				new Tuple2<>(2f, "Ciao"));
+
+		Table table =
+			tableEnv.fromDataSet(input);
+
+		Table result =
+			table.select("f0.count, f1.count");
+
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "2,2";
+		compareResultAsText(results, expected);
+	}
+
 	@Test(expected = ExpressionException.class)
 	public void testNonWorkingDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

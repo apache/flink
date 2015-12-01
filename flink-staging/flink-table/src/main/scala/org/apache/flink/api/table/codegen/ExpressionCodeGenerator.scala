@@ -123,14 +123,17 @@ abstract class ExpressionCodeGenerator[R](
       }
     }
 
-    val cleanedExpr = expr match {
-      case expressions.Naming(namedExpr, _) => namedExpr
-      case _ => expr
+    def cleanedExpr(e: Expression): Expression =  {
+      e match {
+        case expressions.Naming(namedExpr, _) => cleanedExpr(namedExpr)
+        case _ => e
+      }
     }
-    
-    val resultTpe = typeTermForTypeInfo(cleanedExpr.typeInfo)
 
-    val code: String = cleanedExpr match {
+    val cleanedExpression = cleanedExpr(expr)
+    val resultTpe = typeTermForTypeInfo(cleanedExpression.typeInfo)
+
+    val code: String = cleanedExpression match {
 
       case expressions.Literal(null, typeInfo) =>
         if (nullCheck) {
