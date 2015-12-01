@@ -39,5 +39,12 @@ public interface CheckpointIDCounter {
 	 * @return The previous checkpoint ID
 	 */
 	long getAndIncrement() throws Exception;
-	
+
+	/**
+	 * Sets the current checkpoint ID.
+	 *
+	 * @param newId The new ID
+	 */
+	void setCount(long newId) throws Exception;
+
 }
