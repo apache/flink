@@ -59,22 +59,22 @@ jobManagerAddressX:webUIPortX
 
 In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:
 
-- **Recovery mode** (required): The *recovery mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode. 
-  
+- **Recovery mode** (required): The *recovery mode* has to be set in `conf/flink-conf.yaml` to *zookeeper* in order to enable high availability mode.
+
   <pre>recovery.mode: zookeeper</pre>
 
 - **ZooKeeper quorum** (required): A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
-  
+
   <pre>recovery.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>
 
   Each *addressX:port* refers to a ZooKeeper server, which is reachable by Flink at the given address and port.
 
 - **ZooKeeper root** (recommended): The *root ZooKeeper node*, under which all required coordination data is placed.
-  
+
   <pre>recovery.zookeeper.path.root: /flink # important: customize per cluster</pre>
 
   **Important**: if you are running multiple Flink HA clusters, you have to manually configure seperate root nodes for each cluster.
-  
+
 - **State backend and storage directory** (required): JobManager meta data is persisted in the *state backend* and only a pointer to this state is stored in ZooKeeper. Currently, only the file system state backend is supported in HA mode.
 
     <pre>
@@ -83,13 +83,13 @@ state.backend.fs.checkpointdir: hdfs:///flink/checkpoints
 recovery.zookeeper.storageDir: hdfs:///flink/recovery/</pre>
 
     The `storageDir` stores all meta data needed to recover a JobManager failure.
-    
+
 After configuring the masters and the ZooKeeper quorum, you can use the provided cluster startup scripts as usual. They will start an HA-cluster. Keep in mind that the **ZooKeeper quorum has to be running** when you call the scripts and make sure to **configure a seperate ZooKeeper root path** for each HA cluster you are starting.
 
 #### Example: Standalone Cluster with 2 JobManagers
 
 1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
-   
+
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
@@ -115,10 +115,10 @@ $ bin/start-zookeeper-quorum.sh
 Starting zookeeper daemon on host localhost.</pre>
 
 5. **Start an HA-cluster**:
-   
+
    <pre>
-$ bin/start-cluster-streaming.sh
-Starting HA cluster (streaming mode) with 2 masters and 1 peers in ZooKeeper quorum.
+$ bin/start-cluster.sh
+Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
 Starting jobmanager daemon on host localhost.
 Starting jobmanager daemon on host localhost.
 Starting taskmanager daemon on host localhost.</pre>
@@ -172,7 +172,7 @@ This means that the application can be restarted 10 times before YARN fails the 
 #### Example: Highly Available YARN Session
 
 1. **Configure recovery mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
-   
+
    <pre>
 recovery.mode: zookeeper
 recovery.zookeeper.quorum: localhost:2181
@@ -193,7 +193,7 @@ $ bin/start-zookeeper-quorum.sh
 Starting zookeeper daemon on host localhost.</pre>
 
 5. **Start an HA-cluster**:
-   
+
    <pre>
 $ bin/yarn-session.sh -n 2</pre>
 

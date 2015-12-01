@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestBaseUtils;
 
@@ -69,7 +68,7 @@ public class StreamingMultipleProgramsTestBase extends TestBaseUtils {
 
 	@BeforeClass
 	public static void setup() throws Exception {
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, StreamingMode.STREAMING, false, false, true);
+		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false, false, true);
 		TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
 	}
 

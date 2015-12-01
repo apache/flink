@@ -20,7 +20,6 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
@@ -43,7 +42,6 @@ import scala.language.postfixOps
   * @param defaultExecutionRetries
   * @param delayBetweenRetries
   * @param timeout
-  * @param mode
   */
 class TestingJobManager(
     flinkConfiguration: Configuration,
@@ -55,7 +53,6 @@ class TestingJobManager(
     defaultExecutionRetries: Int,
     delayBetweenRetries: Long,
     timeout: FiniteDuration,
-    mode: StreamingMode,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory)
@@ -69,7 +66,6 @@ class TestingJobManager(
     defaultExecutionRetries,
     delayBetweenRetries,
     timeout,
-    mode,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory)

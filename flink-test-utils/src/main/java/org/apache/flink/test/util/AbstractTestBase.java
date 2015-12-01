@@ -21,7 +21,6 @@ package org.apache.flink.test.util;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -44,9 +43,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	
 	private final FiniteDuration timeout;
 
-	/** Mode (batch-only / streaming) in which to start the system */
-	private final StreamingMode streamingMode;
-
 	protected int taskManagerNumSlots = 1;
 
 	protected int numTaskManagers = 1;
@@ -55,9 +51,8 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	protected ForkableFlinkMiniCluster executor;
 	
 
-	public AbstractTestBase(Configuration config, StreamingMode streamingMode) {
+	public AbstractTestBase(Configuration config) {
 		this.config = Objects.requireNonNull(config);
-		this.streamingMode = Objects.requireNonNull(streamingMode);
 		this.tempFiles = new ArrayList<File>();
 
 		timeout = AkkaUtils.getTimeout(config);
@@ -71,7 +66,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 		this.executor = startCluster(
 			numTaskManagers,
 			taskManagerNumSlots,
-			streamingMode,
 			false,
 			false,
 			true);

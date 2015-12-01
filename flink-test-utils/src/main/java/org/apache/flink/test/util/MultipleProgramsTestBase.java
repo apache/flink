@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.runtime.StreamingMode;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
@@ -104,7 +103,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 		cluster = TestBaseUtils.startCluster(
 			1,
 			DEFAULT_PARALLELISM,
-			StreamingMode.BATCH_ONLY,
 			startWebServer,
 			false,
 			true);

@@ -18,10 +18,9 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: taskmanager.sh (start [batch|streaming])|stop|stop-all)"
+USAGE="Usage: taskmanager.sh (start|stop|stop-all)"
 
 STARTSTOP=$1
-STREAMINGMODE=$2
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -30,17 +29,12 @@ bin=`cd "$bin"; pwd`
 
 if [[ $STARTSTOP == "start" ]]; then
 
-    # Use batch mode as default
-    if [ -z $STREAMINGMODE ]; then
-        echo "Missing streaming mode (batch|streaming). Using 'batch'."
-        STREAMINGMODE="batch"
-    fi
-    
-    # if mode is streaming and no other JVM options are set, set the 'Concurrent Mark Sweep GC'
-    if [[ $STREAMINGMODE == "streaming" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
-    
+    # if memory allocation mode is lazy and no other JVM options are set,
+    # set the 'Concurrent Mark Sweep GC'
+    if [[ $FLINK_TM_MEM_PRE_ALLOCATE == "false" ]] && [ -z $FLINK_ENV_JAVA_OPTS ]; then
+
         JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-    
+
         # set the GC to G1 in Java 8 and to CMS in Java 7
         if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
             if [ "$JAVA_VERSION" -lt 18 ]; then
@@ -63,7 +57,7 @@ if [[ $STARTSTOP == "start" ]]; then
         #
         TM_MAX_OFFHEAP_SIZE="8388607T"
 
-        if [[ "${STREAMINGMODE}" == "batch" ]] && useOffHeapMemory; then
+        if [[ "${FLINK_TM_MEM_PRE_ALLOCATE}" == "true" ]] && useOffHeapMemory; then
             if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
                 # We split up the total memory in heap and off-heap memory
                 if [[ "${FLINK_TM_HEAP}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then
@@ -94,7 +88,7 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 
     # Startup parameters
-    args=("--configDir" "${FLINK_CONF_DIR}" "--streamingMode" "${STREAMINGMODE}")
+    args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
 "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"

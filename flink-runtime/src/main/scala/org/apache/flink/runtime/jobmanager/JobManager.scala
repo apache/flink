@@ -60,7 +60,7 @@ import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
-import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages, StreamingMode}
+import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
 
 import scala.collection.JavaConverters._
@@ -107,7 +107,6 @@ class JobManager(
     protected val defaultExecutionRetries: Int,
     protected val delayBetweenRetries: Long,
     protected val timeout: FiniteDuration,
-    protected val mode: StreamingMode,
     protected val leaderElectionService: LeaderElectionService,
     protected val submittedJobGraphs : SubmittedJobGraphStore,
     protected val checkpointRecoveryFactory : CheckpointRecoveryFactory)
@@ -1389,7 +1388,6 @@ object JobManager {
     // parsing the command line arguments
     val (configuration: Configuration,
          executionMode: JobManagerMode,
-         streamingMode: StreamingMode,
          listeningHost: String, listeningPort: Int) =
     try {
       parseArgs(args)
@@ -1439,7 +1437,6 @@ object JobManager {
             runJobManager(
               configuration,
               executionMode,
-              streamingMode,
               listeningHost,
               listeningPort)
           }
@@ -1450,7 +1447,6 @@ object JobManager {
         runJobManager(
           configuration,
           executionMode,
-          streamingMode,
           listeningHost,
           listeningPort)
       }
@@ -1474,14 +1470,12 @@ object JobManager {
    * @param configuration The configuration object for the JobManager.
    * @param executionMode The execution mode in which to run. Execution mode LOCAL will spawn an
    *                      an additional TaskManager in the same process.
-   * @param streamingMode The streaming mode to run the system in (streaming vs. batch-only)
    * @param listeningAddress The hostname where the JobManager should listen for messages.
    * @param listeningPort The port where the JobManager should listen for messages.
    */
   def runJobManager(
       configuration: Configuration,
       executionMode: JobManagerMode,
-      streamingMode: StreamingMode,
       listeningAddress: String,
       listeningPort: Int)
     : Unit = {
@@ -1489,7 +1483,6 @@ object JobManager {
     val (jobManagerSystem, _, _, _) = startActorSystemAndJobManagerActors(
       configuration,
       executionMode,
-      streamingMode,
       listeningAddress,
       listeningPort,
       classOf[JobManager],
@@ -1505,7 +1498,6 @@ object JobManager {
     * @param configuration The configuration object for the JobManager
     * @param executionMode The execution mode in which to run. Execution mode LOCAL with spawn an
     *                      additional TaskManager in the same process.
-    * @param streamingMode The streaming mode to run the system in (streaming vs. batch-only)
     * @param listeningAddress The hostname where the JobManager should lsiten for messages.
     * @param listeningPort The port where the JobManager should listen for messages
     * @param jobManagerClass The class of the JobManager to be started
@@ -1516,7 +1508,6 @@ object JobManager {
   def startActorSystemAndJobManagerActors(
       configuration: Configuration,
       executionMode: JobManagerMode,
-      streamingMode: StreamingMode,
       listeningAddress: String,
       listeningPort: Int,
       jobManagerClass: Class[_ <: JobManager],
@@ -1587,7 +1578,6 @@ object JobManager {
       val (jobManager, archive) = startJobManagerActors(
         configuration,
         jobManagerSystem,
-        streamingMode,
         jobManagerClass,
         archiveClass)
 
@@ -1613,7 +1603,6 @@ object JobManager {
           Some(TaskManager.TASK_MANAGER_NAME),
           None,
           true,
-          streamingMode,
           classOf[TaskManager])
 
         LOG.debug("Starting TaskManager process reaper")
@@ -1654,8 +1643,7 @@ object JobManager {
    * @param args command line arguments
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]):
-                     (Configuration, JobManagerMode, StreamingMode, String, Int) = {
+  def parseArgs(args: Array[String]): (Configuration, JobManagerMode, String, Int) = {
     val parser = new scopt.OptionParser[JobManagerCliOptions]("JobManager") {
       head("Flink JobManager")
 
@@ -1671,13 +1659,6 @@ object JobManager {
         conf
       } text {
         "The execution mode of the JobManager (CLUSTER / LOCAL)"
-      }
-
-      opt[String]("streamingMode").optional().action { (arg, conf) =>
-        conf.setStreamingMode(arg)
-        conf
-      } text {
-        "The streaming mode of the JobManager (STREAMING / BATCH)"
       }
 
       opt[String]("host").optional().action { (arg, conf) =>
@@ -1743,13 +1724,11 @@ object JobManager {
       }
 
     val executionMode = config.getJobManagerMode
-    val streamingMode = config.getStreamingMode
     val hostPortUrl = NetUtils.hostAndPortToUrlString(host, port)
     
-    LOG.info(s"Starting JobManager on $hostPortUrl with execution mode $executionMode and " +
-      s"streaming mode $streamingMode")
+    LOG.info(s"Starting JobManager on $hostPortUrl with execution mode $executionMode")
 
-    (configuration, executionMode, streamingMode, host, port)
+    (configuration, executionMode, host, port)
   }
 
   /**
@@ -1884,7 +1863,6 @@ object JobManager {
    *
    * @param configuration The configuration for the JobManager
    * @param actorSystem The actor system running the JobManager
-   * @param streamingMode The execution mode
    * @param jobManagerClass The class of the JobManager to be started
    * @param archiveClass The class of the MemoryArchivist to be started
    *
@@ -1893,7 +1871,6 @@ object JobManager {
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
-      streamingMode: StreamingMode,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
     : (ActorRef, ActorRef) = {
@@ -1903,7 +1880,6 @@ object JobManager {
       actorSystem,
       Some(JOB_MANAGER_NAME),
       Some(ARCHIVE_NAME),
-      streamingMode,
       jobManagerClass,
       archiveClass)
   }
@@ -1918,7 +1894,6 @@ object JobManager {
    *                          the actor will have the name generated by the actor system.
    * @param archiveActorName Optionally the name of the archive actor. If none is given,
    *                          the actor will have the name generated by the actor system.
-   * @param streamingMode The mode to run the system in (streaming vs. batch-only)
    * @param jobManagerClass The class of the JobManager to be started
    * @param archiveClass The class of the MemoryArchivist to be started
    *
@@ -1929,7 +1904,6 @@ object JobManager {
       actorSystem: ActorSystem,
       jobMangerActorName: Option[String],
       archiveActorName: Option[String],
-      streamingMode: StreamingMode,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
     : (ActorRef, ActorRef) = {
@@ -1967,7 +1941,6 @@ object JobManager {
       executionRetries,
       delayBetweenRetries,
       timeout,
-      streamingMode,
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory)

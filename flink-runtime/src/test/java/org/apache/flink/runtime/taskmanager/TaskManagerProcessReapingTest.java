@@ -24,7 +24,6 @@ import akka.actor.PoisonPill;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
@@ -91,7 +90,6 @@ public class TaskManagerProcessReapingTest {
 			JobManager.startJobManagerActors(
 				new Configuration(),
 				jmActorSystem,
-				StreamingMode.BATCH_ONLY,
 				JobManager.class,
 				MemoryArchivist.class);
 
@@ -208,7 +206,7 @@ public class TaskManagerProcessReapingTest {
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 256);
 
-				TaskManager.runTaskManager("localhost", taskManagerPort, cfg, StreamingMode.BATCH_ONLY);
+				TaskManager.runTaskManager("localhost", taskManagerPort, cfg);
 
 				// wait forever
 				Object lock = new Object();

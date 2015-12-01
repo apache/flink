@@ -21,7 +21,6 @@ package org.apache.flink.api.scala
 import java.io._
 import java.util.concurrent.TimeUnit
 
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.test.util.{ForkableFlinkMiniCluster, TestBaseUtils}
 import org.apache.flink.util.TestLogger
 import org.junit.{AfterClass, BeforeClass, Test, Assert}
@@ -261,7 +260,6 @@ object ScalaShellITCase {
     val cl = TestBaseUtils.startCluster(
       1,
       parallelism,
-      StreamingMode.BATCH_ONLY,
       false,
       false,
       false)

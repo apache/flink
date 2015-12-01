@@ -22,10 +22,6 @@ USAGE="Usage: start-cluster.sh [batch|streaming]"
 
 STREAMING_MODE=$1
 
-if [[ -z $STREAMING_MODE ]]; then
-    STREAMING_MODE="batch"
-fi
-
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
@@ -37,19 +33,19 @@ if [[ $RECOVERY_MODE == "zookeeper" ]]; then
     # HA Mode
     readMasters
 
-    echo "Starting HA cluster (${STREAMING_MODE} mode) with ${#MASTERS[@]} masters and ${#ZK_QUORUM[@]} peers in ZooKeeper quorum."
+    echo "Starting HA cluster with ${#MASTERS[@]} masters and ${#ZK_QUORUM[@]} peers in ZooKeeper quorum."
 
     for ((i=0;i<${#MASTERS[@]};++i)); do
         master=${MASTERS[i]}
         webuiport=${WEBUIPORTS[i]}
-        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start cluster ${STREAMING_MODE} ${master} ${webuiport} &"
+        ssh -n $FLINK_SSH_OPTS $master -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/jobmanager.sh\" start cluster ${master} ${webuiport} &"
     done
 
 else
-    echo "Starting cluster (${STREAMING_MODE} mode)."
+    echo "Starting cluster."
 
     # Start single JobManager on this machine
-    "$FLINK_BIN_DIR"/jobmanager.sh start cluster ${STREAMING_MODE}
+    "$FLINK_BIN_DIR"/jobmanager.sh start cluster
 fi
 shopt -u nocasematch
 
@@ -57,5 +53,5 @@ shopt -u nocasematch
 readSlaves
 
 for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start ${STREAMING_MODE} &"
+    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start &"
 done

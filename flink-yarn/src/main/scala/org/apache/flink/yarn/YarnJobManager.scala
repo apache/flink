@@ -33,11 +33,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatus, CurrentJobStatus,
-JobNotFound}
+import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatus, CurrentJobStatus, JobNotFound}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
@@ -75,7 +73,6 @@ import scala.util.Try
   * @param defaultExecutionRetries Number of default execution retries
   * @param delayBetweenRetries Delay between retries
   * @param timeout Timeout for futures
-  * @param mode StreamingMode in which the system shall be started
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
 class YarnJobManager(
@@ -88,7 +85,6 @@ class YarnJobManager(
     defaultExecutionRetries: Int,
     delayBetweenRetries: Long,
     timeout: FiniteDuration,
-    mode: StreamingMode,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory)
@@ -102,7 +98,6 @@ class YarnJobManager(
     defaultExecutionRetries,
     delayBetweenRetries,
     timeout,
-    mode,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory) {
@@ -603,8 +598,7 @@ class YarnJobManager(
           hasLog4j,
           yarnClientUsername,
           conf,
-          taskManagerLocalResources,
-          ApplicationMasterBase.hasStreamingMode(env))
+          taskManagerLocalResources)
       )
 
       context.system.scheduler.scheduleOnce(
@@ -665,13 +659,11 @@ class YarnJobManager(
       hasLog4j: Boolean,
       yarnClientUsername: String,
       yarnConf: Configuration,
-      taskManagerLocalResources: Map[String, LocalResource],
-      streamingMode: Boolean)
-    : ContainerLaunchContext = {
+      taskManagerLocalResources: Map[String, LocalResource]) : ContainerLaunchContext = {
     log.info("Create container launch context.")
     val ctx = Records.newRecord(classOf[ContainerLaunchContext])
 
-    val heapLimit = calculateMemoryLimits(memoryLimit, streamingMode)
+    val heapLimit = calculateMemoryLimits(memoryLimit)
 
     val javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
     val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xms${heapLimit}m " +
@@ -693,13 +685,6 @@ class YarnJobManager(
     tmCommand ++= s" ${taskManagerRunnerClass.getName} --configDir . 1> " +
       s"${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager.out 2> " +
       s"${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager.err"
-
-    tmCommand ++= " --streamingMode"
-    if(streamingMode) {
-      tmCommand ++= " streaming"
-    } else {
-      tmCommand ++= " batch"
-    }
 
     ctx.setCommands(Collections.singletonList(tmCommand.toString()))
 
@@ -736,15 +721,22 @@ class YarnJobManager(
   /**
    * Calculate the correct JVM heap memory limit.
    * @param memoryLimit The maximum memory in megabytes.
-   * @param streamingMode True if this is a streaming cluster.
    * @return A Tuple2 containing the heap and the offHeap limit in megabytes.
    */
-  private def calculateMemoryLimits(memoryLimit: Long, streamingMode: Boolean): Long = {
+  private def calculateMemoryLimits(memoryLimit: Long): Long = {
+    val eagerAllocation = flinkConfiguration.getBoolean(
+      ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE);
+    if (eagerAllocation) {
+      log.info("Heap limits calculated with eager memory allocation.")
+    } else {
+      log.info("Heap limits calculated with lazy memory allocation.")
+    }
 
     val useOffHeap = flinkConfiguration.getBoolean(
       ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false)
 
-    if (useOffHeap && !streamingMode){
+    if (useOffHeap && eagerAllocation){
       val fixedOffHeapSize = flinkConfiguration.getLong(
         ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L)
 

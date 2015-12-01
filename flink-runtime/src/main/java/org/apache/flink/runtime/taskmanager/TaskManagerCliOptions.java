@@ -18,16 +18,12 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.runtime.StreamingMode;
-
 /**
  * The command line parameters passed to the TaskManager.
  */
 public class TaskManagerCliOptions {
 
 	private String configDir;
-	
-	private StreamingMode mode = StreamingMode.BATCH_ONLY;
 	
 	// ------------------------------------------------------------------------
 
@@ -37,21 +33,5 @@ public class TaskManagerCliOptions {
 
 	public void setConfigDir(String configDir) {
 		this.configDir = configDir;
-	}
-
-	public StreamingMode getMode() {
-		return mode;
-	}
-
-	public void setMode(String modeName) {
-		if (modeName.equalsIgnoreCase("streaming")) {
-			this.mode = StreamingMode.STREAMING;
-		}
-		else if (modeName.equalsIgnoreCase("batch")) {
-			this.mode = StreamingMode.BATCH_ONLY;
-		}
-		else {
-			throw new IllegalArgumentException("Mode must be one of 'BATCH' or 'STREAMING'.");
-		}
 	}
 }

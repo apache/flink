@@ -26,7 +26,6 @@ import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
@@ -128,7 +127,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,
-				StreamingMode.STREAMING,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
@@ -379,7 +377,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 
-				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg, StreamingMode.STREAMING, TaskManager.class);
+				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg, TaskManager.class);
 
 				// wait forever
 				Object lock = new Object();

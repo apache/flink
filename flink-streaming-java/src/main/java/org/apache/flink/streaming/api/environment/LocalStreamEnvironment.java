@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
@@ -100,7 +99,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running job on local embedded Flink mini cluster");
 		}
 
-		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true, StreamingMode.STREAMING);
+		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(configuration, true);
 		try {
 			exec.start();
 			return exec.submitJobAndWait(jobGraph, getConfig().isSysoutLoggingEnabled());
