@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Ordering;
@@ -46,6 +47,7 @@ import com.google.common.base.Preconditions;
  * 
  * @param <T> The type of the elements of the sorted and grouped DataSet.
  */
+@Public
 public class SortedGrouping<T> extends Grouping<T> {
 	
 	private int[] groupSortKeyPositions;

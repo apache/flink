@@ -20,12 +20,16 @@ package org.apache.flink.api.java.typeutils;
 
 import java.lang.reflect.Array;
 
-import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
+import com.google.common.base.Preconditions;
+
+@Public
 public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -41,42 +45,50 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	@Experimental
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
+	@Experimental
 	public int getArity() {
 		return 1;
 	}
 
 	@Override
+	@Experimental
 	public int getTotalFields() {
 		return 1;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
+	@Experimental
 	public Class<T> getTypeClass() {
 		return arrayType;
 	}
 
+	@Experimental
 	public TypeInformation<C> getComponentInfo() {
 		return componentInfo;
 	}
 
 	@Override
+	@Experimental
 	public boolean isKeyType() {
 		return false;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
+	@Experimental
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return (TypeSerializer<T>) new GenericArraySerializer<C>(
 			componentInfo.getTypeClass(),
@@ -114,6 +126,7 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	// --------------------------------------------------------------------------------------------
 
+	@Experimental
 	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(Class<T> arrayClass, TypeInformation<C> componentInfo) {
 		Preconditions.checkNotNull(arrayClass);
 		Preconditions.checkNotNull(componentInfo);
@@ -131,6 +144,7 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 	 * {@link java.lang.reflect.Type} or {@link java.lang.Class}.
 	 */
 	@SuppressWarnings("unchecked")
+	@Experimental
 	public static <T, C> ObjectArrayTypeInfo<T, C> getInfoFor(TypeInformation<C> componentInfo) {
 		Preconditions.checkNotNull(componentInfo);
 

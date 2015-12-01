@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
+import org.apache.flink.annotation.{Internal, Experimental, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -38,6 +39,7 @@ import scala.reflect.ClassTag
 
 import _root_.scala.language.implicitConversions
 
+@Public
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
@@ -89,6 +91,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * avoiding serialization and de-serialization.
    *
    */
+  @Experimental
   def disableOperatorChaining(): StreamExecutionEnvironment = {
     javaEnv.disableOperatorChaining()
     this
@@ -124,6 +127,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *           If true checkpointing will be enabled for iterative jobs as well.
    */
   @deprecated
+  @Experimental
   def enableCheckpointing(interval : Long,
                           mode: CheckpointingMode,
                           force: Boolean) : StreamExecutionEnvironment = {
@@ -186,6 +190,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * [[setNumberOfExecutionRetries(int)]] method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
+  @deprecated
+  @Experimental
   def enableCheckpointing() : StreamExecutionEnvironment = {
     javaEnv.enableCheckpointing()
     this
@@ -212,6 +218,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * program can be executed highly available and strongly consistent (assuming that Flink
    * is run in high-availability mode).
    */
+  @Experimental
   def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
     javaEnv.setStateBackend(backend)
     this
@@ -220,6 +227,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
+  @Experimental
   def getStateBackend: AbstractStateBackend = javaEnv.getStateBackend()
   
   /**
@@ -227,6 +235,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * effectively disables fault tolerance. A value of "-1" indicates that the system
    * default value (as defined in the configuration) should be used.
    */
+  @Experimental
   def setNumberOfExecutionRetries(numRetries: Int): Unit = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
   }
@@ -236,6 +245,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * of "-1" indicates that the system default value (as defined in the configuration)
    * should be used.
    */
+  @Experimental
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   // --------------------------------------------------------------------------------------------
@@ -317,6 +327,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @param characteristic The time characteristic.
    */
+  @Experimental
   def setStreamTimeCharacteristic(characteristic: TimeCharacteristic) : Unit = {
     javaEnv.setStreamTimeCharacteristic(characteristic)
   }
@@ -328,6 +339,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return The time characteristic.
    */
+  @Experimental
   def getStreamTimeCharacteristic = javaEnv.getStreamTimeCharacteristic()
 
   // --------------------------------------------------------------------------------------------
@@ -462,6 +474,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * character set. The maximum retry interval is specified in seconds, in case
    * of temporary service outage reconnection is initiated every second.
    */
+  @Experimental
   def socketTextStream(hostname: String, port: Int, delimiter: Char = '\n', maxRetry: Long = 0):
     DataStream[String] =
     javaEnv.socketTextStream(hostname, port)
@@ -472,6 +485,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * determine the type of the data produced by the input format. It will attempt to determine the
    * data type by reflection, unless the input format implements the ResultTypeQueryable interface.
    */
+  @Experimental
   def createInput[T: ClassTag : TypeInformation](inputFormat: InputFormat[T, _]): DataStream[T] =
     javaEnv.createInput(inputFormat)
 
@@ -543,12 +557,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return The StreamGraph representing the transformations
    */
+  @Internal
   def getStreamGraph = javaEnv.getStreamGraph
 
   /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
    * @return The encased ExecutionEnvironment
    */
+  @Internal
   def getWrappedStreamExecutionEnvironment = javaEnv
 
   /**
@@ -574,6 +590,7 @@ object StreamExecutionEnvironment {
    * @param parallelism
    * The parallelism to use as the default local parallelism.
    */
+  @Experimental
   def setDefaultLocalParallelism(parallelism: Int) : Unit =
     StreamExecutionEnvironment.setDefaultLocalParallelism(parallelism)
 

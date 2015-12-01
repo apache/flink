@@ -17,12 +17,14 @@
  */
 
 package org.apache.flink.api.java.operators;
-
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
+@Public
 public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 
 	private DeltaIteration<ST, WT> iterationHead;
@@ -66,11 +68,13 @@ public class DeltaIterationResultSet<ST, WT> extends DataSet<ST> {
 	public DataSet<WT> getNextWorkset() {
 		return nextWorkset;
 	}
-	
-	public int [] getKeyPositions() {
+
+	@Internal
+	public int[] getKeyPositions() {
 		return keys.computeLogicalKeyPositions();
 	}
-	
+
+	@Internal
 	public int getMaxIterations() {
 		return maxIterations;
 	}

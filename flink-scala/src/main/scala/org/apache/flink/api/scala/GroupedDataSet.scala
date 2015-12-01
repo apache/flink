@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
 import org.apache.flink.api.common.operators.{Keys, Order}
@@ -39,6 +40,7 @@ import scala.reflect.ClassTag
  * A secondary sort order can be added with sortGroup, but this is only used when using one
  * of the group-at-a-time operations, i.e. `reduceGroup`.
  */
+@Public
 class GroupedDataSet[T: ClassTag](
     private val set: DataSet[T],
     private val keys: Keys[T]) {
@@ -204,6 +206,7 @@ class GroupedDataSet[T: ClassTag](
    * Gets the custom partitioner to be used for this grouping, or null, if
    * none was defined.
    */
+  @Internal
   def getCustomPartitioner[K]() : Partitioner[K] = {
     partitioner.asInstanceOf[Partitioner[K]]
   }

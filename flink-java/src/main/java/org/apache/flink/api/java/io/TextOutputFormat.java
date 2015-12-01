@@ -27,7 +27,6 @@ import java.nio.charset.UnsupportedCharsetException;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.Path;
 
-
 public class TextOutputFormat<T> extends FileOutputFormat<T> {
 
 	private static final long serialVersionUID = 1L;

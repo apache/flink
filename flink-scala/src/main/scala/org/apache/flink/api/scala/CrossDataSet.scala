@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.functions.{CrossFunction, RichCrossFunction}
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -43,6 +44,7 @@ import scala.reflect.ClassTag
  * @tparam L Type of the left input of the cross.
  * @tparam R Type of the right input of the cross.
  */
+@Public
 class CrossDataSet[L, R](
     defaultCross: CrossOperator[L, R, (L, R)],
     leftInput: DataSet[L],

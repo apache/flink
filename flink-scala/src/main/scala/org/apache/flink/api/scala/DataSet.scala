@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.{Experimental, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
@@ -83,6 +84,7 @@ import scala.reflect.ClassTag
  *
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
+@Public
 class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   require(set != null, "Java DataSet must not be null.")
 
@@ -188,6 +190,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @param name The name under which the aggregator is registered.
    * @param aggregator The aggregator class.
    */
+  @Experimental
   def registerAggregator(name: String, aggregator: Aggregator[_]): DataSet[T] = {
     javaSet match {
       case di: DeltaIterationResultSet[_, _] =>
@@ -1628,8 +1631,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @param sinkIdentifier The string to prefix the output with. 
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
-  @Deprecated
   @deprecated
+  @Experimental
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
   }
@@ -1641,8 +1644,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @param sinkIdentifier The string to prefix the output with. 
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
-  @Deprecated
   @deprecated
+  @Experimental
   def printToErr(sinkIdentifier: String): DataSink[T] = {
       output(new PrintingOutputFormat[T](sinkIdentifier, true))
   }

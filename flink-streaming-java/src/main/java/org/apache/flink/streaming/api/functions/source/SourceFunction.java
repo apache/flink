@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -81,6 +83,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of the elements produced by this source.
  */
+@Public
 public interface SourceFunction<T> extends Function, Serializable {
 
 	/**
@@ -112,6 +115,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 *
 	 * @param <T> The type of the elements produced by the source.
 	 */
+	@Public // Interface might be extended in the future with additional methods.
 	public static interface SourceContext<T> {
 
 		/**
@@ -128,6 +132,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * @param element The element to emit
 		 * @param timestamp The timestamp in milliseconds
 		 */
+		@Experimental
 		public void collectWithTimestamp(T element, long timestamp);
 
 		/**
@@ -142,6 +147,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 *
 		 * @param mark The {@link Watermark} to emit
 		 */
+		@Experimental
 		void emitWatermark(Watermark mark);
 
 

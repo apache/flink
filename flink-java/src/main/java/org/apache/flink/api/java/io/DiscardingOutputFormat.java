@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 
@@ -27,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
  *
  * @param <T> The type of the elements accepted by the output format.
  */
+@Public
 public class DiscardingOutputFormat<T> implements OutputFormat<T> {
 
 	private static final long serialVersionUID = 1L;

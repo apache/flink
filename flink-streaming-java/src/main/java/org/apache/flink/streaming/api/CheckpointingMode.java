@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * The checkpointing mode defines what consistency guarantees the system gives in the presence of
  * failures.
@@ -29,6 +31,7 @@ package org.apache.flink.streaming.api;
  * in a simpler fashion that typically encounteres some duplicates upon recovery
  * ({@link #AT_LEAST_ONCE})</p> 
  */
+@Public
 public enum CheckpointingMode {
 
 	/**

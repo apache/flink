@@ -18,6 +18,8 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * This type represents a value of one two possible types, Left or Right (a
  * disjoint union), inspired by Scala's Either type.
@@ -27,6 +29,7 @@ package org.apache.flink.types;
  * @param <R>
  *            the type of Right
  */
+@Public
 public abstract class Either<L, R> {
 
 	/**

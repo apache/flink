@@ -23,6 +23,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -44,6 +45,7 @@ import org.apache.hadoop.mapred.Reporter;
  * This wrapper maps a Hadoop Reducer (mapred API) to a non-combinable Flink GroupReduceFunction. 
  */
 @SuppressWarnings("rawtypes")
+@Public
 public final class HadoopReduceFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> 
 					extends RichGroupReduceFunction<Tuple2<KEYIN,VALUEIN>,Tuple2<KEYOUT,VALUEOUT>> 
 					implements ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>>, Serializable {

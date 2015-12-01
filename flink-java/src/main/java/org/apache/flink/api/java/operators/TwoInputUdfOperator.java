@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
@@ -49,6 +51,7 @@ import org.apache.flink.configuration.Configuration;
  * @param <IN2> The data type of the second input data set.
  * @param <OUT> The data type of the returned data set.
  */
+@Public
 public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOperator<IN1, IN2, OUT, O>>
 	extends TwoInputOperator<IN1, IN2, OUT, O> implements UdfOperator<O>
 {
@@ -74,7 +77,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	protected TwoInputUdfOperator(DataSet<IN1> input1, DataSet<IN2> input2, TypeInformation<OUT> resultType) {
 		super(input1, input2, resultType);
 	}
-	
+
 	protected abstract Function getFunction();
 
 	// --------------------------------------------------------------------------------------------
@@ -380,6 +383,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	@Internal
 	public Map<String, DataSet<?>> getBroadcastSets() {
 		return this.broadcastVariables == null ?
 				Collections.<String, DataSet<?>>emptyMap() :
@@ -392,6 +396,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	@Override
+	@Internal
 	public DualInputSemanticProperties getSemanticProperties() {
 		if (this.udfSemantics == null || analyzedUdfSemantics) {
 			DualInputSemanticProperties props = extractSemanticAnnotationsFromUdf(getFunction().getClass());
@@ -413,6 +418,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 * @param properties The semantic properties for the UDF.
 	 * @see UdfOperator#getSemanticProperties()
 	 */
+	@Internal
 	public void setSemanticProperties(DualInputSemanticProperties properties) {
 		this.udfSemantics = properties;
 		this.analyzedUdfSemantics = false;

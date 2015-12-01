@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
+
 import java.io.Serializable;
 
 /**

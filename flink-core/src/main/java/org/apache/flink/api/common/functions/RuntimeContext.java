@@ -239,6 +239,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part of a KeyedStream).
 	 */
+	@Experimental
 	<T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
 
 	/**
@@ -282,6 +283,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
+	@Experimental
 	<T> ListState<T> getListState(ListStateDescriptor<T> stateProperties);
 
 	/**
@@ -321,6 +323,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part of a KeyedStream).
 	 */
+	@Experimental
 	<T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties);
 	
 	/**
@@ -380,6 +383,7 @@ public interface RuntimeContext {
 	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
 	 */
 	@Deprecated
+	@Experimental
 	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
 
 	/**
@@ -432,5 +436,6 @@ public interface RuntimeContext {
 	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
 	 */
 	@Deprecated
+	@Experimental
 	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 }

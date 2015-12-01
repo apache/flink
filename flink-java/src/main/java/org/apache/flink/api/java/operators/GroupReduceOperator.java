@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -50,6 +52,7 @@ import java.lang.reflect.Type;
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
+@Public
 public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, GroupReduceOperator<IN, OUT>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceOperator.class);
@@ -155,7 +158,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	// --------------------------------------------------------------------------------------------
 	//  Properties
 	// --------------------------------------------------------------------------------------------
-	
+	@Internal
 	public boolean isCombinable() {
 		return combinable;
 	}
@@ -177,6 +180,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 
 	@Override
+	@Internal
 	public SingleInputSemanticProperties getSemanticProperties() {
 
 		SingleInputSemanticProperties props = super.getSemanticProperties();

@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -39,6 +41,7 @@ import java.net.URL;
  * must be attached to the remote environment as JAR files, to allow the environment to ship the
  * classes into the cluster for the distributed execution.
  */
+@Public
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	/** The hostname of the JobManager */
@@ -180,6 +183,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
+	@Experimental
 	public void startNewSession() throws Exception {
 		dispose();
 		jobID = JobID.generate();

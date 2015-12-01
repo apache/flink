@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * that is otherwise performed and is useful in situations where the produced data type may vary
  * depending on parametrization.
  */
+@Public
 public interface ResultTypeQueryable<T> {
 
 	/**

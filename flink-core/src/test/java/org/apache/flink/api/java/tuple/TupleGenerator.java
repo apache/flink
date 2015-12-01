@@ -167,6 +167,7 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + ';');
 		w.println();
+		w.println("import PublicInterface;");
 		w.println("import org.apache.flink.util.StringUtils;");
 		w.println();
 
@@ -185,6 +186,7 @@ class TupleGenerator {
 			w.println(" * @param <" + GEN_TYPE_PREFIX + i + "> The type of field " + i);
 		}
 		w.println(" */");
+		w.println("@PublicInterface");
 		w.print("public class " + className + "<");
 		for (int i = 0; i < numFields; i++) {
 			if (i > 0) {
@@ -443,10 +445,12 @@ class TupleGenerator {
 		w.println("import java.util.ArrayList;");
 		w.println("import java.util.List;");
 		w.println();
+		w.println("import PublicInterface;");
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
 		w.println();
 
 		// class declaration
+		w.println("@PublicInterface");
 		w.print("public class " + className);
 		printGenericsString(w, numFields);
 		w.println(" {");

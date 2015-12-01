@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.annotation.Public
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -32,6 +33,7 @@ import scala.reflect.ClassTag
  * can be used to apply transformations such as [[CoMapFunction]] on two
  * [[DataStream]]s.
  */
+@Public
 class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
   /**

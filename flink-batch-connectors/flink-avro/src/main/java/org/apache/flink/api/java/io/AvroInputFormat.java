@@ -38,7 +38,6 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.InstantiationUtil;
 
-
 public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultTypeQueryable<E> {
 	
 	private static final long serialVersionUID = 1L;
