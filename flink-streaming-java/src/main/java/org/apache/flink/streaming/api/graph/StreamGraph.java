@@ -420,6 +420,13 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
+	void setTransformationId(Integer nodeId, String transformationId) {
+		StreamNode node = streamNodes.get(nodeId);
+		if (node != null) {
+			node.setTransformationId(transformationId);
+		}
+	}
+
 	public StreamNode getStreamNode(Integer vertexID) {
 		return streamNodes.get(vertexID);
 	}
