@@ -63,6 +63,23 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	}
 
 	/**
+	 * Sets an ID for this operator.
+	 *
+	 * <p>The specified ID is used to assign the same operator ID across job
+	 * submissions (for example when starting a job from a savepoint).
+	 *
+	 * <p><strong>Important</strong>: this ID needs to be unique per
+	 * transformation and job. Otherwise, job submission will fail.
+	 *
+	 * @param uid The unique user-specified ID of this transformation.
+	 * @return The operator with the specified ID.
+	 */
+	public SingleOutputStreamOperator<T, O> uid(String uid) {
+		transformation.setUid(uid);
+		return this;
+	}
+
+	/**
 	 * Sets the parallelism for this operator. The degree must be 1 or more.
 	 * 
 	 * @param parallelism
