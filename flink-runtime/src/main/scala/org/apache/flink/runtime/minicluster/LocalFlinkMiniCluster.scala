@@ -22,14 +22,11 @@ import akka.actor.{ActorRef, ActorSystem}
 
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
-
-import org.slf4j.LoggerFactory
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -39,18 +36,11 @@ import org.slf4j.LoggerFactory
  * @param userConfiguration Configuration object with the user provided configuration values
  * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
  *                          [[ActorSystem]], otherwise false
- * @param streamingMode Defines the execution mode of Flink's components (JobManager and
- *                      TaskManager)
  */
 class LocalFlinkMiniCluster(
     userConfiguration: Configuration,
-    singleActorSystem: Boolean,
-    streamingMode: StreamingMode)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
+    singleActorSystem: Boolean) extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
-       = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
-  
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
 
   // --------------------------------------------------------------------------
@@ -84,7 +74,6 @@ class LocalFlinkMiniCluster(
       system,
       Some(jobManagerName),
       Some(archiveName),
-      streamingMode,
       classOf[JobManager],
       classOf[MemoryArchivist])
 
@@ -124,7 +113,6 @@ class LocalFlinkMiniCluster(
       Some(taskManagerActorName), // actor name
       Some(createLeaderRetrievalService), // job manager leader retrieval service
       localExecution, // start network stack?
-      streamingMode,
       classOf[TaskManager])
   }
 

@@ -79,7 +79,7 @@ tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{site.version }}/
 ~~~
 
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). 
+If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html).
 You can find the result of the build in `flink-dist/target/flink-{{ site.version }}-bin/flink-{{ site.version }}/` (*Note: The version might be different for you* ).
 
 
@@ -105,7 +105,6 @@ Usage:
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
-     -st,--streaming                 Start Flink in streaming mode
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
 
 ~~~
@@ -118,7 +117,7 @@ Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` en
 ./bin/yarn-session.sh -n 10 -tm 8192 -s 32
 ~~~
 
-The system will use the configuration in `conf/flink-config.yaml`. Please follow our [configuration guide](config.html) if you want to change something. 
+The system will use the configuration in `conf/flink-config.yaml`. Please follow our [configuration guide](config.html) if you want to change something.
 
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `taskmanager.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelism.default` if the number of slots has been specified.
 
@@ -132,7 +131,7 @@ Stop the YARN session by stopping the unix process (using CTRL+C) or by entering
 
 #### Detached YARN session
 
-If you do not want to keep the Flink YARN client running all the time, its also possible to start a *detached* YARN session. 
+If you do not want to keep the Flink YARN client running all the time, its also possible to start a *detached* YARN session.
 The parameter for that is called `-d` or `--detached`.
 
 In that case, the Flink YARN client will only submit Flink to the cluster and then close itself.
@@ -206,13 +205,13 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 ***Example:***
 
 ~~~bash
-./bin/flink run -m yarn-cluster -yn 2 ./examples/WordCount.jar 
+./bin/flink run -m yarn-cluster -yn 2 ./examples/WordCount.jar
 ~~~
 
-The command line options of the YARN session are also available with the `./bin/flink` tool. 
+The command line options of the YARN session are also available with the `./bin/flink` tool.
 They are prefixed with a `y` or `yarn` (for the long argument options).
 
-Note: You can use a different configuration directory per job by setting the environment variable `FLINK_CONF_DIR`. 
+Note: You can use a different configuration directory per job by setting the environment variable `FLINK_CONF_DIR`.
 To use this copy the `conf` directory from the Flink distribution and modify, for example, the logging settings on a per-job basis.
 
 Note: It is possible to combine `-m yarn-cluster` with a detached YARN submission (`-yd`) to "fire and forget" a Flink job
@@ -234,7 +233,7 @@ There are many reasons why a Flink YARN session deployment can fail. A misconfig
 
 ### Log Files
 
-In cases where the Flink YARN session fails during the deployment itself, users have to rely on the logging capabilities of Hadoop YARN. The most useful feature for that is the [YARN log aggregation](http://hortonworks.com/blog/simplifying-user-logs-management-and-access-in-yarn/). 
+In cases where the Flink YARN session fails during the deployment itself, users have to rely on the logging capabilities of Hadoop YARN. The most useful feature for that is the [YARN log aggregation](http://hortonworks.com/blog/simplifying-user-logs-management-and-access-in-yarn/).
 To enable it, users have to set the `yarn.log-aggregation-enable` property to `true` in the `yarn-site.xml` file.
 Once that is enabled, users can use the following command to retrieve all log files of a (failed) YARN session.
 
@@ -248,7 +247,7 @@ Note that it takes a few seconds after the session has finished until the logs s
 
 The Flink YARN client also prints error messages in the terminal if errors occur during runtime (for example if a TaskManager stops working after some time).
 
-In addition to that, there is the YARN Resource Manager webinterface (by default on port 8088). The port of the Resource Manager web interface is determined by the `yarn.resourcemanager.webapp.address` configuration value. 
+In addition to that, there is the YARN Resource Manager webinterface (by default on port 8088). The port of the Resource Manager web interface is determined by the `yarn.resourcemanager.webapp.address` configuration value.
 
 It allows to access log files for running YARN applications and shows diagnostics for failed apps.
 
@@ -260,7 +259,7 @@ Users using Hadoop distributions from companies like Hortonworks, Cloudera or Ma
 
 ## Background / Internals
 
-This section briefly describes how Flink and YARN interact. 
+This section briefly describes how Flink and YARN interact.
 
 <img src="fig/FlinkOnYarn.svg" class="img-responsive">
 

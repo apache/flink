@@ -25,7 +25,6 @@ import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -475,7 +474,6 @@ public class TaskManagerRegistrationTest extends TestLogger {
 							NONE_STRING, // no actor name -> random
 							new Some<LeaderRetrievalService>(new StandaloneLeaderRetrievalService(jobManager.path().toString())),
 							false, // init network stack !!!
-							StreamingMode.BATCH_ONLY,
 							TaskManager.class);
 
 					watch(taskManager);
@@ -597,7 +595,6 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			actorSystem,
 			NONE_STRING,
 			NONE_STRING,
-			StreamingMode.BATCH_ONLY,
 			JobManager.class,
 			MemoryArchivist.class)._1();
 	}

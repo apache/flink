@@ -24,7 +24,6 @@ import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
@@ -162,7 +161,6 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       _system,
       None,
       None,
-      StreamingMode.BATCH_ONLY,
       classOf[JobManager],
       classOf[MemoryArchivist])
     new AkkaActorGateway(jm, null)

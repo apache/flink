@@ -77,9 +77,6 @@ INFO ... - Starting web info server for JobManager on port 8081
 
 The JobManager will also start a web frontend on port 8081, which you can check with your browser at `http://localhost:8081`.
 
-Instead of starting Flink with `bin/start-local.sh` you can also start Flink in an streaming optimized
-mode, using `bin/start-local-streaming.sh`.
-
 ## Flink on Windows
 
 If you want to run Flink on Windows you need to download, unpack and configure the Flink archive as mentioned above. After that you can either use the **Windows Batch** file (`.bat`) or use **Cygwin**  to run the Flink Jobmanager.

@@ -24,7 +24,6 @@ import java.security.PrivilegedAction
 import akka.actor.ActorSystem
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManagerMode, JobManager}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -93,14 +92,6 @@ abstract class ApplicationMasterBase {
       val currDir = env.get(Environment.PWD.key())
       require(currDir != null, "Current directory unknown.")
 
-      val streamingMode = if(ApplicationMasterBase.hasStreamingMode(env)) {
-        log.info("Starting ApplicationMaster/JobManager in streaming mode")
-        StreamingMode.STREAMING
-      } else {
-        log.info("Starting ApplicationMaster/JobManager in batch only mode")
-        StreamingMode.BATCH_ONLY
-      }
-
       // Note that we use the "ownHostname" given by YARN here, to make sure
       // we use the hostnames given by YARN consistently throughout akka.
       // for akka "localhost" and "localhost.localdomain" are different actors.
@@ -124,7 +115,6 @@ abstract class ApplicationMasterBase {
         JobManager.startActorSystemAndJobManagerActors(
           config,
           JobManagerMode.CLUSTER,
-          streamingMode,
           ownHostname,
           0,
           getJobManagerClass,

@@ -26,7 +26,6 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
@@ -71,7 +70,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
 		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 ms");
 
-		cluster = new ForkableFlinkMiniCluster(config, false, StreamingMode.STREAMING);
+		cluster = new ForkableFlinkMiniCluster(config, false);
 		cluster.start();
 	}
 
@@ -555,6 +554,22 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		public void open(Configuration parameters) throws Exception {
 			// this sink can only work with DOP 1
 			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+
+			// it can happen that a checkpoint happens when the complete success state is
+			// already set. In that case we restart with the final state and would never
+			// finish because no more elements arrive.
+			if (windowCounts.size() == numKeys) {
+				boolean seenAll = true;
+				for (Integer windowCount: windowCounts.values()) {
+					if (windowCount != numWindowsExpected) {
+						seenAll = false;
+						break;
+					}
+				}
+				if (seenAll) {
+					throw new SuccessException();
+				}
+			}
 		}
 
 		@Override
@@ -597,8 +612,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 				windowCounts.put(value.f0, 1);
 			}
 
-			boolean seenAll = true;
 			if (windowCounts.size() == numKeys) {
+				boolean seenAll = true;
 				for (Integer windowCount: windowCounts.values()) {
 					if (windowCount < numWindowsExpected) {
 						seenAll = false;

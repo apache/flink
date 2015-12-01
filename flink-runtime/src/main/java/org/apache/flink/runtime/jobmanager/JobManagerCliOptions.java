@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.runtime.StreamingMode;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -31,8 +29,6 @@ public class JobManagerCliOptions {
 
 	private JobManagerMode jobManagerMode;
 	
-	private StreamingMode streamingMode = StreamingMode.BATCH_ONLY;
-
 	private String host;
 
 	private int webUIPort = -1;
@@ -61,23 +57,6 @@ public class JobManagerCliOptions {
 		else {
 			throw new IllegalArgumentException(
 					"Unknown execution mode. Execution mode must be one of 'cluster' or 'local'.");
-		}
-	}
-
-	public StreamingMode getStreamingMode() {
-		return streamingMode;
-	}
-
-	public void setStreamingMode(String modeName) {
-		if (modeName.equalsIgnoreCase("streaming")) {
-			this.streamingMode = StreamingMode.STREAMING;
-		}
-		else if (modeName.equalsIgnoreCase("batch")) {
-			this.streamingMode = StreamingMode.BATCH_ONLY;
-		}
-		else {
-			throw new IllegalArgumentException(
-					"Unknown streaming mode. Streaming mode must be one of 'BATCH' or 'STREAMING'.");
 		}
 	}
 

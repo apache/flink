@@ -25,7 +25,6 @@ import akka.pattern.Patterns._
 import akka.pattern.ask
 import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
@@ -45,13 +44,9 @@ import scala.concurrent.{Await, Future}
  *                          same [[ActorSystem]], otherwise false.
  */
 class ForkableFlinkMiniCluster(
-                                userConfiguration: Configuration,
-                                singleActorSystem: Boolean,
-                                streamingMode: StreamingMode)
-  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem, streamingMode) {
-
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
-  = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
+    userConfiguration: Configuration,
+    singleActorSystem: Boolean)
+  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
 
@@ -103,7 +98,6 @@ class ForkableFlinkMiniCluster(
       actorSystem,
       Some(jobManagerName),
       Some(archiveName),
-      streamingMode,
       classOf[TestingJobManager],
       classOf[TestingMemoryArchivist])
 
@@ -137,7 +131,6 @@ class ForkableFlinkMiniCluster(
       Some(TaskManager.TASK_MANAGER_NAME + index),
       Some(createLeaderRetrievalService()),
       localExecution,
-      streamingMode,
       classOf[TestingTaskManager])
   }
 

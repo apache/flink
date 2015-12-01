@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
@@ -34,7 +33,7 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 	
 	
 	public StreamingProgramTestBase() {
-		super(new Configuration(), StreamingMode.STREAMING);
+		super(new Configuration());
 		setParallelism(DEFAULT_PARALLELISM);
 	}
 
