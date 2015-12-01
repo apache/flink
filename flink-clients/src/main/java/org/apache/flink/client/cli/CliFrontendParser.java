@@ -71,6 +71,12 @@ public class CliFrontendParser {
 					+ "' as the JobManager to deploy a YARN cluster for the job. Use this flag to connect to a " +
 					"different JobManager than the one specified in the configuration.");
 
+	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
+			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
+
+	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
+			"Disposes an existing savepoint.");
+
 	// list specific options
 	static final Option RUNNING_OPTION = new Option("r", "running", false,
 			"Show only running programs and their JobIDs");
@@ -105,13 +111,19 @@ public class CliFrontendParser {
 
 		RUNNING_OPTION.setRequired(false);
 		SCHEDULED_OPTION.setRequired(false);
+
+		SAVEPOINT_PATH_OPTION.setRequired(false);
+		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
+
+		SAVEPOINT_DISPOSE_OPTION.setRequired(false);
+		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
 	private static final Options INFO_OPTIONS = getInfoOptions(buildGeneralOptions(new Options()));
 	private static final Options LIST_OPTIONS = getListOptions(buildGeneralOptions(new Options()));
 	private static final Options CANCEL_OPTIONS = getCancelOptions(buildGeneralOptions(new Options()));
-
+	private static final Options SAVEPOINT_OPTIONS = getSavepointOptions(buildGeneralOptions(new Options()));
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -128,6 +140,7 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
+		options.addOption(SAVEPOINT_PATH_OPTION);
 
 		// also add the YARN options so that the parser can parse them
 		yarnSessionCLi.getYARNSessionCLIOptions(options);
@@ -140,6 +153,7 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
+		options.addOption(SAVEPOINT_PATH_OPTION);
 		return options;
 	}
 
@@ -183,6 +197,12 @@ public class CliFrontendParser {
 		return options;
 	}
 
+	private static Options getSavepointOptions(Options options) {
+		options = getJobManagerAddressOption(options);
+		options.addOption(SAVEPOINT_DISPOSE_OPTION);
+		return options;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Help
 	// --------------------------------------------------------------------------------------------
@@ -199,6 +219,7 @@ public class CliFrontendParser {
 		printHelpForInfo();
 		printHelpForList();
 		printHelpForCancel();
+		printHelpForSavepoint();
 
 		System.out.println();
 	}
@@ -255,6 +276,18 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
+	public static void printHelpForSavepoint() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"savepoint\" triggers savepoints for a running job or disposes existing ones.");
+		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID>");
+		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
+		formatter.printHelp(" ", getSavepointOptions(new Options()));
+		System.out.println();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Line Parsing
 	// --------------------------------------------------------------------------------------------
@@ -286,6 +319,17 @@ public class CliFrontendParser {
 			PosixParser parser = new PosixParser();
 			CommandLine line = parser.parse(CANCEL_OPTIONS, args, false);
 			return new CancelOptions(line);
+		}
+		catch (ParseException e) {
+			throw new CliArgsException(e.getMessage());
+		}
+	}
+
+	public static SavepointOptions parseSavepointCommand(String[] args) throws CliArgsException {
+		try {
+			PosixParser parser = new PosixParser();
+			CommandLine line = parser.parse(SAVEPOINT_OPTIONS, args, false);
+			return new SavepointOptions(line);
 		}
 		catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());

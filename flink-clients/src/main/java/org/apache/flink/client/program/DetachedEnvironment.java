@@ -41,8 +41,13 @@ public class DetachedEnvironment extends ContextEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DetachedEnvironment.class);
 
-	public DetachedEnvironment(Client remoteConnection, List<URL> jarFiles, List<URL> classpaths, ClassLoader userCodeClassLoader) {
-		super(remoteConnection, jarFiles, classpaths, userCodeClassLoader);
+	public DetachedEnvironment(
+			Client remoteConnection,
+			List<URL> jarFiles,
+			List<URL> classpaths,
+			ClassLoader userCodeClassLoader,
+			String savepointPath) {
+		super(remoteConnection, jarFiles, classpaths, userCodeClassLoader, savepointPath);
 	}
 
 	@Override
@@ -67,7 +72,7 @@ public class DetachedEnvironment extends ContextEnvironment {
 	 * Finishes this Context Environment's execution by explicitly running the plan constructed.
 	 */
 	JobSubmissionResult finalizeExecute() throws ProgramInvocationException {
-		return client.runDetached(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader);
+		return client.runDetached(detachedPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
 	}
 
 	public static final class DetachedJobExecutionResult extends JobExecutionResult {

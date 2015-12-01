@@ -86,6 +86,8 @@ public class PackagedProgram {
 	
 	private Plan plan;
 
+	private String savepointPath;
+
 	/**
 	 * Creates an instance that wraps the plan defined in the jar file using the given
 	 * argument.
@@ -254,9 +256,15 @@ public class PackagedProgram {
 					Program.class.getName() + " interface.");
 		}
 	}
-	
-	
-	
+
+	public void setSavepointPath(String savepointPath) {
+		this.savepointPath = savepointPath;
+	}
+
+	public String getSavepointPath() {
+		return savepointPath;
+	}
+
 	public String[] getArguments() {
 		return this.args;
 	}
