@@ -180,22 +180,11 @@ public class DataStream<T> {
 		Collection<StreamTransformation<?>> thisPredecessors = this.getTransformation().getTransitivePredecessors();
 
 		for (DataStream<T> newStream : streams) {
-			if (!(newStream.getParallelism() == this.getParallelism())) {
-				throw new UnsupportedClassVersionError(
-						"DataStream can only be unioned with DataStreams of the same parallelism. " +
-								"This Stream: " + this.getTransformation() +
-								", other stream: " + newStream.getTransformation());
-			}
 			if (!getType().equals(newStream.getType())) {
 				throw new IllegalArgumentException("Cannot union streams of different types: "
 						+ getType() + " and " + newStream.getType());
 			}
 			
-			Collection<StreamTransformation<?>> predecessors = newStream.getTransformation().getTransitivePredecessors();
-
-			if (predecessors.contains(this.transformation) || thisPredecessors.contains(newStream.getTransformation())) {
-				throw new UnsupportedOperationException("A DataStream cannot be unioned with itself");
-			}
 			unionedTransforms.add(newStream.getTransformation());
 		}
 		return new DataStream<T>(this.environment, new UnionTransformation<T>(unionedTransforms));

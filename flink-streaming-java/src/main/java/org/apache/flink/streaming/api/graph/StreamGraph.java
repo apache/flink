@@ -24,7 +24,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -458,17 +457,20 @@ public class StreamGraph extends StreamingPlan {
 		return streamNodes.keySet();
 	}
 
-	public StreamEdge getStreamEdge(int sourceId, int targetId) {
-		Iterator<StreamEdge> outIterator = getStreamNode(sourceId).getOutEdges().iterator();
-		while (outIterator.hasNext()) {
-			StreamEdge edge = outIterator.next();
+	public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
 
+		List<StreamEdge> result = new ArrayList<>();
+		for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
 			if (edge.getTargetId() == targetId) {
-				return edge;
+				result.add(edge);
 			}
 		}
 
-		throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
+		if (result.isEmpty()) {
+			throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
+		}
+
+		return result;
 	}
 
 	public Collection<Integer> getSourceIDs() {

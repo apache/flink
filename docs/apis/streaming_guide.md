@@ -655,7 +655,7 @@ windowedStream.maxBy("key");
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
             <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
-            with itself you will still only get each element once.</p>
+            with itself you will get each element twice in the resulting stream.</p>
     {% highlight java %}
 dataStream.union(otherStream1, otherStream2, ...);
     {% endhighlight %}
@@ -995,7 +995,7 @@ windowedStream.maxBy("key")
           <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
           <td>
             <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Node: If you union a data stream
-            with itself you will still only get each element once.</p>
+            with itself you will get each element twice in the resulting stream.</p>
     {% highlight scala %}
 dataStream.union(otherStream1, otherStream2, ...)
     {% endhighlight %}

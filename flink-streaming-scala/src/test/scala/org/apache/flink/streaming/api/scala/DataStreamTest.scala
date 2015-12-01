@@ -109,10 +109,10 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val gid2 = createDownStreamId(group2)
     val gid3 = createDownStreamId(group3)
     val gid4 = createDownStreamId(group4)
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, gid1)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, gid2)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, gid3)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, gid4)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, gid1)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, gid2)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, gid3)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, gid4)))
 
     //Testing DataStream partitioning
     val partition1: DataStream[_] = src1.partitionByHash(0)
@@ -125,10 +125,10 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val pid3 = createDownStreamId(partition3)
     val pid4 = createDownStreamId(partition4)
 
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, pid1)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, pid2)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, pid3)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, pid4)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, pid1)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, pid2)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, pid3)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, pid4)))
 
     // Testing DataStream custom partitioning
     val longPartitioner: Partitioner[Long] = new Partitioner[Long] {
@@ -145,9 +145,9 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val cpid1 = createDownStreamId(customPartition1)
     val cpid2 = createDownStreamId(customPartition3)
     val cpid3 = createDownStreamId(customPartition4)
-    assert(isCustomPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, cpid1)))
-    assert(isCustomPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, cpid2)))
-    assert(isCustomPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, cpid3)))
+    assert(isCustomPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, cpid1)))
+    assert(isCustomPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, cpid2)))
+    assert(isCustomPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, cpid3)))
 
     //Testing ConnectedStreams grouping
     val connectedGroup1: ConnectedStreams[_, _] = connected.keyBy(0, 0)
@@ -166,20 +166,20 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val connectedGroup5: ConnectedStreams[_, _] = connected.keyBy(x => x._1, x => x._1)
     val downStreamId5: Integer = createDownStreamId(connectedGroup5)
 
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, downStreamId1)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, downStreamId1)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, downStreamId1)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, downStreamId1)))
 
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, downStreamId2)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, downStreamId2)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, downStreamId2)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, downStreamId2)))
 
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, downStreamId3)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, downStreamId3)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, downStreamId3)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, downStreamId3)))
 
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, downStreamId4)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, downStreamId4)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, downStreamId4)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, downStreamId4)))
 
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, downStreamId5)))
-    assert(isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, downStreamId5)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, downStreamId5)))
+    assert(isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, downStreamId5)))
 
     //Testing ConnectedStreams partitioning
     val connectedPartition1: ConnectedStreams[_, _] = connected.partitionByHash(0, 0)
@@ -201,38 +201,38 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val connectDownStreamId5: Integer = createDownStreamId(connectedPartition5)
 
     assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, connectDownStreamId1))
+      isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, connectDownStreamId1))
     )
     assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, connectDownStreamId1))
-    )
-
-    assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, connectDownStreamId2))
-    )
-    assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, connectDownStreamId2))
+      isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, connectDownStreamId1))
     )
 
     assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, connectDownStreamId3))
+      isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, connectDownStreamId2))
     )
     assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, connectDownStreamId3))
-    )
-
-    assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, connectDownStreamId4))
-    )
-    assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, connectDownStreamId4))
+      isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, connectDownStreamId2))
     )
 
     assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src1.getId, connectDownStreamId5))
+      isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, connectDownStreamId3))
     )
     assert(
-      isPartitioned(env.getStreamGraph.getStreamEdge(src2.getId, connectDownStreamId5))
+      isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, connectDownStreamId3))
+    )
+
+    assert(
+      isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, connectDownStreamId4))
+    )
+    assert(
+      isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, connectDownStreamId4))
+    )
+
+    assert(
+      isPartitioned(env.getStreamGraph.getStreamEdges(src1.getId, connectDownStreamId5))
+    )
+    assert(
+      isPartitioned(env.getStreamGraph.getStreamEdges(src2.getId, connectDownStreamId5))
     )
   }
 
@@ -361,7 +361,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
         (in, state: Option[Long]) => (false, None))
    
     try {
-      env.getStreamGraph.getStreamEdge(map.getId, unionFilter.getId)
+      env.getStreamGraph.getStreamEdges(map.getId, unionFilter.getId)
     }
     catch {
       case e: Throwable => {
@@ -370,7 +370,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     }
 
     try {
-      env.getStreamGraph.getStreamEdge(flatMap.getId, unionFilter.getId)
+      env.getStreamGraph.getStreamEdges(flatMap.getId, unionFilter.getId)
     }
     catch {
       case e: Throwable => {
@@ -395,8 +395,8 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val select = split.select("a")
     val sink = select.print()
     val splitEdge =
-      env.getStreamGraph.getStreamEdge(unionFilter.getId, sink.getTransformation.getId)
-    assert("a" == splitEdge.getSelectedNames.get(0))
+      env.getStreamGraph.getStreamEdges(unionFilter.getId, sink.getTransformation.getId)
+    assert("a" == splitEdge.get(0).getSelectedNames.get(0))
 
     val foldFunction = new FoldFunction[Int, String] {
       override def fold(accumulator: String, value: Int): String = ""
@@ -420,7 +420,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     assert(coMapFunction == getFunctionForDataStream(coMap))
 
     try {
-      env.getStreamGraph.getStreamEdge(fold.getId, coMap.getId)
+      env.getStreamGraph.getStreamEdges(fold.getId, coMap.getId)
     }
     catch {
       case e: Throwable => {
@@ -428,7 +428,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
       }
     }
     try {
-      env.getStreamGraph.getStreamEdge(flatMap.getId, coMap.getId)
+      env.getStreamGraph.getStreamEdges(flatMap.getId, coMap.getId)
     }
     catch {
       case e: Throwable => {
@@ -446,31 +446,31 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val broadcast = src.broadcast
     val broadcastSink = broadcast.print()
     val broadcastPartitioner = env.getStreamGraph
-      .getStreamEdge(src.getId, broadcastSink.getTransformation.getId).getPartitioner
+      .getStreamEdges(src.getId, broadcastSink.getTransformation.getId).get(0).getPartitioner
     assert(broadcastPartitioner.isInstanceOf[BroadcastPartitioner[_]])
 
     val shuffle: DataStream[Long] = src.shuffle
     val shuffleSink = shuffle.print()
     val shufflePartitioner = env.getStreamGraph
-      .getStreamEdge(src.getId, shuffleSink.getTransformation.getId).getPartitioner
+      .getStreamEdges(src.getId, shuffleSink.getTransformation.getId).get(0).getPartitioner
     assert(shufflePartitioner.isInstanceOf[ShufflePartitioner[_]])
 
     val forward: DataStream[Long] = src.forward
     val forwardSink = forward.print()
     val forwardPartitioner = env.getStreamGraph
-      .getStreamEdge(src.getId, forwardSink.getTransformation.getId).getPartitioner
+      .getStreamEdges(src.getId, forwardSink.getTransformation.getId).get(0).getPartitioner
     assert(forwardPartitioner.isInstanceOf[ForwardPartitioner[_]])
 
     val rebalance: DataStream[Long] = src.rebalance
     val rebalanceSink = rebalance.print()
     val rebalancePartitioner = env.getStreamGraph
-      .getStreamEdge(src.getId, rebalanceSink.getTransformation.getId).getPartitioner
+      .getStreamEdges(src.getId, rebalanceSink.getTransformation.getId).get(0).getPartitioner
     assert(rebalancePartitioner.isInstanceOf[RebalancePartitioner[_]])
 
     val global: DataStream[Long] = src.global
     val globalSink = global.print()
     val globalPartitioner = env.getStreamGraph
-      .getStreamEdge(src.getId, globalSink.getTransformation.getId).getPartitioner
+      .getStreamEdges(src.getId, globalSink.getTransformation.getId).get(0).getPartitioner
     assert(globalPartitioner.isInstanceOf[GlobalPartitioner[_]])
   }
 
@@ -522,12 +522,14 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     streamGraph.getStreamNode(dataStream.getId).getOperator
   }
 
-  private def isPartitioned(edge: StreamEdge): Boolean = {
-    edge.getPartitioner.isInstanceOf[HashPartitioner[_]]
+  private def isPartitioned(edges: java.util.List[StreamEdge]): Boolean = {
+    import scala.collection.JavaConverters._
+    edges.asScala.forall( _.getPartitioner.isInstanceOf[HashPartitioner[_]])
   }
 
-  private def isCustomPartitioned(edge: StreamEdge): Boolean = {
-    edge.getPartitioner.isInstanceOf[CustomPartitionerWrapper[_, _]]
+  private def isCustomPartitioned(edges: java.util.List[StreamEdge]): Boolean = {
+    import scala.collection.JavaConverters._
+    edges.asScala.forall( _.getPartitioner.isInstanceOf[CustomPartitionerWrapper[_, _]])
   }
 
   private def createDownStreamId(dataStream: DataStream[_]): Integer = {
