@@ -19,6 +19,7 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
+import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -51,6 +52,7 @@ import java.util.Objects;
  *         automatically applied.</li>
  * </ul>
  */
+@Public
 public class ExecutionConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;

@@ -50,6 +50,7 @@ under the License.
 	</scm>
 
 	<modules>
+		<module>flink-annotations</module>
 		<module>flink-shaded-hadoop</module>
 		<module>flink-shaded-curator</module>
 		<module>flink-core</module>
@@ -500,7 +501,6 @@ under the License.
 			<build>
 
 				<plugins>
-
 					<!-- We need to clean compiled classes to make sure that genjavadoc
 					is called to generate our fake Java source from Scala source. -->
 					<plugin>
@@ -701,6 +701,7 @@ under the License.
 
 	<build>
 		<plugins>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

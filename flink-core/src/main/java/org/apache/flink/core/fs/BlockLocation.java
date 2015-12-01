@@ -18,11 +18,14 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.IOException;
 
 /**
  * A BlockLocation lists hosts, offset and length of block.
  */
+@Public
 public interface BlockLocation extends Comparable<BlockLocation> {
 
 	/**

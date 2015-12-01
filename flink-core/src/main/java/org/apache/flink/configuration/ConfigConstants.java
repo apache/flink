@@ -18,10 +18,13 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
  */
+@Public
 public final class ConfigConstants {
 
 	// ------------------------------------------------------------------------

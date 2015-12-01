@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -26,6 +28,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of the input splits created by the source.
  */
+@Public
 public interface InputSplitSource<T extends InputSplit> extends Serializable {
 
 	/**

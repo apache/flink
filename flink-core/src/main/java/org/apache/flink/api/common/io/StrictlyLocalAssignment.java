@@ -18,4 +18,5 @@
 
 package org.apache.flink.api.common.io;
 
+
 public interface StrictlyLocalAssignment {}

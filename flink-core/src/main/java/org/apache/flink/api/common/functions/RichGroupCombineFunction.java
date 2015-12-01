@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.functions;
 
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -30,6 +31,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> The data type of the elements to be combined.
  * @param <OUT> The resulting data type of the elements to be combined.
  */
+@Public
 public abstract class RichGroupCombineFunction<IN, OUT> extends AbstractRichFunction implements GroupCombineFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;

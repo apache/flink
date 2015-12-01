@@ -21,6 +21,7 @@ package org.apache.flink.api.common.io;
 import java.io.IOException;
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -38,6 +39,7 @@ import org.apache.flink.configuration.Configuration;
  * 
  * @param <IT> The type of the consumed records. 
  */
+@Public
 public interface OutputFormat<IT> extends Serializable {
 	
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -40,6 +41,7 @@ import java.io.Serializable;
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.
  */
+@Public
 public interface MapPartitionFunction<T, O> extends Function, Serializable {
 	
 	/**

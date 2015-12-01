@@ -34,6 +34,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.OperatingSystem;
 
 /**
@@ -41,6 +42,7 @@ import org.apache.flink.util.OperatingSystem;
  * may be implemented as a distributed file system, or as a local
  * one that reflects the locally-connected disk.
  */
+@Public
 public abstract class FileSystem {
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "org.apache.flink.core.fs.local.LocalFileSystem";
