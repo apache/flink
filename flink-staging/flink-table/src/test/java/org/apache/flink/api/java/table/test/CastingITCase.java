@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.table.test;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.table.Table;
@@ -143,6 +144,27 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		List<Row> results = ds.collect();
 		String expected = "2011-05-03 00:00:00.000,1970-01-01 15:51:36.000,2011-05-03 15:51:36.000," +
 				"1970-01-17 17:47:53.775\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testCastDateToStringAndLong() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSource<Tuple2<String, String>> input =
+			env.fromElements(new Tuple2<>("2011-05-03 15:51:36.000", "1304437896000"));
+
+		Table table =
+			tableEnv.fromDataSet(input);
+
+		Table result = table
+			.select("f0.cast(DATE) AS f0, f1.cast(DATE) AS f1")
+			.select("f0.cast(STRING), f0.cast(LONG), f1.cast(STRING), f1.cast(LONG)");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "2011-05-03 15:51:36.000,1304437896000,2011-05-03 15:51:36.000,1304437896000\n";
 		compareResultAsText(results, expected);
 	}
 }

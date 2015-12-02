@@ -406,7 +406,7 @@ abstract class ExpressionCodeGenerator[R](
           """.stripMargin
         } else {
           s"""
-            |$resultTerm = ${childGen.resultTerm}.getTime();
+            |$resultTpe $resultTerm = ${childGen.resultTerm}.getTime();
           """.stripMargin
         }
         childGen.code + castCode

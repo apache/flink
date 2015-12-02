@@ -105,4 +105,21 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testCastDateToStringAndLong {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))
+    val result = ds.toTable
+      .select('_1.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f0),
+        '_2.cast(BasicTypeInfo.DATE_TYPE_INFO).as('f1))
+      .select('f0.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        'f0.cast(BasicTypeInfo.LONG_TYPE_INFO),
+        'f1.cast(BasicTypeInfo.STRING_TYPE_INFO),
+        'f1.cast(BasicTypeInfo.LONG_TYPE_INFO))
+      .toDataSet[Row]
+      .collect
+    val expected = "2011-05-03 15:51:36.000,1304437896000," +
+      "2011-05-03 15:51:36.000,1304437896000\n"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
 }
