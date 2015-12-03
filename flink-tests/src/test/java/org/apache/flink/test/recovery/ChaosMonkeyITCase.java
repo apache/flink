@@ -533,8 +533,14 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		LOG.info("Checking " + ZooKeeper.getClientNamespace() +
 				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
-		List<String> checkpoints = ZooKeeper.getChildren(ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
-		assertEquals("Unclean checkpoints: " + checkpoints, 0, checkpoints.size());
+
+		for (int i = 0; i < 10; i++) {
+			List<String> checkpoints = ZooKeeper.getChildren(ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH);
+			assertEquals("Unclean checkpoints: " + checkpoints, 0, checkpoints.size());
+
+			LOG.info("Unclean... retrying in 2s.");
+			Thread.sleep(2000);
+		}
 
 		LOG.info("Checking " + ZooKeeper.getClientNamespace() +
 				ConfigConstants.DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
