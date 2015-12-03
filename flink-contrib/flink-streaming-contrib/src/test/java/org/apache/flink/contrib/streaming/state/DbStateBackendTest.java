@@ -133,11 +133,11 @@ public class DbStateBackendTest {
 
 		assertNotNull(backend.getConnections());
 		assertTrue(
-				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
 
 		backend.disposeAllStateForCurrentJob();
 		assertFalse(
-				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
 		backend.close();
 
 		assertTrue(backend.getConnections().getFirst().isClosed());
@@ -167,12 +167,12 @@ public class DbStateBackendTest {
 		assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 		handle2.discardState();
 
-		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
 
 		assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 		handle3.discardState();
 
-		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getJobID().toShortString()));
+		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
 
 		backend.close();
 
@@ -196,7 +196,7 @@ public class DbStateBackendTest {
 			LazyDbKvState<Integer, String> kv = backend.createKvState("state1_1", "state1", IntSerializer.INSTANCE,
 					StringSerializer.INSTANCE, null);
 
-			String tableName = "state1_1_" + env.getJobID().toShortString();
+			String tableName = "state1_1_" + env.getApplicationID().toShortString();
 			assertTrue(isTableCreated(backend.getConnections().getFirst(), tableName));
 
 			assertEquals(0, kv.size());
@@ -324,7 +324,7 @@ public class DbStateBackendTest {
 
 		Environment env = new DummyEnvironment("test", 2, 0);
 
-		String tableName = "state1_1_" + env.getJobID().toShortString();
+		String tableName = "state1_1_" + env.getApplicationID().toShortString();
 		assertFalse(isTableCreated(DriverManager.getConnection(url1, "flink", "flink"), tableName));
 		assertFalse(isTableCreated(DriverManager.getConnection(url2, "flink", "flink"), tableName));
 

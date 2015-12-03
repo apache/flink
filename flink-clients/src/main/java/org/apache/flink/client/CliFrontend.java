@@ -18,41 +18,23 @@
 
 package org.apache.flink.client;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
 import akka.actor.ActorSystem;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.client.cli.RunOptions;
+import org.apache.flink.client.cli.SavepointOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -69,27 +51,51 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
+import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
+import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
+import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
+import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
+import static org.apache.flink.runtime.messages.JobManagerMessages.getRequestRunningJobsStatus;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -486,7 +492,7 @@ public class CliFrontend {
 
 			LOG.info("Connecting to JobManager to retrieve list of jobs");
 			Future<Object> response = jobManagerGateway.ask(
-					JobManagerMessages.getRequestRunningJobsStatus(),
+					getRequestRunningJobsStatus(),
 					askTimeout);
 
 			Object result;
@@ -694,12 +700,15 @@ public class CliFrontend {
 	private int triggerSavepoint(SavepointOptions options, JobID jobId) {
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId), askTimeout);
+
+			logAndSysout("Triggering savepoint for job " + jobId + ".");
+			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId),
+					new FiniteDuration(1, TimeUnit.HOURS));
 
 			Object result;
 			try {
-				logAndSysout("Triggering savepoint for job " + jobId + ". Waiting for response...");
-				result = Await.result(response, askTimeout);
+				logAndSysout("Waiting for response...");
+				result = Await.result(response, FiniteDuration.Inf());
 			}
 			catch (Exception e) {
 				throw new Exception("Triggering a savepoint for the job " + jobId + " failed.", e);
@@ -733,11 +742,12 @@ public class CliFrontend {
 	private int disposeSavepoint(SavepointOptions options, String savepointPath) {
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
+			logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 			Future<Object> response = jobManager.ask(new DisposeSavepoint(savepointPath), askTimeout);
 
 			Object result;
 			try {
-				logAndSysout("Disposing savepoint '" + savepointPath + "'. Waiting for response...");
+				logAndSysout("Waiting for response...");
 				result = Await.result(response, askTimeout);
 			}
 			catch (Exception e) {
@@ -1118,7 +1128,8 @@ public class CliFrontend {
 								return CliFrontend.this.run(params);
 							}
 						});
-					} catch (Exception e) {
+					}
+					catch (Exception e) {
 						return handleError(e);
 					}
 				}
@@ -1130,7 +1141,7 @@ public class CliFrontend {
 			case ACTION_CANCEL:
 				return cancel(params);
 			case ACTION_SAVEPOINT:
-				return savepoint(params)
+				return savepoint(params);
 			case "-h":
 			case "--help":
 				CliFrontendParser.printHelp();
