@@ -48,6 +48,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +71,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+@Ignore
 public class ChaosMonkeyITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ChaosMonkeyITCase.class);
