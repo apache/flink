@@ -112,4 +112,21 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     val results = ds.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testGroupNoAggregation(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      .as('a, 'b, 'c)
+      .groupBy('b)
+      .select('a.sum as 'd, 'b)
+      .groupBy('b, 'd)
+      .select('b)
+      .toDataSet[Row]
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
+  }
 }
