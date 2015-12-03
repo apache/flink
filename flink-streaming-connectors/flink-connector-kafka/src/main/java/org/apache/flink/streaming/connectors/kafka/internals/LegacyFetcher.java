@@ -31,18 +31,17 @@ import kafka.message.MessageAndOffset;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.util.StringUtils;
 
+import org.apache.flink.util.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,16 +52,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * This fetcher uses Kafka's low-level API to pull data from a specific
- * set of partitions and offsets for a certain topic.
+ * set of topics and partitions.
  * 
  * <p>This code is in parts based on the tutorial code for the low-level Kafka consumer.</p>
  */
 public class LegacyFetcher implements Fetcher {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaConsumer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LegacyFetcher.class);
 
-	/** The topic from which this fetcher pulls data */
-	private final String topic;
 	
 	/** The properties that configure the Kafka connection */
 	private final Properties config;
@@ -74,7 +71,13 @@ public class LegacyFetcher implements Fetcher {
 	private final AtomicReference<Throwable> error;
 
 	/** The partitions that the fetcher should read, with their starting offsets */
-	private Map<TopicPartition, Long> partitionsToRead;
+	private Map<KafkaTopicPartitionLeader, Long> partitionsToRead;
+
+	/** The seek() method might receive KafkaTopicPartition's without leader information
+	 * (for example when restoring).
+	 * If there are elements in this list, we'll fetch the leader from Kafka.
+	 **/
+	private Map<KafkaTopicPartition, Long> partitionsToReadWithoutLeader;
 	
 	/** Reference the the thread that executed the run() method. */
 	private volatile Thread mainThread;
@@ -82,9 +85,13 @@ public class LegacyFetcher implements Fetcher {
 	/** Flag to shot the fetcher down */
 	private volatile boolean running = true;
 
-	public LegacyFetcher(String topic, Properties props, String taskName) {
+	public LegacyFetcher(List<KafkaTopicPartitionLeader> partitions, Properties props, String taskName) {
 		this.config = checkNotNull(props, "The config properties cannot be null");
-		this.topic = checkNotNull(topic, "The topic cannot be null");
+		//this.topic = checkNotNull(topic, "The topic cannot be null");
+		this.partitionsToRead = new HashMap<>();
+		for (KafkaTopicPartitionLeader p: partitions) {
+			partitionsToRead.put(p, FlinkKafkaConsumer.OFFSET_NOT_SET);
+		}
 		this.taskName = taskName;
 		this.error = new AtomicReference<>();
 	}
@@ -94,23 +101,18 @@ public class LegacyFetcher implements Fetcher {
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public void setPartitionsToRead(List<TopicPartition> partitions) {
-		partitionsToRead = new HashMap<>(partitions.size());
-		for (TopicPartition tp: partitions) {
-			partitionsToRead.put(tp, FlinkKafkaConsumer.OFFSET_NOT_SET);
-		}
-	}
-
-	@Override
-	public void seek(TopicPartition topicPartition, long offsetToRead) {
+	public void seek(KafkaTopicPartition topicPartition, long offsetToRead) {
 		if (partitionsToRead == null) {
 			throw new IllegalArgumentException("No partitions to read set");
 		}
-		if (!partitionsToRead.containsKey(topicPartition)) {
+		if (!topicPartition.isContained(partitionsToRead)) {
 			throw new IllegalArgumentException("Can not set offset on a partition (" + topicPartition
 					+ ") we are not going to read. Partitions to read " + partitionsToRead);
 		}
-		partitionsToRead.put(topicPartition, offsetToRead);
+		if (partitionsToReadWithoutLeader == null) {
+			partitionsToReadWithoutLeader = new HashMap<>();
+		}
+		partitionsToReadWithoutLeader.put(topicPartition, offsetToRead);
 	}
 	
 	@Override
@@ -124,7 +126,7 @@ public class LegacyFetcher implements Fetcher {
 	@Override
 	public <T> void run(SourceFunction.SourceContext<T> sourceContext,
 						KeyedDeserializationSchema<T> deserializer,
-						long[] lastOffsets) throws Exception {
+						HashMap<KafkaTopicPartition, Long> lastOffsets) throws Exception {
 		
 		if (partitionsToRead == null || partitionsToRead.size() == 0) {
 			throw new IllegalArgumentException("No partitions set");
@@ -135,54 +137,57 @@ public class LegacyFetcher implements Fetcher {
 		this.mainThread = Thread.currentThread();
 
 		LOG.info("Reading from partitions " + partitionsToRead + " using the legacy fetcher");
-		
-		// get lead broker for each partition
-		
-		// NOTE: The kafka client apparently locks itself in an infinite loop sometimes
-		// when it is interrupted, so we run it only in a separate thread.
-		// since it sometimes refuses to shut down, we resort to the admittedly harsh
-		// means of killing the thread after a timeout.
-		PartitionInfoFetcher infoFetcher = new PartitionInfoFetcher(topic, config);
-		infoFetcher.start();
-		
-		KillerWatchDog watchDog = new KillerWatchDog(infoFetcher, 60000);
-		watchDog.start();
-		
-		final List<PartitionInfo> allPartitionsInTopic = infoFetcher.getPartitions();
-		
-		// brokers to fetch partitions from.
-		int fetchPartitionsCount = 0;
-		Map<Node, List<FetchPartition>> fetchBrokers = new HashMap<>();
-		
-		for (PartitionInfo partitionInfo : allPartitionsInTopic) {
-			if (partitionInfo.leader() == null) {
-				throw new RuntimeException("Unable to consume partition " + partitionInfo.partition()
-						+ " from topic "+partitionInfo.topic()+" because it does not have a leader");
-			}
-			
-			for (Map.Entry<TopicPartition, Long> entry : partitionsToRead.entrySet()) {
-				final TopicPartition topicPartition = entry.getKey();
-				final long offset = entry.getValue();
-				
-				// check if that partition is for us
-				if (topicPartition.partition() == partitionInfo.partition()) {
-					List<FetchPartition> partitions = fetchBrokers.get(partitionInfo.leader());
-					if (partitions == null) {
-						partitions = new ArrayList<>();
-						fetchBrokers.put(partitionInfo.leader(), partitions);
+
+		// get lead broker if necessary
+		if (partitionsToReadWithoutLeader != null && partitionsToReadWithoutLeader.size() > 0) {
+			LOG.info("Refreshing leader information for partitions {}", KafkaTopicPartition.toString(partitionsToReadWithoutLeader));
+			// NOTE: The kafka client apparently locks itself in an infinite loop sometimes
+			// when it is interrupted, so we run it only in a separate thread.
+			// since it sometimes refuses to shut down, we resort to the admittedly harsh
+			// means of killing the thread after a timeout.
+			PartitionInfoFetcher infoFetcher = new PartitionInfoFetcher(KafkaTopicPartition.getTopics(partitionsToReadWithoutLeader), config);
+			infoFetcher.start();
+
+			KillerWatchDog watchDog = new KillerWatchDog(infoFetcher, 60000);
+			watchDog.start();
+
+			List<KafkaTopicPartitionLeader> topicPartitionWithLeaderList = infoFetcher.getPartitions();
+
+			// replace potentially outdated leader information in partitionsToRead with fresh data from topicPartitionWithLeader
+			for (Map.Entry<KafkaTopicPartition, Long> pt: partitionsToReadWithoutLeader.entrySet()) {
+				KafkaTopicPartitionLeader topicPartitionWithLeader = null;
+				// go through list
+				for (KafkaTopicPartitionLeader withLeader: topicPartitionWithLeaderList) {
+					if (withLeader.getTopicPartition().equals(pt.getKey())) {
+						topicPartitionWithLeader = withLeader;
+						break;
 					}
-					
-					partitions.add(new FetchPartition(topicPartition.partition(), offset));
-					fetchPartitionsCount++;
-					
 				}
-				// else this partition is not for us
+				if (topicPartitionWithLeader == null) {
+					throw new IllegalStateException("Unable to find topic/partition leader information");
+				}
+				Long removed = KafkaTopicPartitionLeader.replaceIgnoringLeader(topicPartitionWithLeader, pt.getValue(), partitionsToRead);
+				if (removed == null) {
+					throw new IllegalStateException("Seek request on unknown topic partition");
+				}
 			}
 		}
-		
-		if (partitionsToRead.size() != fetchPartitionsCount) {
-			throw new RuntimeException(partitionsToRead.size() + " partitions to read, but got only "
-					+ fetchPartitionsCount + " partition infos with lead brokers.");
+
+
+		// build a map for each broker with its partitions
+		Map<Node, List<FetchPartition>> fetchBrokers = new HashMap<>();
+
+		for (Map.Entry<KafkaTopicPartitionLeader, Long> entry : partitionsToRead.entrySet()) {
+			final KafkaTopicPartitionLeader topicPartition = entry.getKey();
+			final long offset = entry.getValue();
+
+			List<FetchPartition> partitions = fetchBrokers.get(topicPartition.getLeader());
+			if (partitions == null) {
+				partitions = new ArrayList<>();
+				fetchBrokers.put(topicPartition.getLeader(), partitions);
+			}
+
+			partitions.add(new FetchPartition(topicPartition.getTopicPartition().getTopic(), topicPartition.getTopicPartition().getPartition(), offset));
 		}
 
 		// create SimpleConsumers for each broker
@@ -194,7 +199,7 @@ public class LegacyFetcher implements Fetcher {
 			
 			FetchPartition[] partitions = partitionsList.toArray(new FetchPartition[partitionsList.size()]);
 
-			SimpleConsumerThread<T> thread = new SimpleConsumerThread<>(this, config, topic,
+			SimpleConsumerThread<T> thread = new SimpleConsumerThread<>(this, config,
 					broker, partitions, sourceContext, deserializer, lastOffsets);
 
 			thread.setName(String.format("SimpleConsumer - %s - broker-%s (%s:%d)",
@@ -274,21 +279,24 @@ public class LegacyFetcher implements Fetcher {
 	 * Representation of a partition to fetch.
 	 */
 	private static class FetchPartition {
+
+		final String topic;
 		
 		/** ID of the partition within the topic (0 indexed, as given by Kafka) */
-		int partition;
+		final int partition;
 		
 		/** Offset pointing at the next element to read from that partition. */
 		long nextOffsetToRead;
 
-		FetchPartition(int partition, long nextOffsetToRead) {
+		FetchPartition(String topic, int partition, long nextOffsetToRead) {
+			this.topic = topic;
 			this.partition = partition;
 			this.nextOffsetToRead = nextOffsetToRead;
 		}
 		
 		@Override
 		public String toString() {
-			return "FetchPartition {partition=" + partition + ", offset=" + nextOffsetToRead + '}';
+			return "FetchPartition {topic=" + topic +", partition=" + partition + ", offset=" + nextOffsetToRead + '}';
 		}
 	}
 
@@ -306,12 +314,12 @@ public class LegacyFetcher implements Fetcher {
 		
 		private final SourceFunction.SourceContext<T> sourceContext;
 		private final KeyedDeserializationSchema<T> deserializer;
-		private final long[] offsetsState;
+		private final HashMap<KafkaTopicPartition, Long> offsetsState;
 		
 		private final FetchPartition[] partitions;
 		
 		private final Node broker;
-		private final String topic;
+
 		private final Properties config;
 
 		private final LegacyFetcher owner;
@@ -323,15 +331,14 @@ public class LegacyFetcher implements Fetcher {
 
 		// exceptions are thrown locally
 		public SimpleConsumerThread(LegacyFetcher owner,
-									Properties config, String topic,
+									Properties config,
 									Node broker,
 									FetchPartition[] partitions,
 									SourceFunction.SourceContext<T> sourceContext,
 									KeyedDeserializationSchema<T> deserializer,
-									long[] offsetsState) {
+									HashMap<KafkaTopicPartition, Long> offsetsState) {
 			this.owner = owner;
 			this.config = config;
-			this.topic = topic;
 			this.broker = broker;
 			this.partitions = partitions;
 			this.sourceContext = checkNotNull(sourceContext);
@@ -341,6 +348,7 @@ public class LegacyFetcher implements Fetcher {
 
 		@Override
 		public void run() {
+			LOG.info("Starting to fetch from {}", Arrays.toString(this.partitions));
 			try {
 				// set up the config values
 				final String clientId = "flink-kafka-consumer-legacy-" + broker.id();
@@ -368,14 +376,13 @@ public class LegacyFetcher implements Fetcher {
 						}
 					}
 					if (partitionsToGetOffsetsFor.size() > 0) {
-						getLastOffset(consumer, topic, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
-						LOG.info("No prior offsets found for some partitions in topic {}. Fetched the following start offsets {}",
-								topic, partitionsToGetOffsetsFor);
+						getLastOffset(consumer, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
+						LOG.info("No prior offsets found for some partitions. Fetched the following start offsets {}", partitionsToGetOffsetsFor);
 					}
 				}
 				
 				// Now, the actual work starts :-)
-				int OffsetOutOfRangeCount = 0;
+				int offsetOutOfRangeCount = 0;
 				while (running) {
 					FetchRequestBuilder frb = new FetchRequestBuilder();
 					frb.clientId(clientId);
@@ -383,38 +390,37 @@ public class LegacyFetcher implements Fetcher {
 					frb.minBytes(minBytes);
 					
 					for (FetchPartition fp : partitions) {
-						frb.addFetch(topic, fp.partition, fp.nextOffsetToRead, fetchSize);
+						frb.addFetch(fp.topic, fp.partition, fp.nextOffsetToRead, fetchSize);
 					}
 					kafka.api.FetchRequest fetchRequest = frb.build();
 					LOG.debug("Issuing fetch request {}", fetchRequest);
 
-					FetchResponse fetchResponse;
-					fetchResponse = consumer.fetch(fetchRequest);
+					FetchResponse fetchResponse = consumer.fetch(fetchRequest);
 
 					if (fetchResponse.hasError()) {
 						String exception = "";
 						List<FetchPartition> partitionsToGetOffsetsFor = new ArrayList<>();
 						for (FetchPartition fp : partitions) {
-							short code = fetchResponse.errorCode(topic, fp.partition);
+							short code = fetchResponse.errorCode(fp.topic, fp.partition);
 
-							if(code == ErrorMapping.OffsetOutOfRangeCode()) {
+							if (code == ErrorMapping.OffsetOutOfRangeCode()) {
 								// we were asked to read from an out-of-range-offset (maybe set wrong in Zookeeper)
 								// Kafka's high level consumer is resetting the offset according to 'auto.offset.reset'
 								partitionsToGetOffsetsFor.add(fp);
-							} else if(code != ErrorMapping.NoError()) {
+							} else if (code != ErrorMapping.NoError()) {
 								exception += "\nException for partition " + fp.partition + ": " +
 										StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
 							}
 						}
 						if (partitionsToGetOffsetsFor.size() > 0) {
 							// safeguard against an infinite loop.
-							if(OffsetOutOfRangeCount++ > 0) {
+							if (offsetOutOfRangeCount++ > 0) {
 								throw new RuntimeException("Found invalid offsets more than once in partitions "+partitionsToGetOffsetsFor.toString()+" " +
 										"Exceptions: "+exception);
 							}
 							// get valid offsets for these partitions and try again.
 							LOG.warn("The following partitions had an invalid offset: {}", partitionsToGetOffsetsFor);
-							getLastOffset(consumer, topic, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
+							getLastOffset(consumer, partitionsToGetOffsetsFor, getInvalidOffsetBehavior(config));
 							LOG.warn("The new partition offsets are {}", partitionsToGetOffsetsFor);
 							continue; // jump back to create a new fetch request. The offset has not been touched.
 						} else {
@@ -424,9 +430,10 @@ public class LegacyFetcher implements Fetcher {
 					}
 
 					int messagesInFetch = 0;
+					int deletedMessages = 0;
 					for (FetchPartition fp : partitions) {
-						final ByteBufferMessageSet messageSet = fetchResponse.messageSet(topic, fp.partition);
-						final int partition = fp.partition;
+						final ByteBufferMessageSet messageSet = fetchResponse.messageSet(fp.topic, fp.partition);
+						final KafkaTopicPartition topicPartition = new KafkaTopicPartition(fp.topic, fp.partition);
 						
 						for (MessageAndOffset msg : messageSet) {
 							if (running) {
@@ -439,8 +446,19 @@ public class LegacyFetcher implements Fetcher {
 									continue;
 								}
 
+								final long offset = msg.offset();
+
 								// put value into byte array
 								ByteBuffer payload = msg.message().payload();
+								if (payload == null) {
+									// This message has no value (which means it has been deleted from the Kafka topic)
+									deletedMessages++;
+									// advance offset in state to avoid re-reading the message
+									synchronized (sourceContext.getCheckpointLock()) {
+										offsetsState.put(topicPartition, offset);
+									}
+									continue;
+								}
 								byte[] valueBytes = new byte[payload.remaining()];
 								payload.get(valueBytes);
 
@@ -454,12 +472,10 @@ public class LegacyFetcher implements Fetcher {
 									keyPayload.get(keyBytes);
 								}
 
-								final long offset = msg.offset();
-								final T value = deserializer.deserialize(keyBytes, valueBytes, offset);
-
+								final T value = deserializer.deserialize(keyBytes, valueBytes, fp.topic, offset);
 								synchronized (sourceContext.getCheckpointLock()) {
 									sourceContext.collect(value);
-									offsetsState[partition] = offset;
+									offsetsState.put(topicPartition, offset);
 								}
 								
 								// advance offset for the next request
@@ -471,7 +487,7 @@ public class LegacyFetcher implements Fetcher {
 							}
 						}
 					}
-					LOG.debug("This fetch contained {} messages", messagesInFetch);
+					LOG.debug("This fetch contained {} messages ({} deleted messages)", messagesInFetch, deletedMessages);
 				}
 			}
 			catch (Throwable t) {
@@ -510,15 +526,14 @@ public class LegacyFetcher implements Fetcher {
 		 * Request latest offsets for a set of partitions, via a Kafka consumer.
 		 *
 		 * @param consumer The consumer connected to lead broker
-		 * @param topic The topic name
 		 * @param partitions The list of partitions we need offsets for
 		 * @param whichTime The type of time we are requesting. -1 and -2 are special constants (See OffsetRequest)
 		 */
-		private static void getLastOffset(SimpleConsumer consumer, String topic, List<FetchPartition> partitions, long whichTime) {
+		private static void getLastOffset(SimpleConsumer consumer, List<FetchPartition> partitions, long whichTime) {
 
 			Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<>();
 			for (FetchPartition fp: partitions) {
-				TopicAndPartition topicAndPartition = new TopicAndPartition(topic, fp.partition);
+				TopicAndPartition topicAndPartition = new TopicAndPartition(fp.topic, fp.partition);
 				requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(whichTime, 1));
 			}
 
@@ -529,18 +544,17 @@ public class LegacyFetcher implements Fetcher {
 				String exception = "";
 				for (FetchPartition fp: partitions) {
 					short code;
-					if ( (code=response.errorCode(topic, fp.partition)) != ErrorMapping.NoError()) {
+					if ( (code=response.errorCode(fp.topic, fp.partition)) != ErrorMapping.NoError()) {
 						exception += "\nException for partition "+fp.partition+": "+ StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
 					}
 				}
-				throw new RuntimeException("Unable to get last offset for topic " + topic + " and partitions " + partitions
-						+ ". " + exception);
+				throw new RuntimeException("Unable to get last offset for partitions " + partitions + ". " + exception);
 			}
 
 			for (FetchPartition fp: partitions) {
 				// the resulting offset is the next offset we are going to read
 				// for not-yet-consumed partitions, it is 0.
-				fp.nextOffsetToRead = response.offsets(topic, fp.partition)[0];
+				fp.nextOffsetToRead = response.offsets(fp.topic, fp.partition)[0];
 			}
 		}
 
@@ -554,41 +568,42 @@ public class LegacyFetcher implements Fetcher {
 			return timeType;
 		}
 	}
-	
+
+
 	private static class PartitionInfoFetcher extends Thread {
 
-		private final String topic;
+		private final List<String> topics;
 		private final Properties properties;
-		
-		private volatile List<PartitionInfo> result;
+
+		private volatile List<KafkaTopicPartitionLeader> result;
 		private volatile Throwable error;
 
-		
-		PartitionInfoFetcher(String topic, Properties properties) {
-			this.topic = topic;
+
+		PartitionInfoFetcher(List<String> topics, Properties properties) {
+			this.topics = topics;
 			this.properties = properties;
 		}
 
 		@Override
 		public void run() {
 			try {
-				result = FlinkKafkaConsumer.getPartitionsForTopic(topic, properties);
+				result = FlinkKafkaConsumer.getPartitionsForTopic(topics, properties);
 			}
 			catch (Throwable t) {
 				this.error = t;
 			}
 		}
-		
-		public List<PartitionInfo> getPartitions() throws Exception {
+
+		public List<KafkaTopicPartitionLeader> getPartitions() throws Exception {
 			try {
 				this.join();
 			}
 			catch (InterruptedException e) {
 				throw new Exception("Partition fetching was cancelled before completion");
 			}
-			
+
 			if (error != null) {
-				throw new Exception("Failed to fetch partitions for topic " + topic, error);
+				throw new Exception("Failed to fetch partitions for topics " + topics.toString(), error);
 			}
 			if (result != null) {
 				return result;
@@ -598,14 +613,14 @@ public class LegacyFetcher implements Fetcher {
 	}
 
 	private static class KillerWatchDog extends Thread {
-		
+
 		private final Thread toKill;
 		private final long timeout;
 
 		private KillerWatchDog(Thread toKill, long timeout) {
 			super("KillerWatchDog");
 			setDaemon(true);
-			
+
 			this.toKill = toKill;
 			this.timeout = timeout;
 		}
@@ -615,7 +630,7 @@ public class LegacyFetcher implements Fetcher {
 		public void run() {
 			final long deadline = System.currentTimeMillis() + timeout;
 			long now;
-			
+
 			while (toKill.isAlive() && (now = System.currentTimeMillis()) < deadline) {
 				try {
 					toKill.join(deadline - now);
@@ -624,7 +639,7 @@ public class LegacyFetcher implements Fetcher {
 					// ignore here, our job is important!
 				}
 			}
-			
+
 			// this is harsh, but this watchdog is a last resort
 			if (toKill.isAlive()) {
 				toKill.stop();

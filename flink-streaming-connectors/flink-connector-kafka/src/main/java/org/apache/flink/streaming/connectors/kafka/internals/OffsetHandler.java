@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 
-import org.apache.kafka.common.TopicPartition;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +36,7 @@ public interface OffsetHandler {
 	 *
 	 * @param offsetsToCommit The offset to commit, per partition.
 	 */
-	void commit(Map<TopicPartition, Long> offsetsToCommit) throws Exception;
+	void commit(Map<KafkaTopicPartition, Long> offsetsToCommit) throws Exception;
 
 	/**
 	 * Positions the given fetcher to the initial read offsets where the stream consumption
@@ -47,7 +45,7 @@ public interface OffsetHandler {
 	 * @param partitions The partitions for which to seeks the fetcher to the beginning.
 	 * @param fetcher The fetcher that will pull data from Kafka and must be positioned.
 	 */
-	void seekFetcherToInitialOffsets(List<TopicPartition> partitions, Fetcher fetcher) throws Exception;
+	void seekFetcherToInitialOffsets(List<KafkaTopicPartitionLeader> partitions, Fetcher fetcher) throws Exception;
 
 	/**
 	 * Closes the offset handler, releasing all resources.

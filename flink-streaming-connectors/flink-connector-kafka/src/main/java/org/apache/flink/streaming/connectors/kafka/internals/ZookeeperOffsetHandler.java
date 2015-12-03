@@ -25,7 +25,6 @@ import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.zookeeper.data.Stat;
 
 import org.slf4j.Logger;
@@ -71,28 +70,28 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 
 
 	@Override
-	public void commit(Map<TopicPartition, Long> offsetsToCommit) {
-		for (Map.Entry<TopicPartition, Long> entry : offsetsToCommit.entrySet()) {
-			TopicPartition tp = entry.getKey();
+	public void commit(Map<KafkaTopicPartition, Long> offsetsToCommit) {
+		for (Map.Entry<KafkaTopicPartition, Long> entry : offsetsToCommit.entrySet()) {
+			KafkaTopicPartition tp = entry.getKey();
 			long offset = entry.getValue();
 			
 			if (offset >= 0) {
-				setOffsetInZooKeeper(zkClient, groupId, tp.topic(), tp.partition(), offset);
+				setOffsetInZooKeeper(zkClient, groupId, tp.getTopic(), tp.getPartition(), offset);
 			}
 		}
 	}
 
 	@Override
-	public void seekFetcherToInitialOffsets(List<TopicPartition> partitions, Fetcher fetcher) {
-		for (TopicPartition tp : partitions) {
-			long offset = getOffsetFromZooKeeper(zkClient, groupId, tp.topic(), tp.partition());
+	public void seekFetcherToInitialOffsets(List<KafkaTopicPartitionLeader> partitions, Fetcher fetcher) {
+		for (KafkaTopicPartitionLeader tp : partitions) {
+			long offset = getOffsetFromZooKeeper(zkClient, groupId, tp.getTopicPartition().getTopic(), tp.getTopicPartition().getPartition());
 
 			if (offset != OFFSET_NOT_SET) {
 				LOG.info("Offset for partition {} was set to {} in ZooKeeper. Seeking fetcher to that position.",
-						tp.partition(), offset);
+						tp.getTopicPartition().getPartition(), offset);
 
 				// the offset in Zookeeper was the last read offset, seek is accepting the next-to-read-offset.
-				fetcher.seek(tp, offset + 1);
+				fetcher.seek(tp.getTopicPartition(), offset + 1);
 			}
 		}
 	}

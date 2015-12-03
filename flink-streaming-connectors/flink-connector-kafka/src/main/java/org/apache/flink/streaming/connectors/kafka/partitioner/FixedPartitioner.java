@@ -59,12 +59,12 @@ public class FixedPartitioner extends KafkaPartitioner implements Serializable {
 	@Override
 	public void open(int parallelInstanceId, int parallelInstances, int[] partitions) {
 		int p = 0;
-		for(int i = 0; i < parallelInstances; i++) {
-			if(i == parallelInstanceId) {
+		for (int i = 0; i < parallelInstances; i++) {
+			if (i == parallelInstanceId) {
 				targetPartition = partitions[p];
 				return;
 			}
-			if(++p == partitions.length) {
+			if (++p == partitions.length) {
 				p = 0;
 			}
 		}
@@ -72,7 +72,7 @@ public class FixedPartitioner extends KafkaPartitioner implements Serializable {
 
 	@Override
 	public int partition(Object element, int numPartitions) {
-		if(targetPartition == -1) {
+		if (targetPartition == -1) {
 			throw new RuntimeException("The partitioner has not been initialized properly");
 		}
 		return targetPartition;

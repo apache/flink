@@ -34,6 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
 import org.apache.flink.streaming.connectors.kafka.internals.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.testutils.SuccessException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
@@ -54,6 +55,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -360,7 +362,7 @@ public abstract class KafkaTestBase extends TestLogger {
 			catch (InterruptedException e) {
 				// restore interrupted state
 			}
-			List<PartitionInfo> partitions = FlinkKafkaConsumer.getPartitionsForTopic(topic, standardProps);
+			List<KafkaTopicPartitionLeader> partitions = FlinkKafkaConsumer.getPartitionsForTopic(Collections.singletonList(topic), standardProps);
 			if (partitions != null && partitions.size() > 0) {
 				return;
 			}

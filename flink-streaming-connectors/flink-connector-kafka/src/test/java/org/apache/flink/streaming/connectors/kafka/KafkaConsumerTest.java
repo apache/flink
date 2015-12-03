@@ -21,13 +21,16 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.commons.collections.map.LinkedMap;
 
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.Assert.*;
@@ -82,37 +85,45 @@ public class KafkaConsumerTest {
 			Field offsetsField = FlinkKafkaConsumer.class.getDeclaredField("lastOffsets");
 			Field runningField = FlinkKafkaConsumer.class.getDeclaredField("running");
 			Field mapField = FlinkKafkaConsumer.class.getDeclaredField("pendingCheckpoints");
-			
+
 			offsetsField.setAccessible(true);
 			runningField.setAccessible(true);
 			mapField.setAccessible(true);
 
 			FlinkKafkaConsumer<?> consumer = mock(FlinkKafkaConsumer.class);
 			when(consumer.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
-			
-			long[] testOffsets = new long[] { 43, 6146, 133, 16, 162, 616 };
+
+
+			HashMap<KafkaTopicPartition, Long> testOffsets = new HashMap<>();
+			long[] offsets = new long[] { 43, 6146, 133, 16, 162, 616 };
+			int j = 0;
+			for (long i: offsets) {
+				KafkaTopicPartition ktp = new KafkaTopicPartition("topic", j++);
+				testOffsets.put(ktp, i);
+			}
+
 			LinkedMap map = new LinkedMap();
-			
+
 			offsetsField.set(consumer, testOffsets);
 			runningField.set(consumer, true);
 			mapField.set(consumer, map);
-			
+
 			assertTrue(map.isEmpty());
 
 			// make multiple checkpoints
 			for (long checkpointId = 10L; checkpointId <= 2000L; checkpointId += 9L) {
-				long[] checkpoint = consumer.snapshotState(checkpointId, 47 * checkpointId);
-				assertArrayEquals(testOffsets, checkpoint);
-				
+				HashMap<KafkaTopicPartition, Long> checkpoint = consumer.snapshotState(checkpointId, 47 * checkpointId);
+				assertEquals(testOffsets, checkpoint);
+
 				// change the offsets, make sure the snapshot did not change
-				long[] checkpointCopy = Arrays.copyOf(checkpoint, checkpoint.length);
-				
-				for (int i = 0; i < testOffsets.length; i++) {
-					testOffsets[i] += 1L;
+				HashMap<KafkaTopicPartition, Long> checkpointCopy = (HashMap<KafkaTopicPartition, Long>) checkpoint.clone();
+
+				for (Map.Entry<KafkaTopicPartition, Long> e: testOffsets.entrySet()) {
+					testOffsets.put(e.getKey(), e.getValue() + 1);
 				}
-				
-				assertArrayEquals(checkpointCopy, checkpoint);
-				
+
+				assertEquals(checkpointCopy, checkpoint);
+
 				assertTrue(map.size() > 0);
 				assertTrue(map.size() <= FlinkKafkaConsumer.MAX_NUM_PENDING_CHECKPOINTS);
 			}
@@ -132,7 +143,7 @@ public class KafkaConsumerTest {
 			props.setProperty("bootstrap.servers", "localhost:11111, localhost:22222");
 			props.setProperty("group.id", "non-existent-group");
 
-			new FlinkKafkaConsumer<>("no op topic", new SimpleStringSchema(), props,
+			new FlinkKafkaConsumer<>(Collections.singletonList("no op topic"), new SimpleStringSchema(), props,
 					FlinkKafkaConsumer.OffsetStore.FLINK_ZOOKEEPER,
 					FlinkKafkaConsumer.FetcherType.LEGACY_LOW_LEVEL);
 		}

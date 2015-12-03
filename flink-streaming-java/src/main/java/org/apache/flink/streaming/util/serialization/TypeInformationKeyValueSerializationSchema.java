@@ -79,7 +79,7 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 
 
 	@Override
-	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, long offset) throws IOException {
+	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, String topic, long offset) throws IOException {
 		K key = null;
 		if(messageKey != null) {
 			key = keySerializer.deserialize(new ByteArrayInputView(messageKey));

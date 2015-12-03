@@ -118,4 +118,10 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	public void testBigRecordJob() throws Exception {
 		runBigRecordTestTopology();
 	}
+
+	@Test
+	public void testMultipleTopics() throws Exception {
+		runConsumeMultipleTopics();
+	}
+
 }
