@@ -55,13 +55,9 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 	@Override
 	protected void getSinkSchema(SinkPlanNode sinkPlanNode, SparseKeySchema schema) throws CompilerPostPassException {
 		GenericDataSinkBase<?> sink = sinkPlanNode.getSinkNode().getOperator();
-		Ordering partitioning = sink.getPartitionOrdering();
 		Ordering sorting = sink.getLocalOrder();
 		
 		try {
-			if (partitioning != null) {
-				addOrderingToSchema(partitioning, schema);
-			}
 			if (sorting != null) {
 				addOrderingToSchema(sorting, schema);
 			}
