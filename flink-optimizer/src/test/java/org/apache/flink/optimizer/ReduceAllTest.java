@@ -20,10 +20,10 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.fail;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
@@ -47,7 +47,7 @@ public class ReduceAllTest extends CompilerTestBase {
 		set1.reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce1")
 				.output(new DiscardingOutputFormat<Long>()).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		try {
 			OptimizedPlan oPlan = compileNoStats(plan);
