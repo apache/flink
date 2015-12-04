@@ -52,7 +52,6 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -60,6 +59,7 @@ import java.util.List;
  */
 public class RangePartitionRewriter implements Visitor<PlanNode> {
 	final static long SEED = 0;
+	final static String PARTITION_ID_REMOVER_NAME = "PartitionIDRemover";
 
 	final OptimizedPlan plan;
 
@@ -74,25 +74,21 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 
 	@Override
 	public void postVisit(PlanNode visitable) {
-		final List<Channel> outgoingChannels = visitable.getOutgoingChannels();
-		final List<Channel> newOutGoingChannels = new LinkedList<>();
-		final List<Channel> toBeRemoveChannels = new ArrayList<>();
-		for (Channel channel : outgoingChannels) {
+		final Iterable<Channel> inputChannels = visitable.getInputs();
+		for (Channel channel : inputChannels) {
 			ShipStrategyType shipStrategy = channel.getShipStrategy();
-			if (shipStrategy == ShipStrategyType.PARTITION_RANGE) {
+			// Make sure we only optimize the DAG for range partition, and do not optimize multi times.
+			if (shipStrategy == ShipStrategyType.PARTITION_RANGE && isOptimized(visitable)) {
 				TypeInformation<?> outputType = channel.getSource().getProgramOperator().getOperatorInfo().getOutputType();
 				// Do not optimize for record type, it's a special case for range partitioner, and should be removed later.
 				if (!(outputType instanceof RecordTypeInfo)) {
-					newOutGoingChannels.addAll(rewriteRangePartitionChannel(channel));
-					toBeRemoveChannels.add(channel);
+					PlanNode channelSource = channel.getSource();
+					List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
+					channelSource.getOutgoingChannels().remove(channel);
+					channelSource.getOutgoingChannels().addAll(newSourceOutputChannels);
 				}
 			}
 		}
-
-		for (Channel chan : toBeRemoveChannels) {
-			outgoingChannels.remove(chan);
-		}
-		outgoingChannels.addAll(newOutGoingChannels);
 	}
 
 	private List<Channel> rewriteRangePartitionChannel(Channel channel) {
@@ -179,7 +175,7 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final UnaryOperatorInformation prOperatorInformation = new UnaryOperatorInformation(ariOutputTypeInformation, sourceOutputType);
 		final MapOperatorBase prOperatorBase = new MapOperatorBase(partitionIDRemoveWrapper, prOperatorInformation, "PartitionID Remover");
 		final MapNode prRemoverNode = new MapNode(prOperatorBase);
-		final SingleInputPlanNode prPlanNode = new SingleInputPlanNode(prRemoverNode, "PartitionIDRemover", partChannel, DriverStrategy.MAP);
+		final SingleInputPlanNode prPlanNode = new SingleInputPlanNode(prRemoverNode, PARTITION_ID_REMOVER_NAME, partChannel, DriverStrategy.MAP);
 		partChannel.setTarget(prPlanNode);
 		prPlanNode.setParallelism(targetParallelism);
 		this.plan.getAllNodes().add(prPlanNode);
@@ -190,5 +186,10 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		prPlanNode.addOutgoingChannel(channel);
 
 		return sourceNewOutputChannels;
+	}
+
+
+	private boolean isOptimized(PlanNode node) {
+		return node.getNodeName() != PARTITION_ID_REMOVER_NAME;
 	}
 }
