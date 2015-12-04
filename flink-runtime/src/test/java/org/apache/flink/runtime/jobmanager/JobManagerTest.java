@@ -23,6 +23,7 @@ import akka.testkit.JavaTestKit;
 
 import com.typesafe.config.Config;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
@@ -265,10 +266,15 @@ public class JobManagerTest {
 						testActorGateway);
 				expectMsgClass(JobManagerMessages.JobSubmitSuccess.class);
 
+				jobManagerGateway.tell(new WaitForAllVerticesToBeRunning(jid), testActorGateway);
+				expectMsgClass(TestingJobManagerMessages.AllVerticesRunning.class);
+
 				jobManagerGateway.tell(new StopJob(jid), testActorGateway);
 
 				// - The test ----------------------------------------------------------------------
 				expectMsgClass(StoppingSuccess.class);
+
+				expectMsgClass(JobManagerMessages.JobResultSuccess.class);
 			}
 			finally {
 				if (cluster != null) {
@@ -315,6 +321,10 @@ public class JobManagerTest {
 
 				// - The test ----------------------------------------------------------------------
 				expectMsgClass(StoppingFailure.class);
+
+				jobManagerGateway.tell(new RequestExecutionGraph(jid), testActorGateway);
+
+				expectMsgClass(ExecutionGraphFound.class);
 			}
 			finally {
 				if (cluster != null) {
@@ -324,7 +334,7 @@ public class JobManagerTest {
 		}};
 	}
 
-	private static final class StoppableInvokable extends AbstractInvokable implements Stoppable {
+	public static final class StoppableInvokable extends AbstractInvokable implements Stoppable {
 		private boolean isRunning = true;
 
 		@Override
