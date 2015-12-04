@@ -18,10 +18,10 @@
 
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
@@ -61,7 +61,7 @@ public class HardPlansCompilationTest extends CompilerTestBase {
 				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce3")
 				.output(new DiscardingOutputFormat<Long>()).name("Sink");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		OptimizedPlan oPlan = compileNoStats(plan);
 
 		JobGraphGenerator jobGen = new JobGraphGenerator();

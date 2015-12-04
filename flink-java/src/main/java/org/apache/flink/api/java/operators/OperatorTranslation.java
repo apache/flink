@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 
 import java.util.ArrayList;
@@ -33,7 +34,6 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.configuration.Configuration;
 
 public class OperatorTranslation {
@@ -42,14 +42,14 @@ public class OperatorTranslation {
 	private Map<DataSet<?>, Operator<?>> translated = new HashMap<DataSet<?>, Operator<?>>();
 	
 	
-	public JavaPlan translateToPlan(List<DataSink<?>> sinks, String jobName) {
+	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName) {
 		List<GenericDataSinkBase<?>> planSinks = new ArrayList<GenericDataSinkBase<?>>();
 		
 		for (DataSink<?> sink : sinks) {
 			planSinks.add(translate(sink));
 		}
 		
-		JavaPlan p = new JavaPlan(planSinks); 
+		Plan p = new Plan(planSinks);
 		p.setJobName(jobName);
 		return p;
 	}

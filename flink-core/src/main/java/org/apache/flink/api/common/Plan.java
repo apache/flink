@@ -57,7 +57,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the sources, this
 	 * collection must contain all the sinks.
 	 */
-	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<GenericDataSinkBase<?>>(4);
+	protected final List<GenericDataSinkBase<?>> sinks = new ArrayList<>(4);
 
 	/** The name of the job. */
 	protected String jobName;
@@ -66,7 +66,7 @@ public class Plan implements Visitable<Operator<?>> {
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
 	
 	/** Hash map for files in the distributed cache: registered name to cache entry. */
-	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<String, DistributedCacheEntry>();
+	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<>();
 	
 	/** Config object for runtime execution parameters. */
 	protected ExecutionConfig executionConfig;
@@ -309,6 +309,7 @@ public class Plan implements Visitable<Operator<?>> {
 	public long getExecutionRetryDelay() {
 		return getExecutionConfig().getExecutionRetryDelay();
 	}
+
 	/**
 	 * Gets the optimizer post-pass class for this job. The post-pass typically creates utility classes
 	 * for data types and is specific to a particular data model (record, tuple, Scala, ...)
@@ -316,7 +317,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @return The name of the class implementing the optimizer post-pass.
 	 */
 	public String getPostPassClassName() {
-		return "org.apache.flink.optimizer.postpass.RecordModelPostPass";
+		return "org.apache.flink.optimizer.postpass.JavaApiPostPass";
 	}
 
 	/**

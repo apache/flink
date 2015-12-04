@@ -18,6 +18,7 @@
 
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -29,7 +30,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.operators.DataSink;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -67,7 +67,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -105,7 +105,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -143,7 +143,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -181,7 +181,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -219,7 +219,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -260,7 +260,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -297,7 +297,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.cross(source2)
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -336,7 +336,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.cross(source2)
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -373,7 +373,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*").setParallelism(DEFAULT_PARALLELISM+2)
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -400,7 +400,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -427,7 +427,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -453,7 +453,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
