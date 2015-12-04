@@ -179,10 +179,6 @@ public class ExecutionVertex implements Serializable {
 				getTotalNumberOfParallelSubtasks());
 	}
 
-	public int getSubTaskIndex() {
-		return subTaskIndex;
-	}
-
 	public int getTotalNumberOfParallelSubtasks() {
 		return this.jobVertex.getParallelism();
 	}

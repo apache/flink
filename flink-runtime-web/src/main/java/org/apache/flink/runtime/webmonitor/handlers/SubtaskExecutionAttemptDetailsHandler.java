@@ -78,7 +78,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
 
 		gen.writeStartObject();
-		gen.writeNumberField("subtask", execAttempt.getVertex().getSubTaskIndex());
+		gen.writeNumberField("subtask", execAttempt.getVertex().getParallelSubtaskIndex());
 		gen.writeStringField("status", status.name());
 		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
 		gen.writeStringField("host", locationString);
