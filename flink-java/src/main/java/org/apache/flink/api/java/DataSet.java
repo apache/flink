@@ -1251,6 +1251,7 @@ public abstract class DataSet<T> {
 	 * Range-partitions a DataSet on the specified key fields.
 	 * <p>
 	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * Especially, it requires an extra pass over the input data to computer the range boundaries.
 	 *
 	 * @param fields The field indexes on which the DataSet is range-partitioned.
 	 * @return The partitioned DataSet.
@@ -1263,6 +1264,7 @@ public abstract class DataSet<T> {
 	 * Range-partitions a DataSet on the specified key fields.
 	 * <p>
 	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * Especially, it requires an extra pass over the input data to computer the range boundaries.
 	 *
 	 * @param fields The field expressions on which the DataSet is range-partitioned.
 	 * @return The partitioned DataSet.
@@ -1275,6 +1277,7 @@ public abstract class DataSet<T> {
 	 * Range-partitions a DataSet using the specified KeySelector.
 	 * <p>
 	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * Especially, it requires an extra pass over the input data to computer the range boundaries.
 	 *
 	 * @param keyExtractor The KeyExtractor with which the DataSet is range-partitioned.
 	 * @return The partitioned DataSet.

@@ -34,7 +34,7 @@ public class SampledDataDistribution implements DataDistribution {
 
 	@Override
 	public int getNumberOfFields() {
-		return -1;
+		return 1;
 	}
 
 	@Override

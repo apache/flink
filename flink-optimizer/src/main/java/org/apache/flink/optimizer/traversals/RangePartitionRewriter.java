@@ -55,8 +55,11 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ *
+ */
 public class RangePartitionRewriter implements Visitor<PlanNode> {
-	final static long SEED = org.apache.flink.api.java.Utils.RNG.nextLong();
+	final static long SEED = 0;
 
 	final OptimizedPlan plan;
 
@@ -170,9 +173,7 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final FieldList keys = new FieldList(0);
 		final boolean[] sortDirection = { true };
 		partChannel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, keys, sortDirection, null, DataExchangeMode.PIPELINED);
-		ariPlanNode.addOutgoingChannel(channel);
-		partChannel.setLocalStrategy(channel.getLocalStrategy(), keys, sortDirection);
-		this.plan.getAllNodes().remove(targetNode);
+		ariPlanNode.addOutgoingChannel(partChannel);
 
 		final PartitionIDRemoveWrapper partitionIDRemoveWrapper = new PartitionIDRemoveWrapper();
 		final UnaryOperatorInformation prOperatorInformation = new UnaryOperatorInformation(ariOutputTypeInformation, sourceOutputType);
@@ -183,11 +184,10 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		prPlanNode.setParallelism(targetParallelism);
 		this.plan.getAllNodes().add(prPlanNode);
 
-		final List<Channel> outgoingChannels = targetNode.getOutgoingChannels();
-		for (Channel outgoingChannel : outgoingChannels) {
-			outgoingChannel.setSource(prPlanNode);
-			prPlanNode.addOutgoingChannel(outgoingChannel);
-		}
+		// 6. Connect to target node.
+		channel.setSource(prPlanNode);
+		channel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
+		prPlanNode.addOutgoingChannel(channel);
 
 		return sourceNewOutputChannels;
 	}

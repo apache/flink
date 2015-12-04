@@ -20,13 +20,15 @@ package org.apache.flink.api.common.distributions;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 
 public class CommonRangeBoundaries<T> implements RangeBoundaries<T> {
-	final private TypeComparator<T> typeComparator;
-	final private Object[][] boundaries;
-	final private TypeComparator[] flatComparators;
+	private final TypeComparator<T> typeComparator;
+	private final Object[][] boundaries;
+	private final TypeComparator[] flatComparators;
+	private final Object[] keys;
 
 	public CommonRangeBoundaries(TypeComparator<T> typeComparators, Object[][] boundaries) {
 		this.typeComparator = typeComparators;
 		this.flatComparators = typeComparators.getFlatComparators();
+		this.keys = new Object[flatComparators.length];
 		this.boundaries = boundaries;
 	}
 
@@ -39,7 +41,6 @@ public class CommonRangeBoundaries<T> implements RangeBoundaries<T> {
 	private int binarySearch(T record) {
 		int low = 0;
 		int high = this.boundaries.length - 1;
-		Object[] keys = new Object[flatComparators.length];
 		typeComparator.extractKeys(record, keys, 0);
 
 		while (low <= high) {
