@@ -519,7 +519,7 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>DataStream &rarr; DataStream</td>
+          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
           <p>A "rolling" fold on a keyed data stream with an initial value. 
           Combines the current element with the last folded value and
