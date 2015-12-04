@@ -182,6 +182,11 @@ public abstract class YarnTestBase extends TestLogger {
 		return null;
 	}
 
+	public static String getConfigDir() {
+		String confFile = YarnTestBase.class.getResource("/testconfig/flink-conf.yaml").getFile();
+		return new File(confFile).getAbsoluteFile().getParent();
+	}
+
 	/**
 	 * Filter to find root dir of the flink-yarn dist.
 	 */
@@ -431,7 +436,7 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) {
-		runWithArgs(args,terminateAfterString, failOnStrings, type, returnCode, false);
+		runWithArgs(args,terminateAfterString, failOnStrings, type, returnCode, false, null);
 	}
 	/**
 	 * The test has been passed once the "terminateAfterString" has been seen.
@@ -442,7 +447,7 @@ public abstract class YarnTestBase extends TestLogger {
 	 * @param returnCode Expected return code from the runner.
 	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode, boolean checkLogForTerminateString) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode, boolean checkLogForTerminateString, String configDir) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -455,7 +460,7 @@ public abstract class YarnTestBase extends TestLogger {
 		final int START_TIMEOUT_SECONDS = 180;
 		final long deadline = System.currentTimeMillis() + (START_TIMEOUT_SECONDS * 1000);
 		
-		Runner runner = new Runner(args, type);
+		Runner runner = new Runner(args, type, configDir);
 		runner.start();
 
 		boolean expectedStringSeen = false;
@@ -539,10 +544,17 @@ public abstract class YarnTestBase extends TestLogger {
 		private int returnValue;
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
+		private String configDir;
 
 		public Runner(String[] args, RunTypes type) {
 			this.args = args;
 			this.type = type;
+		}
+
+		public Runner(String[] args, RunTypes type, String configDir) {
+			this.args = args;
+			this.type = type;
+			this.configDir = configDir;
 		}
 
 		public int getReturnValue() {
@@ -554,6 +566,7 @@ public abstract class YarnTestBase extends TestLogger {
 			switch(type) {
 				case YARN_SESSION:
 					yCli = new FlinkYarnSessionCli("", "");
+					yCli.setConfDirPath(configDir);
 					returnValue = yCli.run(args);
 					break;
 				case CLI_FRONTEND:

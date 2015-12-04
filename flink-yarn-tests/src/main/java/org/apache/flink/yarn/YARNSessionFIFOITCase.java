@@ -113,6 +113,21 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	}
 
 	/**
+	 * Test configuration parameter for default number of yarn containers
+	 */
+	@Test
+	public void testDefaultNumberOfTaskManagers() {
+		LOG.info("Starting testDefaultNumberOfTaskManagers()");
+		String configDir = YarnTestBase.getConfigDir();
+		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
+						"-jm", "768",
+						"-tm", "1024",
+				},
+				"Number of connected TaskManagers changed to 1. Slots available: 1", null, RunTypes.YARN_SESSION, 0, false, configDir);
+		LOG.info("Finished testDefaultNumberOfTaskManagers()");
+	}
+
+	/**
 	 * Test regular operation, including command line parameter parsing.
 	 */
 	@Test(timeout=60000) // timeout after a minute.
@@ -433,7 +448,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"Job execution complete",
 				/* prohibited strings: (we want to see (2/2)) */
 				new String[]{"System.out)(1/1) switched to FINISHED "},
-				RunTypes.CLI_FRONTEND, 0, true);
+				RunTypes.CLI_FRONTEND, 0, true, null);
 		LOG.info("Finished perJobYarnCluster()");
 	}
 
@@ -460,7 +475,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"Job execution complete",
 				/* prohibited strings: (we want to see (2/2)) */
 				new String[]{"System.out)(1/1) switched to FINISHED "},
-				RunTypes.CLI_FRONTEND, 0, true);
+				RunTypes.CLI_FRONTEND, 0, true, null);
 		LOG.info("Finished perJobYarnClusterWithParallelism()");
 	}
 

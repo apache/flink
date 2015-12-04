@@ -243,6 +243,11 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_PROPERTIES_FILE_LOCATION = "yarn.properties-file.location";
 
+	/**
+	 * Default number of YARN container to allocate (=Number of Task Managers)
+	 */
+	public static final String YARN_NUM_CONTAINERS = "yarn.defaultNumberOfTaskManagers";
+
 
 	// ------------------------ Hadoop Configuration ------------------------
 
