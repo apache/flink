@@ -234,6 +234,109 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 		Assert.assertEquals(expectedResult, testResults);
 	}
 
+
+	// TODO: design buffer join test
+	@Test
+	public void testBufferJoin() throws Exception {
+
+		testResults = Lists.newArrayList();
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(3);
+
+		DataStream<Tuple3<String, String, Integer>> source1 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void run(SourceContext<Tuple3<String, String, Integer>> ctx) throws Exception {
+				ctx.collect(Tuple3.of("a", "x", 0));
+				ctx.collect(Tuple3.of("b", "y", 1));
+				ctx.collect(Tuple3.of("c", "z", 2));
+
+				ctx.collect(Tuple3.of("d", "u", 3));
+				ctx.collect(Tuple3.of("e", "u", 4));
+				ctx.collect(Tuple3.of("f", "w", 5));
+
+				ctx.collect(Tuple3.of("h", "j", 6));
+				ctx.collect(Tuple3.of("g", "i", 7));
+				ctx.collect(Tuple3.of("i", "k", 8));
+				ctx.collect(Tuple3.of("j", "k", 9));
+				ctx.collect(Tuple3.of("k", "k", 10));
+
+			}
+
+			@Override
+			public void cancel() {
+			}
+		}).assignTimestamps(new Tuple3TimestampExtractor());
+
+		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void run(SourceContext<Tuple3<String, String, Integer>> ctx) throws Exception {
+				ctx.collect(Tuple3.of("a", "u", 0));
+				ctx.collect(Tuple3.of("e", "w", 1));
+
+				ctx.collect(Tuple3.of("g", "i", 3));
+				ctx.collect(Tuple3.of("a", "i", 3));
+				ctx.collect(Tuple3.of("d", "i", 4));
+				ctx.collect(Tuple3.of("b", "k", 5));
+
+				ctx.collect(Tuple3.of("c", "x", 6));
+				ctx.collect(Tuple3.of("f", "x", 6));
+				ctx.collect(Tuple3.of("h", "x", 6));
+				ctx.collect(Tuple3.of("k", "z", 8));
+				ctx.collect(Tuple3.of("j", "z", 9));
+				ctx.collect(Tuple3.of("i", "z", 10));
+
+			}
+
+			@Override
+			public void cancel() {
+			}
+		}).assignTimestamps(new Tuple3TimestampExtractor());
+
+
+		source1.join(source2)
+				.where(new Tuple3KeyExtractor())
+				.buffer(Time.of(3, TimeUnit.MILLISECONDS))
+				.equalTo(new Tuple3KeyExtractor())
+				.buffer(Time.of(4, TimeUnit.MILLISECONDS))
+				.apply(new JoinFunction<Tuple3<String, String, Integer>, Tuple3<String, String, Integer>, String>() {
+					@Override
+					public String join(Tuple3<String, String, Integer> first, Tuple3<String, String, Integer> second) throws Exception {
+						return first + ":" + second;
+					}
+				})
+				.addSink(new SinkFunction<String>() {
+					@Override
+					public void invoke(String value) throws Exception {
+						testResults.add(value);
+					}
+				});
+
+		env.execute("Join Test");
+
+		List<String> expectedResult = Lists.newArrayList(
+				"(a,x,0):(a,i,3)",
+				"(a,x,0):(a,u,0)",
+				"(d,u,3):(d,i,4)",
+				"(e,u,4):(e,w,1)",
+				"(f,w,5):(f,x,6)",
+				"(g,i,7):(g,i,3)",
+				"(h,j,6):(h,x,6)",
+				"(i,k,8):(i,z,10)",
+				"(j,k,9):(j,z,9)",
+				"(k,k,10):(k,z,8)");
+
+		Collections.sort(expectedResult);
+		Collections.sort(testResults);
+
+		Assert.assertEquals(expectedResult, testResults);
+	}
+
 	@Test
 	public void testSelfJoin() throws Exception {
 

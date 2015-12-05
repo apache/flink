@@ -24,9 +24,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.TimestampExtractor;
+import org.apache.flink.streaming.api.operators.StreamJoinOperator;
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -58,6 +64,34 @@ import static java.util.Objects.requireNonNull;
  *     .window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS)))
  *     .apply(new MyJoinFunction());
  * } </pre>
+ *
+ * ===========================
+ *
+ * {@code JoinedStreams} supports join two {@link DataStream DataStreams} without one window limit.
+ *
+ * <p>
+ * To finalize the join operation you also need to specify a {@link KeySelector} and a {@link Time}
+ * for both the first and second input.
+ * If timeCharacteristic is TimeCharacteristic.EventTime, you also need to specify a {@link TimestampExtractor}
+ * for both the first and second input.
+ *
+ * <p>
+ * Example:
+ *
+ * <pre> {@code
+ * DataStream<Tuple2<String, Integer>> one = ...;
+ * DataStream<Tuple2<String, Integer>> twp = ...;
+ *
+ * DataStream<T> result = one.join(two)
+ *     .where(new MyFirstKeySelector())
+ *     .assignTimestamps(timestampExtractor1)
+ *     .buffer(Time.of(20, TimeUnit.SECONDS))
+ *     .equalTo(new MyFirstKeySelector())
+ *     .assignTimestamps(timestampExtractor2)
+ *     .buffer(Time.of(5, TimeUnit.SECONDS))
+ *     .apply(new MyJoinFunction());
+ * } </pre>
+ *
  */
 public class JoinedStreams<T1, T2> {
 
@@ -67,6 +101,8 @@ public class JoinedStreams<T1, T2> {
 	/** The second input stream */
 	private final DataStream<T2> input2;
 
+	/** The parallelism of joined stream */
+	private final int parallelism;
 	/**
 	 * Creates new JoinedStreams data streams, which are the first step towards building a streaming co-group.
 	 *
@@ -76,6 +112,7 @@ public class JoinedStreams<T1, T2> {
 	public JoinedStreams(DataStream<T1> input1, DataStream<T2> input2) {
 		this.input1 = requireNonNull(input1);
 		this.input2 = requireNonNull(input2);
+		this.parallelism = Math.max(input1.getParallelism(), input2.getParallelism());
 	}
 
 	/**
@@ -136,6 +173,63 @@ public class JoinedStreams<T1, T2> {
 				return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType, assigner, null, null);
 			}
 		}
+
+		public WithOneBuffer buffer(Time time){
+			return new WithOneBuffer(time, keyType);
+		}
+
+		// --------------------------------------------------------------------
+
+		/**
+		 * A join operation that has {@link KeySelector KeySelectors}
+		 * and {@link Time buffers} defined for both inputs.
+		 */
+		public class WithOneBuffer {
+			private final Time bufferSize1;
+			private final TypeInformation<KEY> keyType;
+
+			WithOneBuffer(Time time, TypeInformation<KEY> keyType) {
+				this.bufferSize1 = time;
+				this.keyType = keyType;
+			}
+
+			/**
+			 * Specifies a {@link KeySelector} for elements from the second input.
+			 */
+			public EqualTo equalTo(KeySelector<T2, KEY> keySelector) {
+				TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+				if (!otherKey.equals(this.keyType)) {
+					throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
+							"first key = " + this.keyType + " , second key = " + otherKey);
+				}
+
+				return new EqualTo(input2.clean(keySelector));
+			}
+
+			// --------------------------------------------------------------------
+
+			/**
+			 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
+			 */
+			public class EqualTo {
+
+				private final KeySelector<T2, KEY> keySelector2;
+
+				EqualTo(KeySelector<T2, KEY> keySelector2) {
+					this.keySelector2 = requireNonNull(keySelector2);
+				}
+
+				/**
+				 * Specifies the window1 on which the co-group operation works.
+				 */
+				public WithTwoBuffers<T1, T2, KEY> buffer(Time time) {
+					return new WithTwoBuffers<>(input1, input2,
+							keySelector1, keySelector2,
+							bufferSize1, time);
+				}
+			}
+		}
+
 	}
 	
 	// ------------------------------------------------------------------------
@@ -278,11 +372,100 @@ public class JoinedStreams<T1, T2> {
 
 		}
 	}
-	
-	// ------------------------------------------------------------------------
-	//  Implementation of the functions
-	// ------------------------------------------------------------------------
 
+
+	/**
+	 * A join operation that has {@link KeySelector KeySelectors} defined for both inputs as
+	 * well as a {@link WindowAssigner}.
+	 * Doesn't support trigger and evictor
+	 *
+	 * @param <IN1> Type of the elements from the first input
+	 * @param <IN2> Type of the elements from the second input
+	 * @param <KEY> Type of the key. This must be the same for both inputs
+	 */
+	public class WithTwoBuffers<IN1, IN2, KEY> {
+
+		private final DataStream<IN1> input1;
+		private final DataStream<IN2> input2;
+
+		private final KeySelector<IN1, KEY> keySelector1;
+		private final KeySelector<IN2, KEY> keySelector2;
+
+		private final Time time1;
+		private final Time time2;
+
+		protected WithTwoBuffers(DataStream<IN1> input1,
+				DataStream<IN2> input2,
+				KeySelector<IN1, KEY> keySelector1,
+				KeySelector<IN2, KEY> keySelector2,
+				Time time1,
+				Time time2 ) {
+
+			this.input1 = requireNonNull(input1);
+			this.input2 = requireNonNull(input2);
+
+			this.keySelector1 = requireNonNull(keySelector1);
+			this.keySelector2 = requireNonNull(keySelector2);
+
+			this.time1 = requireNonNull(time1);
+			this.time2 = requireNonNull(time2);
+
+		}
+
+		public StreamExecutionEnvironment getExecutionEnvironment() {
+			return input1.getExecutionEnvironment();
+		}
+
+		/**
+		 * Completes the join operation with the user function that is executed
+		 * for each combination of elements with the same key in a window1.
+		 */
+		public <OUT> DataStream<OUT> apply(JoinFunction<IN1, IN2, OUT> function) {
+			StreamExecutionEnvironment env = getExecutionEnvironment();
+			function = env.clean(function);
+			boolean enableSetProcessingTime = env.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+
+			TypeInformation<OUT> resultType = TypeExtractor.getBinaryOperatorReturnType(
+					function,
+					JoinFunction.class,
+					true,
+					true,
+					input1.getType(),
+					input2.getType(),
+					"Join",
+					false);
+
+			StreamJoinOperator<KEY, IN1, IN2, OUT> joinOperator
+					= new StreamJoinOperator<>(
+					function,
+					keySelector1,
+					keySelector2,
+					time1.toMilliseconds(),
+					time2.toMilliseconds(),
+					input1.getType().createSerializer(getExecutionEnvironment().getConfig()),
+					input2.getType().createSerializer(getExecutionEnvironment().getConfig())
+			).enableSetProcessingTime(enableSetProcessingTime);
+
+			TwoInputTransformation<IN1, IN2, OUT> twoInputTransformation
+					= new TwoInputTransformation<>(
+					input1.keyBy(keySelector1).getTransformation(),
+					input2.keyBy(keySelector2).getTransformation(),
+					"Join",
+					joinOperator,
+					resultType,
+					parallelism
+			);
+			return new DataStream<>(getExecutionEnvironment(), twoInputTransformation);
+		}
+
+	}
+
+
+    // ------------------------------------------------------------------------
+    //  Implementation of the functions
+    // ------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------
 	/**
 	 * CoGroup function that does a nested-loop join to get the join result.
 	 */
