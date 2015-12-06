@@ -35,6 +35,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ConstantTextHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobCancellationHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
@@ -99,8 +100,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final Router router;
 
-	private final int configuredPort;
-
 	private final ServerBootstrap bootstrap;
 
 	private final Promise<String> jobManagerAddressPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
@@ -118,6 +117,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
 			ActorSystem actorSystem) throws IOException, InterruptedException {
+		
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
@@ -127,15 +127,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 		webRootDir = new File(System.getProperty("java.io.tmpdir"), fileName);
 		LOG.info("Using directory {} for the web interface files", webRootDir);
 
-		final WebMonitorUtils.LogFiles logFiles = WebMonitorUtils.LogFiles.find(config);
-
-		LOG.info("Serving job manager log from {}", logFiles.logFile.getAbsolutePath());
-		LOG.info("Serving job manager stdout from {}", logFiles.stdOutFile.getAbsolutePath());
-
+		final WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(config);
+		
 		// port configuration
-		this.configuredPort = cfg.getWebFrontendPort();
-		if (this.configuredPort < 0) {
-			throw new IllegalArgumentException("Web frontend port is invalid: " + this.configuredPort);
+		int configuredPort = cfg.getWebFrontendPort();
+		if (configuredPort < 0) {
+			throw new IllegalArgumentException("Web frontend port is invalid: " + configuredPort);
 		}
 
 		timeout = AkkaUtils.getTimeout(config);
@@ -144,7 +141,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		retriever = new JobManagerRetriever(this, actorSystem, lookupTimeout, timeout);
 
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder();
-
+		
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
@@ -183,8 +180,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY, handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT)))
 
 			// log and stdout
-			.GET("/jobmanager/log", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.logFile))
-			.GET("/jobmanager/stdout", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile))
+			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
+				new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.logFile))
+
+			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
+				new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile))
 
 			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
 			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))

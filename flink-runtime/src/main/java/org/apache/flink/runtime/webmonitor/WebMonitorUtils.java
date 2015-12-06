@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -29,9 +29,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,17 +55,43 @@ public final class WebMonitorUtils {
 	/**
 	 * Singleton to hold the log and stdout file
 	 */
-	public static class LogFiles {
-
-		private static LogFiles INSTANCE;
+	public static class LogFileLocation {
 
 		public final File logFile;
 		public final File stdOutFile;
 
-		private LogFiles(String logFile) {
-			this.logFile = checkFileLocation(logFile);
-			String stdOutFile = logFile.replaceFirst("\\.log$", ".out");
-			this.stdOutFile = checkFileLocation(stdOutFile);;
+		private LogFileLocation(File logFile, File stdOutFile) {
+			this.logFile = logFile;
+			this.stdOutFile = stdOutFile;
+		}
+		
+
+		/**
+		 * Finds the Flink log directory using log.file Java property that is set during startup.
+		 */
+		public static LogFileLocation find(Configuration config) {
+			final String logEnv = "log.file";
+			String logFilePath = System.getProperty(logEnv);
+			
+			if (logFilePath == null) {
+				LOG.warn("Log file environment variable '{}' is not set.", logEnv);
+				logFilePath = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
+			}
+			
+			// not configured, cannot serve log files
+			if (logFilePath == null || logFilePath.length() < 4) {
+				LOG.warn("JobManager log files are unavailable in the web dashboard. " +
+					"Log file location not found in environment variable '{}' or configuration key '{}'.",
+					logEnv, ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY);
+				return new LogFileLocation(null, null);
+			}
+			
+			String outFilePath = logFilePath.substring(0, logFilePath.length() - 3).concat("out");
+
+			LOG.info("Determined location of JobManager log file: {}", logFilePath);
+			LOG.info("Determined location of JobManager stdout file: {}", outFilePath);
+			
+			return new LogFileLocation(resolveFileLocation(logFilePath), resolveFileLocation(outFilePath));
 		}
 
 		/**
@@ -71,42 +99,9 @@ public final class WebMonitorUtils {
 		 * @param logFilePath Path to log file
 		 * @return File or null if not a valid log file
 		 */
-		private static File checkFileLocation (String logFilePath) {
+		private static File resolveFileLocation(String logFilePath) {
 			File logFile = new File(logFilePath);
-			if (logFile.exists() && logFile.canRead()) {
-				return logFile;
-			} else {
-				throw new IllegalConfigurationException("Job manager log file was supposed to be at " +
-						logFile.getAbsolutePath() + " but it does not exist or is not readable.");
-			}
-		}
-
-		/**
-		 * Finds the Flink log directory using log.file Java property that is set during startup.
-		 */
-		public static LogFiles find(Configuration config) {
-			if (INSTANCE == null) {
-
-				/** Figure out log file location based on 'log.file' VM argument **/
-				final String logEnv = "log.file";
-				String logFilePath = System.getProperty(logEnv);
-
-				if (logFilePath == null) {
-					LOG.warn("Log file environment variable '{}' is not set.", logEnv);
-					logFilePath = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, null);
-				}
-
-				if (logFilePath == null) {
-					throw new IllegalConfigurationException("JobManager log file not found. " +
-							"Can't serve log files. Log file location couldn't be determined via the " +
-							logEnv + " environment variable or the config constant " +
-							ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY);
-				}
-
-				INSTANCE = new LogFiles(logFilePath);
-			}
-
-			return INSTANCE;
+			return (logFile.exists() && logFile.canRead()) ? logFile : null;
 		}
 	}
 
@@ -127,9 +122,9 @@ public final class WebMonitorUtils {
 		// try to load and instantiate the class
 		try {
 			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
-			Class clazz = Class.forName(classname).asSubclass(WebMonitor.class);
-			@SuppressWarnings("unchecked")
-			Constructor<WebMonitor> constructor = clazz.getConstructor(Configuration.class,
+			Class<? extends WebMonitor> clazz = Class.forName(classname).asSubclass(WebMonitor.class);
+			
+			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(Configuration.class,
 					LeaderRetrievalService.class,
 					ActorSystem.class);
 			return constructor.newInstance(config, leaderRetrievalService, actorSystem);
@@ -147,7 +142,7 @@ public final class WebMonitorUtils {
 		}
 	}
 
-	public static Map<String, String> fromKeyValueJsonArray (JSONArray parsed) throws JSONException {
+	public static Map<String, String> fromKeyValueJsonArray(JSONArray parsed) throws JSONException {
 		Map<String, String> hashMap = new HashMap<>();
 
 		for (int i = 0; i < parsed.length(); i++) {
@@ -194,6 +189,4 @@ public final class WebMonitorUtils {
 	private WebMonitorUtils() {
 		throw new RuntimeException();
 	}
-
-
 }
