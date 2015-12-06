@@ -578,7 +578,7 @@ keyedStream.maxBy("key");
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="#windows">windows</a> for a complete description of windows.
     {% highlight java %}
-dataStream.keyBy(0).window(TumblingTimeWindows.of(5, TimeUnit.SECONDS)); // Last 5 seconds of data
+dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // Last 5 seconds of data
     {% endhighlight %}
         </p>
           </td>
@@ -941,7 +941,7 @@ keyedStream.maxBy("key")
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="#windows">windows</a> for a description of windows.
     {% highlight scala %}
-dataStream.keyBy(0).window(TumblingTimeWindows.of(5, TimeUnit.SECONDS)) // Last 5 seconds of data // Last 5 seconds of data
+dataStream.keyBy(0).window(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))) // Last 5 seconds of data
     {% endhighlight %}
         </p>
           </td>
