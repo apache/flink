@@ -60,10 +60,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	
 	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
 									Environment env, Map<String, Accumulator<?, ?>> accumulators) {
-		super(env.getTaskName(),
-				env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(),
-				env.getAttemptNumber(),
+		super(env.getTaskInfo(),
 				env.getUserClassLoader(),
 				operator.getExecutionConfig(),
 				accumulators,

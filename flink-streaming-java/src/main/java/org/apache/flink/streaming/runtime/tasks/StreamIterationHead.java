@@ -46,7 +46,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 		}
 		
 		final String brokerID = createBrokerIdString(getEnvironment().getJobID(), iterationId ,
-				getEnvironment().getIndexInSubtaskGroup());
+				getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 		
 		final long iterationWaitTime = getConfiguration().getIterationWaitTime();
 		final boolean shouldWait = iterationWaitTime > 0;

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -41,9 +42,9 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	private final HashMap<String, BroadcastVariableMaterialization<?, ?>> broadcastVars = new HashMap<String, BroadcastVariableMaterialization<?, ?>>();
 	
-	public DistributedRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int attemptNumber, ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig, Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
-		super(name, numParallelSubtasks, subtaskIndex, attemptNumber, userCodeClassLoader, executionConfig, accumulators, cpTasks);
+	public DistributedRuntimeUDFContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
+											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?,?>> accumulators) {
+		super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks);
 	}
 	
 

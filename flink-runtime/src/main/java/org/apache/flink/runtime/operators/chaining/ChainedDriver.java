@@ -64,10 +64,9 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 		Environment env = parent.getEnvironment();
 
 		if (parent instanceof BatchTask) {
-			this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext(taskName);
+			this.udfContext = ((BatchTask<?, ?>) parent).createRuntimeContext();
 		} else {
-			this.udfContext = new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-					env.getIndexInSubtaskGroup(), env.getAttemptNumber(), userCodeClassLoader,
+			this.udfContext = new DistributedRuntimeUDFContext(env.getTaskInfo(), userCodeClassLoader,
 					parent.getExecutionConfig(), env.getDistributedCacheEntries(), accumulatorMap
 			);
 		}

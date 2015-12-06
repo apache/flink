@@ -204,7 +204,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	}
 
 	private String formatLogString(String message) {
-		return BatchTask.constructLogString(message, getEnvironment().getTaskName(), this);
+		return BatchTask.constructLogString(message, getEnvironment().getTaskInfo().getTaskName(), this);
 	}
 	
 	// --------------------------------------------------------------------------------------------

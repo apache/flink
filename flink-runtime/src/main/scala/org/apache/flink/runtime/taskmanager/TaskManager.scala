@@ -889,7 +889,7 @@ class TaskManager(
         fileCache,
         runtimeInfo)
 
-      log.info(s"Received task ${task.getTaskNameWithSubtasks}")
+      log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks}")
 
       val execId = tdd.getExecutionId
       // add the task to the map
@@ -939,7 +939,7 @@ class TaskManager(
               catch {
                 case t: Throwable =>
                   log.error(s"Could not update input data location for task " +
-                    s"${task.getTaskName}. Trying to fail  task.", t)
+                    s"${task.getTaskInfo.getTaskName}. Trying to fail  task.", t)
 
                   try {
                     task.failExternally(t)
@@ -1003,7 +1003,7 @@ class TaskManager(
       }
 
       log.info(s"Unregistering task and sending final execution state " +
-        s"${task.getExecutionState} to JobManager for task ${task.getTaskName} " +
+        s"${task.getExecutionState} to JobManager for task ${task.getTaskInfo.getTaskName} " +
         s"(${task.getExecutionId})")
 
       val accumulators = {

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -120,19 +121,9 @@ public class Task implements Runnable {
 	/** The execution attempt of the parallel subtask */
 	private final ExecutionAttemptID executionId;
 
-	/** The index of the parallel subtask, in [0, numberOfSubtasks) */
-	private final int subtaskIndex;
+	/** TaskInfo object for this task */
+	private final TaskInfo taskInfo;
 
-	/** The number of parallel subtasks for the JobVertex/ExecutionJobVertex that this task belongs to */
-	private final int parallelism;
-
-	/** Attempt number of this task. */
-	private final int attemptNumber;
-
-	/** The name of the task */
-	private final String taskName;
-
-	/** The name of the task, including the subtask index and the parallelism */
 	private final String taskNameWithSubtask;
 
 	/** The job-wide configuration object */
@@ -248,11 +239,8 @@ public class Task implements Runnable {
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
-		this.subtaskIndex = tdd.getIndexInSubtaskGroup();
-		this.parallelism = tdd.getNumberOfSubtasks();
-		this.attemptNumber = tdd.getAttemptNumber();
-		this.taskName = checkNotNull(tdd.getTaskName());
-		this.taskNameWithSubtask = getTaskNameWithSubtask(taskName, subtaskIndex, parallelism);
+		this.taskInfo = checkNotNull(tdd.getTaskInfo());
+		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
 		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
@@ -279,8 +267,7 @@ public class Task implements Runnable {
 
 		// create the reader and writer structures
 
-		final String taskNameWithSubtasksAndId =
-				Task.getTaskNameWithSubtaskAndID(taskName, subtaskIndex, parallelism, executionId);
+		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
 
 		List<ResultPartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
 		List<InputGateDeploymentDescriptor> consumedPartitions = tdd.getInputGates();
@@ -294,7 +281,7 @@ public class Task implements Runnable {
 			ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), executionId);
 
 			this.producedPartitions[i] = new ResultPartition(
-					taskNameWithSubtasksAndId,
+					taskNameWithSubtaskAndId,
 					jobId,
 					partitionId,
 					desc.getPartitionType(),
@@ -313,7 +300,7 @@ public class Task implements Runnable {
 
 		for (int i = 0; i < this.inputGates.length; i++) {
 			SingleInputGate gate = SingleInputGate.create(
-					taskNameWithSubtasksAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
+					taskNameWithSubtaskAndId, jobId, executionId, consumedPartitions.get(i), networkEnvironment);
 
 			this.inputGates[i] = gate;
 			inputGatesById.put(gate.getConsumedResultId(), gate);
@@ -341,20 +328,8 @@ public class Task implements Runnable {
 		return executionId;
 	}
 
-	public int getIndexInSubtaskGroup() {
-		return subtaskIndex;
-	}
-
-	public int getNumberOfSubtasks() {
-		return parallelism;
-	}
-
-	public String getTaskName() {
-		return taskName;
-	}
-
-	public String getTaskNameWithSubtasks() {
-		return taskNameWithSubtask;
+	public TaskInfo getTaskInfo() {
+		return taskInfo;
 	}
 
 	public Configuration getJobConfiguration() {
@@ -520,8 +495,7 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
-			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId,
-					taskName, taskNameWithSubtask, subtaskIndex, parallelism, attemptNumber,
+			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId, taskInfo,
 					jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
@@ -1055,19 +1029,7 @@ public class Task implements Runnable {
 
 	@Override
 	public String toString() {
-		return getTaskNameWithSubtasks() + " [" + executionState + ']';
-	}
-
-	// ------------------------------------------------------------------------
-	//  Task Names
-	// ------------------------------------------------------------------------
-
-	public static String getTaskNameWithSubtask(String name, int subtask, int numSubtasks) {
-		return name + " (" + (subtask+1) + '/' + numSubtasks + ')';
-	}
-
-	public static String getTaskNameWithSubtaskAndID(String name, int subtask, int numSubtasks, ExecutionAttemptID id) {
-		return name + " (" + (subtask+1) + '/' + numSubtasks + ") (" + id + ')';
+		return taskNameWithSubtask + " [" + executionState + ']';
 	}
 
 	/**

@@ -231,7 +231,7 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 	@Override
 	public void run() throws Exception {
 		final String brokerKey = brokerKey();
-		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
+		final int workerIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 		
 		final boolean objectSolutionSet = config.isSolutionSetUnmanaged();
 

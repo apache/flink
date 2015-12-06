@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -185,6 +186,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public int getAttemptNumber() {
 		return attemptNumber;
+	}
+
+	/**
+	 * Returns the {@link TaskInfo} object for the subtask
+	 */
+	public TaskInfo getTaskInfo() {
+		return new TaskInfo(taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber);
 	}
 
 	/**

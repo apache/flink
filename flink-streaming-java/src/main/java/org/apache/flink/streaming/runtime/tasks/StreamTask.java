@@ -374,7 +374,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	 * @return The name of the task.
 	 */
 	public String getName() {
-		return getEnvironment().getTaskNameWithSubtasks();
+		return getEnvironment().getTaskInfo().getTaskName();
 	}
 
 	/**
