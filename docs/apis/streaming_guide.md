@@ -50,6 +50,13 @@ words coming from a web socket in 5 second windows. You can copy &amp; paste the
 <div data-lang="java" markdown="1">
 
 {% highlight java %}
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Collector;
+
 public class WindowWordCount {
 
     public static void main(String[] args) throws Exception {
@@ -84,6 +91,10 @@ public class WindowWordCount {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
+import java.util.concurrent.TimeUnit
+
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.windowing.time.Time
 
 object WindowWordCount {
   def main(args: Array[String]) {
