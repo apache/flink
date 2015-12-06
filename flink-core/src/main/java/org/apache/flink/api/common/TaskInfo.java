@@ -18,7 +18,8 @@
 
 package org.apache.flink.api.common;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Encapsulates task-specific information: name, index of subtask, parallelism and attempt number.
@@ -32,14 +33,14 @@ public class TaskInfo {
 	private final int attemptNumber;
 
 	public TaskInfo(String taskName, int indexOfSubtask, int numberOfParallelSubtasks, int attemptNumber) {
-		Preconditions.checkArgument(indexOfSubtask >= 0, "Task index must be a non-negative number.");
-		Preconditions.checkArgument(numberOfParallelSubtasks >= 1, "Parallelism must be a positive number.");
-		Preconditions.checkArgument(indexOfSubtask < numberOfParallelSubtasks, "Task index must be less than parallelism.");
-		Preconditions.checkArgument(attemptNumber >= 0, "Attempt number must be a non-negative number.");
+		checkArgument(indexOfSubtask >= 0, "Task index must be a non-negative number.");
+		checkArgument(numberOfParallelSubtasks >= 1, "Parallelism must be a positive number.");
+		checkArgument(indexOfSubtask < numberOfParallelSubtasks, "Task index must be less than parallelism.");
+		checkArgument(attemptNumber >= 0, "Attempt number must be a non-negative number.");
+		this.taskName = checkNotNull(taskName, "Task Name must not be null.");
 		this.indexOfSubtask = indexOfSubtask;
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.attemptNumber = attemptNumber;
-		this.taskName = taskName;
 		this.taskNameWithSubtasks = taskName + " (" + (indexOfSubtask + 1) + '/' + numberOfParallelSubtasks + ')';
 	}
 
@@ -73,6 +74,8 @@ public class TaskInfo {
 
 	/**
 	 * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+	 * The attempt number corresponds to the number of times this task has been restarted(after
+	 * failure/cancellation) since the job was initially started.
 	 *
 	 * @return Attempt number of the subtask.
 	 */

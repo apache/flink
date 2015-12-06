@@ -72,7 +72,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -231,15 +230,10 @@ public class Task implements Runnable {
 				FileCache fileCache,
 				TaskManagerRuntimeInfo taskManagerConfig)
 	{
-		checkArgument(tdd.getNumberOfSubtasks() > 0);
-		checkArgument(tdd.getIndexInSubtaskGroup() >= 0);
-		checkArgument(tdd.getIndexInSubtaskGroup() < tdd.getNumberOfSubtasks());
-		checkArgument(tdd.getAttemptNumber() >= 0);
-
+		this.taskInfo = checkNotNull(tdd.getTaskInfo());
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
-		this.taskInfo = checkNotNull(tdd.getTaskInfo());
 		this.taskNameWithSubtask = taskInfo.getTaskNameWithSubtasks();
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
