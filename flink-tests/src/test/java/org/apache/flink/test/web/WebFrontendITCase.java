@@ -32,13 +32,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import scala.concurrent.duration.FiniteDuration;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @RunWith(Parameterized.class)
 public class WebFrontendITCase extends MultipleProgramsTestBase {
@@ -55,8 +52,6 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		WebMonitor webMonitor = cluster.webMonitor().get();
 		port = webMonitor.getServerPort();
 	}
-
-	static final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
 	public WebFrontendITCase(TestExecutionMode m) {
 		super(m);
@@ -115,7 +110,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Test
 	public void getLogAndStdoutFiles() {
 		try {
-			WebMonitorUtils.LogFiles logFiles = WebMonitorUtils.LogFiles.find(cluster.configuration());
+			WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(cluster.configuration());
 
 			FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 			String logs = getFromHTTP("http://localhost:" + port + "/jobmanager/log");
@@ -124,7 +119,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 			logs = getFromHTTP("http://localhost:" + port + "/jobmanager/stdout");
 			Assert.assertTrue(logs.contains("job manager out"));
-		}catch(Throwable e) {
+		} catch(Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
@@ -141,7 +136,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			Assert.assertEquals(
 					cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
 					conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
-		} catch(Throwable e) {
+		} catch (Throwable e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
