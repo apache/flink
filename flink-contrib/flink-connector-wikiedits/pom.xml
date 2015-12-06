@@ -16,33 +16,35 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
-
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-contrib-parent</artifactId>
 		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<modules>
-		<module>flink-storm</module>
-		<module>flink-storm-examples</module>
-		<module>flink-streaming-contrib</module>
-		<module>flink-tweet-inputformat</module>
-		<module>flink-operator-stats</module>
-		<module>flink-connector-wikiedits</module>
-	</modules>
+	<artifactId>flink-connector-wikiedits</artifactId>
+	<name>flink-connector-wikiedits</name>
 
-	<artifactId>flink-contrib-parent</artifactId>
-	<name>flink-contrib</name>
+	<packaging>jar</packaging>
 
-	<packaging>pom</packaging>
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
+		<dependency>
+			<groupId>org.schwering</groupId>
+			<artifactId>irclib</artifactId>
+			<version>1.10</version>
+		</dependency>
+	</dependencies>
 </project>
