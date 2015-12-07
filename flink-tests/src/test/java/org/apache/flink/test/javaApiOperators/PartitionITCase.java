@@ -30,6 +30,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.DataSource;
@@ -38,6 +39,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.LongValue;
+import org.apache.flink.types.Record;
+import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -424,12 +429,12 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Integer, Integer> map(Long value) throws Exception {
-			return new Tuple2<Integer, Integer>(this.getRuntimeContext().getIndexOfThisSubtask(), 1);
+			return new Tuple2<>(this.getRuntimeContext().getIndexOfThisSubtask(), 1);
 		}
 	}
 
 	@Test
-	public void testRangePartitionerOnSequenceData()throws Exception {
+	public void testRangePartitionerOnSequenceData() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSource<Long> dataSource = env.generateSequence(0, 10000);
 		KeySelector<Long, Comparable> keyExtractor = new ObjectSelfKeySelector();
@@ -451,7 +456,6 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 				assertEquals(previousMax + 1, currentMin);
 				previousMax = tuple2.f1;
 			}
-
 		}
 	}
 
@@ -499,6 +503,51 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 			}
 
 			return 0;
+		}
+	}
+
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testRangePartitionOnRecordTypeData() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		ds.map(new Tuple3ToRecordBuilder())
+			.partitionByRange(new RecordKeySelector())
+			.reduce(new RecordReduceSummary())
+			.collect();
+	}
+
+	private static class Tuple3ToRecordBuilder implements MapFunction<Tuple3<Integer, Long, String>, Record> {
+		@Override
+		public Record map(Tuple3<Integer, Long, String> value) throws Exception {
+			Record record = new Record(3);
+			record.addField(new IntValue(value.f0));
+			record.addField(new LongValue(value.f1));
+			record.addField(new StringValue(value.f2));
+			return record;
+		}
+	}
+
+	private static class RecordKeySelector implements KeySelector<Record, Comparable> {
+
+		@Override
+		public Comparable getKey(Record value) throws Exception {
+			return value.getField(0, IntValue.class);
+		}
+	}
+
+	private static class RecordReduceSummary implements ReduceFunction<Record> {
+
+		@Override
+		public Record reduce(Record value1, Record value2) throws Exception {
+			LongValue longValue = new LongValue();
+			value1.getFieldInto(1, longValue);
+			long first = longValue.getValue();
+			value2.getFieldInto(1, longValue);
+			long second = longValue.getValue();
+			longValue.setValue(first + second);
+			value1.setField(1, longValue);
+			return value1;
 		}
 	}
 }
