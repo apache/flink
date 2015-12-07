@@ -162,8 +162,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
-				this.getDataSet().getType());
-		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName() );
+				this.getDataSet().getType(), Utils.getCallLocationName(), true);
+		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
 	}
 
 	/**
@@ -182,7 +182,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (combiner == null) {
 			throw new NullPointerException("GroupCombine function must not be null.");
 		}
-		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, this.getDataSet().getType());
+		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner,
+				this.getDataSet().getType(), Utils.getCallLocationName(), true);
 
 		return new GroupCombineOperator<T, R>(this, resultType, dataSet.clean(combiner), Utils.getCallLocationName());
 	}
