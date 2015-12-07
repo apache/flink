@@ -133,6 +133,13 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>com.github.siom79.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+			<plugin>
 				<!--Build uber jar-->
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -272,7 +279,6 @@ under the License.
 					</links>
 				</configuration>
 			</plugin>
-
 		</plugins>
 	</build>
 </project>
