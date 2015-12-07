@@ -284,14 +284,14 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		// stateful termination check:
-		// wait until we saw a container being killed and AFTERWARDS a new one launced
+		// wait until we saw a container being killed and AFTERWARDS a new one launched
 		boolean ok = false;
 		do {
 			LOG.debug("Waiting for correct order of events. Output: {}", errContent.toString());
 
 			String o = errContent.toString();
 			int killedOff = o.indexOf("Container killed by the ApplicationMaster");
-			if(killedOff != -1) {
+			if (killedOff != -1) {
 				o = o.substring(killedOff);
 				ok = o.indexOf("Launching container") > 0;
 			}
