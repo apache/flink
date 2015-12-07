@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.shipping;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -25,15 +24,26 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 
+/**
+ * The output emitter decides to which of the possibly multiple output channels a record is sent.
+ * It implement routing based on hash-partitioning, broadcasting, round-robin, custom partition
+ * functions, etc.
+ * 
+ * @param <T> The type of the element handled by the emitter.
+ */
 public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T>> {
 	
-	private final ShipStrategyType strategy;		// the shipping strategy used by this output emitter
+	/** the shipping strategy used by this output emitter */
+	private final ShipStrategyType strategy; 
 
-	private int[] channels;						// the reused array defining target channels
+	/** the reused array defining target channels */
+	private int[] channels;
 
-	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
+	/** counter to go over channels round robin */
+	private int nextChannelToSendTo = 0;
 	
-	private final TypeComparator<T> comparator;	// the comparator for hashing / sorting
+	/** the comparator for hashing / sorting */
+	private final TypeComparator<T> comparator;
 	
 	private final Partitioner<Object> partitioner;
 	
@@ -44,13 +54,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new channel selector that distributes data round robin.
-	 */
-	public OutputEmitter() {
-		this(ShipStrategyType.NONE, 0);
-	}
-
-	/**
 	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
 	 * and uses the supplied task index perform a round robin distribution.
 	 * 
@@ -58,7 +61,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 */
 	public OutputEmitter(ShipStrategyType strategy, int indexInSubtaskGroup) {
 		this(strategy, indexInSubtaskGroup, null, null, null);
-	}	
+	}
 	
 	/**
 	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
@@ -71,24 +74,10 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		this(strategy, 0, comparator, null, null);
 	}
 	
-	/**
-	 * Creates a new channel selector that uses the given strategy (broadcasting, partitioning, ...)
-	 * and uses the supplied comparator to hash / compare records for partitioning them deterministically.
-	 * 
-	 * @param strategy The distribution strategy to be used.
-	 * @param comparator The comparator used to hash / compare the records.
-	 * @param distr The distribution pattern used in the case of a range partitioning.
-	 */
-	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, DataDistribution distr) {
-		this(strategy, 0, comparator, null, distr);
-	}
 	
-	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, Partitioner<?> partitioner) {
-		this(strategy, 0, comparator, partitioner, null);
-	}
-		
 	@SuppressWarnings("unchecked")
-	public OutputEmitter(ShipStrategyType strategy, int indexInSubtaskGroup, TypeComparator<T> comparator, Partitioner<?> partitioner, DataDistribution distr) {
+	public OutputEmitter(ShipStrategyType strategy, int indexInSubtaskGroup, 
+							TypeComparator<T> comparator, Partitioner<?> partitioner, DataDistribution distr) {
 		if (strategy == null) { 
 			throw new NullPointerException();
 		}
@@ -139,8 +128,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 			return broadcast(numberOfChannels);
 		case PARTITION_CUSTOM:
 			return customPartition(record.getInstance(), numberOfChannels);
-		case PARTITION_RANGE:
-			return rangePartition(record.getInstance(), numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
@@ -214,10 +201,6 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		k ^= k >>> 16;
 
 		return k;
-	}
-
-	private int[] rangePartition(T record, int numberOfChannels) {
-		throw new UnsupportedOperationException();
 	}
 	
 	private int[] customPartition(T record, int numberOfChannels) {

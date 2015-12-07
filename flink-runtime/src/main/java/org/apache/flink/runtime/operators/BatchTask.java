@@ -48,8 +48,6 @@ import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubExcepti
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
 import org.apache.flink.runtime.operators.shipping.OutputCollector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
-import org.apache.flink.runtime.operators.shipping.RecordOutputCollector;
-import org.apache.flink.runtime.operators.shipping.RecordOutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
@@ -61,7 +59,6 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
@@ -1208,82 +1205,40 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		// get the factory for the serializer
 		final TypeSerializerFactory<T> serializerFactory = config.getOutputSerializer(cl);
+		final List<RecordWriter<SerializationDelegate<T>>> writers = new ArrayList<>(numOutputs);
 
-		// special case the Record
-		if (serializerFactory.getDataType().equals(Record.class)) {
-			final List<RecordWriter<Record>> writers = new ArrayList<RecordWriter<Record>>(numOutputs);
+		// create a writer for each output
+		for (int i = 0; i < numOutputs; i++)
+		{
+			// create the OutputEmitter from output ship strategy
+			final ShipStrategyType strategy = config.getOutputShipStrategy(i);
+			final int indexInSubtaskGroup = task.getIndexInSubtaskGroup();
+			final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
 
-			// create a writer for each output
-			for (int i = 0; i < numOutputs; i++) {
-				// create the OutputEmitter from output ship strategy
-				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
-				final TypeComparatorFactory<?> compFact = config.getOutputComparator(i, cl);
-				final RecordOutputEmitter oe;
-				if (compFact == null) {
-					oe = new RecordOutputEmitter(strategy);
-				} else {
-					@SuppressWarnings("unchecked")
-					TypeComparator<Record> comparator = (TypeComparator<Record>) compFact.createComparator();
-					if (!comparator.supportsCompareAgainstReference()) {
-						throw new Exception("Incompatibe serializer-/comparator factories.");
-					}
-					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
-					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
-
-					oe = new RecordOutputEmitter(strategy, comparator, partitioner, distribution);
-				}
-
-				// setup accumulator counters
-				final RecordWriter<Record> recordWriter = new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe);
-				recordWriter.setReporter(reporter);
-
-				writers.add(recordWriter);
+			final ChannelSelector<SerializationDelegate<T>> oe;
+			if (compFactory == null) {
+				oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup);
 			}
-			if (eventualOutputs != null) {
-				eventualOutputs.addAll(writers);
+			else {
+				final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
+				final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
+
+				final TypeComparator<T> comparator = compFactory.createComparator();
+				oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup, comparator, partitioner, dataDist);
 			}
 
-			@SuppressWarnings("unchecked")
-			final Collector<T> outColl = (Collector<T>) new RecordOutputCollector(writers);
-			return outColl;
+			final RecordWriter<SerializationDelegate<T>> recordWriter =
+					new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
+
+			// setup live accumulator counters
+			recordWriter.setReporter(reporter);
+
+			writers.add(recordWriter);
 		}
-		else {
-			// generic case
-			final List<RecordWriter<SerializationDelegate<T>>> writers = new ArrayList<RecordWriter<SerializationDelegate<T>>>(numOutputs);
-
-			// create a writer for each output
-			for (int i = 0; i < numOutputs; i++)
-			{
-				// create the OutputEmitter from output ship strategy
-				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
-				final int indexInSubtaskGroup = task.getIndexInSubtaskGroup();
-				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
-
-				final ChannelSelector<SerializationDelegate<T>> oe;
-				if (compFactory == null) {
-					oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup);
-				}
-				else {
-					final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
-					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
-
-					final TypeComparator<T> comparator = compFactory.createComparator();
-					oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup, comparator, partitioner, dataDist);
-				}
-
-				final RecordWriter<SerializationDelegate<T>> recordWriter =
-						new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
-
-				// setup live accumulator counters
-				recordWriter.setReporter(reporter);
-
-				writers.add(recordWriter);
-			}
-			if (eventualOutputs != null) {
-				eventualOutputs.addAll(writers);
-			}
-			return new OutputCollector<T>(writers, serializerFactory.getSerializer());
+		if (eventualOutputs != null) {
+			eventualOutputs.addAll(writers);
 		}
+		return new OutputCollector<T>(writers, serializerFactory.getSerializer());
 	}
 
 	/**
