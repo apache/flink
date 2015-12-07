@@ -72,6 +72,18 @@ Scala-Flink> env.execute("MyProgram")
 
 The Flink Shell comes with command history and autocompletion.
 
+## Scala Shell with Flink on YARN
+
+The Scala shell can connect Flink cluster on YARN. To connect deployed Flink cluster on YARN, use following command:
+
+~~~bash
+bin/start-scala-shell.sh yarn
+~~~
+
+The shell reads the connection information of the deployed Flink cluster from the `.yarn-properties` file, which is created in the configured `yarn.properties-file.location` directory or the temporary directory. If there is no deployed Flink cluster on YARN, the shell prints an error message.
+
+The shell can deploy a Flink cluster to YARN, which is used exclusively by the shell. The number of YARN containers can be controlled by the parameter `-n <arg>`. The shell deploys a new Flink cluster on YARN and connects the cluster. You can also specify options for YARN cluster such as memory for JobManager, name of YARN application, etc.. 
+
 ## Adding external dependencies
 
 It is possible to add external classpaths to the Scala-shell. These will be sent to the Jobmanager automatically alongside your shell program, when calling execute.
@@ -79,5 +91,5 @@ It is possible to add external classpaths to the Scala-shell. These will be sent
 Use the parameter `-a <path/to/jar.jar>` or `--addclasspath <path/to/jar.jar>` to load additional classes.
 
 ~~~bash
-bin/start-scala-shell.sh [local | remote <host> <port>] --addclasspath <path/to/jar.jar>
+bin/start-scala-shell.sh [local | remote <host> <port> | yarn] --addclasspath <path/to/jar.jar>
 ~~~

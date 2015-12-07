@@ -86,8 +86,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -174,11 +172,7 @@ public class CliFrontend {
 		this.config = GlobalConfiguration.getConfiguration();
 
 		// load the YARN properties
-		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
-		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation = config.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
-
-		File propertiesFile = new File(propertiesFileLocation, CliFrontend.YARN_PROPERTIES_FILE + currentUser);
+		File propertiesFile = new File(getYarnPropertiesLocation(config));
 		if (propertiesFile.exists()) {
 
 			logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
@@ -213,7 +207,7 @@ public class CliFrontend {
 			InetSocketAddress jobManagerAddress;
 			if (address != null) {
 				try {
-					jobManagerAddress = parseHostPortAddress(address);
+					jobManagerAddress = ClientUtils.parseHostPortAddress(address);
 					// store address in config from where it is retrieved by the retrieval service
 					writeJobManagerAddressToConfig(jobManagerAddress);
 				}
@@ -945,7 +939,7 @@ public class CliFrontend {
 	 */
 	protected void updateConfig(CommandLineOptions options) {
 		if(options.getJobManagerAddress() != null){
-			InetSocketAddress jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
+			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
 			writeJobManagerAddressToConfig(jobManagerAddress);
 		}
 	}
@@ -1080,7 +1074,7 @@ public class CliFrontend {
 		}
 		else {
 			if(options.getJobManagerAddress() != null) {
-				jobManagerAddress = parseHostPortAddress(options.getJobManagerAddress());
+				jobManagerAddress = ClientUtils.parseHostPortAddress(options.getJobManagerAddress());
 				writeJobManagerAddressToConfig(jobManagerAddress);
 			}
 		}
@@ -1250,28 +1244,6 @@ public class CliFrontend {
 	//  Miscellaneous Utilities
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Parses a given host port address of the format URL:PORT and returns an {@link InetSocketAddress}
-	 *
-	 * @param hostAndPort host port string to be parsed
-	 * @return InetSocketAddress object containing the parsed host port information
-	 */
-	private static InetSocketAddress parseHostPortAddress(String hostAndPort) {
-		// code taken from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
-		URI uri;
-		try {
-			uri = new URI("my://" + hostAndPort);
-		} catch (URISyntaxException e) {
-			throw new RuntimeException("Malformed address " + hostAndPort, e);
-		}
-		String host = uri.getHost();
-		int port = uri.getPort();
-		if (host == null || port == -1) {
-			throw new RuntimeException("Address is missing hostname or port " + hostAndPort);
-		}
-		return new InetSocketAddress(host, port);
-	}
-
 	public static String getConfigurationDirectoryFromEnv() {
 		String location = System.getenv(ENV_CONFIG_DIRECTORY);
 
@@ -1318,5 +1290,13 @@ public class CliFrontend {
 		else {
 			return Collections.emptyMap();
 		}
+	}
+
+	public static String getYarnPropertiesLocation(Configuration conf) {
+		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
+		String currentUser = System.getProperty("user.name");
+		String propertiesFileLocation = conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+
+		return propertiesFileLocation + File.separator + CliFrontend.YARN_PROPERTIES_FILE + currentUser;
 	}
 }

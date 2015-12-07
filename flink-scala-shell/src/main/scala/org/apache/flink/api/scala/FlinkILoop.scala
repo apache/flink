@@ -21,6 +21,7 @@ package org.apache.flink.api.scala
 import java.io.{BufferedReader, File, FileOutputStream}
 
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.AbstractID
 
 import scala.tools.nsc.interpreter._
@@ -29,25 +30,37 @@ import scala.tools.nsc.interpreter._
 class FlinkILoop(
     val host: String,
     val port: Int,
+    val clientConfig: Configuration,
     val externalJars: Option[Array[String]],
     in0: Option[BufferedReader],
     out0: JPrintWriter)
   extends ILoopCompat(in0, out0) {
 
-  def this(host: String,
-           port: Int,
-           externalJars: Option[Array[String]],
-           in0: BufferedReader, 
-           out: JPrintWriter){
-    this(host: String, port: Int, externalJars, Some(in0), out)
+  def this(
+    host: String,
+    port: Int,
+    clientConfig: Configuration,
+    externalJars: Option[Array[String]],
+    in0: BufferedReader,
+    out: JPrintWriter) {
+    this(host, port, clientConfig, externalJars, Some(in0), out)
   }
 
-  def this(host: String, port: Int, externalJars: Option[Array[String]]){
-    this(host: String, port: Int, externalJars, None, new JPrintWriter(Console.out, true))
+  def this(
+    host: String,
+    port: Int,
+    clientConfig: Configuration,
+    externalJars: Option[Array[String]]) {
+    this(host, port, clientConfig, externalJars, None, new JPrintWriter(Console.out, true))
   }
   
-  def this(host: String, port: Int, in0: BufferedReader, out: JPrintWriter){
-    this(host: String, port: Int, None, in0: BufferedReader, out: JPrintWriter)
+  def this(
+    host: String,
+    port: Int,
+    clientConfig: Configuration,
+    in0: BufferedReader,
+    out: JPrintWriter){
+    this(host, port, clientConfig, None, in0, out)
   }
 
   // remote environment
@@ -56,7 +69,7 @@ class FlinkILoop(
     ScalaShellRemoteEnvironment.resetContextEnvironments()
     
     // create our environment that submits against the cluster (local or remote)
-    val remoteEnv = new ScalaShellRemoteEnvironment(host, port, this)
+    val remoteEnv = new ScalaShellRemoteEnvironment(host, port, this, clientConfig)
     
     // prevent further instantiation of environments
     ScalaShellRemoteEnvironment.disableAllContextAndOtherEnvironments()

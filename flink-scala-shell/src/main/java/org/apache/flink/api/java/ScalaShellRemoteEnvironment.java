@@ -48,9 +48,13 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	 * @param host	   The host name or address of the master (JobManager), where the program should be executed.
 	 * @param port	   The port of the master (JobManager), where the program should be executed.
 	 * @param flinkILoop The flink Iloop instance from which the ScalaShellRemoteEnvironment is called.
+	 * @param clientConfig The configuration used by the client that connects to the cluster.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
 	 */
-	public ScalaShellRemoteEnvironment(String host, int port, FlinkILoop flinkILoop, String... jarFiles) {
-		super(host, port, null, jarFiles, null);
+	public ScalaShellRemoteEnvironment(String host, int port, FlinkILoop flinkILoop, Configuration clientConfig, String... jarFiles) {
+		super(host, port, clientConfig, jarFiles, null);
 		this.flinkILoop = flinkILoop;
 	}
 
