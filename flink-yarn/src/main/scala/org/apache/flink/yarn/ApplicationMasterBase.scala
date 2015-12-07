@@ -37,7 +37,9 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.slf4j.LoggerFactory
 
+import scala.annotation.tailrec
 import scala.io.Source
+import scala.util.{Failure, Try}
 
 /** Base class for all application masters. This base class provides functionality to start a
   * [[JobManager]] implementation in a Yarn container.
@@ -80,6 +82,18 @@ abstract class ApplicationMasterBase {
       }
     })
   }
+
+  @tailrec
+  private def retry[T](fn: => T, stopCond: => Boolean): Try[T] = {
+    if(stopCond) {
+      Failure(new RuntimeException("Unable to start actor system"))
+    }
+    Try{ fn } match {
+      case Failure(x: BindException) => retry(fn, stopCond)
+      case f => f
+    }
+  }
+
 
   def runAction(): Unit = {
     var webMonitorOption: Option[WebMonitor] = None
@@ -130,7 +144,39 @@ abstract class ApplicationMasterBase {
         ConfigConstants.DEFAULT_YARN_APPLICATION_MASTER_PORT)
       val portsSet = NetUtils.getPortRangeFromString(amPortRange)
 
-      // Try to start the actor system with the given set of ports:
+      // method to start the actor system.
+      def startActorSystem(portsSet: java.util.Set[Integer]): // return type -> next line
+        (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
+        val availableSocket = NetUtils.createSocketFromPorts(portsSet, new NetUtils.SocketFactory {
+          override def createSocket(port: Int): ServerSocket = new ServerSocket(port)}, log)
+
+        // get port as integer and close socket
+        val tryPort = if (availableSocket == null) {
+          throw new RuntimeException(s"Unable to allocate port for ApplicationMaster in " +
+            s"specified port range: $amPortRange ")
+        } else {
+          val port = availableSocket.getLocalPort
+          availableSocket.close()
+          port // return for if
+        }
+
+        JobManager.startActorSystemAndJobManagerActors(
+          config,
+          JobManagerMode.CLUSTER,
+          streamingMode,
+          ownHostname,
+          tryPort,
+          getJobManagerClass,
+          getArchivistClass
+        )
+      }
+
+      // try starting the actor system
+      retry(startActorSystem(portsSet), {portsSet.size() > 0})
+
+
+
+    /*  // Try to start the actor system with the given set of ports:
       var startActorResultOption: Option[(ActorSystem, ActorRef, ActorRef, Option[WebMonitor])] =
         None
 
@@ -190,7 +236,7 @@ abstract class ApplicationMasterBase {
 
       val (actorSystem, jmActor, archiveActor, webMonitor) = startActorResultOption.get
 
-      actorSystemOption = Option(actorSystem)
+      actorSystemOption = Option(actorSystem)  */
       webMonitorOption = webMonitor
 
       val address = AkkaUtils.getAddress(actorSystem)
