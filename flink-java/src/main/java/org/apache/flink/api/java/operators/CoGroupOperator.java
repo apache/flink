@@ -647,7 +647,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					if (function == null) {
 						throw new NullPointerException("CoGroup function must not be null.");
 					}
-					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());
+					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType(),
+							Utils.getCallLocationName(), true);
 					
 					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, input1.clean(function), returnType,
 							groupSortKeyOrderFirst, groupSortKeyOrderSecond,
