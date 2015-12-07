@@ -82,6 +82,10 @@ public class ExecutionConfig implements Serializable {
 
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
+	// This field was used as a key for storing the EC in the Job Configuration
+	@Deprecated
+	public static final String CONFIG_KEY = "runtime.config";
+
 	// --------------------------------------------------------------------------------------------
 
 	/** Defines how data exchange happens - batch or pipelined */
