@@ -21,6 +21,8 @@ package org.apache.flink.yarn
 import java.util.UUID
 
 import akka.actor._
+import akka.pattern
+import akka.util.Timeout
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}

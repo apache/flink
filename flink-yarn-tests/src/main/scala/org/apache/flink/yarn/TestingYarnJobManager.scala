@@ -47,7 +47,6 @@ import scala.concurrent.duration.FiniteDuration
   * @param defaultExecutionRetries Number of default execution retries
   * @param delayBetweenRetries Delay between retries
   * @param timeout Timeout for futures
-  * @param mode StreamingMode in which the system shall be started
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
 class TestingYarnJobManager(
