@@ -67,7 +67,7 @@ public class BlobServer extends Thread implements BlobService {
 	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
-	private final Set<BlobServerConnection> activeConnections = new HashSet<BlobServerConnection>();
+	private final Set<BlobServerConnection> activeConnections = new HashSet<>();
 
 	/** The maximum number of concurrent connections */
 	private final int maxConnections;
@@ -150,7 +150,7 @@ public class BlobServer extends Thread implements BlobService {
 			public ServerSocket createSocket(int port) throws IOException {
 				return new ServerSocket(port, finalBacklog);
 			}
-		}, LOG);
+		});
 
 		if(socketAttempt == null) {
 			throw new IOException("Unable to allocate socket for blob server in specified port range: "+serverPortRange);

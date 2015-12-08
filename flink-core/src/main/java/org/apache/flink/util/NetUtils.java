@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import com.google.common.net.InetAddresses;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -35,6 +36,8 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class NetUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
 	
 	/**
 	 * Turn a fully qualified domain name (fqdn) into a hostname. If the fqdn has multiple subparts
@@ -204,22 +207,21 @@ public class NetUtils {
 	 *
 	 * @param portsSet A set of ports to choose from. The method will remove the ports from the set!
 	 * @param factory A factory for creating the SocketServer
-	 * @param logger Logger instance
 	 * @return null if no port was available or an allocated socket.
 	 */
-	public static ServerSocket createSocketFromPorts(Set<Integer> portsSet, SocketFactory factory, Logger logger) throws IOException {
+	public static ServerSocket createSocketFromPorts(Set<Integer> portsSet, SocketFactory factory) throws IOException {
 		Iterator<Integer> portsIterator = portsSet.iterator();
 		while (portsIterator.hasNext()) {
 			int port = portsIterator.next();
 			portsIterator.remove();
-			logger.debug("Trying to open socket on port {}", port);
+			LOG.debug("Trying to open socket on port {}", port);
 			try {
 				return factory.createSocket(port);
 			} catch (IOException | IllegalArgumentException e) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("Unable to allocate socket on port", e);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Unable to allocate socket on port", e);
 				} else {
-					logger.info("Unable to allocate on port {}, due to error: {}", port, e.getMessage());
+					LOG.info("Unable to allocate on port {}, due to error: {}", port, e.getMessage());
 				}
 			}
 		}
