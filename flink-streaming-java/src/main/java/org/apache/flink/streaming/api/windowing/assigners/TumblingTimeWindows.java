@@ -21,7 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
@@ -83,7 +83,7 @@ public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	 * @param size The size of the generated windows.
 	 * @return The time policy.
 	 */
-	public static TumblingTimeWindows of(AbstractTime size) {
+	public static TumblingTimeWindows of(Time size) {
 		return new TumblingTimeWindows(size.toMilliseconds());
 	}
 

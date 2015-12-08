@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
@@ -99,7 +99,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	 * @param interval The time interval at which to fire.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(AbstractTime interval) {
+	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(Time interval) {
 		return new ContinuousProcessingTimeTrigger<>(interval.toMilliseconds());
 	}
 }
