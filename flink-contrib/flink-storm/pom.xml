@@ -36,6 +36,13 @@ under the License.
 
 	<dependencies>
 		<dependency>
+			<!-- Together with the dependency management section in flink-parent, this
+			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>

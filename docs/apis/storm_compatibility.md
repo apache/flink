@@ -49,6 +49,8 @@ Add the following dependency to your `pom.xml` if you want to execute Storm code
 </dependency>
 ~~~
 
+**Please note**: Do not add `storm-core` as a dependency. It is already included via `flink-storm`.
+
 **Please note**: `flink-storm` is not part of the provided binary Flink distribution.
 Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar that is submitted to Flink's JobManager.
 See *WordCount Storm* within `flink-storm-examples/pom.xml` for an example how to package a jar correctly.
