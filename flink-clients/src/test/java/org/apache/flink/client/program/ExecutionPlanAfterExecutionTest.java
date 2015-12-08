@@ -22,11 +22,12 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
@@ -70,6 +71,34 @@ public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Cannot run both #getExecutionPlan and #execute. Message: "+e.getMessage());
+		}
+	}
+
+	@Test
+	public void testGetExecutionPlanOfRangePartition() {
+		ExecutionEnvironment env = new LocalEnvironment();
+		env.getConfig().disableSysoutLogging();
+
+		DataSet<Integer> baseSet = env.fromElements(1, 2);
+
+		DataSet<Tuple2<Integer, Integer>> result = baseSet
+			.map(new MapFunction<Integer, Tuple2<Integer, Integer>>() {
+				@Override
+				public Tuple2<Integer, Integer> map(Integer value) throws Exception {
+					return new Tuple2(value, value * 2);
+				}
+			})
+			.partitionByRange(0)
+			.aggregate(Aggregations.MAX, 1);
+		result.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+
+		try {
+			env.getExecutionPlan();
+			env.execute();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail("Cannot run both #getExecutionPlan and #execute.");
 		}
 	}
 }
