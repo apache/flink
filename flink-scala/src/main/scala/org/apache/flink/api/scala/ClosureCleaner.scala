@@ -26,8 +26,8 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
 
-import com.esotericsoftware.reflectasm.shaded.org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
-import com.esotericsoftware.reflectasm.shaded.org.objectweb.asm.Opcodes._
+import org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
+import org.objectweb.asm.Opcodes._
 
 /* This code is originally from the Apache Spark project. */
 object ClosureCleaner {
