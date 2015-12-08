@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import com.google.common.collect.Iterators;
 import com.google.common.net.InetAddresses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +32,9 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 public class NetUtils {
@@ -175,45 +177,55 @@ public class NetUtils {
 	}
 
 	/**
-	 * Returns a set of available ports defined by the range definition.
+	 * Returns an iterator over available ports defined by the range definition.
 	 *
 	 * @param rangeDefinition String describing a single port, a range of ports or multiple ranges.
 	 * @return Set of ports from the range definition
 	 * @throws NumberFormatException If an invalid string is passed.
 	 */
-	public static Set<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
-		Set<Integer> finalSet = new HashSet<>();
+
+	public static Iterator<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
 		final String[] ranges = rangeDefinition.trim().split(",");
+		List<Iterator<Integer>> iterators = new ArrayList<>(ranges.length);
 		for(String rawRange: ranges) {
+			Iterator<Integer> rangeIterator = null;
 			String range = rawRange.trim();
 			int dashIdx = range.indexOf('-');
 			if (dashIdx == -1) {
 				// only one port in range:
-				finalSet.add(Integer.valueOf(range));
+				rangeIterator = Iterators.singletonIterator(Integer.valueOf(range));
 			} else {
 				// evaluate range
-				int start = Integer.valueOf(range.substring(0, dashIdx));
-				int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
-				for(int i = start; i <= end; i++) {
-					finalSet.add(i);
-				}
+				final int start = Integer.valueOf(range.substring(0, dashIdx));
+				final int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
+				rangeIterator = new Iterator<Integer>() {
+					int i = start;
+					@Override
+					public boolean hasNext() {
+						return i <= end;
+					}
+
+					@Override
+					public Integer next() {
+						return i++;
+					}
+				};
 			}
+			iterators.add(rangeIterator);
 		}
-		return finalSet;
+		return Iterators.concat(iterators.iterator());
 	}
 
 	/**
 	 * Tries to allocate a socket from the given sets of ports.
 	 *
-	 * @param portsSet A set of ports to choose from. The method will remove the ports from the set!
+	 * @param portsIterator A set of ports to choose from.
 	 * @param factory A factory for creating the SocketServer
 	 * @return null if no port was available or an allocated socket.
 	 */
-	public static ServerSocket createSocketFromPorts(Set<Integer> portsSet, SocketFactory factory) throws IOException {
-		Iterator<Integer> portsIterator = portsSet.iterator();
+	public static ServerSocket createSocketFromPorts(Iterator<Integer> portsIterator, SocketFactory factory) throws IOException {
 		while (portsIterator.hasNext()) {
 			int port = portsIterator.next();
-			portsIterator.remove();
 			LOG.debug("Trying to open socket on port {}", port);
 			try {
 				return factory.createSocket(port);

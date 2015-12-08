@@ -34,6 +34,7 @@ import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -142,7 +143,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		String serverPortRange = config.getString(ConfigConstants.BLOB_SERVER_PORT, ConfigConstants.DEFAULT_BLOB_SERVER_PORT);
 
-		Set<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
+		Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 
 		final int finalBacklog = backlog;
 		ServerSocket socketAttempt = NetUtils.createSocketFromPorts(ports, new NetUtils.SocketFactory() {

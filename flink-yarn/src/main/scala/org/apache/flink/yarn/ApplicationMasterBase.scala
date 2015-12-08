@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn
 
-import java.io.{IOException, FileWriter, BufferedWriter, PrintWriter}
+import java.io.{FileWriter, BufferedWriter, PrintWriter}
 import java.net.{BindException, ServerSocket}
 import java.security.PrivilegedAction
 
@@ -131,12 +131,12 @@ abstract class ApplicationMasterBase {
       // if the actor system fails to start on the port, we try further
       val amPortRange: String = config.getString(ConfigConstants.YARN_APPLICATION_MASTER_PORT,
         ConfigConstants.DEFAULT_YARN_APPLICATION_MASTER_PORT)
-      val portsSet = NetUtils.getPortRangeFromString(amPortRange)
+      val portsIterator = NetUtils.getPortRangeFromString(amPortRange)
 
       // method to start the actor system.
-      def startActorSystem(portsSet: java.util.Set[Integer]): // return type -> next line
+      def startActorSystem(portsIterator: java.util.Iterator[Integer]): // return type -> next line
         (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
-        val availableSocket = NetUtils.createSocketFromPorts(portsSet, new NetUtils.SocketFactory {
+        val availableSocket = NetUtils.createSocketFromPorts(portsIterator, new NetUtils.SocketFactory {
           override def createSocket(port: Int): ServerSocket = new ServerSocket(port)})
 
         // get port as integer and close socket
@@ -162,23 +162,29 @@ abstract class ApplicationMasterBase {
 
       @tailrec
       def retry[T](fn: => T, stopCond: => Boolean): Try[T] = {
-        if(stopCond) {
-          Failure(new RuntimeException("Unable to start actor system after retrying."))
-        } else {
-          Try {
-            fn
-          } match {
-            case Failure(x: BindException) => retry(fn, stopCond)
-            case Failure(x: Exception) => x.getCause match {
-              case c: ChannelException => retry(fn, stopCond)
-              case f => Failure(f)
+        Try {
+          fn
+        } match {
+          case Failure(x: BindException) =>
+            if (stopCond) {
+              Failure(new RuntimeException("Unable to do further retries starting the actor system"))
+            } else {
+              retry(fn, stopCond)
             }
-            case f => f
+          case Failure(x: Exception) => x.getCause match {
+            case c: ChannelException =>
+              if (stopCond) {
+                Failure(new RuntimeException("Unable to do further retries starting the actor system"))
+              } else {
+                retry(fn, stopCond)
+              }
+            case _ => Failure(x)
           }
+          case f => f
         }
       }
 
-      val result = retry(startActorSystem(portsSet), {portsSet.size <= 0})
+      val result = retry(startActorSystem(portsIterator), {portsIterator.hasNext})
       if(result.isFailure) {
         throw new RuntimeException("Unable to start actor system", result.failed.get)
       }
