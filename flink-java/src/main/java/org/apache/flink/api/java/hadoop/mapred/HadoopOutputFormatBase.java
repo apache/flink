@@ -58,15 +58,15 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 	// Hadoop parallelizes tasks across JVMs which is why they might rely on this JVM isolation.
 	// In contrast, Flink parallelizes using Threads, so multiple Hadoop OutputFormat instances
 	// might be used in the same JVM.
-	private static final Object OPEN_MUTEX = new Object();
-	private static final Object CONFIGURE_MUTEX = new Object();
-	private static final Object CLOSE_MUTEX = new Object();
+	protected static final Object OPEN_MUTEX = new Object();
+	protected static final Object CONFIGURE_MUTEX = new Object();
+	protected static final Object CLOSE_MUTEX = new Object();
 
-	private JobConf jobConf;
-	private org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;
+	protected JobConf jobConf;
+	protected org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;
 	protected transient RecordWriter<K,V> recordWriter;
-	private transient OutputCommitter outputCommitter;
-	private transient TaskAttemptContext context;
+	protected transient OutputCommitter outputCommitter;
+	protected transient TaskAttemptContext context;
 
 	public HadoopOutputFormatBase(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, JobConf job) {
 		super(job.getCredentials());
