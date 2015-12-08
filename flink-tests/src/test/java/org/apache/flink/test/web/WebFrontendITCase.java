@@ -22,22 +22,35 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
-import org.apache.commons.io.FileUtils;
-
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.runtime.webmonitor.files.MimeTypes;
+import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 
+import org.codehaus.jettison.json.JSONArray;
+import org.codehaus.jettison.json.JSONObject;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
+import io.netty.handler.codec.http.HttpResponseStatus;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -158,4 +171,76 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			fail(e.getMessage());
 		}
 	}
+
+	@Test(timeout = 5000)
+	public void testStop() throws Exception {
+		// Create a task
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(2);
+		sender.setInvokableClass(StoppableInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", JobType.STREAMING, sender);
+		final JobID jid = jobGraph.getJobID();
+
+		cluster.submitJobDetached(jobGraph);
+
+		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+		final Deadline deadline = testTimeout.fromNow();
+
+		try (HttpTestClient client = new HttpTestClient("localhost", port)) {
+			// Request the file from the web server
+			client.sendDeleteRequest("/jobs/" + jid + "/stop", deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+
+			assertEquals(HttpResponseStatus.OK, response.getStatus());
+			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+			assertEquals("{}", response.getContent());
+		}
+
+		waitForTaskManagers();
+	}
+
+	@Test(timeout = 5000)
+	public void testStopYarn() throws Exception {
+		// Create a task
+		final JobVertex sender = new JobVertex("Sender");
+		sender.setParallelism(2);
+		sender.setInvokableClass(StoppableInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", JobType.STREAMING,
+				sender);
+		final JobID jid = jobGraph.getJobID();
+
+		cluster.submitJobDetached(jobGraph);
+
+		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
+		final Deadline deadline = testTimeout.fromNow();
+
+		try (HttpTestClient client = new HttpTestClient("localhost", port)) {
+			// Request the file from the web server
+			client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
+
+			HttpTestClient.SimpleHttpResponse response = client
+					.getNextResponse(deadline.timeLeft());
+
+			assertEquals(HttpResponseStatus.OK, response.getStatus());
+			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+			assertEquals("{}", response.getContent());
+		}
+
+		waitForTaskManagers();
+	}
+
+	private void waitForTaskManagers() throws Exception {
+		int count = 0;
+
+		while (count != 4) {
+			String json = getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+			JSONObject parsed = new JSONObject(json);
+			JSONArray taskManagers = parsed.getJSONArray("taskmanagers");
+			JSONObject taskManager = taskManagers.getJSONObject(0);
+			count = taskManager.getInt("freeSlots");
+		}
+	}
+
 }

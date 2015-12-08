@@ -458,9 +458,10 @@ public class TimestampITCase {
 			}
 
 			@Override
-			public void cancel() {
+			public void cancel() {}
 
-			}
+			@Override
+			public void stop() {}
 		});
 
 		source1.assignTimestamps(new TimestampExtractor<Integer>() {

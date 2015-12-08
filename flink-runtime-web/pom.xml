@@ -44,6 +44,20 @@ under the License.
 				</includes>
 			</resource>
 		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<inherited>true</inherited>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
 	</build>
 
 	<dependencies>

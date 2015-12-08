@@ -248,10 +248,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.DELETE("/jobs/:jobid/cancel", handler(new JobCancellationHandler()))
 
 			// stop a job via GET (for proper integration with YARN this has to be performed via GET)
-			.GET("/jobs/:jobid/yarn-stop", handler(new JobCancellationHandler()))
+			.GET("/jobs/:jobid/yarn-stop", handler(new JobStoppingHandler()))
 
 			// DELETE is the preferred way of stopping a job (Rest-conform)
-			.DELETE("/jobs/:jobid/stop", handler(new JobStoppingHandler()))
+			.DELETE("/jobs/:jobid/stop", handler(new JobStoppingHandler()));
 
 		if (webSubmitAllow) {
 			router

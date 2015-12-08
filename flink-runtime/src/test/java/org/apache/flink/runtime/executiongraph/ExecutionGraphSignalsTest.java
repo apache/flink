@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -213,8 +214,8 @@ public class ExecutionGraphSignalsTest {
 	}
 
 	// STOP only supported for streaming job -- used ExecutionGraph has JobType.BATCHING
-	@Test(expected = RuntimeException.class)
-	public void testStopBatching() throws Exception {
+	@Test(expected = StoppingException.class)
+	public void testStopBatching() throws StoppingException {
 		eg.stop();
 	}
 

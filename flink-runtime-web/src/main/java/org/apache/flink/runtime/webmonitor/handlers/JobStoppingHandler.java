@@ -25,23 +25,22 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
-public class JobStoppingHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JobStoppingHandler implements RequestHandler {
 
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
-			JobID jobid = new JobID(StringUtils.hexStringToByte(params.get("jobid")));
+			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
 			if (jobManager != null) {
 				jobManager.tell(new JobManagerMessages.StopJob(jobid));
-				return "";
+				return "{}";
 			}
 			else {
 				throw new Exception("No connection to the leading JobManager.");
 			}
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Failed to stop the job with id: " + params.get("jobid")
-					+ e.getMessage(), e);
+			throw new Exception("Failed to stop the job with id: "  + pathParams.get("jobid") + e.getMessage(), e);
 		}
 	}
 }

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -831,7 +832,7 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void stop() {
+	public void stop() throws StoppingException {
 		if(jobType == JobType.STREAMING) {
 			for(ExecutionVertex ev : this.getAllExecutionVertices()) {
 				if(ev.getNumberOfInputs() == 0) { // send signal to sources only
@@ -839,7 +840,7 @@ public class ExecutionGraph implements Serializable {
 				}
 			}
 		} else {
-			throw new RuntimeException("STOP is only supported by streaming jobs.");
+			throw new StoppingException("STOP is only supported by streaming jobs.");
 		}
 	}
 

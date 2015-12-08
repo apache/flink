@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import java.util.concurrent.TimeUnit;
 
 public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent> {
+	private static final long serialVersionUID = -2482010967283745886L;
 
 	/** Hostname of the server to connect to. */
 	public static final String DEFAULT_HOST = "irc.wikimedia.org";
@@ -87,7 +88,7 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 	}
 
 	@Override
-	public void run(SourceContext ctx) throws Exception {
+	public void run(SourceContext<WikipediaEditEvent> ctx) throws Exception {
 		while (isRunning) {
 			// Query for the next edit event
 			WikipediaEditEvent edit = ircStream.getEdits()
@@ -101,6 +102,11 @@ public class WikipediaEditsSource extends RichSourceFunction<WikipediaEditEvent>
 
 	@Override
 	public void cancel() {
+		isRunning = false;
+	}
+
+	@Override
+	public void stop() {
 		isRunning = false;
 	}
 }

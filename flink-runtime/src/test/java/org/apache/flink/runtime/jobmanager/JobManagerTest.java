@@ -23,7 +23,6 @@ import akka.testkit.JavaTestKit;
 
 import com.typesafe.config.Config;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
@@ -41,8 +40,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.tasks.Stoppable;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
@@ -57,8 +54,8 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Execution
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunningOrFinished;
-
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.StoppableInvokable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -250,7 +247,7 @@ public class JobManagerTest {
 				sender.setParallelism(2);
 				sender.setInvokableClass(StoppableInvokable.class);
 
-				final JobGraph jobGraph = new JobGraph("Blocking test job", JobType.STREAMING, sender);
+				final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", JobType.STREAMING, sender);
 				final JobID jid = jobGraph.getJobID();
 
 				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
@@ -298,7 +295,7 @@ public class JobManagerTest {
 				sender.setParallelism(1);
 				sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
 
-				final JobGraph jobGraph = new JobGraph("Blocking test job", JobType.BATCHING, sender);
+				final JobGraph jobGraph = new JobGraph("Non-Stoppable batching test job", JobType.BATCHING, sender);
 				final JobID jid = jobGraph.getJobID();
 
 				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
@@ -332,25 +329,6 @@ public class JobManagerTest {
 				}
 			}
 		}};
-	}
-
-	public static final class StoppableInvokable extends AbstractInvokable implements Stoppable {
-		private boolean isRunning = true;
-
-		@Override
-		public void registerInputOutput() {}
-
-		@Override
-		public void invoke() throws Exception {
-			while(this.isRunning) {
-				Thread.sleep(100);
-			}
-		}
-
-		@Override
-		public void stop() {
-			this.isRunning = false;
-		}
 	}
 
 }

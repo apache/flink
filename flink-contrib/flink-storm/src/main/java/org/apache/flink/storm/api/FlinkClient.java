@@ -208,7 +208,7 @@ public class FlinkClient {
 		final Client client;
 		try {
 			client = new Client(configuration);
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
@@ -253,7 +253,7 @@ public class FlinkClient {
 		}
 
 		try {
-			client.cancel(jobId);
+			client.stop(jobId);
 		} catch (final Exception e) {
 			throw new RuntimeException("Cannot stop job.", e);
 		}
@@ -282,7 +282,7 @@ public class FlinkClient {
 			final Future<Object> response = Patterns.ask(jobManager, JobManagerMessages.getRequestRunningJobsStatus(),
 					new Timeout(askTimeout));
 
-			Object result;
+			final Object result;
 			try {
 				result = Await.result(response, askTimeout);
 			} catch (final Exception e) {

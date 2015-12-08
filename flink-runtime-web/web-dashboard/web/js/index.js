@@ -480,16 +480,14 @@ angular.module('flinkApp').controller('RunningJobsController', ["$scope", "$stat
       return {};
     });
   };
-
-  return $scope.stopJob = function(stopEvent) {
+  $scope.stopJob = function(stopEvent) {
     angular.element(stopEvent.currentTarget).removeClass("btn").removeClass("btn-default").html('Stopping...');
     return JobsService.stopJob($stateParams.jobid).then(function(data) {
       return {};
     });
-
+  };
   return $scope.toggleHistory = function() {
     return $scope.showHistory = !$scope.showHistory;
-
   };
 }]).controller('JobPlanController', ["$scope", "$state", "$stateParams", "JobsService", function($scope, $state, $stateParams, JobsService) {
   console.log('JobPlanController');

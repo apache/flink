@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 import java.lang.reflect.Field;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -49,12 +50,15 @@ public class TaskStopTest {
 	private Task task;
 
 	public void doMocking(AbstractInvokable taskMock) throws Exception {
+
+		TaskInfo taskInfoMock = mock(TaskInfo.class);
+		when(taskInfoMock.getTaskNameWithSubtasks()).thenReturn("dummyName");
+
 		TaskDeploymentDescriptor tddMock = mock(TaskDeploymentDescriptor.class);
-		when(tddMock.getNumberOfSubtasks()).thenReturn(1);
+		when(tddMock.getTaskInfo()).thenReturn(taskInfoMock);
 		when(tddMock.getJobID()).thenReturn(mock(JobID.class));
 		when(tddMock.getVertexID()).thenReturn(mock(JobVertexID.class));
 		when(tddMock.getExecutionId()).thenReturn(mock(ExecutionAttemptID.class));
-		when(tddMock.getTaskName()).thenReturn("taskName");
 		when(tddMock.getJobConfiguration()).thenReturn(mock(Configuration.class));
 		when(tddMock.getTaskConfiguration()).thenReturn(mock(Configuration.class));
 		when(tddMock.getInvokableClassName()).thenReturn("className");
