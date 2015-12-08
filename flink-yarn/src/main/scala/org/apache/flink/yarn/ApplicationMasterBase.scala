@@ -136,8 +136,10 @@ abstract class ApplicationMasterBase {
       // method to start the actor system.
       def startActorSystem(portsIterator: java.util.Iterator[Integer]): // return type -> next line
         (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
-        val availableSocket = NetUtils.createSocketFromPorts(portsIterator, new NetUtils.SocketFactory {
-          override def createSocket(port: Int): ServerSocket = new ServerSocket(port)})
+        val availableSocket = NetUtils.createSocketFromPorts(portsIterator,
+          new NetUtils.SocketFactory {
+            override def createSocket(port: Int): ServerSocket = new ServerSocket(port)
+          })
 
         // get port as integer and close socket
        val tryPort = if (availableSocket == null) {
@@ -167,14 +169,16 @@ abstract class ApplicationMasterBase {
         } match {
           case Failure(x: BindException) =>
             if (stopCond) {
-              Failure(new RuntimeException("Unable to do further retries starting the actor system"))
+              Failure(new RuntimeException("Unable to do further retries starting the actor " +
+                "system"))
             } else {
               retry(fn, stopCond)
             }
           case Failure(x: Exception) => x.getCause match {
             case c: ChannelException =>
               if (stopCond) {
-                Failure(new RuntimeException("Unable to do further retries starting the actor system"))
+                Failure(new RuntimeException("Unable to do further retries starting the actor " +
+                  "system"))
               } else {
                 retry(fn, stopCond)
               }

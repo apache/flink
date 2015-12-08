@@ -208,6 +208,11 @@ public class NetUtils {
 					public Integer next() {
 						return i++;
 					}
+
+					@Override
+					public void remove() {
+						throw new UnsupportedOperationException("Remove not supported");
+					}
 				};
 			}
 			iterators.add(rangeIterator);
