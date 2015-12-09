@@ -18,6 +18,7 @@
 package org.apache.flink.optimizer.traversals;
 
 import org.apache.flink.api.common.distributions.CommonRangeBoundaries;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -66,8 +67,9 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 	final static String SIP_NAME = "RangePartition: LocalSample";
 	final static String SIC_NAME = "RangePartition: GlobalSample";
 	final static String RB_NAME = "RangePartition: Histogram";
-	final static String ARI_NAME = "RangePartition: Partition";
+	final static String ARI_NAME = "RangePartition: PreparePartition";
 	final static String PR_NAME = "RangePartition: Partition";
+	final static IDPartitioner idPartitioner = new IDPartitioner();
 
 	final OptimizedPlan plan;
 
@@ -109,11 +111,12 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final TypeInformation<?> sourceOutputType = sourceNode.getOptimizerNode().getOperator().getOperatorInfo().getOutputType();
 		final TypeInformation<IntermediateSampleData> isdTypeInformation = TypeExtractor.getForClass(IntermediateSampleData.class);
 		final UnaryOperatorInformation sipOperatorInformation = new UnaryOperatorInformation(sourceOutputType, isdTypeInformation);
-		final MapPartitionOperatorBase sipOperatorBase = new MapPartitionOperatorBase(sampleInPartition, sipOperatorInformation, "Sample in partitions");
+		final MapPartitionOperatorBase sipOperatorBase = new MapPartitionOperatorBase(sampleInPartition, sipOperatorInformation, SIP_NAME);
 		final MapPartitionNode sipNode = new MapPartitionNode(sipOperatorBase);
 		final Channel sipChannel = new Channel(sourceNode, TempMode.NONE);
 		sipChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 		final SingleInputPlanNode sipPlanNode = new SingleInputPlanNode(sipNode, SIP_NAME, sipChannel, DriverStrategy.MAP_PARTITION);
+		sipNode.setParallelism(sourceParallelism);
 		sipPlanNode.setParallelism(sourceParallelism);
 		sipPlanNode.initProperties(new GlobalProperties(), new LocalProperties());
 		sipPlanNode.setCosts(defaultZeroCosts);
@@ -124,11 +127,12 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		// 2. Fixed size sample in a single coordinator.
 		final SampleInCoordinator sampleInCoordinator = new SampleInCoordinator(false, sampleSize, SEED);
 		final UnaryOperatorInformation sicOperatorInformation = new UnaryOperatorInformation(isdTypeInformation, sourceOutputType);
-		final GroupReduceOperatorBase sicOperatorBase = new GroupReduceOperatorBase(sampleInCoordinator, sicOperatorInformation, "Sample in coordinator");
+		final GroupReduceOperatorBase sicOperatorBase = new GroupReduceOperatorBase(sampleInCoordinator, sicOperatorInformation, SIC_NAME);
 		final GroupReduceNode sicNode = new GroupReduceNode(sicOperatorBase);
 		final Channel sicChannel = new Channel(sipPlanNode, TempMode.NONE);
 		sicChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 		final SingleInputPlanNode sicPlanNode = new SingleInputPlanNode(sicNode, SIC_NAME, sicChannel, DriverStrategy.ALL_GROUP_REDUCE);
+		sicNode.setParallelism(1);
 		sicPlanNode.setParallelism(1);
 		sicPlanNode.initProperties(new GlobalProperties(), new LocalProperties());
 		sicPlanNode.setCosts(defaultZeroCosts);
@@ -140,11 +144,12 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final RangeBoundaryBuilder rangeBoundaryBuilder = new RangeBoundaryBuilder(comparator, targetParallelism);
 		final TypeInformation<CommonRangeBoundaries> rbTypeInformation = TypeExtractor.getForClass(CommonRangeBoundaries.class);
 		final UnaryOperatorInformation rbOperatorInformation = new UnaryOperatorInformation(sourceOutputType, rbTypeInformation);
-		final MapPartitionOperatorBase rbOperatorBase = new MapPartitionOperatorBase(rangeBoundaryBuilder, rbOperatorInformation, "RangeBoundaryBuilder");
+		final MapPartitionOperatorBase rbOperatorBase = new MapPartitionOperatorBase(rangeBoundaryBuilder, rbOperatorInformation, RB_NAME);
 		final MapPartitionNode rbNode = new MapPartitionNode(rbOperatorBase);
 		final Channel rbChannel = new Channel(sicPlanNode, TempMode.NONE);
 		rbChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 		final SingleInputPlanNode rbPlanNode = new SingleInputPlanNode(rbNode, RB_NAME, rbChannel, DriverStrategy.MAP_PARTITION);
+		rbNode.setParallelism(1);
 		rbPlanNode.setParallelism(1);
 		rbPlanNode.initProperties(new GlobalProperties(), new LocalProperties());
 		rbPlanNode.setCosts(defaultZeroCosts);
@@ -156,12 +161,13 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		final AssignRangeIndex assignRangeIndex = new AssignRangeIndex(comparator);
 		final TypeInformation<Tuple2> ariOutputTypeInformation = new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, sourceOutputType);
 		final UnaryOperatorInformation ariOperatorInformation = new UnaryOperatorInformation(sourceOutputType, ariOutputTypeInformation);
-		final MapPartitionOperatorBase ariOperatorBase = new MapPartitionOperatorBase(assignRangeIndex, ariOperatorInformation, "Assign Range Index");
+		final MapPartitionOperatorBase ariOperatorBase = new MapPartitionOperatorBase(assignRangeIndex, ariOperatorInformation, ARI_NAME);
 		final MapPartitionNode ariNode = new MapPartitionNode(ariOperatorBase);
 		final Channel ariChannel = new Channel(sourceNode, TempMode.NONE);
 		// To avoid deadlock, set the DataExchangeMode of channel between source node and this to Batch.
 		ariChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.BATCH);
 		final SingleInputPlanNode ariPlanNode = new SingleInputPlanNode(ariNode, ARI_NAME, ariChannel, DriverStrategy.MAP_PARTITION);
+		ariNode.setParallelism(sourceParallelism);
 		ariPlanNode.setParallelism(sourceParallelism);
 		ariPlanNode.initProperties(new GlobalProperties(), new LocalProperties());
 		ariPlanNode.setCosts(defaultZeroCosts);
@@ -179,16 +185,16 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		// 5. Remove the partition id.
 		final Channel partChannel = new Channel(ariPlanNode, TempMode.NONE);
 		final FieldList keys = new FieldList(0);
-		final boolean[] sortDirection = { true };
-		partChannel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, keys, sortDirection, null, DataExchangeMode.PIPELINED);
+		partChannel.setShipStrategy(ShipStrategyType.PARTITION_CUSTOM, keys, idPartitioner, DataExchangeMode.PIPELINED);
 		ariPlanNode.addOutgoingChannel(partChannel);
 
 		final PartitionIDRemoveWrapper partitionIDRemoveWrapper = new PartitionIDRemoveWrapper();
 		final UnaryOperatorInformation prOperatorInformation = new UnaryOperatorInformation(ariOutputTypeInformation, sourceOutputType);
-		final MapOperatorBase prOperatorBase = new MapOperatorBase(partitionIDRemoveWrapper, prOperatorInformation, "PartitionID Remover");
+		final MapOperatorBase prOperatorBase = new MapOperatorBase(partitionIDRemoveWrapper, prOperatorInformation, PR_NAME);
 		final MapNode prRemoverNode = new MapNode(prOperatorBase);
 		final SingleInputPlanNode prPlanNode = new SingleInputPlanNode(prRemoverNode, PR_NAME, partChannel, DriverStrategy.MAP);
 		partChannel.setTarget(prPlanNode);
+		prRemoverNode.setParallelism(targetParallelism);
 		prPlanNode.setParallelism(targetParallelism);
 		GlobalProperties globalProperties = new GlobalProperties();
 		globalProperties.setRangePartitioned(new Ordering(0, null, Order.ASCENDING));
@@ -207,5 +213,13 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 
 	private boolean isOptimized(PlanNode node) {
 		return node.getNodeName() != PR_NAME;
+	}
+
+	static class IDPartitioner implements Partitioner<Integer> {
+
+		@Override
+		public int partition(Integer key, int numPartitions) {
+			return key;
+		}
 	}
 }

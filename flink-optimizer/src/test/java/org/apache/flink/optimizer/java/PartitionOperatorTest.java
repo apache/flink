@@ -100,7 +100,7 @@ public class PartitionOperatorTest extends CompilerTestBase {
 
 			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, partitionNode.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionIDRemover.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitionIDRemover.getInput().getShipStrategy());
 
 			SourcePlanNode sourcePlanNode = op.getDataSources().iterator().next();
 			List<Channel> sourceOutgoingChannels = sourcePlanNode.getOutgoingChannels();
@@ -165,7 +165,7 @@ public class PartitionOperatorTest extends CompilerTestBase {
 
 			assertEquals(ShipStrategyType.FORWARD, reducer.getInput().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, partitionNode.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_RANGE, partitionIDRemover.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitionIDRemover.getInput().getShipStrategy());
 
 			SourcePlanNode sourcePlanNode = op.getDataSources().iterator().next();
 			List<Channel> sourceOutgoingChannels = sourcePlanNode.getOutgoingChannels();

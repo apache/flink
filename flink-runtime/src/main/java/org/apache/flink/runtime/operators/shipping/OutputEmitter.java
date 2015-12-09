@@ -105,18 +105,17 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		case PARTITION_HASH:
 		case PARTITION_RANDOM:
 		case PARTITION_FORCED_REBALANCE:
+			channels = new int[1];
+			break;
 		case PARTITION_RANGE:
 			channels = new int[1];
 			if (comparator != null) {
 				this.flatComparators = comparator.getFlatComparators();
 				this.keys = new Object[flatComparators.length];
 			}
-			if (this.distribution == null) {
-				this.distribution = new PartitionIDDistribution();
-			}
 			break;
 		case BROADCAST:
-		  break;
+			break;
 		default:
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
 		}
