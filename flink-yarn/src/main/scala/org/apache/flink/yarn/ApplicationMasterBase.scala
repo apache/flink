@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory
 
 import scala.annotation.tailrec
 import scala.io.Source
-import scala.util.{Failure, Try}
+import scala.util.{Success, Failure, Try}
 
 /** Base class for all application masters. This base class provides functionality to start a
   * [[JobManager]] implementation in a Yarn container.
@@ -134,9 +134,11 @@ abstract class ApplicationMasterBase {
       val portsIterator = NetUtils.getPortRangeFromString(amPortRange)
 
       // method to start the actor system.
-      def startActorSystem(portsIterator: java.util.Iterator[Integer]): // return type -> next line
-        (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
-        val availableSocket = NetUtils.createSocketFromPorts(portsIterator,
+      def startActorSystem(
+          portsIterator: java.util.Iterator[Integer])
+        : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
+        val availableSocket = NetUtils.createSocketFromPorts(
+          portsIterator,
           new NetUtils.SocketFactory {
             override def createSocket(port: Int): ServerSocket = new ServerSocket(port)
           })
@@ -188,12 +190,13 @@ abstract class ApplicationMasterBase {
         }
       }
 
-      val result = retry(startActorSystem(portsIterator), {portsIterator.hasNext})
-      if(result.isFailure) {
-        throw new RuntimeException("Unable to start actor system", result.failed.get)
-      }
       // try starting the actor system
-      val (actorSystem, jmActor, archiveActor, webMonitor) = result.get
+      val result = retry(startActorSystem(portsIterator), {portsIterator.hasNext})
+
+      val (actorSystem, jmActor, archiveActor, webMonitor) = result match {
+        case Success(r) => r
+        case Failure(failure) => throw new RuntimeException("Unable to start actor system", failure)
+      }
 
       webMonitorOption = webMonitor
 
