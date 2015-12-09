@@ -119,6 +119,7 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 			response = new DefaultFullHttpResponse(
 					HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
 
+			response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, contentType);
 		}
 		catch (NotFoundException e) {
