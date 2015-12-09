@@ -36,7 +36,7 @@ with format `key: value`.
 The system and run scripts parse the config at startup time. Changes to the configuration
 file require restarting the Flink JobManager and TaskManagers.
 
-The configuration files for the TaskManagers can be different, Flink does not assume 
+The configuration files for the TaskManagers can be different, Flink does not assume
 uniform machines in the cluster.
 
 
@@ -66,9 +66,9 @@ contrast to Hadoop, Flink runs operators (e.g., join, aggregate) and
 user-defined functions (e.g., Map, Reduce, CoGroup) inside the TaskManager
 (including sorting/hashing/caching), so this value should be as
 large as possible. If the cluster is exclusively running Flink,
-the total amount of available memory per machine minus some memory for the 
+the total amount of available memory per machine minus some memory for the
 operating system (maybe 1-2 GB) is a good value.
-On YARN setups, this value is automatically configured to the size of 
+On YARN setups, this value is automatically configured to the size of
 the TaskManager's YARN container, minus a certain tolerance value.
 
 - `taskmanager.numberOfTaskSlots`: The number of parallel operator or
@@ -142,8 +142,11 @@ results outside of the JVM heap. For setups with larger quantities of memory,
 this can improve the efficiency of the operations performed on the memory
 (DEFAULT: false).
 
-- `taskmanager.memory.segment-size`: The size of memory buffers used by the 
+- `taskmanager.memory.segment-size`: The size of memory buffers used by the
 memory manager and the network stack in bytes (DEFAULT: 32768 (= 32 KiBytes)).
+
+- `taskmanager.memory.preallocate`: Can be either of `true` or `false`. Specifies whether task
+managers should allocate all managed memory when starting up. (DEFAULT: false)
 
 
 ### Kerberos
@@ -203,18 +206,18 @@ available, increase this value (DEFAULT: 2048).
 
 - `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts
 and Flink's YARN client.
-This can be used to set different garbage collectors or to include remote debuggers into 
+This can be used to set different garbage collectors or to include remote debuggers into
 the JVMs running Flink's services.
 
-- `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled. 
-  
-  Supported backends: 
-  
+- `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled.
+
+  Supported backends:
+
    -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
    -  `filesystem`: State is in-memory on the TaskManagers, and state snapshots are stored in a file system. Supported are all filesystems supported by Flink, for example HDFS, S3, ...
 
 - `state.backend.fs.checkpointdir`: Directory for storing checkpoints in a flink supported filesystem
-Note: State backend must be accessible from the JobManager, use file:// only for local setups. 
+Note: State backend must be accessible from the JobManager, use file:// only for local setups.
 
 - `blob.storage.directory`: Directory for storing blobs (such as user jar's) on the TaskManagers.
 
@@ -235,7 +238,7 @@ specify that value on the execution environment. Default value is zero.
 ### HDFS
 
 These parameters configure the default HDFS used by Flink. Setups that do not
-specify a HDFS configuration have to specify the full path to 
+specify a HDFS configuration have to specify the full path to
 HDFS files (`hdfs://address:port/path/to/files`) Files will also be written
 with default HDFS parameters (block size, replication factor).
 
@@ -409,10 +412,10 @@ to set the JM host:port manually. It is recommended to leave this option at 1.
 
 - `yarn.heartbeat-delay` (Default: 5 seconds). Time between heartbeats with the ResourceManager.
 
-- `yarn.properties-file.location` (Default: temp directory). When a Flink job is submitted to YARN, 
-the JobManager's host and the number of available processing slots is written into a properties file, 
-so that the Flink client is able to pick those details up. This configuration parameter allows 
-changing the default location of that file (for example for environments sharing a Flink 
+- `yarn.properties-file.location` (Default: temp directory). When a Flink job is submitted to YARN,
+the JobManager's host and the number of available processing slots is written into a properties file,
+so that the Flink client is able to pick those details up. This configuration parameter allows
+changing the default location of that file (for example for environments sharing a Flink
 installation between users)
 
 - `yarn.application-master.env.`*ENV_VAR1=value* Configuration values prefixed with `yarn.application-master.env.`
@@ -436,7 +439,7 @@ In order to use the 'zookeeper' mode, it is mandatory to also define the `recove
 
 - `recovery.zookeeper.quorum`: Defines the ZooKeeper quorum URL which is used to connet to the ZooKeeper cluster when the 'zookeeper' recovery mode is selected
 
-- `recovery.zookeeper.path.root`: (Default '/flink') Defines the root dir under which the ZooKeeper recovery mode will create znodes. 
+- `recovery.zookeeper.path.root`: (Default '/flink') Defines the root dir under which the ZooKeeper recovery mode will create znodes.
 
 - `recovery.zookeeper.path.latch`: (Default '/leaderlatch') Defines the znode of the leader latch which is used to elect the leader.
 
@@ -512,12 +515,12 @@ Flink executes a program in parallel by splitting it into subtasks and schedulin
 
 Each Flink TaskManager provides processing slots in the cluster. The number of slots
 is typically proportional to the number of available CPU cores __of each__ TaskManager.
-As a general recommendation, the number of available CPU cores is a good default for 
+As a general recommendation, the number of available CPU cores is a good default for
 `taskmanager.numberOfTaskSlots`.
 
 When starting a Flink application, users can supply the default number of slots to use for that job.
 The command line value therefore is called `-p` (for parallelism). In addition, it is possible
-to [set the number of slots in the programming APIs]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for 
+to [set the number of slots in the programming APIs]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for
 the whole application and individual operators.
 
 <img src="fig/slots_parallelism.svg" class="img-responsive" />

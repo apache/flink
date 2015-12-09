@@ -53,7 +53,7 @@ Download the ready to run binary package. Choose the Flink distribution that __m
 
 
 ## Start
-  
+
 1. Go to the download directory.
 2. Unpack the downloaded archive.
 3. Start Flink.
@@ -69,9 +69,6 @@ $ bin/start-local.sh    # Start Flink
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make
 sure everything is up and running.
 
-Instead of starting Flink with `bin/start-local.sh` you can also start Flink in an streaming optimized
-mode, using `bin/start-local-streaming.sh`.
-
 ## Run Example
 
 Run the __Word Count example__ to see Flink at work.
@@ -80,20 +77,20 @@ Run the __Word Count example__ to see Flink at work.
 
   ~~~bash
   $ wget -O hamlet.txt http://www.gutenberg.org/cache/epub/1787/pg1787.txt
-  ~~~ 
+  ~~~
 
 * You now have a text file called _hamlet.txt_ in your working directory.
 * __Start the example program__:
-  
+
   ~~~bash
   $ bin/flink run ./examples/WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
   ~~~
 
 * You will find a file called __wordcount-result.txt__ in your current directory.
-  
+
 
 ## Cluster Setup
-  
+
 __Running Flink on a cluster__ is as easy as running it locally. Having __passwordless SSH__ and
 __the same directory structure__ on all your cluster nodes lets you use our scripts to control
 everything.
@@ -106,9 +103,7 @@ on each node of your setup.
 3. Add the IPs or hostnames (one per line) of all __worker nodes__ (TaskManager) to the slaves files
 in `conf/slaves`.
 
-You can now __start the cluster__ at your master node with `bin/start-cluster.sh`. If you are planning
-to run only streaming jobs with Flink, you can also an optimized streaming mode: `start-cluster-streaming.sh`.
-
+You can now __start the cluster__ at your master node with `bin/start-cluster.sh`.
 
 The following __example__ illustrates the setup with three nodes (with IP addresses from _10.0.0.1_
 to _10.0.0.3_ and hostnames _master_, _worker1_, _worker2_) and shows the contents of the
@@ -139,9 +134,9 @@ configuration files, which need to be accessible at the same path on all machine
 Have a look at the [Configuration]({{ site.baseurl }}/setup/config.html) section of the documentation to see other available configuration options.
 For Flink to run efficiently, a few configuration values need to be set.
 
-In particular, 
+In particular,
 
- * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
+ * the amount of available memory per TaskManager (`taskmanager.heap.mb`),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`taskmanager.tmp.dirs`)
@@ -150,7 +145,7 @@ In particular,
 are very important configuration values.
 
 ## Flink on YARN
-You can easily deploy Flink on your existing __YARN cluster__. 
+You can easily deploy Flink on your existing __YARN cluster__.
 
 1. Download the __Flink Hadoop2 package__: [Flink with Hadoop 2]({{site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE}})
 2. Make sure your __HADOOP_HOME__ (or _YARN_CONF_DIR_ or _HADOOP_CONF_DIR_) __environment variable__ is set to read your YARN and HDFS configuration.

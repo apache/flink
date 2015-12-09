@@ -20,7 +20,6 @@ package org.apache.flink.yarn
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
@@ -61,7 +60,6 @@ class TestingYarnJobManager(
     defaultExecutionRetries: Int,
     delayBetweenRetries: Long,
     timeout: FiniteDuration,
-    mode: StreamingMode,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory)
@@ -75,7 +73,6 @@ class TestingYarnJobManager(
     defaultExecutionRetries,
     delayBetweenRetries,
     timeout,
-    mode,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory)

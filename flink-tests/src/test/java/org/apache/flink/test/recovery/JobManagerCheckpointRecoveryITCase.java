@@ -23,7 +23,6 @@ import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -177,7 +176,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-					false, StreamingMode.STREAMING, TaskManager.class);
+					false, TaskManager.class);
 
 			{
 				// Initial submission

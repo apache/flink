@@ -47,6 +47,10 @@ taskmanager.heap.mb: 512
 
 taskmanager.numberOfTaskSlots: 1
 
+# Specify whether TaskManager memory should be allocated when starting up (true) or when
+# memory is required in the memory manager (false)
+
+taskmanager.memory.preallocate: false
 
 # The parallelism used for programs that did not specify and other parallelism.
 
@@ -73,10 +77,10 @@ webclient.port: 8080
 # Streaming state checkpointing
 #==============================================================================
 
-# The backend that will be used to store operator state checkpoints if 
-# checkpointing is enabled. 
+# The backend that will be used to store operator state checkpoints if
+# checkpointing is enabled.
 #
-# Supported backends: jobmanager, filesystem, <class-name-of-factory> 
+# Supported backends: jobmanager, filesystem, <class-name-of-factory>
 #
 #state.backend: filesystem
 

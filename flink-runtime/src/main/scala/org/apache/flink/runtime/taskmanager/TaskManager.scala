@@ -42,7 +42,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
-import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages, StreamingMode}
+import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
@@ -1214,8 +1214,7 @@ object TaskManager {
     }
     
     // try to parse the command line arguments
-    val (configuration: Configuration,
-         mode: StreamingMode) = try {
+    val configuration: Configuration = try {
       parseArgsAndLoadConfig(args)
     }
     catch {
@@ -1232,13 +1231,13 @@ object TaskManager {
         LOG.info("Security is enabled. Starting secure TaskManager.")
         SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
           override def run(): Unit = {
-            selectNetworkInterfaceAndRunTaskManager(configuration, mode, classOf[TaskManager])
+            selectNetworkInterfaceAndRunTaskManager(configuration, classOf[TaskManager])
           }
         })
       }
       else {
         LOG.info("Security is not enabled. Starting non-authenticated TaskManager.")
-        selectNetworkInterfaceAndRunTaskManager(configuration, mode, classOf[TaskManager])
+        selectNetworkInterfaceAndRunTaskManager(configuration, classOf[TaskManager])
       }
     }
     catch {
@@ -1256,7 +1255,7 @@ object TaskManager {
    * @return The parsed configuration.
    */
   @throws(classOf[Exception])
-  def parseArgsAndLoadConfig(args: Array[String]): (Configuration, StreamingMode) = {
+  def parseArgsAndLoadConfig(args: Array[String]): Configuration = {
     
     // set up the command line parser
     val parser = new scopt.OptionParser[TaskManagerCliOptions]("TaskManager") {
@@ -1267,13 +1266,6 @@ object TaskManager {
         conf
       } text {
         "Specify configuration directory."
-      }
-
-      opt[String]("streamingMode").optional().action { (param, conf) =>
-        conf.setMode(param)
-        conf
-      } text {
-        "The streaming mode of the JobManager (STREAMING / BATCH)"
       }
     }
 
@@ -1293,7 +1285,7 @@ object TaskManager {
       case e: Exception => throw new Exception("Could not load configuration", e)
     }
     
-    (conf, cliConfig.getMode)
+    conf
   }
 
   // --------------------------------------------------------------------------
@@ -1315,14 +1307,12 @@ object TaskManager {
    * (library cache, shuffle network stack, ...), and starts the TaskManager itself.
 
    * @param configuration The configuration for the TaskManager.
-   * @param streamingMode The streaming mode to start the TaskManager in (streaming/batch-only)
    * @param taskManagerClass The actor class to instantiate.
    *                         Allows to use TaskManager subclasses for example for YARN.
    */
   @throws(classOf[Exception])
   def selectNetworkInterfaceAndRunTaskManager(
       configuration: Configuration,
-      streamingMode: StreamingMode,
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
@@ -1332,7 +1322,6 @@ object TaskManager {
       taskManagerHostname,
       actorSystemPort,
       configuration,
-      streamingMode,
       taskManagerClass)
   }
 
@@ -1384,22 +1373,19 @@ object TaskManager {
    * @param taskManagerHostname The hostname/address of the interface where the actor system
    *                         will communicate.
    * @param actorSystemPort The port at which the actor system will communicate.
-   * @param streamingMode The streaming mode to start the TaskManager in (streaming/batch-only)
    * @param configuration The configuration for the TaskManager.
    */
   @throws(classOf[Exception])
   def runTaskManager(
       taskManagerHostname: String,
       actorSystemPort: Int,
-      configuration: Configuration,
-      streamingMode: StreamingMode)
+      configuration: Configuration)
     : Unit = {
 
     runTaskManager(
       taskManagerHostname,
       actorSystemPort,
       configuration,
-      streamingMode,
       classOf[TaskManager])
   }
 
@@ -1415,7 +1401,6 @@ object TaskManager {
    *                         will communicate.
    * @param actorSystemPort The port at which the actor system will communicate.
    * @param configuration The configuration for the TaskManager.
-   * @param streamingMode The streaming mode to start the TaskManager in (streaming/batch-only)
    * @param taskManagerClass The actor class to instantiate. Allows the use of TaskManager
    *                         subclasses for example for YARN.
    */
@@ -1424,11 +1409,10 @@ object TaskManager {
       taskManagerHostname: String,
       actorSystemPort: Int,
       configuration: Configuration,
-      streamingMode: StreamingMode,
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info(s"Starting TaskManager in streaming mode $streamingMode")
+    LOG.info(s"Starting TaskManager")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
     
@@ -1470,7 +1454,6 @@ object TaskManager {
         Some(TASK_MANAGER_NAME),
         None,
         false,
-        streamingMode,
         taskManagerClass)
 
       // start a process reaper that watches the JobManager. If the TaskManager actor dies,
@@ -1524,7 +1507,6 @@ object TaskManager {
    *                                     constructed from the configuration.
    * @param localTaskManagerCommunication If true, the TaskManager will not initiate the
    *                                      TCP network stack.
-   * @param streamingMode The streaming mode to start the TaskManager in (streaming/batch-only)
    * @param taskManagerClass The class of the TaskManager actor. May be used to give
    *                         subclasses that understand additional actor messages.
    *
@@ -1548,7 +1530,6 @@ object TaskManager {
       taskManagerActorName: Option[String],
       leaderRetrievalServiceOption: Option[LeaderRetrievalService],
       localTaskManagerCommunication: Boolean,
-      streamingMode: StreamingMode,
       taskManagerClass: Class[_ <: TaskManager])
     : ActorRef = {
 
@@ -1580,8 +1561,18 @@ object TaskManager {
         "If you leave this config parameter empty, the system automatically " +
         "pick a fraction of the available memory.")
 
+
+    val preAllocateMemory = configuration.getBoolean(
+      ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE)
+
     val memorySize = if (configuredMemory > 0) {
-      LOG.info(s"Using $configuredMemory MB for Flink managed memory.")
+      if (preAllocateMemory) {
+        LOG.info(s"Using $configuredMemory MB for managed memory.")
+      } else {
+        LOG.info(s"Limiting managed memory to $configuredMemory MB, " +
+          s"memory will be allocated lazily.")
+      }
       configuredMemory << 20 // megabytes to bytes
     }
     else {
@@ -1596,8 +1587,13 @@ object TaskManager {
         val relativeMemSize = (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() *
           fraction).toLong
 
-        LOG.info(s"Using $fraction of the currently free heap space for Flink managed " +
-          s"heap memory (${relativeMemSize >> 20} MB).")
+        if (preAllocateMemory) {
+          LOG.info(s"Using $fraction of the currently free heap space for managed " +
+            s"heap memory (${relativeMemSize >> 20} MB).")
+        } else {
+          LOG.info(s"Limiting managed memory to $fraction of the currently free heap space " +
+            s"(${relativeMemSize >> 20} MB), memory will be allocated lazily.")
+        }
 
         relativeMemSize
       }
@@ -1607,8 +1603,13 @@ object TaskManager {
         val maxMemory = EnvironmentInformation.getMaxJvmHeapMemory()
         val directMemorySize = (maxMemory / (1.0 - fraction) * fraction).toLong
 
-        LOG.info(s"Using $fraction of the maximum memory size for " +
-          s"Flink managed off-heap memory (${directMemorySize >> 20} MB).")
+        if (preAllocateMemory) {
+          LOG.info(s"Using $fraction of the maximum memory size for " +
+            s"managed off-heap memory (${directMemorySize >> 20} MB).")
+        } else {
+          LOG.info(s"Limiting managed memory to $fraction of the maximum memory size " +
+            s"(${directMemorySize >> 20} MB), memory will be allocated lazily.")
+        }
 
         directMemorySize
       }
@@ -1616,8 +1617,6 @@ object TaskManager {
         throw new RuntimeException("No supported memory type detected.")
       }
     }
-
-    val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
 
     // now start the memory manager
     val memoryManager = try {
@@ -1629,17 +1628,17 @@ object TaskManager {
         preAllocateMemory)
     }
     catch {
-      case e: OutOfMemoryError => 
+      case e: OutOfMemoryError =>
         memType match {
           case MemoryType.HEAP =>
-            throw new Exception(s"OutOfMemory error (${e.getMessage()})" + 
+            throw new Exception(s"OutOfMemory error (${e.getMessage()})" +
               s" while allocating the TaskManager heap memory (${memorySize} bytes).", e)
-            
+
           case MemoryType.OFF_HEAP =>
             throw new Exception(s"OutOfMemory error (${e.getMessage()})" +
               s" while allocating the TaskManager off-heap memory (${memorySize} bytes). " +
               s"Try increasing the maximum direct memory (-XX:MaxDirectMemorySize)", e)
-            
+
           case _ => throw e
         }
     }

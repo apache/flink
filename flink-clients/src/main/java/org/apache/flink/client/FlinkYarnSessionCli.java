@@ -220,9 +220,6 @@ public class FlinkYarnSessionCli {
 			flinkYarnClient.setDetachedMode(detachedMode);
 		}
 
-		if (cmd.hasOption(STREAMING.getOpt())) {
-			flinkYarnClient.setStreamingMode(true);
-		}
 		if(cmd.hasOption(NAME.getOpt())) {
 			flinkYarnClient.setName(cmd.getOptionValue(NAME.getOpt()));
 		}

@@ -22,7 +22,6 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -77,7 +76,6 @@ public class JobSubmitTest {
 		ActorRef jobManagerActorRef = JobManager.startJobManagerActors(
 				config,
 				jobManagerSystem,
-				StreamingMode.BATCH_ONLY,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

@@ -145,7 +145,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
-	private boolean streamingMode;
 
 	private String customName = null;
 
@@ -601,7 +600,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		appMasterEnv.put(FlinkYarnClient.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(FlinkYarnClient.ENV_DETACHED, String.valueOf(detached));
-		appMasterEnv.put(FlinkYarnClient.ENV_STREAMING_MODE, String.valueOf(streamingMode));
 
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
@@ -774,11 +772,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
-	}
-
-	@Override
-	public void setStreamingMode(boolean streamingMode) {
-		this.streamingMode = streamingMode;
 	}
 
 	@Override

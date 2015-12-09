@@ -133,12 +133,6 @@ public abstract class AbstractFlinkYarnClient {
 	public abstract String getSessionFilesDir();
 
 	/**
-	 * Instruct Flink to start in streaming mode
-	 * @param streamingMode
-	 */
-	public abstract  void setStreamingMode(boolean streamingMode);
-
-	/**
 	 * Set a name for the YARN application
 	 * @param name
 	 */

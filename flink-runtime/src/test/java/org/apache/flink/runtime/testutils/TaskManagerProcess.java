@@ -21,7 +21,6 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,10 +94,7 @@ public class TaskManagerProcess extends TestJvmProcess {
 		private static final Logger LOG = LoggerFactory.getLogger(TaskManagerProcessEntryPoint.class);
 
 		/**
-		 * Runs the JobManager process in {@link StreamingMode#STREAMING} (can handle both batch
-		 * and streaming jobs).
-		 *
-		 * <p>All arguments are parsed to a {@link Configuration} and passed to the Taskmanager,
+		 * All arguments are parsed to a {@link Configuration} and passed to the Taskmanager,
 		 * for instance: <code>--recovery.mode ZOOKEEPER --recovery.zookeeper.quorum "xyz:123:456"</code>.
 		 */
 		public static void main(String[] args) throws Exception {
@@ -117,8 +113,7 @@ public class TaskManagerProcess extends TestJvmProcess {
 				LOG.info("Configuration: {}.", config);
 
 				// Run the TaskManager
-				TaskManager.selectNetworkInterfaceAndRunTaskManager(
-						config, StreamingMode.STREAMING, TaskManager.class);
+				TaskManager.selectNetworkInterfaceAndRunTaskManager(config, TaskManager.class);
 
 				// Run forever
 				new CountDownLatch(1).await();
