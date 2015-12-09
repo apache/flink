@@ -27,6 +27,7 @@ import java.util.{List => JavaList}
 import akka.actor.ActorRef
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
+import org.apache.flink.client.FlinkYarnSessionCli
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
@@ -674,32 +675,38 @@ class YarnJobManager(
     val heapLimit = calculateMemoryLimits(memoryLimit, streamingMode)
 
     val javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
-    val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xms${heapLimit}m " +
-      s"-Xmx${heapLimit}m -XX:MaxDirectMemorySize=${memoryLimit}m $javaOpts")
 
+    val startCommandValues = new java.util.HashMap[String, String]
+    startCommandValues.put("java", "$JAVA_HOME/bin/java")
+    startCommandValues.put("jvmmem", s"-Xms${heapLimit}m -Xmx${heapLimit}m " +
+                                     s"-XX:MaxDirectMemorySize=${memoryLimit}m")
+    startCommandValues.put("jvmopts", javaOpts)
+    var logging: String = ""
     if (hasLogback || hasLog4j) {
-      tmCommand ++=
-        s""" -Dlog.file="${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager.log""""
+      logging += "-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/taskmanager.log\""
+      if (hasLogback) {
+        logging += " -Dlogback.configurationFile=file:" +
+          FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME
+      }
+      if (hasLog4j) {
+        logging += " -Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME
+      }
     }
-
-    if (hasLogback) {
-      tmCommand ++= s" -Dlogback.configurationFile=file:logback.xml"
-    }
-
-    if (hasLog4j) {
-      tmCommand ++= s" -Dlog4j.configuration=file:log4j.properties"
-    }
-
-    tmCommand ++= s" ${taskManagerRunnerClass.getName} --configDir . 1> " +
-      s"${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager.out 2> " +
-      s"${ApplicationConstants.LOG_DIR_EXPANSION_VAR}/taskmanager.err"
-
-    tmCommand ++= " --streamingMode"
-    if(streamingMode) {
-      tmCommand ++= " streaming"
+    startCommandValues.put("logging", logging)
+    startCommandValues.put("class", taskManagerRunnerClass.getName)
+    val streamingModeString = "--streamingMode " + (if (streamingMode) {
+      "streaming"
     } else {
-      tmCommand ++= " batch"
-    }
+      "batch"
+    })
+    startCommandValues.put("args", "--configDir . " + streamingModeString)
+    startCommandValues.put("redirects", "1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
+      "/taskmanager.out 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/taskmanager.err")
+
+    val commandTemplate: String = flinkConfiguration.getString(
+      ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+      ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE)
+    val tmCommand = Utils.getStartCommand(commandTemplate, startCommandValues)
 
     ctx.setCommands(Collections.singletonList(tmCommand.toString()))
 

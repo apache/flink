@@ -257,6 +257,11 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
 
+	/**
+	 * Template for the YARN container start incovation.
+	 */
+	public static final String YARN_CONTAINER_START_COMMAND_TEMPLATE = "yarn.container-start-command-template";
+
 
 	// ------------------------ Hadoop Configuration ------------------------
 
@@ -617,6 +622,11 @@ public final class ConfigConstants {
 	 * Relative amount of memory to subtract from the requested memory.
 	 */
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
+
+	/**
+	 * Start command template for Flink on YARN containers
+	 */
+	public static final String DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE = "%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%";
 	
 	
 	// ------------------------ File System Behavior ------------------------

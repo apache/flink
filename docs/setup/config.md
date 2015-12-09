@@ -425,6 +425,11 @@ For example for passing `LD_LIBRARY_PATH` as an env variable to the ApplicationM
 - `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom
 environment variables for the TaskManager processes.
 
+- `yarn.container-start-command-template`: Flink uses the following template when starting on YARN:
+`%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%`. This configuration parameter allows users
+to pass custom settings (such as JVM paths, arguments etc.). Note that in most cases, its sufficent to
+use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String.
+
 ## High Availability Mode
 
 - `recovery.mode`: (Default 'standalone') Defines the recovery mode used for the cluster execution. Currently,

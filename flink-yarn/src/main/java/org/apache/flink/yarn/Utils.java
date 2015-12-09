@@ -228,4 +228,11 @@ public final class Utils {
 		}
 		return result;
 	}
+
+	public static String getStartCommand(String template, Map<String, String> startCommandValues) {
+		for(Map.Entry<String, String> variable: startCommandValues.entrySet()) {
+			template = template.replace("%" + variable.getKey() + "%", variable.getValue());
+		}
+		return template;
+	}
 }
