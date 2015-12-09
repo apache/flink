@@ -38,16 +38,17 @@ public class UtilsTest {
 
 	@Test
 	public void testUberjarLocator() {
-		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
-		Assert.assertNotNull(dir);
-		Assert.assertTrue(dir.getName().endsWith(".jar"));
+		LOG.info("Trying to find flink jar starting from " + new File(".").getAbsolutePath());
+		File dir = YarnTestBase.findFile(".", new YarnTestBase.RootDirFilenameFilter());
+		Assert.assertNotNull("Returned directory is null", dir);
+		Assert.assertTrue("File does not end with jar", dir.getName().endsWith(".jar"));
 		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
-		Assert.assertTrue(dir.exists());
-		Assert.assertTrue(dir.isDirectory());
+		Assert.assertTrue("Directory does not exist", dir.exists());
+		Assert.assertTrue("Is not a directory", dir.isDirectory());
 		List<String> files = Arrays.asList(dir.list());
-		Assert.assertTrue(files.contains("lib"));
-		Assert.assertTrue(files.contains("bin"));
-		Assert.assertTrue(files.contains("conf"));
+		Assert.assertTrue("could not find lib dir", files.contains("lib"));
+		Assert.assertTrue("could not find bin dir", files.contains("bin"));
+		Assert.assertTrue("could not find conf dir", files.contains("conf"));
 	}
 
 	/**
