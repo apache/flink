@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.LegacyFetcher;
@@ -434,7 +435,12 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 			}
 		}
 		else {
-			// this source never completes
+			// this source never completes, so emit a Long.MAX_VALUE watermark
+			// to not block watermark forwarding
+			if (getRuntimeContext().getExecutionConfig().areTimestampsEnabled()) {
+				sourceContext.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+
 			final Object waitLock = new Object();
 			while (running) {
 				// wait until we are canceled

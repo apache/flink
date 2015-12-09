@@ -60,6 +60,12 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		// This will mostly emit a final +Inf Watermark to make the Watermark logic work
 		// when some sources finish before others do
 		ctx.close();
+
+		if (executionConfig.areTimestampsEnabled()) {
+			synchronized (lockingObject) {
+				output.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+		}
 	}
 
 	public void cancel() {
@@ -296,14 +302,6 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 		}
 
 		@Override
-		public void close() {
-			// emit one last +Inf watermark to make downstream watermark processing work
-			// when some sources close early
-			synchronized (lockingObject) {
-				if (watermarkMultiplexingEnabled) {
-					output.emitWatermark(new Watermark(Long.MAX_VALUE));
-				}
-			}
-		}
+		public void close() {}
 	}
 }
