@@ -158,7 +158,8 @@ class LocalFlinkMiniCluster(
         ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) * bufferSize.toLong
 
       val numTaskManager = config.getInteger(
-        ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
+        ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+        ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
       val memoryFraction = config.getFloat(
         ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
@@ -184,7 +185,8 @@ class LocalFlinkMiniCluster(
 
     config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, hostname)
 
-    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
+    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+      ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
 
     // Reduce number of threads for local execution
     config.setInteger(NettyConfig.NUM_THREADS_CLIENT, 1)

@@ -1074,7 +1074,7 @@ public class ExecutionGraph implements Serializable {
 				LOG.warn("Received accumulator result for unknown execution {}.", execID);
 			}
 		} catch (Exception e) {
-			LOG.error("Cannot update accumulators for job " + jobID, e);
+			LOG.error("Cannot update accumulators for job {}.", jobID, e);
 		}
 	}
 
