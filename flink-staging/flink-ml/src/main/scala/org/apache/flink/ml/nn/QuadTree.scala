@@ -42,9 +42,16 @@ import scala.collection.mutable.PriorityQueue
  * @param distMetric metric, must be Euclidean or squareEuclidean
  * @param maxPerBox threshold for number of points in each box before slitting a box
  */
-class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPerBox: Int){
+class QuadTree(
+                minVec: Vector,
+                maxVec: Vector,
+                distMetric: DistanceMetric,
+                maxPerBox: Int){
 
-  class Node(center: Vector, width: Vector, var children: Seq[Node]) {
+  class Node(
+              center: Vector,
+              width: Vector,
+              var children: Seq[Node]) {
 
     val nodeElements = new ListBuffer[Vector]
 
@@ -66,20 +73,15 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
       * @param radius
       * @return
       */
-    def overlap(queryPoint: Vector, radius: Double): Boolean = {
-      var count = 0
-      for (i <- 0 to queryPoint.size - 1) {
-        if (queryPoint(i) - radius < center(i) + width(i) / 2 &&
-          queryPoint(i) + radius > center(i) - width(i) / 2) {
-          count += 1
-        }
-      }
+    def overlap(
+                 queryPoint: Vector,
+                 radius: Double): Boolean = {
+      val count = (0 until queryPoint.size).filter { i =>
+        (queryPoint(i) - radius < center(i) + width(i) / 2) &&
+          (queryPoint(i) + radius > center(i) - width(i) / 2)
+      }.size
 
-      if (count == queryPoint.size) {
-        true
-      } else {
-        false
-      }
+      count == queryPoint.size
     }
 
     /** Tests if queryPoint is near a node
@@ -88,20 +90,11 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
       * @param radius
       * @return
       */
-    def isNear(queryPoint: Vector, radius: Double): Boolean = {
-      if (minDist(queryPoint) < radius) {
-        true
-      } else {
-        false
-      }
+    def isNear(
+                queryPoint: Vector,
+                radius: Double): Boolean = {
+      minDist(queryPoint) < radius
     }
-
-    /**
-     * used in error handling when computing minDist to make sure
-     * distMetric is Euclidean or SquaredEuclidean
-     * @param message
-     */
-    case class metricException(message: String) extends Exception(message)
 
     /**
      * minDist is defined so that every point in the box
@@ -111,23 +104,21 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
      * @param queryPoint
      * @return
      */
-
     def minDist(queryPoint: Vector): Double = {
-      var minDist = 0.0
-      for (i <- 0 to queryPoint.size - 1) {
+      val minDist = (0 until queryPoint.size).map { i =>
         if (queryPoint(i) < center(i) - width(i) / 2) {
-          minDist += math.pow(queryPoint(i) - center(i) + width(i) / 2, 2)
+          math.pow(queryPoint(i) - center(i) + width(i) / 2, 2)
         } else if (queryPoint(i) > center(i) + width(i) / 2) {
-          minDist += math.pow(queryPoint(i) - center(i) - width(i) / 2, 2)
+          math.pow(queryPoint(i) - center(i) - width(i) / 2, 2)
+        } else {
+          0
         }
-      }
+      }.sum
 
-      if (distMetric.isInstanceOf[SquaredEuclideanDistanceMetric]) {
-        minDist
-      } else if (distMetric.isInstanceOf[EuclideanDistanceMetric]) {
-        math.sqrt(minDist)
-      } else{
-        throw metricException(s" Error: metric must be Euclidean or SquaredEuclidean!")
+      distMetric match {
+        case _: SquaredEuclideanDistanceMetric => minDist
+        case _: EuclideanDistanceMetric => math.sqrt(minDist)
+        case _ => throw new IllegalArgumentException(s" Error: metric must be Euclidean or SquaredEuclidean!")
       }
     }
 
@@ -138,21 +129,20 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
      * @return
      */
     def whichChild(queryPoint: Vector): Int = {
-      var count = 0
-      for (i <- 0 to queryPoint.size - 1) {
+      (0 until queryPoint.size).map { i =>
         if (queryPoint(i) > center(i)) {
-          count += Math.pow(2, queryPoint.size -1 - i).toInt
+          Math.pow(2, queryPoint.size - 1 - i).toInt
+        } else {
+          0
         }
-      }
-      count
+      }.sum
     }
 
     def makeChildren() {
       val centerClone = center.copy
       val cPart = partitionBox(centerClone, width)
-      val mappedWidth = 0.5*width.asBreeze
+      val mappedWidth = 0.5 * width.asBreeze
       children = cPart.map(p => new Node(p, mappedWidth.fromBreeze, null))
-
     }
 
     /**
@@ -165,9 +155,12 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
      * @param width a vector of lengths of each dimension of the box
      * @return
      */
-    def partitionBox(center: Vector, width: Vector): Seq[Vector] = {
-
-      def partitionHelper(box: Seq[Vector], dim: Int): Seq[Vector] = {
+    def partitionBox(
+                      center: Vector,
+                      width: Vector): Seq[Vector] = {
+      def partitionHelper(
+                           box: Seq[Vector],
+                           dim: Int): Seq[Vector] = {
         if (dim >= width.size) {
           box
         } else {
@@ -187,22 +180,22 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
   }
 
 
-  val root = new Node( ((minVec.asBreeze + maxVec.asBreeze)*0.5).fromBreeze,
+  val root = new Node(((minVec.asBreeze + maxVec.asBreeze) * 0.5).fromBreeze,
     (maxVec.asBreeze - minVec.asBreeze).fromBreeze, null)
 
-    /**
-     * Simple printing of tree for testing/debugging
-     */
+  /**
+   * simple printing of tree for testing/debugging
+   */
   def printTree(): Unit = {
     printTreeRecur(root)
   }
 
   def printTreeRecur(node: Node){
-    if(node.children != null) {
+    if (node.children != null) {
       for (c <- node.children){
         printTreeRecur(c)
       }
-    }else{
+    } else {
       println("printing tree: n.nodeElements " + node.nodeElements)
     }
   }
@@ -212,22 +205,24 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
    * @param queryPoint
    */
   def insert(queryPoint: Vector){
-    insertRecur(queryPoint,root)
+    insertRecur(queryPoint, root)
   }
 
-  private def insertRecur(queryPoint: Vector,node: Node) {
+  private def insertRecur(
+                           queryPoint: Vector,
+                           node: Node) {
     if (node.children == null) {
-      if (node.nodeElements.length < maxPerBox ) {
+      if (node.nodeElements.length < maxPerBox) {
         node.nodeElements += queryPoint
-      } else{
+      } else {
         node.makeChildren()
-        for (o <- node.nodeElements){
+        for (o <- node.nodeElements) {
           insertRecur(o, node.children(node.whichChild(o)))
         }
         node.nodeElements.clear()
         insertRecur(queryPoint, node.children(node.whichChild(queryPoint)))
       }
-    } else{
+    } else {
       insertRecur(queryPoint, node.children(node.whichChild(queryPoint)))
     }
   }
@@ -242,11 +237,13 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
    * is an appropriate notion of the distance between the test point and the node,
    * which is defined by minDist(queryPoint),
    *
-   * @param queryPoint
+   * @param queryPoint a test point for which the method finds the minimal bounding
+   *                   box that queryPoint lies in and returns elements in that boxes
+   *                   siblings' leaf nodes
    * @return
    */
   def searchNeighborsSiblingQueue(queryPoint: Vector): ListBuffer[Vector] = {
-    var ret = new ListBuffer[Vector]
+    val ret = new ListBuffer[Vector]
     // edge case when the main box has not been partitioned at all
     if (root.children == null) {
       root.nodeElements.clone()
@@ -268,22 +265,23 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
 
   /**
    *
-   * @param queryPoint
-   * @param node
+   * @param queryPoint point under consideration
+   * @param node node that queryPoint lies in
    * @param nodeQueue defined in searchSiblingQueue, this stores nodes based on their
    *                  distance to node as defined by minDist
    */
-  private def searchRecurSiblingQueue(queryPoint: Vector, node: Node,
-                                      nodeQueue: PriorityQueue[(Double, Node)]) {
+  private def searchRecurSiblingQueue(
+                                       queryPoint: Vector,
+                                       node: Node,
+                                       nodeQueue: PriorityQueue[(Double, Node)]) {
     if (node.children != null) {
       for (child <- node.children; if child.contains(queryPoint)) {
         if (child.children == null) {
           for (c <- node.children) {
-            MinNodes(queryPoint,c,nodeQueue)
+            minNodes(queryPoint, c, nodeQueue)
           }
-        }
-        else {
-            searchRecurSiblingQueue(queryPoint, child, nodeQueue)
+        } else {
+          searchRecurSiblingQueue(queryPoint, child, nodeQueue)
         }
       }
     }
@@ -292,17 +290,20 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
   /**
    * Goes down to minimal bounding box of queryPoint, and add elements to nodeQueue
    *
-   * @param queryPoint
-   * @param node
-   * @param nodeQueue
+   * @param queryPoint point under consideration
+   * @param node node that queryPoint lies in
+   * @param nodeQueue PriorityQueue that stores all points in minimal bounding box of queryPoint
    */
-  private def MinNodes(queryPoint: Vector, node: Node, nodeQueue: PriorityQueue[(Double, Node)]) {
-    if (node.children == null){
+  private def minNodes(
+                        queryPoint: Vector,
+                        node: Node,
+                        nodeQueue: PriorityQueue[(Double, Node)]) {
+    if (node.children == null) {
       nodeQueue += ((-node.minDist(queryPoint), node))
-    } else{
+    } else {
       for (c <- node.children) {
-          MinNodes(queryPoint, c, nodeQueue)
-        }
+        minNodes(queryPoint, c, nodeQueue)
+      }
     }
   }
 
@@ -313,18 +314,24 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
     * original version only looks in minimal box; for the KNN Query, we look at
     * all nearby boxes. The radius is determined from searchNeighborsSiblingQueue
     * by defining a min-heap on the leaf nodes
-   *
-   * @param queryPoint
-   * @param radius
-   * @return all points within queryPoint with given radius
-   */
-  def searchNeighbors(queryPoint: Vector, radius: Double): ListBuffer[Vector] = {
+    *
+    * @param queryPoint
+    * @param radius
+    * @return all points within queryPoint with given radius
+    */
+  def searchNeighbors(
+      queryPoint: Vector,
+      radius: Double): ListBuffer[Vector] = {
     val ret = new ListBuffer[Vector]
     searchRecur(queryPoint, radius, root, ret)
     ret
   }
 
-  private def searchRecur(queryPoint: Vector, radius: Double, node: Node, ret: ListBuffer[Vector]) {
+  private def searchRecur(
+              queryPoint: Vector,
+              radius: Double,
+              node: Node,
+              ret: ListBuffer[Vector]) {
     if (node.children == null) {
       ret ++= node.nodeElements
     } else {
@@ -332,9 +339,5 @@ class QuadTree(minVec: Vector, maxVec: Vector, distMetric: DistanceMetric, maxPe
         searchRecur(queryPoint, radius, child, ret)
       }
     }
-  }
-
-   def distance(a: Vector, b: Vector):Double = {
-     distMetric.distance(a, b)
   }
 }
