@@ -118,7 +118,8 @@ class QuadTree(
       distMetric match {
         case _: SquaredEuclideanDistanceMetric => minDist
         case _: EuclideanDistanceMetric => math.sqrt(minDist)
-        case _ => throw new IllegalArgumentException(s" Error: metric must be Euclidean or SquaredEuclidean!")
+        case _ => throw new IllegalArgumentException(s" Error: metric must be" +
+          s" Euclidean or SquaredEuclidean!")
       }
     }
 
