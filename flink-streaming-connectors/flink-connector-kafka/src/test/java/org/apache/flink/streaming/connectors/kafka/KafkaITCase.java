@@ -21,14 +21,15 @@ import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Properties;
 
 
 public class KafkaITCase extends KafkaConsumerTestBase {
 	
 	@Override
-	protected <T> FlinkKafkaConsumer<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
-		return new FlinkKafkaConsumer081<>(topic, deserializationSchema, props);
+	protected <T> FlinkKafkaConsumer<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
+		return new FlinkKafkaConsumer082<>(topics, deserializationSchema, props);
 	}
 	
 	// ------------------------------------------------------------------------

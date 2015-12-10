@@ -120,7 +120,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	// ------------------------------------------------------------------------
 
 	protected abstract <T> FlinkKafkaConsumer<T> getConsumer(
-			String topic, DeserializationSchema<T> deserializationSchema, Properties props);
+			List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props);
+
+	protected <T> FlinkKafkaConsumer<T> getConsumer(
+			String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
+		return getConsumer(Collections.singletonList(topic), deserializationSchema, props);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Suite of Tests
@@ -343,19 +348,34 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * We need to externally retry this test. We cannot let Flink's retry mechanism do it, because the Kafka producer
 	 * does not guarantee exactly-once output. Hence a recovery would introduce duplicates that
 	 * cause the test to fail.
+	 *
+	 * This test also ensures that FLINK-3156 doesn't happen again:
+	 *
+	 * The following situation caused a NPE in the FlinkKafkaConsumer
+	 *
+	 * topic-1 <-- elements are only produced into topic1.
+	 * topic-2
+	 *
+	 * Therefore, this test is consuming as well from an empty topic.
+	 *
 	 */
 	@RetryOnException(times=2, exception=kafka.common.NotLeaderForPartitionException.class)
 	public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
 		final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
+		final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID().toString();
+
 		final int parallelism = 3;
 		final int elementsPerPartition = 100;
 		final int totalElements = parallelism * elementsPerPartition;
 
 		createTestTopic(topic, parallelism, 2);
+		createTestTopic(additionalEmptyTopic, parallelism, 1); // create an empty topic which will remain empty all the time
 
 		final StreamExecutionEnvironment env =
 				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.setParallelism(parallelism);
+		env.enableCheckpointing(500);
+		env.setNumberOfExecutionRetries(0); // fail immediately
 		env.getConfig().disableSysoutLogging();
 
 		TypeInformation<Tuple2<Long, String>> longStringType = TypeInfoParser.parse("Tuple2<Long, String>");
@@ -373,7 +393,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			private boolean running = true;
 
 			@Override
-			public void run(SourceContext<Tuple2<Long, String>> ctx) {
+			public void run(SourceContext<Tuple2<Long, String>> ctx) throws InterruptedException {
 				int cnt = getRuntimeContext().getIndexOfThisSubtask() * elementsPerPartition;
 				int limit = cnt + elementsPerPartition;
 
@@ -381,6 +401,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				while (running && cnt < limit) {
 					ctx.collect(new Tuple2<>(1000L + cnt, "kafka-" + cnt));
 					cnt++;
+					// we delay data generation a bit so that we are sure that some checkpoints are
+					// triggered (for FLINK-3156)
+					Thread.sleep(50);
 				}
 			}
 
@@ -393,7 +416,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		// ----------- add consumer dataflow ----------
 
-		FlinkKafkaConsumer<Tuple2<Long, String>> source = getConsumer(topic, sourceSchema, standardProps);
+		List<String> topics = new ArrayList<>();
+		topics.add(topic);
+		topics.add(additionalEmptyTopic);
+		FlinkKafkaConsumer<Tuple2<Long, String>> source = getConsumer(topics, sourceSchema, standardProps);
 
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(source).setParallelism(parallelism);
 
@@ -1047,8 +1073,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		createTestTopic(topic, 1, 1);
 		final int ELEMENT_COUNT = 5000;
 
-
-
 		// ----------- Write some data into Kafka -------------------
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
@@ -1111,6 +1135,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		});
 
 		tryExecute(env, "Read KV from Kafka");
+
+		deleteTestTopic(topic);
 	}
 
 	public static class PojoValue {
@@ -1119,6 +1145,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		public long lat;
 		public PojoValue() {}
 	}
+
 
 
 	// ------------------------------------------------------------------------

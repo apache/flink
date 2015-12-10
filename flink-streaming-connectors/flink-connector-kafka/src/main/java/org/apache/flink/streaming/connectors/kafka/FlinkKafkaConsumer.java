@@ -661,7 +661,12 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	private static <T> void commitOffsets(HashMap<KafkaTopicPartition, Long> toCommit, FlinkKafkaConsumer<T> consumer) throws Exception {
 		Map<KafkaTopicPartition, Long> offsetsToCommit = new HashMap<>();
 		for (KafkaTopicPartitionLeader tp : consumer.subscribedPartitions) {
-			long offset = toCommit.get(tp.getTopicPartition());
+			Long offset = toCommit.get(tp.getTopicPartition());
+			if(offset == null) {
+				// There was no data ever consumed from this topic, that's why there is no entry
+				// for this topicPartition in the map.
+				continue;
+			}
 			Long lastCommitted = consumer.committedOffsets.get(tp.getTopicPartition());
 			if (lastCommitted == null) {
 				lastCommitted = OFFSET_NOT_SET;
