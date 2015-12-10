@@ -46,7 +46,7 @@ class QuadTree(
                 minVec: Vector,
                 maxVec: Vector,
                 distMetric: DistanceMetric,
-                maxPerBox: Int){
+                maxPerBox: Int) {
 
   class Node(
               center: Vector,
@@ -171,7 +171,7 @@ class QuadTree(
               up.update(dim, up(dim) - width(dim) / 4)
               down.update(dim, down(dim) + width(dim) / 4)
 
-              Seq(up,down)
+              Seq(up, down)
           }
           partitionHelper(newBox, dim + 1)
         }
@@ -191,9 +191,9 @@ class QuadTree(
     printTreeRecur(root)
   }
 
-  def printTreeRecur(node: Node){
+  def printTreeRecur(node: Node) {
     if (node.children != null) {
-      for (c <- node.children){
+      for (c <- node.children) {
         printTreeRecur(c)
       }
     } else {
@@ -205,7 +205,7 @@ class QuadTree(
    * Recursively adds an object to the tree
    * @param queryPoint
    */
-  def insert(queryPoint: Vector){
+  def insert(queryPoint: Vector) {
     insertRecur(queryPoint, root)
   }
 
@@ -321,22 +321,22 @@ class QuadTree(
     * @return all points within queryPoint with given radius
     */
   def searchNeighbors(
-      queryPoint: Vector,
-      radius: Double): ListBuffer[Vector] = {
+                       queryPoint: Vector,
+                       radius: Double): ListBuffer[Vector] = {
     val ret = new ListBuffer[Vector]
     searchRecur(queryPoint, radius, root, ret)
     ret
   }
 
   private def searchRecur(
-              queryPoint: Vector,
-              radius: Double,
-              node: Node,
-              ret: ListBuffer[Vector]) {
+                           queryPoint: Vector,
+                           radius: Double,
+                           node: Node,
+                           ret: ListBuffer[Vector]) {
     if (node.children == null) {
       ret ++= node.nodeElements
     } else {
-      for(child <- node.children; if child.isNear(queryPoint,radius)) {
+      for (child <- node.children; if child.isNear(queryPoint, radius)) {
         searchRecur(queryPoint, radius, child, ret)
       }
     }
