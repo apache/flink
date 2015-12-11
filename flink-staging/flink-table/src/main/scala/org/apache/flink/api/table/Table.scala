@@ -17,10 +17,14 @@
  */
 package org.apache.flink.api.table
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.analysis.{GroupByAnalyzer, PredicateAnalyzer, SelectionAnalyzer}
 import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReference, UnresolvedFieldReference}
 import org.apache.flink.api.table.parser.ExpressionParser
 import org.apache.flink.api.table.plan._
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.table._
 
 /**
  * The abstraction for writing Table API programs. Similar to how the batch and streaming APIs
@@ -267,5 +271,24 @@ case class Table(private[flink] val operation: PlanNode) {
     this.copy(operation = UnionAll(operation, right.operation))
   }
 
+  /**
+   * Get the process of the sql parsing, print AST and physical execution plan.The AST
+   * show the structure of the supplied statement. The execution plan shows how the table 
+   * referenced by the statement will be scanned.
+   */
+  def explain(extended: Boolean): String = {
+    val ast = operation
+    val dataSet = this.toDataSet[Row]
+    val env = dataSet.getExecutionEnvironment
+    dataSet.output(new DiscardingOutputFormat[Row])
+    val jasonSqlPlan = env.getExecutionPlan()
+    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
+    val result = "== Abstract Syntax Tree ==\n" + ast + "\n\n" + "== Physical Execution Plan ==" +
+      "\n" + sqlPlan
+    return result
+  }
+  
+  def explain(): String = explain(false)
+  
   override def toString: String = s"Expression($operation)"
 }

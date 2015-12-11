@@ -35,6 +35,7 @@ sealed abstract class PlanNode extends TreeNode[PlanNode] { self: Product =>
  */
 case class Root[T](input: T, outputFields: Seq[(String, TypeInformation[_])]) extends PlanNode {
   val children = Nil
+  override def toString = s"Root($outputFields)"
 }
 
 /**
