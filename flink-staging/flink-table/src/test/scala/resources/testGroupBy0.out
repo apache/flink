@@ -1,0 +1,49 @@
+== Abstract Syntax Tree ==
+Select(GroupBy(As(Root(ArraySeq((word,String), (count,Integer))), a,b), 'a), 'a,('b).sum as 'c)
+
+== Physical Execution Plan ==
+Stage 6 : Data Source
+	content : at org.apache.flink.api.scala.ExecutionEnvironment.fromElements(ExecutionEnvironment.scala:520) (org.apache.flink.api.java.io.CollectionInputFormat)
+	Partitioning : RANDOM_PARTITIONED
+
+	Stage 5 : Map
+		content : Map at select('word as 'word,'count as 'count)
+		ship_strategy : Forward
+		exchange_mode : PIPELINED
+		driver_strategy : Map
+		Partitioning : RANDOM_PARTITIONED
+
+		Stage 4 : Map
+			content : Map at select('b as 'intermediate.1,'a as 'a)
+			ship_strategy : Forward
+			exchange_mode : PIPELINED
+			driver_strategy : Map
+			Partitioning : RANDOM_PARTITIONED
+
+			Stage 3 : GroupCombine
+				content : GroupReduce at Expression Aggregation: Aggregate(GroupBy(Select(As(Root(ArraySeq((word,String), (count,Integer))), a,b), 'b as 'intermediate.1,'a as 'a), 'a), (intermediate.1,SUM))
+				ship_strategy : Forward
+				exchange_mode : PIPELINED
+				driver_strategy : Sorted Combine
+				Partitioning : RANDOM_PARTITIONED
+
+				Stage 2 : GroupReduce
+					content : GroupReduce at Expression Aggregation: Aggregate(GroupBy(Select(As(Root(ArraySeq((word,String), (count,Integer))), a,b), 'b as 'intermediate.1,'a as 'a), 'a), (intermediate.1,SUM))
+					ship_strategy : Hash Partition on [1]
+					exchange_mode : PIPELINED
+					driver_strategy : Sorted Group Reduce
+					Partitioning : RANDOM_PARTITIONED
+
+					Stage 1 : Map
+						content : Map at select('a,'intermediate.1 as 'result.1 as 'c)
+						ship_strategy : Forward
+						exchange_mode : PIPELINED
+						driver_strategy : Map
+						Partitioning : RANDOM_PARTITIONED
+
+						Stage 0 : Data Sink
+							content : org.apache.flink.api.java.io.DiscardingOutputFormat
+							ship_strategy : Forward
+							exchange_mode : PIPELINED
+							Partitioning : RANDOM_PARTITIONED
+
