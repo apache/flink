@@ -93,12 +93,7 @@ under the License.
 		</dependency>
 
 		<!-- force using the latest zkclient -->
-		<dependency>
-			<groupId>com.101tec</groupId>
-			<artifactId>zkclient</artifactId>
-			<version>0.7</version>
-			<type>jar</type>
-		</dependency>
+
 
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -115,6 +110,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-curator-recipes</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -122,15 +123,6 @@ under the License.
 
 	</dependencies>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>com.101tec</groupId>
-				<artifactId>zkclient</artifactId>
-				<version>0.7</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 	
 
 	<build>

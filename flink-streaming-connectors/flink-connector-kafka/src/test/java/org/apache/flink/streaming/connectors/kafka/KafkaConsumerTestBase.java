@@ -31,6 +31,7 @@ import kafka.server.KafkaServer;
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.commons.collections.map.LinkedMap;
 
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -58,6 +59,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionLeader;
+import org.apache.flink.streaming.connectors.kafka.internals.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.DiscardingSink;
@@ -260,7 +262,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		readSequence(env2, standardProps, parallelism, topicName, 100, 0);
 
-		ZkClient zkClient = createZookeeperClient();
+		CuratorFramework zkClient = createZookeeperClient();
 
 		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 0);
 		long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 1);
@@ -321,7 +323,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		readSequence(env2, readProps, parallelism, topicName, 100, 0);
 
 		// get the offset
-		ZkClient zkClient = createZookeeperClient();
+		CuratorFramework zkClient = createZookeeperClient();
 
 		long o1 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 0);
 		long o2 = ZookeeperOffsetHandler.getOffsetFromZooKeeper(zkClient, standardCC.groupId(), topicName, 1);
@@ -796,7 +798,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		writeSequence(env, topic, 20, parallelism);
 
 		// set invalid offset:
-		ZkClient zkClient = createZookeeperClient();
+		CuratorFramework zkClient = createZookeeperClient();
 		ZookeeperOffsetHandler.setOffsetInZooKeeper(zkClient, standardCC.groupId(), topic, 0, 1234);
 
 		// read from topic
@@ -1016,20 +1018,24 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				topic, parallelism, numElementsPerPartition, true);
 
 		// find leader to shut down
-		ZkClient zkClient = createZookeeperClient();
 		PartitionMetadata firstPart = null;
-		do {
-			if (firstPart != null) {
-				LOG.info("Unable to find leader. error code {}", firstPart.errorCode());
-				// not the first try. Sleep a bit
-				Thread.sleep(150);
-			}
+		{
+			ZkClient zkClient = new ZkClient(standardCC.zkConnect(), standardCC.zkSessionTimeoutMs(),
+					standardCC.zkConnectionTimeoutMs(), new ZooKeeperStringSerializer());
 
-			Seq<PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient).partitionsMetadata();
-			firstPart = partitionMetadata.head();
+			do {
+				if (firstPart != null) {
+					LOG.info("Unable to find leader. error code {}", firstPart.errorCode());
+					// not the first try. Sleep a bit
+					Thread.sleep(150);
+				}
+
+				Seq<PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient).partitionsMetadata();
+				firstPart = partitionMetadata.head();
+			}
+			while (firstPart.errorCode() != 0);
+			zkClient.close();
 		}
-		while (firstPart.errorCode() != 0);
-		zkClient.close();
 
 		final kafka.cluster.Broker leaderToShutDown = firstPart.leader().get();
 		final String leaderToShutDownConnection = 

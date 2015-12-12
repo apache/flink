@@ -632,6 +632,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 						//  ------------  commit current offsets ----------------
 
 						// create copy of current offsets
+						//noinspection unchecked
 						HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) consumer.lastOffsets.clone();
 						commitOffsets(currentOffsets, this.consumer);
 					} catch (InterruptedException e) {
