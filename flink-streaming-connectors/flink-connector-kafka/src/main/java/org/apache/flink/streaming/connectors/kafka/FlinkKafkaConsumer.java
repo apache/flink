@@ -241,7 +241,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	 * Creates a new Flink Kafka Consumer, using the given type of fetcher and offset handler.
 	 *
 	 * <p>To determine which kink of fetcher and offset handler to use, please refer to the docs
-	 * at the beginnign of this class.</p>
+	 * at the beginning of this class.</p>
 	 *
 	 * @param topic
 	 *           The Kafka topic to read from.
@@ -264,7 +264,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	 * Creates a new Flink Kafka Consumer, using the given type of fetcher and offset handler.
 	 * 
 	 * <p>To determine which kink of fetcher and offset handler to use, please refer to the docs
-	 * at the beginnign of this class.</p>
+	 * at the beginning of this class.</p>
 	 * 
 	 * @param topics
 	 *           The Kafka topics to read from.
@@ -522,7 +522,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		}
 
 		// the use of clone() is okay here is okay, we just need a new map, the keys are not changed
-		//noinspection unchecked
+		@SuppressWarnings("unchecked")
 		HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) lastOffsets.clone();
 
 		// the map cannot be asynchronously updated, because only one checkpoint call can happen
@@ -570,7 +570,6 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 
 				//noinspection unchecked
 				checkpointOffsets = (HashMap<KafkaTopicPartition, Long>) pendingCheckpoints.remove(posInMap);
-
 				
 				// remove older checkpoints in map
 				for (int i = 0; i < posInMap; i++) {
@@ -613,8 +612,10 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 	 * Thread to periodically commit the current read offset into Zookeeper.
 	 */
 	private static class PeriodicOffsetCommitter<T> extends Thread {
+		
 		private final long commitInterval;
 		private final FlinkKafkaConsumer<T> consumer;
+		
 		private volatile boolean running = true;
 
 		public PeriodicOffsetCommitter(long commitInterval, FlinkKafkaConsumer<T> consumer) {
@@ -625,13 +626,13 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		@Override
 		public void run() {
 			try {
-
 				while (running) {
 					try {
 						Thread.sleep(commitInterval);
 						//  ------------  commit current offsets ----------------
 
 						// create copy of current offsets
+						//noinspection unchecked
 						HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) consumer.lastOffsets.clone();
 						commitOffsets(currentOffsets, this.consumer);
 					} catch (InterruptedException e) {
@@ -639,8 +640,6 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 							// throw unexpected interruption
 							throw e;
 						}
-						// looks like the thread is being closed. Leave loop
-						break;
 					}
 				}
 			} catch (Throwable t) {
