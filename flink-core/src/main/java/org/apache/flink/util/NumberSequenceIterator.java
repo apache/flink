@@ -29,13 +29,16 @@ public class NumberSequenceIterator extends SplittableIterator<Long> {
 	
 	private static final long serialVersionUID = 1L;
 
+	/** The last number returned by the iterator */
 	private final long to;
 	
+	/** The next number to be returned */
 	private long current;
 	
 	
 	/**
-	 * Internal constructor to allow for empty iterators.
+	 * Creates a new splittable iterator, returning the range [from, to].
+	 * Both boundaries of the interval are inclusive.
 	 * 
 	 * @param from The first number returned by the iterator.
 	 * @param to The last number returned by the iterator.
