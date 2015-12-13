@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGr
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
 import org.apache.flink.runtime.leaderretrieval.{StandaloneLeaderRetrievalService, LeaderRetrievalService}
+import org.apache.flink.runtime.jmx.JMXRegistry
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -1795,6 +1796,7 @@ object JobManager {
     try {
       blobServer = new BlobServer(configuration)
       instanceManager = new InstanceManager()
+      JMXRegistry.setup(instanceManager)
       scheduler = new FlinkScheduler(executionContext)
       libraryCacheManager = new BlobLibraryCacheManager(blobServer, cleanupInterval)
 

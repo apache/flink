@@ -26,6 +26,7 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jmx.InstanceReporterMXBean;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * An instance represents a {@link org.apache.flink.runtime.taskmanager.TaskManager}
  * registered at a JobManager and ready to receive work.
  */
-public class Instance {
+public class Instance implements InstanceReporterMXBean {
 
 	private final static Logger LOG = LoggerFactory.getLogger(Instance.class);
 
@@ -391,5 +392,31 @@ public class Instance {
 	public String toString() {
 		return String.format("%s @ %s - %d slots - URL: %s", instanceId, connectionInfo.getHostname(),
 				numberOfSlots, (actorGateway != null ? actorGateway.path() : "No instance gateway"));
+	}
+
+
+	// --------------------------------------------------------------------------------------------
+	// JMX Bean methods. See {@link JMXRegistry}.
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public String getIdentifier() {
+		return getId().toString();
+	}
+
+
+	@Override
+	public String getConnectionInfo() {
+		return connectionInfo.toString();
+	}
+
+
+	public String getMetrics() {
+		return new String(lastMetricsReport);
+	}
+
+	@Override
+	public String getHardwareResources() {
+		return getResources().toString();
 	}
 }
