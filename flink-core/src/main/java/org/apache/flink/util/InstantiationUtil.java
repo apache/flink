@@ -47,20 +47,12 @@ public final class InstantiationUtil {
 	 *
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
-		private ClassLoader classLoader;
 
-		private static final HashMap<String, Class<?>> primitiveClasses
-				= new HashMap<String, Class<?>>(8, 1.0F);
-		static {
-			primitiveClasses.put("boolean", boolean.class);
-			primitiveClasses.put("byte", byte.class);
-			primitiveClasses.put("char", char.class);
-			primitiveClasses.put("short", short.class);
-			primitiveClasses.put("int", int.class);
-			primitiveClasses.put("long", long.class);
-			primitiveClasses.put("float", float.class);
-			primitiveClasses.put("double", double.class);
-			primitiveClasses.put("void", void.class);
+		private final ClassLoader classLoader;
+
+		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
+			super(in);
+			this.classLoader = classLoader;
 		}
 
 		@Override
@@ -84,10 +76,21 @@ public final class InstantiationUtil {
 
 			return super.resolveClass(desc);
 		}
+		
+		// ------------------------------------------------
 
-		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
-			super(in);
-			this.classLoader = classLoader;
+		private static final HashMap<String, Class<?>> primitiveClasses = new HashMap<>(9);
+		
+		static {
+			primitiveClasses.put("boolean", boolean.class);
+			primitiveClasses.put("byte", byte.class);
+			primitiveClasses.put("char", char.class);
+			primitiveClasses.put("short", short.class);
+			primitiveClasses.put("int", int.class);
+			primitiveClasses.put("long", long.class);
+			primitiveClasses.put("float", float.class);
+			primitiveClasses.put("double", double.class);
+			primitiveClasses.put("void", void.class);
 		}
 	}
 	
@@ -293,28 +296,22 @@ public final class InstantiationUtil {
 	
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
-		ObjectInputStream oois = null;
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		try {
+		try (ObjectInputStream oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl)) {
 			Thread.currentThread().setContextClassLoader(cl);
-			oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl);
 			return (T) oois.readObject();
-		} finally {
+		}
+		finally {
 			Thread.currentThread().setContextClassLoader(old);
-			if (oois != null) {
-				oois.close();
-			}
 		}
 	}
 	
 	public static byte[] serializeObject(Object o) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-		try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 			oos.writeObject(o);
+			return baos.toByteArray();
 		}
-
-		return baos.toByteArray();
 	}
 	
 	// --------------------------------------------------------------------------------------------

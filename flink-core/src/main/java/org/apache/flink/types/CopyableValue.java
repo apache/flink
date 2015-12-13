@@ -44,10 +44,10 @@ public interface CopyableValue<T> extends Value {
 
 	/**
 	 * Performs a deep copy of this object into a new instance.
-         *
-         * This method is useful for generic user-defined functions to clone a
-         * {@link CopyableValue} when storing multiple objects. With object reuse
-         * a deep copy must be created and type erasure prevents calling new.
+	 *
+	 * This method is useful for generic user-defined functions to clone a
+	 * {@link CopyableValue} when storing multiple objects. With object reuse
+	 * a deep copy must be created and type erasure prevents calling new.
 	 *
 	 * @return New object with copied fields.
 	 */
