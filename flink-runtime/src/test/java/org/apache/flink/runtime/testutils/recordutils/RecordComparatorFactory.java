@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.api.common.typeutils.record;
+package org.apache.flink.runtime.testutils.recordutils;
 
 import java.util.Arrays;
 

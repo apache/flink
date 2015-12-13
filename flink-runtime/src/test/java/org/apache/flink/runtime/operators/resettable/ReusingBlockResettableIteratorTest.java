@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.operators.resettable;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.record.RecordSerializer;
+import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
