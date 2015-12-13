@@ -34,5 +34,6 @@ public abstract class RichReduceFunction<T> extends AbstractRichFunction impleme
 	
 	private static final long serialVersionUID = 1L;
 
+	@Override
 	public abstract T reduce(T value1, T value2) throws Exception;
 }
