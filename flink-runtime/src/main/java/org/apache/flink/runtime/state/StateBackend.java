@@ -211,5 +211,10 @@ public abstract class StateBackend<Backend extends StateBackend<Backend>> implem
 		public void discardState() throws Exception {
 			stream.discardState();
 		}
+
+		@Override
+		public long getStateSize() throws Exception {
+			return stream.getStateSize();
+		}
 	}
 }

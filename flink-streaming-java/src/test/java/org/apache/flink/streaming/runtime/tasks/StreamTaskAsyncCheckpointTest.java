@@ -182,6 +182,11 @@ public class StreamTaskAsyncCheckpointTest {
 		public StateHandle<String> materialize() throws Exception {
 			return new TestStateHandle(checkpointId, timestamp);
 		}
+
+		@Override
+		public long getStateSize() {
+			return 0;
+		}
 	}
 
 	private static class TestStateHandle implements StateHandle<String> {
@@ -201,6 +206,11 @@ public class StreamTaskAsyncCheckpointTest {
 
 		@Override
 		public void discardState() throws Exception {
+		}
+
+		@Override
+		public long getStateSize() {
+			return 0;
 		}
 	}
 	

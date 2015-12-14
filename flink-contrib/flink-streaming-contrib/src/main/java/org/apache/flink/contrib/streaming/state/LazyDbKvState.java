@@ -395,6 +395,13 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			// Don't discard, it will be compacted by the LazyDbKvState
 		}
 
+		@Override
+		public long getStateSize() throws Exception {
+			// Because the state is serialzied in a lazy fashion we don't know
+			// the size of the state yet.
+			return 0;
+		}
+
 	}
 
 	/**
