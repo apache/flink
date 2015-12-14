@@ -215,17 +215,33 @@ public class RuntimeEnvironment implements Environment {
 	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
 		// try and create a serialized version of the state handle
 		SerializedValue<StateHandle<?>> serializedState;
+		long stateSize;
+
 		if (state == null) {
 			serializedState = null;
+			stateSize = 0;
 		} else {
 			try {
 				serializedState = new SerializedValue<StateHandle<?>>(state);
 			} catch (Exception e) {
 				throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
 			}
+
+			try {
+				stateSize = state.getStateSize();
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Failed to fetch state handle size", e);
+			}
 		}
 		
-		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(jobId, executionId, checkpointId, serializedState);
+		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(
+				jobId,
+				executionId,
+				checkpointId,
+				serializedState,
+				stateSize);
+
 		jobManager.tell(message);
 	}
 }
