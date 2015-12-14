@@ -19,8 +19,6 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -28,8 +26,8 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -66,9 +64,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		}
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-		InputViewDataInputStreamWrapper in = new InputViewDataInputStreamWrapper(
-				new DataInputStream(bais)
-		);
+		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 		initialValue = outTypeSerializer.deserialize(in);
 		values = createKeyValueState(STATE_NAME, outTypeSerializer, null);
 	}
@@ -98,9 +94,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		outTypeSerializer = outTypeInfo.createSerializer(executionConfig);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		OutputViewDataOutputStreamWrapper out = new OutputViewDataOutputStreamWrapper(
-				new DataOutputStream(baos)
-		);
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 
 		try {
 			outTypeSerializer.serialize(initialValue, out);

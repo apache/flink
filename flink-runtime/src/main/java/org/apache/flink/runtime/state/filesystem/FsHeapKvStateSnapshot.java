@@ -21,10 +21,9 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
-import java.io.DataInputStream;
 import java.util.HashMap;
 
 /**
@@ -76,7 +75,7 @@ public class FsHeapKvStateSnapshot<K, V> extends AbstractFileState implements Kv
 		
 		// state restore
 		try (FSDataInputStream inStream = stateBackend.getFileSystem().open(getFilePath())) {
-			InputViewDataInputStreamWrapper inView = new InputViewDataInputStreamWrapper(new DataInputStream(inStream));
+			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(inStream);
 			
 			final int numEntries = inView.readInt();
 			HashMap<K, V> stateMap = new HashMap<>(numEntries);

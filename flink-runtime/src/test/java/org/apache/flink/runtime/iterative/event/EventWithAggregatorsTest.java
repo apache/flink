@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.event;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
-import org.apache.flink.runtime.iterative.event.IterationEventWithAggregators;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -102,21 +98,19 @@ public class EventWithAggregatorsTest {
 	private IterationEventWithAggregators pipeThroughSerialization(IterationEventWithAggregators event) {
 		try {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			DataOutputStream out = new DataOutputStream(baos);
-			event.write(new OutputViewDataOutputStreamWrapper(out));
-			out.flush();
+			event.write(new DataOutputViewStreamWrapper(baos));
 			
 			byte[] data = baos.toByteArray();
-			out.close();
 			baos.close();
 			
-			DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
 			IterationEventWithAggregators newEvent = event.getClass().newInstance();
-			newEvent.read(new InputViewDataInputStreamWrapper(in));
+			newEvent.read(in);
 			in.close();
 			
 			return newEvent;
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
 			Assert.fail("Test threw an exception: " + e.getMessage());

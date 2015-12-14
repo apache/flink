@@ -16,11 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -28,27 +34,17 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map.Entry;
 
-import org.junit.Assert;
-
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.junit.Before;
-import org.junit.Test;
-
 public class CollectionsDataTypeTest {
-	private DataOutputStream out;
+	
+	private DataOutputView out;
 
-	private DataInputStream in;
+	private DataInputView in;
 
 	@Before
-	public void setup() {
-		try {
-			PipedInputStream input = new PipedInputStream(1000);
-			in = new DataInputStream(input);
-			out = new DataOutputStream(new PipedOutputStream(input));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	public void setup() throws Exception {
+		PipedInputStream input = new PipedInputStream(1000);
+		in = new DataInputViewStreamWrapper(input);
+		out = new DataOutputViewStreamWrapper(new PipedOutputStream(input));
 	}
 
 	@Test
@@ -66,8 +62,8 @@ public class CollectionsDataTypeTest {
 		try {
 			NfIntStringPair mPairActual = new NfIntStringPair();
 
-			pair1.write(new OutputViewDataOutputStreamWrapper(out));
-			mPairActual.read(new InputViewDataInputStreamWrapper(in));
+			pair1.write(out);
+			mPairActual.read(in);
 
 			Assert.assertEquals(pair1, mPairActual);
 		} catch (IOException e) {
@@ -190,10 +186,10 @@ public class CollectionsDataTypeTest {
 		// now test data transfer
 		NfIntStringMap nMap = new NfIntStringMap();
 		try {
-			map0.write(new OutputViewDataOutputStreamWrapper(out));
-			nMap.read(new InputViewDataInputStreamWrapper(in));
+			map0.write(out);
+			nMap.read(in);
 		} catch (Exception e) {
-			Assert.assertTrue(false);
+			Assert.fail();
 		}
 		for (Entry<IntValue, StringValue> entry : map0.entrySet()) {
 			Assert.assertEquals(entry.getKey().getValue(), Integer.parseInt(entry.getValue().toString()));
@@ -213,15 +209,14 @@ public class CollectionsDataTypeTest {
 		list.add(new StringValue("Hello3!"));
 		list.add(new StringValue("Hello4!"));
 
-		Assert.assertTrue(list.equals(list));
-
 		// test data transfer
 		NfStringList mList2 = new NfStringList();
 		try {
-			list.write(new OutputViewDataOutputStreamWrapper(out));
-			mList2.read(new InputViewDataInputStreamWrapper(in));
-		} catch (Exception e) {
-			Assert.assertTrue(false);
+			list.write(out);
+			mList2.read(in);
+		}
+		catch (Exception e) {
+			Assert.fail();
 		}
 		Assert.assertTrue(list.equals(mList2));
 	}

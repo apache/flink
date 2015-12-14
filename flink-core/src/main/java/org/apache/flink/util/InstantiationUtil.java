@@ -20,13 +20,11 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -204,19 +202,8 @@ public final class InstantiationUtil {
 	 * @return True, if the class is a non-statically accessible inner class.
 	 */
 	public static boolean isNonStaticInnerClass(Class<?> clazz) {
-		if (clazz.getEnclosingClass() == null) {
-			// no inner class
-			return false;
-		} else {
-			// inner class
-			if (clazz.getDeclaringClass() != null) {
-				// named inner class
-				return !Modifier.isStatic(clazz.getModifiers());
-			} else {
-				// anonymous inner class
-				return true;
-			}
-		}
+		return clazz.getEnclosingClass() != null && 
+			(clazz.getDeclaringClass() == null || !Modifier.isStatic(clazz.getModifiers()));
 	}
 	
 	/**
@@ -269,10 +256,8 @@ public final class InstantiationUtil {
 		}
 
 		ByteArrayOutputStream bos = new ByteArrayOutputStream(64);
-		OutputViewDataOutputStreamWrapper outputViewWrapper = new OutputViewDataOutputStreamWrapper(new DataOutputStream(bos));
-
+		DataOutputViewStreamWrapper outputViewWrapper = new DataOutputViewStreamWrapper(bos);
 		serializer.serialize(record, outputViewWrapper);
-
 		return bos.toByteArray();
 	}
 
@@ -281,7 +266,7 @@ public final class InstantiationUtil {
 			throw new NullPointerException("Byte array to deserialize from must not be null.");
 		}
 
-		InputViewDataInputStreamWrapper inputViewWrapper = new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+		DataInputViewStreamWrapper inputViewWrapper = new DataInputViewStreamWrapper(new ByteArrayInputStream(buf));
 		return serializer.deserialize(inputViewWrapper);
 	}
 
@@ -290,7 +275,7 @@ public final class InstantiationUtil {
 			throw new NullPointerException("Byte array to deserialize from must not be null.");
 		}
 
-		InputViewDataInputStreamWrapper inputViewWrapper = new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+		DataInputViewStreamWrapper inputViewWrapper = new DataInputViewStreamWrapper(new ByteArrayInputStream(buf));
 		return serializer.deserialize(reuse, inputViewWrapper);
 	}
 	

@@ -18,7 +18,20 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.DataOutputStream;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileInputSplit;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runners.Parameterized.Parameters;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,19 +39,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.util.TestLogger;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runners.Parameterized.Parameters;
 
 /**
  * Test base for {@link org.apache.flink.api.common.io.BinaryInputFormat} and {@link org.apache.flink.api.common.io.BinaryOutputFormat}.
@@ -81,10 +81,10 @@ public abstract class SequentialFormatTestBase<T> extends TestLogger {
 		int recordIndex = 0;
 		for (int fileIndex = 0; fileIndex < this.parallelism; fileIndex++) {
 			ByteCounter byteCounter = new ByteCounter();
-			DataOutputStream out = new DataOutputStream(byteCounter);
+
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
-				writeRecord(this.getRecord(recordIndex), new OutputViewDataOutputStreamWrapper
-						(out));
+				writeRecord(this.getRecord(recordIndex), 
+					new DataOutputViewStreamWrapper(byteCounter));
 			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
 		}

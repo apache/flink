@@ -18,27 +18,20 @@
 
 package org.apache.flink.runtime.operators.util;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-
-import org.apache.flink.api.common.typeutils.base.IntComparator;
-import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
-import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
+import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.DeserializationException;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
@@ -47,7 +40,12 @@ import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -417,21 +415,23 @@ public class OutputEmitterTest {
 		final ChannelSelector<SerializationDelegate<Record>> oe1 = new OutputEmitter<Record>(ShipStrategyType.PARTITION_HASH, doubleComp);
 		final SerializationDelegate<Record> delegate = new SerializationDelegate<Record>(new RecordSerializerFactory().getSerializer());
 		
-		PipedInputStream pipedInput = new PipedInputStream(1024*1024);
-		DataInputStream in = new DataInputStream(pipedInput);
-		DataOutputStream out;
+		
+		;
+		
 		Record rec = null;
 		
 		try {
-			out = new DataOutputStream(new PipedOutputStream(pipedInput));
+			PipedInputStream pipedInput = new PipedInputStream(1024*1024);
+			
+			DataInputView in = new DataInputViewStreamWrapper(pipedInput);
+			DataOutputView out = new DataOutputViewStreamWrapper(new PipedOutputStream(pipedInput));
 			
 			rec = new Record(1);
 			rec.setField(0, new IntValue());
 			
-			rec.write(new OutputViewDataOutputStreamWrapper(out));
+			rec.write(out);
 			rec = new Record();
-			rec.read(new InputViewDataInputStreamWrapper(in));
-		
+			rec.read(in);
 		} catch (IOException e) {
 			fail("Test erroneous");
 		}

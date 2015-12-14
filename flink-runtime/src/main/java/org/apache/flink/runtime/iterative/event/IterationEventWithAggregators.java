@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.event;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
@@ -101,11 +98,13 @@ public abstract class IterationEventWithAggregators extends TaskEvent {
 					throw new RuntimeException("User-defined aggregator class is not a value sublass.");
 				}
 				
-				DataInputStream in = new DataInputStream(new ByteArrayInputStream(serializedData[i]));
-				try {
-					v.read(new InputViewDataInputStreamWrapper(in));
-					in.close();
-				} catch (IOException e) {
+				
+				try (DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(
+					new ByteArrayInputStream(serializedData[i])))
+				{
+					v.read(in);
+				}
+				catch (IOException e) {
 					throw new RuntimeException("Error while deserializing the user-defined aggregate class.", e);
 				}
 				
@@ -122,7 +121,7 @@ public abstract class IterationEventWithAggregators extends TaskEvent {
 		out.writeInt(num);
 		
 		ByteArrayOutputStream boas = new ByteArrayOutputStream();
-		DataOutputStream bufferStream = new DataOutputStream(boas);
+		DataOutputViewStreamWrapper bufferStream = new DataOutputViewStreamWrapper(boas);
 		
 		for (int i = 0; i < num; i++) {
 			// aggregator name and type
@@ -130,7 +129,7 @@ public abstract class IterationEventWithAggregators extends TaskEvent {
 			out.writeUTF(this.aggregates[i].getClass().getName());
 			
 			// aggregator value indirect as a byte array
-			this.aggregates[i].write(new OutputViewDataOutputStreamWrapper(bufferStream));
+			this.aggregates[i].write(bufferStream);
 			bufferStream.flush();
 			byte[] bytes = boas.toByteArray();
 			out.writeInt(bytes.length);

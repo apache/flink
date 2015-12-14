@@ -19,10 +19,9 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.AbstractHeapKvState;
 
-import java.io.DataOutputStream;
 import java.util.HashMap;
 
 /**
@@ -75,8 +74,7 @@ public class FsHeapKvState<K, V> extends AbstractHeapKvState<K, V, FsStateBacken
 					backend.createCheckpointStateOutputStream(checkpointId, timestamp)) {
 
 			// serialize the state to the output stream
-			OutputViewDataOutputStreamWrapper outView = 
-					new OutputViewDataOutputStreamWrapper(new DataOutputStream(out));
+			DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out);
 			outView.writeInt(size());
 			writeStateToOutputView(outView);
 			outView.flush();
