@@ -49,6 +49,8 @@ angular.module('flinkApp')
   $scope.job = null
   $scope.plan = null
   $scope.vertices = null
+  $scope.jobCheckpointStats = null
+  $scope.showHistory = false
 
   JobsService.loadJob($stateParams.jobid).then (data) ->
     $scope.job = data
@@ -67,6 +69,7 @@ angular.module('flinkApp')
     $scope.job = null
     $scope.plan = null
     $scope.vertices = null
+    $scope.jobCheckpointStats = null
 
     $interval.cancel(refresher)
 
@@ -74,6 +77,9 @@ angular.module('flinkApp')
     angular.element(cancelEvent.currentTarget).removeClass("btn").removeClass("btn-default").html('Cancelling...')
     JobsService.cancelJob($stateParams.jobid).then (data) ->
       {}
+
+  $scope.toggleHistory = ->
+    $scope.showHistory = !$scope.showHistory
 
 # --------------------------------------
 
@@ -90,6 +96,7 @@ angular.module('flinkApp')
       $scope.vertex = null
       $scope.subtasks = null
       $scope.accumulators = null
+      $scope.operatorCheckpointStats = null
 
       $scope.$broadcast 'reload'
 
@@ -99,6 +106,7 @@ angular.module('flinkApp')
       $scope.vertex = null
       $scope.subtasks = null
       $scope.accumulators = null
+      $scope.operatorCheckpointStats = null
 
   $scope.deactivateNode = ->
     $scope.nodeid = null
@@ -106,6 +114,7 @@ angular.module('flinkApp')
     $scope.vertex = null
     $scope.subtasks = null
     $scope.accumulators = null
+    $scope.operatorCheckpointStats = null
 
   $scope.toggleFold = ->
     $scope.nodeUnfolded = !$scope.nodeUnfolded
@@ -141,6 +150,33 @@ angular.module('flinkApp')
       JobsService.getAccumulators($scope.nodeid).then (data) ->
         $scope.accumulators = data.main
         $scope.subtaskAccumulators = data.subtasks
+
+# --------------------------------------
+
+.controller 'JobPlanCheckpointsController', ($scope, JobsService) ->
+  console.log 'JobPlanCheckpointsController'
+
+  # Get the per job stats
+  JobsService.getJobCheckpointStats($scope.jobid).then (data) ->
+    $scope.jobCheckpointStats = data
+
+  # Get the per operator stats
+  if $scope.nodeid and (!$scope.vertex or !$scope.vertex.operatorCheckpointStats)
+    JobsService.getOperatorCheckpointStats($scope.nodeid).then (data) ->
+      console.log('resvoled 1')
+      $scope.operatorCheckpointStats = data.operatorStats
+      $scope.subtasksCheckpointStats = data.subtasksStats
+
+  $scope.$on 'reload', (event) ->
+    console.log 'JobPlanCheckpointsController'
+
+    JobsService.getJobCheckpointStats($scope.jobid).then (data) ->
+      $scope.jobCheckpointStats = data
+
+    if $scope.nodeid
+      JobsService.getOperatorCheckpointStats($scope.nodeid).then (data) ->
+        $scope.operatorCheckpointStats = data.operatorStats
+        $scope.subtasksCheckpointStats = data.subtasksStats
 
 # --------------------------------------
 

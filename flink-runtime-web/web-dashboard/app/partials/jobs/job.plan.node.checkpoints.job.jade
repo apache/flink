@@ -1,0 +1,96 @@
+//
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+div(ng-if="!jobCheckpointStats")
+  p
+    em No checkpoints
+
+table(ng-if="jobCheckpointStats").table.table-hover.table-inner
+  thead
+    tr
+      td(colspan=3)
+        strong Overview
+  tbody
+    tr
+      td
+        strong Count
+      td(colspan=3)
+        span {{ jobCheckpointStats['count'] }}
+
+    tr
+      td
+        strong Duration
+      td
+        p
+          strong Minimum:
+          span  {{ jobCheckpointStats['duration']['min'] | humanizeDuration }}
+      td
+        p
+          strong Maximum:
+          span  {{ jobCheckpointStats['duration']['max'] | humanizeDuration }}
+
+      td
+        p
+          strong Average:
+          span  {{ jobCheckpointStats['duration']['avg'] | humanizeDuration }}
+
+    tr
+      td
+          strong State Size
+      td
+          p
+            strong Minimum:
+            span  {{ jobCheckpointStats['size']['min'] | humanizeBytes }}
+      td
+          p
+            strong Maximum:
+            span  {{ jobCheckpointStats['size']['max'] | humanizeBytes }}
+      td
+          p
+            strong Average:
+            span  {{ jobCheckpointStats['size']['avg'] | humanizeBytes }}
+
+div(ng-if="!showHistory && jobCheckpointStats && jobCheckpointStats['history'].length > 0")
+  a.btn.btn-default(ng-click="toggleHistory()")
+    | <strong>Show history</strong> ({{ jobCheckpointStats['history'].length }})
+    = ' '
+    i.fa.fa-chevron-down
+
+div(ng-if="showHistory && jobCheckpointStats && jobCheckpointStats['history'].length > 0")
+  a.btn.btn-default(ng-click="toggleHistory()")
+    | Hide history ({{ jobCheckpointStats['history'].length }})
+    = ' '
+    i.fa.fa-chevron-up
+
+  table.table.table-hover.table-inner
+    thead
+      tr
+        td
+          strong ID
+        td
+          strong Trigger Time
+        td
+          strong Duration
+        td
+          strong State Size
+
+    tbody(ng-if="jobCheckpointStats['history'] && jobCheckpointStats['history'].length > 0" ng-repeat="historic in jobCheckpointStats['history']")
+      tr
+        td {{ historic['id'] }}
+        td {{ historic['timestamp'] | amDateFormat:'H:mm:ss' }}
+        td {{ historic['duration'] | humanizeDuration }}
+        td {{ historic['size'] | humanizeBytes }}
