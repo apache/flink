@@ -35,15 +35,26 @@ public class CompletedCheckpoint implements Serializable {
 	private final JobID job;
 	
 	private final long checkpointID;
-	
+
+	/** The timestamp when the checkpoint was triggered. */
 	private final long timestamp;
-	
+
+	/** The duration of the checkpoint (completion timestamp - trigger timestamp). */
+	private final long duration;
+
 	private final ArrayList<StateForTask> states;
 
-	public CompletedCheckpoint(JobID job, long checkpointID, long timestamp, ArrayList<StateForTask> states) {
+	public CompletedCheckpoint(
+			JobID job,
+			long checkpointID,
+			long timestamp,
+			long completionTimestamp,
+			ArrayList<StateForTask> states) {
+
 		this.job = job;
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
+		this.duration = completionTimestamp - timestamp;
 		this.states = states;
 	}
 
@@ -57,6 +68,10 @@ public class CompletedCheckpoint implements Serializable {
 
 	public long getTimestamp() {
 		return timestamp;
+	}
+
+	public long getDuration() {
+		return duration;
 	}
 
 	public List<StateForTask> getStates() {
