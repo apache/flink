@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.util.DataInputDeserializer;
 
 import java.util.HashMap;
 
@@ -63,7 +63,6 @@ public class MemoryHeapKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, Me
 		this.numEntries = numEntries;
 	}
 
-
 	@Override
 	public MemHeapKvState<K, V> restoreState(
 			MemoryStateBackend stateBackend,
@@ -100,4 +99,9 @@ public class MemoryHeapKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, Me
 	 */
 	@Override
 	public void discardState() {}
+
+	@Override
+	public long getStateSize() {
+		return data.length;
+	}
 }

@@ -43,4 +43,15 @@ public interface StateHandle<T> extends Serializable {
 	 * used any more.
 	 */
 	void discardState() throws Exception;
+
+	/**
+	 * Returns the size of the state in bytes.
+	 *
+	 * <p>If the the size is not known, return <code>0</code>.
+	 *
+	 * @return Size of the state in bytes.
+	 *
+	 * @throws Exception If the operation fails during size retrieval.
+	 */
+	long getStateSize() throws Exception;
 }
