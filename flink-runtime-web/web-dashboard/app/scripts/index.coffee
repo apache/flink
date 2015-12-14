@@ -30,7 +30,7 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
 
 .value 'flinkConfig', {
   jobServer: ''
-#  jobServer: 'http://localhost:8081/'
+# jobServer: 'http://localhost:8081/'
   "refresh-interval": 10000
 }
 
@@ -105,6 +105,13 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.accumulators.html"
         controller: 'JobPlanAccumulatorsController'
+
+  .state "single-job.plan.checkpoints",
+    url: "/checkpoints"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.checkpoints.html"
+        controller: 'JobPlanCheckpointsController'
 
   .state "single-job.timeline",
     url: "/timeline"
