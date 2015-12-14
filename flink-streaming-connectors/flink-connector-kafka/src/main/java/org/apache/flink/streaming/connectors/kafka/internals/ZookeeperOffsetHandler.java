@@ -62,8 +62,14 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 			throw new IllegalArgumentException("Required property 'zookeeper.connect' has not been set");
 		}
 
-		RetryPolicy retryPolicy = new ExponentialBackoffRetry(100, 10);
-		curatorClient = CuratorFrameworkFactory.newClient(zkConnect, retryPolicy);
+		// we use Curator's default timeouts
+		int sessionTimeoutMs =  Integer.valueOf(props.getProperty("zookeeper.session.timeout.ms", "60000"));
+		int connectionTimeoutMs = Integer.valueOf(props.getProperty("zookeeper.connection.timeout.ms", "15000"));
+		// undocumented config options allowing users to configure the retry policy. (they are "flink." prefixed as they are no official kafka configs)
+		int backoffBaseSleepTime = Integer.valueOf(props.getProperty("flink.zookeeper.base-sleep-time.ms", "100"));
+		int backoffMaxRetries =  Integer.valueOf(props.getProperty("flink.zookeeper.max-retries", "10"));
+		RetryPolicy retryPolicy = new ExponentialBackoffRetry(backoffBaseSleepTime, backoffMaxRetries);
+		curatorClient = CuratorFrameworkFactory.newClient(zkConnect, sessionTimeoutMs, connectionTimeoutMs, retryPolicy);
 		curatorClient.start();
 	}
 
@@ -107,7 +113,7 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	public static void setOffsetInZooKeeper(CuratorFramework curatorClient, String groupId, String topic, int partition, long offset) throws Exception {
 		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topic);
 		String path = topicDirs.consumerOffsetDir() + "/" + partition;
-		ensureExists(curatorClient, path);
+		curatorClient.newNamespaceAwareEnsurePath(path).ensure(curatorClient.getZookeeperClient());
 		byte[] data = Long.toString(offset).getBytes();
 		curatorClient.setData().forPath(path, data);
 	}
@@ -115,9 +121,9 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	public static long getOffsetFromZooKeeper(CuratorFramework curatorClient, String groupId, String topic, int partition) throws Exception {
 		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topic);
 		String path = topicDirs.consumerOffsetDir() + "/" + partition;
-		ensureExists(curatorClient, path);
+		curatorClient.newNamespaceAwareEnsurePath(path).ensure(curatorClient.getZookeeperClient());
 		byte[] data = curatorClient.getData().forPath(path);
-		if(data == null) {
+		if (data == null) {
 			return OFFSET_NOT_SET;
 		} else {
 			String asString = new String(data);
@@ -126,13 +132,6 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 			} else {
 				return Long.valueOf(asString);
 			}
-		}
-	}
-
-	private static void ensureExists(CuratorFramework curatorClient, String path) throws Exception {
-		Stat existsCheck = curatorClient.checkExists().forPath(path);
-		if(existsCheck == null) {
-			ZKPaths.mkdirs(curatorClient.getZookeeperClient().getZooKeeper(), path);
 		}
 	}
 }
