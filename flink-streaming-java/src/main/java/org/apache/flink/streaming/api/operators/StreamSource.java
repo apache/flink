@@ -151,9 +151,15 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
+			if (mark.getTimestamp() == Long.MAX_VALUE) {
+				// allow it since this is the special end-watermark that for example the Kafka
+				// source emits
+				output.emitWatermark(mark);
+			} else {
+				throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
 					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
+			}
 		}
 
 		@Override
@@ -236,9 +242,15 @@ public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction
 
 		@Override
 		public void emitWatermark(Watermark mark) {
-			throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
+			if (mark.getTimestamp() == Long.MAX_VALUE) {
+				// allow it since this is the special end-watermark that for example the Kafka
+				// source emits
+				output.emitWatermark(mark);
+			} else {
+				throw new UnsupportedOperationException("Automatic-Timestamp sources cannot emit" +
 					" elements with a timestamp. See interface EventTimeSourceFunction" +
 					" if you want to manually assign timestamps to elements.");
+			}
 		}
 
 		@Override
