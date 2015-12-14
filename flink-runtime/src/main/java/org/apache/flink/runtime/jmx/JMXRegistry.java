@@ -72,8 +72,6 @@ public class JMXRegistry implements InstanceListener {
 	public static void setup(InstanceManager manager) {
 		if (instance == null) {
 			instance = new JMXRegistry(manager);
-		} else {
-			throw new IllegalStateException("The JMXRegistry should only be initialized once per VM.");
 		}
 	}
 
