@@ -18,15 +18,15 @@
 
 package org.apache.flink.yarn
 
-import java.io.{FileWriter, BufferedWriter, PrintWriter}
+import java.io.{BufferedWriter, FileWriter, PrintWriter}
 import java.net.{BindException, ServerSocket}
 import java.security.PrivilegedAction
 
 import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.client.CliFrontend
-import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManagerMode, JobManager}
+import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode, MemoryArchivist}
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.util.NetUtils
@@ -34,12 +34,10 @@ import org.apache.flink.yarn.YarnMessages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.jboss.netty.channel.ChannelException
 import org.slf4j.LoggerFactory
 
-import scala.annotation.tailrec
 import scala.io.Source
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success}
 
 /** Base class for all application masters. This base class provides functionality to start a
   * [[JobManager]] implementation in a Yarn container.
@@ -153,34 +151,10 @@ abstract class ApplicationMasterBase {
         )
       }
 
-      @tailrec
-      def retry[T](fn: => T, stopCond: => Boolean): Try[T] = {
-        Try {
-          fn
-        } match {
-          case Failure(x: BindException) =>
-            if (stopCond) {
-              Failure(new RuntimeException("Unable to do further retries starting the actor " +
-                "system"))
-            } else {
-              retry(fn, stopCond)
-            }
-          case Failure(x: Exception) => x.getCause match {
-            case c: ChannelException =>
-              if (stopCond) {
-                Failure(new RuntimeException("Unable to do further retries starting the actor " +
-                  "system"))
-              } else {
-                retry(fn, stopCond)
-              }
-            case _ => Failure(x)
-          }
-          case f => f
-        }
-      }
-
       // try starting the actor system
-      val result = retry(startActorSystem(portsIterator), {!portsIterator.hasNext})
+      val result = JobManager.retryOnBindException(
+        startActorSystem(portsIterator),
+        {!portsIterator.hasNext})
 
       val (actorSystem, jmActor, archiveActor, webMonitor) = result match {
         case Success(r) => r
