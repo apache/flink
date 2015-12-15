@@ -574,8 +574,11 @@ public class PackagedProgram {
 	}
 	
 	private static Class<?> loadMainClass(String className, ClassLoader cl) throws ProgramInvocationException {
+		ClassLoader contextCl = null;
 		try {
-			return Class.forName(className, true, cl);
+			contextCl = Thread.currentThread().getContextClassLoader();
+			Thread.currentThread().setContextClassLoader(cl);
+			return Class.forName(className, false, cl);
 		}
 		catch (ClassNotFoundException e) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
@@ -592,6 +595,10 @@ public class PackagedProgram {
 		catch (Throwable t) {
 			throw new ProgramInvocationException("The program's entry point class '" + className
 				+ "' caused an exception during initialization: "+ t.getMessage(), t);
+		} finally {
+			if (contextCl != null) {
+				Thread.currentThread().setContextClassLoader(contextCl);
+			}
 		}
 	}
 	
