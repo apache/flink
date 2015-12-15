@@ -180,7 +180,7 @@ abstract class ApplicationMasterBase {
       }
 
       // try starting the actor system
-      val result = retry(startActorSystem(portsIterator), {portsIterator.hasNext})
+      val result = retry(startActorSystem(portsIterator), {!portsIterator.hasNext})
 
       val (actorSystem, jmActor, archiveActor, webMonitor) = result match {
         case Success(r) => r
