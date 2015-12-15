@@ -29,6 +29,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * Utils for working with the various test harnesses.
  */
@@ -75,6 +77,8 @@ public class TestHarnessUtil {
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
 	public static void assertOutputEqualsSorted(String message, Queue<Object> expected, Queue<Object> actual, Comparator<Object> comparator) {
+		assertEquals(expected.size(), actual.size());
+
 		// first, compare only watermarks, their position should be deterministic
 		Iterator<Object> exIt = expected.iterator();
 		Iterator<Object> actIt = actual.iterator();
@@ -82,7 +86,7 @@ public class TestHarnessUtil {
 			Object nextEx = exIt.next();
 			Object nextAct = actIt.next();
 			if (nextEx instanceof Watermark) {
-				Assert.assertEquals(nextEx, nextAct);
+				assertEquals(nextEx, nextAct);
 			}
 		}
 

@@ -24,11 +24,14 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.AllWindowedStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
@@ -36,6 +39,8 @@ import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
@@ -43,6 +48,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.fail;
 
 /**
  * These tests verify that the api calls on
@@ -233,6 +240,83 @@ public class AllWindowTranslationTest extends StreamingMultipleProgramsTestBase 
 		Assert.assertTrue(winOperator2.getTrigger() instanceof EventTimeTrigger);
 		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingEventTimeWindows);
 		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
+	}
+
+	@Test
+	public void testSessionWithFold() throws Exception {
+		// verify that fold does not work with merging windows
+
+		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+
+		AllWindowedStream<String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
+				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)));
+
+		try {
+			windowedStream.fold("", new FoldFunction<String, String>() {
+				@Override
+				public String fold(String accumulator, String value) throws Exception {
+					return accumulator;
+				}
+			});
+		} catch (UnsupportedOperationException e) {
+			// expected
+			// use a catch to ensure that the exception is thrown by the fold
+			return;
+		}
+
+		fail("The fold call should fail.");
+
+		env.execute();
+	}
+
+	@Test
+	public void testMergingAssignerWithNonMergingTrigger() throws Exception {
+		// verify that we check for trigger compatibility
+
+		StreamExecutionEnvironment env = LocalStreamEnvironment.createLocalEnvironment();
+
+		AllWindowedStream<String, TimeWindow> windowedStream = env.fromElements("Hello", "Ciao")
+				.windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)));
+
+		try {
+			windowedStream.trigger(new Trigger<String, TimeWindow>() {
+				@Override
+				public TriggerResult onElement(String element,
+						long timestamp,
+						TimeWindow window,
+						TriggerContext ctx) throws Exception {
+					return null;
+				}
+
+				@Override
+				public TriggerResult onProcessingTime(long time,
+						TimeWindow window,
+						TriggerContext ctx) throws Exception {
+					return null;
+				}
+
+				@Override
+				public TriggerResult onEventTime(long time,
+						TimeWindow window,
+						TriggerContext ctx) throws Exception {
+					return null;
+				}
+
+				@Override
+				public boolean canMerge() {
+					return false;
+				}
+			});
+		} catch (UnsupportedOperationException e) {
+			// expected
+			// use a catch to ensure that the exception is thrown by the fold
+			return;
+		}
+
+		fail("The trigger call should fail.");
+
+		env.execute();
+
 	}
 
 	// ------------------------------------------------------------------------

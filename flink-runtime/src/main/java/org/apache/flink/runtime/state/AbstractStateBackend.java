@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
@@ -40,7 +42,10 @@ import org.apache.flink.runtime.execution.Environment;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -196,7 +201,7 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	public <N, S extends State> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
 		if (keySerializer == null) {
-			throw new Exception("State key serializer has not been configured in the config. " +
+			throw new RuntimeException("State key serializer has not been configured in the config. " +
 					"This operation cannot use partitioned state.");
 		}
 		
@@ -255,6 +260,51 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 		((KvState) kvstate).setCurrentNamespace(namespace);
 
 		return kvstate;
+	}
+
+	@SuppressWarnings("unchecked,rawtypes")
+	public <N, S extends MergingState<?, ?>> void mergePartitionedStates(final N target, Collection<N> sources, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+		if (stateDescriptor instanceof ReducingStateDescriptor) {
+			ReducingStateDescriptor reducingStateDescriptor = (ReducingStateDescriptor) stateDescriptor;
+			ReduceFunction reduceFn = reducingStateDescriptor.getReduceFunction();
+			ReducingState state = (ReducingState) getPartitionedState(target, namespaceSerializer, stateDescriptor);
+			KvState kvState = (KvState) state;
+			Object result = null;
+			for (N source: sources) {
+				kvState.setCurrentNamespace(source);
+				Object sourceValue = state.get();
+				if (result == null) {
+					result = state.get();
+				} else if (sourceValue != null) {
+					result = reduceFn.reduce(result, sourceValue);
+				}
+				state.clear();
+			}
+			kvState.setCurrentNamespace(target);
+			if (result != null) {
+				state.add(result);
+			}
+		} else if (stateDescriptor instanceof ListStateDescriptor) {
+			ListState<Object> state = (ListState) getPartitionedState(target, namespaceSerializer, stateDescriptor);
+			KvState kvState = (KvState) state;
+			List<Object> result = new ArrayList<>();
+			for (N source: sources) {
+				kvState.setCurrentNamespace(source);
+				Iterable<Object> sourceValue = state.get();
+				if (sourceValue != null) {
+					for (Object o : sourceValue) {
+						result.add(o);
+					}
+				}
+				state.clear();
+			}
+			kvState.setCurrentNamespace(target);
+			for (Object o : result) {
+				state.add(o);
+			}
+		} else {
+			throw new RuntimeException("Cannot merge states for " + stateDescriptor);
+		}
 	}
 
 	public HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>> snapshotPartitionedState(long checkpointId, long timestamp) throws Exception {

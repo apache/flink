@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -31,17 +32,19 @@ import java.io.Serializable;
  * A {@code Trigger} determines when a pane of a window should be evaluated to emit the
  * results for that part of the window.
  *
- * <p>
- * A pane is the bucket of elements that have the same key (assigned by the
+ * <p>A pane is the bucket of elements that have the same key (assigned by the
  * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
  * be in multiple panes of it was assigned to multiple windows by the
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
  * have their own instance of the {@code Trigger}.
  *
- * <p>
- * Triggers must not maintain state internally since they can be re-created or reused for
+ * <p>Triggers must not maintain state internally since they can be re-created or reused for
  * different keys. All necessary state should be persisted using the state abstraction
  * available on the {@link TriggerContext}.
+ *
+ * <p>When used with a {@link org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner}
+ * the {@code Trigger} must return {@code true} from {@link #canMerge()} and
+ * {@link #onMerge(Window, OnMergeContext)} most be properly implemented.
  *
  * @param <T> The type of elements on which this {@code Trigger} works.
  * @param <W> The type of {@link Window Windows} on which this {@code Trigger} can operate.
@@ -57,7 +60,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 *
 	 * @param element The element that arrived.
 	 * @param timestamp The timestamp of the element that arrived.
-	 * @param window The window to which this pane belongs.
+	 * @param window The window to which the element is being added.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
 	public abstract TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;
@@ -66,6 +69,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * Called when a processing-time timer that was set using the trigger context fires.
 	 *
 	 * @param time The timestamp at which the timer fired.
+	 * @param window The window for which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
 	public abstract TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;
@@ -74,9 +78,33 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * Called when an event-time timer that was set using the trigger context fires.
 	 *
 	 * @param time The timestamp at which the timer fired.
+	 * @param window The window for which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
 	public abstract TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
+
+	/**
+	 * Returns true if this trigger supports merging of trigger state and can therefore
+	 * be used with a
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner}.
+	 *
+	 * <p>If this returns {@code true} you must properly implement
+	 * {@link #onMerge(Window, OnMergeContext)}
+	 */
+	public boolean canMerge() {
+		return false;
+	}
+
+	/**
+	 * Called when several windows have been merged into one window by the
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}.
+	 *
+	 * @param window The new window that results from the merge.
+	 * @param ctx A context object that can be used to register timer callbacks and access state.
+	 */
+	public TriggerResult onMerge(W window, OnMergeContext ctx) throws Exception {
+		throw new RuntimeException("This trigger does not support merging.");
+	}
 
 	/**
 	 * Clears any state that the trigger might still hold for the given window. This is called
@@ -180,5 +208,13 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
+	}
+
+	/**
+	 * Extension of {@link TriggerContext} that is given to
+	 * {@link Trigger#onMerge(Window, OnMergeContext)}.
+	 */
+	public interface OnMergeContext extends TriggerContext {
+		<S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor);
 	}
 }

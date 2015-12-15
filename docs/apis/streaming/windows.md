@@ -247,7 +247,7 @@ stream.window(GlobalWindows.create());
         </td>
       </tr>
       <tr>
-        <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td><strong>Tumbling event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (1 second below) based on
@@ -261,7 +261,7 @@ stream.window(TumblingEventTimeWindows.of(Time.seconds(1)));
         </td>
       </tr>
       <tr>
-        <td><strong>Sliding time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td><strong>Sliding event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (5 seconds below) based on
@@ -302,6 +302,32 @@ stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
     {% endhighlight %}
         </td>
       </tr>
+          <tr>
+        <td><strong>Event-time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to sessions based on a session gap interval (5 seconds in the example below).
+            Elements whose timestamp differs by more than the session gap are assigned to different sessions. If there are
+            consecutive elements which are less than the session gap apart then these will also be put into the same session, i.e. elements
+            can be connected into a session by intermediate elements.
+          </p>
+    {% highlight scala %}
+keyedStream.window(EventTimeSessionWindows.withGap(Time.seconds(5)));
+    {% endhighlight %}
+        </td>
+      </tr>
+       <tr>
+        <td><strong>Processing time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+           This is similar to event-time session windows but works on the current processing
+           time instead of the timestamp of elements
+          </p>
+    {% highlight scala %}
+keyedStream.window(ProcessingTimeSessionWindows.withGap(Time.seconds(5)));
+    {% endhighlight %}
+        </td>
+      </tr>
   </tbody>
 </table>
 </div>
@@ -329,7 +355,7 @@ stream.window(GlobalWindows.create)
         </td>
       </tr>
       <tr>
-          <td><strong>Tumbling time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+          <td><strong>Tumbling event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
           <td>
             <p>
              Incoming elements are assigned to a window of a certain size (1 second below) based on
@@ -343,7 +369,7 @@ stream.window(TumblingEventTimeWindows.of(Time.seconds(1)))
           </td>
         </tr>
       <tr>
-        <td><strong>Sliding time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td><strong>Sliding event-time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
             Incoming elements are assigned to a window of a certain size (5 seconds below) based on
@@ -382,6 +408,32 @@ stream.window(TumblingProcessingTimeWindows.of(Time.seconds(1)))
           </p>
     {% highlight scala %}
 stream.window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(1)))
+    {% endhighlight %}
+        </td>
+      </tr>
+         <tr>
+        <td><strong>Event-time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to sessions based on a session gap interval (5 seconds in the example below).
+            Elements whose timestamp differs by more than the session gap are assigned to different sessions. If there are
+            consecutive elements which are less than the session gap apart then these will also be put into the same session, i.e. elements
+            can be connected into a session by intermediate elements.
+          </p>
+    {% highlight scala %}
+keyedStream.window(EventTimeSessionWindows.withGap(Time.seconds(5)))
+    {% endhighlight %}
+        </td>
+      </tr>
+       <tr>
+        <td><strong>Processing time Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+           This is similar to event-time session windows but works on the current processing
+           time instead of the timestamp of elements
+          </p>
+    {% highlight scala %}
+keyedStream.window(ProcessingTimeSessionWindows.withGap(Time.seconds(5)))
     {% endhighlight %}
         </td>
       </tr>
