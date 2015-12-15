@@ -452,6 +452,9 @@ public final class ConfigConstants {
 	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
 	public static final String RECOVERY_MODE = "recovery.mode";
 
+	/** Ports used by the job manager if not in standalone recovery mode */
+	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
+
 	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
@@ -727,6 +730,12 @@ public final class ConfigConstants {
   	// --------------------------- Recovery ---------------------------------
 
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
+
+	/**
+	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
+	 * the OS picks a random port port.
+	 */
+	public static final String DEFAULT_RECOVERY_JOB_MANAGER_PORT = "0";
 
 	// --------------------------- ZooKeeper ----------------------------------
 

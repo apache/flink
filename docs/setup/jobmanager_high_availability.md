@@ -55,6 +55,8 @@ jobManagerAddress1:webUIPort1
 jobManagerAddressX:webUIPortX
   </pre>
 
+By default, the job manager will pick a *random port* for inter process communication. You can change this via the **`recovery.jobmanager.port`** key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+
 #### Config File (flink-conf.yaml)
 
 In order to start an HA-cluster add the following configuration keys to `conf/flink-conf.yaml`:

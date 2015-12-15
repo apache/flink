@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
-import java.net.{UnknownHostException, InetAddress, InetSocketAddress}
+import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress, InetSocketAddress}
 import java.util.UUID
 
-import akka.actor.Status.{Success, Failure}
+import akka.actor.Status.Failure
 import akka.actor._
 import akka.pattern.ask
 import grizzled.slf4j.Logger
@@ -61,7 +61,9 @@ import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
+import org.jboss.netty.channel.ChannelException
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -1509,7 +1511,8 @@ object JobManager {
     // parsing the command line arguments
     val (configuration: Configuration,
          executionMode: JobManagerMode,
-         listeningHost: String, listeningPort: Int) =
+         listeningHost: String,
+         listeningPortRange: java.util.Iterator[Integer]) =
     try {
       parseArgs(args)
     }
@@ -1530,19 +1533,16 @@ object JobManager {
       System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
 
-    if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
-      // address and will not be reachable from anyone remote
-      if (listeningPort != 0) {
-        val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-          "' is invalid, it must be equal to 0."
+    if (!listeningPortRange.hasNext) {
+      if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
+        val message = "Config parameter '" + ConfigConstants.RECOVERY_JOB_MANAGER_PORT +
+          "' does not specify a valid port range."
         LOG.error(message)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
-    } else {
-      // address and will not be reachable from anyone remote
-      if (listeningPort <= 0 || listeningPort >= 65536) {
-        val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-          "' is invalid, it must be greater than 0 and less than 65536."
+      else {
+        val message = s"Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+          "' does not specify a valid port."
         LOG.error(message)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
@@ -1558,20 +1558,18 @@ object JobManager {
               configuration,
               executionMode,
               listeningHost,
-              listeningPort)
+              listeningPortRange)
           }
         })
-      }
-      else {
+      } else {
         LOG.info("Security is not enabled. Starting non-authenticated JobManager.")
         runJobManager(
           configuration,
           executionMode,
           listeningHost,
-          listeningPort)
+          listeningPortRange)
       }
-    }
-    catch {
+    } catch {
       case t: Throwable =>
         LOG.error("Failed to run JobManager.", t)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
@@ -1610,6 +1608,103 @@ object JobManager {
 
     // block until everything is shut down
     jobManagerSystem.awaitTermination()
+  }
+
+  /**
+    * Starts and runs the JobManager with all its components trying to bind to
+    * a port in the specified range.
+    *
+    * @param configuration The configuration object for the JobManager.
+    * @param executionMode The execution mode in which to run. Execution mode LOCAL will spawn an
+    *                      an additional TaskManager in the same process.
+    * @param listeningAddress The hostname where the JobManager should listen for messages.
+    * @param listeningPortRange The port range where the JobManager should listen for messages.
+    */
+  def runJobManager(
+      configuration: Configuration,
+      executionMode: JobManagerMode,
+      listeningAddress: String,
+      listeningPortRange: java.util.Iterator[Integer])
+    : Unit = {
+
+    val result = retryOnBindException({
+      // Try all ports in the range until successful
+      val socket = NetUtils.createSocketFromPorts(
+        listeningPortRange,
+        new NetUtils.SocketFactory {
+          override def createSocket(port: Int): ServerSocket = new ServerSocket(
+            // Use the correct listening address, bound ports will only be
+            // detected later by Akka.
+            port, 0, InetAddress.getByName(listeningAddress))
+        })
+
+      val port =
+        if (socket == null) {
+          throw new BindException(s"Unable to allocate port for JobManager.")
+        } else {
+          try {
+            socket.getLocalPort()
+          } finally {
+            socket.close()
+          }
+        }
+
+      runJobManager(configuration, executionMode, listeningAddress, port)
+    }, { !listeningPortRange.hasNext }, 5000)
+
+    result match {
+      case scala.util.Failure(f) => throw f
+    }
+  }
+
+  /**
+    * Retries a function if it fails because of a [[java.net.BindException]].
+    *
+    * @param fn The function to retry
+    * @param stopCond Flag to signal termination
+    * @param maxSleepBetweenRetries Max random sleep time between retries
+    * @tparam T Return type of the the function to retry
+    * @return Return value of the the function to retry
+    */
+  @tailrec
+  def retryOnBindException[T](
+      fn: => T,
+      stopCond: => Boolean,
+      maxSleepBetweenRetries : Long = 0 )
+    : scala.util.Try[T] = {
+
+    def sleepBeforeRetry : Unit = {
+      if (maxSleepBetweenRetries > 0) {
+        val sleepTime = ((Math.random() * maxSleepBetweenRetries).asInstanceOf[Long])
+        LOG.info(s"Retrying after bind exception. Sleeping for ${sleepTime} ms.")
+        Thread.sleep(sleepTime)
+      }
+    }
+
+    scala.util.Try {
+      fn
+    } match {
+      case scala.util.Failure(x: BindException) =>
+        if (stopCond) {
+          scala.util.Failure(new RuntimeException(
+            "Unable to do further retries starting the actor system"))
+        } else {
+          sleepBeforeRetry
+          retryOnBindException(fn, stopCond)
+        }
+      case scala.util.Failure(x: Exception) => x.getCause match {
+        case c: ChannelException =>
+          if (stopCond) {
+            scala.util.Failure(new RuntimeException(
+              "Unable to do further retries starting the actor system"))
+          } else {
+            sleepBeforeRetry
+            retryOnBindException(fn, stopCond)
+          }
+        case _ => scala.util.Failure(x)
+      }
+      case f => f
+    }
   }
 
   /** Starts an ActorSystem, the JobManager and all its components including the WebMonitor.
@@ -1760,7 +1855,8 @@ object JobManager {
    * @param args command line arguments
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]): (Configuration, JobManagerMode, String, Int) = {
+  def parseArgs(args: Array[String])
+    : (Configuration, JobManagerMode, String, java.util.Iterator[Integer]) = {
     val parser = new scopt.OptionParser[JobManagerCliOptions]("JobManager") {
       head("Flink JobManager")
 
@@ -1825,27 +1921,44 @@ object JobManager {
 
     val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
 
-    // high availability mode
-    val port: Int =
+    val portRange =
+      // high availability mode
       if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
-        LOG.info("Starting JobManager in High-Availability Mode")
+        LOG.info("Starting JobManager with high-availability")
 
         configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
-        0
+
+        // The port range of allowed job manager ports or 0 for random
+        configuration.getString(
+          ConfigConstants.RECOVERY_JOB_MANAGER_PORT,
+          ConfigConstants.DEFAULT_RECOVERY_JOB_MANAGER_PORT)
       }
       else {
         LOG.info("Starting JobManager without high-availability")
-  
-        configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-            ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+        // In standalone mode, we don't allow port ranges
+        val listeningPort = configuration.getInteger(
+          ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+        if (listeningPort <= 0 || listeningPort >= 65536) {
+          val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+            "' is invalid, it must be greater than 0 and less than 65536."
+          LOG.error(message)
+          System.exit(STARTUP_FAILURE_RETURN_CODE)
+        }
+
+        String.valueOf(listeningPort)
       }
 
     val executionMode = config.getJobManagerMode
-    val hostPortUrl = NetUtils.hostAndPortToUrlString(host, port)
-    
-    LOG.info(s"Starting JobManager on $hostPortUrl with execution mode $executionMode")
+    val hostUrl = NetUtils.ipAddressToUrlString(InetAddress.getByName(host))
 
-    (configuration, executionMode, host, port)
+    LOG.info(s"Starting JobManager on $hostUrl:$portRange with execution mode $executionMode")
+
+    val portRangeIterator = NetUtils.getPortRangeFromString(portRange)
+
+    (configuration, executionMode, host, portRangeIterator)
   }
 
   /**
