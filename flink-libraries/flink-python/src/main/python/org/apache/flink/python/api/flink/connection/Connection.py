@@ -36,10 +36,28 @@ else:
     SIGNAL_WAS_LAST = 32
 
 
+def recv_all(socket, toread):
+    initial = socket.recv(toread)
+    bytes_read = len(initial)
+    if bytes_read == toread:
+        return initial
+    else:
+        bits = [initial]
+        toread = toread - bytes_read
+        while toread:
+            bit = socket.recv(toread)
+            bits.append(bit)
+            toread = toread - len(bit)
+        return b"".join(bits)
+
+
 class OneWayBusyBufferingMappedFileConnection(object):
     def __init__(self, output_path):
         self._output_file = open(output_path, "rb+")
-        self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
+        if hasattr(mmap, 'MAP_SHARED'):
+            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
+        else:
+            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, None, mmap.ACCESS_WRITE)
 
         self._out = deque()
         self._out_size = 0
@@ -58,13 +76,20 @@ class OneWayBusyBufferingMappedFileConnection(object):
         self._file_output_buffer.seek(0, 0)
         self._file_output_buffer.write(b'\x01')
 
+    def close(self):
+        self._file_output_buffer.close()
+
 
 class BufferingTCPMappedFileConnection(object):
     def __init__(self, input_file, output_file, port):
         self._input_file = open(input_file, "rb+")
         self._output_file = open(output_file, "rb+")
-        self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_READ)
-        self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
+        if hasattr(mmap, 'MAP_SHARED'):
+            self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_READ)
+            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
+        else:
+            self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, None, mmap.ACCESS_READ)
+            self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, None, mmap.ACCESS_WRITE)
         self._socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
         self._socket.connect((SOCKET.gethostbyname("localhost"), port))
 
@@ -75,6 +100,9 @@ class BufferingTCPMappedFileConnection(object):
         self._input_offset = 0
         self._input_size = 0
         self._was_last = False
+
+    def close(self):
+        self._socket.close()
 
     def write(self, msg):
         length = len(msg)
@@ -94,7 +122,7 @@ class BufferingTCPMappedFileConnection(object):
         self._socket.send(pack(">i", self._out_size))
         self._out.clear()
         self._out_size = 0
-        self._socket.recv(1, SOCKET.MSG_WAITALL)
+        recv_all(self._socket, 1)
 
     def read(self, des_size, ignored=None):
         if self._input_size == self._input_offset:
@@ -107,7 +135,7 @@ class BufferingTCPMappedFileConnection(object):
         self._socket.send(SIGNAL_REQUEST_BUFFER)
         self._file_input_buffer.seek(0, 0)
         self._input_offset = 0
-        meta_size = self._socket.recv(5, SOCKET.MSG_WAITALL)
+        meta_size = recv_all(self._socket, 5)
         self._input_size = unpack(">I", meta_size[:4])[0]
         self._was_last = meta_size[4] == SIGNAL_WAS_LAST
         self._input = self._file_input_buffer.read(self._input_size)
@@ -149,7 +177,7 @@ class TwinBufferingTCPMappedFileConnection(BufferingTCPMappedFileConnection):
             self._socket.send(SIGNAL_REQUEST_BUFFER_G0)
         self._file_input_buffer.seek(0, 0)
         self._input_offset[group] = 0
-        meta_size = self._socket.recv(5, SOCKET.MSG_WAITALL)
+        meta_size = recv_all(self._socket, 5)
         self._input_size[group] = unpack(">I", meta_size[:4])[0]
         self._was_last[group] = meta_size[4] == SIGNAL_WAS_LAST
         self._input[group] = self._file_input_buffer.read(self._input_size[group])

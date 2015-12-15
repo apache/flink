@@ -21,6 +21,7 @@ from flink.plan.DataSet import DataSet
 from flink.plan.Constants import _Identifier
 from flink.plan.OperationInfo import OperationInfo
 from flink.utilities import Switch
+import socket as SOCKET
 import copy
 import sys
 from struct import pack
@@ -160,6 +161,7 @@ class Environment(object):
             self._collector = Collector.TypedCollector(self._connection, self)
             self._send_plan()
             self._connection._write_buffer()
+            self._connection.close()
         else:
             import struct
             operator = None
@@ -178,6 +180,7 @@ class Environment(object):
                         operator = set.combineop
                 operator._configure(input_path, output_path, port, self)
                 operator._go()
+                operator._close()
                 sys.stdout.flush()
                 sys.stderr.flush()
             except:
@@ -185,6 +188,11 @@ class Environment(object):
                 sys.stderr.flush()
                 if operator is not None:
                     operator._connection._socket.send(struct.pack(">i", -2))
+                else:
+                    socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
+                    socket.connect((SOCKET.gethostbyname("localhost"), port))
+                    socket.send(struct.pack(">i", -2))
+                    socket.close()
                 raise
 
     def _optimize_plan(self):

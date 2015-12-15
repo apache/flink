@@ -59,6 +59,7 @@ class Function(object):
 
     def _close(self):
         self._collector._close()
+        self._connection.close()
 
     def _go(self):
         self._receive_broadcast_variables()

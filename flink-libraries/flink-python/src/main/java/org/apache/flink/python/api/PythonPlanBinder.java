@@ -12,11 +12,13 @@
  */
 package org.apache.flink.python.api;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Random;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -63,7 +65,7 @@ public class PythonPlanBinder {
 	public static final String ARGUMENT_PYTHON_3 = "3";
 
 	public static final String FLINK_PYTHON_DC_ID = "flink";
-	public static final String FLINK_PYTHON_PLAN_NAME = "/plan.py";
+	public static final String FLINK_PYTHON_PLAN_NAME = File.separator + "plan.py";
 
 	public static final String FLINK_PYTHON2_BINARY_KEY = "python.binary.python2";
 	public static final String FLINK_PYTHON3_BINARY_KEY = "python.binary.python3";
@@ -72,8 +74,10 @@ public class PythonPlanBinder {
 	public static String FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
 	public static String FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 
-	private static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + "/flink_plan";
-	private static final String FLINK_PYTHON_REL_LOCAL_PATH = "/resources/python";
+	private static final Random r = new Random();
+
+	private static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + File.separator + "flink_plan";
+	private static final String FLINK_PYTHON_REL_LOCAL_PATH = File.separator + "resources" + File.separator + "python";
 	private static final String FLINK_DIR = System.getenv("FLINK_ROOT_DIR");
 	private static String FULL_PATH;
 
@@ -84,7 +88,7 @@ public class PythonPlanBinder {
 	public static boolean usePython3 = false;
 
 	private static String FLINK_HDFS_PATH = "hdfs:/tmp";
-	public static final String FLINK_TMP_DATA_DIR = System.getProperty("java.io.tmpdir") + "/flink_data";
+	public static final String FLINK_TMP_DATA_DIR = System.getProperty("java.io.tmpdir") + File.separator + "flink_data";
 
 	public static boolean DEBUG = false;
 
@@ -102,7 +106,7 @@ public class PythonPlanBinder {
 	 */
 	public static void main(String[] args) throws Exception {
 		if (args.length < 2) {
-			System.out.println("Usage: ./bin/pyflink<2/3>.sh <pathToScript>[ <pathToPackage1>[ <pathToPackageX]][ - <parameter1>[ <parameterX>]]");
+			System.out.println("Usage: ./bin/pyflink<2/3>.[sh/bat] <pathToScript>[ <pathToPackage1>[ <pathToPackageX]][ - <parameter1>[ <parameterX>]]");
 			return;
 		}
 		usePython3 = args[0].equals(ARGUMENT_PYTHON_3);
@@ -114,9 +118,10 @@ public class PythonPlanBinder {
 		FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
 		FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 		FULL_PATH = FLINK_DIR != null
-				? FLINK_DIR + FLINK_PYTHON_REL_LOCAL_PATH //command-line
-				: FileSystem.getLocalFileSystem().getWorkingDirectory().toString() //testing
-				+ "/src/main/python/org/apache/flink/python/api";
+				//command-line
+				? FLINK_DIR + FLINK_PYTHON_REL_LOCAL_PATH
+				//testing
+				: new Path(FileSystem.getLocalFileSystem().getWorkingDirectory(), "src/main/python/org/apache/flink/python/api").toString();
 	}
 
 	private void runPlan(String[] args) throws Exception {
@@ -130,15 +135,16 @@ public class PythonPlanBinder {
 		}
 
 		try {
-			prepareFiles(Arrays.copyOfRange(args, 0, split == 0 ? 1 : split));
-			startPython(Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length));
+			String tmpPath = FLINK_PYTHON_FILE_PATH + r.nextInt();
+			prepareFiles(tmpPath, Arrays.copyOfRange(args, 0, split == 0 ? 1 : split));
+			startPython(tmpPath, Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length));
 			receivePlan();
 
 			if (env instanceof LocalEnvironment) {
-				FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + "/flink";
+				FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
 			}
 
-			distributeFiles(env);
+			distributeFiles(tmpPath, env);
 			env.execute();
 			close();
 		} catch (Exception e) {
@@ -156,52 +162,52 @@ public class PythonPlanBinder {
 	 * @throws IOException
 	 * @throws URISyntaxException
 	 */
-	private void prepareFiles(String... filePaths) throws IOException, URISyntaxException {
+	private void prepareFiles(String tempFilePath, String... filePaths) throws IOException, URISyntaxException {
 		//Flink python package
-		String tempFilePath = FLINK_PYTHON_FILE_PATH;
 		clearPath(tempFilePath);
 		FileCache.copy(new Path(FULL_PATH), new Path(tempFilePath), false);
 
 		//plan file		
-		copyFile(filePaths[0], FLINK_PYTHON_PLAN_NAME);
+		copyFile(filePaths[0], tempFilePath, FLINK_PYTHON_PLAN_NAME);
 
 		//additional files/folders
 		for (int x = 1; x < filePaths.length; x++) {
-			copyFile(filePaths[x], null);
+			copyFile(filePaths[x], tempFilePath, null);
 		}
 	}
 
 	private static void clearPath(String path) throws IOException, URISyntaxException {
-		FileSystem fs = FileSystem.get(new URI(path));
+		FileSystem fs = FileSystem.get(new Path(path).toUri());
 		if (fs.exists(new Path(path))) {
 			fs.delete(new Path(path), true);
 		}
 	}
 
-	private static void copyFile(String path, String name) throws IOException, URISyntaxException {
+	private static void copyFile(String path, String target, String name) throws IOException, URISyntaxException {
 		if (path.endsWith("/")) {
 			path = path.substring(0, path.length() - 1);
 		}
 		String identifier = name == null ? path.substring(path.lastIndexOf("/")) : name;
-		String tmpFilePath = FLINK_PYTHON_FILE_PATH + "/" + identifier;
+		String tmpFilePath = target + "/" + identifier;
 		clearPath(tmpFilePath);
 		Path p = new Path(path);
 		FileCache.copy(p.makeQualified(FileSystem.get(p.toUri())), new Path(tmpFilePath), true);
 	}
 
-	private static void distributeFiles(ExecutionEnvironment env) throws IOException, URISyntaxException {
+	private static void distributeFiles(String tmpPath, ExecutionEnvironment env) throws IOException, URISyntaxException {
 		clearPath(FLINK_HDFS_PATH);
-		FileCache.copy(new Path(FLINK_PYTHON_FILE_PATH), new Path(FLINK_HDFS_PATH), true);
+		FileCache.copy(new Path(tmpPath), new Path(FLINK_HDFS_PATH), true);
 		env.registerCachedFile(FLINK_HDFS_PATH, FLINK_PYTHON_DC_ID);
-		clearPath(FLINK_PYTHON_FILE_PATH);
+		clearPath(tmpPath);
 	}
 
-	private void startPython(String[] args) throws IOException {
+	private void startPython(String tempPath, String[] args) throws IOException {
 		for (String arg : args) {
 			arguments.append(" ").append(arg);
 		}
+		String mappedFilePath = FLINK_TMP_DATA_DIR + "/output" + r.nextInt();
 		receiver = new Receiver(null);
-		receiver.open(FLINK_TMP_DATA_DIR + "/output");
+		receiver.open(mappedFilePath);
 
 		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
 
@@ -210,7 +216,7 @@ public class PythonPlanBinder {
 		} catch (IOException ex) {
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
-		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + FLINK_PYTHON_FILE_PATH + FLINK_PYTHON_PLAN_NAME + arguments.toString());
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + tempPath + FLINK_PYTHON_PLAN_NAME + arguments.toString());
 
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
@@ -232,7 +238,7 @@ public class PythonPlanBinder {
 		}
 
 		process.getOutputStream().write("plan\n".getBytes());
-		process.getOutputStream().write((FLINK_TMP_DATA_DIR + "/output\n").getBytes());
+		process.getOutputStream().write((mappedFilePath + "\n").getBytes());
 		process.getOutputStream().flush();
 	}
 
