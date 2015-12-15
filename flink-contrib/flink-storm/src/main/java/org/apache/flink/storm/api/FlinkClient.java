@@ -315,7 +315,7 @@ public class FlinkClient {
 			configuration.setString(ConfigConstants.AKKA_ASK_TIMEOUT, this.timeout);
 		}
 
-		return AkkaUtils.getTimeout(configuration);
+		return AkkaUtils.getClientTimeout(configuration);
 	}
 
 	private ActorRef getJobManager() throws IOException {

@@ -20,7 +20,7 @@ package org.apache.flink.yarn
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 
 
-/** Default implemenation of the [[ApplicationMasterBase]] which starts a [[YarnJobManager]] and a
+/** Default implementation of the [[ApplicationMasterBase]] which starts a [[YarnJobManager]] and a
   * [[MemoryArchivist]].
   */
 class ApplicationMaster extends ApplicationMasterBase {

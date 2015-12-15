@@ -1993,7 +1993,7 @@ object JobManager {
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
     val executionRetries = configuration.getInteger(
-      ConfigConstants.DEFAULT_EXECUTION_RETRIES_KEY,
+      ConfigConstants.EXECUTION_RETRIES_KEY,
       ConfigConstants.DEFAULT_EXECUTION_RETRIES)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
@@ -2003,7 +2003,7 @@ object JobManager {
     // unless explicitly specifies, this is dependent on the heartbeat timeout
     val pauseString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
                                               ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
-    val delayString = configuration.getString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY,
+    val delayString = configuration.getString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY,
                                               pauseString)
 
     val delayBetweenRetries: Long = try {
@@ -2011,7 +2011,7 @@ object JobManager {
       }
       catch {
         case n: NumberFormatException => throw new Exception(
-          s"Invalid config value for ${ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY}: " +
+          s"Invalid config value for ${ConfigConstants.EXECUTION_RETRY_DELAY_KEY}: " +
             s"$pauseString. Value must be a valid duration (such as 100 milli or 1 min)");
       }
 

@@ -706,7 +706,7 @@ public class SavepointITCase extends TestLogger {
 
 			// Long delay to ensure that the test times out if the job
 			// manager tries to restart the job.
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "1 hour");
+			config.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, "1 hour");
 
 			LOG.info("Flink configuration: " + config + ".");
 

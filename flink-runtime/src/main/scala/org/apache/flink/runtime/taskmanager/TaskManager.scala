@@ -1835,8 +1835,7 @@ object TaskManager {
 
     val timeout = try {
       AkkaUtils.getTimeout(configuration)
-    }
-    catch {
+    } catch {
       case e: Exception => throw new IllegalArgumentException(
         s"Invalid format for '${ConfigConstants.AKKA_ASK_TIMEOUT}'. " +
           s"Use formats like '50 s' or '1 min' to specify the timeout.")

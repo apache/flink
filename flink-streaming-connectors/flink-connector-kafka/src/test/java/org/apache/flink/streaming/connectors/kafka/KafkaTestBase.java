@@ -44,8 +44,6 @@ import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.kafka.common.PartitionInfo;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -186,7 +184,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
-		flinkConfig.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 s");
+		flinkConfig.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, "0 s");
 
 		flink = new ForkableFlinkMiniCluster(flinkConfig, false);
 		flink.start();
