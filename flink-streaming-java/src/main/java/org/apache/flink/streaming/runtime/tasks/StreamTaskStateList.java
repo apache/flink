@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
+
+import java.util.HashMap;
 
 /**
  * List of task states for a chain of streaming tasks.
@@ -30,9 +33,41 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 	/** The states for all operator */
 	private final StreamTaskState[] states;
 
+	private final long stateSize;
 	
-	public StreamTaskStateList(StreamTaskState[] states) {
+	public StreamTaskStateList(StreamTaskState[] states) throws Exception {
 		this.states = states;
+
+		long sumStateSize = 0;
+
+		if (states != null) {
+			for (StreamTaskState state : states) {
+				if (state != null) {
+					StateHandle<?> operatorState = state.getOperatorState();
+					StateHandle<?> functionState = state.getFunctionState();
+					HashMap<String, KvStateSnapshot<?, ?, ?>> kvStates = state.getKvStates();
+
+					if (operatorState != null) {
+						sumStateSize += operatorState.getStateSize();
+					}
+
+					if (functionState != null) {
+						sumStateSize += functionState.getStateSize();
+					}
+
+					if (kvStates != null) {
+						for (KvStateSnapshot<?, ?, ?> kvState : kvStates.values()) {
+							if (kvState != null) {
+								sumStateSize += kvState.getStateSize();
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// State size as sum of all state sizes
+		stateSize = sumStateSize;
 	}
 
 	public boolean isEmpty() {
@@ -56,5 +91,10 @@ public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 				state.discardState();
 			}
 		}
+	}
+
+	@Override
+	public long getStateSize() throws Exception {
+		return stateSize;
 	}
 }

@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -32,6 +33,9 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -164,7 +168,6 @@ public class ExecutionGraph implements Serializable {
 	/** The timeout for all messages that require a response/acknowledgement */
 	private final FiniteDuration timeout;
 
-
 	// ------ Configuration of the Execution -------
 
 	/** The number of times failed executions should be retried. */
@@ -184,7 +187,6 @@ public class ExecutionGraph implements Serializable {
 
 	/** Flag to indicate whether the Graph has been archived */
 	private boolean isArchived = false;
-		
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
@@ -197,7 +199,6 @@ public class ExecutionGraph implements Serializable {
 
 	/** The number of job vertices that have reached a terminal state */
 	private volatile int numFinishedJobVertices;
-	
 	
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
@@ -212,6 +213,10 @@ public class ExecutionGraph implements Serializable {
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
+
+	/** Checkpoint stats tracker seperate from the coordinator in order to be
+	 * available after archiving. */
+	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The execution context which is used to execute futures. */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
@@ -367,7 +372,23 @@ public class ExecutionGraph implements Serializable {
 		
 		// disable to make sure existing checkpoint coordinators are cleared
 		disableSnaphotCheckpointing();
-		
+
+		boolean isStatsDisabled = jobConfiguration.getBoolean(
+				ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_DISABLE,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE);
+
+		CheckpointStatsTracker statsTracker;
+		if (isStatsDisabled) {
+			checkpointStatsTracker = new DisabledCheckpointStatsTracker();
+		}
+		else {
+			int historySize = jobConfiguration.getInteger(
+					ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
+					ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE);
+
+			checkpointStatsTracker = new SimpleCheckpointStatsTracker(historySize, tasksToWaitFor);
+		}
+
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
 				jobID,
@@ -381,7 +402,8 @@ public class ExecutionGraph implements Serializable {
 				userClassLoader,
 				checkpointIDCounter,
 				completedCheckpointStore,
-				recoveryMode);
+				recoveryMode,
+				checkpointStatsTracker);
 		
 		// the periodic checkpoint scheduler is activated and deactivated as a result of
 		// job status changes (running -> on, all other states -> off)
@@ -403,11 +425,16 @@ public class ExecutionGraph implements Serializable {
 		if (checkpointCoordinator != null) {
 			checkpointCoordinator.shutdown();
 			checkpointCoordinator = null;
+			checkpointStatsTracker = null;
 		}
 	}
 
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
+	}
+
+	public CheckpointStatsTracker getCheckpointStatsTracker() {
+		return checkpointStatsTracker;
 	}
 
 	private ExecutionVertex[] collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
@@ -963,6 +990,9 @@ public class ExecutionGraph implements Serializable {
 			if (coord != null) {
 				coord.shutdown();
 			}
+
+			// We don't clean the checkpoint stats tracker, because we want
+			// it to be available after the job has terminated.
 		}
 		catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);

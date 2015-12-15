@@ -346,6 +346,11 @@ public final class ConfigConstants {
 	 */
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
 
+	/** Flag to disable checkpoint stats. */
+	public static final String JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = "jobmanager.web.checkpoints.disable";
+
+	/** Config parameter defining the number of checkpoints to remember for recent history. */
+	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
 
 	// ------------------------------ Web Client ------------------------------
 
@@ -695,7 +700,12 @@ public final class ConfigConstants {
 	 * The default number of archived jobs for the jobmanager
 	 */
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
-	
+
+	/** Default flag to disable checkpoint stats. */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
+
+	/** Default number of checkpoints to remember for recent history. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
 	
 	// ------------------------------ Web Client ------------------------------
 	

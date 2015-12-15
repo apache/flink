@@ -16,34 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.checkpoint.stats;
 
-import java.io.Serializable;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.junit.Test;
 
-/**
- * A StateHandle that includes the operator states directly.
- */
-public class LocalStateHandle<T extends Serializable> implements StateHandle<T> {
+import static org.junit.Assert.assertFalse;
 
-	private static final long serialVersionUID = 2093619217898039610L;
-
-	private final T state;
-
-	public LocalStateHandle(T state) {
-		this.state = state;
-	}
-
-	@Override
-	public T getState(ClassLoader userCodeClassLoader) {
-		// The object has been deserialized correctly before
-		return state;
-	}
-
-	@Override
-	public void discardState() {}
-
-	@Override
-	public long getStateSize() {
-		return 0;
+public class DisabledCheckpointStatsTrackerTest {
+	
+	@Test
+	public void testDisabled() throws Exception {
+		CheckpointStatsTracker tracker = new DisabledCheckpointStatsTracker();
+		assertFalse(tracker.getJobStats().isDefined());
+		assertFalse(tracker.getOperatorStats(new JobVertexID()).isDefined());
 	}
 }
