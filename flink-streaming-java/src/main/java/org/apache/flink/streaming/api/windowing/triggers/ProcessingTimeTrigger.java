@@ -19,6 +19,8 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.util.Collection;
+
 /**
  * A {@link Trigger} that fires once the current system time passes the end of the window
  * to which a pane belongs.
@@ -42,6 +44,15 @@ public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
 	@Override
 	public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) {
 		return TriggerResult.FIRE_AND_PURGE;
+	}
+
+	@Override
+	public TriggerResult onMerge(Collection<TimeWindow> oldWindows,
+		Collection<TriggerContext> oldTriggerCtxs,
+		TimeWindow mergedWindow,
+		TriggerContext ctx) {
+		ctx.registerProcessingTimeTimer(mergedWindow.maxTimestamp());
+		return TriggerResult.CONTINUE;
 	}
 
 	@Override

@@ -264,6 +264,8 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		windowBufferFactory.close();
 	}
 
+
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public final void processElement(StreamRecord<IN> element) throws Exception {
@@ -341,6 +343,8 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 	@Override
 	public final void processWatermark(Watermark mark) throws Exception {
+		this.currentWatermark = mark.getTimestamp();
+
 		List<Set<Context>> toTrigger = new ArrayList<>();
 
 		Iterator<Map.Entry<Long, Set<Context>>> it = watermarkTimers.entrySet().iterator();
@@ -353,9 +357,26 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 			}
 		}
 
+		if (windowAssigner.isMerging()) {
+			Set<K> triggeredKeys = new HashSet<>();
+			for (Set<Context> ctxs: toTrigger) {
+				for (Context ctx : ctxs) {
+					if (triggeredKeys.add(ctx.key)) {
+						// merge windows for the key if we did not already do so
+						mergeWindows(ctx.key);
+					}
+				}
+			}
+		}
+
 		for (Set<Context> ctxs: toTrigger) {
 			for (Context ctx: ctxs) {
-					// double check the time. it can happen that the trigger registers a new timer,
+				if (ctx.closed) {
+					// the context might not be available anymore if we merged it before
+					continue;
+				}
+
+				// double check the time. it can happen that the trigger registers a new timer,
 					// in that case the entry is left in the watermarkTimers set for performance reasons.
 					// We have to check here whether the entry in the set still reflects the
 					// currently set timer in the Context.
@@ -367,8 +388,6 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		}
 
 		output.emitWatermark(mark);
-
-		this.currentWatermark = mark.getTimestamp();
 	}
 
 	@Override
@@ -385,8 +404,26 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 			}
 		}
 
+		if (windowAssigner.isMerging()) {
+			Set<K> triggeredKeys = new HashSet<>();
+			for (Set<Context> ctxs: toTrigger) {
+				for (Context ctx : ctxs) {
+					if (triggeredKeys.add(ctx.key)) {
+						// merge windows for the key if we did not already do so
+						mergeWindows(ctx.key);
+					}
+				}
+			}
+		}
+
+
 		for (Set<Context> ctxs: toTrigger) {
 			for (Context ctx: ctxs) {
+				if (ctx.closed) {
+					// the context might not be available anymore if we merged it before
+					continue;
+				}
+
 				// double check the time. it can happen that the trigger registers a new timer,
 				// in that case the entry is left in the processingTimeTimers set for
 				// performance reasons. We have to check here whether the entry in the set still
@@ -395,6 +432,66 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 					Trigger.TriggerResult triggerResult = ctx.onProcessingTime(ctx.processingTimeTimer);
 					processTriggerResult(triggerResult, ctx.key, ctx.window);
 				}
+			}
+		}
+	}
+
+	/**
+	 * Merges the windows of the given key.
+	 */
+	private void mergeWindows(final K key) throws Exception {
+
+		// merge windows of our key
+		List<W> rawWindows = new ArrayList<>();
+		Map<W, Context> keyWindows = windows.get(key);
+		if (keyWindows == null) {
+			return;
+		}
+
+		for (Context c: keyWindows.values()) {
+			rawWindows.add(c.window);
+		}
+		final Map<W, Collection<W>> mergeResults = new HashMap<>();
+		windowAssigner.mergeWindows(rawWindows,
+			new WindowAssigner.MergeCallback<W>() {
+				@Override
+				public void merge(Collection<W> toBeMerged, W mergeResult) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Merging {} into {}, key: {}",toBeMerged, mergeResult, key);
+					}
+					mergeResults.put(mergeResult, toBeMerged);
+				}
+			});
+
+		// perform the merge
+		for (Map.Entry<W, Collection<W>> c: mergeResults.entrySet()) {
+			W newWindow = c.getKey();
+
+			WindowBuffer<IN> windowBuffer = windowBufferFactory.create();
+			Context context = new Context(key, newWindow, windowBuffer);
+
+			List<Trigger.TriggerContext> mergedContexts = new ArrayList<>();
+			Set<Context> toClose = new HashSet<>();
+			// store all the elements from the merged windows in the new buffer
+			for (W mergedWindow: c.getValue()) {
+				Context mergedContext = keyWindows.remove(mergedWindow);
+				toClose.add(mergedContext);
+				mergedContexts.add(mergedContext);
+				for (StreamRecord<IN> e: mergedContext.windowBuffer.getElements()) {
+					context.windowBuffer.storeElement(e);
+				}
+			}
+
+			// only add it to the key windows here since the merge result could also be part
+			// of the windows being merged
+			keyWindows.put(newWindow, context);
+
+			Trigger.TriggerResult triggerResult = context.onMerge(c.getValue(), mergedContexts);
+			processTriggerResult(triggerResult, context.key, context.window);
+
+			// close the merged contexts
+			for (Context ctx: toClose) {
+				ctx.close();
 			}
 		}
 	}
@@ -412,6 +509,10 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	protected class Context implements Trigger.TriggerContext {
 		protected K key;
 		protected W window;
+
+		// We set the field if closing a context but some structures might still contain the
+		// context so we check the closed fields before performing any actions.
+		protected boolean closed = false;
 
 		protected WindowBuffer<IN> windowBuffer;
 
@@ -434,6 +535,10 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 
 			this.watermarkTimer = -1;
 			this.processingTimeTimer = -1;
+		}
+
+		void close() {
+			this.closed = true;
 		}
 
 		/**
@@ -533,20 +638,15 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		}
 
 		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
-			Trigger.TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
-			if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
-				// fire now and don't wait for the next watermark update
-				Trigger.TriggerResult onEventTimeResult = onEventTime(watermarkTimer);
-				return Trigger.TriggerResult.merge(onElementResult, onEventTimeResult);
-			} else {
-				return onElementResult;
-			}
+			Trigger.TriggerResult result = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
+			return eventTimeCheck(result);
 		}
 
 		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
 			if (time == processingTimeTimer) {
 				processingTimeTimer = -1;
-				return trigger.onProcessingTime(time, window, this);
+				Trigger.TriggerResult result = trigger.onProcessingTime(time, window, this);
+				return eventTimeCheck(result);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}
@@ -555,18 +655,31 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 		public Trigger.TriggerResult onEventTime(long time) throws Exception {
 			if (time == watermarkTimer) {
 				watermarkTimer = -1;
-				Trigger.TriggerResult firstTriggerResult = trigger.onEventTime(time, window, this);
-
-				if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
-					// fire now and don't wait for the next watermark update
-					Trigger.TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
-					return Trigger.TriggerResult.merge(firstTriggerResult, secondTriggerResult);
-				} else {
-					return firstTriggerResult;
-				}
-
+				Trigger.TriggerResult result = trigger.onEventTime(time, window, this);
+				return eventTimeCheck(result);
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
+			}
+		}
+
+		public Trigger.TriggerResult onMerge(Collection<W> oldWindows, Collection<Trigger.TriggerContext> oldTriggerCtxs) throws Exception {
+			@SuppressWarnings("unchecked,rawtypes")
+			Trigger.TriggerResult result = trigger.onMerge((Collection) oldWindows, oldTriggerCtxs, this.window, this);
+			return eventTimeCheck(result);
+		}
+
+		/**
+		 * This checks whether we should fire the watermark timer based on the current watermark.
+		 * This way, we immediately fire if a watermark timer is set in one of the trigger methods
+		 * and don't wait for the next watermark update.
+		 */
+		private Trigger.TriggerResult eventTimeCheck(Trigger.TriggerResult currentResult) throws Exception {
+			if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
+				// fire now and don't wait for the next watermark update
+				Trigger.TriggerResult secondTriggerResult = onEventTime(watermarkTimer);
+				return Trigger.TriggerResult.merge(currentResult, secondTriggerResult);
+			} else {
+				return currentResult;
 			}
 		}
 	}

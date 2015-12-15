@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.windowing.triggers;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+import java.util.Collection;
+
 /**
  * A trigger that can turn any {@link Trigger} into a purging {@code Trigger}.
  *
@@ -68,6 +70,22 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		TriggerResult triggerResult = nestedTrigger.onProcessingTime(time, window, ctx);
+		switch (triggerResult) {
+			case FIRE:
+				return TriggerResult.FIRE_AND_PURGE;
+			case FIRE_AND_PURGE:
+				return TriggerResult.FIRE_AND_PURGE;
+			default:
+				return TriggerResult.CONTINUE;
+		}
+	}
+
+	@Override
+	public TriggerResult onMerge(Collection<W> oldWindows,
+		Collection<TriggerContext> oldTriggerCtxs,
+		W mergedWindow,
+		TriggerContext ctx) {
+		TriggerResult triggerResult = nestedTrigger.onMerge(oldWindows, oldTriggerCtxs, mergedWindow, ctx);
 		switch (triggerResult) {
 			case FIRE:
 				return TriggerResult.FIRE_AND_PURGE;

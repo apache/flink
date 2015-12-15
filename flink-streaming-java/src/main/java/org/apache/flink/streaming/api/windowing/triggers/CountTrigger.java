@@ -21,6 +21,7 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.IOException;
+import java.util.Collection;
 
 /**
  * A {@link Trigger} that fires once the count of elements in a pane reaches the given count.
@@ -55,6 +56,14 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public TriggerResult onMerge(Collection<W> oldWindows,
+		Collection<TriggerContext> oldTriggerCtxs,
+		W mergedWindow,
+		TriggerContext ctx) {
 		return TriggerResult.CONTINUE;
 	}
 

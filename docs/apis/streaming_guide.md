@@ -2216,7 +2216,7 @@ stream.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)));
         <td><strong>Sliding time windows</strong><br>KeyedStream &rarr; WindowedStream</td>
         <td>
           <p>
-            Incoming elements are assigned to a window of a certain size (5 seconds below) based on
+            Incoming elements are assigned to a window of a certain size (5 seconds in the example below) based on
             their timestamp. Windows "slide" by the provided value (1 second in the example), and hence
             overlap. The window comes with a default trigger. For event/ingestion time, a window is triggered when a
 	    watermark with value higher than its end-value is received, whereas for processing time
@@ -2224,6 +2224,23 @@ stream.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)));
           </p>
     {% highlight java %}
 stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)));
+    {% endhighlight %}
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to sessions based on a session gap interval (5 seconds in the example below).
+            Elements whose timestamp differs by more than the session gap are assigned to different sessions. If there are
+            consecutive elements which are less than the session gap apart then these will also be put into the same session, i.e. elements
+            can be connected into a session by intermediate elements.
+            The window comes with a default trigger. For event/ingestion time, a window is triggered when a
+            watermark with value higher than its end-value is received, whereas for processing time
+            when the current processing time exceeds its current end value.
+          </p>
+    {% highlight java %}
+stream.window(SessionWindows.withGap(Time.seconds(5)));
     {% endhighlight %}
         </td>
       </tr>
@@ -2281,6 +2298,23 @@ stream.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
           </p>
     {% highlight scala %}
 stream.window(SlidingTimeWindows.of(Time.of(5, TimeUnit.SECONDS), Time.of(1, TimeUnit.SECONDS)))
+    {% endhighlight %}
+        </td>
+      </tr>
+       <tr>
+        <td><strong>Session windows</strong><br>KeyedStream &rarr; WindowedStream</td>
+        <td>
+          <p>
+            Incoming elements are assigned to sessions based on a session gap interval (5 seconds in the example below).
+            Elements whose timestamp differs by more than the session gap are assigned to different sessions. If there are
+            consecutive elements which are less than the session gap apart then these will also be put into the same session, i.e. elements
+            can be connected into a session by intermediate elements.
+            The window comes with a default trigger. For event/ingestion time, a window is triggered when a
+            watermark with value higher than its end-value is received, whereas for processing time
+            when the current processing time exceeds its current end value.
+          </p>
+    {% highlight scala %}
+stream.window(SessionWindows.withGap(Time.seconds(5)))
     {% endhighlight %}
         </td>
       </tr>

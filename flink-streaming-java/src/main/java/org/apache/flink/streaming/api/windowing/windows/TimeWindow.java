@@ -79,6 +79,20 @@ public class TimeWindow extends Window {
 				'}';
 	}
 
+	/**
+	 * Returns {@code true} if this window intersects the given window.
+	 */
+	public boolean intersects(TimeWindow other) {
+		return this.start <= other.end && this.end >= other.start;
+	}
+
+	/**
+	 * Returns the minimal window covers both this window and the given window.
+	 */
+	public TimeWindow cover(TimeWindow other) {
+		return new TimeWindow(Math.min(start, other.start), Math.max(end, other.end));
+	}
+
 	public static class Serializer extends TypeSerializer<TimeWindow> {
 		private static final long serialVersionUID = 1L;
 

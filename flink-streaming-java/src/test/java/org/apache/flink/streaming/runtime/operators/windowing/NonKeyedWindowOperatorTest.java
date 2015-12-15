@@ -19,12 +19,17 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -40,6 +45,7 @@ import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBuff
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +53,7 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -228,6 +235,123 @@ public class NonKeyedWindowOperatorTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
+	public void testSessionWindows() throws Exception {
+		closeCalled.set(0);
+
+		final int SESSION_SIZE = 3;
+
+		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator = new NonKeyedWindowOperator<>(
+			SessionWindows.withGap(Time.seconds(SESSION_SIZE)),
+			new TimeWindow.Serializer(),
+			windowBufferFactory,
+			new SessionWindowFunction(),
+			EventTimeTrigger.create());
+
+		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		// add elements out-of-order
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), initialTime + 0));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key17", 2), initialTime + 1000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 3), initialTime + 2500));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 4), initialTime + 5501));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 5), initialTime + 6000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key3", 5), initialTime + 6000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key4", 6), initialTime + 6050));
+
+		testHarness.processWatermark(new Watermark(initialTime + 12000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("no-key-6", 0L, 5500L), initialTime + 5499));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("no-key-20", 5501L, 9050L), initialTime + 9049));
+		expectedOutput.add(new Watermark(initialTime + 12000));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 10), initialTime + 15000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 20), initialTime + 15000));
+
+		testHarness.processWatermark(new Watermark(initialTime + 17999));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("no-key-30", 15000L, 18000L), initialTime + 17999));
+		expectedOutput.add(new Watermark(initialTime + 17999));
+
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+
+		testHarness.close();
+
+		if (windowBufferFactory instanceof PreAggregatingHeapWindowBuffer.Factory) {
+			Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		} else {
+			Assert.assertEquals("Close was not called.", 0, closeCalled.get());
+		}
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	/**
+	 * This tests a custom Session window assigner that assigns some elements to "point windows",
+	 * windows that have the same timestamp for start and end.
+	 *
+	 * <p> In this test, elements that have 33 as the second tuple field will be put into a point
+	 * window.
+	 */
+	public void testPointSessions() throws Exception {
+		closeCalled.set(0);
+
+		NonKeyedWindowOperator<Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> operator = new NonKeyedWindowOperator<>(
+			new PointSessionWindows(3000),
+			new TimeWindow.Serializer(),
+			windowBufferFactory,
+			new SessionWindowFunction(),
+			EventTimeTrigger.create());
+
+		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
+
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		long initialTime = 0L;
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		// add elements out-of-order
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), initialTime + 0));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 33), initialTime + 1000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key3", 33), initialTime + 2500));
+
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key4", 1), initialTime + 5010));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key5", 2), initialTime + 6000));
+		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key6", 33), initialTime + 7500));
+
+		testHarness.processWatermark(new Watermark(initialTime + 12000));
+
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("no-key-67", 0L, 3000L), initialTime + 2999));
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("no-key-36", 5010L, 9000L), initialTime + 8999));
+		expectedOutput.add(new Watermark(initialTime + 12000));
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+
+		testHarness.close();
+
+		if (windowBufferFactory instanceof PreAggregatingHeapWindowBuffer.Factory) {
+			Assert.assertEquals("Close was not called.", 1, closeCalled.get());
+		} else {
+			Assert.assertEquals("Close was not called.", 0, closeCalled.get());
+		}
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
 	public void testContinuousWatermarkTrigger() throws Exception {
 		closeCalled.set(0);
 
@@ -393,6 +517,45 @@ public class NonKeyedWindowOperatorTest {
 			return new Tuple2<>(value2.f0, value1.f1 + value2.f1);
 		}
 	}
+
+	public static class SessionWindowFunction implements AllWindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Long>, TimeWindow> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void apply(
+			TimeWindow window,
+			Iterable<Tuple2<String, Integer>> values,
+			Collector<Tuple3<String, Long, Long>> out) throws Exception {
+			int sum = 0;
+			for (Tuple2<String, Integer> i: values) {
+				sum += i.f1;
+			}
+			String resultString = "no-key-" + sum;
+			out.collect(new Tuple3<>(resultString, window.getStart(), window.getEnd()));
+		}
+	}
+
+	public static class PointSessionWindows extends SessionWindows {
+		private static final long serialVersionUID = 1L;
+
+
+		private PointSessionWindows(long sessionTimeout) {
+			super(sessionTimeout);
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
+			if (element instanceof Tuple2) {
+				Tuple2<String, Integer> t2 = (Tuple2<String, Integer>) element;
+				if (t2.f1 == 33) {
+					return Collections.singletonList(new TimeWindow(timestamp, timestamp));
+				}
+			}
+			return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Parametrization for testing different window buffers
 	// ------------------------------------------------------------------------
@@ -426,4 +589,31 @@ public class NonKeyedWindowOperatorTest {
 			}
 		}
 	}
+
+	@SuppressWarnings("unchecked")
+	private static class Tuple3ResultSortComparator implements Comparator<Object> {
+		@Override
+		public int compare(Object o1, Object o2) {
+			if (o1 instanceof Watermark || o2 instanceof Watermark) {
+				return 0;
+			} else {
+				StreamRecord<Tuple3<String, Long, Long>> sr0 = (StreamRecord<Tuple3<String, Long, Long>>) o1;
+				StreamRecord<Tuple3<String, Long, Long>> sr1 = (StreamRecord<Tuple3<String, Long, Long>>) o2;
+				if (sr0.getTimestamp() != sr1.getTimestamp()) {
+					return (int) (sr0.getTimestamp() - sr1.getTimestamp());
+				}
+				int comparison = sr0.getValue().f0.compareTo(sr1.getValue().f0);
+				if (comparison != 0) {
+					return comparison;
+				} else {
+					comparison = (int) (sr0.getValue().f1 - sr1.getValue().f1);
+					if (comparison != 0) {
+						return comparison;
+					}
+					return (int) (sr0.getValue().f1 - sr1.getValue().f1);
+				}
+			}
+		}
+	}
+
 }

@@ -44,7 +44,7 @@ import java.util.List;
  *   keyed.window(SlidingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
  * } </pre>
  */
-public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
+public class SlidingTimeWindows extends NonMergingWindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private final long size;

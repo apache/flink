@@ -19,16 +19,22 @@ package org.apache.flink.streaming.api.windowing.assigners;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * A {@link WindowAssigner} that windows elements into windows based on the timestamp of the
@@ -43,23 +49,18 @@ import java.util.Collections;
  *   keyed.window(TumblingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
  * } </pre>
  */
-public class TumblingTimeWindows extends NonMergingWindowAssigner<Object, TimeWindow> {
+public class SessionWindows extends WindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	private long size;
+	protected long sessionTimeout;
 
-	private TumblingTimeWindows(long size) {
-		this.size = size;
+	protected SessionWindows(long sessionTimeout) {
+		this.sessionTimeout = sessionTimeout;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
-		long start = timestamp - (timestamp % size);
-		return Collections.singletonList(new TimeWindow(start, start + size));
-	}
-
-	public long getSize() {
-		return size;
+		return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
 	}
 
 	@Override
@@ -72,23 +73,77 @@ public class TumblingTimeWindows extends NonMergingWindowAssigner<Object, TimeWi
 	}
 
 	@Override
+	public boolean isMerging() {
+		return true;
+	}
+
+	@Override
 	public String toString() {
-		return "TumblingTimeWindows(" + size + ")";
+		return "SessionWindows(" + sessionTimeout + ")";
 	}
 
 	/**
-	 * Creates a new {@code TumblingTimeWindows} {@link WindowAssigner} that assigns
-	 * elements to time windows based on the element timestamp.
+	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
+	 * elements to sessions based on the element timestamp.
 	 *
-	 * @param size The size of the generated windows.
-	 * @return The time policy.
+	 * @param size The session timeout, i.e. the time gap between sessions
+	 * @return The policy.
 	 */
-	public static TumblingTimeWindows of(AbstractTime size) {
-		return new TumblingTimeWindows(size.toMilliseconds());
+	public static SessionWindows withGap(AbstractTime size) {
+		return new SessionWindows(size.toMilliseconds());
 	}
 
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
 	}
+
+	/**
+	 * Merge overlapping {@link TimeWindow}s.
+	 */
+	public void mergeWindows(Collection<TimeWindow> windows, WindowAssigner.MergeCallback<TimeWindow> c) {
+
+		// sort the windows by the start time and then merge overlapping windows
+
+		List<TimeWindow> sortedWindows = new ArrayList<>(windows);
+
+		Collections.sort(sortedWindows, new Comparator<TimeWindow>() {
+			@Override
+			public int compare(TimeWindow o1, TimeWindow o2) {
+				return Long.compare(o1.getStart(), o2.getStart());
+			}
+		});
+
+		List<Tuple2<TimeWindow, Set<TimeWindow>>> merged = new ArrayList<>();
+		Tuple2<TimeWindow, Set<TimeWindow>> currentMerge = null;
+
+		for (TimeWindow candidate: sortedWindows) {
+			if (currentMerge == null) {
+				currentMerge = new Tuple2<>();
+				currentMerge.f0 = candidate;
+				currentMerge.f1 = new HashSet<>();
+				currentMerge.f1.add(candidate);
+			} else if (currentMerge.f0.intersects(candidate)) {
+				currentMerge.f0 = currentMerge.f0.cover(candidate);
+				currentMerge.f1.add(candidate);
+			} else {
+				merged.add(currentMerge);
+				currentMerge = new Tuple2<>();
+				currentMerge.f0 = candidate;
+				currentMerge.f1 = new HashSet<>();
+				currentMerge.f1.add(candidate);
+			}
+		}
+
+		if (currentMerge != null) {
+			merged.add(currentMerge);
+		}
+
+		for (Tuple2<TimeWindow, Set<TimeWindow>> m: merged) {
+			if (m.f1.size() > 1) {
+				c.merge(m.f1, m.f0);
+			}
+		}
+	}
+
 }

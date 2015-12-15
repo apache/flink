@@ -19,6 +19,8 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.util.Collection;
+
 /**
  * A {@link Trigger} that fires once the watermark passes the end of the window
  * to which a pane belongs.
@@ -43,6 +45,15 @@ public class EventTimeTrigger implements Trigger<Object, TimeWindow> {
 
 	@Override
 	public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public TriggerResult onMerge(Collection<TimeWindow> oldWindows,
+		Collection<TriggerContext> oldTriggerCtxs,
+		TimeWindow mergedWindow,
+		TriggerContext ctx) {
+		ctx.registerEventTimeTimer(mergedWindow.maxTimestamp());
 		return TriggerResult.CONTINUE;
 	}
 
