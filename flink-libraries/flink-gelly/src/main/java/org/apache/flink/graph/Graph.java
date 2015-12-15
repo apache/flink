@@ -36,6 +36,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.Utils.Checksum;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
@@ -397,6 +398,17 @@ public class Graph<K, VV, EV> {
 	public static <K, VV> GraphCsvReader fromCsvReader(String edgesPath,
 			final MapFunction<K, VV> vertexValueInitializer, ExecutionEnvironment context) {
 		return new GraphCsvReader(edgesPath, vertexValueInitializer, context);
+	}
+
+	/**
+	 * Computes the checksum over the Graph
+	 *
+	 * @return the checksum over the vertices and edges.
+	 */
+	public Checksum checksum() throws Exception {
+		Checksum checksum = vertices.checksum();
+		checksum.add(edges.checksum());
+		return checksum;
 	}
 
 	/**

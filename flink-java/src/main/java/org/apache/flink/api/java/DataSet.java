@@ -39,6 +39,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.Utils.Checksum;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.FormattingMapper;
@@ -85,6 +86,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.types.NullValue;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
@@ -394,6 +396,21 @@ public abstract class DataSet<T> {
 		return res.<Long> getAccumulatorResult(id);
 	}
 
+	/**
+	 * Convenience method to get the count (number of elements) of a DataSet
+	 * as well as the checksum (sum over element hashes).
+	 *
+	 * @return A Checksum that represents the count and checksum of elements in the data set.
+	 */
+	public Checksum checksum() throws Exception {
+		final String id = new AbstractID().toString();
+
+		flatMap(new Utils.ChecksumHelper<T>(id)).name("checksum()")
+				.output(new DiscardingOutputFormat<NullValue>()).name("checksum() sink");
+
+		JobExecutionResult res = getExecutionEnvironment().execute();
+		return res.<Checksum> getAccumulatorResult(id);
+	}
 
 	/**
 	 * Convenience method to get the elements of a DataSet as a List.
