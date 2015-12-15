@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughAllWindowFu
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
@@ -100,6 +101,10 @@ public class AllWindowedStream<T, W extends Window> {
 	 */
 	@PublicEvolving
 	public AllWindowedStream<T, W> trigger(Trigger<? super T, ? super W> trigger) {
+		if (windowAssigner instanceof MergingWindowAssigner && !trigger.canMerge()) {
+			throw new UnsupportedOperationException("A merging window assigner cannot be used with a trigger that does not support merging.");
+		}
+
 		this.trigger = trigger;
 		return this;
 	}
@@ -113,6 +118,10 @@ public class AllWindowedStream<T, W extends Window> {
 	 */
 	@PublicEvolving
 	public AllWindowedStream<T, W> evictor(Evictor<? super T, ? super W> evictor) {
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			throw new UnsupportedOperationException("Cannot use a merging WindowAssigner with an Evictor.");
+		}
+
 		this.evictor = evictor;
 		return this;
 	}
@@ -392,6 +401,9 @@ public class AllWindowedStream<T, W extends Window> {
 	public <R> SingleOutputStreamOperator<R> apply(R initialValue, FoldFunction<T, R> foldFunction, AllWindowFunction<R, R, W> function, TypeInformation<R> resultType) {
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of apply can not be a RichFunction.");
+		}
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			throw new UnsupportedOperationException("Fold cannot be used with a merging WindowAssigner.");
 		}
 
 		//clean the closures

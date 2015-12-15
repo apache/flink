@@ -20,10 +20,11 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.IOException;
+
 /**
- * {@link State} interface for folding state. Elements can be added to the state, they will
- * be successively added to the initial value using a
- * {@link org.apache.flink.api.common.functions.FoldFunction}. The current state can be inspected.
+ * Base interface for partitioned state that supports adding elements and inspecting the current
+ * state. Elements can either be kept in a buffer (list-like) or aggregated into one value.
  *
  * <p>The state is accessed and modified by user functions, and checkpointed consistently
  * by the system as part of the distributed snapshots.
@@ -33,8 +34,35 @@ import org.apache.flink.annotation.PublicEvolving;
  * key of the current element. That way, the system can handle stream and state partitioning
  * consistently together.
  * 
- * @param <T> Type of the values folded into the state
- * @param <ACC> Type of the value in the state
+ * @param <IN> Type of the value that can be added to the state.
+ * @param <OUT> Type of the value that can be retrieved from the state.
  */
 @PublicEvolving
-public interface FoldingState<T, ACC> extends AppendingState<T, ACC> {}
+public interface AppendingState<IN, OUT> extends State {
+
+	/**
+	 * Returns the current value for the state. When the state is not
+	 * partitioned the returned value is the same for all inputs in a given
+	 * operator instance. If state partitioning is applied, the value returned
+	 * depends on the current operator input, as the operator maintains an
+	 * independent state for each partition.
+	 * 
+	 * @return The operator state value corresponding to the current input.
+	 * 
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	OUT get() throws Exception ;
+
+	/**
+	 * Updates the operator state accessible by {@link #get()} by adding the given value
+	 * to the list of values. The next time {@link #get()} is called (for the same state
+	 * partition) the returned state will represent the updated list.
+	 * 
+	 * @param value
+	 *            The new value for the state.
+	 *            
+	 * @throws IOException Thrown if the system cannot access the state.
+	 */
+	void add(IN value) throws Exception;
+	
+}

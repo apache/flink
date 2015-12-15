@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -29,6 +30,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
@@ -39,9 +41,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
@@ -53,7 +55,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
@@ -98,7 +102,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected final Trigger<? super IN, ? super W> trigger;
 
-	protected final StateDescriptor<? extends MergingState<IN, ACC>, ?> windowStateDescriptor;
+	protected final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
 
 	/**
 	 * This is used to copy the incoming element because it can be put into several window
@@ -149,6 +153,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected transient Set<Timer<K, W>> watermarkTimers;
 	protected transient PriorityQueue<Timer<K, W>> watermarkTimersQueue;
 
+	protected transient Map<K, MergingWindowSet<W>> mergingWindowsByKey;
+
 	/**
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
@@ -156,7 +162,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		TypeSerializer<W> windowSerializer,
 		KeySelector<IN, K> keySelector,
 		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends MergingState<IN, ACC>, ?> windowStateDescriptor,
+		StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
 		InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 		Trigger<? super IN, ? super W> trigger) {
 
@@ -184,6 +190,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		inputSerializer = (TypeSerializer<IN>) type.createSerializer(executionConfig);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public final void open() throws Exception {
 		super.open();
@@ -205,6 +212,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		context = new Context(null, null);
+
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			mergingWindowsByKey = new HashMap<>();
+		}
 	}
 
 	@Override
@@ -219,52 +230,117 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		K key = (K) getStateBackend().getCurrentKey();
 
-		for (W window: elementWindows) {
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			MergingWindowSet<W> mergingWindows = mergingWindowsByKey.get(getStateBackend().getCurrentKey());
+			if (mergingWindows == null) {
+				mergingWindows = new MergingWindowSet<>((MergingWindowAssigner<? super IN, W>) windowAssigner);
+				mergingWindowsByKey.put(key, mergingWindows);
+			}
 
-			MergingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
-				windowStateDescriptor);
 
-			windowState.add(element.getValue());
+			for (W window: elementWindows) {
+				// If there is a merge, it can only result in a window that contains our new
+				// element because we always eagerly merge
+				final Tuple1<TriggerResult> mergeTriggerResult = new Tuple1<>(TriggerResult.CONTINUE);
 
-			context.key = key;
-			context.window = window;
-			TriggerResult triggerResult = context.onElement(element);
 
-			processTriggerResult(triggerResult, key, window);
+				// adding the new window might result in a merge, in that case the actualWindow
+				// is the merged window and we work with that. If we don't merge then
+				// actualWindow == window
+				W actualWindow = mergingWindows.addWindow(window, new MergingWindowSet.MergeFunction<W>() {
+					@Override
+					public void merge(W mergeResult,
+							Collection<W> mergedWindows, W stateWindowResult,
+							Collection<W> mergedStateWindows) throws Exception {
+						context.window = mergeResult;
+
+						// store for later use
+						mergeTriggerResult.f0 = context.onMerge(mergedWindows);
+
+						for (W m: mergedWindows) {
+							context.window = m;
+							context.clear();
+						}
+
+						// merge the merged state windows into the newly resulting state window
+						getStateBackend().mergePartitionedStates(stateWindowResult,
+								mergedStateWindows,
+								windowSerializer,
+								(StateDescriptor<? extends MergingState<?,?>, ?>) windowStateDescriptor);
+					}
+				});
+
+				W stateWindow = mergingWindows.getStateWindow(actualWindow);
+				AppendingState<IN, ACC> windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+				windowState.add(element.getValue());
+
+				context.key = key;
+				context.window = actualWindow;
+
+				// we might have already fired because of a merge but still call onElement
+				// on the (possibly merged) window
+				TriggerResult triggerResult = context.onElement(element);
+
+				TriggerResult combinedTriggerResult = TriggerResult.merge(triggerResult, mergeTriggerResult.f0);
+
+				processTriggerResult(combinedTriggerResult, key, actualWindow);
+			}
+
+		} else {
+			for (W window: elementWindows) {
+
+				AppendingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
+						windowStateDescriptor);
+
+				windowState.add(element.getValue());
+
+				context.key = key;
+				context.window = window;
+				TriggerResult triggerResult = context.onElement(element);
+
+				processTriggerResult(triggerResult, key, window);
+			}
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	protected void processTriggerResult(TriggerResult triggerResult, K key, W window) throws Exception {
 		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
 			// do nothing
 			return;
 		}
 
+		AppendingState<IN, ACC> windowState;
+
+		MergingWindowSet<W> mergingWindows = null;
+
+		if (windowAssigner instanceof MergingWindowAssigner) {
+			mergingWindows = mergingWindowsByKey.get(key);
+			W stateWindow = mergingWindows.getStateWindow(window);
+			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+
+		} else {
+			windowState = getPartitionedState(window, windowSerializer, windowStateDescriptor);
+		}
+
 		if (triggerResult.isFire()) {
 			timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-
-			MergingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
-				windowStateDescriptor);
-
 			ACC contents = windowState.get();
 
 			userFunction.apply(context.key, context.window, contents, timestampedCollector);
 
-			if (triggerResult.isPurge()) {
-				windowState.clear();
-				context.clear();
-			}
-		} else if (triggerResult.isPurge()) {
-			MergingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
-				windowStateDescriptor);
+		}
+		if (triggerResult.isPurge()) {
 			windowState.clear();
+			if (mergingWindows != null) {
+				mergingWindows.retireWindow(window);
+			}
 			context.clear();
 		}
 	}
 
 	@Override
 	public final void processWatermark(Watermark mark) throws Exception {
-
 		boolean fire;
 
 		do {
@@ -323,9 +399,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in
 	 * the {@code Context}
 	 */
-	protected class Context implements TriggerContext {
+	public class Context implements Trigger.OnMergeContext {
 		protected K key;
 		protected W window;
+
+		protected Collection<W> mergedWindows;
 
 		public Context(K key, W window) {
 			this.key = key;
@@ -373,6 +451,20 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
 				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+
+		@Override
+		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+			if (mergedWindows != null && mergedWindows.size() > 0) {
+				try {
+					WindowOperator.this.getStateBackend().mergePartitionedStates(window,
+							mergedWindows,
+							windowSerializer,
+							stateDescriptor);
+				} catch (Exception e) {
+					throw new RuntimeException("Error while merging state.", e);
+				}
 			}
 		}
 
@@ -426,6 +518,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		public TriggerResult onEventTime(long time) throws Exception {
 			return trigger.onEventTime(time, window, this);
+		}
+
+		public TriggerResult onMerge(Collection<W> mergedWindows) throws Exception {
+			this.mergedWindows = mergedWindows;
+			return trigger.onMerge(window, this);
 		}
 
 		public void clear() throws Exception {
@@ -580,7 +677,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@VisibleForTesting
-	public StateDescriptor<? extends MergingState<IN, ACC>, ?> getStateDescriptor() {
+	public StateDescriptor<? extends AppendingState<IN, ACC>, ?> getStateDescriptor() {
 		return windowStateDescriptor;
 	}
 }

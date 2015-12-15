@@ -19,10 +19,19 @@ package org.apache.flink.streaming.api.windowing.windows;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * A {@link Window} that represents a time interval from {@code start} (inclusive) to
@@ -79,6 +88,20 @@ public class TimeWindow extends Window {
 				"start=" + start +
 				", end=" + end +
 				'}';
+	}
+
+	/**
+	 * Returns {@code true} if this window intersects the given window.
+	 */
+	public boolean intersects(TimeWindow other) {
+		return this.start <= other.end && this.end >= other.start;
+	}
+
+	/**
+	 * Returns the minimal window covers both this window and the given window.
+	 */
+	public TimeWindow cover(TimeWindow other) {
+		return new TimeWindow(Math.min(start, other.start), Math.max(end, other.end));
 	}
 
 	public static class Serializer extends TypeSerializer<TimeWindow> {
@@ -156,4 +179,52 @@ public class TimeWindow extends Window {
 		}
 	}
 
+	/**
+	 * Merge overlapping {@link TimeWindow}s. For use by merging
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}.
+	 */
+	public static void mergeWindows(Collection<TimeWindow> windows, MergingWindowAssigner.MergeCallback<TimeWindow> c) {
+
+		// sort the windows by the start time and then merge overlapping windows
+
+		List<TimeWindow> sortedWindows = new ArrayList<>(windows);
+
+		Collections.sort(sortedWindows, new Comparator<TimeWindow>() {
+			@Override
+			public int compare(TimeWindow o1, TimeWindow o2) {
+				return Long.compare(o1.getStart(), o2.getStart());
+			}
+		});
+
+		List<Tuple2<TimeWindow, Set<TimeWindow>>> merged = new ArrayList<>();
+		Tuple2<TimeWindow, Set<TimeWindow>> currentMerge = null;
+
+		for (TimeWindow candidate: sortedWindows) {
+			if (currentMerge == null) {
+				currentMerge = new Tuple2<>();
+				currentMerge.f0 = candidate;
+				currentMerge.f1 = new HashSet<>();
+				currentMerge.f1.add(candidate);
+			} else if (currentMerge.f0.intersects(candidate)) {
+				currentMerge.f0 = currentMerge.f0.cover(candidate);
+				currentMerge.f1.add(candidate);
+			} else {
+				merged.add(currentMerge);
+				currentMerge = new Tuple2<>();
+				currentMerge.f0 = candidate;
+				currentMerge.f1 = new HashSet<>();
+				currentMerge.f1.add(candidate);
+			}
+		}
+
+		if (currentMerge != null) {
+			merged.add(currentMerge);
+		}
+
+		for (Tuple2<TimeWindow, Set<TimeWindow>> m: merged) {
+			if (m.f1.size() > 1) {
+				c.merge(m.f1, m.f0);
+			}
+		}
+	}
 }

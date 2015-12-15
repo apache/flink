@@ -23,7 +23,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.MergingState;
+import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -156,7 +156,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	@VisibleForTesting
 	@SuppressWarnings("unchecked, rawtypes")
-	public StateDescriptor<? extends MergingState<IN, Iterable<IN>>, ?> getStateDescriptor() {
-		return (StateDescriptor<? extends MergingState<IN, Iterable<IN>>, ?>) windowStateDescriptor;
+	public StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?> getStateDescriptor() {
+		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?>) windowStateDescriptor;
 	}
 }
