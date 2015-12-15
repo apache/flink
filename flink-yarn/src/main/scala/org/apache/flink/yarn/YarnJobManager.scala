@@ -52,7 +52,7 @@ import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync
 import org.apache.hadoop.yarn.client.api.NMClient
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.apache.hadoop.yarn.exceptions.{InvalidApplicationMasterRequestException, YarnException}
+import org.apache.hadoop.yarn.exceptions.YarnException
 import org.apache.hadoop.yarn.util.Records
 
 import scala.concurrent.ExecutionContext
@@ -157,14 +157,13 @@ class YarnJobManager(
       rmClientOption foreach {
         rmClient =>
           Try(rmClient.unregisterApplicationMaster(status, diag, "")).recover {
-            // https://issues.apache.org/jira/browse/YARN-1842
-            case e : InvalidApplicationMasterRequestException =>
             case t: Throwable => log.error("Could not unregister the application master.", t)
           }
 
           Try(rmClient.stop()).recover {
             case t: Throwable => log.error("Could not close the AMRMClient.", t)
           }
+
       }
 
       rmClientOption = None
@@ -560,11 +559,6 @@ class YarnJobManager(
     }
 
     override def onShutdownRequest(): Unit = {
-      self ! decorateMessage(
-        StopYarnSession(
-          FinalApplicationStatus.FAILED,
-          "Shutdown request received by Yarn resource manager.")
-      )
     }
 
     override def onNodesUpdated(updatedNodes: JavaList[NodeReport]): Unit = {
