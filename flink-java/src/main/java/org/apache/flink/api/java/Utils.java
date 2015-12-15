@@ -20,7 +20,9 @@ package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -157,6 +159,97 @@ public final class Utils {
 			getRuntimeContext().addAccumulator(id, accumulator);
 		}
 	}
+
+	public static class ChecksumHashCode implements SimpleAccumulator<ChecksumHashCode> {
+
+		private static final long serialVersionUID = 1L;
+
+		private long count;
+		private long checksum;
+
+		public ChecksumHashCode() {}
+
+		public ChecksumHashCode(long count, long checksum) {
+			this.count = count;
+			this.checksum = checksum;
+		}
+
+		public long getCount() {
+			return count;
+		}
+
+		public long getChecksum() {
+			return checksum;
+		}
+
+		@Override
+		public void add(ChecksumHashCode value) {
+			this.count += value.count;
+			this.checksum += value.checksum;
+		}
+
+		@Override
+		public ChecksumHashCode getLocalValue() {
+			return this;
+		}
+
+		@Override
+		public void resetLocal() {
+			this.count = 0;
+			this.checksum = 0;
+		}
+
+		@Override
+		public void merge(Accumulator<ChecksumHashCode, ChecksumHashCode> other) {
+			this.add(other.getLocalValue());
+		}
+
+		@Override
+		public ChecksumHashCode clone() {
+			return new ChecksumHashCode(count, checksum);
+		}
+
+		@Override
+		public String toString() {
+			return "ChecksumHashCode " + this.checksum + ", count " + this.count;
+		}
+	}
+
+	@SkipCodeAnalysis
+	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final String id;
+		private long counter;
+		private long checksum;
+
+		public ChecksumHashCodeHelper(String id) {
+			this.id = id;
+			this.counter = 0L;
+			this.checksum = 0L;
+		}
+
+		@Override
+		public void configure(Configuration parameters) {}
+
+		@Override
+		public void open(int taskNumber, int numTasks) {}
+
+		@Override
+		public void writeRecord(T record) throws IOException {
+			counter++;
+			// convert 32-bit integer to non-negative long
+			checksum += record.hashCode() & 0xffffffffL;
+		}
+
+		@Override
+		public void close() throws IOException {
+			ChecksumHashCode update = new ChecksumHashCode(counter, checksum);
+			getRuntimeContext().addAccumulator(id, update);
+		}
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 
