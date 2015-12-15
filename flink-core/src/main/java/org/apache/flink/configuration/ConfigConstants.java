@@ -42,13 +42,13 @@ public final class ConfigConstants {
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
 	 */
-	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
+	public static final String EXECUTION_RETRIES_KEY = "execution-retries.default";
 
 	/**
 	 * Config parameter for the delay between execution retries. The value must be specified in the
 	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
 	 */
-	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
+	public static final String EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
 	
@@ -417,7 +417,7 @@ public final class ConfigConstants {
 	public static final String AKKA_LOG_LIFECYCLE_EVENTS = "akka.log.lifecycle.events";
 
 	/**
-	 * Timeout for all blocking calls
+	 * Timeout for all blocking calls on the cluster side
 	 */
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
@@ -425,6 +425,11 @@ public final class ConfigConstants {
 	 * Timeout for all blocking calls that look up remote actors
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
+
+	/**
+	 * Timeout for all blocking calls on the client side
+	 */
+	public static final String AKKA_CLIENT_TIMEOUT = "akka.client.timeout";
 
 	/**
 	 * Exit JVM on fatal Akka errors
@@ -704,9 +709,11 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
-	public static String DEFAULT_AKKA_ASK_TIMEOUT = "100 s";
+	public static String DEFAULT_AKKA_ASK_TIMEOUT = "10 s";
 
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
+
+	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
 	
 	// ----------------------------- Streaming Values --------------------------
 	

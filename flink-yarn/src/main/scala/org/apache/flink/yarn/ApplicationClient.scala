@@ -60,7 +60,6 @@ class ApplicationClient(
 
   var yarnJobManager: Option[ActorRef] = None
   var pollingTimer: Option[Cancellable] = None
-  implicit val timeout: FiniteDuration = AkkaUtils.getTimeout(flinkConfig)
   var running = false
   var messagesQueue : mutable.Queue[YarnMessage] = mutable.Queue[YarnMessage]()
   var latestClusterStatus : Option[FlinkYarnClusterStatus] = None

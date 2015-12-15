@@ -141,8 +141,8 @@ public class Client {
 			throw new IOException("Could start client actor system.", e);
 		}
 
-		timeout = AkkaUtils.getTimeout(config);
-		lookupTimeout = AkkaUtils.getTimeout(config);
+		timeout = AkkaUtils.getClientTimeout(config);
+		lookupTimeout = AkkaUtils.getLookupTimeout(config);
 	}
 
 	// ------------------------------------------------------------------------

@@ -139,7 +139,7 @@ public class CliFrontend {
 
 	private final Configuration config;
 
-	private final FiniteDuration askTimeout;
+	private final FiniteDuration clientTimeout;
 
 	private final FiniteDuration lookupTimeout;
 
@@ -226,7 +226,7 @@ public class CliFrontend {
 			}
 		}
 
-		this.askTimeout = AkkaUtils.getTimeout(config);
+		this.clientTimeout = AkkaUtils.getClientTimeout(config);
 		this.lookupTimeout = AkkaUtils.getLookupTimeout(config);
 	}
 
@@ -482,12 +482,12 @@ public class CliFrontend {
 
 			LOG.info("Connecting to JobManager to retrieve list of jobs");
 			Future<Object> response = jobManagerGateway.ask(
-					JobManagerMessages.getRequestRunningJobsStatus(),
-					askTimeout);
+				JobManagerMessages.getRequestRunningJobsStatus(),
+				clientTimeout);
 
 			Object result;
 			try {
-				result = Await.result(response, askTimeout);
+				result = Await.result(response, clientTimeout);
 			}
 			catch (Exception e) {
 				throw new Exception("Could not retrieve running jobs from the JobManager.", e);
@@ -614,10 +614,10 @@ public class CliFrontend {
 
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new CancelJob(jobId), askTimeout);
+			Future<Object> response = jobManager.ask(new CancelJob(jobId), clientTimeout);
 
 			try {
-				Await.result(response, askTimeout);
+				Await.result(response, clientTimeout);
 				return 0;
 			}
 			catch (Exception e) {
@@ -733,12 +733,12 @@ public class CliFrontend {
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
 			logAndSysout("Disposing savepoint '" + savepointPath + "'.");
-			Future<Object> response = jobManager.ask(new DisposeSavepoint(savepointPath), askTimeout);
+			Future<Object> response = jobManager.ask(new DisposeSavepoint(savepointPath), clientTimeout);
 
 			Object result;
 			try {
 				logAndSysout("Waiting for response...");
-				result = Await.result(response, askTimeout);
+				result = Await.result(response, clientTimeout);
 			}
 			catch (Exception e) {
 				throw new Exception("Disposing the savepoint with path" + savepointPath + " failed.", e);
