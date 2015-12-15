@@ -559,9 +559,11 @@ class YarnJobManager(
     }
 
     override def onShutdownRequest(): Unit = {
+      // We are getting killed anyway
     }
 
     override def onNodesUpdated(updatedNodes: JavaList[NodeReport]): Unit = {
+      // We are not interested in node updates
     }
 
     override def onContainersCompleted(statuses: JavaList[ContainerStatus]): Unit = {
