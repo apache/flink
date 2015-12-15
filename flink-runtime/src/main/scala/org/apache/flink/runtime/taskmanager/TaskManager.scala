@@ -267,9 +267,8 @@ class TaskManager(
     // messages for coordinating checkpoints
     case message: AbstractCheckpointMessage => handleCheckpointingMessage(message)
 
-    case JobManagerLeaderAddress(address, leaderSessionID) => {
-      handleJobManagerLeaderAddress(address, leaderSessionID)
-    }
+    case JobManagerLeaderAddress(address, newLeaderSessionID) =>
+      handleJobManagerLeaderAddress(address, newLeaderSessionID)
 
     // registration messages for connecting and disconnecting from / to the JobManager
     case message: RegistrationMessage => handleRegistrationMessage(message)
@@ -415,7 +414,7 @@ class TaskManager(
           if (task != null) {
             task.failExternally(cause)
           } else {
-            log.debug(s"Cannot find task to fail for execution ${executionID})")
+            log.debug(s"Cannot find task to fail for execution $executionID)")
           }
 
         // cancels a task
@@ -425,7 +424,7 @@ class TaskManager(
             task.cancelExecution()
             sender ! decorateMessage(new TaskOperationResult(executionID, true))
           } else {
-            log.debug(s"Cannot find task to cancel for execution ${executionID})")
+            log.debug(s"Cannot find task to cancel for execution $executionID)")
             sender ! decorateMessage(
               new TaskOperationResult(
                 executionID,
@@ -458,13 +457,13 @@ class TaskManager(
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
         
-        log.debug(s"Receiver TriggerCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
+        log.debug(s"Receiver TriggerCheckpoint $checkpointId@$timestamp for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
           task.triggerCheckpointBarrier(checkpointId, timestamp)
         } else {
-          log.debug(s"Taskmanager received a checkpoint request for unknown task $taskExecutionId.")
+          log.debug(s"TaskManager received a checkpoint request for unknown task $taskExecutionId.")
         }
 
       case message: NotifyCheckpointComplete =>
@@ -472,14 +471,14 @@ class TaskManager(
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
 
-        log.debug(s"Receiver ConfirmCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
+        log.debug(s"Receiver ConfirmCheckpoint $checkpointId@$timestamp for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
           task.notifyCheckpointComplete(checkpointId)
         } else {
           log.debug(
-            s"Taskmanager received a checkpoint confirmation for unknown task $taskExecutionId.")
+            s"TaskManager received a checkpoint confirmation for unknown task $taskExecutionId.")
         }
 
       // unknown checkpoint message
@@ -520,12 +519,12 @@ class TaskManager(
         else {
           if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
             throw new Exception("Invalid internal state: Trying to register at JobManager " +
-              s"${jobManagerURL} even though the current JobManagerAkkaURL is set to " +
+              s"$jobManagerURL even though the current JobManagerAkkaURL is set to " +
               s"${jobManagerAkkaURL.getOrElse("")}")
           }
 
-          log.info(s"Trying to register at JobManager ${jobManagerURL} " +
-            s"(attempt ${attempt}, timeout: ${timeout})")
+          log.info(s"Trying to register at JobManager $jobManagerURL " +
+            s"(attempt $attempt, timeout: $timeout)")
 
           val jobManager = context.actorSelection(jobManagerURL)
 
@@ -604,8 +603,8 @@ class TaskManager(
 
       case RefuseRegistration(reason) =>
         if (currentJobManager.isEmpty) {
-          log.error(s"The registration at JobManager ${jobManagerAkkaURL} was refused, " +
-            s"because: ${reason}. Retrying later...")
+          log.error(s"The registration at JobManager $jobManagerAkkaURL was refused, " +
+            s"because: $reason. Retrying later...")
 
         if(jobManagerAkkaURL.isDefined) {
           // try the registration again after some time
@@ -889,7 +888,7 @@ class TaskManager(
         fileCache,
         runtimeInfo)
 
-      log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks}")
+      log.info(s"Received task ${task.getTaskInfo.getTaskNameWithSubtasks()}")
 
       val execId = tdd.getExecutionId
       // add the task to the map
@@ -1002,7 +1001,7 @@ class TaskManager(
         }
       }
 
-      log.info(s"Unregistering task and sending final execution state " +
+      log.info(s"Un-registering task and sending final execution state " +
         s"${task.getExecutionState} to JobManager for task ${task.getTaskInfo.getTaskName} " +
         s"(${task.getExecutionId})")
 
@@ -1107,8 +1106,8 @@ class TaskManager(
     * connected to another JobManager, it first disconnects from it. If the new JobManager
     * address is not null, then it starts the registration process.
     *
-    * @param newJobManagerAkkaURL
-    * @param leaderSessionID
+    * @param newJobManagerAkkaURL Akka URL of the new job manager
+    * @param leaderSessionID New leader session ID associated with the leader
     */
   private def handleJobManagerLeaderAddress(
       newJobManagerAkkaURL: String,
@@ -1119,7 +1118,7 @@ class TaskManager(
       case Some(jm) =>
         Option(newJobManagerAkkaURL) match {
           case Some(newJMAkkaURL) =>
-            handleJobManagerDisconnect(jm, s"JobManager ${newJMAkkaURL} was elected as leader.")
+            handleJobManagerDisconnect(jm, s"JobManager $newJMAkkaURL was elected as leader.")
           case None =>
             handleJobManagerDisconnect(jm, s"Old JobManager lost its leadership.")
         }
@@ -1175,11 +1174,11 @@ object TaskManager {
   /** The name of the TaskManager actor */
   val TASK_MANAGER_NAME = "taskmanager"
 
-  /** Maximum time (msecs) that the TaskManager will spend searching for a
+  /** Maximum time (milli seconds) that the TaskManager will spend searching for a
     * suitable network interface to use for communication */
   val MAX_STARTUP_CONNECT_TIME = 120000L
 
-  /** Time (msecs) after which the TaskManager will start logging failed
+  /** Time (milli seconds) after which the TaskManager will start logging failed
     * connection attempts */
   val STARTUP_CONNECT_LOG_SUPPRESS = 10000L
 
@@ -1218,11 +1217,10 @@ object TaskManager {
       parseArgsAndLoadConfig(args)
     }
     catch {
-      case t: Throwable => {
+      case t: Throwable =>
         LOG.error(t.getMessage(), t)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
         null
-      }
     }
 
     // run the TaskManager (if requested in an authentication enabled context)
@@ -1241,10 +1239,9 @@ object TaskManager {
       }
     }
     catch {
-      case t: Throwable => {
+      case t: Throwable =>
         LOG.error("Failed to run TaskManager.", t)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
-      }
     }
   }
 
@@ -1272,7 +1269,7 @@ object TaskManager {
     // parse the CLI arguments
     val cliConfig = parser.parse(args, new TaskManagerCliOptions()).getOrElse {
       throw new Exception(
-        s"Invalid command line agruments: ${args.mkString(" ")}. Usage: ${parser.usage}")
+        s"Invalid command line arguments: ${args.mkString(" ")}. Usage: ${parser.usage}")
     }
 
     // load the configuration
@@ -1346,7 +1343,7 @@ object TaskManager {
         lookupTimeout)
 
       taskManagerHostname = taskManagerAddress.getHostName()
-      LOG.info(s"TaskManager will use hostname/address '${taskManagerHostname}' " +
+      LOG.info(s"TaskManager will use hostname/address '$taskManagerHostname' " +
         s"(${taskManagerAddress.getHostAddress()}) for communication.")
     }
 
@@ -1430,7 +1427,7 @@ object TaskManager {
       AkkaUtils.createActorSystem(akkaConfig)
     }
     catch {
-      case t: Throwable => {
+      case t: Throwable =>
         if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
@@ -1440,7 +1437,6 @@ object TaskManager {
           }
         }
         throw new Exception("Could not create TaskManager actor system", t)
-      }
     }
 
     // start all the TaskManager services (network stack,  library cache, ...)
@@ -1453,7 +1449,7 @@ object TaskManager {
         taskManagerHostname,
         Some(TASK_MANAGER_NAME),
         None,
-        false,
+        localTaskManagerCommunication = false,
         taskManagerClass)
 
       // start a process reaper that watches the JobManager. If the TaskManager actor dies,
@@ -1483,7 +1479,7 @@ object TaskManager {
       taskManagerSystem.awaitTermination()
     }
     catch {
-      case t: Throwable => {
+      case t: Throwable =>
         LOG.error("Error while starting up taskManager", t)
         try {
           taskManagerSystem.shutdown()
@@ -1491,7 +1487,6 @@ object TaskManager {
           case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
         }
         throw t
-      }
     }
   }
 
@@ -1632,11 +1627,11 @@ object TaskManager {
         memType match {
           case MemoryType.HEAP =>
             throw new Exception(s"OutOfMemory error (${e.getMessage()})" +
-              s" while allocating the TaskManager heap memory (${memorySize} bytes).", e)
+              s" while allocating the TaskManager heap memory ($memorySize bytes).", e)
 
           case MemoryType.OFF_HEAP =>
             throw new Exception(s"OutOfMemory error (${e.getMessage()})" +
-              s" while allocating the TaskManager off-heap memory (${memorySize} bytes). " +
+              s" while allocating the TaskManager off-heap memory ($memorySize bytes). " +
               s"Try increasing the maximum direct memory (-XX:MaxDirectMemorySize)", e)
 
           case _ => throw e
@@ -1853,7 +1848,7 @@ object TaskManager {
       ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
-    val finiteRegistratioDuration = try {
+    val finiteRegistrationDuration = try {
       val maxRegistrationDuration = Duration(configuration.getString(
         ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
         ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION))
@@ -1873,7 +1868,7 @@ object TaskManager {
       tmpDirs,
       cleanupInterval,
       timeout,
-      finiteRegistratioDuration,
+      finiteRegistrationDuration,
       slots,
       configuration)
 
@@ -1934,7 +1929,7 @@ object TaskManager {
     : Unit = {
     if (!condition) {
       throw new IllegalConfigurationException(
-        s"Invalid configuration value for '${name}' : ${parameter} - ${errorMessage}")
+        s"Invalid configuration value for '$name' : $parameter - $errorMessage")
     }
   }
 
@@ -2018,10 +2013,9 @@ object TaskManager {
           fetchCPULoadMethod.map(_.invoke(osBean).asInstanceOf[Double]).getOrElse(-1.0)
         }
         catch {
-          case t: Throwable => {
+          case t: Throwable =>
             LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
             -1.0
-          }
         }
       }
     })
