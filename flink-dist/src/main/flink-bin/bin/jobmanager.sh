@@ -22,9 +22,8 @@ USAGE="Usage: jobmanager.sh (start (local|cluster) [host] [webui-port]|stop|stop
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
-STREAMINGMODE=$3
-HOST=$4 # optional when starting multiple instances
-WEBUIPORT=$5 # optinal when starting multiple instances
+HOST=$3 # optional when starting multiple instances
+WEBUIPORT=$4 # optinal when starting multiple instances
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
