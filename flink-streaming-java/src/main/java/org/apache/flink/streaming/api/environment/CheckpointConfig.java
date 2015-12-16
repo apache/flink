@@ -132,7 +132,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @param checkpointTimeout The checkpoint timeout, in milliseconds.
 	 */
 	public void setCheckpointTimeout(long checkpointTimeout) {
-		if (checkpointInterval <= 0) {
+		if (checkpointTimeout <= 0) {
 			throw new IllegalArgumentException("Checkpoint timeout must be larger than zero");
 		}
 		this.checkpointTimeout = checkpointTimeout;

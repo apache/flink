@@ -1630,7 +1630,7 @@ Collection-based:
 Custom:
 
 - `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer082<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
+    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
 
 </div>
 
@@ -1682,7 +1682,7 @@ Collection-based:
 Custom:
 
 - `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer082<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
+    `addSource(new FlinkKafkaConsumer08<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
 
 </div>
 </div>

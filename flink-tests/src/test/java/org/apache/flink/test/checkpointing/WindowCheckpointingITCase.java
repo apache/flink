@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -50,6 +51,7 @@ import java.util.HashMap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -491,27 +493,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	public static void tryExecute(StreamExecutionEnvironment env, String jobName) throws Exception {
-		try {
-			env.execute(jobName);
-		}
-		catch (ProgramInvocationException | JobExecutionException root) {
-			Throwable cause = root.getCause();
-
-			// search for nested SuccessExceptions
-			int depth = 0;
-			while (!(cause instanceof SuccessException)) {
-				if (cause == null || depth++ == 20) {
-					root.printStackTrace();
-					fail("Test failed: " + root.getMessage());
-				}
-				else {
-					cause = cause.getCause();
-				}
-			}
-		}
-	}
-
 	public static class IntType {
 
 		public int value;
@@ -519,9 +500,5 @@ public class WindowCheckpointingITCase extends TestLogger {
 		public IntType() {}
 
 		public IntType(int value) { this.value = value; }
-	}
-
-	static final class SuccessException extends Exception {
-		private static final long serialVersionUID = -9218191172606739598L;
 	}
 }
