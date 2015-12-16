@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.UnrecoverableException;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -37,17 +38,20 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 public class ExecutionGraphRestartTest {
 
 	private final static int NUM_TASKS = 31;
 
 	@Test
-	public void testNotRestartManually() throws Exception {
+	public void testNoManualRestart() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
 				new SimpleActorGateway(TestingUtils.directExecutionContext()),
 				NUM_TASKS);
@@ -83,6 +87,7 @@ public class ExecutionGraphRestartTest {
 
 		assertEquals(JobStatus.FAILED, eg.getState());
 
+		// This should not restart the graph.
 		eg.restart();
 
 		assertEquals(JobStatus.FAILED, eg.getState());
@@ -298,5 +303,61 @@ public class ExecutionGraphRestartTest {
 		executionGraph.jobVertexInFinalState();
 
 		assertEquals(JobStatus.CANCELED, executionGraph.getState());
+	}
+
+	@Test
+	public void testNoRestartOnUnrecoverableException() throws Exception {
+		Instance instance = ExecutionGraphTestUtils.getInstance(
+				new SimpleActorGateway(TestingUtils.directExecutionContext()),
+				NUM_TASKS);
+
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		scheduler.newInstanceAvailable(instance);
+
+		JobVertex sender = new JobVertex("Task");
+		sender.setInvokableClass(Tasks.NoOpInvokable.class);
+		sender.setParallelism(NUM_TASKS);
+
+		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
+
+		ExecutionGraph eg = spy(new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				new JobID(),
+				"Test job",
+				new Configuration(),
+				AkkaUtils.getDefaultTimeout()));
+
+		eg.setNumberOfRetriesLeft(1);
+		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+
+		assertEquals(JobStatus.CREATED, eg.getState());
+
+		eg.scheduleForExecution(scheduler);
+
+		assertEquals(JobStatus.RUNNING, eg.getState());
+
+		// Fail with unrecoverable Exception
+		eg.getAllExecutionVertices().iterator().next().fail(
+				new UnrecoverableException(new Exception("Test Exception")));
+
+		assertEquals(JobStatus.FAILING, eg.getState());
+
+		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
+		}
+
+		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
+
+		// Wait for async restart
+		Deadline deadline = timeout.fromNow();
+		while (deadline.hasTimeLeft() && eg.getState() != JobStatus.FAILED) {
+			Thread.sleep(100);
+		}
+
+		assertEquals(JobStatus.FAILED, eg.getState());
+
+		// No restart
+		verify(eg, never()).restart();
+		assertEquals(1, eg.getNumberOfRetriesLeft());
 	}
 }
