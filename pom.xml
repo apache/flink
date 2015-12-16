@@ -822,6 +822,7 @@ under the License.
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
 						<!-- Generated content -->
+						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
 						<exclude>docs/_site/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
