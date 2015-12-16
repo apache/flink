@@ -239,12 +239,14 @@ class JobManager(
       leaderSessionID = newLeaderSessionID
 
       // confirming the leader session ID might be blocking, thus do it in a future
-      future{
+      future {
         leaderElectionService.confirmLeaderSessionID(newLeaderSessionID.orNull)
 
         // TODO (critical next step) This needs to be more flexible and robust (e.g. wait for task
         // managers etc.)
         if (recoveryMode != RecoveryMode.STANDALONE) {
+          log.info(s"Delaying recovery of all jobs for $delayBetweenRetries ms.")
+
           context.system.scheduler.scheduleOnce(new FiniteDuration(delayBetweenRetries,
             MILLISECONDS), self, decorateMessage(RecoverAllJobs))(context.dispatcher)
         }
@@ -344,6 +346,10 @@ class JobManager(
           submittedJobGraph.getJobInfo(),
           isRecovery = true)
       }
+      else {
+        log.info(s"Ignoring job recovery for ${submittedJobGraph.getJobId}, " +
+          s"because it is already submitted.")
+      }
 
     case RecoverJob(jobId) =>
       future {
@@ -372,28 +378,32 @@ class JobManager(
 
     case RecoverAllJobs =>
       future {
-        // The ActorRef, which is part of the submitted job graph can only be de-serialized in the
-        // scope of an actor system.
-        akka.serialization.JavaSerializer.currentSystem.withValue(
-          context.system.asInstanceOf[ExtendedActorSystem]) {
+        try {
+          // The ActorRef, which is part of the submitted job graph can only be
+          // de-serialized in the scope of an actor system.
+          akka.serialization.JavaSerializer.currentSystem.withValue(
+            context.system.asInstanceOf[ExtendedActorSystem]) {
 
-          log.info(s"Recovering all jobs.")
+            log.info(s"Attempting to recover all jobs.")
 
-          val jobGraphs = submittedJobGraphs.recoverJobGraphs().asScala
+            val jobGraphs = submittedJobGraphs.recoverJobGraphs().asScala
 
-          if (!leaderElectionService.hasLeadership()) {
-            // we've lost leadership. mission: abort.
-            log.warn(s"Lost leadership during recovery. Aborting recovery of ${jobGraphs.size} " +
-              s"jobs.")
-          }
-          else {
-            log.debug(s"Attempting to recover ${jobGraphs.size} job graphs.")
+            if (!leaderElectionService.hasLeadership()) {
+              // we've lost leadership. mission: abort.
+              log.warn(s"Lost leadership during recovery. Aborting recovery of ${jobGraphs.size} " +
+                s"jobs.")
+            }
+            else {
+              log.info(s"Re-submitting ${jobGraphs.size} job graphs.")
 
-            jobGraphs.foreach{
-              submittedJobGraph =>
-                self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+              jobGraphs.foreach{
+                submittedJobGraph =>
+                  self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+              }
             }
           }
+        } catch {
+          case e: Exception => log.error("Fatal error: Failed to recover jobs.", e)
         }
       }(context.dispatcher)
 
