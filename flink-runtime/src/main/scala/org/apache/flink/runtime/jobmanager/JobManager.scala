@@ -80,7 +80,7 @@ import scala.language.postfixOps
  *
  *  - [[SubmitJob]] is sent by a client which wants to submit a job to the system. The submit
  *  message contains the job description in the form of the JobGraph. The JobGraph is appended to
- *  the ExecutionGraph and the corresponding JobExecutionVertices are scheduled for execution on
+ *  the ExecutionGraph and the corresponding ExecutionJobVertices are scheduled for execution on
  *  the TaskManagers.
  *
  *  - [[CancelJob]] requests to cancel the job with the specified jobID. A successful cancellation
@@ -242,12 +242,14 @@ class JobManager(
       leaderSessionID = newLeaderSessionID
 
       // confirming the leader session ID might be blocking, thus do it in a future
-      future{
+      future {
         leaderElectionService.confirmLeaderSessionID(newLeaderSessionID.orNull)
 
         // TODO (critical next step) This needs to be more flexible and robust (e.g. wait for task
         // managers etc.)
         if (recoveryMode != RecoveryMode.STANDALONE) {
+          log.info(s"Delaying recovery of all jobs for $delayBetweenRetries ms.")
+
           context.system.scheduler.scheduleOnce(new FiniteDuration(delayBetweenRetries,
             MILLISECONDS), self, decorateMessage(RecoverAllJobs))(context.dispatcher)
         }
@@ -347,10 +349,14 @@ class JobManager(
           submittedJobGraph.getJobInfo(),
           isRecovery = true)
       }
+      else {
+        log.info(s"Ignoring job recovery for ${submittedJobGraph.getJobId}, " +
+          s"because it is already submitted.")
+      }
 
     case RecoverJob(jobId) =>
       future {
-        // The ActorRef, which is part of the submitted job graph can only be deserialized in the
+        // The ActorRef, which is part of the submitted job graph can only be de-serialized in the
         // scope of an actor system.
         akka.serialization.JavaSerializer.currentSystem.withValue(
           context.system.asInstanceOf[ExtendedActorSystem]) {
@@ -375,28 +381,32 @@ class JobManager(
 
     case RecoverAllJobs =>
       future {
-        // The ActorRef, which is part of the submitted job graph can only be deserialized in the
-        // scope of an actor system.
-        akka.serialization.JavaSerializer.currentSystem.withValue(
-          context.system.asInstanceOf[ExtendedActorSystem]) {
+        try {
+          // The ActorRef, which is part of the submitted job graph can only be
+          // de-serialized in the scope of an actor system.
+          akka.serialization.JavaSerializer.currentSystem.withValue(
+            context.system.asInstanceOf[ExtendedActorSystem]) {
 
-          log.info(s"Recovering all jobs.")
+            log.info(s"Attempting to recover all jobs.")
 
-          val jobGraphs = submittedJobGraphs.recoverJobGraphs().asScala
+            val jobGraphs = submittedJobGraphs.recoverJobGraphs().asScala
 
-          if (!leaderElectionService.hasLeadership()) {
-            // we've lost leadership. mission: abort.
-            log.warn(s"Lost leadership during recovery. Aborting recovery of ${jobGraphs.size} " +
-              s"jobs.")
-          }
-          else {
-            log.debug(s"Attempting to recover ${jobGraphs.size} job graphs.")
+            if (!leaderElectionService.hasLeadership()) {
+              // we've lost leadership. mission: abort.
+              log.warn(s"Lost leadership during recovery. Aborting recovery of ${jobGraphs.size} " +
+                s"jobs.")
+            }
+            else {
+              log.info(s"Re-submitting ${jobGraphs.size} job graphs.")
 
-            jobGraphs.foreach{
-              submittedJobGraph =>
-                self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+              jobGraphs.foreach{
+                submittedJobGraph =>
+                  self ! decorateMessage(RecoverSubmittedJob(submittedJobGraph))
+              }
             }
           }
+        } catch {
+          case e: Exception => log.error("Fatal error: Failed to recover jobs.", e)
         }
       }(context.dispatcher)
 
@@ -1694,7 +1704,7 @@ object JobManager {
 
     val config = parser.parse(args, new JobManagerCliOptions()).getOrElse {
       throw new Exception(
-        s"Invalid command line agruments: ${args.mkString(" ")}. Usage: ${parser.usage}")
+        s"Invalid command line arguments: ${args.mkString(" ")}. Usage: ${parser.usage}")
     }
     
     val configDir = config.getConfigDir()
