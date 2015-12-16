@@ -219,6 +219,11 @@ public class ReduceCombineDriver<T> implements Driver<ReduceFunction<T>, T> {
 						if (comparator.equalToReference(value)) {
 							// same group, reduce
 							res = function.reduce(res, value);
+							if (res == reuse2) {
+								T tmp = reuse1;
+								reuse1 = reuse2;
+								reuse2 = tmp;
+							}
 						} else {
 							// new key group
 							break;
