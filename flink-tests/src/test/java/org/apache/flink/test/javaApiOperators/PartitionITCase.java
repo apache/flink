@@ -23,6 +23,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
@@ -33,6 +34,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.DataSource;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -449,6 +451,34 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 				previousMax = tuple2.f1;
 			}
 		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testRangePartitionInIteration() throws Exception {
+
+		// does not apply for collection execution
+		if (super.mode == TestExecutionMode.COLLECTION) {
+			throw new InvalidProgramException("Does not apply for collection execution");
+		}
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSource<Long> source = env.generateSequence(0, 10000);
+
+		DataSet<Tuple2<Long, String>> tuples = source.map(new MapFunction<Long, Tuple2<Long, String>>() {
+			@Override
+			public Tuple2<Long, String> map(Long v) throws Exception {
+				return new Tuple2<>(v, Long.toString(v));
+			}
+		});
+
+		DeltaIteration<Tuple2<Long, String>, Tuple2<Long, String>> it = tuples.iterateDelta(tuples, 10, 0);
+		DataSet<Tuple2<Long, String>> body = it.getWorkset()
+			.partitionByRange(1) // Verify that range partition is not allowed in iteration
+			.join(it.getSolutionSet())
+			.where(0).equalTo(0).projectFirst(0).projectSecond(1);
+		DataSet<Tuple2<Long, String>> result = it.closeWith(body, body);
+
+		result.collect(); // should fail
 	}
 
 	private static class ObjectSelfKeySelector implements KeySelector<Long, Long> {

@@ -17,8 +17,8 @@
  */
 package org.apache.flink.optimizer.traversals;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.distributions.CommonRangeBoundaries;
-import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -29,9 +29,11 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.api.java.functions.IdPartitioner;
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.LocalProperties;
+import org.apache.flink.optimizer.plan.IterationPlanNode;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.udf.AssignRangeIndex;
 import org.apache.flink.runtime.operators.udf.RemoveRangeIndex;
@@ -57,7 +59,9 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  *
@@ -76,9 +80,11 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 	final static IdPartitioner idPartitioner = new IdPartitioner();
 
 	final OptimizedPlan plan;
+	final Set<IterationPlanNode> visitedIterationNodes;
 
 	public RangePartitionRewriter(OptimizedPlan plan) {
 		this.plan = plan;
+		this.visitedIterationNodes = new HashSet<>();
 	}
 
 	@Override
@@ -87,12 +93,26 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 	}
 
 	@Override
-	public void postVisit(PlanNode visitable) {
-		final Iterable<Channel> inputChannels = visitable.getInputs();
+	public void postVisit(PlanNode node) {
+
+		if(node instanceof IterationPlanNode) {
+			IterationPlanNode iNode = (IterationPlanNode)node;
+			if(!visitedIterationNodes.contains(iNode)) {
+				visitedIterationNodes.add(iNode);
+				iNode.acceptForStepFunction(this);
+			}
+		}
+
+		final Iterable<Channel> inputChannels = node.getInputs();
 		for (Channel channel : inputChannels) {
 			ShipStrategyType shipStrategy = channel.getShipStrategy();
 			// Make sure we only optimize the DAG for range partition, and do not optimize multi times.
-			if (shipStrategy == ShipStrategyType.PARTITION_RANGE && isOptimized(visitable)) {
+			if (shipStrategy == ShipStrategyType.PARTITION_RANGE) {
+
+				if(node.isOnDynamicPath()) {
+					throw new InvalidProgramException("Range Partitioning not supported within iterations.");
+				}
+
 				PlanNode channelSource = channel.getSource();
 				List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
 				channelSource.getOutgoingChannels().remove(channel);
@@ -214,16 +234,4 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 		return sourceNewOutputChannels;
 	}
 
-
-	private boolean isOptimized(PlanNode node) {
-		return node.getNodeName() != PR_NAME;
-	}
-
-	static class IDPartitioner implements Partitioner<Integer> {
-
-		@Override
-		public int partition(Integer key, int numPartitions) {
-			return key;
-		}
-	}
 }
