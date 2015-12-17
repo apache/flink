@@ -135,8 +135,10 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 		@Override
 		public void sendMessages(Vertex<Long, Double> vertex) {
-			for (Edge<Long, Double> edge : getEdges()) {
-				sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
+			if (vertex.getValue() < Double.POSITIVE_INFINITY) {
+				for (Edge<Long, Double> edge : getEdges()) {
+					sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
+				}
 			}
 		}
 	}
