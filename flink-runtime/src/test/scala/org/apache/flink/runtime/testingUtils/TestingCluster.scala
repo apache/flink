@@ -96,14 +96,14 @@ class TestingCluster(
     instanceManager,
     scheduler,
     libraryCacheManager,
-    executionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     archiveCount,
     leaderElectionService,
     submittedJobsGraphs,
     checkpointRecoveryFactory,
-    savepointStore) = JobManager.createJobManagerComponents(
+    savepointStore,
+    jobRecoveryTimeout) = JobManager.createJobManagerComponents(
       config,
       createLeaderElectionService())
 
@@ -118,13 +118,13 @@ class TestingCluster(
         scheduler,
         libraryCacheManager,
         archive,
-        executionRetries,
-        delayBetweenRetries,
+        restartStrategy,
         timeout,
         leaderElectionService,
         submittedJobsGraphs,
         checkpointRecoveryFactory,
-        savepointStore))
+        savepointStore,
+        jobRecoveryTimeout))
 
     val dispatcherJobManagerProps = if (synchronousDispatcher) {
       // disable asynchronous futures (e.g. accumulator update in Heartbeat)

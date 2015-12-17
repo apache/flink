@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.SavepointStoreFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
@@ -191,13 +192,13 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 				new Scheduler(TestingUtils.defaultExecutionContext()),
 				new BlobLibraryCacheManager(new BlobServer(configuration), 10L),
 				ActorRef.noSender(),
-				1,
-				1L,
+				new NoRestartStrategy(),
 				AkkaUtils.getDefaultTimeout(),
 				leaderElectionService,
 				submittedJobGraphStore,
 				checkpointRecoveryFactory,
-				savepointStore
+				savepointStore,
+				AkkaUtils.getDefaultTimeout()
 		);
 	}
 }

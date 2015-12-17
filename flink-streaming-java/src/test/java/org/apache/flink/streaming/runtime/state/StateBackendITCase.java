@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.state;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -56,7 +57,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
 
-		see.setNumberOfExecutionRetries(0);
+		see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		see.setStateBackend(new FailingStateBackend());
 
 

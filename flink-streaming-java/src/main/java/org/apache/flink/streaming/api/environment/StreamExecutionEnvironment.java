@@ -29,6 +29,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -424,6 +425,27 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the restart strategy configuration. The configuration specifies which restart strategy
+	 * will be used for the execution graph in case of a restart.
+	 *
+	 * @param restartStrategyConfiguration Restart strategy configuration to be set
+	 */
+	@PublicEvolving
+	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
+		config.setRestartStrategy(restartStrategyConfiguration);
+	}
+
+	/**
+	 * Returns the specified restart strategy configuration.
+	 *
+	 * @return The restart strategy configuration to be used
+	 */
+	@PublicEvolving
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
+		return config.getRestartStrategy();
+	}
+
+	/**
 	 * Sets the number of times that failed tasks are re-executed. A value of
 	 * zero effectively disables fault tolerance. A value of {@code -1}
 	 * indicates that the system default value (as defined in the configuration)
@@ -431,7 +453,12 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @param numberOfExecutionRetries
 	 * 		The number of times the system will try to re-execute failed tasks.
+	 *
+	 * @deprecated This method will be replaced by {@link #setRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
@@ -443,7 +470,12 @@ public abstract class StreamExecutionEnvironment {
 	 * in the configuration) should be used.
 	 *
 	 * @return The number of times the system will try to re-execute failed tasks.
+	 *
+	 * @deprecated This method will be replaced by {@link #getRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();

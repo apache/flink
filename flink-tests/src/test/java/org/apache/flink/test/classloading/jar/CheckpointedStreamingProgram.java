@@ -19,6 +19,7 @@
 package org.apache.flink.test.classloading.jar;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -45,7 +46,7 @@ public class CheckpointedStreamingProgram {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(CHECKPOINT_INTERVALL);
-		env.setNumberOfExecutionRetries(1);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 10000));
 		env.disableOperatorChaining();
 		
 		DataStream<String> text = env.addSource(new SimpleStringGenerator());

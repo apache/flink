@@ -30,6 +30,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -173,7 +174,8 @@ public class ExecutionGraphTestUtils {
 				new JobID(),
 				"test job",
 				new Configuration(),
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
 				AkkaUtils.getDefaultTimeout()));

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.scala
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Internal, PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
@@ -186,8 +187,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * operator states. Time interval between state checkpoints is specified in in millis.
    *
    * Setting this option assumes that the job is used in production and thus if not stated
-   * explicitly otherwise with calling with the
-   * [[setNumberOfExecutionRetries(int)]] method in case of
+   * explicitly otherwise with calling the [[setRestartStrategy]] method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
   @deprecated
@@ -229,22 +229,49 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def getStateBackend: AbstractStateBackend = javaEnv.getStateBackend()
-  
+
   /**
-   * Sets the number of times that failed tasks are re-executed. A value of zero
-   * effectively disables fault tolerance. A value of "-1" indicates that the system
-   * default value (as defined in the configuration) should be used.
-   */
+    * Sets the restart strategy configuration. The configuration specifies which restart strategy
+    * will be used for the execution graph in case of a restart.
+    *
+    * @param restartStrategyConfiguration Restart strategy configuration to be set
+    */
+  @PublicEvolving
+  def setRestartStrategy(restartStrategyConfiguration: RestartStrategyConfiguration): Unit = {
+    javaEnv.setRestartStrategy(restartStrategyConfiguration)
+  }
+
+  /**
+    * Returns the specified restart strategy configuration.
+    *
+    * @return The restart strategy configuration to be used
+    */
+  @PublicEvolving
+  def getRestartStrategy: RestartStrategyConfiguration = {
+    javaEnv.getRestartStrategy()
+  }
+
+  /**
+    * Sets the number of times that failed tasks are re-executed. A value of zero
+    * effectively disables fault tolerance. A value of "-1" indicates that the system
+    * default value (as defined in the configuration) should be used.
+    *
+    * @deprecated This method will be replaced by [[setRestartStrategy()]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
   @PublicEvolving
   def setNumberOfExecutionRetries(numRetries: Int): Unit = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
   }
 
   /**
-   * Gets the number of times the system will try to re-execute failed tasks. A value
-   * of "-1" indicates that the system default value (as defined in the configuration)
-   * should be used.
-   */
+    * Gets the number of times the system will try to re-execute failed tasks. A value
+    * of "-1" indicates that the system default value (as defined in the configuration)
+    * should be used.
+    *
+    * @deprecated This method will be replaced by [[getRestartStrategy]]. The
+    *            FixedDelayRestartStrategyConfiguration contains the number of execution retries.
+    */
   @PublicEvolving
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 

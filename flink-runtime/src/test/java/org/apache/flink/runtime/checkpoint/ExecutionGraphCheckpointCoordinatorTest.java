@@ -25,6 +25,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
@@ -43,14 +44,15 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 	@Test
 	public void testCheckpointAndSavepointCoordinatorShareCheckpointIDCounter() throws Exception {
 		ExecutionGraph executionGraph = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				new JobID(),
-				"test",
-				new Configuration(),
-				new FiniteDuration(1, TimeUnit.DAYS),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
-				ClassLoader.getSystemClassLoader());
+			TestingUtils.defaultExecutionContext(),
+			new JobID(),
+			"test",
+			new Configuration(),
+			new FiniteDuration(1, TimeUnit.DAYS),
+			new NoRestartStrategy(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
+			ClassLoader.getSystemClassLoader());
 
 		ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 

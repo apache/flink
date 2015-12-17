@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
@@ -62,7 +63,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -102,7 +104,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -143,7 +146,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -185,7 +189,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -225,7 +230,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -285,7 +291,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -336,7 +343,8 @@ public class PointwisePatternTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}

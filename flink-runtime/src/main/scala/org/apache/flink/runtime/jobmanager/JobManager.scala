@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{File, IOException}
 import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress, InetSocketAddress}
 import java.util.UUID
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.{TimeUnit, ExecutorService}
 
 import akka.actor.Status.Failure
 import akka.actor._
@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.execution.UnrecoverableException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator
@@ -108,13 +109,13 @@ class JobManager(
     protected val scheduler: FlinkScheduler,
     protected val libraryCacheManager: BlobLibraryCacheManager,
     protected val archive: ActorRef,
-    protected val defaultExecutionRetries: Int,
-    protected val delayBetweenRetries: Long,
+    protected val defaultRestartStrategy: RestartStrategy,
     protected val timeout: FiniteDuration,
     protected val leaderElectionService: LeaderElectionService,
     protected val submittedJobGraphs : SubmittedJobGraphStore,
     protected val checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    protected val savepointStore: SavepointStore)
+    protected val savepointStore: SavepointStore,
+    protected val jobRecoveryTimeout: FiniteDuration)
   extends FlinkActor
   with LeaderSessionMessageFilter // mixin oder is important, we want filtering after logging
   with LogMessages // mixin order is important, we want first logging
@@ -131,7 +132,7 @@ class JobManager(
         log.error("Executor could not execute task", t)
       }
     })
-  
+
   /** Either running or not yet archived jobs (session hasn't been ended). */
   protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
@@ -256,7 +257,7 @@ class JobManager(
 
     // shut down the extra thread pool for futures
     executorService.shutdown()
-    
+
     log.debug(s"Job manager ${self.path} is completely stopped.")
   }
 
@@ -280,10 +281,13 @@ class JobManager(
         // TODO (critical next step) This needs to be more flexible and robust (e.g. wait for task
         // managers etc.)
         if (recoveryMode != RecoveryMode.STANDALONE) {
-          log.info(s"Delaying recovery of all jobs for $delayBetweenRetries ms.")
+          log.info(s"Delaying recovery of all jobs by $jobRecoveryTimeout.")
 
-          context.system.scheduler.scheduleOnce(new FiniteDuration(delayBetweenRetries,
-            MILLISECONDS), self, decorateMessage(RecoverAllJobs))(context.dispatcher)
+          context.system.scheduler.scheduleOnce(
+            jobRecoveryTimeout,
+            self,
+            decorateMessage(RecoverAllJobs))(
+            context.dispatcher)
         }
       }(context.dispatcher)
 
@@ -903,6 +907,12 @@ class JobManager(
           throw new JobSubmissionException(jobId, "The given job is empty")
         }
 
+        val restartStrategy = Option(jobGraph.getRestartStrategyConfiguration())
+          .map(RestartStrategyFactory.createRestartStrategy(_)) match {
+            case Some(strategy) => strategy
+            case None => defaultRestartStrategy
+          }
+
         // see if there already exists an ExecutionGraph for the corresponding job ID
         executionGraph = currentJobs.get(jobGraph.getJobID) match {
           case Some((graph, currentJobInfo)) =>
@@ -915,6 +925,7 @@ class JobManager(
               jobGraph.getName,
               jobGraph.getJobConfiguration,
               timeout,
+              restartStrategy,
               jobGraph.getUserJarBlobKeys,
               jobGraph.getClasspaths,
               userCodeLoader)
@@ -923,22 +934,6 @@ class JobManager(
             graph
         }
 
-        // configure the execution graph
-        val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries() >= 0) {
-          jobGraph.getNumberOfExecutionRetries()
-        } else {
-          defaultExecutionRetries
-        }
-
-        val executionRetryDelay = if (jobGraph.getExecutionRetryDelay() >= 0) {
-          jobGraph.getExecutionRetryDelay()
-        }
-        else {
-          delayBetweenRetries
-        }
-
-        executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
-        executionGraph.setDelayBeforeRetrying(executionRetryDelay)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode())
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling())
 
@@ -2032,14 +2027,15 @@ object JobManager {
     InstanceManager,
     FlinkScheduler,
     BlobLibraryCacheManager,
-    Int, // execution retries
-    Long, // delay between retries
+    RestartStrategy,
     FiniteDuration, // timeout
     Int, // number of archived jobs
     LeaderElectionService,
     SubmittedJobGraphStore,
     CheckpointRecoveryFactory,
-    SavepointStore) = {
+    SavepointStore,
+    FiniteDuration // timeout for job recovery
+   ) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
@@ -2047,35 +2043,12 @@ object JobManager {
       ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
-    val executionRetries = configuration.getInteger(
-      ConfigConstants.EXECUTION_RETRIES_KEY,
-      ConfigConstants.DEFAULT_EXECUTION_RETRIES)
+    val restartStrategy = RestartStrategyFactory
+      .createFromConfig(configuration)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
 
-    // configure the delay between execution retries.
-    // unless explicitly specifies, this is dependent on the heartbeat timeout
-    val pauseString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
-                                              ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
-    val delayString = configuration.getString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY,
-                                              pauseString)
-    
-    val delayBetweenRetries: Long = try {
-        Duration(delayString).toMillis
-      }
-      catch {
-        case n: NumberFormatException =>
-          if (delayString.equals(pauseString)) {
-            throw new Exception(
-              s"Invalid config value for ${ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE}: " +
-                s"$pauseString. Value must be a valid duration (such as '10 s' or '1 min')")
-          } else {
-            throw new Exception(
-              s"Invalid config value for ${ConfigConstants.EXECUTION_RETRY_DELAY_KEY}: " +
-                s"$delayString. Value must be a valid duration (such as '100 milli' or '10 s')")
-          }
-      }
 
     var blobServer: BlobServer = null
     var instanceManager: InstanceManager = null
@@ -2139,18 +2112,33 @@ object JobManager {
 
     val savepointStore = SavepointStoreFactory.createFromConfig(configuration)
 
+    val jobRecoveryTimeoutStr = configuration.getString(ConfigConstants.RECOVERY_JOB_DELAY, "");
+
+    val jobRecoveryTimeout = if (jobRecoveryTimeoutStr == null || jobRecoveryTimeoutStr.isEmpty) {
+      timeout
+    } else {
+      try {
+        FiniteDuration(Duration(jobRecoveryTimeoutStr).toMillis, TimeUnit.MILLISECONDS)
+      } catch {
+        case n: NumberFormatException =>
+          throw new Exception(
+            s"Invalid config value for ${ConfigConstants.RECOVERY_JOB_DELAY}: " +
+              s"$jobRecoveryTimeoutStr. Value must be a valid duration (such as '10 s' or '1 min')")
+      }
+    }
+
     (executorService,
       instanceManager,
       scheduler,
       libraryCacheManager,
-      executionRetries,
-      delayBetweenRetries,
+      restartStrategy,
       timeout,
       archiveCount,
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
-      savepointStore)
+      savepointStore,
+      jobRecoveryTimeout)
   }
 
   /**
@@ -2206,14 +2194,14 @@ object JobManager {
     instanceManager,
     scheduler,
     libraryCacheManager,
-    executionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     archiveCount,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore) = createJobManagerComponents(
+    savepointStore,
+    jobRecoveryTimeout) = createJobManagerComponents(
       configuration,
       None)
 
@@ -2233,13 +2221,13 @@ object JobManager {
       scheduler,
       libraryCacheManager,
       archive,
-      executionRetries,
-      delayBetweenRetries,
+      restartStrategy,
       timeout,
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
-      savepointStore)
+      savepointStore,
+      jobRecoveryTimeout)
 
     val jobManager: ActorRef = jobMangerActorName match {
       case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)

@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 /**
  * The JobGraph represents a Flink dataflow program, at the low level that the JobManager accepts.
  * All programs from higher level APIs are transformed into JobGraphs.
@@ -78,10 +79,8 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	/** The number of times that failed tasks should be re-executed */
-	private int numExecutionRetries;
-
-	private long executionRetryDelay;
+	/** Configuration which defines which restart strategy to use for the job recovery */
+	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
 
 	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
 	 * job manager after it has been executed. */
@@ -193,54 +192,22 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
-	 * Sets the number of times that failed tasks are re-executed. A value of zero
-	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
-	 * default value (as defined in the configuration) should be used.
+	 * Sets the restart strategy configuration. This configuration specifies the restart strategy
+	 * to be used by the ExecutionGraph in case of a restart.
 	 *
-	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 * @param restartStrategyConfiguration Restart strategy configuration to be set
 	 */
-	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-		if (numberOfExecutionRetries < -1) {
-			throw new IllegalArgumentException(
-					"The number of execution retries must be non-negative, or -1 (use system default)");
-		}
-		this.numExecutionRetries = numberOfExecutionRetries;
+	public void setRestartStrategyConfiguration(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
+		this.restartStrategyConfiguration = restartStrategyConfiguration;
 	}
 
 	/**
-	 * Gets the number of times the system will try to re-execute failed tasks. A value
-	 * of {@code -1} indicates that the system default value (as defined in the configuration)
-	 * should be used.
+	 * Gets the restart strategy configuration
 	 *
-	 * @return The number of times the system will try to re-execute failed tasks.
+	 * @return Restart strategy configuration to be used
 	 */
-	public int getNumberOfExecutionRetries() {
-		return numExecutionRetries;
-	}
-
-	/**
-	 * Gets the delay of time the system will try to re-execute failed tasks. A value of
-	 * {@code -1} indicates the system default value (as defined in the configuration)
-	 * should be used.
-	 * @return The delay of time in milliseconds the system will try to re-execute failed tasks.
-	 */
-	public long getExecutionRetryDelay() {
-		return executionRetryDelay;
-	}
-
-	/**
-	 * Sets the delay that failed tasks are re-executed. A value of zero
-	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
-	 * default value (as defined in the configuration) should be used.
-	 *
-	 * @param executionRetryDelay The delay of time the system will wait to re-execute failed tasks.
-	 */
-	public void setExecutionRetryDelay(long executionRetryDelay){
-		if (executionRetryDelay < -1) {
-			throw new IllegalArgumentException(
-					"The delay between reties must be non-negative, or -1 (use system default)");
-		}
-		this.executionRetryDelay = executionRetryDelay;
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategyConfiguration() {
+		return restartStrategyConfiguration;
 	}
 
 	/**

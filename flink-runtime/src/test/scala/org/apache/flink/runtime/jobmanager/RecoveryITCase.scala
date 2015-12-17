@@ -33,6 +33,8 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
 import scala.concurrent.duration._
 
+import language.postfixOps
+
 @RunWith(classOf[JUnitRunner])
 class RecoveryITCase(_system: ActorSystem)
   extends TestKit(_system)
@@ -57,7 +59,9 @@ class RecoveryITCase(_system: ActorSystem)
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers)
     config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, heartbeatTimeout)
-    config.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, heartbeatTimeout)
+    config.setString(ConfigConstants.RESTART_STRATEGY, "fixeddelay")
+    config.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1)
+    config.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, heartbeatTimeout)
     new TestingCluster(config)
   }
 
@@ -79,7 +83,6 @@ class RecoveryITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-      jobGraph.setNumberOfExecutionRetries(1)
 
       val cluster = createTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "2 s")
       cluster.start()
@@ -124,7 +127,6 @@ class RecoveryITCase(_system: ActorSystem)
       receiver.setSlotSharingGroup(sharingGroup)
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-      jobGraph.setNumberOfExecutionRetries(1)
 
       val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "2 s")
       cluster.start()
@@ -169,7 +171,6 @@ class RecoveryITCase(_system: ActorSystem)
       receiver.setSlotSharingGroup(sharingGroup)
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-      jobGraph.setNumberOfExecutionRetries(1)
 
       val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "2 s")
       cluster.start()

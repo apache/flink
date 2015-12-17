@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.kafka;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -43,7 +44,7 @@ public class WriteIntoKafka {
 
 		StreamExecutionEnvironment env =StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
-		env.setNumberOfExecutionRetries(3);
+		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(4, 10000));
 
 		// very simple data generator
 		DataStream<String> messageStream = env.addSource(new SourceFunction<String>() {
