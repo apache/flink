@@ -113,8 +113,10 @@ object SingleSourceShortestPaths {
     MessagingFunction[Long, Double, Double, Double] {
 
     override def sendMessages(vertex: Vertex[Long, Double]) {
-      for (edge: Edge[Long, Double] <- getEdges) {
-        sendMessageTo(edge.getTarget, vertex.getValue + edge.getValue)
+      if (vertex.getValue < Double.PositiveInfinity) {
+        for (edge: Edge[Long, Double] <- getEdges) {
+          sendMessageTo(edge.getTarget, vertex.getValue + edge.getValue)
+        }
       }
     }
   }
