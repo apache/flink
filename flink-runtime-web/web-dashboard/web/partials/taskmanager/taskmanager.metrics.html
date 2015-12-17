@@ -48,6 +48,30 @@ limitations under the License.
     </tr>
   </tbody>
 </table>
+<table ng-if="metrics.id" class="table table-properties">
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Count</th>
+      <th>Used</th>
+      <th>Capacity</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Direct</td>
+      <td>{{ metrics.metrics.gauges['direct-memory.direct.count'].value }}</td>
+      <td>{{ metrics.metrics.gauges['direct-memory.direct.used'].value | humanizeBytes }}</td>
+      <td>{{ metrics.metrics.gauges['direct-memory.direct.capacity'].value | humanizeBytes }}</td>
+    </tr>
+    <tr>
+      <td>Mapped</td>
+      <td>{{ metrics.metrics.gauges['direct-memory.mapped.count'].value }}</td>
+      <td>{{ metrics.metrics.gauges['direct-memory.mapped.used'].value | humanizeBytes }}</td>
+      <td>{{ metrics.metrics.gauges['direct-memory.mapped.capacity'].value | humanizeBytes }}</td>
+    </tr>
+  </tbody>
+</table>
 <table ng-if="metrics.id" class="table">
   <thead>
     <tr>
