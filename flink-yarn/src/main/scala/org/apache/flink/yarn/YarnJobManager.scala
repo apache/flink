@@ -33,6 +33,7 @@ import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
@@ -74,8 +75,7 @@ import scala.util.Try
   * @param scheduler Scheduler to schedule Flink jobs
   * @param libraryCacheManager Manager to manage uploaded jar files
   * @param archive Archive for finished Flink jobs
-  * @param defaultExecutionRetries Number of default execution retries
-  * @param delayBetweenRetries Delay between retries
+  * @param restartStrategy Restart strategy to be used in case of a job recovery
   * @param timeout Timeout for futures
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
@@ -86,13 +86,13 @@ class YarnJobManager(
     scheduler: FlinkScheduler,
     libraryCacheManager: BlobLibraryCacheManager,
     archive: ActorRef,
-    defaultExecutionRetries: Int,
-    delayBetweenRetries: Long,
+    restartStrategy: RestartStrategy,
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    savepointStore: SavepointStore)
+    savepointStore: SavepointStore,
+    jobRecoveryTimeout: FiniteDuration)
   extends JobManager(
     flinkConfiguration,
     executorService,
@@ -100,13 +100,13 @@ class YarnJobManager(
     scheduler,
     libraryCacheManager,
     archive,
-    defaultExecutionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore) {
+    savepointStore,
+    jobRecoveryTimeout) {
 
   import context._
   import scala.collection.JavaConverters._

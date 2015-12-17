@@ -24,6 +24,7 @@ import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
@@ -45,8 +46,7 @@ import scala.concurrent.duration.FiniteDuration
   * @param scheduler Scheduler to schedule Flink jobs
   * @param libraryCacheManager Manager to manage uploaded jar files
   * @param archive Archive for finished Flink jobs
-  * @param defaultExecutionRetries Number of default execution retries
-  * @param delayBetweenRetries Delay between retries
+  * @param restartStrategy Default restart strategy for job restarts
   * @param timeout Timeout for futures
   * @param leaderElectionService LeaderElectionService to participate in the leader election
   */
@@ -57,13 +57,13 @@ class TestingYarnJobManager(
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
     archive: ActorRef,
-    defaultExecutionRetries: Int,
-    delayBetweenRetries: Long,
+    restartStrategy: RestartStrategy,
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    savepointStore: SavepointStore)
+    savepointStore: SavepointStore,
+    jobRecoveryTimeout: FiniteDuration)
   extends YarnJobManager(
     flinkConfiguration,
     executorService,
@@ -71,13 +71,13 @@ class TestingYarnJobManager(
     scheduler,
     libraryCacheManager,
     archive,
-    defaultExecutionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore)
+    savepointStore,
+    jobRecoveryTimeout)
   with TestingJobManagerLike {
 
   override val taskManagerRunnerClass = classOf[TestingYarnTaskManagerRunner]

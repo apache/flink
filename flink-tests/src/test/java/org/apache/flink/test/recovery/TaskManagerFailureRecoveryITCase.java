@@ -24,6 +24,7 @@ import akka.actor.PoisonPill;
 import akka.pattern.Patterns;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
@@ -88,7 +89,7 @@ public class TaskManagerFailureRecoveryITCase {
 					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARALLELISM);
-			env.setNumberOfExecutionRetries(1);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)

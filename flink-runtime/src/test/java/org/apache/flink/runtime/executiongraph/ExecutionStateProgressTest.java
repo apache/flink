@@ -26,6 +26,7 @@ import java.util.Arrays;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.api.common.JobID;
@@ -52,7 +53,8 @@ public class ExecutionStateProgressTest {
 					jid,
 					"test job",
 					new Configuration(),
-					AkkaUtils.getDefaultTimeout());
+					AkkaUtils.getDefaultTimeout(),
+					new NoRestartStrategy());
 
 			graph.attachJobGraph(Arrays.asList(ajv));
 

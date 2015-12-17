@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -80,7 +81,8 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					timeout);
+					timeout,
+					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -151,7 +153,8 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					timeout);
+					timeout,
+					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -226,7 +229,8 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					timeout);
+					timeout,
+					new NoRestartStrategy());
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -292,7 +296,8 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					timeout);
+					timeout,
+					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -360,7 +365,8 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					timeout);
+					timeout,
+					new NoRestartStrategy());
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -398,7 +404,8 @@ public class VertexLocationConstraintTest {
 					jg.getJobID(),
 					jg.getName(),
 					jg.getJobConfiguration(),
-					timeout);
+					timeout,
+					new NoRestartStrategy());
 			eg.attachJobGraph(Collections.singletonList(vertex));
 			
 			ExecutionVertex ev = eg.getAllVertices().get(vertex.getID()).getTaskVertices()[0];

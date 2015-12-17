@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.kafka;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,7 +46,7 @@ public class ReadFromKafka {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
-		env.setNumberOfExecutionRetries(3); // retry if job fails
+		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(4, 10000));
 		env.enableCheckpointing(5000); // create a checkpoint every 5 secodns
 		env.getConfig().setGlobalJobParameters(parameterTool); // make parameters available in the web interface
 

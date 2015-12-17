@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -48,7 +49,7 @@ public class DataGenerators {
 
 		env.setParallelism(numPartitions);
 		env.getConfig().disableSysoutLogging();
-		env.setNumberOfExecutionRetries(0);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 		
 		DataStream<Tuple2<Integer, Integer>> stream =env.addSource(
 				new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
@@ -90,7 +91,7 @@ public class DataGenerators {
 														 final boolean randomizeOrder) throws Exception {
 		env.setParallelism(numPartitions);
 		env.getConfig().disableSysoutLogging();
-		env.setNumberOfExecutionRetries(0);
+		env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> stream = env.addSource(
 				new RichParallelSourceFunction<Integer>() {

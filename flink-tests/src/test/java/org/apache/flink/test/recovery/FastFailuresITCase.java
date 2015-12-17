@@ -20,6 +20,7 @@ package org.apache.flink.test.recovery;
 
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
-public class FastFailuresITCase {
+public class FastFailuresITCase extends TestLogger {
 
 	static final AtomicInteger FAILURES_SO_FAR = new AtomicInteger();
 	static final int NUM_FAILURES = 200;
@@ -54,9 +56,9 @@ public class FastFailuresITCase {
 				"localhost", cluster.getLeaderRPCPort());
 
 		env.getConfig().disableSysoutLogging();
-		env.getConfig().setExecutionRetryDelay(0);
 		env.setParallelism(4);
 		env.enableCheckpointing(1000);
+		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(200, 0));
 		
 		DataStream<Tuple2<Integer, Integer>> input = env.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
 

@@ -25,6 +25,7 @@ import akka.util.Timeout;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -134,7 +135,7 @@ public class ProcessFailureCancelingITCase {
 					try {
 						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 						env.setParallelism(2);
-						env.setNumberOfExecutionRetries(0);
+						env.setRestartStrategy(RestartStrategies.noRestart());
 						env.getConfig().disableSysoutLogging();
 
 						env.generateSequence(0, Long.MAX_VALUE)

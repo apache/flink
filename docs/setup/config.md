@@ -118,9 +118,17 @@ If you are on YARN, then it is sufficient to authenticate the client with Kerber
 
 - `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers. By default the port is set to 0, which means that the operating system is picking an ephemeral port. Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running on the same machine.
 
-- `execution-retries.delay`: Delay between execution retries. Default value "5 s". Note that values have to be specified as strings with a unit.
+- `restart-strategy`: Default restart strategy to use in case that no restart strategy has been specified for the submitted job.
+Currently, it can be chosen between using a fixed delay restart strategy and to turn it off.
+To use the fixed delay strategy you have to specify "fixed-delay".
+To turn the restart behaviour off you have to specify "none".
+Default value "none".
 
-- `execution-retries.default`: Default number of execution retries, used by jobs that do not explicitly specify that value on the execution environment. Default value is zero.
+- `restart-strategy.fixed-delay.attempts`: Number of restart attempts, used if the default restart strategy is set to "fixed-delay". 
+Default value is 1.
+ 
+- `restart-strategy.fixed-delay.delay`: Delay between restart attempts, used if the default restart strategy is set to "fixed-delay". 
+Default value is the `akka.ask.timeout`. 
 
 ## Full Reference
 
@@ -246,6 +254,8 @@ For example when running Flink on YARN on an environment with a restrictive fire
 - `recovery.zookeeper.client.retry-wait`: (Default '5000') Defines the pause between consecutive retries in ms.
 
 - `recovery.zookeeper.client.max-retry-attempts`: (Default '3') Defines the number of connection retries before the client gives up.
+
+- `recovery.job.delay`: (Default 'akka.ask.timeout') Defines the delay before persisted jobs are recovered in case of a recovery situation. 
 
 ## Background
 

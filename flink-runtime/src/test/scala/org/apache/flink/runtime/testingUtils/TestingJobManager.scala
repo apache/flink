@@ -23,6 +23,7 @@ import akka.actor.ActorRef
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
@@ -43,13 +44,13 @@ class TestingJobManager(
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
     archive: ActorRef,
-    defaultExecutionRetries: Int,
-    delayBetweenRetries: Long,
+    restartStrategy: RestartStrategy,
     timeout: FiniteDuration,
     leaderElectionService: LeaderElectionService,
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
-    savepointStore : SavepointStore)
+    savepointStore : SavepointStore,
+    jobRecoveryTimeout: FiniteDuration)
   extends JobManager(
     flinkConfiguration,
       executorService,
@@ -57,11 +58,11 @@ class TestingJobManager(
     scheduler,
     libraryCacheManager,
     archive,
-    defaultExecutionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore)
+    savepointStore,
+    jobRecoveryTimeout)
   with TestingJobManagerLike {}

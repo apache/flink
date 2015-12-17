@@ -27,6 +27,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -170,7 +171,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("JobManager: " + jobManager + ".");
 
 			// Submit the job
-			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
+			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000, 1000);
 			final JobID jobId = jobGraph.getJobID();
 
 			// Wait for the source to be notified about the expected number
@@ -463,7 +464,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("JobManager: " + jobManager + ".");
 
 			// Submit the job
-			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
+			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000, 1000);
 			final JobID jobId = jobGraph.getJobID();
 
 			// Wait for the source to be notified about the expected number
@@ -599,7 +600,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("JobManager: " + jobManager + ".");
 
 			// Submit the job
-			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
+			final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000, 1000);
 			final JobID jobId = jobGraph.getJobID();
 
 			// Wait for the source to be notified about the expected number
@@ -704,10 +705,6 @@ public class SavepointITCase extends TestLogger {
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
 
-			// Long delay to ensure that the test times out if the job
-			// manager tries to restart the job.
-			config.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, "1 hour");
-
 			LOG.info("Flink configuration: " + config + ".");
 
 			// Start Flink
@@ -725,7 +722,9 @@ public class SavepointITCase extends TestLogger {
 			// High value to ensure timeouts if restarted.
 			int numberOfRetries = 1000;
 			// Submit the job
-			final JobGraph jobGraph = createJobGraph(parallelism, numberOfRetries, 1000);
+			// Long delay to ensure that the test times out if the job
+			// manager tries to restart the job.
+			final JobGraph jobGraph = createJobGraph(parallelism, numberOfRetries, 3600000, 1000);
 
 			// Set non-existing savepoint path
 			jobGraph.setSavepointPath("unknown path");
@@ -758,13 +757,14 @@ public class SavepointITCase extends TestLogger {
 	private JobGraph createJobGraph(
 			int parallelism,
 			int numberOfRetries,
+			long restartDelay,
 			int checkpointingInterval) {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
-		env.setNumberOfExecutionRetries(numberOfRetries);
 		env.enableCheckpointing(checkpointingInterval);
 		env.disableOperatorChaining();
+		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(numberOfRetries, restartDelay));
 		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> stream = env

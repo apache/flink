@@ -21,6 +21,7 @@ package org.apache.flink.test.recovery;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.junit.runner.RunWith;
@@ -65,7 +66,7 @@ public class TaskManagerProcessFailureBatchRecoveryITCase extends AbstractTaskMa
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
-		env.setNumberOfExecutionRetries(1);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
 		env.getConfig().setExecutionMode(executionMode);
 		env.getConfig().disableSysoutLogging();
 

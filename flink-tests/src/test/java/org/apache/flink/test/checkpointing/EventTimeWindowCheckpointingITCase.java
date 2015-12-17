@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -70,7 +71,7 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.*;
 
 /**
- * This verfies that checkpointing works correctly with event time windows. This is more
+ * This verifies that checkpointing works correctly with event time windows. This is more
  * strict than {@link WindowCheckpointingITCase} because for event-time the contents
  * of the emitted windows are deterministic.
  */
@@ -98,7 +99,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 48);
-		config.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, "0 ms");
 
 		cluster = new ForkableFlinkMiniCluster(config, false);
 		cluster.start();
@@ -149,7 +149,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 
@@ -213,7 +213,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 
@@ -282,7 +282,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 
@@ -346,7 +346,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 
@@ -414,7 +414,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setNumberOfExecutionRetries(3);
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 
