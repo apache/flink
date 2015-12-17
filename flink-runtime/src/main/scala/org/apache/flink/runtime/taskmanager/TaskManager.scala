@@ -31,7 +31,7 @@ import _root_.akka.util.Timeout
 
 import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.codahale.metrics.json.MetricsModule
-import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
+import com.codahale.metrics.jvm.{BufferPoolMetricSet, MemoryUsageGaugeSet, GarbageCollectorMetricSet}
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
@@ -1986,6 +1986,8 @@ object TaskManager {
     // register default metrics
     metricRegistry.register("gc", new GarbageCollectorMetricSet)
     metricRegistry.register("memory", new MemoryUsageGaugeSet)
+    metricRegistry.register("direct-memory", new BufferPoolMetricSet(
+      ManagementFactory.getPlatformMBeanServer))
     metricRegistry.register("load", new Gauge[Double] {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
