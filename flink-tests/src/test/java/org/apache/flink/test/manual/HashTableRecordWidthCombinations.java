@@ -150,7 +150,7 @@ public class HashTableRecordWidthCombinations {
 
 					try {
 						while (table.nextRecord()) {
-							MutableHashTable.HashBucketIterator<Tuple2<Long, byte[]>, Long> matches = table.getBuildSideIterator();
+							MutableObjectIterator<Tuple2<Long, byte[]>> matches = table.getBuildSideIterator();
 							while (matches.next() != null);
 						}
 					}

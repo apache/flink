@@ -44,7 +44,6 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.TupleMatchRemovingJoin;
 import org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.TupleMatch;
-import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
@@ -230,7 +229,7 @@ public class ReusingReOpenableHashTableITCase {
 				new ReusingBuildFirstReOpenableHashJoinIterator<>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, 1.0, false, true);
+					this.memoryManager, ioManager, this.parentTask, 1.0, false, false, true);
 		
 		iterator.open();
 		// do first join with both inputs
@@ -341,7 +340,7 @@ public class ReusingReOpenableHashTableITCase {
 				final Tuple2<Integer, Integer> probeRec = join.getCurrentProbeRecord();
 				Integer key = probeRec.f0;
 				
-				HashBucketIterator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
+				MutableObjectIterator<Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
 				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0); 
@@ -456,7 +455,7 @@ public class ReusingReOpenableHashTableITCase {
 				final Tuple2<Integer, Integer> probeRec = join.getCurrentProbeRecord();
 				Integer key = probeRec.f0;
 				
-				HashBucketIterator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
+				MutableObjectIterator<Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
 				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0); 

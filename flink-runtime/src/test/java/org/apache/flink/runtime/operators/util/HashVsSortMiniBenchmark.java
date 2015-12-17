@@ -130,11 +130,11 @@ public class HashVsSortMiniBenchmark {
 			
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter1 = new UnilateralSortMerger<>(
 					this.memoryManager, this.ioManager, input1, this.parentTask, this.serializer1, 
-					this.comparator1.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f, true);
+					this.comparator1.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f, true);
 			
 			final UnilateralSortMerger<Tuple2<Integer, String>> sorter2 = new UnilateralSortMerger<>(
 					this.memoryManager, this.ioManager, input2, this.parentTask, this.serializer2, 
-					this.comparator2.duplicate(), MEMORY_FOR_SORTER, 128, 0.8f, true);
+					this.comparator2.duplicate(), (double)MEMORY_FOR_SORTER/MEMORY_SIZE, 128, 0.8f, true);
 			
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput1 = sorter1.getIterator();
 			final MutableObjectIterator<Tuple2<Integer, String>> sortedInput2 = sorter2.getIterator();
@@ -184,7 +184,7 @@ public class HashVsSortMiniBenchmark {
 					new ReusingBuildFirstHashJoinIterator<>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 							this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
-							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE, false, true);
+							this.memoryManager, this.ioManager, this.parentTask, 1, false, false, true);
 			
 			iterator.open();
 			
@@ -223,7 +223,7 @@ public class HashVsSortMiniBenchmark {
 					new ReusingBuildSecondHashJoinIterator<>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 						this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
-						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE, false, true);
+						this.memoryManager, this.ioManager, this.parentTask, 1, false, false, true);
 			
 			iterator.open();
 			

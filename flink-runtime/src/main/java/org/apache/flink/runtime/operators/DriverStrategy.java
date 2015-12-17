@@ -73,6 +73,8 @@ public enum DriverStrategy {
 	LEFT_OUTER_MERGE(LeftOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
 	RIGHT_OUTER_MERGE(RightOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
 	FULL_OUTER_MERGE(FullOuterJoinDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
+	FULL_OUTER_HYBRIDHASH_BUILD_FIRST(FullOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	FULL_OUTER_HYBRIDHASH_BUILD_SECOND(FullOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 
 	// co-grouping inputs
 	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, 2),
@@ -91,7 +93,11 @@ public enum DriverStrategy {
 
 	// right outer join, the first input is build side, the second side is probe side of a hybrid hash table
 	RIGHT_HYBRIDHASH_BUILD_FIRST(RightOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
-	// left outer join, the second input is build side, the first side is probe side of a hybrid hash table
+	// right outer join, the first input is probe side, the second side is build side of a hybrid hash table
+	RIGHT_HYBRIDHASH_BUILD_SECOND(RightOuterJoinDriver.class, null, FULL_DAM, MATERIALIZING, 2),
+	// left outer join, the first input is build side, the second side is probe side of a hybrid hash table
+	LEFT_HYBRIDHASH_BUILD_FIRST(LeftOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
+	// left outer join, the first input is probe side, the second side is build side of a hybrid hash table
 	LEFT_HYBRIDHASH_BUILD_SECOND(LeftOuterJoinDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 	
 	// the second input is inner loop, the first input is outer loop and block-wise processed

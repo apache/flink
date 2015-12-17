@@ -49,12 +49,13 @@ public class NonReusingBuildFirstReOpenableHashJoinIterator<V1, V2, O> extends N
 			IOManager ioManager,
 			AbstractInvokable ownerTask,
 			double memoryFraction,
-			boolean joinWithEmptyBuildSide,
+			boolean probeSideOuterJoin,
+			boolean buildSideOuterJoin,
 			boolean useBitmapFilters) throws MemoryAllocationException {
 		
 		super(firstInput, secondInput, serializer1, comparator1, serializer2,
 				comparator2, pairComparator, memManager, ioManager, ownerTask,
-				memoryFraction, joinWithEmptyBuildSide, useBitmapFilters);
+				memoryFraction, probeSideOuterJoin, buildSideOuterJoin, useBitmapFilters);
 		
 		reopenHashTable = (ReOpenableMutableHashTable<V1, V2>) hashJoin;
 	}

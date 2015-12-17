@@ -141,6 +141,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
 							false,
+							false,
 							hashJoinUseBitMaps);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
@@ -151,6 +152,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							memoryManager, ioManager,
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
+							false,
 							false,
 							hashJoinUseBitMaps);
 					break;
@@ -176,6 +178,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
 							false,
+							false,
 							hashJoinUseBitMaps);
 					break;
 				case HYBRIDHASH_BUILD_SECOND:
@@ -186,6 +189,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
 							memoryManager, ioManager,
 							this.taskContext.getOwningNepheleTask(),
 							fractionAvailableMemory,
+							false,
 							false,
 							hashJoinUseBitMaps);
 					break;
