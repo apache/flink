@@ -544,6 +544,10 @@ class YarnJobManager(
     */
   object AMRMClientAsyncHandler extends AMRMClientAsync.CallbackHandler {
 
+    /*
+     * Asynchronous client to make requests to the RM.
+     * Must be set via setClient(..) before its service is started.
+     */
     private var client : AMRMClientAsync[ContainerRequest] = null
 
     override def onError(e: Throwable): Unit = {
@@ -730,10 +734,10 @@ class YarnJobManager(
 
                 allocatedContainersList = remainingContainers
 
-                if (runningContainers == numTaskManagers) {
-                  setHeartbeatRate(YARN_HEARTBEAT_DELAY)
-                } else {
+                if (runningContainers < numTaskManagers) {
                   setHeartbeatRate(FAST_YARN_HEARTBEAT_DELAY)
+                } else {
+                  setHeartbeatRate(YARN_HEARTBEAT_DELAY)
                 }
 
                 startedContainers.length
@@ -766,6 +770,10 @@ class YarnJobManager(
       client.setHeartbeatInterval(interval.toMillis.toInt)
     }
 
+    /**
+      * Register the client with the CallbackHandler. Must be called before the client is started.
+      * @param clientAsync The AMRM client to make requests with.
+      */
     def setClient(clientAsync: AMRMClientAsync[ContainerRequest]) = {
       client = clientAsync
     }
