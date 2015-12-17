@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
@@ -38,16 +39,50 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
 
+	// ---------------------------- Restart strategies ------------------------
+
+	/**
+	 * Defines the restart strategy to be used. It can be "off", "none", "disable" to be disabled or
+	 * it can be "fixeddelay", "fixed-delay" to use the FixedDelayRestartStrategy. You can also
+	 * specify a class name which implements the RestartStrategy interface and has a static
+	 * create method which takes a Configuration object.
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY = "restart-strategy";
+
+	/**
+	 * Maximum number of attempts the fixed delay restart strategy will try before failing a job.
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS = "restart-strategy.fixed-delay.attempts";
+
+	/**
+	 * Delay between two consecutive restart attempts. It can be specified using Scala's
+	 * FiniteDuration notation: "1 min", "20 s"
+	 */
+	@PublicEvolving
+	public static final String RESTART_STRATEGY_FIXED_DELAY_DELAY = "restart-strategy.fixed-delay.delay";
+
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
+	 *
+	 * @deprecated The configuration value will be replaced by {@link #RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS}
+	 * and the corresponding FixedDelayRestartStrategy.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public static final String EXECUTION_RETRIES_KEY = "execution-retries.default";
 
 	/**
 	 * Config parameter for the delay between execution retries. The value must be specified in the
 	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
+	 *
+	 * @deprecated The configuration value will be replaced by {@link #RESTART_STRATEGY_FIXED_DELAY_DELAY}
+	 * and the corresponding FixedDelayRestartStrategy.
 	 */
+	@Deprecated
+	@PublicEvolving
 	public static final String EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
@@ -268,8 +303,6 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
 
-
-
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
 	 * JobManager
@@ -471,6 +504,9 @@ public final class ConfigConstants {
 	/** Ports used by the job manager if not in standalone recovery mode */
 	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
 
+	/** The time before the JobManager recovers persisted jobs */
+	public static final String RECOVERY_JOB_DELAY = "recovery.job.delay";
+
 	// --------------------------- ZooKeeper ----------------------------------
 
 	/** ZooKeeper servers. */
@@ -521,7 +557,7 @@ public final class ConfigConstants {
 	 * The default number of execution retries.
 	 */
 	public static final int DEFAULT_EXECUTION_RETRIES = 0;
-	
+
 	// ------------------------------ Runtime ---------------------------------
 
 	/**

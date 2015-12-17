@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -75,6 +76,12 @@ public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
 
+	/**
+	 * Restart delay used for the FixedDelayRestartStrategy in case checkpointing was enabled but
+	 * no restart strategy has been specified.
+	 */
+	private static final long DEFAULT_RESTART_DELAY = 10000L;
+
 	private StreamGraph streamGraph;
 
 	private Map<Integer, JobVertex> jobVertices;
@@ -121,9 +128,7 @@ public class StreamingJobGraphGenerator {
 		
 		configureCheckpointing();
 
-		configureExecutionRetries();
-
-		configureExecutionRetryDelay();
+		configureRestartStrategy();
 
 		try {
 			InstantiationUtil.writeObjectToConfig(this.streamGraph.getExecutionConfig(), this.jobGraph.getJobConfiguration(), ExecutionConfig.CONFIG_KEY);
@@ -477,22 +482,17 @@ public class StreamingJobGraphGenerator {
 					cfg.getMaxConcurrentCheckpoints());
 			jobGraph.setSnapshotSettings(settings);
 
-			// if the user enabled checkpointing, the default number of exec retries is infinitive.
-			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
-			if(executionRetries == -1) {
-				streamGraph.getExecutionConfig().setNumberOfExecutionRetries(Integer.MAX_VALUE);
+			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
+			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
+				// if the user enabled checkpointing, the default number of exec retries is infinitive.
+				streamGraph.getExecutionConfig().setRestartStrategy(
+					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
 		}
 	}
 
-	private void configureExecutionRetries() {
-		int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
-		jobGraph.setNumberOfExecutionRetries(executionRetries);
-	}
-
-	private void configureExecutionRetryDelay() {
-		long executionRetryDelay = streamGraph.getExecutionConfig().getExecutionRetryDelay();
-		jobGraph.setExecutionRetryDelay(executionRetryDelay);
+	private void configureRestartStrategy() {
+		jobGraph.setRestartStrategyConfiguration(streamGraph.getExecutionConfig().getRestartStrategy());
 	}
 
 	// ------------------------------------------------------------------------

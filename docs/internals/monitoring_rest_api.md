@@ -246,7 +246,7 @@ Sample Result:
   "name": "WordCount Example",
   "execution-config": {
     "execution-mode": "PIPELINED",
-    "max-execution-retries": -1,
+    "restart-strategy": "Restart deactivated",
     "job-parallelism": -1,
     "object-reuse-mode": false
   }

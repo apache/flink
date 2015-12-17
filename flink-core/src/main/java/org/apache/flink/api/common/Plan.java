@@ -38,6 +38,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;
@@ -292,24 +293,15 @@ public class Plan implements Visitable<Operator<?>> {
 		
 		this.defaultParallelism = defaultParallelism;
 	}
-	
+
 	/**
-	 * Gets the number of times the system will try to re-execute failed tasks. A value
-	 * of {@code -1} indicates that the system default value (as defined in the configuration)
-	 * should be used.
-	 * 
-	 * @return The number of times the system will try to re-execute failed tasks.
+	 * Returns the specified restart strategy configuration. This configuration defines the used
+	 * restart strategy to be used at runtime.
+	 *
+	 * @return The specified restart strategy configuration
 	 */
-	public int getNumberOfExecutionRetries() {
-		return getExecutionConfig().getNumberOfExecutionRetries();
-	}
-	
-	/**
-	 * Gets the delay between retry failed task.
-	 * @return The delay the system will wait to retry.
-	 */
-	public long getExecutionRetryDelay() {
-		return getExecutionConfig().getExecutionRetryDelay();
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategyConfiguration() {
+		return getExecutionConfig().getRestartStrategy();
 	}
 
 	/**

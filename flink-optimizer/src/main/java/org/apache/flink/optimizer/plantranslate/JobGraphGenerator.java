@@ -218,8 +218,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		// create the job graph object
 		JobGraph graph = new JobGraph(jobId, program.getJobName());
-		graph.setNumberOfExecutionRetries(program.getOriginalPlan().getNumberOfExecutionRetries());
-		graph.setExecutionRetryDelay(program.getOriginalPlan().getExecutionRetryDelay());
+
+		graph.setRestartStrategyConfiguration(program.getOriginalPlan().getRestartStrategyConfiguration());
 		graph.setAllowQueuedScheduling(false);
 		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
 

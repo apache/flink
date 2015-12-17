@@ -19,7 +19,9 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
+
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -262,7 +264,7 @@ public class PythonPlanBinder {
 					break;
 				case RETRY:
 					int retry = (Integer) value.getField(1);
-					env.setNumberOfExecutionRetries(retry);
+					env.setRestartStrategy(RestartStrategies.fixedDelayRestart(retry, 10000L));
 					break;
 				case DEBUG:
 					DEBUG = (Boolean) value.getField(1);

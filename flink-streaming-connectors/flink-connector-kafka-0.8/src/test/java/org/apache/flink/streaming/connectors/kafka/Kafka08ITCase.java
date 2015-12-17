@@ -18,21 +18,14 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.api.java.functions.FlatMapIterator;
-import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.internals.ZookeeperOffsetHandler;
 import org.junit.Test;
 
-import java.util.Iterator;
 import java.util.Properties;
 
 import static org.junit.Assert.assertTrue;
-
 
 public class Kafka08ITCase extends KafkaConsumerTestBase {
 
@@ -166,19 +159,19 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env1.getConfig().disableSysoutLogging();
 		env1.enableCheckpointing(50);
-		env1.setNumberOfExecutionRetries(0);
+		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env1.setParallelism(parallelism);
 
 		StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env2.getConfig().disableSysoutLogging();
 		env2.enableCheckpointing(50);
-		env2.setNumberOfExecutionRetries(0);
+		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env2.setParallelism(parallelism);
 
 		StreamExecutionEnvironment env3 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env3.getConfig().disableSysoutLogging();
 		env3.enableCheckpointing(50);
-		env3.setNumberOfExecutionRetries(0);
+		env3.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env3.setParallelism(parallelism);
 
 		// write a sequence from 0 to 99 to each of the 3 partitions.
@@ -222,13 +215,13 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 
 		StreamExecutionEnvironment env1 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env1.getConfig().disableSysoutLogging();
-		env1.setNumberOfExecutionRetries(0);
+		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env1.setParallelism(parallelism);
 
 		StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		// NOTE: We are not enabling the checkpointing!
 		env2.getConfig().disableSysoutLogging();
-		env2.setNumberOfExecutionRetries(0);
+		env2.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		env2.setParallelism(parallelism);
 
 

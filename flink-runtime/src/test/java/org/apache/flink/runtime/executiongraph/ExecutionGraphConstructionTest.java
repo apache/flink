@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
@@ -105,7 +106,8 @@ public class ExecutionGraphConstructionTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -148,7 +150,8 @@ public class ExecutionGraphConstructionTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -214,7 +217,8 @@ public class ExecutionGraphConstructionTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -467,7 +471,8 @@ public class ExecutionGraphConstructionTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -522,7 +527,8 @@ public class ExecutionGraphConstructionTest {
 				jobId,
 				jobName,
 				cfg,
-				AkkaUtils.getDefaultTimeout());
+				AkkaUtils.getDefaultTimeout(),
+				new NoRestartStrategy());
 		try {
 			eg.attachJobGraph(ordered);
 			fail("Attached wrong jobgraph");
@@ -582,7 +588,8 @@ public class ExecutionGraphConstructionTest {
 					jobId,
 					jobName,
 					cfg,
-					AkkaUtils.getDefaultTimeout());
+					AkkaUtils.getDefaultTimeout(),
+					new NoRestartStrategy());
 			try {
 				eg.attachJobGraph(ordered);
 			}
@@ -626,7 +633,8 @@ public class ExecutionGraphConstructionTest {
 					jobId,
 					jobName,
 					cfg,
-					AkkaUtils.getDefaultTimeout());
+					AkkaUtils.getDefaultTimeout(),
+					new NoRestartStrategy());
 
 			try {
 				eg.attachJobGraph(ordered);
@@ -696,7 +704,8 @@ public class ExecutionGraphConstructionTest {
 					jobId,
 					jobName,
 					cfg,
-					AkkaUtils.getDefaultTimeout());
+					AkkaUtils.getDefaultTimeout(),
+					new NoRestartStrategy());
 			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 			
 			// check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )

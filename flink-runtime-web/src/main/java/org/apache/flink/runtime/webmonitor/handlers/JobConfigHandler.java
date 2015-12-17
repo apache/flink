@@ -50,7 +50,9 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 			gen.writeObjectFieldStart("execution-config");
 			
 			gen.writeStringField("execution-mode", ec.getExecutionMode().name());
-			gen.writeNumberField("max-execution-retries", ec.getNumberOfExecutionRetries());
+
+			final String restartStrategyDescription = ec.getRestartStrategy() != null ? ec.getRestartStrategy().getDescription() : "default";
+			gen.writeStringField("restart-strategy", restartStrategyDescription);
 			gen.writeNumberField("job-parallelism", ec.getParallelism());
 			gen.writeBooleanField("object-reuse-mode", ec.isObjectReuseEnabled());
 

@@ -28,7 +28,7 @@ table.table.table-properties(ng-if="job['execution-config']")
 
     tr
       td Max. number of execution retries
-      td {{ job['execution-config']['max-execution-retries'] === -1 ? 'deactivated' : job['execution-config']['max-execution-retries'] }}
+      td {{ job['execution-config']['restart-strategy'] }}
 
     tr
       td Job parallelism

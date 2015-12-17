@@ -42,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.UnrecoverableException;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -81,12 +82,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static akka.dispatch.Futures.future;
 
 /**
  * The execution graph is the central data structure that coordinates the distributed
@@ -183,12 +181,6 @@ public class ExecutionGraph implements Serializable {
 
 	// ------ Configuration of the Execution -------
 
-	/** The number of times failed executions should be retried. */
-	private int numberOfRetriesLeft;
-
-	/** The delay that the system should wait before restarting failed executions. */
-	private long delayBeforeRetrying;
-
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
 	private boolean allowQueuedScheduling = false;
@@ -218,6 +210,10 @@ public class ExecutionGraph implements Serializable {
 	/** The scheduler to use for scheduling new tasks as they are needed */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private Scheduler scheduler;
+
+	/** Strategy to use for restarts */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
+	private RestartStrategy restartStrategy;
 
 	/** The classloader for the user code. Needed for calls into user code classes */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
@@ -255,13 +251,15 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
-			FiniteDuration timeout) {
+			FiniteDuration timeout,
+			RestartStrategy restartStrategy) {
 		this(
 			executionContext,
 			jobId,
 			jobName,
 			jobConfig,
 			timeout,
+			restartStrategy,
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
 			ExecutionGraph.class.getClassLoader()
@@ -274,6 +272,7 @@ public class ExecutionGraph implements Serializable {
 			String jobName,
 			Configuration jobConfig,
 			FiniteDuration timeout,
+			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			ClassLoader userClassLoader) {
@@ -304,6 +303,8 @@ public class ExecutionGraph implements Serializable {
 		this.requiredClasspaths = requiredClasspaths;
 
 		this.timeout = timeout;
+
+		this.restartStrategy = restartStrategy;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -316,28 +317,6 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public int getNumberOfExecutionJobVertices() {
 		return this.verticesInCreationOrder.size();
-	}
-	
-	public void setNumberOfRetriesLeft(int numberOfRetriesLeft) {
-		if (numberOfRetriesLeft < -1) {
-			throw new IllegalArgumentException();
-		}
-		this.numberOfRetriesLeft = numberOfRetriesLeft;
-	}
-
-	public int getNumberOfRetriesLeft() {
-		return numberOfRetriesLeft;
-	}
-
-	public void setDelayBeforeRetrying(long delayBeforeRetrying) {
-		if (delayBeforeRetrying < 0) {
-			throw new IllegalArgumentException("Delay before retry must be non-negative.");
-		}
-		this.delayBeforeRetrying = delayBeforeRetrying;
-	}
-
-	public long getDelayBeforeRetrying() {
-		return delayBeforeRetrying;
 	}
 
 	public boolean isQueuedSchedulingAllowed() {
@@ -475,6 +454,10 @@ public class ExecutionGraph implements Serializable {
 
 	public SavepointCoordinator getSavepointCoordinator() {
 		return savepointCoordinator;
+	}
+
+	public RestartStrategy getRestartStrategy() {
+		return restartStrategy;
 	}
 
 	public CheckpointStatsTracker getCheckpointStatsTracker() {
@@ -1029,40 +1012,13 @@ public class ExecutionGraph implements Serializable {
 					else if (current == JobStatus.FAILING) {
 						boolean isRecoverable = !(failureCause instanceof UnrecoverableException);
 
-						if (isRecoverable && numberOfRetriesLeft > 0 &&
+						if (isRecoverable && restartStrategy.canRestart() &&
 								transitionState(current, JobStatus.RESTARTING)) {
-
-							numberOfRetriesLeft--;
-							
-							if (delayBeforeRetrying > 0) {
-								future(new Callable<Object>() {
-									@Override
-									public Object call() throws Exception {
-										try {
-											LOG.info("Delaying retry of job execution for {} ms ...", delayBeforeRetrying);
-											Thread.sleep(delayBeforeRetrying);
-										}
-										catch(InterruptedException e){
-											// should only happen on shutdown
-										}
-										restart();
-										return null;
-									}
-								}, executionContext);
-							} else {
-								future(new Callable<Object>() {
-									@Override
-									public Object call() throws Exception {
-										restart();
-										return null;
-									}
-								}, executionContext);
-							}
+							restartStrategy.restart(this);
 							break;
-						}
-						else if ((!isRecoverable || numberOfRetriesLeft <= 0) &&
-								transitionState(current, JobStatus.FAILED, failureCause)) {
 
+						} else if ((!isRecoverable || !restartStrategy.canRestart()) &&
+							transitionState(current, JobStatus.FAILED, failureCause)) {
 							postRunCleanup();
 							break;
 						}

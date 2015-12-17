@@ -323,14 +323,14 @@ object TestingUtils {
     instanceManager,
     scheduler,
     libraryCacheManager,
-    executionRetries,
-    delayBetweenRetries,
+    restartStrategy,
     timeout,
     archiveCount,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
-    savepointStore) = JobManager.createJobManagerComponents(
+    savepointStore,
+    jobRecoveryTimeout) = JobManager.createJobManagerComponents(
       configuration,
       None
     )
@@ -347,12 +347,12 @@ object TestingUtils {
       scheduler,
       libraryCacheManager,
       archive,
-      executionRetries,
-      delayBetweenRetries,
+      restartStrategy,
       timeout,
       leaderElectionService,
       submittedJobGraphs,
-      checkpointRecoveryFactory)
+      checkpointRecoveryFactory,
+      jobRecoveryTimeout)
 
     val jobManager: ActorRef = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
 
