@@ -1145,8 +1145,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			if (dataDistribution != null) {
 				sourceConfig.setOutputDataDistribution(dataDistribution, outputIndex);
 			} else {
-				throw new RuntimeException("Range partitioning requires data distribution");
-				// TODO: inject code and configuration for automatic histogram generation
+				throw new RuntimeException("Range partitioning requires data distribution.");
 			}
 		}
 		

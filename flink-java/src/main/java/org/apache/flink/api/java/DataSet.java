@@ -1246,7 +1246,49 @@ public abstract class DataSet<T> {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
 		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
 	}
-	
+
+	/**
+	 * Range-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * Especially, it requires an extra pass over the input data to computer the range boundaries.
+	 *
+	 * @param fields The field indexes on which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByRange(int... fields) {
+		return new PartitionOperator<T>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<T>(fields, getType(), false), Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * Especially, it requires an extra pass over the input data to computer the range boundaries.
+	 *
+	 * @param fields The field expressions on which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByRange(String... fields) {
+		return new PartitionOperator<T>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<T>(fields, getType()), Utils.getCallLocationName());
+	}
+
+	/**
+	 * Range-partitions a DataSet using the specified KeySelector.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * Especially, it requires an extra pass over the input data to computer the range boundaries.
+	 *
+	 * @param keyExtractor The KeyExtractor with which the DataSet is range-partitioned.
+	 * @return The partitioned DataSet.
+	 *
+	 * @see KeySelector
+	 */
+	public <K extends Comparable<K>> PartitionOperator<T> partitionByRange(KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new PartitionOperator<T>(this, PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
+	}
+
 	/**
 	 * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
@@ -1687,5 +1729,6 @@ public abstract class DataSet<T> {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
 	}
+
 
 }
