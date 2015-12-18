@@ -340,6 +340,15 @@ public class TypeExtractor {
 		}
 		return ti;
 	}
+
+	@SuppressWarnings("unchecked")
+	public static <OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos, Object instance) {
+		if (instance != null && instance instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) instance).getProducedType();
+		} else {
+			return createTypeInfo(baseClass, clazz, returnParamPos, null, null);
+		}
+	}
 	
 	public static <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
