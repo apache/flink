@@ -340,6 +340,29 @@ public class TypeExtractor {
 		}
 		return ti;
 	}
+
+	/**
+	 * Creates a {@link TypeInformation} from the given parameters.
+	 *
+	 * If the given {@code instance} implements {@link ResultTypeQueryable}, its information
+	 * is used to determine the type information. Otherwise, the type information is derived
+	 * based on the given class information.
+	 *
+	 * @param instance			instance to determine type information for
+	 * @param baseClass			base class of {@code instance}
+	 * @param clazz				class of {@code instance}
+	 * @param returnParamPos	index of the return type in the type arguments of {@code clazz}
+	 * @param <OUT>				output type
+	 * @return type information
+	 */
+	@SuppressWarnings("unchecked")
+	public static <OUT> TypeInformation<OUT> createTypeInfo(Object instance, Class<?> baseClass, Class<?> clazz, int returnParamPos) {
+		if (instance instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) instance).getProducedType();
+		} else {
+			return createTypeInfo(baseClass, clazz, returnParamPos, null, null);
+		}
+	}
 	
 	public static <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {

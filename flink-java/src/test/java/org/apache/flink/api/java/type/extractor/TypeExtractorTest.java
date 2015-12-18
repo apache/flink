@@ -1561,6 +1561,28 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(mapInterface, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
 	}
+
+	@Test
+	public void testCreateTypeInfoFromInstance() {
+		ResultTypeQueryable instance = new ResultTypeQueryable<Long>() {
+			@Override
+			public TypeInformation<Long> getProducedType() {
+				return BasicTypeInfo.LONG_TYPE_INFO;
+			}
+		};
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(instance, null, null, 0);
+		Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, ti);
+
+		// method also needs to work for instances that do not implement ResultTypeQueryable
+		MapFunction<Integer, Long> func = new MapFunction<Integer, Long>() {
+			@Override
+			public Long map(Integer value) throws Exception {
+				return value.longValue();
+			}
+		};
+		ti = TypeExtractor.createTypeInfo(func, MapFunction.class, func.getClass(), 0);
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+	}
 	
 	@SuppressWarnings({ "serial", "unchecked", "rawtypes" })
 	@Test

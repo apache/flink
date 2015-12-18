@@ -110,7 +110,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 	}
 	
 	private TypeInformation<Message> getMessageType(MessagingFunction<K, VV, Message, EV> mf) {
-		return TypeExtractor.createTypeInfo(MessagingFunction.class, mf.getClass(), 2, null, null);
+		return TypeExtractor.createTypeInfo(mf, MessagingFunction.class, mf.getClass(), 2);
 	}
 	
 	// --------------------------------------------------------------------------------------------
