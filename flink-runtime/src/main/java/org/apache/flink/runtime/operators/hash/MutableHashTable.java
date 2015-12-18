@@ -1507,7 +1507,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			this.probedSet = probedSet;
 			this.isBuildOuterJoin = isBuildOuterJoin;
 		}
-	
+		
 		void set(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
 				int searchHashCode, int bucketInSegmentOffset)
 		{
@@ -1518,7 +1518,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			this.searchHashCode = searchHashCode;
 			this.bucketInSegmentOffset = bucketInSegmentOffset;
 			this.originalBucketInSegmentOffset = bucketInSegmentOffset;
-			
 			this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
 			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 			this.numInSegment = 0;
@@ -1527,20 +1526,19 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		public BT next(BT reuse) {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (true) {
-	
 				probedSet.setMemorySegment(bucket, this.bucketInSegmentOffset + HEADER_BITSET_OFFSET);
 				while (this.numInSegment < this.countInSegment) {
-	
+					
 					final int thisCode = this.bucket.getInt(this.posInSegment);
 					this.posInSegment += HASH_CODE_LEN;
-	
+					
 					// check if the hash code matches
 					if (thisCode == this.searchHashCode) {
 						// get the pointer to the pair
 						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset +
 													BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
 						this.numInSegment++;
-	
+						
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 						try {
 							this.partition.setReadPosition(pointer);
@@ -1575,24 +1573,23 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				this.numInSegment = 0;
 			}
 		}
-	
+
 		public BT next() {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (true) {
-	
 				probedSet.setMemorySegment(bucket, this.bucketInSegmentOffset + HEADER_BITSET_OFFSET);
 				while (this.numInSegment < this.countInSegment) {
-	
+
 					final int thisCode = this.bucket.getInt(this.posInSegment);
 					this.posInSegment += HASH_CODE_LEN;
-	
+
 					// check if the hash code matches
 					if (thisCode == this.searchHashCode) {
 						// get the pointer to the pair
 						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset +
 							BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
 						this.numInSegment++;
-	
+
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 						try {
 							this.partition.setReadPosition(pointer);
@@ -1612,13 +1609,13 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 						this.numInSegment++;
 					}
 				}
-	
+
 				// this segment is done. check if there is another chained bucket
 				final long forwardPointer = this.bucket.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
 				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
 					return null;
 				}
-	
+
 				final int overflowSegNum = (int) (forwardPointer >>> 32);
 				this.bucket = this.overflowSegments[overflowSegNum];
 				this.bucketInSegmentOffset = (int) forwardPointer;
@@ -1642,7 +1639,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 			this.numInSegment = 0;
 		}
-	
+
 	} // end HashBucketIterator
 	
 	/**
