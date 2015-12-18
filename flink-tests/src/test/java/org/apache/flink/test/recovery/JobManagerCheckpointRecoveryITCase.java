@@ -245,7 +245,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 				jobManagerProcess[1].printProcessLog();
 			}
 
-			t.printStackTrace();
+			throw t;
 		}
 		finally {
 			if (jobManagerProcess[0] != null) {
