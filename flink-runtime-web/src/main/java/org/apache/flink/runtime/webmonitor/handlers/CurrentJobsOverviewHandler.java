@@ -55,7 +55,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> params, ActorGateway jobManager) throws Exception {
+	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			if (jobManager != null) {
 				Future<Object> future = jobManager.ask(

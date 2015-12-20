@@ -18,29 +18,36 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.util.StringUtils;
 
+import java.io.File;
 import java.util.Map;
 
-public class JobCancellationHandler implements RequestHandler, RequestHandler.JsonResponse {
+/**
+ * Handles requests for uploading of jars.
+ */
+public class JarUploadHandler implements RequestHandler, RequestHandler.JsonResponse {
+
+	private final File jarDir;
+
+	public JarUploadHandler(File jarDir) {
+		this.jarDir = jarDir;
+	}
 
 	@Override
 	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
-		try {
-			JobID jobid = new JobID(StringUtils.hexStringToByte(pathParams.get("jobid")));
-			if (jobManager != null) {
-				jobManager.tell(new JobManagerMessages.CancelJob(jobid));
-				return "";
-			}
-			else {
-				throw new Exception("No connection to the leading JobManager.");
+		String filename = queryParams.get("file");
+		if(filename != null) {
+			File f = new File(jarDir, filename);
+			if (f.exists()) {
+				if (f.getName().endsWith(".jar")) {
+					return "{}";
+				} else {
+					f.delete();
+					return "{\"error\": \"Only Jar files are allowed.\"}";
+				}
 			}
 		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to cancel the job with id: "  + pathParams.get("jobid") + e.getMessage(), e);
-		}
+		return "{\"error\": \"Failed to upload the file.\"}";
 	}
 }

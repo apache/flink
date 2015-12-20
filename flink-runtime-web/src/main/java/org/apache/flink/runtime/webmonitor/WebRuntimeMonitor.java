@@ -25,41 +25,44 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.ConstantTextHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobCancellationHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ClusterOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobIdsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.CurrentJobsOverviewHandler;
 import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarAccessDeniedHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobCancellationHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
-import org.apache.flink.runtime.webmonitor.handlers.CurrentJobIdsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.ClusterOverviewHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
 import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -110,6 +113,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final File webRootDir;
 
+	private final File uploadDir;
+
 	private AtomicBoolean isShutdown = new AtomicBoolean();
 
 
@@ -117,7 +122,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
 			ActorSystem actorSystem) throws IOException, InterruptedException {
-		
+
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
@@ -125,10 +130,24 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// create an empty directory in temp for the web server
 		String fileName = String.format("flink-web-%s", UUID.randomUUID().toString());
 		webRootDir = new File(System.getProperty("java.io.tmpdir"), fileName);
+
+		// create storage for uploads
+		fileName = String.format("flink-web-upload-%s", UUID.randomUUID().toString());
+		uploadDir = new File(System.getProperty("java.io.tmpdir"), fileName);
+		if (!uploadDir.mkdir() || !uploadDir.canWrite()) {
+			throw new RuntimeException("Unable to create temporary directory to support jar uploads.");
+		}
+
 		LOG.info("Using directory {} for the web interface files", webRootDir);
+		LOG.info("Using directory {} for the jar submissions", uploadDir);
 
 		final WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(config);
-		
+
+		final boolean webSubmitAllow = config.getBoolean(
+				ConfigConstants.JOB_MANAGER_WEB_SUBMISSION_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SUBMISSION
+		);
+
 		// port configuration
 		int configuredPort = cfg.getWebFrontendPort();
 		if (configuredPort < 0) {
@@ -141,7 +160,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		retriever = new JobManagerRetriever(this, actorSystem, lookupTimeout, timeout);
 
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder();
-		
+
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
@@ -160,6 +179,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
 
 			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
+
 			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
 
 			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs)))
@@ -189,11 +209,34 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
 			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))
 			// DELETE is the preferred way of cancelling a job (Rest-conform)
-			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()))
+			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()));
 
-			// this handler serves all the static contents
-			.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir));
+		if (webSubmitAllow) {
+			router
+				// fetch the list of uploaded jars.
+				.GET("/jars", handler(new JarListHandler(uploadDir)))
 
+				// get plan for an uploaded jar
+				.GET("/jars/:jarid/plan", handler(new JarPlanHandler(uploadDir)))
+
+				// run a jar
+				.POST("/jars/:jarid/run", handler(new JarRunHandler(uploadDir, timeout)))
+
+				// upload a jar
+				.POST("/jars/upload", handler(new JarUploadHandler(uploadDir)))
+
+				// delete an uploaded jar from submission interface
+				.DELETE("/jars/:jarid", handler(new JarDeleteHandler(uploadDir)));
+		} else {
+			router
+				// send an Access Denied message (sort of)
+				// Every other GET request will go to the File Server, which will not provide
+				// access to the jar directory anyway, because it doesn't exist in webRootDir.
+				.GET("/jars", handler(new JarAccessDeniedHandler()));
+		}
+
+		// this handler serves all the static contents
+		router.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir));
 
 		synchronized (startupShutdownLock) {
 
@@ -221,9 +264,9 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 					ch.pipeline()
 							.addLast(new HttpServerCodec())
-							.addLast(new HttpObjectAggregator(65536))
-							.addLast(new ChunkedWriteHandler())
-							.addLast(handler.name(), handler);
+							.addLast(new HttpRequestHandler(uploadDir))
+							.addLast(handler.name(), handler)
+							.addLast(new PipelineErrorHandler());
 				}
 			};
 
@@ -242,7 +285,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
-
 			LOG.info("Web frontend listening at " + address + ':' + port);
 		}
 	}
@@ -299,6 +341,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 			FileUtils.deleteDirectory(webRootDir);
 		} catch (Throwable t) {
 			LOG.warn("Error while deleting web root dir {}", webRootDir, t);
+		}
+
+		try {
+			LOG.info("Removing web storage dir {}", uploadDir);
+			FileUtils.deleteDirectory(uploadDir);
+		} catch (Throwable t) {
+			LOG.warn("Error while deleting web storage dir {}", uploadDir, t);
 		}
 	}
 
