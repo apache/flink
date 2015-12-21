@@ -216,6 +216,15 @@ public abstract class TestJvmProcess {
 		}
 	}
 
+	public String getProcessOutput() {
+		if (processOutput != null) {
+			return processOutput.toString();
+		}
+		else {
+			return null;
+		}
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// File based synchronization utilities
 	// ---------------------------------------------------------------------------------------------
