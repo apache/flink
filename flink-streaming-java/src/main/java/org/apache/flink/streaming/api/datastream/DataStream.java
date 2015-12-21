@@ -957,7 +957,7 @@ public class DataStream<T> {
 			String fieldDelimiter) {
 		Preconditions.checkArgument(
 			getType().isTupleType(),
-			"The writeAsCsv() method can only be used on data sets of tuples.");
+			"The writeAsCsv() method can only be used on data streams of tuples.");
 
 		CsvOutputFormat<X> of = new CsvOutputFormat<X>(
 			new Path(path),
