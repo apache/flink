@@ -343,7 +343,7 @@ public class TypeExtractor {
 
 	@SuppressWarnings("unchecked")
 	public static <OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos, Object instance) {
-		if (instance != null && instance instanceof ResultTypeQueryable) {
+		if (instance instanceof ResultTypeQueryable) {
 			return ((ResultTypeQueryable<OUT>) instance).getProducedType();
 		} else {
 			return createTypeInfo(baseClass, clazz, returnParamPos, null, null);
