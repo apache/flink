@@ -26,7 +26,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
-import org.apache.flink.examples.java.graph.PageRankBasic;
+import org.apache.flink.examples.java.graph.PageRank;
 import org.apache.flink.examples.java.relational.TPCHQuery3;
 import org.apache.flink.examples.java.relational.WebLogAnalysis;
 import org.apache.flink.examples.java.wordcount.WordCount;
@@ -128,7 +128,7 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			PageRankBasic.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "10", "123"});
+			PageRank.main(new String[]{IN_FILE, IN_FILE, OUT_FILE, "10", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {

@@ -47,7 +47,7 @@ under the License.
 	</dependencies>
 
 	<modules>
-		<module>flink-java-examples</module>
-		<module>flink-scala-examples</module>
+		<module>flink-examples-batch</module>
+		<module>flink-examples-streaming</module>
 	</modules>
 </project>

@@ -103,7 +103,7 @@ under the License.
 		<!-- copy *.txt files -->
 		<fileSet>
 			<directory>src/main/flink-bin/</directory>
-			<outputDirectory></outputDirectory>
+			<outputDirectory/>
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.txt</include>
@@ -113,7 +113,7 @@ under the License.
 		<!-- copy LICENSE/NOTICE files -->
 		<fileSet>
 			<directory>../</directory>
-			<outputDirectory></outputDirectory>
+			<outputDirectory/>
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>LICENSE*</include>
@@ -150,21 +150,31 @@ under the License.
 			</excludes>
 		</fileSet>
 
-		<!-- copy jar files of java examples -->
+		<!-- copy jar files of the batch examples -->
 		<fileSet>
-			<directory>../flink-examples/flink-java-examples/target</directory>
-			<outputDirectory>examples</outputDirectory>
+			<directory>../flink-examples/flink-examples-batch/target</directory>
+			<outputDirectory>examples/batch</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>*.jar</include>
 			</includes>
 			<excludes>
-				<exclude>flink-java-examples*-${project.version}.jar</exclude>
-				<exclude>original-flink-java-examples*-${project.version}.jar</exclude>
-				<exclude>flink-java-examples*-${project.version}-sources.jar</exclude>
-				<exclude>flink-java-examples*-${project.version}-tests.jar</exclude>
-				<exclude>flink-java-examples*-${project.version}-javadoc.jar</exclude>
-				<exclude>flink-java-examples*-${project.version}-*.jar</exclude>
+				<exclude>flink-examples-batch*.jar</exclude>
+				<exclude>original-flink-examples-batch*.jar</exclude>
+			</excludes>
+		</fileSet>
+
+		<!-- copy jar files of the streaming examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-streaming/target</directory>
+			<outputDirectory>examples/streaming</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-examples-streaming*.jar</exclude>
+				<exclude>original-flink-examples-streaming*.jar</exclude>
 			</excludes>
 		</fileSet>
 
