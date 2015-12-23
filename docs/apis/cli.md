@@ -46,47 +46,47 @@ The command line can be used to
 
 -   Run example program with no arguments.
 
-        ./bin/flink run ./examples/WordCount.jar
+        ./bin/flink run ./examples/batch/WordCount.jar
 
 -   Run example program with arguments for input and result files
 
-        ./bin/flink run ./examples/WordCount.jar \
+        ./bin/flink run ./examples/batch/WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program with parallelism 16 and arguments for input and result files
 
-        ./bin/flink run -p 16 ./examples/WordCount.jar \
+        ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program with flink log output disabled
 
-            ./bin/flink run -q ./examples/WordCount.jar
+            ./bin/flink run -q ./examples/batch/WordCount.jar
 
 -   Run example program in detached mode
 
-            ./bin/flink run -d ./examples/WordCount.jar
+            ./bin/flink run -d ./examples/batch/WordCount.jar
 
 -   Run example program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:6123 \
-                               ./examples/WordCount.jar \
+                               ./examples/batch/WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program with a specific class as an entry point:
 
         ./bin/flink run -c org.apache.flink.examples.java.wordcount.WordCount \
-                               ./examples/WordCount.jar \
+                               ./examples/batch/WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program using a [per-job YARN cluster]({{site.baseurl}}/setup/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
-                               ./examples/WordCount.jar \
+                               ./examples/batch/WordCount.jar \
                                hdfs:///user/hamlet.txt hdfs:///user/wordcount_out
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
-        ./bin/flink info ./examples/WordCount.jar \
+        ./bin/flink info ./examples/batch/WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   List scheduled and running jobs (including their JobIDs):
