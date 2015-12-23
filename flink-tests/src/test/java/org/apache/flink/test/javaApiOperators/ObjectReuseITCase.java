@@ -104,11 +104,12 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 			switch(progId) {
 
 			case 1: {
+				// Grouped reduce
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.getConfig().enableObjectReuse();
 
 				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inReducePath).types(String.class, Integer.class).setParallelism(1);
+
 				DataSet<Tuple2<String, Integer>> result = input.groupBy(0).reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 
 					@Override
@@ -124,26 +125,30 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				env.execute();
 
 				// return expected result
-				return "a,100\n";
+				return "a,60\n";
 
 			}
 
 			case 2: {
+				// Global reduce
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.getConfig().enableObjectReuse();
 
 				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inReducePath).types(String.class, Integer.class).setParallelism(1);
 
-				DataSet<Tuple2<String, Integer>> result = input
-						.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
+				DataSet<Tuple2<String, Integer>> result = input.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 
 							@Override
 							public Tuple2<String, Integer> reduce(
 									Tuple2<String, Integer> value1,
 									Tuple2<String, Integer> value2) throws Exception {
-								value2.f1 += value1.f1;
-								return value2;
+								if (value1.f1 % 2 == 0) {
+									value1.f1 += value2.f1;
+									return value1;
+								} else {
+									value2.f1 += value1.f1;
+									return value2;
+								}
 							}
 
 						});
@@ -152,14 +157,14 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				env.execute();
 
 				// return expected result
-				return "a,100\n";
+				return "a,60\n";
 
 			}
 
 			case 3: {
+				// Add items to list without copying
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.getConfig().enableObjectReuse();
 
 				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inGroupReducePath).types(String.class, Integer.class).setParallelism(1);
 
@@ -183,18 +188,26 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				env.execute();
 
 				// return expected result
-				return "a,4\n" +
-						"a,4\n" +
-						"a,5\n" +
-						"a,5\n" +
-						"a,5\n";
+				if (env.getConfig().isObjectReuseEnabled()) {
+					return "a,5\n" +
+							"a,4\n" +
+							"a,5\n" +
+							"a,4\n" +
+							"a,5\n";
+				} else {
+					return "a,1\n" +
+							"a,2\n" +
+							"a,3\n" +
+							"a,4\n" +
+							"a,5\n";
+				}
 
 			}
 
 			case 4: {
+				// Add items to list after copying
 
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.getConfig().enableObjectReuse();
 
 				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inGroupReducePath).types(String.class, Integer.class).setParallelism(1);
 
@@ -204,7 +217,7 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 					public void reduce(Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) throws Exception {
 						List<Tuple2<String, Integer>> list = new ArrayList<Tuple2<String, Integer>>();
 						for (Tuple2<String, Integer> val : values) {
-							list.add(val);
+							list.add(val.copy());
 						}
 
 						for (Tuple2<String, Integer> val : list) {
@@ -218,10 +231,10 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				env.execute();
 
 				// return expected result
-				return "a,4\n" +
+				return "a,1\n" +
+						"a,2\n" +
+						"a,3\n" +
 						"a,4\n" +
-						"a,5\n" +
-						"a,5\n" +
 						"a,5\n";
 
 			}
