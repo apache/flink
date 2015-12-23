@@ -115,11 +115,11 @@ case class DenseVector(
     val numCols = other.size
 
     other match {
-      case sv @ SparseVector(_, _, _) =>
+      case sv: SparseVector =>
         val entries = for {
           i <- 0 until numRows
-          j <- sv.indices
-          value = this(i) * sv.data(sv.indices.indexOf(j))
+          (j, k) <- sv.indices.zipWithIndex
+          value = this(i) * sv.data(k)
           if value != 0
         } yield (i, j, value)
 

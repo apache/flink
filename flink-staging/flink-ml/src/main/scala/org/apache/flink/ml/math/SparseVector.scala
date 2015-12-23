@@ -99,11 +99,11 @@ case class SparseVector(
     val numCols = other.size
 
     val entries = other match {
-      case sv @ SparseVector(_, _, _) =>
+      case sv: SparseVector =>
        for {
-          i <- indices
-          j <- sv.indices
-          value = data(indices.indexOf(i)) * sv.data(sv.indices.indexOf(j))
+          (i, k) <- indices.zipWithIndex
+          (j, l) <- sv.indices.zipWithIndex
+          value = data(k) * sv.data(l)
           if value != 0
         } yield (i, j, value)
       case _ =>
