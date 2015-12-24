@@ -471,12 +471,12 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on local file systems according to the given write mode.
 	 * 
-	 * WriteMode.CREATE &amp; parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
 	 *  - An existing file raises an exception.
 	 *    
-	 * WriteMode.CREATE &amp; NONE parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception.
 	 *  
 	 * WriteMode.OVERWRITE &amp; parallel output:
@@ -632,11 +632,11 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on distributed file systems according to the given write mode.
 	 * 
-	 * WriteMode.CREATE &amp; parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing file or directory raises an exception.
 	 * 
-	 * WriteMode.CREATE &amp; NONE parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception. 
 	 *    
 	 * WriteMode.OVERWRITE &amp; parallel output:
