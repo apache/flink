@@ -1,5 +1,8 @@
 ---
-title:  "Connecting to other systems (Batch)"
+title: "File Systems"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 9
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,7 +30,7 @@ Flink has build-in support for the following file systems:
 | Filesystem                            | Scheme       | Notes  |
 | ------------------------------------- |--------------| ------ |
 | Hadoop Distributed File System (HDFS) &nbsp; | `hdfs://`    | All HDFS versions are supported |
-| Amazon S3                             | `s3://`      | Support through Hadoop file system implementation (see below) | 
+| Amazon S3                             | `s3://`      | Support through Hadoop file system implementation (see below) |
 | MapR file system                      | `maprfs://`  | The user has to manually place the required jar files in the `lib/` dir |
 | Tachyon                               | `tachyon://` &nbsp; | Support through Hadoop file system implementation (see below) |
 
@@ -190,17 +193,17 @@ public class AzureTableExample {
   public static void main(String[] args) throws Exception {
     // set up the execution environment
     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-    
+
     // create a  AzureTableInputFormat, using a Hadoop input format wrapper
     HadoopInputFormat<Text, WritableEntity> hdIf = new HadoopInputFormat<Text, WritableEntity>(new AzureTableInputFormat(), Text.class, WritableEntity.class, new Job());
 
     // set the Account URI, something like: https://apacheflink.table.core.windows.net
-    hdIf.getConfiguration().set(AzureTableConfiguration.Keys.ACCOUNT_URI.getKey(), "TODO"); 
+    hdIf.getConfiguration().set(AzureTableConfiguration.Keys.ACCOUNT_URI.getKey(), "TODO");
     // set the secret storage key here
     hdIf.getConfiguration().set(AzureTableConfiguration.Keys.STORAGE_KEY.getKey(), "TODO");
     // set the table name here
     hdIf.getConfiguration().set(AzureTableConfiguration.Keys.TABLE_NAME.getKey(), "TODO");
-    
+
     DataSet<Tuple2<Text, WritableEntity>> input = env.createInput(hdIf);
     // a little example how to use the data in a mapper.
     DataSet<String> fin = input.map(new MapFunction<Tuple2<Text,WritableEntity>, String>() {
@@ -231,5 +234,3 @@ The example shows how to access an Azure table and turn data into Flink's `DataS
 ## Access MongoDB
 
 This [GitHub repository documents how to use MongoDB with Apache Flink (starting from 0.7-incubating)](https://github.com/okkam-it/flink-mongodb-test).
-
-

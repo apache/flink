@@ -1,5 +1,8 @@
 ---
 title: "JobManager High Availability (HA)"
+top-nav-group: deployment
+top-nav-title: High Availability
+top-nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

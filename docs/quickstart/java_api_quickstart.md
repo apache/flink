@@ -1,5 +1,9 @@
 ---
 title: "Quickstart: Java API"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 3
+top-nav-title: Java API
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

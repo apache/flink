@@ -1,5 +1,9 @@
 ---
 title:  "Data Streaming Fault Tolerance"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 4
+top-nav-title: Fault Tolerance for Data Streaming
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

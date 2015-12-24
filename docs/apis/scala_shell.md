@@ -1,5 +1,8 @@
 ---
-title: "Interactive Scala Shell"
+title: "Scala Shell"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,7 +28,7 @@ Flink comes with an integrated interactive Scala Shell.
 It can be used in a local setup as well as in a cluster setup. To get started with downloading
 Flink and setting up a cluster please refer to
 [local setup]({{ site.baseurl }}/setup/local_setup.html) or
-[cluster setup]({{ site.baseurl }}/setup/cluster.html) 
+[cluster setup]({{ site.baseurl }}/setup/cluster.html)
 
 To use the shell with an integrated Flink cluster just execute:
 
@@ -78,4 +81,3 @@ Use the parameter `-a <path/to/jar.jar>` or `--addclasspath <path/to/jar.jar>` t
 ~~~bash
 bin/start-scala-shell.sh [local | remote <host> <port>] --addclasspath <path/to/jar.jar>
 ~~~
-

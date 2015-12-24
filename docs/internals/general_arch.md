@@ -1,5 +1,9 @@
 ---
 title:  "General Architecture and Process Model"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 3
+top-nav-title: Architecture and Process Model
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

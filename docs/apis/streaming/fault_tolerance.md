@@ -1,6 +1,10 @@
 ---
 title: "Fault Tolerance"
 is_beta: false
+
+sub-nav-group: streaming
+sub-nav-id: fault_tolerance
+sub-nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +24,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<a href="#top"></a>
 
 Flink's fault tolerance mechanism recovers programs in the presence of failures and
 continues to execute them. Such failures include machine hardware failures, network failures,
@@ -99,7 +101,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 ### Fault Tolerance Guarantees of Data Sources and Sinks
 
-Flink can guarantee exactly-once state updates to user-defined state only when the source participates in the 
+Flink can guarantee exactly-once state updates to user-defined state only when the source participates in the
 snapshotting mechanism. This is currently guaranteed for the Kafka source (and internal number generators), but
 not for other sources. The following table lists the state update guarantees of Flink coupled with the bundled sources:
 
@@ -146,7 +148,7 @@ not for other sources. The following table lists the state update guarantees of 
 </table>
 
 To guarantee end-to-end exactly-once record delivery (in addition to exactly-once state semantics), the data sink needs
-to take part in the checkpointing mechanism. The following table lists the delivery guarantees (assuming exactly-once 
+to take part in the checkpointing mechanism. The following table lists the delivery guarantees (assuming exactly-once
 state updates) of Flink coupled with bundled sinks:
 
 <table class="table table-bordered">
@@ -191,75 +193,4 @@ state updates) of Flink coupled with bundled sinks:
   </tbody>
 </table>
 
-[Back to top](#top)
-
-
-Batch Processing Fault Tolerance (DataSet API)
-----------------------------------------------
-
-Fault tolerance for programs in the *DataSet API* works by retrying failed executions.
-The number of time that Flink retries the execution before the job is declared as failed is configurable
-via the *execution retries* parameter. A value of *0* effectively means that fault tolerance is deactivated.
-
-To activate the fault tolerance, set the *execution retries* to a value larger than zero. A common choice is a value
-of three.
-
-This example shows how to configure the execution retries for a Flink DataSet program.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setNumberOfExecutionRetries(3);
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = ExecutionEnvironment.getExecutionEnvironment()
-env.setNumberOfExecutionRetries(3)
-{% endhighlight %}
-</div>
-</div>
-
-
-You can also define default values for the number of execution retries and the retry delay in the `flink-conf.yaml`:
-
-~~~
-execution-retries.default: 3
-~~~
-
-
-Retry Delays
-------------
-
-Execution retries can be configured to be delayed. Delaying the retry means that after a failed execution, the re-execution does not start
-immediately, but only after a certain delay.
-
-Delaying the retries can be helpful when the program interacts with external systems where for example connections or pending transactions should reach a timeout before re-execution is attempted.
-
-You can set the retry delay for each program as follows (the sample shows the DataStream API - the DataSet API works similarly):
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.getConfig().setExecutionRetryDelay(5000); // 5000 milliseconds delay
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.getConfig.setExecutionRetryDelay(5000) // 5000 milliseconds delay
-{% endhighlight %}
-</div>
-</div>
-
-You can also define the default value for the retry delay in the `flink-conf.yaml`:
-
-~~~
-execution-retries.delay: 10 s
-~~~
-
-[Back to top](#top)
-
-
+{% top %}

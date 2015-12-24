@@ -1,5 +1,8 @@
 ---
 title:  "Web Client"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

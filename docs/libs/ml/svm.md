@@ -1,7 +1,10 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - SVM using CoCoA
-title: <a href="../ml">FlinkML</a> - SVM using CoCoA
+title: FlinkML - SVM using CoCoA
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: SVM (CoCoA)
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

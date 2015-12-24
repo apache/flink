@@ -1,5 +1,8 @@
 ---
 title:  "Google Compute Engine Setup"
+top-nav-group: deployment
+top-nav-title: Google Compute Engine
+top-nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -21,12 +24,7 @@ under the License.
 -->
 
 
-This documentation provides instructions on how to setup Flink fully
-automatically with Hadoop 1 or Hadoop 2 on top of a
-[Google Compute Engine](https://cloud.google.com/compute/) cluster. This is made
-possible by Google's [bdutil](https://cloud.google.com/hadoop/bdutil) which
-starts a cluster and deploys Flink with Hadoop. To get started, just follow the
-steps below.
+This documentation provides instructions on how to setup Flink fully automatically with Hadoop 1 or Hadoop 2 on top of a [Google Compute Engine](https://cloud.google.com/compute/) cluster. This is made possible by Google's [bdutil](https://cloud.google.com/hadoop/bdutil) which starts a cluster and deploys Flink with Hadoop. To get started, just follow the steps below.
 
 * This will be replaced by the TOC
 {:toc}
@@ -35,12 +33,9 @@ steps below.
 
 ## Install Google Cloud SDK
 
-Please follow the instructions on how to setup the
-[Google Cloud SDK](https://cloud.google.com/sdk/). In particular, make sure to
-authenticate with Google Cloud using the following command:
+Please follow the instructions on how to setup the [Google Cloud SDK](https://cloud.google.com/sdk/). In particular, make sure to authenticate with Google Cloud using the following command:
 
     gcloud auth login
-
 
 ## Install bdutil
 
@@ -50,15 +45,13 @@ from [GitHub](https://github.com/GoogleCloudPlatform/bdutil):
 
     git clone https://github.com/GoogleCloudPlatform/bdutil.git
 
-After you have downloaded the source, change into the newly created `bdutil`
-directory and continue with the next steps.
+After you have downloaded the source, change into the newly created `bdutil` directory and continue with the next steps.
 
 # Deploying Flink on Google Compute Engine
 
 ## Set up a bucket
 
-If you have not done so, create a bucket for the bdutil config and
-staging files. A new bucket can be created with gsutil:
+If you have not done so, create a bucket for the bdutil config and staging files. A new bucket can be created with gsutil:
 
     gsutil mb gs://<bucket_name>
 
@@ -79,11 +72,7 @@ bdutil_env.sh.
 
 ## Adapt the Flink config
 
-bdutil's Flink extension handles the configuration for you. You may additionally
-adjust configuration variables in `extensions/flink/flink_env.sh`. If you want
-to make further configuration, please take a look at
-[configuring Flink](config.html). You will have to restart Flink after changing
-its configuration using `bin/stop-cluster` and `bin/start-cluster`.
+bdutil's Flink extension handles the configuration for you. You may additionally adjust configuration variables in `extensions/flink/flink_env.sh`. If you want to make further configuration, please take a look at [configuring Flink](config.html). You will have to restart Flink after changing its configuration using `bin/stop-cluster` and `bin/start-cluster`.
 
 ## Bring up a cluster with Flink
 
