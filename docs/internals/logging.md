@@ -1,5 +1,9 @@
 ---
 title: "How to use logging"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 2
+top-nav-title: Logging
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

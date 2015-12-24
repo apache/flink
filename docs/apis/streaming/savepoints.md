@@ -1,6 +1,8 @@
 ---
 title: "Savepoints"
 is_beta: false
+sub-nav-group: streaming
+sub-nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

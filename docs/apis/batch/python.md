@@ -1,6 +1,12 @@
 ---
 title: "Python Programming Guide"
 is_beta: true
+
+# Sub-level navigation
+sub-nav-group: batch
+sub-nav-id: python_api
+sub-nav-pos: 4
+sub-nav-title: Python API
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +26,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<a href="#top"></a>
 
 Analysis programs in Flink are regular programs that implement transformations on data sets
 (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain
@@ -59,17 +63,17 @@ if __name__ == "__main__":
   env = get_environment()
   data = env.from_elements("Who's there?",
    "I think I hear them. Stand, ho! Who's there?")
-  
+
   data \
     .flat_map(lambda x, c: [(1, word) for word in x.lower().split()], (INT, STRING)) \
     .group_by(1) \
     .reduce_group(Adder(), (INT, STRING), combinable=True) \
     .output()
-  
+
   env.execute(local=True)
 {% endhighlight %}
 
-[Back to top](#top)
+{% top %}
 
 Program Skeleton
 ----------------
@@ -84,7 +88,7 @@ programs with a `if __name__ == "__main__":` block. Each program consists of the
 5. Execute your program.
 
 We will now give an overview of each of those steps but please refer to the respective sections for
-more details. 
+more details.
 
 
 The `Environment` is the basis for all Flink programs. You can
@@ -116,7 +120,7 @@ a map transformation looks like this:
 data.map(lambda x: x*2, INT)
 {% endhighlight %}
 
-This will create a new DataSet by doubling every value in the original DataSet. 
+This will create a new DataSet by doubling every value in the original DataSet.
 For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
@@ -133,15 +137,15 @@ The last method is only useful for developing/debugging on a local machine,
 it will output the contents of the DataSet to standard output. (Note that in
 a cluster, the result goes to the standard out stream of the cluster nodes and ends
 up in the *.out* files of the workers).
-The first two do as the name suggests. 
+The first two do as the name suggests.
 Please refer to [Data Sinks](#data-sinks) for more information on writing to files.
 
 Once you specified the complete program you need to call `execute` on
-the `Environment`. This will either execute on your local machine or submit your program 
+the `Environment`. This will either execute on your local machine or submit your program
 for execution on a cluster, depending on how Flink was started. You can force
 a local execution by using `execute(local=True)`.
 
-[Back to top](#top)
+{% top %}
 
 Project setup
 ---------------
@@ -150,7 +154,7 @@ Apart from setting up Flink, no additional work is required. The python package 
 
 The Python API was tested on Linux systems that have Python 2.7 or 3.4 installed.
 
-[Back to top](#top)
+{% top %}
 
 Lazy Evaluation
 ---------------
@@ -164,7 +168,7 @@ on the environment of the program.
 The lazy evaluation lets you construct sophisticated programs that Flink executes as one
 holistically planned unit.
 
-[Back to top](#top)
+{% top %}
 
 
 Transformations
@@ -265,10 +269,10 @@ data.reduce_group(Adder(), (INT, STRING))
       <td><strong>Join</strong></td>
       <td>
         Joins two data sets by creating all pairs of elements that are equal on their keys.
-        Optionally uses a JoinFunction to turn the pair of elements into a single element. 
+        Optionally uses a JoinFunction to turn the pair of elements into a single element.
         See <a href="#specifying-keys">keys</a> on how to define join keys.
 {% highlight python %}
-# In this case tuple fields are used as keys. 
+# In this case tuple fields are used as keys.
 # "0" is the join field on the first tuple
 # "1" is the join field on the second tuple.
 result = input1.join(input2).where(0).equal_to(1)
@@ -311,7 +315,7 @@ data.union(data2)
   </tbody>
 </table>
 
-[Back to Top](#top)
+{% top %}
 
 
 Specifying Keys
@@ -344,7 +348,7 @@ reduced = data \
   .reduce_group(<do something>)
 {% endhighlight %}
 
-The data set is grouped on the first field of the tuples. 
+The data set is grouped on the first field of the tuples.
 The group-reduce function will thus receive groups of tuples with
 the same value in the first field.
 
@@ -361,7 +365,7 @@ with the same value for both fields.
 A note on nested Tuples: If you have a DataSet with a nested tuple
 specifying `group_by(<index of tuple>)` will cause the system to use the full tuple as a key.
 
-[Back to top](#top)
+{% top %}
 
 
 Passing Functions to Flink
@@ -381,15 +385,15 @@ class Filter(FilterFunction):
 data.filter(Filter())
 {% endhighlight %}
 
-Rich functions allow the use of imported functions, provide access to broadcast-variables, 
+Rich functions allow the use of imported functions, provide access to broadcast-variables,
 can be parameterized using __init__(), and are the go-to-option for complex functions.
 They are also the only way to define an optional `combine` function for a reduce operation.
 
 Lambda functions allow the easy insertion of one-liners. Note that a lambda function has to return
 an iterable, if the operation can return multiple values. (All functions receiving a collector argument)
 
-Flink requires type information at the time when it prepares the program for execution 
-(when the main method of the program is called). This is done by passing an exemplary 
+Flink requires type information at the time when it prepares the program for execution
+(when the main method of the program is called). This is done by passing an exemplary
 object that has the desired type. This holds also for tuples.
 
 {% highlight python %}
@@ -400,7 +404,7 @@ Would denote a tuple containing an int and a string. Note that for Operations th
 
 There are a few Constants defined in flink.plan.Constants that allow this in a more readable fashion.
 
-[Back to top](#top)
+{% top %}
 
 Data Types
 ----------
@@ -409,7 +413,7 @@ Flink's Python API currently only supports primitive python types (int, float, b
 
 #### Tuples/Lists
 
-You can use the tuples (or lists) for composite types. Python tuples are mapped to the Flink Tuple type, that contain 
+You can use the tuples (or lists) for composite types. Python tuples are mapped to the Flink Tuple type, that contain
 a fix number of fields of various types (up to 25). Every field of a tuple can be a primitive type - including further tuples, resulting in nested tuples.
 
 {% highlight python %}
@@ -428,7 +432,7 @@ wordCounts \
     .reduce(MyReduceFunction())
 {% endhighlight %}
 
-[Back to top](#top)
+{% top %}
 
 Data Sources
 ------------
@@ -464,7 +468,7 @@ csvInput = env.read_csv("hdfs:///the/CSV/file", (INT, STRING, DOUBLE))
 values = env.from_elements("Foo", "bar", "foobar", "fubar")
 {% endhighlight %}
 
-[Back to top](#top)
+{% top %}
 
 Data Sinks
 ----------
@@ -502,7 +506,7 @@ values.write_csv("file:///path/to/the/result/file", line_delimiter="\n", field_d
 values.write_text("file:///path/to/the/result/file")
 {% endhighlight %}
 
-[Back to top](#top)
+{% top %}
 
 Broadcast Variables
 -------------------
@@ -522,11 +526,11 @@ class MapperBcv(MapFunction):
         return value * factor
 
 # 1. The DataSet to be broadcasted
-toBroadcast = env.from_elements(1, 2, 3) 
+toBroadcast = env.from_elements(1, 2, 3)
 data = env.from_elements("a", "b")
 
 # 2. Broadcast the DataSet
-data.map(MapperBcv(), INT).with_broadcast_set("bcv", toBroadcast) 
+data.map(MapperBcv(), INT).with_broadcast_set("bcv", toBroadcast)
 {% endhighlight %}
 
 Make sure that the names (`bcv` in the previous example) match when registering and
@@ -535,7 +539,7 @@ accessing broadcasted data sets.
 **Note**: As the content of broadcast variables is kept in-memory on each node, it should not become
 too large. For simpler things like scalar values you can simply parameterize the rich function.
 
-[Back to top](#top)
+{% top %}
 
 Parallel Execution
 ------------------
@@ -576,31 +580,31 @@ env.execute()
 
 A system-wide default parallelism for all execution environments can be defined by setting the
 `parallelism.default` property in `./conf/flink-conf.yaml`. See the
-[Configuration](config.html) documentation for details.
+[Configuration]({{ site.baseurl }}/setup/config.html) documentation for details.
 
-[Back to top](#top)
+{% top %}
 
 Executing Plans
 ---------------
 
-To run the plan with Flink, go to your Flink distribution, and run the pyflink.sh script from the /bin folder. 
-use pyflink2.sh for python 2.7, and pyflink3.sh for python 3.4. The script containing the plan has to be passed 
-as the first argument, followed by a number of additional python packages, and finally, separated by - additional 
-arguments that will be fed to the script. 
+To run the plan with Flink, go to your Flink distribution, and run the pyflink.sh script from the /bin folder.
+use pyflink2.sh for python 2.7, and pyflink3.sh for python 3.4. The script containing the plan has to be passed
+as the first argument, followed by a number of additional python packages, and finally, separated by - additional
+arguments that will be fed to the script.
 
 {% highlight python %}
 ./bin/pyflink<2/3>.sh <Script>[ <pathToPackage1>[ <pathToPackageX]][ - <param1>[ <paramX>]]
 {% endhighlight %}
 
-[Back to top](#top)
+{% top %}
 
 Debugging
 ---------------
 
 If you are running Flink programs locally, you can debug your program following this guide.
 First you have to enable debugging by setting the debug switch in the `env.execute(debug=True)` call. After
-submitting your program, open the jobmanager log file, and look for a line that says 
+submitting your program, open the jobmanager log file, and look for a line that says
 `Waiting for external Process : <taskname>. Run python /tmp/flink/executor.py <port>` Now open `/tmp/flink` in your python
 IDE and run the `executor.py <port>`.
 
-[Back to top](#top)
+{% top %}

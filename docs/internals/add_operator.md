@@ -1,5 +1,9 @@
 ---
 title:  "How to add a new Operator"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 8
+top-nav-title: "How-To: Add an Operator"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

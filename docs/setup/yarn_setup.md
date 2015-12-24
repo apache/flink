@@ -1,5 +1,8 @@
 ---
 title:  "YARN Setup"
+top-nav-group: deployment
+top-nav-title: YARN
+top-nav-pos: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,7 +26,9 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## Quickstart: Start a long-running Flink cluster on YARN
+## Quickstart
+
+### Start a long-running Flink cluster on YARN
 
 Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
@@ -40,7 +45,7 @@ Specify the `-s` flag for the number of processing slots per Task Manager. We re
 
 Once the session has been started, you can submit jobs to the cluster using the `./bin/flink` tool.
 
-## Quickstart: Run a Flink job on YARN
+### Run a Flink job on YARN
 
 ~~~bash
 # get the hadoop2 package from the Flink download page at
@@ -51,7 +56,7 @@ cd flink-{{ site.version }}/
 ./bin/flink run -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/batch/WordCount.jar
 ~~~
 
-## Apache Flink on Hadoop YARN using a YARN Session
+## Flink YARN Session
 
 Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management framework. It allows to run various distributed applications on top of a cluster. Flink runs on YARN next to other applications. Users do not have to setup or install anything if there is already a YARN setup.
 
@@ -68,9 +73,9 @@ Follow these instructions to learn how to launch a Flink Session within your YAR
 
 A session will start all required Flink services (JobManager and TaskManagers) so that you can submit programs to the cluster. Note that you can run multiple programs per session.
 
-#### Download Flink for YARN
+#### Download Flink 
 
-Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads.html). It contains the required files.
+Download a Flink package for Hadoop >= 2 from the [download page]({{ site.download_url }}). It contains the required files.
 
 Extract the package using:
 
@@ -78,10 +83,6 @@ Extract the package using:
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{site.version }}/
 ~~~
-
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html).
-You can find the result of the build in `flink-dist/target/flink-{{ site.version }}-bin/flink-{{ site.version }}/` (*Note: The version might be different for you* ).
-
 
 #### Start a Session
 
@@ -106,7 +107,6 @@ Usage:
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
-
 ~~~
 
 Please note that the Client requires the `YARN_CONF_DIR` or `HADOOP_CONF_DIR` environment variable to be set to read the YARN and HDFS configuration.
@@ -129,7 +129,7 @@ Once Flink is deployed in your YARN cluster, it will show you the connection det
 
 Stop the YARN session by stopping the unix process (using CTRL+C) or by entering 'stop' into the client.
 
-#### Detached YARN session
+#### Detached YARN Session
 
 If you do not want to keep the Flink YARN client running all the time, its also possible to start a *detached* YARN session.
 The parameter for that is called `-d` or `--detached`.
@@ -138,7 +138,6 @@ In that case, the Flink YARN client will only submit Flink to the cluster and th
 Note that in this case its not possible to stop the YARN session using Flink.
 
 Use the YARN utilities (`yarn application -kill <appId`) to stop the YARN session.
-
 
 ### Submit Job to Flink
 
@@ -195,10 +194,9 @@ You can check the number of TaskManagers in the JobManager web interface. The ad
 If the TaskManagers do not show up after a minute, you should investigate the issue using the log files.
 
 
-## Run a single Flink job on Hadoop YARN
+## Run a single Flink job on YARN
 
-The documentation above describes how to start a Flink cluster within a Hadoop YARN environment.
-It is also possible to launch Flink within YARN only for executing a single job.
+The documentation above describes how to start a Flink cluster within a Hadoop YARN environment. It is also possible to launch Flink within YARN only for executing a single job.
 
 Please note that the client then expects the `-yn` value to be set (number of TaskManagers).
 
@@ -208,15 +206,11 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 ./bin/flink run -m yarn-cluster -yn 2 ./examples/batch/WordCount.jar
 ~~~
 
-The command line options of the YARN session are also available with the `./bin/flink` tool.
-They are prefixed with a `y` or `yarn` (for the long argument options).
+The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
 
-Note: You can use a different configuration directory per job by setting the environment variable `FLINK_CONF_DIR`.
-To use this copy the `conf` directory from the Flink distribution and modify, for example, the logging settings on a per-job basis.
+Note: You can use a different configuration directory per job by setting the environment variable `FLINK_CONF_DIR`. To use this copy the `conf` directory from the Flink distribution and modify, for example, the logging settings on a per-job basis.
 
-Note: It is possible to combine `-m yarn-cluster` with a detached YARN submission (`-yd`) to "fire and forget" a Flink job
-to the YARN cluster. In this case, your application will not get any accumulator results or exceptions from the ExecutionEnvironment.execute() call!
-
+Note: It is possible to combine `-m yarn-cluster` with a detached YARN submission (`-yd`) to "fire and forget" a Flink job to the YARN cluster. In this case, your application will not get any accumulator results or exceptions from the ExecutionEnvironment.execute() call!
 
 ## Recovery behavior of Flink on YARN
 
@@ -225,7 +219,6 @@ Flink's YARN client has the following configuration parameters to control how to
 - `yarn.reallocate-failed`: This parameter controls whether Flink should reallocate failed TaskManager containers. Default: true
 - `yarn.maximum-failed-containers`: The maximum number of failed containers the ApplicationMaster accepts until it fails the YARN session. Default: The number of initally requested TaskManagers (`-n`).
 - `yarn.application-attempts`: The number of ApplicationMaster (+ its TaskManager containers) attempts. If this value is set to 1 (default), the entire YARN session will fail when the Application master fails. Higher values specify the number of restarts of the ApplicationMaster by YARN.
-
 
 ## Debugging a failed YARN session
 
@@ -251,24 +244,22 @@ In addition to that, there is the YARN Resource Manager webinterface (by default
 
 It allows to access log files for running YARN applications and shows diagnostics for failed apps.
 
-
 ## Build YARN client for a specific Hadoop version
 
 Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions](building.html) for more details.
-
 
 ## Running Flink on YARN behind Firewalls
 
 Some YARN clusters use firewalls for controlling the network traffic between the cluster and the rest of the network.
 In those setups, Flink jobs can only be submitted to a YARN session from within the cluster's network (behind the firewall).
-If this is not feasible for production use, Flink allows to configure a port range for all relevant services. With these 
+If this is not feasible for production use, Flink allows to configure a port range for all relevant services. With these
 ranges configured, users can also submit jobs to Flink crossing the firewall.
 
 Currently, two services are needed to submit a job:
 
  * The JobManager (ApplicatonMaster in YARN)
  * The BlobServer running within the JobManager.
- 
+
 When submitting a job to Flink, the BlobServer will distribute the jars with the user code to all worker nodes (TaskManagers).
 The JobManager receives the job itself and triggers the execution.
 
@@ -300,4 +291,3 @@ The next step of the client is to request (step 2) a YARN container to start the
 The *JobManager* and AM are running in the same container. Once they successfully started, the AM knows the address of the JobManager (its own host). It is generating a new Flink configuration file for the TaskManagers (so that they can connect to the JobManager). The file is also uploaded to HDFS. Additionally, the *AM* container is also serving Flink's web interface. The ports Flink is using for its services are the standard ports configured by the user + the application id as an offset. This allows users to execute multiple Flink YARN sessions in parallel.
 
 After that, the AM starts allocating the containers for Flink's TaskManagers, which will download the jar file and the modified configuration from the HDFS. Once these steps are completed, Flink is set up and ready to accept Jobs.
-

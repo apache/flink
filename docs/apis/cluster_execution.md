@@ -1,5 +1,8 @@
 ---
 title:  "Cluster Execution"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -98,9 +101,9 @@ The latter version is recommended as it respects the classloader management in F
 
 To provide these dependencies not included by Flink we suggest two options with Maven.
 
-1. The maven assembly plugin builds a so-called uber-jar(executable jar) 
+1. The maven assembly plugin builds a so-called uber-jar(executable jar)
 containing all your dependencies.
-Assembly configuration is straight-forward, but the resulting jar might become bulky. See 
+Assembly configuration is straight-forward, but the resulting jar might become bulky. See
 [usage](http://maven.apache.org/plugins/maven-assembly-plugin/usage.html).
 2. The maven unpack plugin, for unpacking the relevant parts of the dependencies and
 then package it with your code.

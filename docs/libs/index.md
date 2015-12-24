@@ -1,5 +1,9 @@
 ---
 title: "Libraries"
+sub-nav-group: batch
+sub-nav-id: libs
+sub-nav-pos: 6
+sub-nav-title: Libraries
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,3 +23,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+- Graph processing: [Gelly](gelly_guide.html)
+- Machine Learning: [FlinkML](ml/index.html)
+- Relational Queries: [Table](table.html)

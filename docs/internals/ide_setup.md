@@ -1,5 +1,8 @@
 ---
-title: "IDE setup"
+title: "IDE Setup"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

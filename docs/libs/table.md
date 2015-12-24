@@ -1,6 +1,15 @@
 ---
 title: "Table API - Relational Queries"
 is_beta: true
+# Top navigation
+top-nav-group: libs
+top-nav-pos: 3
+top-nav-title: "Relational: Table"
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: libs
+sub-nav-pos: 3
+sub-nav-title: Table
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -60,7 +69,7 @@ val result = expr.groupBy('word).select('word, 'count.sum as 'count).toDataSet[W
 The expression DSL uses Scala symbols to refer to field names and we use code generation to
 transform expressions to efficient runtime code. Please note that the conversion to and from
 Tables only works when using Scala case classes or Flink POJOs. Please check out
-the [programming guide]({{ site.baseurl }}/apis/programming_guide.html) to learn the requirements for a class to be
+the [programming guide]({{ site.baseurl }}/apis/index.html) to learn the requirements for a class to be
 considered a POJO.
 
 This is another example that shows how you
@@ -387,4 +396,3 @@ Here, `literal` is a valid Java literal and `field reference` specifies a column
 column names follow Java identifier syntax.
 
 Only the types `LONG` and `STRING` can be casted to `DATE` and vice versa. A `LONG` casted to `DATE` must be a milliseconds timestamp. A `STRING` casted to `DATE` must have the format "`yyyy-MM-dd HH:mm:ss.SSS`", "`yyyy-MM-dd`", "`HH:mm:ss`", or a milliseconds timestamp. By default, all timestamps refer to the UTC timezone beginning from January 1, 1970, 00:00:00 in milliseconds.
-

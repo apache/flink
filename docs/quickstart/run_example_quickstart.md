@@ -1,5 +1,9 @@
 ---
 title: "Quick Start: Run K-Means Example"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 2
+top-nav-title: Run Example
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

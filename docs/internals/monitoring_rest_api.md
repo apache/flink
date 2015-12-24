@@ -1,5 +1,8 @@
 ---
 title:  "Monitoring REST API"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

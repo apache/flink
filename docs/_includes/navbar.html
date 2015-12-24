@@ -39,16 +39,16 @@ under the License.
         <!-- The navigation links. -->
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
           <ul class="nav navbar-nav">
-            <li{% if page.url == '/' %} class="active"{% endif %}><a href="{{ site.baseurl}}/">Documentation<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
+            <li class="hidden-sm {% if page.url == '/' %}active{% endif %}"><a href="{{ site.baseurl}}/">Documentation {{ site.version_short }}</a></li>
 
             <!-- Quickstart -->
             <li class="dropdown{% if page.url contains '/quickstart/' %} active{% endif %}">
               <a href="{{ quickstart }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Quickstart <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ quickstart }}/setup_quickstart.html">Setup</a></li>
-                <li><a href="{{ quickstart }}/java_api_quickstart.html">Java API</a></li>
-                <li><a href="{{ quickstart }}/scala_api_quickstart.html">Scala API</a></li>
-                <li><a href="{{ quickstart }}/run_example_quickstart.html">Run Step-by-Step Example</a></li>
+                {% assign quickstart_group = (site.pages | where: "top-nav-group" , "quickstart" | sort: "top-nav-pos") %}
+                {% for quickstart_page in quickstart_group %}
+                <li class="{% if page.url contains quickstart_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ quickstart_page.url }}">{% if quickstart_page.top-nav-title %}{{ quickstart_page.top-nav-title }}{% else %}{{ quickstart_page.title }}{% endif %}</a></li>
+                {% endfor %}
               </ul>
             </li>
 
@@ -56,18 +56,17 @@ under the License.
             <li class="dropdown{% if page.url contains '/setup/' %} active{% endif %}">
               <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ setup }}/building.html">Build Flink {{ site.version }}</a></li>
+                {% assign setup_group = (site.pages | where: "top-nav-group" , "setup" | sort: "top-nav-pos") %}
+                {% for setup_group_page in setup_group %}
+                <li class="{% if page.url contains setup_group_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ setup_group_page.url }}">{% if setup_group_page.top-nav-title %}{{ setup_group_page.top-nav-title }}{% else %}{{ setup_group_page.title }}{% endif %}</a></li>
+                {% endfor %}
 
                 <li class="divider"></li>
                 <li role="presentation" class="dropdown-header"><strong>Deployment</strong></li>
-                <li><a href="{{ setup }}/local_setup.html" class="active">Local</a></li>
-                <li><a href="{{ setup }}/cluster_setup.html">Cluster (Standalone)</a></li>
-                <li><a href="{{ setup }}/yarn_setup.html">YARN</a></li>
-                <li><a href="{{ setup }}/gce_setup.html">GCloud</a></li>
-                <li><a href="{{ setup }}/jobmanager_high_availability.html">JobManager High Availability</a></li>
-
-                <li class="divider"></li>
-                <li><a href="{{ setup }}/config.html">Configuration</a></li>
+                {% assign deployment_group = (site.pages | where: "top-nav-group" , "deployment" | sort: "top-nav-pos") %}
+                {% for deployment_group_page in deployment_group %}
+                <li class="{% if page.url contains deployment_group_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ deployment_group_page.url }}">{% if deployment_group_page.top-nav-title %}{{ deployment_group_page.top-nav-title }}{% else %}{{ deployment_group_page.title }}{% endif %}</a></li>
+                {% endfor %}
               </ul>
             </li>
 
@@ -75,26 +74,10 @@ under the License.
             <li class="dropdown{% if page.url contains '/apis/' %} active{% endif %}">
               <a href="{{ apis }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Programming Guides <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
-                <li><a href="{{ apis }}/programming_guide.html"><strong>DataSet API</strong></a></li>
-                <li><a href="{{ apis }}/streaming_guide.html"><strong>DataStream API</strong></a></li>
-                <li><a href="{{ apis }}/python.html">Python API <span class="badge">Beta</span></a></li>
-
-                <li class="divider"></li>
-                <li><a href="{{ apis }}/fault_tolerance.html">Fault Tolerance</a></li>
-                <li><a href="{{ apis }}/state_backends.html">State in Streaming Programs</a></li>
-                <li><a href="{{ apis }}/savepoints.html">Savepoints</a></li>
-                <li><a href="{{ apis }}/scala_shell.html">Interactive Scala Shell</a></li>
-                <li><a href="{{ apis }}/dataset_transformations.html">DataSet Transformations</a></li>
-                <li><a href="{{ apis }}/best_practices.html">Best Practices</a></li>
-                <li><a href="{{ apis }}/example_connectors.html">Connectors (DataSet API)</a></li>
-                <li><a href="{{ apis }}/examples.html">Examples</a></li>
-                <li><a href="{{ apis }}/local_execution.html">Local Execution</a></li>
-                <li><a href="{{ apis }}/cluster_execution.html">Cluster Execution</a></li>
-                <li><a href="{{ apis }}/cli.html">Command Line Interface</a></li>
-                <li><a href="{{ apis }}/iterations.html">Iterations (DataSet API)</a></li>
-                <li><a href="{{ apis }}/java8.html">Java 8</a></li>
-                <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatibility <span class="badge">Beta</span></a></li>
-                <li><a href="{{ apis }}/storm_compatibility.html">Storm Compatibility <span class="badge">Beta</span></a></li>
+                {% assign apis_group = (site.pages | where: "top-nav-group" , "apis" | sort: "top-nav-pos") %}
+                {% for apis_group_page in apis_group %}
+                <li class="{% if page.url contains apis_group_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ apis_group_page.url }}">{% if apis_group_page.top-nav-title %}{{ apis_group_page.top-nav-title }}{% else %}{{ apis_group_page.title }}{% endif %}</a></li>
+                {% endfor %}
               </ul>
             </li>
 
@@ -102,9 +85,10 @@ under the License.
             <li class="dropdown{% if page.url contains '/libs/' %} active{% endif %}">
               <a href="{{ libs }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Libraries <span class="caret"></span></a>
                 <ul class="dropdown-menu" role="menu">
-                  <li><a href="{{ libs }}/gelly_guide.html">Graphs: Gelly</a></li>
-                  <li><a href="{{ libs }}/ml/">Machine Learning <span class="badge">Beta</span></a></li>
-                  <li><a href="{{ libs }}/table.html">Relational: Table <span class="badge">Beta</span></a></li>
+                  {% assign libs_group = (site.pages | where: "top-nav-group" , "libs" | sort: "top-nav-pos") %}
+                  {% for libs_page in libs_group %}
+                  <li class="{% if page.url contains libs_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ libs_page.url }}">{% if libs_page.top-nav-title %}{{ libs_page.top-nav-title }}{% else %}{{ libs_page.title }}{% endif %}</a></li>
+                  {% endfor %}
               </ul>
             </li>
 
@@ -115,16 +99,10 @@ under the License.
                 <li role="presentation" class="dropdown-header"><strong>Contribute</strong></li>
                 <li><a href="http://flink.apache.org/how-to-contribute.html"><small><span class="glyphicon glyphicon-new-window"></span></small> How to Contribute</a></li>
                 <li><a href="http://flink.apache.org/contribute-code.html#coding-guidelines"><small><span class="glyphicon glyphicon-new-window"></span></small> Coding Guidelines</a></li>
-                <li><a href="{{ internals }}/ide_setup.html">IDE Setup</a></li>
-                <li><a href="{{ internals }}/logging.html">Logging</a></li>
-                <li class="divider"></li>
-                <li role="presentation" class="dropdown-header"><strong>Internals</strong></li>
-                <li><a href="{{ internals }}/general_arch.html">Architecture &amp; Process Model</a></li>
-                <li><a href="{{ internals }}/stream_checkpointing.html">Fault Tolerance for Data Streaming</a></li>
-                <li><a href="{{ internals }}/types_serialization.html">Type Extraction &amp; Serialization</a></li>
-                <li><a href="{{ internals }}/monitoring_rest_api.html">Monitoring REST API</a></li>
-                <li><a href="{{ internals }}/job_scheduling.html">Jobs &amp; Scheduling</a></li>
-                <li><a href="{{ internals }}/add_operator.html">How-To: Add an Operator</a></li>
+                {% assign internals_group = (site.pages | where: "top-nav-group" , "internals" | sort: "top-nav-pos") %}
+                {% for internals_page in internals_group %}
+                <li class="{% if page.url contains internals_page.url %}active{% endif %}"><a href="{{ site.baseurl }}{{ internals_page.url }}">{% if internals_page.top-nav-title %}{{ internals_page.top-nav-title }}{% else %}{{ internals_page.title }}{% endif %}</a></li>
+                {% endfor %}
               </ul>
             </li>
           </ul>

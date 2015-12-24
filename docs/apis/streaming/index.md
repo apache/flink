@@ -1,6 +1,16 @@
 ---
 title: "Flink DataStream API Programming Guide"
-is_beta: false
+
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 1
+top-nav-title: <strong>Streaming Guide</strong> (DataStream API)
+
+# Sub-level navigation
+sub-nav-group: streaming
+sub-nav-group-title: Streaming Guide
+sub-nav-pos: 1
+sub-nav-title: DataStream API
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +30,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<a href="#top"></a>
 
 DataStream programs in Flink are regular programs that implement transformations on data streams
 (e.g., filtering, updating state, defining windows, aggregating). The data streams are initially created from various
@@ -128,7 +136,7 @@ Just type some words hitting return for a new word. These will be the input to t
 word count program. If you want to see counts greater than 1, type the same word again and again within
 5 seconds (increase the window size from 5 seconds if you cannot type that fast &#9786;).
 
-[Back to top](#top)
+{% top %}
 
 
 Linking with Flink
@@ -201,7 +209,7 @@ In order to create your own Flink program, we encourage you to start with the
 [program skeleton](#program-skeleton) and gradually add your own
 [transformations](#transformations).
 
-[Back to top](#top)
+{% top %}
 
 Program Skeleton
 ----------------
@@ -241,8 +249,8 @@ Typically, you only need to use `getExecutionEnvironment()`, since this
 will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
-you created a JAR file from your program, and invoke it through the [command line](cli.html)
-or the [web interface](web_client.html),
+you created a JAR file from your program, and invoke it through the [command line]({{ site.baseurl }}/apis/cli.html)
+or the [web interface]({{ site.baseurl }}/apis/web_client.html),
 the Flink cluster manager will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -398,7 +406,7 @@ env.execute()
 </div>
 </div>
 
-[Back to top](#top)
+{% top %}
 
 DataStream Abstraction
 ----------------------
@@ -409,7 +417,7 @@ Transformations may return different subtypes of `DataStream` allowing specializ
 For example the `keyBy(…)` method returns a `KeyedDataStream` which is a stream of data that
 is logically partitioned by a certain key, and can be further windowed.
 
-[Back to top](#top)
+{% top %}
 
 Lazy Evaluation
 ---------------
@@ -423,7 +431,7 @@ or on a cluster depends on the type of `StreamExecutionEnvironment`.
 The lazy evaluation lets you construct sophisticated programs that Flink executes as one
 holistically planned unit.
 
-[Back to top](#top)
+{% top %}
 
 
 Transformations
@@ -603,12 +611,12 @@ dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // L
             <p><strong>Note:</strong> If you are using a windowAll transformation, you need to use an AllWindowFunction instead.</p>
     {% highlight java %}
 windowedStream.apply (new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, Window>() {
-    public void apply (Tuple key,
+    public void apply (Tuple tuple,
             Window window,
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
         int sum = 0;
-        for (Tuple2<String,Integer> t: values) {
+        for (value t: values) {
             sum += t.f1;
         }
         out.collect (new Integer(sum));
@@ -621,7 +629,7 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
         int sum = 0;
-        for (Tuple2<String,Integer> t: values) {
+        for (value t: values) {
             sum += t.f1;
         }
         out.collect (new Integer(sum));
@@ -1438,7 +1446,7 @@ someStream.map(...).disableChaining();
    <tr>
       <td>Start a new resource group</td>
       <td>
-        <p>Start a new resource group containing the filter and the subsequent operators.
+        <p>Start a new resource group containing the map and the subsequent operators.
 {% highlight java %}
 someStream.filter(...).startNewResourceGroup();
 {% endhighlight %}
@@ -1521,7 +1529,7 @@ someStream.map(...).isolateResources()
 </div>
 
 
-[Back to top](#top)
+{% top %}
 
 Specifying Keys
 ----------------
@@ -1542,7 +1550,7 @@ you do not need to physically pack the data stream types into keys and
 values. Keys are "virtual": they are defined as functions over the
 actual data to guide the grouping operator.
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#specifying-keys) on how to specify keys.
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#specifying-keys) on how to specify keys.
 Just replace `DataSet` with `DataStream`, and `groupBy` with `keyBy`.
 
 
@@ -1552,10 +1560,10 @@ Passing Functions to Flink
 
 Some transformations take user-defined functions as arguments.
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#passing-functions-to-flink).
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#passing-functions-to-flink).
 
 
-[Back to top](#top)
+{% top %}
 
 
 Data Types
@@ -1565,9 +1573,9 @@ Flink places some restrictions on the type of elements that are used in DataStre
 of transformations. The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#data-types).
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#data-types).
 
-[Back to top](#top)
+{% top %}
 
 
 Data Sources
@@ -1622,7 +1630,7 @@ Collection-based:
 Custom:
 
 - `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer082<>(...))`. See [connectors](#connectors) for more details.
+    `addSource(new FlinkKafkaConsumer082<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
 
 </div>
 
@@ -1674,12 +1682,12 @@ Collection-based:
 Custom:
 
 - `addSource` - Attache a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer082<>(...))`. See [connectors](#connectors) for more details.
+    `addSource(new FlinkKafkaConsumer082<>(...))`. See [connectors]({{ site.baseurl }}/apis/streaming/connectors/) for more details.
 
 </div>
 </div>
 
-[Back to top](#top)
+{% top %}
 
 
 Execution Configuration
@@ -1687,7 +1695,7 @@ Execution Configuration
 
 The `StreamExecutionEnvironment` also contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#execution-configuration).
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#execution-configuration).
 
 Parameters in the `ExecutionConfig` that pertain specifically to the DataStream API are:
 
@@ -1697,7 +1705,7 @@ Parameters in the `ExecutionConfig` that pertain specifically to the DataStream 
 - `setAutoWatermarkInterval(long milliseconds)`: Set the interval for automatic watermark emission. You can
     get the current value with `long getAutoWatermarkInterval()`
 
-[Back to top](#top)
+{% top %}
 
 Data Sinks
 ----------
@@ -1762,7 +1770,7 @@ greater than 1, the output will also be prepended with the identifier of the tas
 </div>
 
 
-[Back to top](#top)
+{% top %}
 
 Debugging
 ---------
@@ -1881,7 +1889,7 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.getJava
 </div>
 
 
-[Back to top](#top)
+{% top %}
 
 
 Windows
@@ -2937,14 +2945,14 @@ nonKeyedStream.countWindowAll(1000, 100)
 </div>
 </div>
 
-[Back to top](#top)
+{% top %}
 
 Execution Parameters
 --------------------
 
 ### Fault Tolerance
 
-The [Fault Tolerance Documentation]({{ site.baseurl }}/apis/fault_tolerance.html) describes the options and parameters to enable and configure Flink's checkpointing mechanism.
+The [Fault Tolerance Documentation](fault_tolerance.html) describes the options and parameters to enable and configure Flink's checkpointing mechanism.
 
 ### Parallelism
 
@@ -2985,7 +2993,7 @@ To maximize throughput, set `setBufferTimeout(-1)` which will remove the timeout
 flushed when they are full. To minimize latency, set the timeout to a value close to 0 (for example 5 or 10 ms).
 A buffer timeout of 0 should be avoided, because it can cause severe performance degradation.
 
-[Back to top](#top)
+{% top %}
 
 Working with State
 ------------------
@@ -3161,7 +3169,7 @@ Flink currently only provides processing guarantees for jobs without iterations.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
-[Back to top](#top)
+{% top %}
 
 Iterations
 ----------
@@ -3274,765 +3282,25 @@ val iteratedStream = someIntegers.iterate(
 </div>
 </div>
 
-[Back to top](#top)
-
-Connectors
-----------
-
-<!-- TODO: reintroduce flume -->
-Connectors provide code for interfacing with various third-party systems.
-
-Currently these systems are supported:
-
- * [Apache Kafka](https://kafka.apache.org/) (sink/source)
- * [Elasticsearch](https://elastic.co/) (sink)
- * [Hadoop FileSystem](http://hadoop.apache.org) (sink)
- * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
- * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
-
-To run an application using one of these connectors, additional third party
-components are usually required to be installed and launched, e.g. the servers
-for the message queues. Further instructions for these can be found in the
-corresponding subsections. [Docker containers](#docker-containers-for-connectors)
-are also provided encapsulating these services to aid users getting started
-with connectors.
-
-### Apache Kafka
-
-This connector provides access to event streams served by [Apache Kafka](https://kafka.apache.org/).
-
-Flink provides special Kafka Connectors for reading and writing data from/to Kafka topics.
-The Flink Kafka Consumer integrates with Flink's checkpointing mechanism to provide
-exactly-once processing semantics. To achieve that, Flink does not purely rely on Kafka's consumer group
-offset tracking, but tracks and checkpoints these offsets internally as well.
-
-Please pick a package (maven artifact id) and class name for your use-case and environment.
-For most users, the `FlinkKafkaConsumer082` (part of `flink-connector-kafka`) is appropriate.
-
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left">Maven Dependency</th>
-      <th class="text-left">Supported since</th>
-      <th class="text-left">Class name</th>
-      <th class="text-left">Kafka version</th>
-      <th class="text-left">Notes</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td>flink-connector-kafka</td>
-        <td>0.9.1, 0.10</td>
-        <td>FlinkKafkaConsumer081</td>
-        <td>0.8.1</td>
-        <td>Uses the <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API of Kafka internally. Offsets are committed to ZK by Flink.</td>
-    </tr>
-    <tr>
-        <td>flink-connector-kafka</td>
-        <td>0.9.1, 0.10</td>
-        <td>FlinkKafkaConsumer082</td>
-        <td>0.8.2</td>
-        <td>Uses the <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API of Kafka internally. Offsets are committed to ZK by Flink.</td>
-    </tr>
-  </tbody>
-</table>
-
-Then, import the connector in your maven project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kafka</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
-Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
-
-#### Installing Apache Kafka
-
-* Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
-* On 32 bit computers [this](http://stackoverflow.com/questions/22325364/unrecognized-vm-option-usecompressedoops-when-running-kafka-from-my-ubuntu-in) problem may occur.
-* If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file must be set to the machine's IP address.
-
-#### Kafka Consumer
-
-The standard `FlinkKafkaConsumer082` is a Kafka consumer providing access to one topic. It takes the following parameters to the constructor:
-
-1. The topic name
-2. A DeserializationSchema
-3. Properties for the Kafka consumer.
-  The following properties are required:
-  - "bootstrap.servers" (comma separated list of Kafka brokers)
-  - "zookeeper.connect" (comma separated list of Zookeeper servers)
-  - "group.id" the id of the consumer group
-
-Example:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-Properties properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-properties.setProperty("zookeeper.connect", "localhost:2181");
-properties.setProperty("group.id", "test");
-DataStream<String> stream = env
-	.addSource(new FlinkKafkaConsumer082<>("topic", new SimpleStringSchema(), properties))
-	.print();
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-properties.setProperty("zookeeper.connect", "localhost:2181");
-properties.setProperty("group.id", "test");
-stream = env
-    .addSource(new FlinkKafkaConsumer082[String]("topic", new SimpleStringSchema(), properties))
-    .print
-{% endhighlight %}
-</div>
-</div>
-
-#### Kafka Consumers and Fault Tolerance
-
-With Flink's checkpointing enabled, the Flink Kafka Consumer will consume records from a topic and periodically checkpoint all
-its Kafka offsets, together with the state of other operations, in a consistent manner. In case of a job failure, Flink will restore
-the streaming program to the state of the latest checkpoint and re-consume the records from Kafka, starting from the offsets that where
-stored in the checkpoint.
-
-The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
-
-To use fault tolerant Kafka Consumers, checkpointing of the topology needs to be enabled at the execution environment:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.enableCheckpointing(5000); // checkpoint every 5000 msecs
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.enableCheckpointing(5000) // checkpoint every 5000 msecs
-{% endhighlight %}
-</div>
-</div>
-
-Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
-So if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
-Flink on YARN supports automatic restart of lost YARN containers.
-
-If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
-
-#### Kafka Producer
-
-The `FlinkKafkaProducer` writes data to a Kafka topic. The producer can specify a custom partitioner that assigns
-recors to partitions.
-
-Example:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-stream.addSink(new FlinkKafkaProducer<String>("localhost:9092", "my-topic", new SimpleStringSchema()));
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-stream.addSink(new FlinkKafkaProducer[String]("localhost:9092", "my-topic", new SimpleStringSchema()))
-{% endhighlight %}
-</div>
-</div>
-
-You can also define a custom Kafka producer configuration for the KafkaSink with the constructor. Please refer to
-the [Apache Kafka documentation](https://kafka.apache.org/documentation.html) for details on how to configure
-Kafka Producers.
-
-[Back to top](#top)
-
-### Elasticsearch
-
-This connector provides a Sink that can write to an
-[Elasticsearch](https://elastic.co/) Index. To use this connector, add the
-following dependency to your project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-elasticsearch</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
-Note that the streaming connectors are currently not part of the binary
-distribution. See
-[here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
-for information about how to package the program with the libraries for
-cluster execution.
-
-#### Installing Elasticsearch
-
-Instructions for setting up an Elasticsearch cluster can be found
-[here](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html).
-Make sure to set and remember a cluster name. This must be set when
-creating a Sink for writing to your cluster
-
-#### Elasticsearch Sink
-The connector provides a Sink that can send data to an Elasticsearch Index.
-
-The sink can use two different methods for communicating with Elasticsearch:
-
-1. An embedded Node
-2. The TransportClient
-
-See [here](https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/client.html)
-for information about the differences between the two modes.
-
-This code shows how to create a sink that uses an embedded Node for
-communication:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<String> input = ...;
-
-Map<String, String> config = Maps.newHashMap();
-// This instructs the sink to emit after every element, otherwise they would be buffered
-config.put("bulk.flush.max.actions", "1");
-config.put("cluster.name", "my-cluster-name");
-
-input.addSink(new ElasticsearchSink<>(config, new IndexRequestBuilder<String>() {
-    @Override
-    public IndexRequest createIndexRequest(String element, RuntimeContext ctx) {
-        Map<String, Object> json = new HashMap<>();
-        json.put("data", element);
-
-        return Requests.indexRequest()
-                .index("my-index")
-                .type("my-type")
-                .source(json);
-    }
-}));
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[String] = ...
-
-val config = new util.HashMap[String, String]
-config.put("bulk.flush.max.actions", "1")
-config.put("cluster.name", "my-cluster-name")
-
-text.addSink(new ElasticsearchSink(config, new IndexRequestBuilder[String] {
-  override def createIndexRequest(element: String, ctx: RuntimeContext): IndexRequest = {
-    val json = new util.HashMap[String, AnyRef]
-    json.put("data", element)
-    println("SENDING: " + element)
-    Requests.indexRequest.index("my-index").`type`("my-type").source(json)
-  }
-}))
-{% endhighlight %}
-</div>
-</div>
-
-Note how a Map of Strings is used to configure the Sink. The configuration keys
-are documented in the Elasticsearch documentation
-[here](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html).
-Especially important is the `cluster.name` parameter that must correspond to
-the name of your cluster.
-
-Internally, the sink uses a `BulkProcessor` to send index requests to the cluster.
-This will buffer elements before sending a request to the cluster. The behaviour of the
-`BulkProcessor` can be configured using these config keys:
- * **bulk.flush.max.actions**: Maximum amount of elements to buffer
- * **bulk.flush.max.size.mb**: Maximum amount of data (in megabytes) to buffer
- * **bulk.flush.interval.ms**: Interval at which to flush data regardless of the other two
-  settings in milliseconds
-
-This example code does the same, but with a `TransportClient`:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<String> input = ...;
-
-Map<String, String> config = Maps.newHashMap();
-// This instructs the sink to emit after every element, otherwise they would be buffered
-config.put("bulk.flush.max.actions", "1");
-config.put("cluster.name", "my-cluster-name");
-
-List<TransportAddress> transports = new ArrayList<String>();
-transports.add(new InetSocketTransportAddress("node-1", 9300));
-transports.add(new InetSocketTransportAddress("node-2", 9300));
-
-input.addSink(new ElasticsearchSink<>(config, transports, new IndexRequestBuilder<String>() {
-    @Override
-    public IndexRequest createIndexRequest(String element, RuntimeContext ctx) {
-        Map<String, Object> json = new HashMap<>();
-        json.put("data", element);
-
-        return Requests.indexRequest()
-                .index("my-index")
-                .type("my-type")
-                .source(json);
-    }
-}));
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[String] = ...
-
-val config = new util.HashMap[String, String]
-config.put("bulk.flush.max.actions", "1")
-config.put("cluster.name", "my-cluster-name")
-
-val transports = new ArrayList[String]
-transports.add(new InetSocketTransportAddress("node-1", 9300))
-transports.add(new InetSocketTransportAddress("node-2", 9300))
-
-text.addSink(new ElasticsearchSink(config, transports, new IndexRequestBuilder[String] {
-  override def createIndexRequest(element: String, ctx: RuntimeContext): IndexRequest = {
-    val json = new util.HashMap[String, AnyRef]
-    json.put("data", element)
-    println("SENDING: " + element)
-    Requests.indexRequest.index("my-index").`type`("my-type").source(json)
-  }
-}))
-{% endhighlight %}
-</div>
-</div>
-
-The difference is that we now need to provide a list of Elasticsearch Nodes
-to which the sink should connect using a `TransportClient`.
-
-More about information about Elasticsearch can be found [here](https://elastic.co).
-
-[Back to top](#top)
-
-### Hadoop FileSystem
-
-This connector provides a Sink that writes rolling files to any filesystem supported by
-Hadoop FileSystem. To use this connector, add the
-following dependency to your project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-filesystem</artifactId>
-  <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
-
-Note that the streaming connectors are currently not part of the binary
-distribution. See
-[here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution)
-for information about how to package the program with the libraries for
-cluster execution.
-
-#### Rolling File Sink
-
-The rolling behaviour as well as the writing can be configured but we will get to that later.
-This is how you can create a default rolling sink:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<String> input = ...;
-
-input.addSink(new RollingSink<String>("/base/path"));
-
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[String] = ...
-
-input.addSink(new RollingSink("/base/path"))
-
-{% endhighlight %}
-</div>
-</div>
-
-The only required parameter is the base path where the rolling files (buckets) will be
-stored. The sink can be configured by specifying a custom bucketer, writer and batch size.
-
-By default the rolling sink will use the pattern `"yyyy-MM-dd--HH"` to name the rolling buckets.
-This pattern is passed to `SimpleDateFormat` with the current system time to form a bucket path. A
-new bucket will be created whenever the bucket path changes. For example, if you have a pattern
-that contains minutes as the finest granularity you will get a new bucket every minute.
-Each bucket is itself a directory that contains several part files: Each parallel instance
-of the sink will create its own part file and when part files get too big the sink will also
-create a new part file next to the others. To specify a custom bucketer use `setBucketer()`
-on a `RollingSink`.
-
-The default writer is `StringWriter`. This will call `toString()` on the incoming elements
-and write them to part files, separated by newline. To specify a custom writer use `setWriter()`
-on a `RollingSink`. If you want to write Hadoop SequenceFiles you can use the provided
-`SequenceFileWriter` which can also be configured to use compression.
-
-The last configuration option is the batch size. This specifies when a part file should be closed
-and a new one started. (The default part file size is 384 MB).
-
-Example:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<Tuple2<IntWritable,Text>> input = ...;
-
-RollingSink sink = new RollingSink<String>("/base/path");
-sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm"));
-sink.setWriter(new SequenceFileWriter<IntWritable, Text>());
-sink.setBatchSize(1024 * 1024 * 400); // this is 400 MB,
-
-input.addSink(sink);
-
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[Tuple2[IntWritable, Text]] = ...
-
-val sink = new RollingSink[String]("/base/path")
-sink.setBucketer(new DateTimeBucketer("yyyy-MM-dd--HHmm"))
-sink.setWriter(new SequenceFileWriter[IntWritable, Text]())
-sink.setBatchSize(1024 * 1024 * 400) // this is 400 MB,
-
-input.addSink(sink)
-
-{% endhighlight %}
-</div>
-</div>
-
-This will create a sink that writes to bucket files that follow this schema:
-
-```
-/base/path/{date-time}/part-{parallel-task}-{count}
-```
-
-Where `date-time` is the string that we get from the date/time format, `parallel-task` is the index
-of the parallel sink instance and `count` is the running number of part files that where created
-because of the batch size.
-
-For in-depth information, please refer to the JavaDoc for
-[RollingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/RollingSink.html).
-
-[Back to top](#top)
-
-### RabbitMQ
-
-This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-rabbitmq</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
-Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
-
-#### Installing RabbitMQ
-Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
-
-#### RabbitMQ Source
-
-A class which provides an interface for receiving data from RabbitMQ.
-
-The followings have to be provided for the `RMQSource(…)` constructor in order:
-
-- hostName: The RabbitMQ broker hostname.
-- queueName: The RabbitMQ queue name.
-- usesCorrelationId: `true` when correlation ids should be used, `false` otherwise (default is `false`).
-- deserializationScehma: Deserialization schema to turn messages into Java objects.
-
-This source can be operated in three different modes:
-
-1. Exactly-once (when checkpointed) with RabbitMQ transactions and messages with
-    unique correlation IDs.
-2. At-least-once (when checkpointed) with RabbitMQ transactions but no deduplication mechanism
-    (correlation id is not set).
-3. No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
-
-Correlation ids are a RabbitMQ application feature. You have to set it in the message properties
-when injecting messages into RabbitMQ. If you set `usesCorrelationId` to true and do not supply
-unique correlation ids, the source will throw an exception (if the correlation id is null) or ignore
-messages with non-unique correlation ids. If you set `usesCorrelationId` to false, then you don't
-have to supply correlation ids.
-
-Example:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<String> streamWithoutCorrelationIds = env
-	.addSource(new RMQSource<String>("localhost", "hello", new SimpleStringSchema()))
-	.print
-
-DataStream<String> streamWithCorrelationIds = env
-	.addSource(new RMQSource<String>("localhost", "hello", true, new SimpleStringSchema()))
-	.print
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-streamWithoutCorrelationIds = env
-    .addSource(new RMQSource[String]("localhost", "hello", new SimpleStringSchema))
-    .print
-
-streamWithCorrelationIds = env
-    .addSource(new RMQSource[String]("localhost", "hello", true, new SimpleStringSchema))
-    .print
-{% endhighlight %}
-</div>
-</div>
-
-#### RabbitMQ Sink
-A class providing an interface for sending data to RabbitMQ.
-
-The followings have to be provided for the `RMQSink(…)` constructor in order:
-
-1. The hostname
-2. The queue name
-3. Serialization schema
-
-Example:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-stream.addSink(new RMQSink<String>("localhost", "hello", new StringToByteSerializer()));
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-stream.addSink(new RMQSink[String]("localhost", "hello", new StringToByteSerializer))
-{% endhighlight %}
-</div>
-</div>
-
-More about RabbitMQ can be found [here](http://www.rabbitmq.com/).
-
-[Back to top](#top)
-
-### Twitter Streaming API
-
-Twitter Streaming API provides opportunity to connect to the stream of tweets made available by Twitter. Flink Streaming comes with a built-in `TwitterSource` class for establishing a connection to this stream. To use this connector, add the following dependency to your project:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-twitter</artifactId>
-  <version>{{site.version }}</version>
-</dependency>
-{% endhighlight %}
-
-Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
-
-#### Authentication
-In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
-
-#### Acquiring the authentication information
-First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup) or sign in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions.
-After selecting the application, the API key and API secret (called `consumerKey` and `consumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. The necessary OAuth Access Token data (`token` and `secret` in `TwitterSource`) can be generated and acquired on the "Keys and Access Tokens" tab.
-Remember to keep these pieces of information secret and do not push them to public repositories.
-
-#### Accessing the authentication information
-Create a properties file, and pass its path in the constructor of `TwitterSource`. The content of the file should be similar to this:
-
-~~~bash
-#properties file for my app
-secret=***
-consumerSecret=***
-token=***-***
-consumerKey=***
-~~~
-
-#### Constructors
-The `TwitterSource` class has two constructors.
-
-1. `public TwitterSource(String authPath, int numberOfTweets);`
-to emit a finite number of tweets
-2. `public TwitterSource(String authPath);`
-for streaming
-
-Both constructors expect a `String authPath` argument determining the location of the properties file containing the authentication information. In the first case, `numberOfTweets` determines how many tweet the source emits.
-
-#### Usage
-In contrast to other connectors, the `TwitterSource` depends on no additional services. For example the following code should run gracefully:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<String> streamSource = env.addSource(new TwitterSource("/PATH/TO/myFile.properties"));
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-streamSource = env.addSource(new TwitterSource("/PATH/TO/myFile.properties"))
-{% endhighlight %}
-</div>
-</div>
-
-The `TwitterSource` emits strings containing a JSON code.
-To retrieve information from the JSON code you can add a FlatMap or a Map function handling JSON code. For example, there is an implementation `JSONParseFlatMap` abstract class among the examples. `JSONParseFlatMap` is an extension of the `FlatMapFunction` and has a
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-String getField(String jsonText, String field);
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-getField(jsonText : String, field : String) : String
-{% endhighlight %}
-</div>
-</div>
-
-function which can be use to acquire the value of a given field.
-
-There are two basic types of tweets. The usual tweets contain information such as date and time of creation, id, user, language and many more details. The other type is the delete information.
-
-#### Example
-`TwitterStream` is an example of how to use `TwitterSource`. It implements a language frequency counter program.
-
-[Back to top](#top)
-
-### Docker containers for connectors
-
-A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer.
-
-#### Installing Docker
-The official Docker installation guide can be found [here](https://docs.docker.com/installation/).
-After installing Docker an image can be pulled for each connector. Containers can be started from these images where all the required configurations are set.
-
-#### Creating a jar with all the dependencies
-For the easiest setup, create a jar with all the dependencies of the *flink-streaming-connectors* project.
-
-~~~bash
-cd /PATH/TO/GIT/flink/flink-streaming-connectors
-mvn assembly:assembly
-~~~bash
-
-This creates an assembly jar under *flink-streaming-connectors/target*.
-
-#### RabbitMQ
-Pull the docker image:
-
-~~~bash
-sudo docker pull flinkstreaming/flink-connectors-rabbitmq
-~~~
-
-To run the container, type:
-
-~~~bash
-sudo docker run -p 127.0.0.1:5672:5672 -t -i flinkstreaming/flink-connectors-rabbitmq
-~~~
-
-Now a terminal has started running from the image with all the necessary configurations to test run the RabbitMQ connector. The -p flag binds the localhost's and the Docker container's ports so RabbitMQ can communicate with the application through these.
-
-To start the RabbitMQ server:
-
-~~~bash
-sudo /etc/init.d/rabbitmq-server start
-~~~
-
-To launch the example on the host computer, execute:
-
-~~~bash
-java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.rabbitmq.RMQTopology \
-> log.txt 2> errorlog.txt
-~~~
-
-There are two connectors in the example. One that sends messages to RabbitMQ, and one that receives messages from the same queue. In the logger messages, the arriving messages can be observed in the following format:
-
-~~~
-<DATE> INFO rabbitmq.RMQTopology: String: <one> arrived from RMQ
-<DATE> INFO rabbitmq.RMQTopology: String: <two> arrived from RMQ
-<DATE> INFO rabbitmq.RMQTopology: String: <three> arrived from RMQ
-<DATE> INFO rabbitmq.RMQTopology: String: <four> arrived from RMQ
-<DATE> INFO rabbitmq.RMQTopology: String: <five> arrived from RMQ
-~~~
-
-#### Apache Kafka
-
-Pull the image:
-
-~~~bash
-sudo docker pull flinkstreaming/flink-connectors-kafka
-~~~
-
-To run the container type:
-
-~~~bash
-sudo docker run -p 127.0.0.1:2181:2181 -p 127.0.0.1:9092:9092 -t -i \
-flinkstreaming/flink-connectors-kafka
-~~~
-
-Now a terminal has started running from the image with all the necessary configurations to test run the Kafka connector. The -p flag binds the localhost's and the Docker container's ports so Kafka can communicate with the application through these.
-First start a zookeeper in the background:
-
-~~~bash
-/kafka_2.9.2-0.8.1.1/bin/zookeeper-server-start.sh /kafka_2.9.2-0.8.1.1/config/zookeeper.properties \
-> zookeeperlog.txt &
-~~~
-
-Then start the kafka server in the background:
-
-~~~bash
-/kafka_2.9.2-0.8.1.1/bin/kafka-server-start.sh /kafka_2.9.2-0.8.1.1/config/server.properties \
- > serverlog.txt 2> servererr.txt &
-~~~
-
-To launch the example on the host computer execute:
-
-~~~bash
-java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.kafka.KafkaTopology \
-> log.txt 2> errorlog.txt
-~~~
-
-
-In the example there are two connectors. One that sends messages to Kafka, and one that receives messages from the same queue. In the logger messages, the arriving messages can be observed in the following format:
-
-~~~
-<DATE> INFO kafka.KafkaTopology: String: (0) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (1) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (2) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (3) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (4) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (5) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (6) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (7) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (8) arrived from Kafka
-<DATE> INFO kafka.KafkaTopology: String: (9) arrived from Kafka
-~~~
-
-
-[Back to top](#top)
+{% top %}
 
 Program Packaging & Distributed Execution
 -----------------------------------------
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#program-packaging-and-distributed-execution).
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#program-packaging-and-distributed-execution).
 
-[Back to top](#top)
+{% top %}
 
 Parallel Execution
 ------------------
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#parallel-execution).
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#parallel-execution).
 
-[Back to top](#top)
+{% top %}
 
 Execution Plans
 ---------------
 
-See [the relevant section of the DataSet API documentation](programming_guide.html#execution-plans).
+See [the relevant section of the DataSet API documentation]({{ site.baseurl }}/apis/batch/index.html#execution-plans).
 
-[Back to top](#top)
+{% top %}

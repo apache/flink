@@ -1,7 +1,10 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Looking under the hood of piplines
-title: <a href="../ml">FlinkML</a> - Looking under the hood of pipelines
+title: FlinkML - Looking under the hood of pipelines
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Pipelines
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
