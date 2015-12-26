@@ -49,7 +49,7 @@ public class SingleJoinExample {
 
 		// emit result
 		if (args.length > 0) {
-        	// read the text file from given input path
+			// read the text file from given input path
 			builder.setBolt("fileOutput", new BoltFileSink(args[0], new TupleOutputFormatter()))
 				.shuffleGrouping("join");
 		} else {

@@ -27,7 +27,7 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.IRichStateSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -36,8 +36,9 @@ import org.apache.flink.storm.util.SplitStreamMapper;
 import org.apache.flink.storm.util.SplitStreamType;
 import org.apache.flink.storm.util.StormStreamSelector;
 import org.apache.flink.storm.wrappers.BoltWrapper;
-import org.apache.flink.storm.wrappers.BoltWrapperTwoInput;
+import org.apache.flink.storm.wrappers.MergedInputsBoltWrapper;
 import org.apache.flink.storm.wrappers.SpoutWrapper;
+import org.apache.flink.storm.wrappers.StormTuple;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -139,7 +140,7 @@ public class FlinkTopology {
 			return InstantiationUtil.deserializeObject(
 					InstantiationUtil.serializeObject(object),
 					getClass().getClassLoader()
-			);
+					);
 		} catch (IOException | ClassNotFoundException e) {
 			throw new RuntimeException("Failed to copy object.");
 		}
@@ -218,13 +219,13 @@ public class FlinkTopology {
 		}
 
 		/**
-		* 1. Connect all spout streams with bolts streams
-		* 2. Then proceed with the bolts stream already connected
-		*
-		*  Because we do not know the order in which an iterator steps over a set, we might process a consumer before
-		* its producer
-		* ->thus, we might need to repeat multiple times
-		*/
+		 * 1. Connect all spout streams with bolts streams
+		 * 2. Then proceed with the bolts stream already connected
+		 *
+		 *  Because we do not know the order in which an iterator steps over a set, we might process a consumer before
+		 * its producer
+		 * ->thus, we might need to repeat multiple times
+		 */
 		boolean makeProgress = true;
 		while (bolts.size() > 0) {
 			if (!makeProgress) {
@@ -283,28 +284,8 @@ public class FlinkTopology {
 					inputStreams.put(streamId, processInput(boltId, userBolt, streamId, grouping, producer));
 				}
 
-				final Iterator<Entry<GlobalStreamId, DataStream<Tuple>>> iterator = inputStreams.entrySet().iterator();
-
-				final Entry<GlobalStreamId, DataStream<Tuple>> firstInput = iterator.next();
-				GlobalStreamId streamId = firstInput.getKey();
-				DataStream<Tuple> inputStream = firstInput.getValue();
-
-				final SingleOutputStreamOperator<?, ?> outputStream;
-
-				switch (numberOfInputs) {
-					case 1:
-						outputStream = createOutput(boltId, userBolt, streamId, inputStream);
-						break;
-					case 2:
-						Entry<GlobalStreamId, DataStream<Tuple>> secondInput = iterator.next();
-						GlobalStreamId streamId2 = secondInput.getKey();
-						DataStream<Tuple> inputStream2 = secondInput.getValue();
-						outputStream = createOutput(boltId, userBolt, streamId, inputStream, streamId2, inputStream2);
-						break;
-					default:
-						throw new UnsupportedOperationException("Don't know how to translate a bolt "
-								+ boltId + " with " + numberOfInputs + " inputs.");
-				}
+				final SingleOutputStreamOperator<?, ?> outputStream = createOutput(boltId,
+						userBolt, inputStreams);
 
 				if (common.is_set_parallelism_hint()) {
 					int dop = common.get_parallelism_hint();
@@ -318,14 +299,14 @@ public class FlinkTopology {
 	}
 
 	private DataStream<Tuple> processInput(String boltId, IRichBolt userBolt,
-										GlobalStreamId streamId, Grouping grouping,
-										Map<String, DataStream<Tuple>> producer) {
+			GlobalStreamId streamId, Grouping grouping,
+			Map<String, DataStream<Tuple>> producer) {
 
 		assert (userBolt != null);
-		assert(boltId != null);
-		assert(streamId != null);
-		assert(grouping != null);
-		assert(producer != null);
+		assert (boltId != null);
+		assert (streamId != null);
+		assert (grouping != null);
+		assert (producer != null);
 
 		final String producerId = streamId.get_componentId();
 		final String inputStreamId = streamId.get_streamId();
@@ -362,24 +343,50 @@ public class FlinkTopology {
 		return inputStream;
 	}
 
-	private SingleOutputStreamOperator<?, ?> createOutput(String boltId, IRichBolt bolt, GlobalStreamId streamId, DataStream<Tuple> inputStream) {
-		return createOutput(boltId, bolt, streamId, inputStream, null, null);
-	}
-
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private SingleOutputStreamOperator<?, ?> createOutput(String boltId, IRichBolt bolt,
-														GlobalStreamId streamId, DataStream<Tuple> inputStream,
-														GlobalStreamId streamId2, DataStream<Tuple> inputStream2) {
-		assert(boltId != null);
-		assert(streamId != null);
-		assert(inputStream != null);
-		Preconditions.checkArgument((streamId2 == null) == (inputStream2 == null));
+			Map<GlobalStreamId, DataStream<Tuple>> inputStreams) {
+		assert (boltId != null);
+		assert (bolt != null);
+		assert (inputStreams != null);
 
-		String producerId = streamId.get_componentId();
-		String inputStreamId = streamId.get_streamId();
+		Iterator<Entry<GlobalStreamId, DataStream<Tuple>>> iterator = inputStreams.entrySet()
+				.iterator();
+
+		Entry<GlobalStreamId, DataStream<Tuple>> input1 = iterator.next();
+		GlobalStreamId streamId1 = input1.getKey();
+		String inputStreamId1 = streamId1.get_streamId();
+		String inputComponentId1 = streamId1.get_componentId();
+		Fields inputSchema1 = this.outputStreams.get(inputComponentId1).get(inputStreamId1);
+		DataStream<Tuple> singleInputStream = input1.getValue();
+
+		DataStream<StormTuple<Tuple>> mergedInputStream = null;
+		while (iterator.hasNext()) {
+			Entry<GlobalStreamId, DataStream<Tuple>> input2 = iterator.next();
+			GlobalStreamId streamId2 = input2.getKey();
+			DataStream<Tuple> inputStream2 = input2.getValue();
+
+			if (mergedInputStream == null) {
+				mergedInputStream = singleInputStream
+						.connect(inputStream2)
+						.flatMap(
+								new TwoFlinkStreamsMerger(streamId1, inputSchema1,
+										streamId2, this.outputStreams.get(
+												streamId2.get_componentId()).get(
+														streamId2.get_streamId())))
+														.returns(StormTuple.class);
+			} else {
+				mergedInputStream = mergedInputStream
+						.connect(inputStream2)
+						.flatMap(
+								new StormFlinkStreamMerger(streamId2, this.outputStreams.get(
+										streamId2.get_componentId()).get(streamId2.get_streamId())))
+										.returns(StormTuple.class);
+			}
+		}
 
 		final HashMap<String, Fields> boltOutputs = this.outputStreams.get(boltId);
-
-		final FlinkOutputFieldsDeclarer declarer = declarers.get(boltId);
+		final FlinkOutputFieldsDeclarer declarer = this.declarers.get(boltId);
 
 		final SingleOutputStreamOperator<?, ?> outputStream;
 
@@ -391,34 +398,21 @@ public class FlinkTopology {
 				outputStreamId = null;
 			}
 
-			final TypeInformation<Tuple> outType = declarer
-					.getOutputType(outputStreamId);
+			final TypeInformation<Tuple> outType = declarer.getOutputType(outputStreamId);
 
 			final SingleOutputStreamOperator<Tuple, ?> outStream;
 
 			// only one input
-			if (streamId2 == null) {
-				BoltWrapper<Tuple, Tuple> boltWrapper = new BoltWrapper<>(
-						bolt, boltId, producerId, inputStreamId,
-						this.outputStreams.get(producerId).get(inputStreamId), null);
+			if(inputStreams.entrySet().size() == 1) {
+				BoltWrapper<Tuple, Tuple> boltWrapper = new BoltWrapper<>(bolt, boltId,
+						inputStreamId1, inputComponentId1, inputSchema1, null);
 				boltWrapper.setStormTopology(stormTopology);
-
-
-				outStream = inputStream.transform(boltId, outType, boltWrapper);
-
+				outStream = singleInputStream.transform(boltId, outType, boltWrapper);
 			} else {
-				String producerId2 = streamId2.get_componentId();
-				String inputStreamId2 = streamId2.get_streamId();
-
-				final BoltWrapperTwoInput<Tuple, Tuple, Tuple> boltWrapper = new BoltWrapperTwoInput<>(
-						bolt, boltId,
-					inputStreamId, inputStreamId2, producerId, producerId2,
-					this.outputStreams.get(producerId).get(inputStreamId),
-						this.outputStreams.get(producerId2).get(inputStreamId2)
-				);
+				MergedInputsBoltWrapper<Tuple, Tuple> boltWrapper = new MergedInputsBoltWrapper<Tuple, Tuple>(
+						bolt, boltId, null);
 				boltWrapper.setStormTopology(stormTopology);
-
-				outStream = inputStream.connect(inputStream2).transform(boltId, outType, boltWrapper);
+				outStream = mergedInputStream.transform(boltId, outType, boltWrapper);
 			}
 
 			if (outType != null) {
@@ -429,36 +423,22 @@ public class FlinkTopology {
 			}
 			outputStream = outStream;
 		} else {
-
-			@SuppressWarnings({ "unchecked", "rawtypes" })
 			final TypeInformation<SplitStreamType<Tuple>> outType = (TypeInformation) TypeExtractor
 					.getForClass(SplitStreamType.class);
-
 
 			final SingleOutputStreamOperator<SplitStreamType<Tuple>, ?> multiStream;
 
 			// only one input
-			if (streamId2 == null) {
+			if(inputStreams.entrySet().size() == 1) {
 				final BoltWrapper<Tuple, SplitStreamType<Tuple>> boltWrapperMultipleOutputs = new BoltWrapper<>(
-					bolt, boltId, inputStreamId, producerId, this.outputStreams.get(producerId).get(inputStreamId),
-					null
-				);
+						bolt, boltId, inputStreamId1, inputComponentId1, inputSchema1, null);
 				boltWrapperMultipleOutputs.setStormTopology(stormTopology);
-
-				multiStream = inputStream.transform(boltId, outType, boltWrapperMultipleOutputs);
+				multiStream = singleInputStream.transform(boltId, outType, boltWrapperMultipleOutputs);
 			} else {
-				String producerId2 = streamId2.get_componentId();
-				String inputStreamId2 = streamId2.get_streamId();
-
-				final BoltWrapperTwoInput<Tuple, Tuple, SplitStreamType<Tuple>> boltWrapper = new BoltWrapperTwoInput<>(
-						bolt, boltId,
-					inputStreamId, inputStreamId2, producerId, producerId2,
-					this.outputStreams.get(producerId).get(inputStreamId),
-					this.outputStreams.get(producerId2).get(inputStreamId2)
-				);
-				boltWrapper.setStormTopology(stormTopology);
-
-				multiStream = inputStream.connect(inputStream2).transform(boltId, outType, boltWrapper);
+				final MergedInputsBoltWrapper<Tuple, SplitStreamType<Tuple>> boltWrapperMultipleOutputs = new MergedInputsBoltWrapper<Tuple, SplitStreamType<Tuple>>(
+						bolt, boltId, null);
+				boltWrapperMultipleOutputs.setStormTopology(stormTopology);
+				multiStream = mergedInputStream.transform(boltId, outType, boltWrapperMultipleOutputs);
 			}
 
 			final SplitStream<SplitStreamType<Tuple>> splitStream = multiStream
