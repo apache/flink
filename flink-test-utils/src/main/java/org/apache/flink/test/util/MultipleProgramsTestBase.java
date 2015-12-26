@@ -79,7 +79,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	protected final TestExecutionMode mode;
 
 	
-	public MultipleProgramsTestBase(TestExecutionMode mode){
+	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
 		
 		switch(mode){
@@ -99,7 +99,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void setup() throws Exception{
+	public static void setup() throws Exception {
 		cluster = TestBaseUtils.startCluster(
 			1,
 			DEFAULT_PARALLELISM,
@@ -118,8 +118,9 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	// ------------------------------------------------------------------------
 	
 	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes(){
-		return Arrays.asList(new TestExecutionMode[]{TestExecutionMode.CLUSTER},
-				new TestExecutionMode[]{TestExecutionMode.COLLECTION});
+	public static Collection<Object[]> executionModes() {
+		return Arrays.asList(
+				new Object[] { TestExecutionMode.CLUSTER },
+				new Object[] { TestExecutionMode.COLLECTION });
 	}
 }

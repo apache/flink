@@ -33,7 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
@@ -58,10 +58,9 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	}
 
 	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes(){
-		Collection<TestExecutionMode[]> c = new ArrayList<TestExecutionMode[]>(1);
-		c.add(new TestExecutionMode[] {TestExecutionMode.CLUSTER});
-		return c;
+	public static Collection<Object[]> executionModes() {
+		return Arrays.<Object[]>asList(
+			new Object[] { TestExecutionMode.CLUSTER } );
 	}
 
 	@Test
