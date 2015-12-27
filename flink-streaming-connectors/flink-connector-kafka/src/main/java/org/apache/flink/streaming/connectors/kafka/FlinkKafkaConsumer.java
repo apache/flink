@@ -522,7 +522,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 		}
 
 		// the use of clone() is okay here is okay, we just need a new map, the keys are not changed
-		//noinspection unchecked
+		@SuppressWarnings("unchecked")
 		HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) lastOffsets.clone();
 
 		// the map cannot be asynchronously updated, because only one checkpoint call can happen
@@ -632,6 +632,7 @@ public class FlinkKafkaConsumer<T> extends RichParallelSourceFunction<T>
 						//  ------------  commit current offsets ----------------
 
 						// create copy of current offsets
+						//noinspection unchecked
 						HashMap<KafkaTopicPartition, Long> currentOffsets = (HashMap<KafkaTopicPartition, Long>) consumer.lastOffsets.clone();
 						commitOffsets(currentOffsets, this.consumer);
 					} catch (InterruptedException e) {
