@@ -66,7 +66,6 @@ abstract class ApplicationMasterBase {
       s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
 
     EnvironmentInformation.logEnvironmentInfo(log, "YARN ApplicationMaster/JobManager", args)
-    EnvironmentInformation.checkJavaVersion()
     org.apache.flink.runtime.util.SignalHandler.register(log)
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)

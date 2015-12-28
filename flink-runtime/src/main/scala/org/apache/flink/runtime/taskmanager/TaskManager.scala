@@ -1202,7 +1202,6 @@ object TaskManager {
   def main(args: Array[String]): Unit = {
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "TaskManager", args)
-    EnvironmentInformation.checkJavaVersion()
     SignalHandler.register(LOG.logger)
 
     val maxOpenFileHandles = EnvironmentInformation.getOpenFileHandlesLimit()

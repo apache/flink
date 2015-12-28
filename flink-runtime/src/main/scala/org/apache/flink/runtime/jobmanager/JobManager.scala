@@ -1388,7 +1388,6 @@ object JobManager {
   def main(args: Array[String]): Unit = {
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "JobManager", args)
-    EnvironmentInformation.checkJavaVersion()
     SignalHandler.register(LOG.logger)
 
     // parsing the command line arguments

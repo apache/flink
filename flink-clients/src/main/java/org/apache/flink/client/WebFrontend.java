@@ -42,9 +42,7 @@ public class WebFrontend {
 	 * @param args The command line parameters.
 	 */
 	public static void main(String[] args) {
-
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Web Client", args);
-		EnvironmentInformation.checkJavaVersion();
 
 		// check the arguments
 		if (args.length < 2 || !args[0].equals("--configDir")) {
