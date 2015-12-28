@@ -69,4 +69,10 @@ public class WebMonitorConfig {
 	public long getRefreshInterval() {
 		return config.getLong(JOB_MANAGER_WEB_REFRESH_INTERVAL_KEY, DEFAULT_JOB_MANAGER_WEB_REFRESH_INTERVAL);
 	}
+	
+	public boolean isProgramSubmitEnabled() {
+		return config.getBoolean(
+			ConfigConstants.JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY,
+			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED);
+	}
 }

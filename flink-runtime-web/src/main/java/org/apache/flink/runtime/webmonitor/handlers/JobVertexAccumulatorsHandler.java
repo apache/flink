@@ -28,7 +28,7 @@ import java.io.StringWriter;
 import java.util.Map;
 
 
-public class JobVertexAccumulatorsHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
+public class JobVertexAccumulatorsHandler extends AbstractJobVertexRequestHandler {
 	
 	public JobVertexAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -39,7 +39,7 @@ public class JobVertexAccumulatorsHandler extends AbstractJobVertexRequestHandle
 		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
 		
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());

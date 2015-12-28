@@ -26,6 +26,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import org.apache.flink.runtime.messages.JobManagerMessages.TaskManagerInstance;
 import org.apache.flink.util.StringUtils;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -35,16 +36,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
-public class TaskManagersHandler implements RequestHandler, RequestHandler.JsonResponse {
-
-	private final FiniteDuration timeout;
+public class TaskManagersHandler implements RequestHandler {
 
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
 	
+	private final FiniteDuration timeout;
+	
 	public TaskManagersHandler(FiniteDuration timeout) {
-		this.timeout = checkNotNull(timeout);
+		this.timeout = requireNonNull(timeout);
 	}
 
 	@Override
@@ -75,7 +76,7 @@ public class TaskManagersHandler implements RequestHandler, RequestHandler.JsonR
 				}
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeArrayFieldStart("taskmanagers");

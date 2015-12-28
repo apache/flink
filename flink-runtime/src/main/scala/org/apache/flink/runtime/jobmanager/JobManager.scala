@@ -1719,7 +1719,7 @@ object JobManager {
         0
       }
       else {
-        LOG.info("Staring JobManager without high-availability")
+        LOG.info("Starting JobManager without high-availability")
   
         configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
             ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)

@@ -31,8 +31,7 @@ import java.util.Map;
 /**
  * Request handler that returns checkpoint stats for a single job vertex.
  */
-public class JobVertexCheckpointsHandler extends AbstractJobVertexRequestHandler
-		implements RequestHandler.JsonResponse {
+public class JobVertexCheckpointsHandler extends AbstractJobVertexRequestHandler {
 
 	public JobVertexCheckpointsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);

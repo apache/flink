@@ -34,11 +34,9 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.File;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -49,12 +47,11 @@ import java.util.Map;
 /**
  * Abstract handler for fetching plan for a jar or running a jar.
  */
-public abstract class JarActionHandler implements RequestHandler, RequestHandler.JsonResponse {
-
+public abstract class JarActionHandler implements RequestHandler {
+	
 	private final File jarDir;
 
-	private static final PrintStream nullStream = new PrintStream(new NullPrintStream());
-
+	
 	public JarActionHandler(File jarDirectory) {
 		jarDir = jarDirectory;
 	}
@@ -93,14 +90,10 @@ public abstract class JarActionHandler implements RequestHandler, RequestHandler
 		PackagedProgram program = new PackagedProgram(new File(jarDir, file), entryClass,
 				programArgs.toArray(new String[programArgs.size()]));
 		ClassLoader classLoader = program.getUserCodeClassLoader();
-		Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
-		PrintStream out = System.out;
-		PrintStream err = System.err;
-		System.setOut(nullStream);
-		System.setErr(nullStream);
-		FlinkPlan plan = Client.getOptimizedPlan(compiler, program, parallelism);
-		System.setOut(out);
-		System.setErr(err);
+
+		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
+		FlinkPlan plan = Client.getOptimizedPlan(optimizer, program, parallelism);
+
 		if (plan instanceof StreamingPlan) {
 			graph = ((StreamingPlan) plan).getJobGraph();
 		} else if (plan instanceof OptimizedPlan) {
@@ -112,7 +105,8 @@ public abstract class JarActionHandler implements RequestHandler, RequestHandler
 		for (URL jar : program.getAllLibraries()) {
 			try {
 				graph.addJar(new Path(jar.toURI()));
-			} catch (URISyntaxException e) {
+			}
+			catch (URISyntaxException e) {
 				throw new ProgramInvocationException("Invalid jar path. Unexpected error. :(");
 			}
 		}
@@ -163,39 +157,14 @@ public abstract class JarActionHandler implements RequestHandler, RequestHandler
 	}
 
 	protected String sendError(Exception e) throws Exception {
-		StringWriter sw = new StringWriter();
-		PrintWriter p = new PrintWriter(sw);
-		if (e instanceof ProgramInvocationException || e instanceof CompilerException || e instanceof IllegalArgumentException) {
-			p.println(e.getClass().getSimpleName() + ((e.getMessage() != null) ? ": " + e.getMessage() : ""));
-			Throwable cause = e.getCause();
-			if (cause != null) {
-				p.println(cause.toString());
-			} else {
-				cause = e;
-			}
-
-			for (StackTraceElement traceElement: cause.getStackTrace()) {
-				p.println("\tat " + traceElement);
-				if (traceElement.getMethodName().equals("handleRequest")) {
-					break;
-				}
-			}
-		} else {
-			// if not something we expected, dump the entire stack trace.
-			e.printStackTrace(p);
-		}
-		p.close();
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		
 		gen.writeStartObject();
-		gen.writeStringField("error", sw.toString());
+		gen.writeStringField("error", ExceptionUtils.stringifyException(e));
 		gen.writeEndObject();
 		gen.close();
+		
 		return writer.toString();
-	}
-
-	private static final class NullPrintStream extends OutputStream {
-		public void write(int x) {
-		}
 	}
 }

@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.OperatorCheckpointStats;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+
 import org.junit.Test;
 import scala.Option;
 
@@ -42,11 +43,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class JobVertexCheckpointsHandlerTest {
-
-	@Test
-	public void testIsJsonResponse() throws Exception {
-		assertTrue(RequestHandler.JsonResponse.class.isAssignableFrom(JobVertexCheckpointsHandler.class));
-	}
 
 	@Test
 	public void testNoCoordinator() throws Exception {
@@ -127,11 +123,11 @@ public class JobVertexCheckpointsHandlerTest {
 		JsonNode rootNode = mapper.readTree(response);
 
 		// Operator stats
-		long checkpointId = rootNode.get("id").getLongValue();
-		long timestamp = rootNode.get("timestamp").getLongValue();
-		long duration = rootNode.get("duration").getLongValue();
-		long size = rootNode.get("size").getLongValue();
-		long parallelism = rootNode.get("parallelism").getLongValue();
+		long checkpointId = rootNode.get("id").asLong();
+		long timestamp = rootNode.get("timestamp").asLong();
+		long duration = rootNode.get("duration").asLong();
+		long size = rootNode.get("size").asLong();
+		long parallelism = rootNode.get("parallelism").asLong();
 
 		assertEquals(stats.getCheckpointId(), checkpointId);
 		assertEquals(stats.getTriggerTimestamp(), timestamp);
@@ -144,14 +140,14 @@ public class JobVertexCheckpointsHandlerTest {
 		assertNotNull(subTasksNode);
 		assertTrue(subTasksNode.isArray());
 
-		Iterator<JsonNode> it = subTasksNode.getElements();
+		Iterator<JsonNode> it = subTasksNode.elements();
 
 		for (int i = 0; i < subTaskStats.length; i++) {
 			JsonNode node = it.next();
 
-			assertEquals(i, node.get("subtask").getIntValue());
-			assertEquals(subTaskStats[i][0], node.get("duration").getLongValue());
-			assertEquals(subTaskStats[i][1], node.get("size").getLongValue());
+			assertEquals(i, node.get("subtask").asInt());
+			assertEquals(subTaskStats[i][0], node.get("duration").asLong());
+			assertEquals(subTaskStats[i][1], node.get("size").asLong());
 		}
 
 		assertFalse(it.hasNext());

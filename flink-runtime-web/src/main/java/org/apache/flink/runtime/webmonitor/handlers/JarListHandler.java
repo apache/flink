@@ -29,11 +29,10 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
-import java.util.UUID;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-public class JarListHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JarListHandler implements RequestHandler {
 
 	private final File jarDir;
 
@@ -45,7 +44,8 @@ public class JarListHandler implements RequestHandler, RequestHandler.JsonRespon
 	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+			
 			gen.writeStartObject();
 			gen.writeStringField("address", queryParams.get(RuntimeMonitorHandler.WEB_MONITOR_ADDRESS_KEY));
 			gen.writeArrayFieldStart("files");
@@ -56,24 +56,26 @@ public class JarListHandler implements RequestHandler, RequestHandler.JsonRespon
 					return name.endsWith(".jar");
 				}
 			});
+			
 			for (File f : list) {
 				// separate the uuid and the name parts.
 				String id = f.getName();
+				
 				int startIndex = id.indexOf("_");
-				try {
-					UUID.fromString(id.substring(0, startIndex));
-					if (id.substring(startIndex + 1).equals(".jar")) {
-						throw new Exception();
-					}
-				} catch (Exception e) {
+				if (startIndex < 0) {
 					continue;
 				}
 				String name = id.substring(startIndex + 1);
+				if (name.length() < 5 || !name.endsWith(".jar")) {
+					continue;
+				}
+				
 				gen.writeStartObject();
 				gen.writeStringField("id", id);
 				gen.writeStringField("name", name);
 				gen.writeNumberField("uploaded", f.lastModified());
 				gen.writeArrayFieldStart("entry");
+				
 				String[] classes = new String[0];
 				try {
 					JarFile jar = new JarFile(f);
@@ -89,9 +91,10 @@ public class JarListHandler implements RequestHandler, RequestHandler.JsonRespon
 					if (assemblerClass != null) {
 						classes = assemblerClass.split(",");
 					}
-				} catch (IOException e) {
-					//
+				} catch (IOException ignored) {
+					// we simply show no entries here
 				}
+				
 				// show every entry class that can be loaded later on.
 				PackagedProgram program;
 				for (String clazz : classes) {

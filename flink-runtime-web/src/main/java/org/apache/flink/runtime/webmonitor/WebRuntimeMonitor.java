@@ -19,23 +19,30 @@
 package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.stream.ChunkedWriteHandler;
+
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.handlers.ConstantTextHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarAccessDeniedHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobCancellationHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobCheckpointsHandler;
@@ -114,7 +121,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final File uploadDir;
 
-	private AtomicBoolean isShutdown = new AtomicBoolean();
+	private AtomicBoolean cleanedUp = new AtomicBoolean();
 
 
 	public WebRuntimeMonitor(
@@ -123,40 +130,36 @@ public class WebRuntimeMonitor implements WebMonitor {
 			ActorSystem actorSystem) throws IOException, InterruptedException {
 
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
-
+		this.timeout = AkkaUtils.getTimeout(config);
+		this.retriever = new JobManagerRetriever(this, actorSystem, AkkaUtils.getTimeout(config), timeout);
+		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
-
-		// create an empty directory in temp for the web server
-		String fileName = String.format("flink-web-%s", UUID.randomUUID().toString());
-		webRootDir = new File(System.getProperty("java.io.tmpdir"), fileName);
-
-		// create storage for uploads
-		fileName = String.format("flink-web-upload-%s", UUID.randomUUID().toString());
-		uploadDir = new File(System.getProperty("java.io.tmpdir"), fileName);
-		if (!uploadDir.mkdir() || !uploadDir.canWrite()) {
-			throw new IOException("Unable to create temporary directory to support jar uploads.");
-		}
-
-		LOG.info("Using directory {} for the web interface files", webRootDir);
-		LOG.info("Using directory {} for web frontend JAR file uploads", uploadDir);
-
-		final WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(config);
-
-		final boolean webSubmitAllow = config.getBoolean(
-				ConfigConstants.JOB_MANAGER_WEB_SUBMISSION_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SUBMISSION
-		);
-
-		// port configuration
-		int configuredPort = cfg.getWebFrontendPort();
+		
+		final int configuredPort = cfg.getWebFrontendPort();
 		if (configuredPort < 0) {
 			throw new IllegalArgumentException("Web frontend port is invalid: " + configuredPort);
 		}
+		
+		final WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(config);
+		
+		// create an empty directory in temp for the web server
+		String rootDirFileName = "flink-web-" + UUID.randomUUID();
+		webRootDir = new File(System.getProperty("java.io.tmpdir"), rootDirFileName);
+		LOG.info("Using directory {} for the web interface files", webRootDir);
 
-		timeout = AkkaUtils.getTimeout(config);
-		FiniteDuration lookupTimeout = AkkaUtils.getTimeout(config);
-
-		retriever = new JobManagerRetriever(this, actorSystem, lookupTimeout, timeout);
+		final boolean webSubmitAllow = cfg.isProgramSubmitEnabled();
+		if (webSubmitAllow) {
+			// create storage for uploads
+			String uploadDirName = "flink-web-upload-" + UUID.randomUUID();
+			this.uploadDir = new File(System.getProperty("java.io.tmpdir"), uploadDirName);
+			if (!uploadDir.mkdir() || !uploadDir.canWrite()) {
+				throw new IOException("Unable to create temporary directory to support jar uploads.");
+			}
+			LOG.info("Using directory {} for web frontend JAR file uploads", uploadDir);
+		}
+		else {
+			this.uploadDir = null;
+		}
 
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder();
 
@@ -175,7 +178,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false)))
 			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true)))
 
-			.GET("/jobs", handler(new CurrentJobIdsHandler(retriever, DEFAULT_REQUEST_TIMEOUT)))
+			.GET("/jobs", handler(new CurrentJobIdsHandler(DEFAULT_REQUEST_TIMEOUT)))
 
 			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs)))
@@ -208,6 +211,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
 			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))
+
 			// DELETE is the preferred way of cancelling a job (Rest-conform)
 			.DELETE("/jobs/:jobid", handler(new JobCancellationHandler()));
 
@@ -238,61 +242,59 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// this handler serves all the static contents
 		router.GET("/:*", new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, webRootDir));
 
-		synchronized (startupShutdownLock) {
-
-			// add shutdown hook for deleting the directory
-			try {
-				Runtime.getRuntime().addShutdownHook(new Thread() {
-					@Override
-					public void run() {
-						shutdown();
-					}
-				});
-			} catch (IllegalStateException e) {
-				// race, JVM is in shutdown already, we can safely ignore this
-				LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
-			} catch(Throwable t) {
-				// these errors usually happen when the shutdown is already in progress
-				LOG.warn("Error while adding shutdown hook", t);
-			}
-
-			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-
+		// add shutdown hook for deleting the directories and remaining temp files on shutdown
+		try {
+			Runtime.getRuntime().addShutdownHook(new Thread() {
 				@Override
-				protected void initChannel(SocketChannel ch) {
-					Handler handler = new Handler(router);
-
-					ch.pipeline()
-							.addLast(new HttpServerCodec())
-							.addLast(new HttpRequestHandler(uploadDir))
-							.addLast(handler.name(), handler)
-							.addLast(new PipelineErrorHandler());
+				public void run() {
+					cleanup();
 				}
-			};
-
-			NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
-			NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-
-			this.bootstrap = new ServerBootstrap();
-			this.bootstrap
-					.group(bossGroup, workerGroup)
-					.channel(NioServerSocketChannel.class)
-					.childHandler(initializer);
-
-			Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
-			this.serverChannel = ch;
-
-			InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
-			String address = bindAddress.getAddress().getHostAddress();
-			int port = bindAddress.getPort();
-
-			LOG.info("Web frontend listening at " + address + ':' + port);
+			});
+		} catch (IllegalStateException e) {
+			// race, JVM is in shutdown already, we can safely ignore this
+			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
+		} catch (Throwable t) {
+			// these errors usually happen when the shutdown is already in progress
+			LOG.warn("Error while adding shutdown hook", t);
 		}
+
+		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
+
+			@Override
+			protected void initChannel(SocketChannel ch) {
+				Handler handler = new Handler(router);
+
+				ch.pipeline()
+						.addLast(new HttpServerCodec())
+						.addLast(new HttpRequestHandler())
+						.addLast(handler.name(), handler)
+						.addLast(new PipelineErrorHandler(LOG));
+			}
+		};
+
+		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
+		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+
+		this.bootstrap = new ServerBootstrap();
+		this.bootstrap
+				.group(bossGroup, workerGroup)
+				.channel(NioServerSocketChannel.class)
+				.childHandler(initializer);
+
+		Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
+		this.serverChannel = ch;
+
+		InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
+		String address = bindAddress.getAddress().getHostAddress();
+		int port = bindAddress.getPort();
+
+		LOG.info("Web frontend listening at " + address + ':' + port);
 	}
 
 	@Override
 	public void start(String jobManagerAkkaUrl) throws Exception {
 		LOG.info("Starting with JobManager {} on port {}", jobManagerAkkaUrl, getServerPort());
+		
 		synchronized (startupShutdownLock) {
 			jobManagerAddressPromise.success(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
@@ -314,7 +316,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				}
 			}
 
-			shutdown();
+			cleanup();
 		}
 	}
 
@@ -333,8 +335,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 		return -1;
 	}
 
-	private void shutdown() {
-		if (!isShutdown.compareAndSet(false, true)) {
+	private void cleanup() {
+		if (!cleanedUp.compareAndSet(false, true)) {
 			return;
 		}
 		try {
@@ -344,11 +346,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 			LOG.warn("Error while deleting web root directory {}", webRootDir, t);
 		}
 
-		try {
-			LOG.info("Removing web dashboard jar upload directory {}", uploadDir);
-			FileUtils.deleteDirectory(uploadDir);
-		} catch (Throwable t) {
-			LOG.warn("Error while deleting web storage dir {}", uploadDir, t);
+		if (uploadDir != null) {
+			try {
+				LOG.info("Removing web dashboard jar upload directory {}", uploadDir);
+				FileUtils.deleteDirectory(uploadDir);
+			} catch (Throwable t) {
+				LOG.warn("Error while deleting web storage dir {}", uploadDir, t);
+			}
 		}
 	}
 

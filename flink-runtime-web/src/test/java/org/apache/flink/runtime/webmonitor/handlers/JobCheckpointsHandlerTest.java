@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStats;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.JobCheckpointStats;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+
 import org.junit.Test;
 import scala.Option;
 
@@ -42,11 +42,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class JobCheckpointsHandlerTest {
-
-	@Test
-	public void testIsJsonResponse() throws Exception {
-		assertTrue(RequestHandler.JsonResponse.class.isAssignableFrom(JobCheckpointsHandler.class));
-	}
 
 	@Test
 	public void testNoCoordinator() throws Exception {
@@ -150,16 +145,16 @@ public class JobCheckpointsHandlerTest {
 		JsonNode rootNode = mapper.readTree(response);
 
 		// Count
-		int count = rootNode.get("count").getIntValue();
+		int count = rootNode.get("count").asInt();
 		assertEquals(stats.getCount(), count);
 
 		// Duration
 		JsonNode durationNode = rootNode.get("duration");
 		assertNotNull(durationNode);
 
-		long minDuration = durationNode.get("min").getLongValue();
-		long maxDuration = durationNode.get("max").getLongValue();
-		long avgDuration = durationNode.get("avg").getLongValue();
+		long minDuration = durationNode.get("min").asLong();
+		long maxDuration = durationNode.get("max").asLong();
+		long avgDuration = durationNode.get("avg").asLong();
 
 		assertEquals(stats.getMinDuration(), minDuration);
 		assertEquals(stats.getMaxDuration(), maxDuration);
@@ -169,9 +164,9 @@ public class JobCheckpointsHandlerTest {
 		JsonNode sizeNode = rootNode.get("size");
 		assertNotNull(sizeNode);
 
-		long minSize = sizeNode.get("min").getLongValue();
-		long maxSize = sizeNode.get("max").getLongValue();
-		long avgSize = sizeNode.get("avg").getLongValue();
+		long minSize = sizeNode.get("min").asLong();
+		long maxSize = sizeNode.get("max").asLong();
+		long avgSize = sizeNode.get("avg").asLong();
 
 		assertEquals(stats.getMinStateSize(), minSize);
 		assertEquals(stats.getMaxStateSize(), maxSize);
@@ -181,17 +176,17 @@ public class JobCheckpointsHandlerTest {
 		assertNotNull(historyNode);
 		assertTrue(historyNode.isArray());
 
-		Iterator<JsonNode> it = historyNode.getElements();
+		Iterator<JsonNode> it = historyNode.elements();
 
 		for (int i = 0; i < history.size(); i++) {
 			CheckpointStats s = history.get(i);
 
 			JsonNode node = it.next();
 
-			long checkpointId = node.get("id").getLongValue();
-			long timestamp = node.get("timestamp").getLongValue();
-			long duration = node.get("duration").getLongValue();
-			long size = node.get("size").getLongValue();
+			long checkpointId = node.get("id").asLong();
+			long timestamp = node.get("timestamp").asLong();
+			long duration = node.get("duration").asLong();
+			long size = node.get("size").asLong();
 
 			assertEquals(s.getCheckpointId(), checkpointId);
 			assertEquals(s.getTriggerTimestamp(), timestamp);

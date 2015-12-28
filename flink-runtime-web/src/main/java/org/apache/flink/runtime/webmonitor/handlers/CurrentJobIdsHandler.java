@@ -24,7 +24,6 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 
-import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -32,24 +31,19 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.StringWriter;
 import java.util.Map;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Responder that returns with a list of all JobIDs of jobs found at the target actor.
  * May serve the IDs of current jobs, or past jobs, depending on whether this handler is
  * given the JobManager or Archive Actor Reference.
  */
-public class CurrentJobIdsHandler implements RequestHandler, RequestHandler.JsonResponse {
-
-	private final JobManagerRetriever retriever;
+public class CurrentJobIdsHandler implements RequestHandler {
 
 	private final FiniteDuration timeout;
-
-
-	public CurrentJobIdsHandler(JobManagerRetriever retriever, FiniteDuration timeout) {
-		if (retriever == null || timeout == null) {
-			throw new NullPointerException();
-		}
-		this.retriever = retriever;
-		this.timeout = timeout;
+	
+	public CurrentJobIdsHandler(FiniteDuration timeout) {
+		this.timeout = requireNonNull(timeout);
 	}
 	
 	@Override
@@ -61,7 +55,7 @@ public class CurrentJobIdsHandler implements RequestHandler, RequestHandler.Json
 				JobsWithIDsOverview overview = (JobsWithIDsOverview) Await.result(future, timeout);
 	
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 	
 				gen.writeStartObject();
 	

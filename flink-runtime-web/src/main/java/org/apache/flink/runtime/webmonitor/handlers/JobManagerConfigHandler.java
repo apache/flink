@@ -28,7 +28,7 @@ import java.util.Map;
 /**
  * Returns the Job Manager's configuration.
  */
-public class JobManagerConfigHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JobManagerConfigHandler implements RequestHandler {
 
 	private final Configuration config;
 
@@ -39,7 +39,7 @@ public class JobManagerConfigHandler implements RequestHandler, RequestHandler.J
 	@Override
 	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartArray();
 		for (String key : config.keySet()) {

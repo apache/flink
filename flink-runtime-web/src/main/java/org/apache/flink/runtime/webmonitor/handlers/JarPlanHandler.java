@@ -41,14 +41,15 @@ public class JarPlanHandler extends JarActionHandler {
 		try {
 			JobGraph graph = getJobGraphAndClassLoader(pathParams, queryParams).f0;
 			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 			gen.writeStartObject();
 			gen.writeFieldName("plan");
 			gen.writeRawValue(JsonPlanGenerator.generatePlan(graph));
 			gen.writeEndObject();
 			gen.close();
 			return writer.toString();
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			return sendError(e);
 		}
 	}

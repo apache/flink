@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.web;
 
-
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
@@ -140,5 +141,4 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
-
 }

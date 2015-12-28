@@ -135,10 +135,7 @@ angular.module('flinkApp')
     $scope.uploader = {}
     if files.length == 1
       $scope.uploader['file'] = files[0]
-      if files[0].name.endsWith(".jar")
-        $scope.uploader['upload'] = true
-      else
-        $scope.uploader['error'] = "Only Jar files are allowed"
+      $scope.uploader['upload'] = true
     else
       $scope.uploader['error'] = "Did ya forget to select a file?"
 

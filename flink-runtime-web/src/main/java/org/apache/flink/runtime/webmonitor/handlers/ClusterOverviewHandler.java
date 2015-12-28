@@ -36,14 +36,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * Responder that returns the status of the Flink cluster, such as how many
  * TaskManagers are currently connected, and how many jobs are running.
  */
-public class ClusterOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
-
-	private final FiniteDuration timeout;
+public class ClusterOverviewHandler implements RequestHandler {
 
 	private static final String version = EnvironmentInformation.getVersion();
 
 	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
 
+	private final FiniteDuration timeout;
+	
 	public ClusterOverviewHandler(FiniteDuration timeout) {
 		this.timeout = checkNotNull(timeout);
 	}
@@ -57,7 +57,7 @@ public class ClusterOverviewHandler implements RequestHandler, RequestHandler.Js
 				StatusOverview overview = (StatusOverview) Await.result(future, timeout);
 
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 				gen.writeStartObject();
 				gen.writeNumberField("taskmanagers", overview.getNumTaskManagersConnected());

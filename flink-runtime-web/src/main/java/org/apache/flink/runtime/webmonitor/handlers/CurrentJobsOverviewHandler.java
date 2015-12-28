@@ -36,7 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Request handler that returns a summary of the job status.
  */
-public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class CurrentJobsOverviewHandler implements RequestHandler {
 
 	private final FiniteDuration timeout;
 	
@@ -66,7 +66,7 @@ public class CurrentJobsOverviewHandler implements RequestHandler, RequestHandle
 				final long now = System.currentTimeMillis();
 	
 				StringWriter writer = new StringWriter();
-				JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+				JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 				gen.writeStartObject();
 				
 				

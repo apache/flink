@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * Handles requests for deletion of jars.
  */
-public class JarDeleteHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JarDeleteHandler implements RequestHandler {
 
 	private final File jarDir;
 

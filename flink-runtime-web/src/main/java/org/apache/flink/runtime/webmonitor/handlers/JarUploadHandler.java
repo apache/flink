@@ -22,11 +22,12 @@ import org.apache.flink.runtime.instance.ActorGateway;
 
 import java.io.File;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Handles requests for uploading of jars.
  */
-public class JarUploadHandler implements RequestHandler, RequestHandler.JsonResponse {
+public class JarUploadHandler implements RequestHandler {
 
 	private final File jarDir;
 
@@ -35,19 +36,33 @@ public class JarUploadHandler implements RequestHandler, RequestHandler.JsonResp
 	}
 
 	@Override
-	public String handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
-		String filename = queryParams.get("file");
-		if(filename != null) {
-			File f = new File(jarDir, filename);
-			if (f.exists()) {
-				if (f.getName().endsWith(".jar")) {
-					return "{}";
-				} else {
-					f.delete();
-					return "{\"error\": \"Only Jar files are allowed.\"}";
-				}
+	public String handleRequest(
+				Map<String, String> pathParams,
+				Map<String, String> queryParams,
+				ActorGateway jobManager) throws Exception {
+		
+		String tempFilePath = queryParams.get("filepath");
+		String filename = queryParams.get("filename");
+		
+		File tempFile;
+		if (tempFilePath != null && (tempFile = new File(tempFilePath)).exists()) {
+			if (!tempFile.getName().endsWith(".jar")) {
+				//noinspection ResultOfMethodCallIgnored
+				tempFile.delete();
+				return "{\"error\": \"Only Jar files are allowed.\"}";
+			}
+			
+			File newFile = new File(jarDir, UUID.randomUUID() + "_" + filename);
+			if (tempFile.renameTo(newFile)) {
+				// all went well
+				return "{}";
+			}
+			else {
+				//noinspection ResultOfMethodCallIgnored
+				tempFile.delete();
 			}
 		}
+		
 		return "{\"error\": \"Failed to upload the file.\"}";
 	}
 }

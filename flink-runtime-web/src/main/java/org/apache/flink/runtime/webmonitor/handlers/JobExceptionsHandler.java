@@ -31,7 +31,7 @@ import java.util.Map;
 /**
  * Request handler that returns the configuration of a job.
  */
-public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 
 	private static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 	
@@ -42,7 +42,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler i
 	@Override
 	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		

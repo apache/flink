@@ -32,8 +32,7 @@ import java.util.Map;
 /**
  * Request handler that returns checkpoint stats for a job.
  */
-public class JobCheckpointsHandler extends AbstractExecutionGraphRequestHandler
-		implements RequestHandler.JsonResponse {
+public class JobCheckpointsHandler extends AbstractExecutionGraphRequestHandler {
 
 	public JobCheckpointsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
