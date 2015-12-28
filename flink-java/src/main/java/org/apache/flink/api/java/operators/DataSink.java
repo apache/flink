@@ -30,7 +30,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.Nothing;
 import org.apache.flink.api.java.DataSet;
 
 import java.util.Arrays;
@@ -107,6 +106,7 @@ public class DataSink<T> {
 	 * @see org.apache.flink.api.java.tuple.Tuple
 	 * @see Order
 	 */
+	@Deprecated
 	public DataSink<T> sortLocalOutput(int field, Order order) {
 
 		if (!this.type.isTupleType()) {
@@ -120,7 +120,7 @@ public class DataSink<T> {
 		// get flat keys
 		Keys.ExpressionKeys<T> ek;
 		try {
-			ek = new Keys.ExpressionKeys<T>(new int[]{field}, this.type);
+			ek = new Keys.ExpressionKeys<>(new int[]{field}, this.type);
 		} catch(IllegalArgumentException iae) {
 			throw new InvalidProgramException("Invalid specification of field expression.", iae);
 		}
@@ -161,6 +161,7 @@ public class DataSink<T> {
 	 *
 	 * @see Order
 	 */
+	@Deprecated
 	public DataSink<T> sortLocalOutput(String fieldExpression, Order order) {
 
 		int numFields;
@@ -173,7 +174,7 @@ public class DataSink<T> {
 			Keys.ExpressionKeys<T> ek;
 			try {
 				isValidSortKeyType(fieldExpression);
-				ek = new Keys.ExpressionKeys<T>(new String[]{fieldExpression}, this.type);
+				ek = new Keys.ExpressionKeys<>(new String[]{fieldExpression}, this.type);
 			} catch(IllegalArgumentException iae) {
 				throw new InvalidProgramException("Invalid specification of field expression.", iae);
 			}
@@ -255,7 +256,7 @@ public class DataSink<T> {
 	protected GenericDataSinkBase<T> translateToDataFlow(Operator<T> input) {
 		// select the name (or create a default one)
 		String name = this.name != null ? this.name : this.format.toString();
-		GenericDataSinkBase<T> sink = new GenericDataSinkBase<T>(this.format, new UnaryOperatorInformation<T, Nothing>(this.type, new NothingTypeInfo()), name);
+		GenericDataSinkBase<T> sink = new GenericDataSinkBase<>(this.format, new UnaryOperatorInformation<>(this.type, new NothingTypeInfo()), name);
 		// set input
 		sink.setInput(input);
 		// set parameters

@@ -2213,19 +2213,19 @@ DataSet<Tuple2<BookPojo, Double>> pData = // [...]
 DataSet<String> sData = // [...]
 
 // sort output on String field in ascending order
-tData.print().sortLocalOutput(1, Order.ASCENDING);
+tData.sortPartition(1, Order.ASCENDING).print();
 
 // sort output on Double field in descending and Integer field in ascending order
-tData.print().sortLocalOutput(2, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING);
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print();
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.writeAsText(...).sortLocalOutput("f0.author", Order.DESCENDING);
+pData.sortPartition("f0.author", Order.DESCENDING).writeAsText(...);
 
 // sort output on the full tuple in ascending order
-tData.writeAsCsv(...).sortLocalOutput("*", Order.ASCENDING);
+tData.sortPartition("*", Order.ASCENDING).writeAsCsv(...);
 
 // sort atomic type (String) output in descending order
-sData.writeAsText(...).sortLocalOutput("*", Order.DESCENDING);
+sData.sortPartition("*", Order.DESCENDING).writeAsText(...);
 
 {% endhighlight %}
 
@@ -2296,19 +2296,19 @@ val pData: DataSet[(BookPojo, Double)] = // [...]
 val sData: DataSet[String] = // [...]
 
 // sort output on String field in ascending order
-tData.print.sortLocalOutput(1, Order.ASCENDING);
+tData.sortPartition(1, Order.ASCENDING).print;
 
 // sort output on Double field in descending and Int field in ascending order
-tData.print.sortLocalOutput(2, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING);
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print;
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.writeAsText(...).sortLocalOutput("_1.author", Order.DESCENDING);
+pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...);
 
 // sort output on the full tuple in ascending order
-tData.writeAsCsv(...).sortLocalOutput("_", Order.ASCENDING);
+tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...);
 
 // sort atomic type (String) output in descending order
-sData.writeAsText(...).sortLocalOutput("_", Order.DESCENDING);
+sData.sortPartition("_", Order.DESCENDING).writeAsText(...);
 
 {% endhighlight %}
 

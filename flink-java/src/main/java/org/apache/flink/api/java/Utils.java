@@ -62,7 +62,7 @@ public final class Utils {
 	/**
 	 * Returns all GenericTypeInfos contained in a composite type.
 	 *
-	 * @param typeInfo
+	 * @param typeInfo {@link CompositeType}
 	 */
 	public static void getContainedGenericTypes(CompositeType typeInfo, List<GenericTypeInfo<?>> target) {
 		for(int i = 0; i < typeInfo.getArity(); i++) {
@@ -118,7 +118,7 @@ public final class Utils {
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			this.accumulator = new SerializedListAccumulator<T>();
+			this.accumulator = new SerializedListAccumulator<>();
 		}
 
 		@Override

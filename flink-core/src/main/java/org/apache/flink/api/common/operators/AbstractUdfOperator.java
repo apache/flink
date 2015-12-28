@@ -40,7 +40,7 @@ public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Oper
 	/**
 	 * The extra inputs which parameterize the user function.
 	 */
-	protected final Map<String, Operator<?>> broadcastInputs = new HashMap<String, Operator<?>>();
+	protected final Map<String, Operator<?>> broadcastInputs = new HashMap<>();
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -137,7 +137,7 @@ public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Oper
 	 * @param clazz The class object to be wrapped.
 	 * @return An array wrapping the class object.
 	 */
-	protected static final <U> Class<U>[] asArray(Class<U> clazz) {
+	protected static <U> Class<U>[] asArray(Class<U> clazz) {
 		@SuppressWarnings("unchecked")
 		Class<U>[] array = new Class[] { clazz };
 		return array;
@@ -149,7 +149,7 @@ public abstract class AbstractUdfOperator<OUT, FT extends Function> extends Oper
 	 * @param <U> The type of the classes.
 	 * @return An empty array of type <tt>Class&lt;U&gt;</tt>.
 	 */
-	protected static final <U> Class<U>[] emptyClassArray() {
+	protected static <U> Class<U>[] emptyClassArray() {
 		@SuppressWarnings("unchecked")
 		Class<U>[] array = new Class[0];
 		return array;
