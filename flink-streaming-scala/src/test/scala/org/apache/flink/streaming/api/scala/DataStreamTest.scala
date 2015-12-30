@@ -516,7 +516,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
   private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
     dataStream.print()
-    val env = dataStream.getJavaStream.getExecutionEnvironment
+    val env = dataStream.javaStream.getExecutionEnvironment
     val streamGraph: StreamGraph = env.getStreamGraph
     streamGraph.getStreamNode(dataStream.getId).getOperator
   }

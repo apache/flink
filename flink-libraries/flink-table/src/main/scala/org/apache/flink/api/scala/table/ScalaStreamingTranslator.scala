@@ -51,7 +51,7 @@ class ScalaStreamingTranslator extends PlanTranslator {
       resultFields: Seq[(String, TypeInformation[_])]): Table = {
 
     val result =
-      javaTranslator.createTable(repr.getJavaStream, inputType, expressions, resultFields)
+      javaTranslator.createTable(repr.javaStream, inputType, expressions, resultFields)
 
     new Table(result.operation)
   }
