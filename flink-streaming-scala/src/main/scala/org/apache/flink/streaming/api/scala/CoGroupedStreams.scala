@@ -97,7 +97,7 @@ object CoGroupedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -170,7 +170,7 @@ object CoGroupedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -270,7 +270,7 @@ object CoGroupedStreams {
      */
     def apply[T: TypeInformation](function: CoGroupFunction[T1, T2, T]): DataStream[T] = {
 
-      val coGroup = new JavaCoGroupedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
+      val coGroup = new JavaCoGroupedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
       coGroup
         .where(keySelector1)
@@ -286,7 +286,7 @@ object CoGroupedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 

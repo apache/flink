@@ -90,7 +90,7 @@ package object table extends ImplicitExpressionConversions {
       stream: DataStream[T]): DataStreamConversions[T] = {
     new DataStreamConversions[T](
       stream,
-      stream.getJavaStream.getType.asInstanceOf[CompositeType[T]])
+      stream.javaStream.getType.asInstanceOf[CompositeType[T]])
   }
 
   implicit def table2RowDataStream(
