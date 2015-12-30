@@ -40,11 +40,11 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
  * @param <OUT> The output type of the operator
  */
 public interface StreamOperator<OUT> extends Serializable {
-	
+
 	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Initializes the operator. Sets access to the context and the output.
 	 */
@@ -101,7 +101,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 *                   and the key/value state.
 	 */
 	StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception;
-	
+
 	/**
 	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
 	 * This method restores the operator state (if the operator is stateful) and the key/value state
@@ -133,16 +133,18 @@ public interface StreamOperator<OUT> extends Serializable {
 	// ------------------------------------------------------------------------
 	//  miscellaneous
 	// ------------------------------------------------------------------------
-	
+
 	void setKeyContextElement(StreamRecord<?> record) throws Exception;
-	
+
 	/**
 	 * An operator can return true here to disable copying of its input elements. This overrides
 	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}
 	 */
 	boolean isInputCopyingDisabled();
-	
+
 	ChainingStrategy getChainingStrategy();
 
 	void setChainingStrategy(ChainingStrategy strategy);
+
+	void setLastInputChannelNumber(int channelNumber);
 }

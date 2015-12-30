@@ -53,6 +53,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final DistributedCache distributedCache;
 
+	private int lastInputChannelNumber;
+
 	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
@@ -83,6 +85,15 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public int getIndexOfThisSubtask() {
 		return taskInfo.getIndexOfThisSubtask();
+	}
+
+	public void setLastInputChannelNumber(int lastInputChannelNumber) {
+		this.lastInputChannelNumber = lastInputChannelNumber;
+	}
+
+	@Override
+	public int getLastInputChannelNumber() {
+		return this.lastInputChannelNumber;
 	}
 
 	@Override
@@ -134,19 +145,19 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
 		return Collections.unmodifiableMap(this.accumulators);
 	}
-	
+
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
-	
+
 	@Override
 	public DistributedCache getDistributedCache() {
 		return this.distributedCache;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	private <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name,
 			Class<? extends Accumulator<V, A>> accumulatorClass)

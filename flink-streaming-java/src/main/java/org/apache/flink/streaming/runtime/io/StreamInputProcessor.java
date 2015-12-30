@@ -58,7 +58,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
  * @param <IN> The type of the record that can be read with this record reader.
  */
 public class StreamInputProcessor<IN> {
-	
+
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
@@ -70,8 +70,6 @@ public class StreamInputProcessor<IN> {
 	private int currentChannel = -1;
 
 	private boolean isFinished;
-
-	
 
 	private final long[] watermarks;
 	private long lastEmittedWatermark;
@@ -96,11 +94,11 @@ public class StreamInputProcessor<IN> {
 		else {
 			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
 		}
-		
+
 		if (checkpointListener != null) {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointListener);
 		}
-		
+
 		if (enableWatermarkMultiplexing) {
 			MultiplexingStreamRecordSerializer<IN> ser = new MultiplexingStreamRecordSerializer<IN>(inputSerializer);
 			this.deserializationDelegate = new NonReusingDeserializationDelegate<StreamElement>(ser);
@@ -109,10 +107,10 @@ public class StreamInputProcessor<IN> {
 			this.deserializationDelegate = (NonReusingDeserializationDelegate<StreamElement>)
 					(NonReusingDeserializationDelegate<?>) new NonReusingDeserializationDelegate<StreamRecord<IN>>(ser);
 		}
-		
+
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		
+
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>>();
 		}
@@ -124,7 +122,6 @@ public class StreamInputProcessor<IN> {
 		lastEmittedWatermark = Long.MIN_VALUE;
 	}
 
-	@SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
 	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator, final Object lock) throws Exception {
 		if (isFinished) {
 			return false;
@@ -163,6 +160,7 @@ public class StreamInputProcessor<IN> {
 						StreamRecord<IN> record = recordOrWatermark.asRecord();
 						synchronized (lock) {
 							streamOperator.setKeyContextElement(record);
+							streamOperator.setLastInputChannelNumber(currentChannel);
 							streamOperator.processElement(record);
 						}
 						return true;
@@ -194,13 +192,13 @@ public class StreamInputProcessor<IN> {
 			}
 		}
 	}
-	
+
 	public void setReporter(AccumulatorRegistry.Reporter reporter) {
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			deserializer.setReporter(reporter);
 		}
 	}
-	
+
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
@@ -209,7 +207,7 @@ public class StreamInputProcessor<IN> {
 				buffer.recycle();
 			}
 		}
-		
+
 		// cleanup the barrier handler resources
 		barrierHandler.cleanup();
 	}

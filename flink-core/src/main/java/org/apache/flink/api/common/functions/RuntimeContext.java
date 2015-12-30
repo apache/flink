@@ -65,6 +65,13 @@ public interface RuntimeContext {
 	int getIndexOfThisSubtask();
 
 	/**
+	 * Returns the channel number the last input record was fetched from.
+	 *
+	 * @return The channel number the last input record was fetche from.
+	 */
+	int getLastInputChannelNumber();
+
+	/**
 	 * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
 	 *
 	 * @return Attempt number of the subtask.
@@ -85,7 +92,7 @@ public interface RuntimeContext {
 	 * job.
 	 */
 	ExecutionConfig getExecutionConfig();
-	
+
 	/**
 	 * Gets the ClassLoader to load classes that were are not in system's classpath, but are part of the
 	 * jar file of a user job.
@@ -137,7 +144,7 @@ public interface RuntimeContext {
 	 * Convenience function to create a counter object for histograms.
 	 */
 	Histogram getHistogram(String name);
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -152,7 +159,7 @@ public interface RuntimeContext {
 	 * @return The broadcast variable, materialized as a list of elements.
 	 */
 	<RT> List<RT> getBroadcastVariable(String name);
-	
+
 	/**
 	 * Returns the result bound to the broadcast variable identified by the 
 	 * given {@code name}. The broadcast variable is returned as a shared data structure
@@ -176,7 +183,7 @@ public interface RuntimeContext {
 	 * @return The distributed cache of the worker executing this instance.
 	 */
 	DistributedCache getDistributedCache();
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
