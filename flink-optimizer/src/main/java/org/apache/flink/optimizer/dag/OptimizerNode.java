@@ -50,7 +50,7 @@ import org.apache.flink.util.Visitor;
  * The OptimizerNode is the base class of all nodes in the optimizer DAG. The optimizer DAG is the
  * optimizer's representation of a program, created before the actual optimization (which creates different
  * candidate plans and computes their cost).
- * <p>>
+ * <p>
  * Nodes in the DAG correspond (almost) one-to-one to the operators in a program. The optimizer DAG is constructed
  * to hold the additional information that the optimizer needs:
  * <ul>
@@ -152,7 +152,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return The node name.
 	 */
-	public abstract String getName();
+	public abstract String getOperatorName();
 
 	/**
 	 * This function connects the predecessors to this operator.
@@ -1119,7 +1119,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public String toString() {
 		StringBuilder bld = new StringBuilder();
 
-		bld.append(getName());
+		bld.append(getOperatorName());
 		bld.append(" (").append(getOperator().getName()).append(") ");
 
 		int i = 1; 

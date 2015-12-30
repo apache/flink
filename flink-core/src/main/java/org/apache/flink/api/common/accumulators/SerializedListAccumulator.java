@@ -19,13 +19,11 @@
 package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,9 +51,7 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 	public void add(T value, TypeSerializer<T> serializer) throws IOException {
 		try {
 			ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-			OutputViewDataOutputStreamWrapper out = 
-					new OutputViewDataOutputStreamWrapper(new DataOutputStream(outStream));
-			
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(outStream);
 			serializer.serialize(value, out);
 			localValue.add(outStream.toByteArray());
 		}
@@ -93,7 +89,7 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 		List<T> result = new ArrayList<T>(data.size());
 		for (byte[] bytes : data) {
 			ByteArrayInputStream inStream = new ByteArrayInputStream(bytes);
-			InputViewDataInputStreamWrapper in = new InputViewDataInputStreamWrapper(new DataInputStream(inStream));
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(inStream);
 			T val = serializer.deserialize(in);
 			result.add(val);
 		}

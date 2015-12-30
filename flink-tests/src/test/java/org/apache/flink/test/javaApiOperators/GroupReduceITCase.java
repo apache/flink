@@ -41,20 +41,19 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContai
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.joda.time.DateTime;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
 import scala.math.BigInt;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "unchecked", "UnusedDeclaration"})
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends MultipleProgramsTestBase {
 
@@ -62,21 +61,34 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String resultPath;
-	private String expected;
+	@Test
+	public void testCorrectnessofGroupReduceOnTupleContainingPrimitiveByteArrayWithKeyFieldSelectors() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+		DataSet<Tuple2<byte[], Integer>> ds = CollectionDataSets.getTuple2WithByteArrayDataSet(env);
+		DataSet<Integer> reduceDs = ds.
+				groupBy(0).reduceGroup(new ByteArrayGroupReduce());
 
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
+		List<Integer> result = reduceDs.collect();
+
+		String expected = "0\n"
+				+ "1\n"
+				+ "2\n"
+				+ "3\n"
+				+ "4\n";
+
+		compareResultAsText(result, expected);
+
 	}
 
-	@After
-	public void after() throws Exception{
-		if(expected != null) {
-			compareResultsByLinesInMemory(expected, resultPath);
+	public static class ByteArrayGroupReduce implements GroupReduceFunction<Tuple2<byte[], Integer>, Integer> {
+		@Override
+		public void reduce(Iterable<Tuple2<byte[], Integer>> values, Collector<Integer> out) throws Exception {
+			int sum = 0;
+			for (Tuple2<byte[], Integer> value : values) {
+				sum += value.f1;
+			}
+			out.collect(sum);
 		}
 	}
 
@@ -92,20 +104,20 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Integer, Long>> reduceDs = ds.
 				groupBy(1).reduceGroup(new Tuple3GroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, Long>> result = reduceDs.collect();
 
-		expected = "1,1\n" +
+		String expected = "1,1\n" +
 				"5,2\n" +
 				"15,3\n" +
 				"34,4\n" +
 				"65,5\n" +
 				"111,6\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void testCorrectnessOfGroupReduceOnTuplesWithMultipleKeyFieldSelectors() throws
-			Exception {
+	public void testCorrectnessOfGroupReduceOnTuplesWithMultipleKeyFieldSelectors() throws Exception {
 		/*
 		 * check correctness of groupReduce on tuples with multiple key field selector
 		 */
@@ -116,10 +128,9 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
 				groupBy(4, 0).reduceGroup(new Tuple5GroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs.collect();
 
-		expected = "1,1,0,P-),1\n" +
+		String expected = "1,1,0,P-),1\n" +
 				"2,3,0,P-),1\n" +
 				"2,2,0,P-),2\n" +
 				"3,9,0,P-),2\n" +
@@ -129,11 +140,12 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				"5,11,0,P-),1\n" +
 				"5,29,0,P-),2\n" +
 				"5,25,0,P-),3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelectorAndGroupSorting() throws
-			Exception {
+	public void testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelectorAndGroupSorting() throws Exception {
 		/*
 		 * check correctness of groupReduce on tuples with key field selector and group sorting
 		 */
@@ -145,15 +157,17 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).sortGroup(2, Order.ASCENDING).reduceGroup(new Tuple3SortedGroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n"
+				+
 				"5,2,Hello-Hello world\n" +
 				"15,3,Hello world, how are you?-I am fine.-Luke Skywalker\n" +
 				"34,4,Comment#1-Comment#2-Comment#3-Comment#4\n" +
 				"65,5,Comment#5-Comment#6-Comment#7-Comment#8-Comment#9\n" +
 				"111,6,Comment#10-Comment#11-Comment#12-Comment#13-Comment#14-Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -168,15 +182,16 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Integer, Long>> reduceDs = ds.
 				groupBy(new KeySelector1()).reduceGroup(new Tuple3GroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, Long>> result = reduceDs.collect();
 
-		expected = "1,1\n" +
+		String expected = "1,1\n" +
 				"5,2\n" +
 				"15,3\n" +
 				"34,4\n" +
 				"65,5\n" +
 				"111,6\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector1 implements KeySelector<Tuple3<Integer, Long, String>, Long> {
@@ -200,15 +215,16 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> reduceDs = ds.
 				groupBy(new KeySelector2()).reduceGroup(new CustomTypeGroupReduce());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = reduceDs.collect();
 
-		expected = "1,0,Hello!\n" +
+		String expected = "1,0,Hello!\n" +
 				"2,3,Hello!\n" +
 				"3,12,Hello!\n" +
 				"4,30,Hello!\n" +
 				"5,60,Hello!\n" +
 				"6,105,Hello!\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class KeySelector2 implements KeySelector<CustomType, Integer> {
@@ -231,10 +247,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.reduceGroup(new AllAddingTuple3GroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "231,91,Hello World\n";
+		String expected = "231,91,Hello World\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -248,10 +265,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
 		DataSet<CustomType> reduceDs = ds.reduceGroup(new AllAddingCustomTypeGroupReduce());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = reduceDs.collect();
 
-		expected = "91,210,Hello!";
+		String expected = "91,210,Hello!";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -268,21 +286,20 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).reduceGroup(new BCTuple3GroupReduce()).withBroadcastSet(intDs, "ints");
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,55\n" +
+		String expected = "1,1,55\n" +
 				"5,2,55\n" +
 				"15,3,55\n" +
 				"34,4,55\n" +
 				"65,5,55\n" +
 				"111,6,55\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void
-	testCorrectnessOfGroupReduceIfUDFReturnsInputObjectsMultipleTimesWhileChangingThem() throws
-			Exception{
+	public void testCorrectnessOfGroupReduceIfUDFReturnsInputObjectsMultipleTimesWhileChangingThem() throws Exception{
 		/*
 		 * check correctness of groupReduce if UDF returns input objects multiple times and changes it in between
 		 */
@@ -293,20 +310,20 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).reduceGroup(new InputReturningTuple3GroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "11,1,Hi!\n" +
+		String expected = "11,1,Hi!\n" +
 				"21,1,Hi again!\n" +
 				"12,2,Hi!\n" +
 				"22,2,Hi again!\n" +
 				"13,2,Hi!\n" +
 				"23,2,Hi again!\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void testCorrectnessOfGroupReduceOnCustomTypeWithKeyExtractorAndCombine()
-			throws Exception {
+	public void testCorrectnessOfGroupReduceOnCustomTypeWithKeyExtractorAndCombine() throws Exception {
 		/*
 		 * check correctness of groupReduce on custom type with key extractor and combine
 		 */
@@ -318,15 +335,16 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> reduceDs = ds.
 				groupBy(new KeySelector3()).reduceGroup(new CustomTypeGroupReduceWithCombine());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = reduceDs.collect();
 
-		expected = "1,0,test1\n" +
+		String expected = "1,0,test1\n" +
 				"2,3,test2\n" +
 				"3,12,test3\n" +
 				"4,30,test4\n" +
 				"5,60,test5\n" +
 				"6,105,test6\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class KeySelector3 implements KeySelector<CustomType, Integer> {
@@ -340,7 +358,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testCorrectnessOfGroupReduceOnTuplesWithCombine() throws Exception {
-		
 		/*
 		 * check correctness of groupReduce on tuples with combine
 		 */
@@ -353,20 +370,20 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Integer, String>> reduceDs = ds.
 				groupBy(1).reduceGroup(new Tuple3GroupReduceWithCombine());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, String>> result = reduceDs.collect();
 
-		expected = "1,test1\n" +
+		String expected = "1,test1\n" +
 				"5,test2\n" +
 				"15,test3\n" +
 				"34,test4\n" +
 				"65,test5\n" +
 				"111,test6\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
 	public void testCorrectnessOfAllGroupReduceForTuplesWithCombine() throws Exception {
-		
 		/*
 		 * check correctness of all-groupreduce for tuples with combine
 		 */
@@ -382,11 +399,12 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Integer, String>> reduceDs = ds.reduceGroup(new Tuple3AllGroupReduceWithCombine())
 				.withParameters(cfg);
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, String>> result = reduceDs.collect();
 
-		expected = "322," +
+		String expected = "322," +
 				"testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -401,20 +419,21 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).sortGroup(2, Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n"
+				+
 				"5,2,Hello world-Hello\n" +
 				"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
 				"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
 				"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
 				"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void testCorrectnessOfGroupReduceOnTuplesWithTupleReturningKeySelector() throws
-			Exception {
+	public void testCorrectnessOfGroupReduceOnTuplesWithTupleReturningKeySelector() throws Exception {
 		/*
 		 * check correctness of groupReduce on tuples with tuple-returning key selector
 		 */
@@ -425,10 +444,9 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
 				groupBy(new KeySelector4()).reduceGroup(new Tuple5GroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs.collect();
 
-		expected = "1,1,0,P-),1\n" +
+		String expected = "1,1,0,P-),1\n" +
 				"2,3,0,P-),1\n" +
 				"2,2,0,P-),2\n" +
 				"3,9,0,P-),2\n" +
@@ -438,6 +456,8 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				"5,11,0,P-),1\n" +
 				"5,29,0,P-),2\n" +
 				"5,25,0,P-),3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector4 implements KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>> {
@@ -450,11 +470,10 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testInputOfCombinerIsSortedForCombinableGroupReduceWithGroupSorting() throws
-			Exception {
+	public void testInputOfCombinerIsSortedForCombinableGroupReduceWithGroupSorting() throws Exception {
 		/*
 		 * check that input of combiner is also sorted for combinable groupReduce with group sorting
-	 	 */
+		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
@@ -463,15 +482,16 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).sortGroup(0, Order.ASCENDING).reduceGroup(new OrderCheckingCombinableReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"2,2,Hello\n" +
 				"4,3,Hello world, how are you?\n" +
 				"7,4,Comment#1\n" +
 				"11,5,Comment#5\n" +
 				"16,6,Comment#10\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -486,10 +506,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<String, Integer>> reduceDs = ds.groupBy("nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal")
 				.reduceGroup(new GroupReducer1());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<String, Integer>> result = reduceDs.collect();
 
-		expected = "aa,1\nbb,2\ncc,3\n";
+		String expected = "aa,1\nbb,2\ncc,3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class GroupReducer1 implements GroupReduceFunction<CollectionDataSets.CrazyNested, Tuple2<String, Integer>> {
@@ -498,7 +519,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		@Override
 		public void reduce(Iterable<CrazyNested> values,
 				Collector<Tuple2<String, Integer>> out)
-		throws Exception {
+						throws Exception {
 			int c = 0; String n = null;
 			for(CrazyNested v : values) {
 				c++; // haha
@@ -519,10 +540,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Integer> reduceDs = ds.groupBy("special", "f2")
 				.reduceGroup(new GroupReducer2());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Integer> result = reduceDs.collect();
 
-		expected = "3\n2\n";
+		String expected = "3\n2\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class GroupReducer2 implements GroupReduceFunction<FromTupleWithCTor, Integer> {
@@ -544,14 +566,15 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Integer> reduceDs = ds.groupBy("hadoopFan", "theTuple.*") // full tuple selection
 				.reduceGroup(new GroupReducer3());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Integer> result = reduceDs.collect();
 
-		expected = "1\n5\n";
+		String expected = "1\n5\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class GroupReducer3 implements GroupReduceFunction<PojoContainingTupleAndWritable, Integer> {
-		
+
 		@Override
 		public void reduce(Iterable<PojoContainingTupleAndWritable> values, Collector<Integer> out) {
 			out.collect(countElements(values));
@@ -570,10 +593,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Integer> reduceDs = ds.groupBy("f0", "f1.*") // nested full tuple selection
 				.reduceGroup(new GroupReducer4());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Integer> result = reduceDs.collect();
 
-		expected = "3\n1\n";
+		String expected = "3\n1\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class GroupReducer4 implements GroupReduceFunction<Tuple3<Integer,CrazyNested, POJO>, Integer> {
@@ -597,15 +621,17 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).sortGroup("f2", Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n"
+				+
 				"5,2,Hello world-Hello\n" +
 				"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
 				"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
 				"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
 				"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -618,12 +644,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		DataSet<String> reduceDs = ds.groupBy("f1").sortGroup(0, Order.DESCENDING).reduceGroup(new NestedTupleReducer());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "a--(2,1)-(1,3)-(1,2)-\n" +
+		String expected = "a--(2,1)-(1,3)-(1,2)-\n" +
 				"b--(2,2)-\n"+
 				"c--(4,9)-(3,6)-(3,3)-\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -640,12 +667,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				.sortGroup("f0.f0", Order.ASCENDING)
 				.sortGroup("f0.f1", Order.ASCENDING)
 				.reduceGroup(new NestedTupleReducer());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "a--(1,2)-(1,3)-(2,1)-\n" +
+		String expected = "a--(1,2)-(1,3)-(2,1)-\n" +
 				"b--(2,2)-\n"+
 				"c--(3,3)-(3,6)-(4,9)-\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -659,12 +687,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("f1").sortGroup("f0.f0", Order.DESCENDING).reduceGroup(new NestedTupleReducer());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "a--(2,1)-(1,3)-(1,2)-\n" +
+		String expected = "a--(2,1)-(1,3)-(1,2)-\n" +
 				"b--(2,2)-\n"+
 				"c--(4,9)-(3,3)-(3,6)-\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -678,12 +707,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("f1").sortGroup("f0.f0", Order.DESCENDING).sortGroup("f0.f1", Order.DESCENDING).reduceGroup(new NestedTupleReducer());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "a--(2,1)-(1,3)-(1,2)-\n" +
+		String expected = "a--(2,1)-(1,3)-(1,2)-\n" +
 				"b--(2,2)-\n"+
 				"c--(4,9)-(3,6)-(3,3)-\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -698,11 +728,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("hadoopFan").sortGroup("theTuple.f0", Order.DESCENDING).sortGroup("theTuple.f1", Order.DESCENDING)
 				.reduceGroup(new GroupReducer5());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "1---(10,100)-\n" +
+		String expected = "1---(10,100)-\n"
+				+
 				"2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -720,16 +752,17 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				.sortGroup(new StringFieldExtractor<Tuple3<Integer, Long, String>>(2), Order.DESCENDING)
 				.reduceGroup(new Tuple3SortedGroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		// return expected result
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n"
+				+
 				"5,2,Hello world-Hello\n" +
 				"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
 				"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
 				"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
 				"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class TwoTuplePojoExtractor implements KeySelector<CustomType, Tuple2<Integer, Integer>> {
@@ -764,22 +797,24 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				.sortGroup(new StringPojoExtractor(), Order.DESCENDING)
 				.reduceGroup(new CustomTypeSortedGroupReduce());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = reduceDs.collect();
 
-		// return expected result
-		expected = "1,0,Hi\n" +
+		String expected = "1,0,Hi\n"
+				+
 				"2,3,Hello world-Hello\n" +
 				"3,12,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
 				"4,30,Comment#4-Comment#3-Comment#2-Comment#1\n" +
 				"5,60,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
 				"6,105,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class LongFieldExtractor<T extends Tuple>  implements KeySelector<T, Long> {
 		private static final long serialVersionUID = 1L;
 		private int field;
 
+		
 		public LongFieldExtractor() { }
 
 		public LongFieldExtractor(int field) {
@@ -820,7 +855,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public String getKey(T t) throws Exception {
-			return ((Tuple)t).getField(field);
+			return t.getField(field);
 		}
 	}
 
@@ -839,19 +874,18 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				.sortGroup(new StringFieldExtractor<Tuple3<Integer, Long, String>>(2), Order.DESCENDING)
 				.reduceGroup(new Tuple3SortedGroupReduceWithCombine());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, String>> result = reduceDs.collect();
 
-		// return expected result
-		if (super.mode == TestExecutionMode.COLLECTION) {
-			expected = null;
-		} else {
-			expected = "1,Hi\n" +
+		if (super.mode != TestExecutionMode.COLLECTION) {
+			String expected = "1,Hi\n"
+					+
 					"5,Hello world-Hello\n" +
 					"15,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
 					"34,Comment#4-Comment#3-Comment#2-Comment#1\n" +
 					"65,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
 					"111,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+			compareResultAsTuples(result, expected);
 		}
 	}
 
@@ -879,15 +913,16 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				.sortGroup(new FiveToTwoTupleExtractor(), Order.DESCENDING)
 				.reduceGroup(new Tuple5SortedGroupReduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs.collect();
 
-		// return expected result
-		expected = "1,1,0,Hallo,1\n" +
+		String expected = "1,1,0,Hallo,1\n"
+				+
 				"2,5,0,Hallo Welt-Hallo Welt wie,1\n" +
 				"3,15,0,BCD-ABC-Hallo Welt wie gehts?,2\n" +
 				"4,34,0,FGH-CDE-EFG-DEF,1\n" +
 				"5,65,0,IJK-HIJ-KLM-JKL-GHI,1\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class GroupReducer5 implements GroupReduceFunction<CollectionDataSets.PojoContainingTupleAndWritable, String> {
@@ -923,10 +958,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("p2.a2")
 				.reduceGroup(new GroupReducer6());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "b\nccc\nee\n";
+		String expected = "b\nccc\nee\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class GroupReducer6 implements GroupReduceFunction<CollectionDataSets.PojoWithMultiplePojos, String> {
@@ -954,23 +990,24 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("key")
 				.reduceGroup(new GroupReducer7());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 
-		expected = "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
+		String expected = "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class GroupReducer7 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
+		
 		@Override
-		public void reduce(
-				Iterable<CollectionDataSets.PojoWithCollection> values,
-				Collector<String> out) throws Exception {
+		public void reduce(Iterable<CollectionDataSets.PojoWithCollection> values, Collector<String> out) {
 			StringBuilder concat = new StringBuilder();
 			concat.append("call");
-			for(CollectionDataSets.PojoWithCollection value : values) {
-				concat.append("For key "+value.key+" we got: ");
-				for(CollectionDataSets.Pojo1 p :value.pojos) {
-					concat.append("pojo.a="+p.a);
+			for (CollectionDataSets.PojoWithCollection value : values) {
+				concat.append("For key ").append(value.key).append(" we got: ");
+				
+				for (CollectionDataSets.Pojo1 p :value.pojos) {
+					concat.append("pojo.a=").append(p.a);
 				}
 			}
 			out.collect(concat.toString());
@@ -990,20 +1027,22 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("bigInt")
 				.reduceGroup(new GroupReducer8());
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = reduceDs.collect();
 		ExecutionConfig ec = env.getConfig();
 
 		// check if automatic type registration with Kryo worked
 		Assert.assertTrue(ec.getRegisteredKryoTypes().contains(BigInt.class));
 		Assert.assertTrue(ec.getRegisteredKryoTypes().contains(java.sql.Date.class));
 
+		String expected = null;
 
-		expected = "call\n" +
+		String localExpected = "[call\n" +
 				"For key 92233720368547758070 we got:\n" +
 				"PojoWithCollection{pojos.size()=2, key=0, sqlDate=2033-05-18, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=10, mixed=[{someKey=1}, /this/is/wrong, uhlala]}\n" +
 				"For key 92233720368547758070 we got:\n" +
-				"PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}\n";
+				"PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}]";
+
+		Assert.assertEquals(localExpected, result.toString());
 	}
 
 	@Test
@@ -1034,34 +1073,33 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 								}
 							}
 						})
-				// add forward field information
-				.withForwardedFields("0")
-				// group again and reduce
-				.groupBy(0).reduceGroup(
-						new GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>>() {
-							@Override
-							public void reduce(Iterable<Tuple5<Integer, Long, Integer, String, Long>> values, Collector<Tuple2<Integer, Long>> out) throws Exception {
-								int k = 0;
-								long s = 0;
-								for (Tuple5<Integer, Long, Integer, String, Long> v : values) {
-									k = v.f0;
-									s += v.f1;
+						// add forward field information
+						.withForwardedFields("0")
+						// group again and reduce
+						.groupBy(0).reduceGroup(
+								new GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>>() {
+									@Override
+									public void reduce(Iterable<Tuple5<Integer, Long, Integer, String, Long>> values, Collector<Tuple2<Integer, Long>> out) throws Exception {
+										int k = 0;
+										long s = 0;
+										for (Tuple5<Integer, Long, Integer, String, Long> v : values) {
+											k = v.f0;
+											s += v.f1;
+										}
+										out.collect(new Tuple2<Integer, Long>(k, s));
+									}
 								}
-								out.collect(new Tuple2<Integer, Long>(k, s));
-							}
-						}
-				);
+								);
 
-		reduceDs.writeAsCsv(resultPath);
+		List<Tuple2<Integer, Long>> result = reduceDs.collect();
 
-		env.execute();
-
-		expected = "1,1\n" +
+		String expected = "1,1\n" +
 				"2,5\n" +
 				"3,15\n" +
 				"4,34\n" +
 				"5,65\n";
 
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -1075,13 +1113,14 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			}
 		});
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Integer> result = reduceDs.collect();
 
-		expected = "1\n" +
-			"2\n" +
-			"3\n" +
-			"4";
+		String expected = "1\n" +
+				"2\n" +
+				"3\n" +
+				"4";
+
+		compareResultAsText(result, expected);
 	}
 
 	/**
@@ -1095,21 +1134,51 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Integer, DateTime>> ds = env.fromElements(new Tuple2<Integer, DateTime>(1, DateTime.now()));
 		DataSet<Tuple2<Integer, DateTime>> reduceDs = ds.groupBy("f1").sum(0).project(0);
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Tuple2<Integer, DateTime>> result = reduceDs.collect();
 
-		expected = "(1)\n";
+		String expected = "1\n";
+
+		compareResultAsTuples(result, expected);
 	}
+
+	/**
+	 * Fix for FLINK-2158.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testDateNullException() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple2<Integer, Date>> in = env.fromElements(new Tuple2<Integer, Date>(0, new Date(1230000000)),
+				new Tuple2<Integer, Date>(1, null),
+				new Tuple2<Integer, Date>(2, new Date(1230000000))
+		);
+
+		DataSet<String> r = in.groupBy(0).reduceGroup(new GroupReduceFunction<Tuple2<Integer, Date>, String>() {
+			@Override
+			public void reduce(Iterable<Tuple2<Integer, Date>> values, Collector<String> out) throws Exception {
+				for (Tuple2<Integer, Date> e : values) {
+					out.collect(Integer.toString(e.f0));
+				}
+			}
+		});
+
+		List<String> result = r.collect();
+
+		String expected = "0\n1\n2\n";
+		compareResultAsText(result, expected);
+	}
+
+
 
 	public static class GroupReducer8 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
 		@Override
-		public void reduce(
-				Iterable<CollectionDataSets.PojoWithCollection> values,
-				Collector<String> out) throws Exception {
+		public void reduce(Iterable<CollectionDataSets.PojoWithCollection> values, Collector<String> out) {
 			StringBuilder concat = new StringBuilder();
 			concat.append("call");
-			for(CollectionDataSets.PojoWithCollection value : values) {
-				concat.append("\nFor key "+value.bigInt+" we got:\n"+value);
+			for (CollectionDataSets.PojoWithCollection value : values) {
+				concat.append("\nFor key ").append(value.bigInt).append(" we got:\n").append(value);
 			}
 			out.collect(concat.toString());
 		}
@@ -1117,10 +1186,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 	public static class NestedTupleReducer implements GroupReduceFunction<Tuple2<Tuple2<Integer,Integer>,String>, String> {
 		@Override
-		public void reduce(
-				Iterable<Tuple2<Tuple2<Integer, Integer>, String>> values,
-				Collector<String> out)
-				throws Exception {
+		public void reduce(Iterable<Tuple2<Tuple2<Integer, Integer>, String>> values, Collector<String> out) {
 			boolean once = false;
 			StringBuilder concat = new StringBuilder();
 			for(Tuple2<Tuple2<Integer, Integer>, String> value : values) {
@@ -1134,26 +1200,25 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			out.collect(concat.toString());
 		}
 	}
-	
+
 	public static class Tuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, Long>> out) {
-			
 			int i = 0;
 			long l = 0l;
-			
+
 			for (Tuple3<Integer, Long, String> t : values) {
 				i += t.f0;
 				l = t.f1;
 			}
-			
+
 			out.collect(new Tuple2<Integer, Long>(i, l));
-			
+
 		}
 	}
-	
+
 	public static class Tuple3SortedGroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
@@ -1163,21 +1228,21 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			int sum = 0;
 			long key = 0;
 			StringBuilder concat = new StringBuilder();
-			
+
 			for (Tuple3<Integer, Long, String> next : values) {
 				sum += next.f0;
 				key = next.f1;
 				concat.append(next.f2).append("-");
 			}
-			
+
 			if (concat.length() > 0) {
 				concat.setLength(concat.length() - 1);
 			}
-			
+
 			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat.toString()));
 		}
 	}
-	
+
 	public static class Tuple5GroupReduce implements GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		private static final long serialVersionUID = 1L;
 
@@ -1189,13 +1254,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			int i = 0;
 			long l = 0l;
 			long l2 = 0l;
-			
+
 			for ( Tuple5<Integer, Long, Integer, String, Long> t : values ) {
 				i = t.f0;
 				l += t.f1;
 				l2 = t.f4;
 			}
-			
+
 			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, "P-)", l2));
 		}
 	}
@@ -1205,8 +1270,8 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void reduce(
-			Iterable<Tuple5<Integer, Long, Integer, String, Long>> values,
-			Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
+				Iterable<Tuple5<Integer, Long, Integer, String, Long>> values,
+				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
 		{
 			int i = 0;
 			long l = 0l;
@@ -1226,29 +1291,29 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, concat.toString(), l2));
 		}
 	}
-	
+
 	public static class CustomTypeGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
-		
+
 
 		@Override
 		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
 			final Iterator<CustomType> iter = values.iterator();
-			
+
 			CustomType o = new CustomType();
 			CustomType c = iter.next();
-			
+
 			o.myString = "Hello!";
 			o.myInt = c.myInt;
 			o.myLong = c.myLong;
-			
+
 			while (iter.hasNext()) {
 				CustomType next = iter.next();
 				o.myLong += next.myLong;
 			}
-			
+
 			out.collect(o);
-			
+
 		}
 	}
 
@@ -1271,7 +1336,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				CustomType next = iter.next();
 				concat.append("-").append(next.myString);
 				o.myLong += next.myLong;
-				
+
 			}
 
 			o.myString = concat.toString();
@@ -1287,7 +1352,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
 			for ( Tuple3<Integer, Long, String> t : values ) {
-				
+
 				if(t.f0 < 4) {
 					t.f2 = "Hi!";
 					t.f0 += 10;
@@ -1299,74 +1364,74 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			}
 		}
 	}
-	
+
 	public static class AllAddingTuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
 			int i = 0;
 			long l = 0l;
-			
+
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				l += t.f1;
 			}
-			
+
 			out.collect(new Tuple3<Integer, Long, String>(i, l, "Hello World"));
 		}
 	}
-	
+
 	public static class AllAddingCustomTypeGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
 
 			CustomType o = new CustomType(0, 0, "Hello!");
-			
+
 			for (CustomType next : values) {
 				o.myInt += next.myInt;
 				o.myLong += next.myLong;
 			}
-			
+
 			out.collect(o);
 		}
 	}
-	
+
 	public static class BCTuple3GroupReduce extends RichGroupReduceFunction<Tuple3<Integer, Long, String>,Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private String f2Replace = "";
-		
+
 		@Override
 		public void open(Configuration config) {
-			
+
 			Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
 			int sum = 0;
 			for(Integer i : ints) {
 				sum += i;
 			}
 			f2Replace = sum+"";
-			
+
 		}
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
-				
+
 			int i = 0;
 			long l = 0l;
-			
+
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				l = t.f1;
 			}
-			
+
 			out.collect(new Tuple3<Integer, Long, String>(i, l, this.f2Replace));
-			
+
 		}
 	}
-	
+
 	@RichGroupReduceFunction.Combinable
 	public static class Tuple3GroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
@@ -1437,75 +1502,75 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			out.collect(new Tuple2<Integer, String>(i, s));
 		}
 	}
-	
+
 	@RichGroupReduceFunction.Combinable
 	public static class Tuple3AllGroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
-			
+
 			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
-			
+
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				o.f0 += t.f0;
 				o.f1 += t.f1;
 				o.f2 += "test";
 			}
-			
+
 			out.collect(o);
 		}
 
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
-			
+
 			int i = 0;
 			String s = "";
-			
+
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0 + t.f1;
 				s += t.f2;
 			}
-			
+
 			out.collect(new Tuple2<Integer, String>(i, s));
-			
+
 		}
 	}
-	
+
 	@RichGroupReduceFunction.Combinable
 	public static class CustomTypeGroupReduceWithCombine extends RichGroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public void combine(Iterable<CustomType> values, Collector<CustomType> out) throws Exception {
-			
+
 			CustomType o = new CustomType();
-			
+
 			for ( CustomType c : values ) {
 				o.myInt = c.myInt;
 				o.myLong += c.myLong;
 				o.myString = "test"+c.myInt;
 			}
-			
+
 			out.collect(o);
 		}
 
 		@Override
 		public void reduce(Iterable<CustomType> values, Collector<CustomType> out)  {
-			
+
 			CustomType o = new CustomType(0, 0, "");
-			
+
 			for ( CustomType c : values) {
 				o.myInt = c.myInt;
 				o.myLong += c.myLong;
 				o.myString = c.myString;
 			}
-			
+
 			out.collect(o);
-			
+
 		}
 	}
-	
+
 	@RichGroupReduceFunction.Combinable
 	public static class OrderCheckingCombinableReduce extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
@@ -1514,28 +1579,28 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			Iterator<Tuple3<Integer,Long,String>> it = values.iterator();
 			Tuple3<Integer,Long,String> t = it.next();
-			
+
 			int i = t.f0;
 			out.collect(t);
-			
+
 			while(it.hasNext()) {
 				t = it.next();
 				if(i > t.f0 || t.f2.equals("INVALID-ORDER!")) {
 					t.f2 = "INVALID-ORDER!";
 					out.collect(t);
 				}
-			}		
+			}
 		}
-		
+
 		@Override
-		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {	
-			
+		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
+
 			Iterator<Tuple3<Integer,Long,String>> it = values.iterator();
 			Tuple3<Integer,Long,String> t = it.next();
-			
+
 			int i = t.f0;
 			out.collect(t);
-			
+
 			while(it.hasNext()) {
 				t = it.next();
 				if(i > t.f0) {
@@ -1545,15 +1610,15 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			}
 
 		}
-		
-		
+
+
 	}
-	
+
 	public static final class IdentityMapper<T> extends RichMapFunction<T, T> {
 		@Override
 		public T map(T value) { return value; }
 	}
-	
+
 	private static int countElements(Iterable<?> iterable) {
 		int c = 0;
 		for (@SuppressWarnings("unused") Object o : iterable) {

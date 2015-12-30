@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-staging</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -117,7 +117,7 @@
 						</goals>
 						<configuration>
 							<suffixes>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffixes>
-							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -XX:-UseGCOverheadLimit</argLine>
+							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dlog.dir=${log.dir} -Dmvn.forkNumber=1 -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 					<execution>
@@ -128,7 +128,7 @@
 						</goals>
 						<configuration>
 							<suffixes>(IT|Integration)(Test|Suite|Case)</suffixes>
-							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -XX:-UseGCOverheadLimit</argLine>
+							<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dlog.dir=${log.dir} -Dmvn.forkNumber=1 -XX:-UseGCOverheadLimit</argLine>
 						</configuration>
 					</execution>
 				</executions>

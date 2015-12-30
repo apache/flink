@@ -1,5 +1,3 @@
-#set($hash = '#')
-
 package ${package};
 
 /*
@@ -36,7 +34,7 @@ import java.util.Set;
 
 public class Driver {
 
-	private static final DecimalFormat formatter = new DecimalFormat("${hash}${hash}${hash}.${hash}${hash}%");
+	private static final DecimalFormat formatter = new DecimalFormat("###.##%");
 
 	public static void main(String [] args){
 		int exitCode = -1;

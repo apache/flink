@@ -203,6 +203,8 @@ public final class BlobCache implements BlobService {
 	@Override
 	public void shutdown() {
 		if (shutdownRequested.compareAndSet(false, true)) {
+			LOG.info("Shutting down BlobCache");
+
 			// Clean up the storage directory
 			try {
 				FileUtils.deleteDirectory(storageDir);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,11 +33,7 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -46,22 +43,6 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 
 	public DistinctITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -75,17 +56,17 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> distinctDs = ds.union(ds).distinct(0, 1, 2);
 
-		distinctDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = distinctDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"2,2,Hello\n" +
 				"3,2,Hello world\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void testCorrectnessOfDistinctOnTuplesWithKeyFieldSelectorWithNotAllFieldsSelected()
-	throws Exception{
+	public void testCorrectnessOfDistinctOnTuplesWithKeyFieldSelectorWithNotAllFieldsSelected() throws Exception{
 		/*
 		 * check correctness of distinct on tuples with key field selector with not all fields selected
 		 */
@@ -93,13 +74,14 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple1<Integer>> distinctDs = ds.union(ds).distinct(0).project(0);
+		DataSet<Tuple1<Integer>> distinctDs = ds.union(ds).distinct(0).project(0);
 
-		distinctDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple1<Integer>> result = distinctDs.collect();
 
-		expected = "1\n" +
+		String expected = "1\n" +
 				"2\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -111,15 +93,13 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
-		DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
-				.distinct(new KeySelector1()).project(0);
+		DataSet<Tuple1<Integer>> reduceDs = ds.union(ds).distinct(new KeySelector1()).project(0);
 
+		List<Tuple1<Integer>> result = reduceDs.collect();
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		String expected = "1\n" + "2\n";
 
-		expected = "1\n" +
-				"2\n";
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector1 implements KeySelector<Tuple5<Integer, Long,  Integer, String, Long>, Integer> {
@@ -143,15 +123,16 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 				.distinct(new KeySelector3())
 				.map(new Mapper3());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple1<Integer>> result = reduceDs.collect();
 
-		expected = "1\n" +
+		String expected = "1\n" +
 				"2\n" +
 				"3\n" +
 				"4\n" +
 				"5\n" +
 				"6\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class Mapper3 extends RichMapFunction<CustomType, Tuple1<Integer>> {
@@ -180,17 +161,17 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> distinctDs = ds.union(ds).distinct();
 
-		distinctDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = distinctDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"2,2,Hello\n" +
 				"3,2,Hello world\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
-	public void testCorrectnessOfDistinctOnCustomTypeWithTupleReturningTypeExtractor() throws
-			Exception{
+	public void testCorrectnessOfDistinctOnCustomTypeWithTupleReturningTypeExtractor() throws Exception{
 		/*
 		 * check correctness of distinct on custom type with tuple-returning type extractor
 		 */
@@ -200,12 +181,11 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple2<Integer, Long>> reduceDs = ds
 				.distinct(new KeySelector2())
-						.project(0,4);
+				.project(0,4);
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, Long>> result = reduceDs.collect();
 
-		expected = "1,1\n" +
+		String expected = "1,1\n" +
 				"2,1\n" +
 				"2,2\n" +
 				"3,2\n" +
@@ -215,6 +195,8 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 				"5,1\n" +
 				"5,2\n" +
 				"5,3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector2 implements KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>> {
@@ -234,14 +216,14 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
-		DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
-						.distinct("f0").project(0);
+		DataSet<Tuple1<Integer>> reduceDs = ds.union(ds).distinct("f0").project(0);
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple1<Integer>> result = reduceDs.collect();
 
-		expected = "1\n" +
+		String expected = "1\n" +
 				"2\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -255,10 +237,11 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
 		DataSet<Integer> reduceDs = ds.distinct("nestedPojo.longNumber").map(new Mapper2());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Integer> result = reduceDs.collect();
 
-		expected = "10000\n20000\n30000\n";
+		String expected = "10000\n20000\n30000\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class Mapper2 implements MapFunction<CollectionDataSets.POJO, Integer> {
@@ -278,10 +261,11 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
 		DataSet<Integer> reduceDs = ds.distinct().map(new Mapper1());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<Integer> result = reduceDs.collect();
 
-		expected = "10000\n20000\n30000\n";
+		String expected = "10000\n20000\n30000\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class Mapper1 implements MapFunction<CollectionDataSets.POJO, Integer> {
@@ -289,5 +273,46 @@ public class DistinctITCase extends MultipleProgramsTestBase {
 		public Integer map(POJO value) throws Exception {
 			return (int) value.nestedPojo.longNumber;
 		}
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnAtomic() throws Exception {
+		/*
+		 * check correctness of distinct on Integers
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds = CollectionDataSets.getIntegerDataSet(env);
+		DataSet<Integer> reduceDs = ds.distinct();
+
+		List<Integer> result = reduceDs.collect();
+
+		String expected = "1\n2\n3\n4\n5";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnAtomicWithSelectAllChar() throws Exception {
+		/*
+		 * check correctness of distinct on Strings, using Keys.ExpressionKeys.SELECT_ALL_CHAR
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
+		DataSet<String> reduceDs = ds.union(ds).distinct("*");
+
+		List<String> result = reduceDs.collect();
+
+		String expected = "I am fine.\n" +
+				"Luke Skywalker\n" +
+				"LOL\n" +
+				"Hello world, how are you?\n" +
+				"Hi\n" +
+				"Hello world\n" +
+				"Hello\n" +
+				"Random comment\n";
+
+		compareResultAsText(result, expected);
 	}
 }

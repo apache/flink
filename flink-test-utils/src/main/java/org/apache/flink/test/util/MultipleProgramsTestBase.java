@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.runtime.StreamingMode;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runners.Parameterized;
@@ -38,14 +37,14 @@ import java.util.Collection;
  *
  * <pre>{@code
  *
- *   @Test
+ *   {@literal @}Test
  *   public void someTest() {
  *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
  *       // test code
  *       env.execute();
  *   }
  *
- *   @Test
+ *   {@literal @}Test
  *   public void anotherTest() {
  *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
  *       // test code
@@ -80,7 +79,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	protected final TestExecutionMode mode;
 
 	
-	public MultipleProgramsTestBase(TestExecutionMode mode){
+	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
 		
 		switch(mode){
@@ -100,8 +99,13 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, StreamingMode.BATCH_ONLY, startWebServer, true);
+	public static void setup() throws Exception {
+		cluster = TestBaseUtils.startCluster(
+			1,
+			DEFAULT_PARALLELISM,
+			startWebServer,
+			false,
+			true);
 	}
 
 	@AfterClass
@@ -114,8 +118,9 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	// ------------------------------------------------------------------------
 	
 	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes(){
-		return Arrays.asList(new TestExecutionMode[]{TestExecutionMode.CLUSTER},
-				new TestExecutionMode[]{TestExecutionMode.COLLECTION});
+	public static Collection<Object[]> executionModes() {
+		return Arrays.asList(
+				new Object[] { TestExecutionMode.CLUSTER },
+				new Object[] { TestExecutionMode.COLLECTION });
 	}
 }

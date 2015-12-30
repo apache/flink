@@ -45,6 +45,7 @@ under the License.
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<flink.version>1.0-SNAPSHOT</flink.version>
 	</properties>
 
 	<!-- 
@@ -75,22 +76,22 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala</artifactId>
-			<version>0.10-SNAPSHOT</version>
+			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala</artifactId>
-			<version>0.10-SNAPSHOT</version>
+			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
-			<version>0.10-SNAPSHOT</version>
+			<version>${flink.version}</version>
 		</dependency>
 	</dependencies>
 
 	<!-- We use the maven-assembly plugin to create a fat jar that contains all dependencies
-		except flink and it's transitive dependencies. The resulting fat-jar can be executed
+		except flink and its transitive dependencies. The resulting fat-jar can be executed
 		on a cluster. Change the value of Program-Class if your program entry point changes. -->
 	<build>
 		<plugins>
@@ -100,7 +101,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
+				<version>2.4.1</version>
 				<executions>
 					<!-- Run shade goal on package phase -->
 					<execution>
@@ -121,12 +122,11 @@ under the License.
 									<exclude>org.apache.flink:flink-runtime</exclude>
 									<exclude>org.apache.flink:flink-optimizer</exclude>
 									<exclude>org.apache.flink:flink-clients</exclude>
-									<exclude>org.apache.flink:flink-spargel</exclude>
 									<exclude>org.apache.flink:flink-avro</exclude>
 									<exclude>org.apache.flink:flink-java-examples</exclude>
 									<exclude>org.apache.flink:flink-scala-examples</exclude>
 									<exclude>org.apache.flink:flink-streaming-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-core</exclude>
+									<exclude>org.apache.flink:flink-streaming-java</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -204,6 +204,16 @@ under the License.
 										<exclude>web-docs/**</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<!-- Do not copy the signatures in the META-INF folder.
+									Otherwise, this might cause SecurityExceptions when using the JAR. -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<transformers>
 								<!-- add Main-Class to manifest file -->
@@ -222,8 +232,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
+					<source>1.7</source>
+					<target>1.7</target>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -319,19 +329,19 @@ under the License.
 				<dependency>
 					<groupId>org.apache.flink</groupId>
 					<artifactId>flink-scala</artifactId>
-					<version>0.10-SNAPSHOT</version>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-core</artifactId>
-					<version>0.10-SNAPSHOT</version>
+					<artifactId>flink-streaming-java</artifactId>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
 					<artifactId>flink-clients</artifactId>
-					<version>0.10-SNAPSHOT</version>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>

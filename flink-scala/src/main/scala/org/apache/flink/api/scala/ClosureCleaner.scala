@@ -26,8 +26,8 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
 
-import com.esotericsoftware.reflectasm.shaded.org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
-import com.esotericsoftware.reflectasm.shaded.org.objectweb.asm.Opcodes._
+import org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
+import org.objectweb.asm.Opcodes._
 
 /* This code is originally from the Apache Spark project. */
 object ClosureCleaner {
@@ -253,11 +253,11 @@ object ClosureCleaner {
 }
 
 private[flink]
-class ReturnStatementFinder extends ClassVisitor(ASM4) {
+class ReturnStatementFinder extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
     if (name.contains("apply")) {
-      new MethodVisitor(ASM4) {
+      new MethodVisitor(ASM5) {
         override def visitTypeInsn(op: Int, tp: String) {
           if (op == NEW && tp.contains("scala/runtime/NonLocalReturnControl")) {
             throw new InvalidProgramException("Return statements aren't allowed in Flink closures")
@@ -265,16 +265,16 @@ class ReturnStatementFinder extends ClassVisitor(ASM4) {
         }
       }
     } else {
-      new MethodVisitor(ASM4) {}
+      new MethodVisitor(ASM5) {}
     }
   }
 }
 
 private[flink]
-class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor(ASM4) {
+class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
-    new MethodVisitor(ASM4) {
+    new MethodVisitor(ASM5) {
       override def visitFieldInsn(op: Int, owner: String, name: String, desc: String) {
         if (op == GETFIELD) {
           for (cl <- output.keys if cl.getName == owner.replace('/', '.')) {
@@ -297,7 +297,7 @@ class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor
   }
 }
 
-private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisitor(ASM4) {
+private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisitor(ASM5) {
   var myName: String = null
 
   override def visit(version: Int, access: Int, name: String, sig: String,
@@ -307,7 +307,7 @@ private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisi
 
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
-    new MethodVisitor(ASM4) {
+    new MethodVisitor(ASM5) {
       override def visitMethodInsn(op: Int, owner: String, name: String,
                                    desc: String) {
         val argTypes = Type.getArgumentTypes(desc)

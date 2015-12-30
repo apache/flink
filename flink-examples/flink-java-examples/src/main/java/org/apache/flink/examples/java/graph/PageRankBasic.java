@@ -53,7 +53,7 @@ import org.apache.flink.examples.java.graph.util.PageRankData;
  * For example <code>"1\n2\n12\n42\n63"</code> gives five pages with IDs 1, 2, 12, 42, and 63.
  * <li>Links are represented as pairs of page IDs which are separated by space 
  * characters. Links are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (directed) links (1)->(2), (2)->(12), (1)->(12), and (42)->(63).<br>
+ * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (directed) links (1)-&gt;(2), (2)-&gt;(12), (1)-&gt;(12), and (42)-&gt;(63).<br>
  * For this simple implementation it is required that each page has at least one incoming and one outgoing link (a page can point to itself).
  * </ul>
  * 

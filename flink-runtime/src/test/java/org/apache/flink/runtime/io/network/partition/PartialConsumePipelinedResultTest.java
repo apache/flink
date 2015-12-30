@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -46,19 +44,18 @@ public class PartialConsumePipelinedResultTest {
 	private final static int NUMBER_OF_NETWORK_BUFFERS = 128;
 
 	private static TestingCluster flink;
-	private static ActorSystem jobClient;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
 		final Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUMBER_OF_TMS);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUMBER_OF_SLOTS_PER_TM);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
 		config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, NUMBER_OF_NETWORK_BUFFERS);
 
 		flink = new TestingCluster(config, true);
 
-		jobClient = JobClient.startJobClientActorSystem(flink.configuration());
+		flink.start();
 	}
 
 	@AfterClass
@@ -100,12 +97,7 @@ public class PartialConsumePipelinedResultTest {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		JobClient.submitJobAndWait(
-				jobClient,
-				flink.getJobManager(),
-				jobGraph,
-				TestingUtils.TESTING_DURATION(),
-				false);
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	// ---------------------------------------------------------------------------------------------

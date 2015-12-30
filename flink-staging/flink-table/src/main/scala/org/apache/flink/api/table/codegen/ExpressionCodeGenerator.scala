@@ -17,10 +17,8 @@
  */
 package org.apache.flink.api.table.codegen
 
+import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
-
-import org.codehaus.janino.SimpleCompiler
-import org.slf4j.LoggerFactory
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
@@ -29,22 +27,26 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenamingProxyTypeInfo, RowTypeInfo}
-import org.apache.flink.api.table.{ExpressionException, expressions}
+import org.apache.flink.api.table.{ExpressionException, TableConfig, expressions}
+import org.codehaus.janino.SimpleCompiler
+import org.slf4j.LoggerFactory
+
+import scala.collection.mutable
 
 /** Base class for all code generation classes. This provides the functionality for generating
   * code from an [[Expression]] tree. Derived classes must embed this in a lambda function
   * to form an executable code block.
   *
   * @param inputs List of input variable names with corresponding [[TypeInformation]].
-  * @param nullCheck Whether the generated code should include checks for NULL values.
   * @param cl The ClassLoader that is used to create the Scala reflection ToolBox
+  * @param config General configuration specifying runtime behaviour.
   * @tparam R The type of the generated code block. In most cases a lambda function such
   *           as "(IN1, IN2) => OUT".
   */
 abstract class ExpressionCodeGenerator[R](
     inputs: Seq[(String, CompositeType[_])],
-    val nullCheck: Boolean = false,
-    cl: ClassLoader) {
+    cl: ClassLoader,
+    config: TableConfig) {
   protected val log = LoggerFactory.getLogger(classOf[ExpressionCodeGenerator[_]])
 
   import scala.reflect.runtime.universe._
@@ -57,6 +59,19 @@ abstract class ExpressionCodeGenerator[R](
   val compiler = new SimpleCompiler()
   compiler.setParentClassLoader(cl)
 
+  protected val reusableMemberStatements = mutable.Set[String]()
+
+  protected val reusableInitStatements = mutable.Set[String]()
+
+  protected def reuseMemberCode(): String = {
+    reusableMemberStatements.mkString("", "\n", "\n")
+  }
+
+  protected def reuseInitCode(): String = {
+    reusableInitStatements.mkString("", "\n", "\n")
+  }
+
+  protected def nullCheck: Boolean = config.getNullCheck
 
   // This is to be implemented by subclasses, we have it like this
   // so that we only call it from here with the Scala Reflection Lock.
@@ -94,9 +109,9 @@ abstract class ExpressionCodeGenerator[R](
             |boolean $nullTerm = ${leftCode.nullTerm} || ${rightCode.nullTerm};
             |$resultTpe $resultTerm;
             |if ($nullTerm) {
-            |  $resultTerm = ${defaultPrimitive(resultType)}
+            |  $resultTerm = ${defaultPrimitive(resultType)};
             |} else {
-            |  $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)}
+            |  $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)};
             |}
           """.stripMargin
       } else {
@@ -108,14 +123,17 @@ abstract class ExpressionCodeGenerator[R](
       }
     }
 
-    val cleanedExpr = expr match {
-      case expressions.Naming(namedExpr, _) => namedExpr
-      case _ => expr
+    def cleanedExpr(e: Expression): Expression =  {
+      e match {
+        case expressions.Naming(namedExpr, _) => cleanedExpr(namedExpr)
+        case _ => e
+      }
     }
-    
-    val resultTpe = typeTermForTypeInfo(cleanedExpr.typeInfo)
 
-    val code: String = cleanedExpr match {
+    val cleanedExpression = cleanedExpr(expr)
+    val resultTpe = typeTermForTypeInfo(cleanedExpression.typeInfo)
+
+    val code: String = cleanedExpression match {
 
       case expressions.Literal(null, typeInfo) =>
         if (nullCheck) {
@@ -157,7 +175,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(doubleValue: Double, DOUBLE_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = $doubleValue;
           """.stripMargin
         } else {
@@ -169,7 +187,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(floatValue: Float, FLOAT_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = ${floatValue}f;
           """.stripMargin
         } else {
@@ -181,7 +199,7 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(strValue: String, STRING_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = "$strValue";
           """.stripMargin
         } else {
@@ -193,12 +211,29 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Literal(boolValue: Boolean, BOOLEAN_TYPE_INFO) =>
         if (nullCheck) {
           s"""
-            |val $nullTerm = false
+            |boolean $nullTerm = false;
             |$resultTpe $resultTerm = $boolValue;
           """.stripMargin
         } else {
           s"""
             $resultTpe $resultTerm = $boolValue;
+          """.stripMargin
+        }
+
+      case expressions.Literal(dateValue: Date, DATE_TYPE_INFO) =>
+        val dateName = s"""date_${dateValue.getTime}"""
+        val dateStmt = s"""static java.util.Date $dateName
+             |= new java.util.Date(${dateValue.getTime});""".stripMargin
+        reusableMemberStatements.add(dateStmt)
+
+        if (nullCheck) {
+          s"""
+            |boolean $nullTerm = false;
+            |$resultTpe $resultTerm = $dateName;
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = $dateName;
           """.stripMargin
         }
 
@@ -243,13 +278,36 @@ abstract class ExpressionCodeGenerator[R](
             """
         }
 
+      case expressions.Cast(child: Expression, STRING_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
+        val childGen = generateExpression(child)
+
+        addTimestampFormatter()
+
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = timestampFormatter.format(${childGen.resultTerm});
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = timestampFormatter.format(${childGen.resultTerm});
+          """.stripMargin
+        }
+        childGen.code + castCode
+
       case expressions.Cast(child: Expression, STRING_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
           s"""
             |boolean $nullTerm = ${childGen.nullTerm};
             |$resultTpe $resultTerm;
-            |if ($nullTerm == null) {
+            |if ($nullTerm) {
             |  $resultTerm = null;
             |} else {
             |  $resultTerm = "" + ${childGen.resultTerm};
@@ -262,8 +320,110 @@ abstract class ExpressionCodeGenerator[R](
         }
         childGen.code + castCode
 
-      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_]) =>
+      case expressions.Cast(child: Expression, DATE_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.LONG_TYPE_INFO =>
         val childGen = generateExpression(child)
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = new java.util.Date(${childGen.resultTerm});
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = new java.util.Date(${childGen.resultTerm});
+          """.stripMargin
+        }
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, DATE_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
+        val childGen = generateExpression(child)
+
+        addDateFormatter()
+        addTimeFormatter()
+        addTimestampFormatter()
+
+        // tries to parse
+        // "2011-05-03 15:51:36.234"
+        // then "2011-05-03"
+        // then "15:51:36"
+        // then "1446473775"
+        val parsedName = freshName("parsed")
+        val parsingCode =
+          s"""
+            |java.util.Date $parsedName = null;
+            |try {
+            |  $parsedName = timestampFormatter.parse(${childGen.resultTerm});
+            |} catch (java.text.ParseException e1) {
+            |  try {
+            |    $parsedName = dateFormatter.parse(${childGen.resultTerm});
+            |  } catch (java.text.ParseException e2) {
+            |    try {
+            |      $parsedName = timeFormatter.parse(${childGen.resultTerm});
+            |    } catch (java.text.ParseException e3) {
+            |      $parsedName = new java.util.Date(Long.valueOf(${childGen.resultTerm}));
+            |    }
+            |  }
+            |}
+           """.stripMargin
+
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $parsingCode
+            |  $resultTerm = $parsedName;
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$parsingCode
+            |$resultTpe $resultTerm = $parsedName;
+          """.stripMargin
+        }
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, DATE_TYPE_INFO) =>
+        throw new ExpressionException("Only Long and String can be casted to Date.")
+
+      case expressions.Cast(child: Expression, LONG_TYPE_INFO)
+        if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
+        val childGen = generateExpression(child)
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = ${childGen.resultTerm}.getTime();
+            |}
+          """.stripMargin
+        } else {
+          s"""
+            |$resultTpe $resultTerm = ${childGen.resultTerm}.getTime();
+          """.stripMargin
+        }
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
+        if child.typeInfo == BasicTypeInfo.DATE_TYPE_INFO =>
+        throw new ExpressionException("Date can only be casted to Long or String.")
+
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
+        if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
+        val childGen = generateExpression(child)
+        val fromTpe = typeTermForTypeInfoForCast(child.typeInfo)
+        val toTpe = typeTermForTypeInfoForCast(tpe)
+
         val castCode = if (nullCheck) {
           s"""
             |boolean $nullTerm = ${childGen.nullTerm};
@@ -275,6 +435,27 @@ abstract class ExpressionCodeGenerator[R](
             |$resultTpe $resultTerm =
             |  ${tpe.getTypeClass.getCanonicalName}.valueOf(${childGen.resultTerm});
           """.stripMargin
+        }
+
+        childGen.code + castCode
+
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_])
+          if child.typeInfo.isBasicType =>
+        val childGen = generateExpression(child)
+        val fromTpe = typeTermForTypeInfoForCast(child.typeInfo)
+        val toTpe = typeTermForTypeInfoForCast(tpe)
+        val castCode = if (nullCheck) {
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = ($toTpe)($fromTpe) ${childGen.resultTerm};
+            |}
+          """.stripMargin
+        } else {
+          s"$resultTpe $resultTerm = ($toTpe)($fromTpe) ${childGen.resultTerm};\n"
         }
         childGen.code + castCode
 
@@ -366,10 +547,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = -(${childCode.resultTerm});
+              |  $resultTerm = -(${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
@@ -400,10 +582,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = ~((int) ${childCode.resultTerm});
+              |  $resultTerm = ~((int) ${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
@@ -419,10 +602,11 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = !(${childCode.resultTerm});
+              |  $resultTerm = !(${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
@@ -437,12 +621,7 @@ abstract class ExpressionCodeGenerator[R](
         if (nullCheck) {
           childCode.code +
             s"""
-              |boolean $nullTerm = ${childCode.nullTerm};
-              |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
-              |} else {
-              |  $resultTpe $resultTerm = (${childCode.resultTerm}) == null;
-              |}
+              |$resultTpe $resultTerm = ${childCode.nullTerm};
             """.stripMargin
         } else {
           childCode.code +
@@ -456,12 +635,7 @@ abstract class ExpressionCodeGenerator[R](
         if (nullCheck) {
           childCode.code +
             s"""
-              |boolean $nullTerm = ${childCode.nullTerm};
-              |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
-              |} else {
-              |  $resultTpe $resultTerm = (${childCode.resultTerm}) != null;
-              |}
+              |$resultTpe $resultTerm = !${childCode.nullTerm};
             """.stripMargin
         } else {
           childCode.code +
@@ -476,35 +650,17 @@ abstract class ExpressionCodeGenerator[R](
           childCode.code +
             s"""
               |boolean $nullTerm = ${childCode.nullTerm};
+              |$resultTpe $resultTerm;
               |if ($nullTerm) {
-              |  ${defaultPrimitive(child.typeInfo)};
+              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
               |} else {
-              |  $resultTpe $resultTerm = Math.abs(${childCode.resultTerm});
+              |  $resultTerm = Math.abs(${childCode.resultTerm});
               |}
             """.stripMargin
         } else {
           childCode.code +
             s"""
               |$resultTpe $resultTerm = Math.abs(${childCode.resultTerm});
-            """.stripMargin
-        }
-
-      case NumericIsNotNull(child) =>
-        val childCode = generateExpression(child)
-        if (nullCheck) {
-          childCode.code +
-            s"""
-               |boolean $nullTerm = ${childCode.nullTerm};
-               |if ($nullTerm) {
-               |  0;
-               |} else {
-               |  $resultTpe $resultTerm = ${childCode.resultTerm} != null ? 1 : 0;
-               |}
-            """.stripMargin
-        } else {
-          childCode.code +
-            s"""
-               |$resultTpe $resultTerm = ${childCode.resultTerm} != null ? 1 : 0;
             """.stripMargin
         }
 
@@ -589,14 +745,38 @@ abstract class ExpressionCodeGenerator[R](
 
   protected def typeTermForTypeInfo(tpe: TypeInformation[_]): String = tpe match {
 
-//    case BasicTypeInfo.INT_TYPE_INFO => "int"
-//    case BasicTypeInfo.LONG_TYPE_INFO => "long"
-//    case BasicTypeInfo.SHORT_TYPE_INFO => "short"
-//    case BasicTypeInfo.BYTE_TYPE_INFO => "byte"
-//    case BasicTypeInfo.FLOAT_TYPE_INFO => "float"
-//    case BasicTypeInfo.DOUBLE_TYPE_INFO => "double"
-//    case BasicTypeInfo.BOOLEAN_TYPE_INFO => "boolean"
-//    case BasicTypeInfo.CHAR_TYPE_INFO => "char"
+    // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
+    // does not seem to like this, so we manually give the correct type here.
+    case PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO => "int[]"
+    case PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO => "long[]"
+    case PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO => "short[]"
+    case PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO => "byte[]"
+    case PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO => "float[]"
+    case PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO => "double[]"
+    case PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
+    case PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
+
+    case _ =>
+      tpe.getTypeClass.getCanonicalName
+
+  }
+
+  // when casting we first need to unbox Primitives, for example,
+  // float a = 1.0f;
+  // byte b = (byte) a;
+  // works, but for boxed types we need this:
+  // Float a = 1.0f;
+  // Byte b = (byte)(float) a;
+  protected def typeTermForTypeInfoForCast(tpe: TypeInformation[_]): String = tpe match {
+
+    case BasicTypeInfo.INT_TYPE_INFO => "int"
+    case BasicTypeInfo.LONG_TYPE_INFO => "long"
+    case BasicTypeInfo.SHORT_TYPE_INFO => "short"
+    case BasicTypeInfo.BYTE_TYPE_INFO => "byte"
+    case BasicTypeInfo.FLOAT_TYPE_INFO => "float"
+    case BasicTypeInfo.DOUBLE_TYPE_INFO => "double"
+    case BasicTypeInfo.BOOLEAN_TYPE_INFO => "boolean"
+    case BasicTypeInfo.CHAR_TYPE_INFO => "char"
 
     // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
     // does not seem to like this, so we manually give the correct type here.
@@ -612,5 +792,38 @@ abstract class ExpressionCodeGenerator[R](
     case _ =>
       tpe.getTypeClass.getCanonicalName
 
+  }
+
+  def addDateFormatter(): Unit = {
+    reusableMemberStatements.add(s"""
+    |java.text.SimpleDateFormat dateFormatter =
+    |  new java.text.SimpleDateFormat("yyyy-MM-dd");
+    |""".stripMargin)
+
+    reusableInitStatements.add(s"""
+    |dateFormatter.setTimeZone(config.getTimeZone());
+    |""".stripMargin)
+  }
+
+  def addTimeFormatter(): Unit = {
+    reusableMemberStatements.add(s"""
+    |java.text.SimpleDateFormat timeFormatter =
+    |  new java.text.SimpleDateFormat("HH:mm:ss");
+    |""".stripMargin)
+
+    reusableInitStatements.add(s"""
+    |timeFormatter.setTimeZone(config.getTimeZone());
+    |""".stripMargin)
+  }
+
+  def addTimestampFormatter(): Unit = {
+    reusableMemberStatements.add(s"""
+    |java.text.SimpleDateFormat timestampFormatter =
+    |  new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    |""".stripMargin)
+
+    reusableInitStatements.add(s"""
+    |timestampFormatter.setTimeZone(config.getTimeZone());
+    |""".stripMargin)
   }
 }

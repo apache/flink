@@ -21,35 +21,38 @@ package org.apache.flink.test.util;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
 
-
+/**
+ * A base class for tests that run test programs in a Flink mini cluster.
+ */
 public abstract class AbstractTestBase extends TestBaseUtils {
-
-
+	
+	/** Configuration to start the testing cluster with */
 	protected final Configuration config;
-
+	
 	private final List<File> tempFiles;
-
+	
 	private final FiniteDuration timeout;
-	
-	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	protected int numTaskManagers = DEFAULT_NUM_TASK_MANAGERS;
+	protected int taskManagerNumSlots = 1;
+
+	protected int numTaskManagers = 1;
 	
+	/** The mini cluster that runs the test programs */
 	protected ForkableFlinkMiniCluster executor;
 	
 
 	public AbstractTestBase(Configuration config) {
-		this.config = config;
+		this.config = Objects.requireNonNull(config);
 		this.tempFiles = new ArrayList<File>();
 
 		timeout = AkkaUtils.getTimeout(config);
@@ -59,13 +62,17 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	//  Local Test Cluster Life Cycle
 	// --------------------------------------------------------------------------------------------
 
-	public void startCluster() throws Exception{
-		this.executor = startCluster(numTaskManagers, taskManagerNumSlots, StreamingMode.BATCH_ONLY, false, true);
+	public void startCluster() throws Exception {
+		this.executor = startCluster(
+			numTaskManagers,
+			taskManagerNumSlots,
+			false,
+			false,
+			true);
 	}
 
 	public void stopCluster() throws Exception {
 		stopCluster(executor, timeout);
-
 		deleteAllTempFiles();
 	}
 

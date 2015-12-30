@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
-import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
+import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -30,14 +30,15 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,10 +51,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
+
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Task.class, ResultPartitionWriter.class})
-public class DataSinkTaskTest extends TaskTestBase
-{
+public class DataSinkTaskTest extends TaskTestBase {
+	
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
 
 	private static final int MEMORY_MANAGER_SIZE = 3 * 1024 * 1024;
@@ -81,7 +85,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 			super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-			DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+			DataSinkTask<Record> testTask = new DataSinkTask<>();
 
 			super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
@@ -94,7 +98,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
 			while (br.ready()) {
 				String line = br.readLine();
@@ -144,7 +148,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
 		readers[3] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 3, 0, false), 0, false);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
@@ -171,7 +175,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
 			while(br.ready()) {
 				String line = br.readLine();
@@ -219,12 +223,12 @@ public class DataSinkTaskTest extends TaskTestBase
 
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})), 0);
+				new RecordComparatorFactory(new int[]{1},(new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
@@ -248,7 +252,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			Set<Integer> keys = new HashSet<Integer>();
+			Set<Integer> keys = new HashSet<>();
 
 			int curVal = -1;
 			while(br.ready()) {
@@ -297,7 +301,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -323,21 +327,20 @@ public class DataSinkTaskTest extends TaskTestBase
 	public void testFailingSortingDataSinkTask() {
 
 		int keyCnt = 100;
-		int valCnt = 20;;
+		int valCnt = 20;
 		double memoryFraction = 1.0;
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1}, ((Class<? extends Key<?>>[]) new Class[]{IntValue.class})),
-				0);
+				new RecordComparatorFactory(new int[]{1}, ( new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
@@ -360,12 +363,11 @@ public class DataSinkTaskTest extends TaskTestBase
 	}
 
 	@Test
-	public void testCancelDataSinkTask() {
-
+	public void testCancelDataSinkTask() throws Exception {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new InfiniteInputIterator(), 0);
 
-		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -384,19 +386,25 @@ public class DataSinkTaskTest extends TaskTestBase
 		};
 		taskRunner.start();
 
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
-		tct.start();
-
-		try {
-			tct.join();
-			taskRunner.join();
-		} catch(InterruptedException ie) {
-			Assert.fail("Joining threads failed");
+		File tempTestFile = new File(this.tempTestPath);
+		
+		// wait until the task created the file
+		long deadline = System.currentTimeMillis() + 60000;
+		while (!tempTestFile.exists() && System.currentTimeMillis() < deadline) {
+			Thread.sleep(10);
 		}
+		assertTrue("Task did not create file within 60 seconds", tempTestFile.exists());
+		
+		// cancel the task
+		Thread.sleep(500);
+		testTask.cancel();
+		taskRunner.interrupt();
+		
+		// wait for the canceling to complete
+		taskRunner.join();
 
 		// assert that temp file was created
-		File tempTestFile = new File(this.tempTestPath);
-		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
+		assertFalse("Temp output file has not been removed", tempTestFile.exists());
 	}
 
 	@Test
@@ -407,15 +415,14 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new InfiniteInputIterator(), 0);
 
-		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})),
-				0);
+				new RecordComparatorFactory(new int[]{1},(new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
@@ -447,7 +454,7 @@ public class DataSinkTaskTest extends TaskTestBase
 
 	}
 
-	public static class MockOutputFormat extends DelimitedOutputFormat {
+	public static class MockOutputFormat extends FileOutputFormat<Record> {
 		private static final long serialVersionUID = 1L;
 
 		final StringBuilder bld = new StringBuilder();
@@ -458,8 +465,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 
 		@Override
-		public int serializeRecord(Record rec, byte[] target) throws Exception
-		{
+		public void writeRecord(Record rec) throws IOException {
 			IntValue key = rec.getField(0, IntValue.class);
 			IntValue value = rec.getField(1, IntValue.class);
 
@@ -467,14 +473,11 @@ public class DataSinkTaskTest extends TaskTestBase
 			this.bld.append(key.getValue());
 			this.bld.append('_');
 			this.bld.append(value.getValue());
+			this.bld.append('\n');
 
 			byte[] bytes = this.bld.toString().getBytes();
-			if (bytes.length <= target.length) {
-				System.arraycopy(bytes, 0, target, 0, bytes.length);
-				return bytes.length;
-			}
-			// else
-			return -bytes.length;
+
+			this.stream.write(bytes);
 		}
 
 	}
@@ -490,12 +493,11 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 
 		@Override
-		public int serializeRecord(Record rec, byte[] target) throws Exception
-		{
+		public void writeRecord(Record rec) throws IOException {
 			if (++this.cnt >= 10) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			return super.serializeRecord(rec, target);
+			super.writeRecord(rec);
 		}
 	}
 	

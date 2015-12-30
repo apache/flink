@@ -36,8 +36,9 @@ with format `key: value`.
 The system and run scripts parse the config at startup time. Changes to the configuration
 file require restarting the Flink JobManager and TaskManagers.
 
-The configuration files for the TaskManagers can be different, Flink does not assume 
+The configuration files for the TaskManagers can be different, Flink does not assume
 uniform machines in the cluster.
+
 
 * This will be replaced by the TOC
 {:toc}
@@ -65,9 +66,9 @@ contrast to Hadoop, Flink runs operators (e.g., join, aggregate) and
 user-defined functions (e.g., Map, Reduce, CoGroup) inside the TaskManager
 (including sorting/hashing/caching), so this value should be as
 large as possible. If the cluster is exclusively running Flink,
-the total amount of available memory per machine minus some memory for the 
+the total amount of available memory per machine minus some memory for the
 operating system (maybe 1-2 GB) is a good value.
-On YARN setups, this value is automatically configured to the size of 
+On YARN setups, this value is automatically configured to the size of
 the TaskManager's YARN container, minus a certain tolerance value.
 
 - `taskmanager.numberOfTaskSlots`: The number of parallel operator or
@@ -93,7 +94,7 @@ guide]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for more
 parallelism.
 
 - `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS)
-configuration directory (OPTIONAL VALUE).
+configuration **directory** (OPTIONAL VALUE).
 Specifying this value allows programs to reference HDFS files using short URIs
 (`hdfs:///path/to/files`, without including the address and port of the NameNode
 in the file URI). Without this option, HDFS files can be accessed, but require
@@ -104,6 +105,75 @@ and replication factors. Flink will look for the "core-site.xml" and
 
 
 ## Advanced Options
+
+### Managed Memory
+
+By default, Flink allocates a fraction of 0.7 of the total memory configured via
+`taskmanager.heap.mb` for its managed memory. Managed memory helps Flink to run
+the operators efficiently. It prevents OutOfMemoryExceptions because Flink knows
+how much memory it can use to execute operations. If Flink runs out of managed
+memory, it utilizes disk space. Using managed memory, some operations can be
+performed directly on the raw data without having to deserialize the data to
+convert it into Java objects. All in all, managed memory improves the robustness
+and speed of the system.
+
+The default fraction for managed memory can be adjusted using the
+`taskmanager.memory.fraction` parameter. An absolute value may be set using
+`taskmanager.memory.size` (overrides the fraction parameter). If desired, the
+managed memory may be allocated outside the JVM heap. This may improve
+performance in setups with large memory sizes.
+
+- `taskmanager.memory.size`: The amount of memory (in megabytes) that the task
+manager reserves on the JVM's heap space for sorting, hash tables, and caching
+of intermediate results. If unspecified (-1), the memory manager will take a fixed
+ratio of the heap memory available to the JVM, as specified by
+`taskmanager.memory.fraction`. (DEFAULT: -1)
+
+- `taskmanager.memory.fraction`: The relative amount of memory that the task
+manager reserves for sorting, hash tables, and caching of intermediate results.
+For example, a value of 0.8 means that TaskManagers reserve 80% of the
+JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
+free for objects created by user-defined functions. (DEFAULT: 0.7)
+This parameter is only evaluated, if `taskmanager.memory.size` is not set.
+
+- `taskmanager.memory.off-heap`: If set to `true`, the task manager allocates
+memory which is used for sorting, hash tables, and caching of intermediate
+results outside of the JVM heap. For setups with larger quantities of memory,
+this can improve the efficiency of the operations performed on the memory
+(DEFAULT: false).
+
+- `taskmanager.memory.segment-size`: The size of memory buffers used by the
+memory manager and the network stack in bytes (DEFAULT: 32768 (= 32 KiBytes)).
+
+- `taskmanager.memory.preallocate`: Can be either of `true` or `false`. Specifies whether task
+managers should allocate all managed memory when starting up. (DEFAULT: false)
+
+
+### Kerberos
+
+Flink supports Kerberos authentication of Hadoop services such as HDFS, YARN,
+or HBase.
+
+While Hadoop uses Kerberos tickets to authenticate users with services
+initially, the authentication process continues differently afterwards. Instead
+of saving the ticket to authenticate on a later access, Hadoop creates its own
+security tockens (DelegationToken) that it passes around. These are
+authenticated to Kerberos periodically but are independent of the token renewal
+time. The tokens have a maximum life span identical to the Kerberos ticket maximum life
+span.
+
+Please make sure to set the maximum ticket life span high long running
+jobs. The renewal time of the ticket, on the other hand, is not important
+because Hadoop abstracts this away using its own security tocken renewal
+system. Hadoop makes sure that tickets are renewed in time and you can be sure
+to be authenticated until the end of the ticket life time.
+
+If you are on YARN, then it is sufficient to authenticate the client with
+Kerberos. On a Flink standalone cluster you need to ensure that, initially, all
+nodes are authenticated with Kerberos using the `kinit` tool.
+
+
+### Other
 
 - `taskmanager.tmp.dirs`: The directory for temporary files, or a list of
 directories separated by the systems directory delimiter (for example ':'
@@ -134,26 +204,41 @@ a TaskManager can have at the same time and how well buffered the channels are.
 If a job is rejected or you get a warning that the system has not enough buffers
 available, increase this value (DEFAULT: 2048).
 
-- `taskmanager.memory.size`: The amount of memory (in megabytes) that the task
-manager reserves on the JVM's heap space for sorting, hash tables, and caching
-of intermediate results. If unspecified (-1), the memory manager will take a fixed
-ratio of the heap memory available to the JVM, as specified by
-`taskmanager.memory.fraction`. (DEFAULT: -1)
+- `env.java.opts`: Set custom JVM options. This value is respected by Flink's start scripts
+and Flink's YARN client.
+This can be used to set different garbage collectors or to include remote debuggers into
+the JVMs running Flink's services.
 
-- `taskmanager.memory.fraction`: The relative amount of memory that the task
-manager reserves for sorting, hash tables, and caching of intermediate results.
-For example, a value of 0.8 means that TaskManagers reserve 80% of the
-JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
-free for objects created by user-defined functions. (DEFAULT: 0.7)
-This parameter is only evaluated, if `taskmanager.memory.size` is not set.
+- `state.backend`: The backend that will be used to store operator state checkpoints if checkpointing is enabled.
 
+  Supported backends:
+
+   -  `jobmanager`: In-memory state, backup to JobManager's/ZooKeeper's memory. Should be used only for minimal state (Kafka offsets) or testing and local debugging.
+   -  `filesystem`: State is in-memory on the TaskManagers, and state snapshots are stored in a file system. Supported are all filesystems supported by Flink, for example HDFS, S3, ...
+
+- `state.backend.fs.checkpointdir`: Directory for storing checkpoints in a flink supported filesystem
+Note: State backend must be accessible from the JobManager, use file:// only for local setups.
+
+- `blob.storage.directory`: Directory for storing blobs (such as user jar's) on the TaskManagers.
+
+- `blob.server.port`: Port definition for the blob server (serving user jar's) on the Taskmanagers.
+By default the port is set to 0, which means that the operating system is picking an ephemeral port.
+Flink also accepts a list of ports ("50100,50101"), ranges ("50100-50200") or a combination of both.
+It is recommended to set a range of ports to avoid collisions when multiple JobManagers are running
+on the same machine.
+
+- `execution-retries.delay`: Delay between execution retries. Default value "5 s". Note that values
+have to be specified as strings with a unit.
+
+- `execution-retries.default`: Default number of execution retries, used by jobs that do not explicitly
+specify that value on the execution environment. Default value is zero.
 
 ## Full Reference
 
 ### HDFS
 
 These parameters configure the default HDFS used by Flink. Setups that do not
-specify a HDFS configuration have to specify the full path to 
+specify a HDFS configuration have to specify the full path to
 HDFS files (`hdfs://address:port/path/to/files`) Files will also be written
 with default HDFS parameters (block size, replication factor).
 
@@ -207,8 +292,6 @@ network stack. This number determines how many streaming data exchange channels
 a TaskManager can have at the same time and how well buffered the channels are.
 If a job is rejected or you get a warning that the system has not enough buffers
 available, increase this value (DEFAULT: 2048).
-- `taskmanager.network.bufferSizeInBytes`: The size of the network buffers, in
-bytes (DEFAULT: 32768 (= 32 KiBytes)).
 - `taskmanager.memory.size`: The amount of memory (in megabytes) that the task
 manager reserves on the JVM's heap space for sorting, hash tables, and caching
 of intermediate results. If unspecified (-1), the memory manager will take a fixed
@@ -222,11 +305,6 @@ free for objects created by user-defined functions. (DEFAULT: 0.7)
 This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 - `jobclient.polling.interval`: The interval (in seconds) in which the client
 polls the JobManager for the status of its job (DEFAULT: 2).
-- `taskmanager.runtime.max-fan`: The maximal fan-in for external merge joins and
-fan-out for spilling hash tables. Limits the number of file handles per operator,
-but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128).
-- `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling
-when this fraction of its memory budget is full (DEFAULT: 0.8).
 - `taskmanager.heartbeat-interval`: The interval in which the TaskManager sends
 heartbeats to the JobManager.
 - `jobmanager.max-heartbeat-delay-before-failure.msecs`: The maximum time that a
@@ -302,10 +380,20 @@ sample exceeds this value (possible because of misconfiguration of the parser),
 the sampling aborts. This value can be overridden for a specific input with the
 input format's parameters (DEFAULT: 2097152 (= 2 MiBytes)).
 
+### Runtime Algorithms
+
+- `taskmanager.runtime.max-fan`: The maximal fan-in for external merge joins and
+fan-out for spilling hash tables. Limits the number of file handles per operator,
+but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128).
+- `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling
+when this fraction of its memory budget is full (DEFAULT: 0.8).
+- `taskmanager.runtime.hashjoin-bloom-filters`: If true, the hash join uses bloom filters to pre-filter records against spilled partitions. (DEFAULT: true)
+
+
 ## YARN
 
 
-- `yarn.heap-cutoff-ratio`: (Default 0.15) Percentage of heap space to remove from containers started by YARN.
+- `yarn.heap-cutoff-ratio`: (Default 0.25) Percentage of heap space to remove from containers started by YARN.
 When a user requests a certain amount of memory for each TaskManager container (for example 4 GB),
 we can not pass this amount as the maximum heap space for the JVM (`-Xmx` argument) because the JVM
 is also allocating memory outside the heap. YARN is very strict with killing containers which are using
@@ -323,6 +411,58 @@ will restart and the YARN Client will loose the connection. Also, the JobManager
 to set the JM host:port manually. It is recommended to leave this option at 1.
 
 - `yarn.heartbeat-delay` (Default: 5 seconds). Time between heartbeats with the ResourceManager.
+
+- `yarn.properties-file.location` (Default: temp directory). When a Flink job is submitted to YARN,
+the JobManager's host and the number of available processing slots is written into a properties file,
+so that the Flink client is able to pick those details up. This configuration parameter allows
+changing the default location of that file (for example for environments sharing a Flink
+installation between users)
+
+- `yarn.application-master.env.`*ENV_VAR1=value* Configuration values prefixed with `yarn.application-master.env.`
+will be passed as environment variables to the ApplicationMaster/JobManager process.
+For example for passing `LD_LIBRARY_PATH` as an env variable to the ApplicationMaster, set:
+
+      yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+
+
+- `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom
+environment variables for the TaskManager processes.
+
+
+- `yarn.application-master.port` (Default: 0, which lets the OS choose an ephemeral port)
+With this configuration option, users can specify a port, a range of ports or a list of ports for the 
+Application Master (and JobManager) RPC port. By default we recommend using the default value (0) to
+let the operating system choose an appropriate port. In particular when multiple AMs are running on the 
+same physical host, fixed port assignments prevent the AM from starting.
+
+For example when running Flink on YARN on an environment with a restrictive firewall, this
+option allows specifying a range of allowed ports.
+
+
+## High Availability Mode
+
+- `recovery.mode`: (Default 'standalone') Defines the recovery mode used for the cluster execution. Currently,
+Flink supports the 'standalone' mode where only a single JobManager runs and no JobManager state is checkpointed.
+The high availability mode 'zookeeper' supports the execution of multiple JobManagers and JobManager state checkpointing.
+Among the group of JobManagers, ZooKeeper elects one of them as the leader which is responsible for the cluster execution.
+In case of a JobManager failure, a standby JobManager will be elected as the new leader and is given the last checkpointed JobManager state.
+In order to use the 'zookeeper' mode, it is mandatory to also define the `recovery.zookeeper.quorum` configuration value.
+
+- `recovery.zookeeper.quorum`: Defines the ZooKeeper quorum URL which is used to connet to the ZooKeeper cluster when the 'zookeeper' recovery mode is selected
+
+- `recovery.zookeeper.path.root`: (Default '/flink') Defines the root dir under which the ZooKeeper recovery mode will create znodes.
+
+- `recovery.zookeeper.path.latch`: (Default '/leaderlatch') Defines the znode of the leader latch which is used to elect the leader.
+
+- `recovery.zookeeper.path.leader`: (Default '/leader') Defines the znode of the leader which contains the URL to the leader and the current leader session ID
+
+- `recovery.zookeeper.client.session-timeout`: (Default '60000') Defines the session timeout for the ZooKeeper session in ms.
+
+- `recovery.zookeeper.client.connection-timeout`: (Default '15000') Defines the connection timeout for ZooKeeper in ms.
+
+- `recovery.zookeeper.client.retry-wait`: (Default '5000') Defines the pause between consecutive retries in ms.
+
+- `recovery.zookeeper.client.max-retry-attempts`: (Default '3') Defines the number of connection retries before the client gives up.
 
 ## Background
 
@@ -358,7 +498,7 @@ The number and size of network buffers can be configured with the following
 parameters:
 
 - `taskmanager.network.numberOfBuffers`, and
-- `taskmanager.network.bufferSizeInBytes`.
+- `taskmanager.memory.segment-size`.
 
 ### Configuring Temporary I/O Directories
 
@@ -386,12 +526,12 @@ Flink executes a program in parallel by splitting it into subtasks and schedulin
 
 Each Flink TaskManager provides processing slots in the cluster. The number of slots
 is typically proportional to the number of available CPU cores __of each__ TaskManager.
-As a general recommendation, the number of available CPU cores is a good default for 
+As a general recommendation, the number of available CPU cores is a good default for
 `taskmanager.numberOfTaskSlots`.
 
 When starting a Flink application, users can supply the default number of slots to use for that job.
 The command line value therefore is called `-p` (for parallelism). In addition, it is possible
-to [set the number of slots in the programming APIs]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for 
+to [set the number of slots in the programming APIs]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for
 the whole application and individual operators.
 
 <img src="fig/slots_parallelism.svg" class="img-responsive" />

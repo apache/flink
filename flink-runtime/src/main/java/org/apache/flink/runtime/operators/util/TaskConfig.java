@@ -16,13 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -44,11 +41,11 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.PactDriver;
+import org.apache.flink.runtime.operators.Driver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.Value;
@@ -58,6 +55,9 @@ import org.apache.flink.util.InstantiationUtil;
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
  */
 public class TaskConfig implements Serializable {
+
+	private static final long serialVersionUID = -2498884325640066272L;
+	
 	
 	private static final String TASK_NAME = "taskname";
 	
@@ -307,11 +307,11 @@ public class TaskConfig implements Serializable {
 	//                                      Driver
 	// --------------------------------------------------------------------------------------------
 	
-	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends PactDriver> driver) {
+	public void setDriver(@SuppressWarnings("rawtypes") Class<? extends Driver> driver) {
 		this.config.setString(DRIVER_CLASS, driver.getName());
 	}
 	
-	public <S extends Function, OT> Class<? extends PactDriver<S, OT>> getDriver() {
+	public <S extends Function, OT> Class<? extends Driver<S, OT>> getDriver() {
 		final String className = this.config.getString(DRIVER_CLASS, null);
 		if (className == null) {
 			throw new CorruptConfigurationException("The pact driver class is missing.");
@@ -319,7 +319,7 @@ public class TaskConfig implements Serializable {
 		
 		try {
 			@SuppressWarnings("unchecked")
-			final Class<PactDriver<S, OT>> pdClazz = (Class<PactDriver<S, OT>>) (Class<?>) PactDriver.class;
+			final Class<Driver<S, OT>> pdClazz = (Class<Driver<S, OT>>) (Class<?>) Driver.class;
 			return Class.forName(className).asSubclass(pdClazz);
 		} catch (ClassNotFoundException cnfex) {
 			throw new CorruptConfigurationException("The given driver class cannot be found.");
@@ -462,8 +462,10 @@ public class TaskConfig implements Serializable {
 	
 	public void addBroadcastInputToGroup(int groupIndex) {
 		final String grp = BROADCAST_INPUT_GROUP_SIZE_PREFIX + groupIndex;
+		if (!this.config.containsKey(grp)) {
+			this.config.setInteger(NUM_BROADCAST_INPUTS, this.config.getInteger(NUM_BROADCAST_INPUTS, 0) + 1);
+		}
 		this.config.setInteger(grp, this.config.getInteger(grp, 0) + 1);
-		this.config.setInteger(NUM_BROADCAST_INPUTS, this.config.getInteger(NUM_BROADCAST_INPUTS, 0) + 1);
 	}
 	
 	public void setInputAsynchronouslyMaterialized(int inputNum, boolean temp) {
@@ -556,15 +558,16 @@ public class TaskConfig implements Serializable {
 	public void setOutputDataDistribution(DataDistribution distribution, int outputNum) {
 		this.config.setString(OUTPUT_DATA_DISTRIBUTION_CLASS, distribution.getClass().getName());
 		
-		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		final DataOutputStream dos = new DataOutputStream(baos);
-		try {
-			distribution.write(new OutputViewDataOutputStreamWrapper(dos));
-		} catch (IOException e) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos)) {
+			
+			distribution.write(out);
+			config.setBytes(OUTPUT_DATA_DISTRIBUTION_PREFIX + outputNum, baos.toByteArray());
+			
+		}
+		catch (IOException e) {
 			throw new RuntimeException("Error serializing the DataDistribution: " + e.getMessage(), e);
 		}
-
-		this.config.setBytes(OUTPUT_DATA_DISTRIBUTION_PREFIX + outputNum, baos.toByteArray());
 	}
 	
 	public DataDistribution getOutputDataDistribution(int outputNum, final ClassLoader cl) throws ClassNotFoundException {
@@ -575,7 +578,7 @@ public class TaskConfig implements Serializable {
 		
 		final Class<? extends DataDistribution> clazz;
 		try {
-			clazz = (Class<? extends DataDistribution>) Class.forName(className, true, cl).asSubclass(DataDistribution.class);
+			clazz = Class.forName(className, true, cl).asSubclass(DataDistribution.class);
 		} catch (ClassCastException ccex) {
 			throw new CorruptConfigurationException("The class noted in the configuration as the data distribution " +
 					"is no subclass of DataDistribution.");
@@ -590,14 +593,14 @@ public class TaskConfig implements Serializable {
 		}
 		
 		final ByteArrayInputStream bais = new ByteArrayInputStream(stateEncoded);
-		final DataInputStream in = new DataInputStream(bais);
+		final DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 		
 		try {
-			distribution.read(new InputViewDataInputStreamWrapper(in));
+			distribution.read(in);
 			return distribution;
 		} catch (Exception ex) {
 			throw new RuntimeException("The deserialization of the encoded data distribution state caused an error"
-				+ ex.getMessage() == null ? "." : ": " + ex.getMessage(), ex);
+				+ (ex.getMessage() == null ? "." : ": " + ex.getMessage()), ex);
 		}
 	}
 	

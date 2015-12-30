@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
 /**
- * Needed to wrap tuples to Tuple2<key, value> pairs for combine method of group reduce with key selector function
+ * Needed to wrap tuples to {@code Tuple2<key, value>} pairs for combine method of group reduce with key selector function
  */
 public class TupleWrappingCollector<IN, K> implements Collector<IN>, java.io.Serializable {
 	

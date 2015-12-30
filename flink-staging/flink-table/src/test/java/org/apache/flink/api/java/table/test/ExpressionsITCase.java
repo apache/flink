@@ -27,15 +27,12 @@ import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class ExpressionsITCase extends MultipleProgramsTestBase {
@@ -45,29 +42,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String resultPath;
-	private String expected = "";
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
-	}
-
 	@Test
 	public void testArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Integer, Integer>> input =
-				env.fromElements(new Tuple2<Integer, Integer>(5, 10));
+				env.fromElements(new Tuple2<>(5, 10));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -76,11 +57,9 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				"a - 5, a + 5, a / 2, a * 2, a % 2, -a");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "0,10,2,10,1,-5";
+		List<Row> results = ds.collect();
+		String expected = "0,10,2,10,1,-5";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -89,7 +68,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Integer, Boolean>> input =
-				env.fromElements(new Tuple2<Integer, Boolean>(5, true));
+				env.fromElements(new Tuple2<>(5, true));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -98,11 +77,9 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				"b && true, b && false, b || false, !b");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "true,false,true,false";
+		List<Row> results = ds.collect();
+		String expected = "true,false,true,false";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -111,7 +88,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
-				env.fromElements(new Tuple3<Integer, Integer, Integer>(5, 5, 4));
+				env.fromElements(new Tuple3<>(5, 5, 4));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b, c");
@@ -120,11 +97,9 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				"a > c, a >= b, a < c, a.isNull, a.isNotNull");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "true,true,false,false,true";
+		List<Row> results = ds.collect();
+		String expected = "true,true,false,false,true";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -133,7 +108,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Byte, Byte>> input =
-				env.fromElements(new Tuple2<Byte, Byte>((byte) 3, (byte) 5));
+				env.fromElements(new Tuple2<>((byte) 3, (byte) 5));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -142,11 +117,9 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				"a & b, a | b, a ^ b, ~a");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "1,7,6,-4";
+		List<Row> results = ds.collect();
+		String expected = "1,7,6,-4";
+		compareResultAsText(results, expected);
 	}
 
 	@Test
@@ -155,7 +128,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Integer, Byte>> input =
-				env.fromElements(new Tuple2<Integer, Byte>(3, (byte) 5));
+				env.fromElements(new Tuple2<>(3, (byte) 5));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -164,11 +137,9 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				"a & b, a | b, a ^ b, ~a");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "1,7,6,-4";
+		List<Row> results = ds.collect();
+		String expected = "1,7,6,-4";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -177,7 +148,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSource<Tuple2<Float, Byte>> input =
-				env.fromElements(new Tuple2<Float, Byte>(3.0f, (byte) 5));
+				env.fromElements(new Tuple2<>(3.0f, (byte) 5));
 
 		Table table =
 				tableEnv.fromDataSet(input, "a, b");
@@ -186,11 +157,9 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 				table.select("a & b, a | b, a ^ b, ~a");
 
 		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		env.execute();
-
-		expected = "";
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 }
 

@@ -41,6 +41,10 @@ import org.apache.flink.api.table.plan._
  *   val table2 = ...
  *   val set = table2.toDataSet[MyType]
  * }}}
+ *
+ * Operations such as [[join]], [[select]], [[where]] and [[groupBy]] either take arguments
+ * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
+ * syntax.
  */
 case class Table(private[flink] val operation: PlanNode) {
 
@@ -237,6 +241,30 @@ case class Table(private[flink] val operation: PlanNode) {
           right.operation.outputFields.mkString(", ") )
     }
     this.copy(operation = Join(operation, right.operation))
+  }
+
+  /**
+   * Union two[[Table]]s. Similar to an SQL UNION ALL. The fields of the two union operations
+   * must fully overlap.
+   *
+   * Example:
+   *
+   * {{{
+   *   left.unionAll(right)
+   * }}}
+   */
+  def unionAll(right: Table): Table = {
+    val leftInputFields = operation.outputFields
+    val rightInputFields = right.operation.outputFields
+    if (!leftInputFields.equals(rightInputFields)) {
+      throw new ExpressionException(
+        "The fields names of join inputs should be fully overlapped, left inputs fields:" +
+          operation.outputFields.mkString(", ") +
+          " and right inputs fields" +
+          right.operation.outputFields.mkString(", ")
+      )
+    }
+    this.copy(operation = UnionAll(operation, right.operation))
   }
 
   override def toString: String = s"Expression($operation)"

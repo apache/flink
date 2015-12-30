@@ -116,8 +116,8 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	 */
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj != null & obj instanceof LongValue) {
-			return this.value == ((LongValue) obj).value;
+		if (obj instanceof LongValue) {
+			return ((LongValue) obj).value == this.value;
 		}
 		return false;
 	}
@@ -160,10 +160,15 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	public int getBinaryLength() {
 		return 8;
 	}
-	
+
 	@Override
 	public void copyTo(LongValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public LongValue copy() {
+		return new LongValue(this.value);
 	}
 
 	@Override

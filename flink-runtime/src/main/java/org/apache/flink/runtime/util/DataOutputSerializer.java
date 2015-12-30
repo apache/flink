@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 
 /**
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
@@ -65,6 +66,10 @@ public class DataOutputSerializer implements DataOutputView {
 
 	public byte[] getByteArray() {
 		return buffer;
+	}
+	
+	public byte[] getCopyOfBuffer() {
+		return Arrays.copyOf(buffer, position);
 	}
 
 	public void clear() {

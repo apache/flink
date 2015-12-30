@@ -29,7 +29,10 @@ import org.apache.flink.api.java.sca.UdfAnalyzer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class UdfOperatorUtils {
+/**
+ * Utility class that contains helper methods to work with UDF operators.
+ */
+public final class UdfOperatorUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(UdfOperatorUtils.class);
 
@@ -99,5 +102,12 @@ public abstract class UdfOperatorUtils {
 				LOG.debug("Code analysis failed.", e);
 			}
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private UdfOperatorUtils() {
+		throw new RuntimeException();
 	}
 }

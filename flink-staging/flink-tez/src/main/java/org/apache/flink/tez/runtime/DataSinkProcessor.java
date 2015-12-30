@@ -146,7 +146,7 @@ public class DataSinkProcessor<IT> extends AbstractLogicalIOProcessor {
 								this.runtimeEnvironment.getIOManager(),
 								this.reader, this.invokable, this.inputTypeSerializerFactory, compFact.createComparator(),
 								this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
-								this.config.getSpillingThresholdInput(0));
+								this.config.getSpillingThresholdInput(0), false);
 
 						this.localStrategy = sorter;
 						this.input = sorter.getIterator();

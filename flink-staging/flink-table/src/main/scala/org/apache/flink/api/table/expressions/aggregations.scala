@@ -89,7 +89,7 @@ case class Count(child: Expression) extends Aggregation {
 case class Avg(child: Expression) extends Aggregation {
   override def toString = s"($child).avg"
 
-  override def getIntermediateFields: Seq[Expression] = Seq(child, NumericIsNotNull(child))
+  override def getIntermediateFields: Seq[Expression] = Seq(child, Literal(1))
   // This is just sweet. Use our own AST representation and let the code generator do
   // our dirty work.
   override def getFinalField(inputs: Seq[Expression]): Expression =

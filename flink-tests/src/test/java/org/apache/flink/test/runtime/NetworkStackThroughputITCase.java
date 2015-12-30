@@ -29,8 +29,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.junit.After;
 import org.junit.Ignore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +36,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 @Ignore
 public class NetworkStackThroughputITCase {
@@ -62,8 +62,8 @@ public class NetworkStackThroughputITCase {
 
 	// ------------------------------------------------------------------------
 
-	// wrapper to reuse RecordAPITestBase code in runs via main()
-	private static class TestBaseWrapper extends RecordAPITestBase {
+	// wrapper to reuse JavaProgramTestBase code in runs via main()
+	private static class TestBaseWrapper extends JavaProgramTestBase {
 
 		private int dataVolumeGb;
 		private boolean useForwarder;
@@ -90,7 +90,6 @@ public class NetworkStackThroughputITCase {
 			setTaskManagerNumSlots(numSlots);
 		}
 
-		@Override
 		protected JobGraph getJobGraph() throws Exception {
 			return createJobGraph(dataVolumeGb, useForwarder, isSlowSender, isSlowReceiver, parallelism);
 		}
@@ -138,19 +137,19 @@ public class NetworkStackThroughputITCase {
 			return jobGraph;
 		}
 
-		@After
-		public void calculateThroughput() {
-			if (getJobExecutionResult() != null) {
-				int dataVolumeGb = this.config.getInteger(DATA_VOLUME_GB_CONFIG_KEY, 1);
 
-				long dataVolumeMbit = dataVolumeGb * 8192;
-				long runtimeSecs = getJobExecutionResult().getNetRuntime(TimeUnit.SECONDS);
+		@Override
+		protected void testProgram() throws Exception {
+			JobExecutionResult jer = executor.submitJobAndWait(getJobGraph(), false);
+			int dataVolumeGb = this.config.getInteger(DATA_VOLUME_GB_CONFIG_KEY, 1);
 
-				int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);
+			long dataVolumeMbit = dataVolumeGb * 8192;
+			long runtimeSecs = jer.getNetRuntime(TimeUnit.SECONDS);
 
-				LOG.info(String.format("Test finished with throughput of %d MBit/s (runtime [secs]: %d, " +
-						"data volume [gb/mbits]: %d/%d)", mbitPerSecond, runtimeSecs, dataVolumeGb, dataVolumeMbit));
-			}
+			int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);
+
+			LOG.info(String.format("Test finished with throughput of %d MBit/s (runtime [secs]: %d, " +
+					"data volume [gb/mbits]: %d/%d)", mbitPerSecond, runtimeSecs, dataVolumeGb, dataVolumeMbit));
 		}
 	}
 
@@ -289,8 +288,7 @@ public class NetworkStackThroughputITCase {
 			TestBaseWrapper test = new TestBaseWrapper(config);
 
 			System.out.println(Arrays.toString(p));
-			test.testJob();
-			test.calculateThroughput();
+			test.testProgram();
 		}
 	}
 

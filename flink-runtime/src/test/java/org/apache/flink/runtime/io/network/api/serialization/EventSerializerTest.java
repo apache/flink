@@ -18,25 +18,44 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
-import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
+
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class EventSerializerTest {
 
 	@Test
 	public void testSerializeDeserializeEvent() {
+		try {
+			AbstractEvent[] events = {
+					EndOfPartitionEvent.INSTANCE,
+					EndOfSuperstepEvent.INSTANCE,
+					new CheckpointBarrier(1678L, 4623784L),
+					new TestTaskEvent(Math.random(), 12361231273L)
+			};
+			
+			for (AbstractEvent evt : events) {
+				ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
+				assertTrue(serializedEvent.hasRemaining());
 
-		TestTaskEvent expected = new TestTaskEvent(Math.random(), 12361231273L);
-
-		ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(expected);
-
-		AbstractEvent actual = EventSerializer.fromSerializedEvent(serializedEvent, getClass().getClassLoader());
-
-		assertEquals(expected, actual);
+				AbstractEvent deserialized = 
+						EventSerializer.fromSerializedEvent(serializedEvent, getClass().getClassLoader());
+				assertNotNull(deserialized);
+				assertEquals(evt, deserialized);
+			}
+			
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 }

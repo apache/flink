@@ -47,5 +47,4 @@ public class WritableSerializerTest {
 		
 		testInstance.testAll();
 	}
-	
 }

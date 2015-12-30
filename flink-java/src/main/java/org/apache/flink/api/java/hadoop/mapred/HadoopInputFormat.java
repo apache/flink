@@ -27,12 +27,24 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.hadoop.mapred.JobConf;
 
+/**
+ * Wrapper for using HadoopInputFormats (mapred-variant) with Flink.
+ *
+ * The IF is returning a {@code Tuple2<K,V>}.
+ *
+ * @param <K> Type of the key
+ * @param <V> Type of the value.
+ */
 public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K,V>> implements ResultTypeQueryable<Tuple2<K,V>> {
 	
 	private static final long serialVersionUID = 1L;
 
 	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
 		super(mapredInputFormat, key, value, job);
+	}
+
+	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value) {
+		super(mapredInputFormat, key, value, new JobConf());
 	}
 	
 	@Override
@@ -51,6 +63,6 @@ public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<
 	
 	@Override
 	public TypeInformation<Tuple2<K,V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
+		return new TupleTypeInfo<>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }

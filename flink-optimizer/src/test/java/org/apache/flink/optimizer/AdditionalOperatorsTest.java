@@ -21,10 +21,10 @@ package org.apache.flink.optimizer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
@@ -52,7 +52,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
 		try {
-			JavaPlan plan = env.createProgramPlan();
+			Plan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileWithStats(plan);
 			OptimizerPlanNodeResolver resolver = new OptimizerPlanNodeResolver(oPlan);
 			
@@ -80,7 +80,7 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());;
 
 		try {
-			JavaPlan plan = env.createProgramPlan();
+			Plan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 			OptimizerPlanNodeResolver resolver = new OptimizerPlanNodeResolver(oPlan);
 			

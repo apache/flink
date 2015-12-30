@@ -27,12 +27,22 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
+/**
+ * InputFormat implementation allowing to use Hadoop (mapreduce) InputFormats with Flink.
+ *
+ * @param <K> Key Type
+ * @param <V> Value Type
+ */
 public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>> implements ResultTypeQueryable<Tuple2<K,V>> {
 
 	private static final long serialVersionUID = 1L;
 
 	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
 		super(mapreduceInputFormat, key, value, job);
+	}
+
+	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value) throws IOException {
+		super(mapreduceInputFormat, key, value, Job.getInstance());
 	}
 
 	@Override

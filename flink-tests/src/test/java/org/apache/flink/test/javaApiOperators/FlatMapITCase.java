@@ -19,6 +19,7 @@
 package org.apache.flink.test.javaApiOperators;
 
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -28,11 +29,7 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.apache.flink.api.java.DataSet;
@@ -42,22 +39,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class FlatMapITCase extends MultipleProgramsTestBase {
 	public FlatMapITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -72,10 +53,11 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<String> nonPassingFlatMapDs = ds.
 				flatMap(new FlatMapper1());
 
-		nonPassingFlatMapDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = nonPassingFlatMapDs.collect();
 
-		expected = "\n";
+		String expected = "\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class FlatMapper1 implements FlatMapFunction<String, String> {
@@ -101,10 +83,9 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<String> duplicatingFlatMapDs = ds.
 				flatMap(new FlatMapper2());
 
-		duplicatingFlatMapDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = duplicatingFlatMapDs.collect();
 
-		expected = 	"Hi\n" + "HI\n" +
+		String expected = "Hi\n" + "HI\n" +
 				"Hello\n" + "HELLO\n" +
 				"Hello world\n" + "HELLO WORLD\n" +
 				"Hello world, how are you?\n" + "HELLO WORLD, HOW ARE YOU?\n" +
@@ -112,6 +93,8 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				"Luke Skywalker\n" + "LUKE SKYWALKER\n" +
 				"Random comment\n" + "RANDOM COMMENT\n" +
 				"LOL\n" + "LOL\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class FlatMapper2 implements FlatMapFunction<String, String> {
@@ -136,10 +119,9 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> varyingTuplesMapDs = ds.
 				flatMap(new FlatMapper3());
 
-		varyingTuplesMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = varyingTuplesMapDs.collect();
 
-		expected =  "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"2,2,Hello\n" + "2,2,Hello\n" +
 				"4,3,Hello world, how are you?\n" +
 				"5,3,I am fine.\n" + "5,3,I am fine.\n" +
@@ -153,6 +135,8 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				"17,6,Comment#11\n" + "17,6,Comment#11\n" +
 				"19,6,Comment#13\n" +
 				"20,6,Comment#14\n" + "20,6,Comment#14\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class FlatMapper3 implements FlatMapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
@@ -180,10 +164,9 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> typeConversionFlatMapDs = ds.
 				flatMap(new FlatMapper4());
 
-		typeConversionFlatMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = typeConversionFlatMapDs.collect();
 
-		expected = 	"1,0,Hi\n" +
+		String expected = "1,0,Hi\n" +
 				"2,1,Hello\n" +
 				"2,2,Hello world\n" +
 				"3,3,Hello world, how are you?\n" +
@@ -204,6 +187,8 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				"6,18,Comment#13\n" +
 				"6,19,Comment#14\n" +
 				"6,20,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class FlatMapper4 implements FlatMapFunction<CustomType, Tuple3<Integer, Long, String>> {
@@ -212,8 +197,7 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				new Tuple3<Integer, Long, String>();
 
 		@Override
-		public void flatMap(CustomType value, Collector<Tuple3<Integer, Long, String>> out)
-		throws Exception {
+		public void flatMap(CustomType value, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
 			outTuple.setField(value.myInt, 0);
 			outTuple.setField(value.myLong, 1);
 			outTuple.setField(value.myString, 2);
@@ -233,10 +217,10 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<String> typeConversionFlatMapDs = ds.
 				flatMap(new FlatMapper5());
 
-		typeConversionFlatMapDs.writeAsText(resultPath);
-		env.execute();
+		List<String> result = typeConversionFlatMapDs.collect();
 
-		expected = 	"Hi\n" + "Hello\n" + "Hello world\n" +
+		String expected = "Hi\n" + "Hello\n" + "Hello world\n"
+				+
 				"Hello world, how are you?\n" +
 				"I am fine.\n" + "Luke Skywalker\n" +
 				"Comment#1\n" +	"Comment#2\n" +
@@ -247,21 +231,21 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				"Comment#11\n" + "Comment#12\n" +
 				"Comment#13\n" + "Comment#14\n" +
 				"Comment#15\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class FlatMapper5 implements FlatMapFunction<Tuple3<Integer, Long, String>,String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(Tuple3<Integer, Long, String> value,
-				Collector<String> out) throws Exception {
+		public void flatMap(Tuple3<Integer, Long, String> value, Collector<String> out) throws Exception {
 			out.collect(value.f2);
 		}
 	}
 
 	@Test
-	public void testFlatMapperIfUDFReturnsInputObjectMultipleTimesWhileChangingIt() throws
-			Exception {
+	public void testFlatMapperIfUDFReturnsInputObjectMultipleTimesWhileChangingIt() throws Exception {
 		/*
 		 * Test flatmapper if UDF returns input object
 		 * multiple times and changes it in between
@@ -273,10 +257,9 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> inputObjFlatMapDs = ds.
 				flatMap(new FlatMapper6());
 
-		inputObjFlatMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = inputObjFlatMapDs.collect();
 
-		expected =	"0,1,Hi\n" +
+		String expected = "0,1,Hi\n" +
 				"0,2,Hello\n" + "1,2,Hello\n" +
 				"0,2,Hello world\n" + "1,2,Hello world\n" + "2,2,Hello world\n" +
 				"0,3,I am fine.\n" +
@@ -292,6 +275,8 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				"0,6,Comment#12\n" + "1,6,Comment#12\n" +
 				"0,6,Comment#13\n" + "1,6,Comment#13\n" + "2,6,Comment#13\n" +
 				"0,6,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class FlatMapper6 implements FlatMapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
@@ -321,10 +306,9 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> bcFlatMapDs = ds.
 				flatMap(new RichFlatMapper1()).withBroadcastSet(ints, "ints");
-		bcFlatMapDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = bcFlatMapDs.collect();
 
-		expected = 	"55,1,Hi\n" +
+		String expected = "55,1,Hi\n" +
 				"55,2,Hello\n" +
 				"55,2,Hello world\n" +
 				"55,3,Hello world, how are you?\n" +
@@ -345,6 +329,8 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 				"55,6,Comment#13\n" +
 				"55,6,Comment#14\n" +
 				"55,6,Comment#15\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class RichFlatMapper1 extends RichFlatMapFunction<Tuple3<Integer,Long,String>, Tuple3<Integer,Long,String>> {
@@ -370,5 +356,5 @@ public class FlatMapITCase extends MultipleProgramsTestBase {
 			out.collect(outTuple);
 		}
 	}
-	
+
 }

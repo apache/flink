@@ -127,14 +127,14 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 * <p>
 	 * Fields which are unchanged copied from the first input to another position in the output are declared
 	 * by specifying the source field reference in the first input and the target field reference in the output.
-	 * <code>withForwardedFieldsFirst("f0->f2")</code> denotes that the first field of the first input Java tuple is
+	 * {@code withForwardedFieldsFirst("f0->f2")} denotes that the first field of the first input Java tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in first input and output type match.
 	 * </p>
 	 *
 	 * <p>
-	 * Multiple forwarded fields can be annotated in one (<code>withForwardedFieldsFirst("f2; f3->f0; f4")</code>)
-	 * or separate Strings (<code>withForwardedFieldsFirst("f2", "f3->f0", "f4")</code>).
+	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsFirst("f2; f3->f0; f4")})
+	 * or separate Strings ({@code withForwardedFieldsFirst("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
 	 * </p>
@@ -202,14 +202,14 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 * <p>
 	 * Fields which are unchanged copied from the second input to another position in the output are declared
 	 * by specifying the source field reference in the second input and the target field reference in the output.
-	 * <code>withForwardedFieldsSecond("f0->f2")</code> denotes that the first field of the second input Java tuple is
+	 * {@code withForwardedFieldsSecond("f0->f2")} denotes that the first field of the second input Java tuple is
 	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
 	 * the number of declared fields and their types in second input and output type match.
 	 * </p>
 	 *
 	 * <p>
-	 * Multiple forwarded fields can be annotated in one (<code>withForwardedFieldsSecond("f2; f3->f0; f4")</code>)
-	 * or separate Strings (<code>withForwardedFieldsSecond("f2", "f3->f0", "f4")</code>).
+	 * Multiple forwarded fields can be annotated in one ({@code withForwardedFieldsSecond("f2; f3->f0; f4")})
+	 * or separate Strings ({@code withForwardedFieldsSecond("f2", "f3->f0", "f4")}).
 	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
 	 * details on field references such as nested fields and wildcard.
 	 * </p>

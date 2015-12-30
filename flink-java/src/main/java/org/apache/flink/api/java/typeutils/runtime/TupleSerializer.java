@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullFieldException;
 
 
-public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
+public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -89,6 +89,14 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	}
 
 	@Override
+	public T createOrReuseInstance(Object[] fields, T reuse) {
+		for (int i = 0; i < arity; i++) {
+			reuse.setField(fields[i], i);
+		}
+		return reuse;
+	}
+
+	@Override
 	public T copy(T from) {
 		T target = instantiateRaw();
 		for (int i = 0; i < arity; i++) {
@@ -115,7 +123,7 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 			try {
 				fieldSerializers[i].serialize(o, target);
 			} catch (NullPointerException npex) {
-				throw new NullFieldException(i);
+				throw new NullFieldException(i, npex);
 			}
 		}
 	}

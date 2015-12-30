@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 
 public class BroadcastVariableManager {
 	
@@ -33,7 +33,7 @@ public class BroadcastVariableManager {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public <T> BroadcastVariableMaterialization<T, ?> materializeBroadcastVariable(String name, int superstep, RegularPactTask<?, ?> holder, 
+	public <T> BroadcastVariableMaterialization<T, ?> materializeBroadcastVariable(String name, int superstep, BatchTask<?, ?> holder,
 			MutableReader<?> reader, TypeSerializerFactory<T> serializerFactory) throws IOException
 	{
 		final BroadcastVariableKey key = new BroadcastVariableKey(holder.getEnvironment().getJobVertexId(), name, superstep);
@@ -77,12 +77,12 @@ public class BroadcastVariableManager {
 	}
 	
 	
-	public void releaseReference(String name, int superstep, RegularPactTask<?, ?> referenceHolder) {
+	public void releaseReference(String name, int superstep, BatchTask<?, ?> referenceHolder) {
 		BroadcastVariableKey key = new BroadcastVariableKey(referenceHolder.getEnvironment().getJobVertexId(), name, superstep);
 		releaseReference(key, referenceHolder);
 	}
 	
-	public void releaseReference(BroadcastVariableKey key, RegularPactTask<?, ?> referenceHolder) {
+	public void releaseReference(BroadcastVariableKey key, BatchTask<?, ?> referenceHolder) {
 		BroadcastVariableMaterialization<?, ?> mat = variables.get(key);
 		
 		// release this reference
@@ -93,7 +93,7 @@ public class BroadcastVariableManager {
 	}
 	
 	
-	public void releaseAllReferencesFromTask(RegularPactTask<?, ?> referenceHolder) {
+	public void releaseAllReferencesFromTask(BatchTask<?, ?> referenceHolder) {
 		// go through all registered variables 
 		for (Map.Entry<BroadcastVariableKey, BroadcastVariableMaterialization<?, ?>> entry : variables.entrySet()) {
 			BroadcastVariableMaterialization<?, ?> mat = entry.getValue();

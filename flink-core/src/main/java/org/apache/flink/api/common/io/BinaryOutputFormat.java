@@ -18,42 +18,46 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.DataOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
 
 public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
+	
 	private static final long serialVersionUID = 1L;
 	
-	/**
-	 * The config parameter which defines the fixed length of a record.
-	 */
+	/** The config parameter which defines the fixed length of a record. */
 	public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
 
 	public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
-	/**
-	 * The block size to use.
-	 */
+	/** The block size to use. */
 	private long blockSize = NATIVE_BLOCK_SIZE;
 
-	private DataOutputStream dataOutputStream;
+	private transient BlockBasedOutput blockBasedOutput;
+	
+	private transient DataOutputViewStreamWrapper outView;
 
-	private BlockBasedOutput blockBasedInput;
-
+	
 	@Override
 	public void close() throws IOException {
-		this.dataOutputStream.close();
-		super.close();
+		try {
+			DataOutputViewStreamWrapper o = this.outView;
+			if (o != null) {
+				o.close();
+			}
+		}
+		finally {
+			super.close();
+		}
 	}
 	
-	protected void complementBlockInfo(BlockInfo blockInfo) throws IOException {
-	}
+	protected void complementBlockInfo(BlockInfo blockInfo) {}
 
 	@Override
 	public void configure(Configuration parameters) {
@@ -80,16 +84,16 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 		final long blockSize = this.blockSize == NATIVE_BLOCK_SIZE ?
 			this.outputFilePath.getFileSystem().getDefaultBlockSize() : this.blockSize;
 
-		this.blockBasedInput = new BlockBasedOutput(this.stream, (int) blockSize);
-		this.dataOutputStream = new DataOutputStream(this.blockBasedInput);
+		this.blockBasedOutput = new BlockBasedOutput(this.stream, (int) blockSize);
+		this.outView = new DataOutputViewStreamWrapper(this.blockBasedOutput);
 	}
 
 	protected abstract void serialize(T record, DataOutputView dataOutput) throws IOException;
 
 	@Override
 	public void writeRecord(T record) throws IOException {
-		this.blockBasedInput.startRecord();
-		this.serialize(record, new OutputViewDataOutputStreamWrapper(this.dataOutputStream));
+		this.blockBasedOutput.startRecord();
+		this.serialize(record, outView);
 	}
 
 	/**
@@ -111,11 +115,11 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 
 		private BlockInfo blockInfo = BinaryOutputFormat.this.createBlockInfo();
 
-		private DataOutputStream headerStream;
+		private DataOutputView headerStream;
 
 		public BlockBasedOutput(OutputStream out, int blockSize) {
 			super(out);
-			this.headerStream = new DataOutputStream(out);
+			this.headerStream = new DataOutputViewStreamWrapper(out);
 			this.maxPayloadSize = blockSize - this.blockInfo.getInfoSize();
 		}
 
@@ -170,7 +174,7 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 			this.blockInfo.setAccumulatedRecordCount(this.totalCount);
 			this.blockInfo.setFirstRecordStart(this.firstRecordStartPos == NO_RECORD ? 0 : this.firstRecordStartPos);
 			BinaryOutputFormat.this.complementBlockInfo(this.blockInfo);
-			this.blockInfo.write(new OutputViewDataOutputStreamWrapper(this.headerStream));
+			this.blockInfo.write(this.headerStream);
 			this.blockPos = 0;
 			this.blockCount = 0;
 			this.firstRecordStartPos = NO_RECORD;

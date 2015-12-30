@@ -48,7 +48,7 @@ public class CoGroupRawNode extends TwoInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "CoGroup";
 	}
 

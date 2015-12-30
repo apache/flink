@@ -23,7 +23,7 @@ import java.util.TreeMap;
 
 /**
  * Histogram accumulator, which builds a histogram in a distributed manner.
- * Implemented as a Integer->Integer TreeMap, so that the entries are sorted
+ * Implemented as a Integer-&gt;Integer TreeMap, so that the entries are sorted
  * according to the values.
  * 
  * This class does not extend to continuous values later, because it makes no

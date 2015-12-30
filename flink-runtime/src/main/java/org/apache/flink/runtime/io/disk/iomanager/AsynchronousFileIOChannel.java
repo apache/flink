@@ -294,6 +294,10 @@ final class SegmentReadRequest implements ReadRequest {
 	private final MemorySegment segment;
 
 	protected SegmentReadRequest(AsynchronousFileIOChannel<MemorySegment, ReadRequest> targetChannel, MemorySegment segment) {
+		if (segment == null) {
+			throw new NullPointerException("Illegal read request with null memory segment.");
+		}
+		
 		this.channel = targetChannel;
 		this.segment = segment;
 	}
@@ -463,7 +467,7 @@ final class FileSegmentReadRequest implements ReadRequest {
 
 			fileSegment = new FileSegment(fileChannel, position, length, isBuffer);
 
-			// Skip the binary dataa
+			// Skip the binary data
 			fileChannel.position(position + length);
 
 			hasReachedEndOfFile.set(fileChannel.size() - fileChannel.position() == 0);

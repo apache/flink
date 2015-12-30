@@ -17,19 +17,18 @@
  */
 package org.apache.flink.api.scala
 
-import java.util.UUID
-
 import com.esotericsoftware.kryo.Serializer
+import com.google.common.base.Preconditions
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfoBase, ValueTypeInfo}
 import org.apache.flink.api.java.{CollectionEnvironment, ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.scala.hadoop.{mapred, mapreduce}
-import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.types.StringValue
@@ -53,17 +52,21 @@ import scala.reflect.ClassTag
  *
  * To get an execution environment use the methods on the companion object:
  *
- *  - [[ExecutionEnvironment.getExecutionEnvironment]]
- *  - [[ExecutionEnvironment.createLocalEnvironment]]
- *  - [[ExecutionEnvironment.createRemoteEnvironment]]
+ *  - [[ExecutionEnvironment#getExecutionEnvironment]]
+ *  - [[ExecutionEnvironment#createLocalEnvironment]]
+ *  - [[ExecutionEnvironment#createRemoteEnvironment]]
  *
- *  Use [[ExecutionEnvironment.getExecutionEnvironment]] to get the correct environment depending
- *  on where the program is executed. If it is run inside an IDE a loca environment will be
+ *  Use [[ExecutionEnvironment#getExecutionEnvironment]] to get the correct environment depending
+ *  on where the program is executed. If it is run inside an IDE a local environment will be
  *  created. If the program is submitted to a cluster a remote execution environment will
  *  be created.
  */
 class ExecutionEnvironment(javaEnv: JavaEnv) {
 
+  /**
+   * @return the Java Execution environment.
+   */
+  def getJavaEnv: JavaEnv = javaEnv
   /**
    * Gets the config object.
    */
@@ -76,30 +79,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
    * with x parallel instances. This value can be overridden by specific operations using
    * [[DataSet.setParallelism]].
-   * @deprecated Please use [[setParallelism]]
-   */
-  @deprecated
-  def setDegreeOfParallelism(parallelism: Int): Unit = {
-    setParallelism(parallelism)
-  }
-
-  /**
-   * Sets the parallelism (parallelism) for operations executed through this environment.
-   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
-   * with x parallel instances. This value can be overridden by specific operations using
-   * [[DataSet.setParallelism]].
    */
   def setParallelism(parallelism: Int): Unit = {
     javaEnv.setParallelism(parallelism)
   }
-
-  /**
-   * Returns the default parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataSet.setParallelism]]
-   * @deprecated Please use [[getParallelism]]
-   */
-  @deprecated
-  def getDegreeOfParallelism = javaEnv.getParallelism
 
   /**
    * Returns the default parallelism for this execution environment. Note that this
@@ -127,10 +110,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the UUID by which this environment is identified. The UUID sets the execution context
    * in the cluster or local environment.
    */
-  def getId: UUID = {
+  def getId: JobID = {
     javaEnv.getId
   }
-  
+
   /**
    * Gets the JobExecutionResult of the last executed job.
    */
@@ -144,12 +127,42 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Starts a new session, discarding all intermediate results.
+   */
+  def startNewSession() {
+    javaEnv.startNewSession()
+  }
+
+  /**
+   * Sets the session timeout to hold the intermediate results of a job. This only
+   * applies the updated timeout in future executions.
+   * @param timeout The timeout in seconds.
+   */
+  def setSessionTimeout(timeout: Long) {
+    javaEnv.setSessionTimeout(timeout)
+  }
+
+  /**
+   * Gets the session timeout for this environment. The session timeout defines for how long
+   * after an execution, the job and its intermediate results will be kept for future
+   * interactions.
+   *
+   * @return The session timeout, in seconds.
+   */
+  def getSessionTimeout: Long = {
+    javaEnv.getSessionTimeout
+  }
+
+  /**
    * Registers the given type with the serializer at the [[KryoSerializer]].
    *
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
-  def registerTypeWithKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+  def registerTypeWithKryoSerializer[T <: Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T)
+    : Unit = {
     javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
   }
 
@@ -174,16 +187,19 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
    * because it may be distributed to the worker nodes by java serialization.
    */
-  def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+  def addDefaultKryoSerializer[T <: Serializer[_] with Serializable](
+      clazz: Class[_],
+      serializer: T)
+    : Unit = {
     javaEnv.addDefaultKryoSerializer(clazz, serializer)
   }
-  
+
   /**
    * Registers the given type with the serialization stack. If the type is eventually
    * serialized as a POJO, then the type is registered with the POJO serializer. If the
    * type ends up being serialized with Kryo, then it will be registered at Kryo to make
    * sure that only tags are written.
-   * 
+   *
    */
   def registerType(typeClass: Class[_]) {
     javaEnv.registerType(typeClass)
@@ -257,53 +273,39 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
     val typeInfo = implicitly[TypeInformation[T]]
 
-    val inputFormat = new ScalaCsvInputFormat[T](new Path(filePath), typeInfo)
+    Preconditions.checkArgument(
+      typeInfo.isInstanceOf[CompositeType[T]],
+      s"The type $typeInfo has to be a tuple or pojo type.",
+      null)
+
+    var inputFormat: CsvInputFormat[T] = null
+
+    typeInfo match {
+      case info: TupleTypeInfoBase[T] =>
+        inputFormat = new TupleCsvInputFormat[T](
+          new Path(filePath),
+          typeInfo.asInstanceOf[TupleTypeInfoBase[T]],
+          includedFields)
+      case info: PojoTypeInfo[T] =>
+        if (pojoFields == null) {
+          throw new IllegalArgumentException(
+            "POJO fields must be specified (not null) if output type is a POJO.")
+        }
+        inputFormat = new PojoCsvInputFormat[T](
+          new Path(filePath),
+          typeInfo.asInstanceOf[PojoTypeInfo[T]],
+          pojoFields,
+          includedFields)
+      case _ => throw new IllegalArgumentException("Type information is not valid.")
+    }
+    if (quoteCharacter != null) {
+      inputFormat.enableQuotedStringParsing(quoteCharacter)
+    }
     inputFormat.setDelimiter(lineDelimiter)
     inputFormat.setFieldDelimiter(fieldDelimiter)
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
     inputFormat.setCommentPrefix(ignoreComments)
-
-    if (quoteCharacter != null) {
-      inputFormat.enableQuotedStringParsing(quoteCharacter);
-    }
-
-    val classesBuf: ArrayBuffer[Class[_]] = new ArrayBuffer[Class[_]]
-    typeInfo match {
-      case info: TupleTypeInfoBase[T] =>
-        for (i <- 0 until info.getArity) {
-          classesBuf += info.getTypeAt(i).getTypeClass()
-        }
-      case info: PojoTypeInfo[T] =>
-        if (pojoFields == null) {
-          throw new IllegalArgumentException(
-            "POJO fields must be specified (not null) if output type is a POJO.")
-        } else {
-          for (i <- 0 until pojoFields.length) {
-            val pos = info.getFieldIndex(pojoFields(i))
-            if (pos < 0) {
-              throw new IllegalArgumentException(
-                "Field \"" + pojoFields(i) + "\" not part of POJO type " +
-                  info.getTypeClass.getCanonicalName);
-            }
-            classesBuf += info.getPojoFieldAt(pos).`type`.getTypeClass
-          }
-        }
-      case _ => throw new IllegalArgumentException("Type information is not valid.")
-    }
-
-    if (includedFields != null) {
-      require(classesBuf.size == includedFields.length, "Number of tuple fields and" +
-        " included fields must match.")
-      inputFormat.setFields(includedFields, classesBuf.toArray)
-    } else {
-      inputFormat.setFieldTypes(classesBuf.toArray)
-    }
-
-    if (pojoFields != null) {
-      inputFormat.setOrderOfPOJOFields(pojoFields)
-    }
-
     wrap(new DataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
   }
 
@@ -398,6 +400,19 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Creates a [[DataSet]] from [[org.apache.hadoop.mapred.SequenceFileInputFormat]]
+   * A [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
+   */
+  def readSequenceFile[K, V](
+      key: Class[K],
+      value: Class[V],
+      inputPath: String)
+      (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
+    readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat[K, V],
+      key, value, inputPath)
+  }
+
+  /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.InputFormat]].
    */
   def createHadoopInput[K, V](
@@ -415,13 +430,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * The given inputName is set on the given job.
    */
   def readHadoopFile[K, V](
-      mapredInputFormat: MapreduceFileInputFormat[K, V],
+      mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
       value: Class[V],
       inputPath: String,
       job: Job)
       (implicit tpe: TypeInformation[(K, V)]): DataSet[(K, V)] = {
-    val result = createHadoopInput(mapredInputFormat, key, value, job)
+    val result = createHadoopInput(mapreduceInputFormat, key, value, job)
     MapreduceFileInputFormat.addInputPath(job, new HadoopPath(inputPath))
     result
   }
@@ -432,36 +447,36 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * [[org.apache.hadoop.mapreduce.Job]] with the given inputPath will be created.
    */
   def readHadoopFile[K, V](
-      mapredInputFormat: MapreduceFileInputFormat[K, V],
+      mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
       value: Class[V],
       inputPath: String)
       (implicit tpe: TypeInformation[(K, V)]): DataSet[Tuple2[K, V]] = {
-    readHadoopFile(mapredInputFormat, key, value, inputPath, Job.getInstance)
+    readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance)
   }
 
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.InputFormat]].
    */
   def createHadoopInput[K, V](
-      mapredInputFormat: MapreduceInputFormat[K, V],
+      mapreduceInputFormat: MapreduceInputFormat[K, V],
       key: Class[K],
       value: Class[V],
       job: Job)
       (implicit tpe: TypeInformation[(K, V)]): DataSet[Tuple2[K, V]] = {
     val hadoopInputFormat =
-      new mapreduce.HadoopInputFormat[K, V](mapredInputFormat, key, value, job)
+      new mapreduce.HadoopInputFormat[K, V](mapreduceInputFormat, key, value, job)
     createInput(hadoopInputFormat)
   }
 
   /**
-   * Creates a DataSet from the given non-empty [[Seq]].
+   * Creates a DataSet from the given non-empty [[Iterable]].
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
    * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation](
-      data: Seq[T]): DataSet[T] = {
+      data: Iterable[T]): DataSet[T] = {
     require(data != null, "Data must not be null.")
 
     val typeInfo = implicitly[TypeInformation[T]]
@@ -701,6 +716,33 @@ object ExecutionEnvironment {
       jarFiles: String*): ExecutionEnvironment = {
     val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*)
     javaEnv.setParallelism(parallelism)
+    new ExecutionEnvironment(javaEnv)
+  }
+
+  /**
+   * Creates a remote execution environment. The remote environment sends (parts of) the program
+   * to a cluster for execution. Note that all file paths used in the program must be accessible
+   * from the cluster. The custom configuration file is used to configure Akka specific
+   * configuration parameters for the Client only; Program parallelism can be set via
+   * [[ExecutionEnvironment.setParallelism]].
+   *
+   * Cluster configuration has to be done in the remotely running Flink instance.
+   *
+   * @param host The host name or address of the master (JobManager), where the program should be
+   *             executed.
+   * @param port The port of the master (JobManager), where the program should be executed.
+   * @param clientConfiguration Pass a custom configuration to the Client.
+   * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
+   *                 program uses user-defined functions, user-defined input formats, or any
+   *                 libraries, those must be provided in the JAR files.
+   * @return A remote environment that executes the program on a cluster.
+   */
+  def createRemoteEnvironment(
+      host: String,
+      port: Int,
+      clientConfiguration: Configuration,
+      jarFiles: String*): ExecutionEnvironment = {
+    val javaEnv = JavaEnv.createRemoteEnvironment(host, port, clientConfiguration, jarFiles: _*)
     new ExecutionEnvironment(javaEnv)
   }
 }

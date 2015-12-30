@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
+import org.apache.flink.runtime.memory.AbstractPagedInputView;
 
 /**
  * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a

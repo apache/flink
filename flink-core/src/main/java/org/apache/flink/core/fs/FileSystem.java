@@ -34,9 +34,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.flink.util.ClassUtils;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.StringUtils;
 
 /**
  * An abstract base class for a fairly generic file system. It
@@ -51,8 +49,6 @@ public abstract class FileSystem {
 
 	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
 	
-	private static final String S3_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.s3.S3FileSystem";
-
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
 	
@@ -68,7 +64,7 @@ public abstract class FileSystem {
 		/** Creates write path if it does not exist. Does not overwrite existing files and directories. */
 		NO_OVERWRITE,
 		
-		/** creates write path if it does not exist. Overwrites existing files and directories. */
+		/** Creates write path if it does not exist. Overwrites existing files and directories. */
 		OVERWRITE 
 	}
 	
@@ -156,7 +152,6 @@ public abstract class FileSystem {
 		FSDIRECTORY.put("hdfs", HADOOP_WRAPPER_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
-		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
 	}
 
 	/**
@@ -165,8 +160,6 @@ public abstract class FileSystem {
 	 * 
 	 * @return a reference to the {@link FileSystem} instance for accessing the
 	 *         local file system.
-	 * @throws IOException
-	 *         thrown if a reference to the file system instance could not be obtained
 	 */
 	public static FileSystem getLocalFileSystem() {
 		// this should really never fail.
@@ -267,37 +260,26 @@ public abstract class FileSystem {
 
 	//Class must implement Hadoop FileSystem interface. The class is not avaiable in 'flink-core'.
 	private static FileSystem instantiateHadoopFileSystemWrapper(Class<?> wrappedFileSystem) throws IOException {
-		FileSystem fs = null;
-		Class<? extends FileSystem> fsClass;
 		try {
-			fsClass = ClassUtils.getFileSystemByName(HADOOP_WRAPPER_FILESYSTEM_CLASS);
+			Class<? extends FileSystem> fsClass = getFileSystemByName(HADOOP_WRAPPER_FILESYSTEM_CLASS);
 			Constructor<? extends FileSystem> fsClassCtor = fsClass.getConstructor(Class.class);
-			fs = fsClassCtor.newInstance(wrappedFileSystem);
+			return fsClassCtor.newInstance(wrappedFileSystem);
 		} catch (Throwable e) {
 			throw new IOException("Error loading Hadoop FS wrapper", e);
 		}
-		return fs;
 	}
 
 	private static FileSystem instantiateFileSystem(String className) throws IOException {
-		FileSystem fs = null;
-		Class<? extends FileSystem> fsClass;
 		try {
-			fsClass = ClassUtils.getFileSystemByName(className);
-		} catch (ClassNotFoundException e1) {
-			throw new IOException(StringUtils.stringifyException(e1));
+			Class<? extends FileSystem> fsClass = getFileSystemByName(className);
+			return fsClass.newInstance();
 		}
-
-		try {
-			fs = fsClass.newInstance();
+		catch (ClassNotFoundException e) {
+			throw new IOException("Could not load file system class '" + className + '\'', e);
 		}
-		catch (InstantiationException e) {
+		catch (InstantiationException | IllegalAccessException e) {
 			throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
 		}
-		catch (IllegalAccessException e) {
-			throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
-		}
-		return fs;
 	}
 
 	private static HadoopFileSystemWrapper hadoopWrapper;
@@ -455,6 +437,7 @@ public abstract class FileSystem {
 	 * @param replication
 	 *        required block replication for the file.
 	 * @param blockSize
+	 *        the size of the file blocks
 	 * @throws IOException
 	 */
 	public abstract FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication,
@@ -488,20 +471,20 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on local file systems according to the given write mode.
 	 * 
-	 * WriteMode.CREATE & parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
 	 *  - An existing file raises an exception.
 	 *    
-	 * WriteMode.CREATE & NONE parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception.
 	 *  
-	 * WriteMode.OVERWRITE & parallel output:
+	 * WriteMode.OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory is reused, files contained in the directory are NOT deleted.
 	 *  - An existing file is deleted and replaced by a new directory.
 	 *  
-	 * WriteMode.OVERWRITE & NONE parallel output:
+	 * WriteMode.OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory (and all its content) is deleted
 	 * 
 	 * Files contained in an existing directory are not deleted, because multiple instances of a 
@@ -649,19 +632,19 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on distributed file systems according to the given write mode.
 	 * 
-	 * WriteMode.CREATE & parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing file or directory raises an exception.
 	 * 
-	 * WriteMode.CREATE & NONE parallel output:
+	 * WriteMode.NO_OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception. 
 	 *    
-	 * WriteMode.OVERWRITE & parallel output:
+	 * WriteMode.OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory and its content is deleted and a new directory is created.
 	 *  - An existing file is deleted and replaced by a new directory.
 	 *  
-	 *  WriteMode.OVERWRITE & NONE parallel output:
+	 *  WriteMode.OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory is deleted and replaced by a new directory.
 	 * 
 	 * @param outPath Output path that should be prepared.
@@ -728,52 +711,8 @@ public abstract class FileSystem {
 	 */
 	public abstract boolean isDistributedFS();
 	
-	/**
-	 * Returns the number of blocks this file/directory consists of
-	 * assuming the file system's standard block size.
-	 * 
-	 * @param file
-	 *        the file
-	 * @return the number of block's the file/directory consists of
-	 * @throws IOException
-	 */
-	public int getNumberOfBlocks(final FileStatus file) throws IOException {
 
-		int numberOfBlocks = 0;
-
-		if (file == null) {
-			return 0;
-		}
-
-		// For a file, this is easy
-		if (!file.isDir()) {
-			return getNumberOfBlocks(file.getLen(), file.getBlockSize());
-		}
-
-		// file is a directory
-		final FileStatus[] files = this.listStatus(file.getPath());
-		for (FileStatus file1 : files) {
-			if (!file1.isDir()) {
-				numberOfBlocks += getNumberOfBlocks(file1.getLen(), file1.getBlockSize());
-			}
-		}
-
-		return numberOfBlocks;
-	}
-
-	private int getNumberOfBlocks(final long length, final long blocksize) {
-
-		if (blocksize != 0) {
-			int numberOfBlocks;
-			numberOfBlocks = (int) (length / blocksize);
-
-			if ((length % blocksize) != 0) {
-				numberOfBlocks++;
-			}
-
-			return numberOfBlocks;
-		} else {
-			return 1;
-		}
+	private static Class<? extends FileSystem> getFileSystemByName(String className) throws ClassNotFoundException {
+		return Class.forName(className, true, FileSystem.class.getClassLoader()).asSubclass(FileSystem.class);
 	}
 }

@@ -134,11 +134,18 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
   }
 
   override def equals(obj: Any): Boolean = {
-    if (obj != null && obj.isInstanceOf[TraversableSerializer[_, _]]) {
-      val other = obj.asInstanceOf[TraversableSerializer[_, _]]
-      other.elementSerializer.equals(elementSerializer)
-    } else {
-      false
+    obj match {
+      case other: TraversableSerializer[_, _] =>
+        other.canEqual(this) && elementSerializer.equals(other.elementSerializer)
+      case _ => false
     }
+  }
+
+  override def hashCode(): Int = {
+    elementSerializer.hashCode()
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[TraversableSerializer[_, _]]
   }
 }

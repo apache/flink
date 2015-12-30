@@ -18,46 +18,33 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.ExpressionException
+import java.util.Date
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.table.expressions.Literal
+import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import scala.collection.JavaConverters._
+
 @RunWith(classOf[Parameterized])
 class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
-  private var expected: String = ""
-  private val _tempFolder = new TemporaryFolder()
-
-  @Rule
-  def tempFolder = _tempFolder
-
-  @Before
-  def before(): Unit = {
-    resultPath = tempFolder.newFile().toURI.toString
-  }
-
-  @After
-  def after(): Unit = {
-    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
-  }
 
   @Test
   def testArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements((5, 10)).as('a, 'b)
-      .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "0,10,2,10,1,-5"
+      .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a).toDataSet[Row]
+    val expected = "0,10,2,10,1,-5"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -65,11 +52,10 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements((5, true)).as('a, 'b)
-      .select('b && true, 'b && false, 'b || false, !'b)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "true,false,true,false"
+      .select('b && true, 'b && false, 'b || false, !'b).toDataSet[Row]
+    val expected = "true,false,true,false"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -77,11 +63,10 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements((5, 5, 4)).as('a, 'b, 'c)
-      .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "true,true,false,false,true"
+      .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull).toDataSet[Row]
+    val expected = "true,true,false,false,true"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -90,11 +75,10 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val ds = env.fromElements((3.toByte, 5.toByte)).as('a, 'b)
-      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,7,6,-4"
+      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a).toDataSet[Row]
+    val expected = "1,7,6,-4"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -103,11 +87,10 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val ds = env.fromElements((3, 5.toByte)).as('a, 'b)
-      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,7,6,-4"
+      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a).toDataSet[Row]
+    val expected = "1,7,6,-4"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ExpressionException])
@@ -116,11 +99,10 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val ds = env.fromElements((3.0, 5)).as('a, 'b)
-      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,7,6,-4"
+      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a).toDataSet[Row] 
+    val expected = "1,7,6,-4"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -129,11 +111,24 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val ds = env.fromElements((3, 5.toByte)).as('a, 'b)
-      .groupBy("a").select("a, a.count As cnt")
+      .groupBy("a").select("a, a.count As cnt").toDataSet[Row]
+    val expected = "3,1"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "3,1"
+  @Test
+  def testDateLiteral(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = env.fromElements((0L, "test")).as('a, 'b)
+      .select('a,
+        Literal(new Date(0)).cast(BasicTypeInfo.STRING_TYPE_INFO),
+        'a.cast(BasicTypeInfo.DATE_TYPE_INFO).cast(BasicTypeInfo.STRING_TYPE_INFO))
+      .toDataSet[Row]
+    val expected = "0,1970-01-01 00:00:00.000,1970-01-01 00:00:00.000"
+    val results = ds.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 }

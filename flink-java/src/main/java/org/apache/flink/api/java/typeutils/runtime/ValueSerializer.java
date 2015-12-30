@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -27,6 +28,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
  * Serializer for {@link Value} types. Uses the value's serialization methods, and uses
@@ -47,11 +49,7 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	public ValueSerializer(Class<T> type) {
-		if (type == null) {
-			throw new NullPointerException();
-		}
-		
-		this.type = type;
+		this.type = Preconditions.checkNotNull(type);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -74,13 +72,15 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	@Override
 	public T copy(T from) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		return KryoUtils.copy(from, kryo, this);
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
 		checkKryoInitialized();
-		return this.kryo.copy(from);
+
+		return KryoUtils.copy(from, reuse, kryo, this);
 	}
 
 	@Override
@@ -117,6 +117,11 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
+
+			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
+			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(instantiatorStrategy);
+
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(type);
 		}
@@ -126,16 +131,22 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		return this.type.hashCode() + 17;
+		return this.type.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == ValueSerializer.class) {
+		if (obj instanceof ValueSerializer) {
 			ValueSerializer<?> other = (ValueSerializer<?>) obj;
-			return this.type == other.type;
+
+			return other.canEqual(this) && type == other.type;
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof ValueSerializer;
 	}
 }

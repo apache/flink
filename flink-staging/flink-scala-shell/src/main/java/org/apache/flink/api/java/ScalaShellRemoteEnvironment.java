@@ -24,6 +24,12 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 
 import org.apache.flink.api.scala.FlinkILoop;
+import org.apache.flink.configuration.Configuration;
+
+import java.io.File;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Special version of {@link org.apache.flink.api.java.RemoteEnvironment} that has a reference
@@ -44,7 +50,7 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	 * @param flinkILoop The flink Iloop instance from which the ScalaShellRemoteEnvironment is called.
 	 */
 	public ScalaShellRemoteEnvironment(String host, int port, FlinkILoop flinkILoop, String... jarFiles) {
-		super(host, port, jarFiles);
+		super(host, port, null, jarFiles, null);
 		this.flinkILoop = flinkILoop;
 	}
 
@@ -59,12 +65,43 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 
-		String jarFile = flinkILoop.writeFilesToDisk().getAbsolutePath();
+		URL jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
 
-		// call "traditional" execution methods
-		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFile);
+		// get "external jars, and add the shell command jar, pass to executor
+		List<URL> alljars = new ArrayList<>();
+		// get external (library) jars
+		String[] extJars = this.flinkILoop.getExternalJars();
+
+		for (String extJar : extJars) {
+			URL extJarUrl = new File(extJar).getAbsoluteFile().toURI().toURL();
+			alljars.add(extJarUrl);
+		}
+
+		// add shell commands
+		alljars.add(jarUrl);
+		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, new Configuration(),
+				alljars.toArray(new URL[alljars.size()]), null);
 
 		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
+	}
+
+	public static void disableAllContextAndOtherEnvironments() {
+		
+		// we create a context environment that prevents the instantiation of further
+		// context environments. at the same time, setting the context environment prevents manual
+		// creation of local and remote environments
+		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+			@Override
+			public ExecutionEnvironment createExecutionEnvironment() {
+				throw new UnsupportedOperationException("Execution Environment is already defined" +
+						" for this shell.");
+			}
+		};
+		initializeContextEnvironment(factory);
+	}
+	
+	public static void resetContextEnvironments() {
+		ExecutionEnvironment.resetContextEnvironment();
 	}
 }

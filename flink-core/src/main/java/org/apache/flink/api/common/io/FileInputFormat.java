@@ -34,7 +34,6 @@ import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -46,15 +45,15 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 /**
- * The base class for {@link InputFormat}s that read from files. For specific input types the 
- * <tt>nextRecord()</tt> and <tt>reachedEnd()</tt> methods need to be implemented.
+ * The base class for {@link RichInputFormat}s that read from files. For specific input types the
+ * {@link #nextRecord(Object)} and {@link #reachedEnd()} methods need to be implemented.
  * Additionally, one may override {@link #open(FileInputSplit)} and {@link #close()} to
  * change the life cycle behavior.
- * <p>
- * After the {@link #open(FileInputSplit)} method completed, the file input data is available
- * from the {@link #stream} field.
+ * 
+ * <p>After the {@link #open(FileInputSplit)} method completed, the file input data is available
+ * from the {@link #stream} field.</p>
  */
-public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSplit> {
+public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputSplit> {
 	
 	// -------------------------------------- Constants -------------------------------------------
 	
@@ -245,6 +244,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		// TODO The job-submission web interface passes empty args (and thus empty
 		// paths) to compute the preview graph. The following is a workaround for
 		// this situation and we should fix this.
+		
+		// comment (Stephan Ewen) this should be no longer relevant with the current Java/Scalal APIs.
 		if (filePath.isEmpty()) {
 			setFilePath(new Path());
 			return;
@@ -609,7 +610,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The method may be overridden. Hadoop's FileInputFormat has a similar mechanism and applies the
 	 * same filters by default.
 	 * 
-	 * @param fileStatus
+	 * @param fileStatus The file status to check.
 	 * @return true, if the given file or directory is accepted
 	 */
 	protected boolean acceptFile(FileStatus fileStatus) {
@@ -920,69 +921,4 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The config parameter which defines whether input directories are recursively traversed.
 	 */
 	public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
-	
-	
-	// ----------------------------------- Config Builder -----------------------------------------
-	
-	/**
-	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
-	 * fashion.
-	 * 
-	 * @return A config builder for setting parameters.
-	 */
-	public static ConfigBuilder configureFileFormat(GenericDataSourceBase<?, ?> target) {
-		return new ConfigBuilder(target.getParameters());
-	}
-	
-	/**
-	 * Abstract builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	protected static abstract class AbstractConfigBuilder<T> {
-		/**
-		 * The configuration into which the parameters will be written.
-		 */
-		protected final Configuration config;
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected AbstractConfigBuilder(Configuration targetConfig) {
-			this.config = targetConfig;
-		}
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Sets the path to the file or directory to be read by this file input format.
-		 * 
-		 * @param filePath The path to the file or directory.
-		 * @return The builder itself.
-		 */
-		public T filePath(String filePath) {
-			this.config.setString(FILE_PARAMETER_KEY, filePath);
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
-		}
-	}
-	
-	/**
-	 * A builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected ConfigBuilder(Configuration targetConfig) {
-			super(targetConfig);
-		}
-		
-	}
 }

@@ -197,6 +197,11 @@ class JavaStreamingTranslator extends PlanTranslator {
         val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
         val filter = new ExpressionFilterFunction[Row](predicate, inType)
         translatedInput.filter(filter)
+
+      case UnionAll(left, right) =>
+        val translatedLeft = translateInternal(left)
+        val translatedRight = translateInternal(right)
+        translatedLeft.union(translatedRight)
     }
   }
 

@@ -31,38 +31,19 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
 import java.util.Iterator;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class SortPartitionITCase extends MultipleProgramsTestBase {
 
 	public SortPartitionITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -75,16 +56,15 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(4);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.map(new IdMapper()).setParallelism(4) // parallelize input
 				.sortPartition(1, Order.DESCENDING)
-				.mapPartition(new OrderCheckMapper<Tuple3<Integer, Long, String>>(new Tuple3Checker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -97,19 +77,19 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(2);
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.map(new IdMapper()).setParallelism(2) // parallelize input
 				.sortPartition(4, Order.ASCENDING)
 				.sortPartition(2, Order.DESCENDING)
-				.mapPartition(new OrderCheckMapper<Tuple5<Integer, Long, Integer, String, Long>>(new Tuple5Checker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new Tuple5Checker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testSortPartitionByFieldExpression() throws Exception {
 		/*
@@ -120,16 +100,15 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(4);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.map(new IdMapper()).setParallelism(4) // parallelize input
 				.sortPartition("f1", Order.DESCENDING)
-				.mapPartition(new OrderCheckMapper<Tuple3<Integer, Long, String>>(new Tuple3Checker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -142,17 +121,16 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(2);
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.map(new IdMapper()).setParallelism(2) // parallelize input
 				.sortPartition("f4", Order.ASCENDING)
 				.sortPartition("f2", Order.DESCENDING)
-				.mapPartition(new OrderCheckMapper<Tuple5<Integer, Long, Integer, String, Long>>(new Tuple5Checker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new Tuple5Checker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -165,17 +143,16 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(3);
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.map(new IdMapper()).setParallelism(3) // parallelize input
 				.sortPartition("f0.f1", Order.ASCENDING)
 				.sortPartition("f1", Order.DESCENDING)
-				.mapPartition(new OrderCheckMapper<Tuple2<Tuple2<Integer, Integer>, String>>(new NestedTupleChecker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new NestedTupleChecker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -188,17 +165,16 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(3);
 
 		DataSet<POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.map(new IdMapper()).setParallelism(1) // parallelize input
 				.sortPartition("nestedTupleWithCustom.f1.myString", Order.ASCENDING)
 				.sortPartition("number", Order.DESCENDING)
-				.mapPartition(new OrderCheckMapper<POJO>(new PojoChecker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new PojoChecker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -211,15 +187,14 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		env.setParallelism(3);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds
+		List<Tuple1<Boolean>> result = ds
 				.sortPartition(1, Order.DESCENDING).setParallelism(3) // change parallelism
-				.mapPartition(new OrderCheckMapper<Tuple3<Integer, Long, String>>(new Tuple3Checker()))
-				.distinct()
-				.writeAsText(resultPath);
+				.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+				.distinct().collect();
 
-		env.execute();
+		String expected = "(true)\n";
 
-		expected = "(true)\n";
+		compareResultAsText(result, expected);
 	}
 
 	public static interface OrderChecker<T> extends Serializable {
@@ -227,6 +202,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		public boolean inOrder(T t1, T t2);
 	}
 
+	@SuppressWarnings("serial")
 	public static class Tuple3Checker implements OrderChecker<Tuple3<Integer, Long, String>> {
 		@Override
 		public boolean inOrder(Tuple3<Integer, Long, String> t1, Tuple3<Integer, Long, String> t2) {
@@ -234,33 +210,36 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static class Tuple5Checker implements OrderChecker<Tuple5<Integer, Long, Integer, String, Long>> {
 		@Override
 		public boolean inOrder(Tuple5<Integer, Long, Integer, String, Long> t1,
-								Tuple5<Integer, Long, Integer, String, Long> t2) {
+				Tuple5<Integer, Long, Integer, String, Long> t2) {
 			return t1.f4 < t2.f4 || t1.f4 == t2.f4 && t1.f2 >= t2.f2;
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static class NestedTupleChecker implements OrderChecker<Tuple2<Tuple2<Integer, Integer>, String>> {
 		@Override
 		public boolean inOrder(Tuple2<Tuple2<Integer, Integer>, String> t1,
-								Tuple2<Tuple2<Integer, Integer>, String> t2) {
+				Tuple2<Tuple2<Integer, Integer>, String> t2) {
 			return t1.f0.f1 < t2.f0.f1 ||
 					t1.f0.f1 == t2.f0.f1 && t1.f1.compareTo(t2.f1) >= 0;
- 		}
-	}
-
-	public static class PojoChecker implements OrderChecker<POJO> {
-		@Override
-		public boolean inOrder(POJO t1,
-							   POJO t2) {
-			return t1.nestedTupleWithCustom.f1.myString.compareTo(t2.nestedTupleWithCustom.f1.myString) < 0 ||
-					t1.nestedTupleWithCustom.f1.myString.compareTo(t2.nestedTupleWithCustom.f1.myString) == 0 &&
-							t1.number >= t2.number;
 		}
 	}
 
+	@SuppressWarnings("serial")
+	public static class PojoChecker implements OrderChecker<POJO> {
+		@Override
+		public boolean inOrder(POJO t1, POJO t2) {
+			return t1.nestedTupleWithCustom.f1.myString.compareTo(t2.nestedTupleWithCustom.f1.myString) < 0 ||
+					t1.nestedTupleWithCustom.f1.myString.compareTo(t2.nestedTupleWithCustom.f1.myString) == 0 &&
+					t1.number >= t2.number;
+		}
+	}
+
+	@SuppressWarnings("unused, serial")
 	public static class OrderCheckMapper<T> implements MapPartitionFunction<T, Tuple1<Boolean>> {
 
 		OrderChecker<T> checker;
@@ -276,7 +255,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 
 			Iterator<T> it = values.iterator();
 			if(!it.hasNext()) {
-				out.collect(new Tuple1<Boolean>(true));
+				out.collect(new Tuple1<>(true));
 				return;
 			} else {
 				T last = it.next();
@@ -284,17 +263,17 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 				while (it.hasNext()) {
 					T next = it.next();
 					if (!checker.inOrder(last, next)) {
-						out.collect(new Tuple1<Boolean>(false));
+						out.collect(new Tuple1<>(false));
 						return;
 					}
 					last = next;
 				}
-				out.collect(new Tuple1<Boolean>(true));
+				out.collect(new Tuple1<>(true));
 			}
 		}
 	}
 
-
+	@SuppressWarnings("serial")
 	public static class IdMapper<T> implements MapFunction<T, T> {
 
 		@Override

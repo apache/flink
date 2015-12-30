@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.messages
 
+import java.util.UUID
+
+import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.client.{SerializedJobExecutionResult, JobStatusMessage}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobGraph, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph
+import org.apache.flink.runtime.util.SerializedThrowable
 
 import scala.collection.JavaConverters._
 
@@ -32,15 +38,53 @@ import scala.collection.JavaConverters._
  */
 object JobManagerMessages {
 
+  /** Wrapper class for leader session messages. Leader session messages implement the
+    * [[RequiresLeaderSessionID]] interface and have to be wrapped in a [[LeaderSessionMessage]],
+    * which also contains the current leader session ID.
+    *
+    * @param leaderSessionID Current leader session ID or null, if no leader session ID was set
+    * @param message [[RequiresLeaderSessionID]] message to be wrapped in a [[LeaderSessionMessage]]
+    */
+  case class LeaderSessionMessage(leaderSessionID: UUID, message: Any)
+
   /**
-   * Submits a job to the job manager. If [[registerForEvents]] is true,
-   * then the sender will be registered as listener for the state change messages.
+   * Submits a job to the job manager. Depending on the [[listeningBehaviour]],
+   * the sender registers for different messages. If [[ListeningBehaviour.DETACHED]], then
+   * it will only be informed whether the submission was successful or not. If
+   * [[ListeningBehaviour.EXECUTION_RESULT]], then it will additionally receive the execution
+   * result. If [[ListeningBehaviour.EXECUTION_RESULT_AND_STATE_CHANGES]], then it will additionally
+   * receive the job status change notifications.
+   *
    * The submission result will be sent back to the sender as a success message.
    *
    * @param jobGraph The job to be submitted to the JobManager
-   * @param registerForEvents if true, then register for state change events
+   * @param listeningBehaviour Specifies to what the sender wants to listen (detached, execution
+   *                           result, execution result and state changes)
    */
-  case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean)
+  case class SubmitJob(
+      jobGraph: JobGraph,
+      listeningBehaviour: ListeningBehaviour)
+    extends RequiresLeaderSessionID
+
+  /**
+   * Triggers the recovery of the job with the given ID.
+   *
+   * @param jobId ID of the job to recover
+   */
+  case class RecoverJob(jobId: JobID) extends RequiresLeaderSessionID
+
+  /**
+   * Triggers the submission of the recovered job
+   *
+   * @param submittedJobGraph Contains the submitted JobGraph and the associated JobInfo
+   */
+  case class RecoverSubmittedJob(submittedJobGraph: SubmittedJobGraph)
+    extends RequiresLeaderSessionID
+
+  /**
+   * Triggers recovery of all available jobs.
+   */
+  case object RecoverAllJobs extends RequiresLeaderSessionID
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
@@ -48,19 +92,22 @@ object JobManagerMessages {
    *
    * @param jobID
    */
-  case class CancelJob(jobID: JobID)
+  case class CancelJob(jobID: JobID) extends RequiresLeaderSessionID
 
   /**
    * Requesting next input split for the
    * [[org.apache.flink.runtime.executiongraph.ExecutionJobVertex]]
    * of the job specified by [[jobID]]. The next input split is sent back to the sender as a
-   * [[org.apache.flink.runtime.messages.TaskManagerMessages.NextInputSplit]] message.
+   * [[NextInputSplit]] message.
    *
    * @param jobID
    * @param vertexID
    */
-  case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID, executionAttempt:
-  ExecutionAttemptID)
+  case class RequestNextInputSplit(
+      jobID: JobID,
+      vertexID: JobVertexID,
+      executionAttempt: ExecutionAttemptID)
+    extends RequiresLeaderSessionID
 
   /**
    * Contains the next input split for a task. This message is a response to
@@ -80,10 +127,12 @@ object JobManagerMessages {
    * @param taskExecutionId The execution attempt ID of the task requesting the partition state.
    * @param taskResultId The input gate ID of the task requesting the partition state.
    */
-  case class RequestPartitionState(jobId: JobID,
-                                   partitionId: ResultPartitionID,
-                                   taskExecutionId: ExecutionAttemptID,
-                                   taskResultId: IntermediateDataSetID)
+  case class RequestPartitionState(
+      jobId: JobID,
+      partitionId: ResultPartitionID,
+      taskExecutionId: ExecutionAttemptID,
+      taskResultId: IntermediateDataSetID)
+    extends RequiresLeaderSessionID
 
   /**
    * Notifies the [[org.apache.flink.runtime.jobmanager.JobManager]] about available data for a
@@ -101,8 +150,7 @@ object JobManagerMessages {
    * @see [[org.apache.flink.runtime.io.network.partition.ResultPartition]]
    */
   case class ScheduleOrUpdateConsumers(jobId: JobID, partitionId: ResultPartitionID)
-
-  case class ConsumerNotificationResult(success: Boolean, error: Option[Throwable] = None)
+    extends RequiresLeaderSessionID
 
   /**
    * Requests the current [[JobStatus]] of the job identified by [[jobID]]. This message triggers
@@ -142,10 +190,34 @@ object JobManagerMessages {
    */
   case object RequestBlobManagerPort
 
+  /** Requests the current leader session ID of the job manager. The result is sent back to the
+    * sender as an [[ResponseLeaderSessionID]]
+    */
+  case object RequestLeaderSessionID
+
+  /** Response to the [[RequestLeaderSessionID]] message.
+    *
+    * @param leaderSessionID
+    */
+  case class ResponseLeaderSessionID(leaderSessionID: UUID)
+
+  /**
+   * Denotes a successful job submission.
+   * @param jobId Ths job's ID.
+   */
+  case class JobSubmitSuccess(jobId: JobID)
+  
   /**
    * Denotes a successful job execution.
+   * @param result The result of the job execution, in serialized form.
    */
   case class JobResultSuccess(result: SerializedJobExecutionResult)
+
+  /**
+   * Denotes an unsuccessful job execution.
+   * @param cause The exception that caused the job to fail, in serialized form.
+   */
+  case class JobResultFailure(cause: SerializedThrowable)
 
 
   sealed trait CancellationResponse{
@@ -223,6 +295,20 @@ object JobManagerMessages {
    */
   case class JobNotFound(jobID: JobID) extends JobResponse with JobStatusResponse
 
+  /** Triggers the removal of the job with the given job ID
+    *
+    * @param jobID
+    * @param removeJobFromStateBackend true if the job has properly finished
+    */
+  case class RemoveJob(jobID: JobID, removeJobFromStateBackend: Boolean = true)
+    extends RequiresLeaderSessionID
+
+  /**
+   * Removes the job belonging to the job identifier from the job manager and archives it.
+   * @param jobID The job identifier
+   */
+  case class RemoveCachedJob(jobID: JobID)
+
   /**
    * Requests the instances of all registered task managers.
    */
@@ -247,6 +333,19 @@ object JobManagerMessages {
   }
 
   /**
+   * Requests the [[Instance]] object of the task manager with the given instance ID
+   *
+   * @param instanceID Instance ID of the task manager
+   */
+  case class RequestTaskManagerInstance(instanceID: InstanceID)
+
+  /**
+   * Returns the [[Instance]] object of the requested task manager. This is in response to
+   * [[RequestTaskManagerInstance]]
+   */
+  case class TaskManagerInstance(instance: Option[Instance])
+
+  /**
    * Requests stack trace messages of the task manager
    *
    * @param instanceID Instance ID of the task manager
@@ -265,9 +364,39 @@ object JobManagerMessages {
 
   case object JobManagerStatusAlive extends JobManagerStatus
 
+  /** Grants leadership to the receiver. The message contains the new leader session id.
+    *
+     * @param leaderSessionID
+    */
+  case class GrantLeadership(leaderSessionID: Option[UUID])
+
+  /** Revokes leadership of the receiver.
+    */
+  case object RevokeLeadership
+
+  /** Requests the ActorRef of the archiver */
+  case object RequestArchive
+
+  /** Response containing the ActorRef of the archiver */
+  case class ResponseArchive(actor: ActorRef)
+
+  /** Request for the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port. */
+  case object RequestWebMonitorPort
+
+  /**
+   * Response containing the [[org.apache.flink.runtime.webmonitor.WebMonitor]] port.
+   *
+   * -1 indicates that there is no web monitor running.
+   */
+  case class ResponseWebMonitorPort(port: Integer)
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
+
+  def getRequestJobStatus(jobId : JobID) : AnyRef = {
+    RequestJobStatus(jobId)
+  }
   
   def getRequestNumberRegisteredTaskManager : AnyRef = {
     RequestNumberRegisteredTaskManager
@@ -299,5 +428,21 @@ object JobManagerMessages {
   
   def getJobManagerStatusAlive : AnyRef = {
     JobManagerStatusAlive
+  }
+
+  def getRequestLeaderSessionID: AnyRef = {
+    RequestLeaderSessionID
+  }
+
+  def getRequestArchive: AnyRef = {
+    RequestArchive
+  }
+
+  def getRecoverAllJobs: AnyRef = {
+    RecoverAllJobs
+  }
+  
+  def getRequestWebMonitorPort: AnyRef = {
+    RequestWebMonitorPort
   }
 }

@@ -120,3 +120,14 @@ case class Aggregate(
 
   override def toString = s"Aggregate($input, ${aggregations.mkString(",")})"
 }
+
+/**
+ * UnionAll operation, union all elements from left and right.
+ */
+case class UnionAll(left: PlanNode, right: PlanNode) extends PlanNode{
+  val children = Seq(left, right)
+
+  def outputFields = left.outputFields
+
+  override def toString = s"Union($left, $right)"
+}

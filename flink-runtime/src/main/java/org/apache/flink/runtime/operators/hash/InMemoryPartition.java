@@ -28,9 +28,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.core.memory.SeekableDataInputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
-import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
+import org.apache.flink.runtime.memory.AbstractPagedInputView;
+import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 
 /**
  * In-memory partition with overflow buckets for {@link CompactingHashTable}
@@ -199,7 +199,7 @@ public class InMemoryPartition<T> {
 	 * 
 	 * @param compacted compaction status
 	 */
-	public void setCompaction(boolean compacted) {
+	public void setIsCompacted(boolean compacted) {
 		this.compacted = compacted;
 	}
 	
@@ -281,9 +281,9 @@ public class InMemoryPartition<T> {
 	 * @param numberOfSegments allocation count
 	 */
 	public void allocateSegments(int numberOfSegments) {
-		while(getBlockCount() < numberOfSegments) {
+		while (getBlockCount() < numberOfSegments) {
 			MemorySegment next = this.availableMemory.nextSegment();
-			if(next != null) {
+			if (next != null) {
 				this.partitionPages.add(next);
 			} else {
 				return;

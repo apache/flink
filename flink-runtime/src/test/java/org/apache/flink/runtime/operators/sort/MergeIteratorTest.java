@@ -19,16 +19,12 @@
 package org.apache.flink.runtime.operators.sort;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.runtime.operators.sort.MergeIterator;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Value;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;
 import org.junit.Before;
@@ -36,33 +32,33 @@ import org.junit.Test;
 
 public class MergeIteratorTest {
 	
-	private TypeComparator<Record> comparator;
+	private TypeComparator<Tuple2<Integer, String>> comparator;
 	
 	
 	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
-		this.comparator = new RecordComparator(new int[] {0}, new Class[] { TestData.Key.class});
+		this.comparator = TestData.getIntStringTupleComparator();
 	}
 	
 	
-	private MutableObjectIterator<Record> newIterator(final int[] keys, final String[] values) {
+	private MutableObjectIterator<Tuple2<Integer, String>> newIterator(final int[] keys, final String[] values) {
 		
-		return new MutableObjectIterator<Record>() {
+		return new MutableObjectIterator<Tuple2<Integer, String>>() {
 			
-			private Key key = new Key();
-			private Value value = new Value();
+			private int key = 0;
+			private String value = new String();
 			
 			private int current = 0;
 
 			@Override
-			public Record next(Record reuse) {
+			public Tuple2<Integer, String> next(Tuple2<Integer, String> reuse) {
 				if (current < keys.length) {
-					key.setKey(keys[current]);
-					value.setValue(values[current]);
+					key = keys[current];
+					value = values[current];
 					current++;
-					reuse.setField(0, key);
-					reuse.setField(1, value);
+					reuse.setField(key, 0);
+					reuse.setField(value, 1);
 					return reuse;
 				}
 				else {
@@ -71,9 +67,9 @@ public class MergeIteratorTest {
 			}
 
 			@Override
-			public Record next() {
+			public Tuple2<Integer, String> next() {
 				if (current < keys.length) {
-					Record result = new Record(new Key(keys[current]), new Value(values[current]));
+					Tuple2<Integer, String> result = new Tuple2<>(keys[current], values[current]);
 					current++;
 					return result;
 				}
@@ -88,37 +84,37 @@ public class MergeIteratorTest {
 	public void testMergeOfTwoStreams() throws Exception
 	{
 		// iterators
-		List<MutableObjectIterator<Record>> iterators = new ArrayList<MutableObjectIterator<Record>>();
+		List<MutableObjectIterator<Tuple2<Integer, String>>> iterators = new ArrayList<>();
 		iterators.add(newIterator(new int[] { 1, 2, 4, 5, 10 }, new String[] { "1", "2", "4", "5", "10" }));
 		iterators.add(newIterator(new int[] { 3, 6, 7, 10, 12 }, new String[] { "3", "6", "7", "10", "12" }));
 		
 		final int[] expected = new int[] {1, 2, 3, 4, 5, 6, 7, 10, 10, 12};
 
 		// comparator
-		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
+		TypeComparator<Integer> comparator = new IntComparator(true);
 
 		// merge iterator
-		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.comparator);
+		MutableObjectIterator<Tuple2<Integer, String>> iterator = new MergeIterator<>(iterators, this.comparator);
 
 		// check expected order
-		Record rec1 = new Record();
-		Record rec2 = new Record();
-		final Key k1 = new Key();
-		final Key k2 = new Key();
+		Tuple2<Integer, String> rec1 = new Tuple2<>();
+		Tuple2<Integer, String> rec2 = new Tuple2<>();
+		int k1 = 0;
+		int k2 = 0;
 		
 		int pos = 1;
 		
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
-		Assert.assertEquals(expected[0], rec1.getField(0, TestData.Key.class).getKey());
+		Assert.assertEquals(expected[0], rec1.f0.intValue());
 		
 		while ((rec2 = iterator.next(rec2)) != null) {
-			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
-			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
+			k1 = rec1.f0;
+			k2 = rec2.f0;
 			
 			Assert.assertTrue(comparator.compare(k1, k2) <= 0);
-			Assert.assertEquals(expected[pos++], k2.getKey()); 
+			Assert.assertEquals(expected[pos++], k2); 
 			
-			Record tmp = rec1;
+			Tuple2<Integer, String> tmp = rec1;
 			rec1 = rec2;
 			rec2 = tmp;
 		}
@@ -128,7 +124,7 @@ public class MergeIteratorTest {
 	public void testMergeOfTenStreams() throws Exception
 	{
 		// iterators
-		List<MutableObjectIterator<Record>> iterators = new ArrayList<MutableObjectIterator<Record>>();
+		List<MutableObjectIterator<Tuple2<Integer, String>>> iterators = new ArrayList<>();
 		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 4, 10, 11, 11, 12 }, new String[] { "A", "B", "C", "D", "E" }));
@@ -141,26 +137,23 @@ public class MergeIteratorTest {
 		iterators.add(newIterator(new int[] { 8, 8, 14, 14, 15 }, new String[] { "A", "B", "C", "D", "E" }));
 
 		// comparator
-		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
+		TypeComparator<Integer> comparator = new IntComparator(true);
 
 		// merge iterator
-		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.comparator);
+		MutableObjectIterator<Tuple2<Integer, String>> iterator = new MergeIterator<>(iterators, this.comparator);
 
 		int elementsFound = 1;
 		// check expected order
-		Record rec1 = new Record();
-		Record rec2 = new Record();
-		final Key k1 = new Key();
-		final Key k2 = new Key();
+		Tuple2<Integer, String> rec1 = new Tuple2<>();
+		Tuple2<Integer, String> rec2 = new Tuple2<>();
 		
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		while ((rec2 = iterator.next(rec2)) != null) {
 			elementsFound++;
-			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
-			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
-			Assert.assertTrue(comparator.compare(k1, k2) <= 0);
+
+			Assert.assertTrue(comparator.compare(rec1.f0, rec2.f0) <= 0);
 			
-			Record tmp = rec1;
+			Tuple2<Integer, String> tmp = rec1;
 			rec1 = rec2;
 			rec2 = tmp;
 		}
@@ -172,7 +165,7 @@ public class MergeIteratorTest {
 	public void testInvalidMerge() throws Exception
 	{
 		// iterators
-		List<MutableObjectIterator<Record>> iterators = new ArrayList<MutableObjectIterator<Record>>();
+		List<MutableObjectIterator<Tuple2<Integer, String>>> iterators = new ArrayList<>();
 		iterators.add(newIterator(new int[] { 1, 2, 17, 23, 23 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 2, 6, 7, 8, 9 }, new String[] { "A", "B", "C", "D", "E" }));
 		iterators.add(newIterator(new int[] { 4, 10, 11, 11, 12 }, new String[] { "A", "B", "C", "D", "E" }));
@@ -185,31 +178,26 @@ public class MergeIteratorTest {
 		iterators.add(newIterator(new int[] { 8, 8, 14, 14, 15 }, new String[] { "A", "B", "C", "D", "E" }));
 
 		// comparator
-		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
+		TypeComparator<Integer> comparator = new IntComparator(true);
 
 		// merge iterator
-		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.comparator);
+		MutableObjectIterator<Tuple2<Integer, String>> iterator = new MergeIterator<>(iterators, this.comparator);
 
 		boolean violationFound = false;
 		
 		// check expected order
-		Record rec1 = new Record();
-		Record rec2 = new Record();
+		Tuple2<Integer, String> rec1 = new Tuple2<>();
+		Tuple2<Integer, String> rec2 = new Tuple2<>();
 		
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		while ((rec2 = iterator.next(rec2)) != null)
-		{
-			final Key k1 = new Key();
-			final Key k2 = new Key();
-			k1.setKey(rec1.getField(0, TestData.Key.class).getKey());
-			k2.setKey(rec2.getField(0, TestData.Key.class).getKey());
-			
-			if (comparator.compare(k1, k2) > 0) {
+		{			
+			if (comparator.compare(rec1.f0, rec2.f0) > 0) {
 				violationFound = true;
 				break;
 			}
 			
-			Record tmp = rec1;
+			Tuple2<Integer, String> tmp = rec1;
 			rec1 = rec2;
 			rec2 = tmp;
 		}

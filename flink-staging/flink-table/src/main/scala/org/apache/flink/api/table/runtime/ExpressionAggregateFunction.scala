@@ -53,10 +53,7 @@ class ExpressionAggregateFunction(
       var i = 0
       val len = functions.length
       while (i < len) {
-        val element: Any = current.productElement(fieldPositions(i))
-        if (element != null){
-          functions(i).aggregate(element)
-        }
+        functions(i).aggregate(current.productElement(fieldPositions(i)))
         i += 1
       }
     }
@@ -70,6 +67,23 @@ class ExpressionAggregateFunction(
     }
 
     out.collect(current)
+  }
+
+}
+
+@Combinable
+class NoExpressionAggregateFunction() extends RichGroupReduceFunction[Row, Row] {
+
+  override def reduce(in: java.lang.Iterable[Row], out: Collector[Row]): Unit = {
+
+    var first: Row = null
+
+    val values = in.iterator()
+    if (values.hasNext) {
+      first = values.next()
+    }
+
+    out.collect(first)
   }
 
 }

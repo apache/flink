@@ -18,25 +18,19 @@
 
 package org.apache.flink.api.scala.runtime
 
+import java.util
+import java.util.{ArrayList, List, Random}
+
 import org.apache.flink.api.common.ExecutionConfig
-import org.junit.Test
-import org.junit.Assert._
-import org.apache.flink.api.scala._
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.core.memory.DataInputView
-import java.io.IOException
-import org.apache.flink.api.common.typeutils.TypeComparator
-import com.amazonaws.services.sqs.model.UnsupportedOperationException
-import org.apache.flink.core.memory.MemorySegment
-import org.apache.flink.core.memory.DataOutputView
+import org.apache.flink.api.common.typeutils.{CompositeType, TypeComparator}
+import org.apache.flink.api.scala._
+import org.apache.flink.core.memory._
+import org.apache.flink.runtime.operators.sort.{NormalizedKeySorter, QuickSort}
+
+import org.junit.Assert._
+import org.junit.Test
 import org.mockito.Mockito
-import org.apache.flink.runtime.operators.sort.NormalizedKeySorter
-import java.util.List
-import java.util.ArrayList
-import org.apache.flink.runtime.operators.sort.QuickSort
-import java.util.Random
 
 class CaseClassComparatorTest {
 
@@ -78,9 +72,9 @@ class CaseClassComparatorTest {
       
       
       val numMemSegs = 20
-      val memory : List[MemorySegment] = new ArrayList[MemorySegment](numMemSegs)
+      val memory : util.List[MemorySegment] = new util.ArrayList[MemorySegment](numMemSegs)
       for (i <- 1 to numMemSegs) {
-        memory.add(new MemorySegment(new Array[Byte](32*1024)))
+        memory.add(MemorySegmentFactory.allocateUnpooledSegment(32*1024))
       }
       
       val sorter : NormalizedKeySorter[CaseTestClass] = new NormalizedKeySorter[CaseTestClass](

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.api;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
 /**
@@ -29,7 +29,7 @@ import org.apache.flink.runtime.util.event.EventListener;
  */
 public class TaskEventHandler {
 
-	// Listeners for each event type
+	/** Listeners for each event type */
 	private final Multimap<Class<? extends TaskEvent>, EventListener<TaskEvent>> listeners = HashMultimap.create();
 
 	public void subscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
@@ -45,7 +45,7 @@ public class TaskEventHandler {
 	}
 
 	/**
-	 * Publishes the task event to all subscribed event listeners..
+	 * Publishes the task event to all subscribed event listeners.
 	 *
 	 * @param event The event to publish.
 	 */

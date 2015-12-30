@@ -198,7 +198,7 @@ public class KMeans {
 	//     USER FUNCTIONS
 	// *************************************************************************
 	
-	/** Converts a Tuple2<Double,Double> into a Point. */
+	/** Converts a {@code Tuple2<Double,Double>} into a Point. */
 	@ForwardedFields("0->x; 1->y")
 	public static final class TuplePointConverter implements MapFunction<Tuple2<Double, Double>, Point> {
 
@@ -208,7 +208,7 @@ public class KMeans {
 		}
 	}
 	
-	/** Converts a Tuple3<Integer, Double,Double> into a Centroid. */
+	/** Converts a {@code Tuple3<Integer, Double,Double>} into a Centroid. */
 	@ForwardedFields("0->id; 1->x; 2->y")
 	public static final class TupleCentroidConverter implements MapFunction<Tuple3<Integer, Double, Double>, Centroid> {
 

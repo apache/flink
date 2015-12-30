@@ -35,7 +35,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
  * This program implements the following SQL equivalent:
  * 
  * <p>
- * <code><pre>
+ * <pre>{@code
  * SELECT 
  *        c_custkey,
  *        c_name, 
@@ -60,7 +60,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
  *        c_acctbal, 
  *        n_name, 
  *        c_address
- * </pre></code>
+ * }</pre>
  *        
  * <p>
  * Compared to the original TPC-H query this version does not print 

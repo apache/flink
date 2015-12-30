@@ -34,22 +34,22 @@ import org.apache.flink.util.MutableObjectIterator;
 /**
  * GroupReduceDriver task which is executed by a Task Manager. The task has a
  * single input and one or multiple outputs. It is provided with a GroupReduceFunction
- * implementation or a RichGroupFunction. This Driver performs
+ * implementation or a RichGroupReduceFunction. This Driver performs
  * multiple tasks depending on the DriverStrategy. In case of a ALL_GROUP_REDUCE_COMBINE
  * it uses the combine function of the supplied user function. In case
  * of the ALL_GROUP_REDUCE, it uses the reduce function of the supplied user function to
  * process all elements. In either case, the function is executed on all elements.
  * <p>
- * The GroupReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
- * key. The iterator is handed to the <code>reduce()</code> method of the GroupReduceFunction.
+ * The AllGroupReduceDriver creates an iterator over all records from its input.
+ * The iterator is handed to the <code>reduce()</code> method of the GroupReduceFunction.
  * 
  * @see org.apache.flink.api.common.functions.GroupReduceFunction
  */
-public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction<IT, OT>, OT> {
+public class AllGroupReduceDriver<IT, OT> implements Driver<GroupReduceFunction<IT, OT>, OT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(AllGroupReduceDriver.class);
 
-	private PactTaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
+	private TaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
 	
 	private MutableObjectIterator<IT> input;
 
@@ -62,7 +62,7 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GroupReduceFunction<IT, OT>, OT> context) {
+	public void setup(TaskContext<GroupReduceFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 	}
 	

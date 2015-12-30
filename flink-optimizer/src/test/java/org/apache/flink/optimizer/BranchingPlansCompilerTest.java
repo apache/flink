@@ -28,7 +28,6 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
 import org.apache.flink.optimizer.testfunctions.IdentityCoGrouper;
 import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
@@ -354,7 +353,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 					.union(coGroup1)
 					.output(new DiscardingOutputFormat<Long>());
 
-			JavaPlan plan = env.createProgramPlan();
+			Plan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
 			JobGraphGenerator jobGen = new JobGraphGenerator();
@@ -396,7 +395,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 			join2.output(new DiscardingOutputFormat<Long>());
 
-			JavaPlan plan = env.createProgramPlan();
+			Plan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 
 			JobGraphGenerator jobGen = new JobGraphGenerator();
@@ -431,7 +430,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			source1.writeAsText(outPath1);
 			source1.writeAsText(outPath2);
 
-			JavaPlan plan = env.createProgramPlan();
+			Plan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
 			// ---------- check the optimizer plan ----------
@@ -489,7 +488,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		sourceA.writeAsText(out3Path);
 		sourceB.writeAsText(out4Path);
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		compileNoStats(plan);
 
 	}
@@ -508,7 +507,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		loopRes.map(new IdentityMapper<Long>())
 				.output(new DiscardingOutputFormat<Long>());;
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		try {
 			compileNoStats(plan);
@@ -533,7 +532,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		DataSet<Long> map = source1.map(new IdentityMapper<Long>()).withBroadcastSet(loopRes, "BC").name("Post-Loop Mapper");
 		map.output(new DiscardingOutputFormat<Long>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		try {
 			compileNoStats(plan);
@@ -573,7 +572,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 
 		loopRes.output(new DiscardingOutputFormat<Long>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		try{
 			compileNoStats(plan);
@@ -613,7 +612,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		DataSet<Tuple2<Long, Long>> result = loop.closeWith(delta, workset);
 		result.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		try{
 			compileNoStats(plan);
@@ -660,7 +659,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		DataSet<Tuple2<Long, Long>> result = loop.closeWith(delta, workset);
 		result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		try{
 			compileNoStats(plan);

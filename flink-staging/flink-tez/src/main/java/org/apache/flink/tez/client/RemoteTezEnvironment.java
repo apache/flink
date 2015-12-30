@@ -73,6 +73,11 @@ public class RemoteTezEnvironment extends ExecutionEnvironment {
 
 	public RemoteTezEnvironment() {
 		compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new org.apache.flink.configuration.Configuration());
-		executor = new TezExecutor(compiler, this.getDegreeOfParallelism());
+		executor = new TezExecutor(compiler, getParallelism());
+	}
+
+	@Override
+	public void startNewSession() throws Exception {
+		throw new UnsupportedOperationException("Session management is not implemented in Flink on Tez.");
 	}
 }

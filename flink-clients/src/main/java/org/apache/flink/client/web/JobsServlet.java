@@ -27,6 +27,8 @@ import java.util.Comparator;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -38,6 +40,8 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
 
 /**
  * A servlet that accepts uploads of pact programs, returns a listing of the
@@ -138,11 +142,42 @@ public class JobsServlet extends HttpServlet {
 					continue;
 				}
 
+				JarFile jar = new JarFile(files[i]);
+				Manifest manifest = jar.getManifest();
+				String assemblerClass = null;
+				String descriptions = "";
+
+				if (manifest != null) {
+					assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
+					if (assemblerClass == null) {
+						assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+					}
+				}
+				if (assemblerClass == null) {
+					assemblerClass = "";
+				} else {
+					String[] classes = assemblerClass.split(",");
+					for (String c : classes) {
+						try {
+							String d = new PackagedProgram(files[i], c, new String[0]).getDescription();
+							if (d == null) {
+								d = "No description provided.";
+							}
+							descriptions += "#" + d;
+						} catch (ProgramInvocationException e) {
+							descriptions += "#No description provided.";
+							continue;
+						}
+					}
+
+					assemblerClass = '\t' + assemblerClass;
+				}
+
 				cal.setTimeInMillis(files[i].lastModified());
 				writer.println(files[i].getName() + '\t' + (cal.get(GregorianCalendar.MONTH) + 1) + '/'
 					+ cal.get(GregorianCalendar.DAY_OF_MONTH) + '/' + cal.get(GregorianCalendar.YEAR) + ' '
 					+ cal.get(GregorianCalendar.HOUR_OF_DAY) + ':' + cal.get(GregorianCalendar.MINUTE) + ':'
-					+ cal.get(GregorianCalendar.SECOND));
+					+ cal.get(GregorianCalendar.SECOND) + assemblerClass + descriptions);
 			}
 		} else if (action.equals(ACTION_DELETE_VALUE)) {
 			String filename = req.getParameter(FILENAME_PARAM_NAME);

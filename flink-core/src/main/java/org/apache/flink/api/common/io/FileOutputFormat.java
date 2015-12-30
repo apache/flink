@@ -23,7 +23,6 @@ import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.operators.base.FileDataSinkBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -33,10 +32,11 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 
 /**
- * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
+ * The abstract base class for all Rich output formats that are file based. Contains the logic to
+ * open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, InitializeOnMaster, CleanupWhenUnsuccessful {
+public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implements InitializeOnMaster, CleanupWhenUnsuccessful {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -50,7 +50,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 		/** A directory is always created, regardless of number of write tasks. */
 		ALWAYS,	
 		
-		/** A directory is only created for parallel output tasks, i.e., number of output tasks > 1.
+		/** A directory is only created for parallel output tasks, i.e., number of output tasks &gt; 1.
 		 * If number of output tasks = 1, the output is written to a single file. */
 		PARONLY
 	}
@@ -309,55 +309,6 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 			} catch (Throwable t) {
 				LOG.error("Could not remove the incomplete file " + actualFilePath);
 			}
-		}
-	}
-	
-	// ============================================================================================
-	
-	/**
-	 * Creates a configuration builder that can be used to set the input format's parameters to the config in a fluent
-	 * fashion.
-	 * 
-	 * @return A config builder for setting parameters.
-	 */
-	public static ConfigBuilder configureFileFormat(FileDataSinkBase<?> target) {
-		return new ConfigBuilder(target.getParameters());
-	}
-	
-	/**
-	 * A builder used to set parameters to the output format's configuration in a fluent way.
-	 */
-	public static abstract class AbstractConfigBuilder<T> {
-		
-		/**
-		 * The configuration into which the parameters will be written.
-		 */
-		protected final Configuration config;
-		
-		// --------------------------------------------------------------------
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected AbstractConfigBuilder(Configuration targetConfig) {
-			this.config = targetConfig;
-		}
-	}
-	
-	/**
-	 * A builder used to set parameters to the input format's configuration in a fluent way.
-	 */
-	public static class ConfigBuilder extends AbstractConfigBuilder<ConfigBuilder> {
-		
-		/**
-		 * Creates a new builder for the given configuration.
-		 * 
-		 * @param targetConfig The configuration into which the parameters will be written.
-		 */
-		protected ConfigBuilder(Configuration targetConfig) {
-			super(targetConfig);
 		}
 	}
 }

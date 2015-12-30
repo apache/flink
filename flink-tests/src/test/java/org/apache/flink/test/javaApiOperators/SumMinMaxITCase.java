@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.List;
+
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -25,11 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -38,22 +36,6 @@ public class SumMinMaxITCase extends MultipleProgramsTestBase {
 
 	public SumMinMaxITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -66,10 +48,11 @@ public class SumMinMaxITCase extends MultipleProgramsTestBase {
 				.andMax(1)
 				.project(0, 1);
 
-		sumDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Integer, Long>> result = sumDs.collect();
 
-		expected = "231,6\n";
+		String expected = "231,6\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -85,15 +68,16 @@ public class SumMinMaxITCase extends MultipleProgramsTestBase {
 				.sum(0)
 				.project(1, 0);
 
-		aggregateDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple2<Long, Integer>> result = aggregateDs.collect();
 
-		expected = "1,1\n" +
+		String expected = "1,1\n" +
 				"2,5\n" +
 				"3,15\n" +
 				"4,34\n" +
 				"5,65\n" +
 				"6,111\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -110,9 +94,10 @@ public class SumMinMaxITCase extends MultipleProgramsTestBase {
 				.min(0)
 				.project(0);
 
-		aggregateDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple1<Integer>> result = aggregateDs.collect();
 
-		expected = "1\n";
+		String expected = "1\n";
+
+		compareResultAsTuples(result, expected);
 	}
 }

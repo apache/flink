@@ -18,115 +18,55 @@
 
 package org.apache.flink.test.iterative;
 
-import java.io.Serializable;
-import java.util.Iterator;
-
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.io.CsvOutputFormat;
-import org.apache.flink.api.java.record.io.TextInputFormat;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
+import java.util.List;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.Assert;
 
-@SuppressWarnings("deprecation")
-public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
-
-	private static final String INPUT = "1\n" + "2\n" + "3\n" + "4\n" + "5\n";
+public class IterationTerminationWithTerminationTail extends JavaProgramTestBase {
 	private static final String EXPECTED = "22\n";
 
-	protected String dataPath;
-	protected String resultPath;
-
-	public IterationTerminationWithTerminationTail(){
-		setTaskManagerNumSlots(parallelism);
-	}
-	
 	@Override
-	protected void preSubmit() throws Exception {
-		dataPath = createTempFile("datapoints.txt", INPUT);
-		resultPath = getTempFilePath("result");
+	protected void testProgram() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<String> initialInput = env.fromElements("1", "2", "3", "4", "5").name("input");
+
+		IterativeDataSet<String> iteration = initialInput.iterate(5).name("Loop");
+
+		DataSet<String> sumReduce = iteration.reduceGroup(new SumReducer()).name("Compute sum (GroupReduce");
+
+		DataSet<String> terminationFilter = sumReduce.filter(new TerminationFilter()).name("Compute termination criterion (Map)");
+
+		List<String> result = iteration.closeWith(sumReduce, terminationFilter).collect();
+
+		containsResultAsText(result, EXPECTED);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(EXPECTED, resultPath);
-	}
 
-	@Override
-	protected Plan getTestJob() {
-		return getTestPlanPlan(parallelism, dataPath, resultPath);
-	}
-	
-	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
-
-		FileDataSource initialInput = new FileDataSource(TextInputFormat.class, input, "input");
-		
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(initialInput);
-		iteration.setMaximumNumberOfIterations(5);
-		Assert.assertTrue(iteration.getMaximumNumberOfIterations() > 1);
-
-		ReduceOperator sumReduce = ReduceOperator.builder(new SumReducer())
-				.input(iteration.getPartialSolution())
-				.name("Compute sum (Reduce)")
-				.build();
-		
-		iteration.setNextPartialSolution(sumReduce);
-		
-		MapOperator terminationMapper = MapOperator.builder(new TerminationMapper())
-				.input(sumReduce)
-				.name("Compute termination criterion (Map)")
-				.build();
-		
-		iteration.setTerminationCriterion(terminationMapper);
-
-		FileDataSink finalResult = new FileDataSink(CsvOutputFormat.class, output, iteration, "Output");
-		CsvOutputFormat.configureRecordFormat(finalResult)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(StringValue.class, 0);
-
-		Plan plan = new Plan(finalResult, "Iteration with AllReducer (keyless Reducer)");
-		plan.setDefaultParallelism(numSubTasks);
-		Assert.assertTrue(plan.getDefaultParallelism() > 1);
-		return plan;
-	}
-	
-	public static final class SumReducer extends ReduceFunction implements Serializable {
-		
+	public static final class SumReducer implements GroupReduceFunction<String, String> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
-			// Compute the sum
+		public void reduce(Iterable<String> values, Collector<String> out) throws Exception {
 			int sum = 0;
-			while (it.hasNext()) {
-				sum += Integer.parseInt(it.next().getField(0, StringValue.class).getValue()) + 1;
+			for (String value : values) {
+				sum += Integer.parseInt(value) + 1;
 			}
-			
-			out.collect(new Record(new StringValue(Integer.toString(sum))));
+			out.collect("" + sum);
 		}
 	}
-	
-	public static class TerminationMapper extends MapFunction implements Serializable {
-		private static final long serialVersionUID = 1L;
-		
-		@Override
-		public void map(Record record, Collector<Record> collector) {
-			
-			int currentSum = Integer.parseInt(record.getField(0, StringValue.class).getValue());
 
-			if(currentSum < 22)
-				collector.collect(record);
+	public static class TerminationFilter implements FilterFunction<String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(String value) throws Exception {
+			return Integer.parseInt(value) < 22;
 		}
 	}
 

@@ -28,40 +28,55 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.junit.Assert;
 
 public class TestEnvironment extends ExecutionEnvironment {
 
 	private final ForkableFlinkMiniCluster executor;
 
+	private TestEnvironment lastEnv = null;
+
+	@Override
+	public JobExecutionResult getLastJobExecutionResult() {
+		if (lastEnv == null) {
+			return this.lastJobExecutionResult;
+		}
+		else {
+			return lastEnv.getLastJobExecutionResult();
+		}
+	}
+
 	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
 		setParallelism(parallelism);
+
 		// disabled to improve build time
 		getConfig().setCodeAnalysisMode(CodeAnalysisMode.DISABLE);
 	}
 
+	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism, boolean isObjectReuseEnabled) {
+		this(executor, parallelism);
+
+		if (isObjectReuseEnabled) {
+			getConfig().enableObjectReuse();
+		} else {
+			getConfig().disableObjectReuse();
+		}
+	}
+
+	@Override
+	public void startNewSession() throws Exception {
+	}
+
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		try {
-			OptimizedPlan op = compileProgram(jobName);
+		OptimizedPlan op = compileProgram(jobName);
 
-			JobGraphGenerator jgg = new JobGraphGenerator();
-			JobGraph jobGraph = jgg.compileJobGraph(op);
-			
-			SerializedJobExecutionResult result = executor.submitJobAndWait(jobGraph, false);
+		JobGraphGenerator jgg = new JobGraphGenerator();
+		JobGraph jobGraph = jgg.compileJobGraph(op);
 
-			this.lastJobExecutionResult = result.toJobExecutionResult(getClass().getClassLoader());
-			return this.lastJobExecutionResult;
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Job execution failed!");
-			return null;
-		}
+		this.lastJobExecutionResult = executor.submitJobAndWait(jobGraph, false);
+		return this.lastJobExecutionResult;
 	}
 
 
@@ -77,7 +92,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private OptimizedPlan compileProgram(String jobName) {
 		Plan p = createProgramPlan(jobName);
 
-		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.getConfiguration());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.executor.configuration());
 		return pc.compile(p);
 	}
 
@@ -85,7 +100,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				return TestEnvironment.this;
+				lastEnv = new TestEnvironment(executor, getParallelism(), getConfig().isObjectReuseEnabled());
+				return lastEnv;
 			}
 		};
 

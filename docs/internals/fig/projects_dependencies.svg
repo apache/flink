@@ -176,12 +176,6 @@ under the License.
        y="145.73346"
        style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
        id="text3029">Java API</text>
-    <text
-       xml:space="preserve"
-       x="127.97233"
-       y="163.73794"
-       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
-       id="text3031">Old Record API</text>
     <path
        style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
        d="  M 260.48364 198.25564   C 260.48364 195.0861 263.05303 192.51671 266.20382 192.51671   L 399.26822 192.51671   C 402.419 192.51671 404.98839 195.0861 404.98839 198.25564   L 404.98839 221.13634   C 404.98839 224.30588 402.419 226.87527 399.26822 226.87527   L 266.20382 226.87527   C 263.05303 226.87527 260.48364 224.30588 260.48364 221.13634   z"

@@ -33,17 +33,12 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT> {
 
-	/**
-	 * Channel for the spilled partitions
-	 */
+	/** Channel for the spilled partitions */
 	private final FileIOChannel.Enumerator spilledInMemoryPartitions;
 	
-	/**
-	 * Stores the initial partitions and a list of the files that contain the spilled contents
-	 */
+	/** Stores the initial partitions and a list of the files that contain the spilled contents */
 	private List<HashPartition<BT, PT>> initialPartitions;
 	
-
 	/**
 	 * The values of these variables are stored here after the initial open()
 	 * Required to restore the initial state before each additional probe phase.
@@ -58,16 +53,17 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 			TypeComparator<BT> buildSideComparator,
 			TypeComparator<PT> probeSideComparator,
 			TypePairComparator<PT, BT> comparator,
-			List<MemorySegment> memorySegments, IOManager ioManager) {
+			List<MemorySegment> memorySegments, IOManager ioManager,
+			boolean useBitmapFilters) {
+		
 		super(buildSideSerializer, probeSideSerializer, buildSideComparator,
-				probeSideComparator, comparator, memorySegments, ioManager);
+				probeSideComparator, comparator, memorySegments, ioManager, useBitmapFilters);
 		keepBuildSidePartitions = true;
 		spilledInMemoryPartitions = ioManager.createChannelEnumerator();
 	}
 	
 	@Override
-	public void open(MutableObjectIterator<BT> buildSide,
-			MutableObjectIterator<PT> probeSide) throws IOException {
+	public void open(MutableObjectIterator<BT> buildSide, MutableObjectIterator<PT> probeSide) throws IOException {
 		super.open(buildSide, probeSide);
 		initialPartitions = new ArrayList<HashPartition<BT, PT>>( partitionsBeingBuilt );
 		initialPartitionFanOut = (byte) partitionsBeingBuilt.size();
@@ -105,7 +101,7 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 						final int bucketArrayPos = posHashCode >> this.bucketsPerSegmentBits;
 						final int bucketInSegmentPos = (posHashCode & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
 						final MemorySegment bucket = this.buckets[bucketArrayPos];
-						insertBucketEntry(part, bucket, bucketInSegmentPos, hashCode, pointer);
+						insertBucketEntry(part, bucket, bucketInSegmentPos, hashCode, pointer, true);
 					}
 				} else {
 					this.writeBehindBuffersAvailable--; // we are not in-memory, thus the probe side buffer will grab one wbb.

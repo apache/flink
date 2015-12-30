@@ -19,17 +19,18 @@
 package org.apache.flink.api.java;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -50,7 +51,6 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -74,7 +74,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 /**
- * The ExecutionEnviroment is the context in which a program is executed. A
+ * The ExecutionEnvironment is the context in which a program is executed. A
  * {@link LocalEnvironment} will cause execution in the current JVM, a
  * {@link RemoteEnvironment} will cause execution on a remote setup.
  * <p>
@@ -82,77 +82,66 @@ import com.google.common.base.Preconditions;
  * and to interact with the outside world (data access).
  * <p>
  * Please note that the execution environment needs strong type information for the input and return types
- * of all operations that are executed. This means that the environments needs to know that the return 
+ * of all operations that are executed. This means that the environments needs to know that the return
  * value of an operation is for example a Tuple of String and Integer.
  * Because the Java compiler throws much of the generic type information away, most methods attempt to re-
  * obtain that information using reflection. In certain cases, it may be necessary to manually supply that
  * information to some of the methods.
- * 
+ *
  * @see LocalEnvironment
  * @see RemoteEnvironment
  */
 public abstract class ExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
-	
+	/** The logger used by the environment and its subclasses */
+	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
+
 	/** The environment of the context (local by default, cluster if invoked through command line) */
 	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
-	
+
 	/** The default parallelism used by local environments */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
-	
-	/** flag to disable local executor when using the ContextEnvironment */
-	private static boolean allowLocalExecution = true;
-	
+
 	// --------------------------------------------------------------------------------------------
-	
-	private final UUID executionId;
-	
-	private final List<DataSink<?>> sinks = new ArrayList<DataSink<?>>();
-	
-	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
+
+	private final List<DataSink<?>> sinks = new ArrayList<>();
+
+	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<>();
 
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	/** Result from the latest execution, to be make it retrievable when using eager execution methods */
+	/** Result from the latest execution, to make it retrievable when using eager execution methods */
 	protected JobExecutionResult lastJobExecutionResult;
-	
+
+	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
+	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph */
+	protected JobID jobID;
+
+	/** The session timeout in seconds */
+	protected long sessionTimeout;
+
 	/** Flag to indicate whether sinks have been cleared in previous executions */
 	private boolean wasExecuted = false;
 
-	// --------------------------------------------------------------------------------------------
-	//  Constructor and Properties
-	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		this.executionId = UUID.randomUUID();
+		jobID = JobID.generate();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Properties
+	// --------------------------------------------------------------------------------------------
+
 	/**
-	 * Gets the config object.
+	 * Gets the config object that defines execution parameters.
+	 *
+	 * @return The environment's execution configuration.
 	 */
 	public ExecutionConfig getConfig() {
 		return config;
-	}
-
-	/**
-	 * Gets the parallelism with which operation are executed by default. Operations can
-	 * individually override this value to use a specific parallelism via
-	 * {@link Operator#setParallelism(int)}. Other operations may need to run with a different
-	 * parallelism - for example calling
-	 * {@link DataSet#reduce(org.apache.flink.api.common.functions.ReduceFunction)} over the entire
-	 * set will insert eventually an operation that runs non-parallel (parallelism of one).
-	 * 
-	 * @return The parallelism used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environments default parallelism should be used.
-	 * @deprecated Please use {@link #getParallelism}
-	 */
-	@Deprecated
-	public int getDegreeOfParallelism() {
-		return getParallelism();
 	}
 
 	/**
@@ -168,24 +157,6 @@ public abstract class ExecutionEnvironment {
 	 */
 	public int getParallelism() {
 		return config.getParallelism();
-	}
-	
-	/**
-	 * Sets the parallelism for operations executed through this environment.
-	 * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run with
-	 * x parallel instances.
-	 * <p>
-	 * This method overrides the default parallelism for this environment.
-	 * The {@link LocalEnvironment} uses by default a value equal to the number of hardware
-	 * contexts (CPU cores / threads). When executing the program via the command line client 
-	 * from a JAR file, the default parallelism is the one configured for that setup.
-	 * 
-	 * @param parallelism The parallelism
-	 * @deprecated Please use {@link #setParallelism}
-	 */
-	@Deprecated
-	public void setDegreeOfParallelism(int parallelism) {
-		setParallelism(parallelism);
 	}
 
 	/**
@@ -203,64 +174,98 @@ public abstract class ExecutionEnvironment {
 	public void setParallelism(int parallelism) {
 		config.setParallelism(parallelism);
 	}
-	
+
 	/**
 	 * Sets the number of times that failed tasks are re-executed. A value of zero
 	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
 	 * default value (as defined in the configuration) should be used.
-	 * 
+	 *
 	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
 	 */
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
 	}
-	
+
 	/**
 	 * Gets the number of times the system will try to re-execute failed tasks. A value
 	 * of {@code -1} indicates that the system default value (as defined in the configuration)
 	 * should be used.
-	 * 
+	 *
 	 * @return The number of times the system will try to re-execute failed tasks.
 	 */
 	public int getNumberOfExecutionRetries() {
 		return config.getNumberOfExecutionRetries();
 	}
-	
-	/**
-	 * Gets the UUID by which this environment is identified. The UUID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The UUID of this environment.
-	 * @see #getIdString()
-	 */
-	public UUID getId() {
-		return this.executionId;
-	}
 
 	/**
 	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
-	 * 
+	 *
 	 * @return The execution result from the latest job execution.
 	 */
 	public JobExecutionResult getLastJobExecutionResult(){
 		return this.lastJobExecutionResult;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Session Management
+	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the UUID by which this environment is identified, as a string.
-	 * 
-	 * @return The UUID as a string.
+	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
+	 * in the cluster or local environment.
+	 *
+	 * @return The JobID of this environment.
+	 * @see #getIdString()
+	 */
+	public JobID getId() {
+		return this.jobID;
+	}
+
+	/**
+	 * Gets the JobID by which this environment is identified, as a string.
+	 *
+	 * @return The JobID as a string.
 	 * @see #getId()
 	 */
 	public String getIdString() {
-		return this.executionId.toString();
+		return this.jobID.toString();
 	}
+
+	/**
+	 * Sets the session timeout to hold the intermediate results of a job. This only
+	 * applies the updated timeout in future executions.
+	 *
+	 * @param timeout The timeout, in seconds.
+	 */
+	public void setSessionTimeout(long timeout) {
+		throw new IllegalStateException("Support for sessions is currently disabled. " +
+				"It will be enabled in future Flink versions.");
+		// Session management is disabled, revert this commit to enable
+		//if (timeout < 0) {
+		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
+		//}
+		//this.sessionTimeout = timeout;
+	}
+
+	/**
+	 * Gets the session timeout for this environment. The session timeout defines for how long
+	 * after an execution, the job and its intermediate results will be kept for future
+	 * interactions.
+	 *
+	 * @return The session timeout, in seconds.
+	 */
+	public long getSessionTimeout() {
+		return sessionTimeout;
+	}
+
+	/**
+	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
+	 */
+	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
-
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
@@ -271,7 +276,7 @@ public abstract class ExecutionEnvironment {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void addDefaultKryoSerializer(Class<?> type, T serializer) {
 		config.addDefaultKryoSerializer(type, serializer);
 	}
 
@@ -294,7 +299,7 @@ public abstract class ExecutionEnvironment {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+	public <T extends Serializer<?> & Serializable>void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
 		config.registerTypeWithKryoSerializer(type, serializer);
 	}
 
@@ -307,13 +312,13 @@ public abstract class ExecutionEnvironment {
 	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
 		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
-	
+
 	/**
 	 * Registers the given type with the serialization stack. If the type is eventually
 	 * serialized as a POJO, then the type is registered with the POJO serializer. If the
 	 * type ends up being serialized with Kryo, then it will be registered at Kryo to make
 	 * sure that only tags are written.
-	 *  
+	 *
 	 * @param type The class of the type to register.
 	 */
 	public void registerType(Class<?> type) {
@@ -335,118 +340,118 @@ public abstract class ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	// ---------------------------------- Text Input Format ---------------------------------------
-	
+
 	/**
-	 * Creates a DataSet that represents the Strings produced by reading the given file line wise.
+	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
 	 * The file will be read with the system's default character set.
-	 * 
+	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
-	 * @return A DataSet that represents the data read from the given file as text lines.
+	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
 	 */
 	public DataSource<String> readTextFile(String filePath) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		
-		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
+
+		return new DataSource<>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
 	}
-	
+
 	/**
-	 * Creates a DataSet that represents the Strings produced by reading the given file line wise.
+	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
 	 * The {@link java.nio.charset.Charset} with the given name will be used to read the files.
-	 * 
+	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @param charsetName The name of the character set used to read the file.
-	 * @return A DataSet that represents the data read from the given file as text lines.
+	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
 	 */
 	public DataSource<String> readTextFile(String filePath, String charsetName) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
-		return new DataSource<String>(this, format, BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
+		return new DataSource<>(this, format, BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
 	}
-	
+
 	// -------------------------- Text Input Format With String Value------------------------------
-	
+
 	/**
-	 * Creates a DataSet that represents the Strings produced by reading the given file line wise.
+	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
 	 * This method is similar to {@link #readTextFile(String)}, but it produces a DataSet with mutable
 	 * {@link StringValue} objects, rather than Java Strings. StringValues can be used to tune implementations
 	 * to be less object and garbage collection heavy.
 	 * <p>
 	 * The file will be read with the system's default character set.
-	 * 
+	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
-	 * @return A DataSet that represents the data read from the given file as text lines.
+	 * @return A {@link DataSet} that represents the data read from the given file as text lines.
 	 */
 	public DataSource<StringValue> readTextFileWithValue(String filePath) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		
-		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class), Utils.getCallLocationName());
+
+		return new DataSource<>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<>(StringValue.class), Utils.getCallLocationName());
 	}
-	
+
 	/**
-	 * Creates a DataSet that represents the Strings produced by reading the given file line wise.
+	 * Creates a {@link DataSet} that represents the Strings produced by reading the given file line wise.
 	 * This method is similar to {@link #readTextFile(String, String)}, but it produces a DataSet with mutable
 	 * {@link StringValue} objects, rather than Java Strings. StringValues can be used to tune implementations
 	 * to be less object and garbage collection heavy.
 	 * <p>
 	 * The {@link java.nio.charset.Charset} with the given name will be used to read the files.
-	 * 
+	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @param charsetName The name of the character set used to read the file.
 	 * @param skipInvalidLines A flag to indicate whether to skip lines that cannot be read with the given character set.
-	 * 
+	 *
 	 * @return A DataSet that represents the data read from the given file as text lines.
 	 */
 	public DataSource<StringValue> readTextFileWithValue(String filePath, String charsetName, boolean skipInvalidLines) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
-		
+
 		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
 		format.setSkipInvalidLines(skipInvalidLines);
-		return new DataSource<StringValue>(this, format, new ValueTypeInfo<StringValue>(StringValue.class), Utils.getCallLocationName());
+		return new DataSource<>(this, format, new ValueTypeInfo<>(StringValue.class), Utils.getCallLocationName());
 	}
 
 	// ----------------------------------- Primitive Input Format ---------------------------------------
 
 	/**
-	 * Creates a DataSet that represents the primitive type produced by reading the given file line wise.
+	 * Creates a {@link DataSet} that represents the primitive type produced by reading the given file line wise.
 	 * This method is similar to {@link #readCsvFile(String)} with single field, but it produces a DataSet not through
 	 * {@link org.apache.flink.api.java.tuple.Tuple1}.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @param typeClass The primitive type class to be read.
-	 * @return A DataSet that represents the data read from the given file as primitive type.
+	 * @return A {@link DataSet} that represents the data read from the given file as primitive type.
 	 */
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, Class<X> typeClass) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
-		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
+		return new DataSource<>(this, new PrimitiveInputFormat<>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
 
 	/**
-	 * Creates a DataSet that represents the primitive type produced by reading the given file in delimited way.
+	 * Creates a {@link DataSet} that represents the primitive type produced by reading the given file in delimited way.
 	 * This method is similar to {@link #readCsvFile(String)} with single field, but it produces a DataSet not through
 	 * {@link org.apache.flink.api.java.tuple.Tuple1}.
 	 *
 	 * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or "hdfs://host:port/file/path").
 	 * @param delimiter The delimiter of the given file.
 	 * @param typeClass The primitive type class to be read.
-	 * @return A DataSet that represents the data read from the given file as primitive type.
+	 * @return A {@link DataSet} that represents the data read from the given file as primitive type.
 	 */
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, String delimiter, Class<X> typeClass) {
 		Preconditions.checkNotNull(filePath, "The file path may not be null.");
 
-		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
+		return new DataSource<>(this, new PrimitiveInputFormat<>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
 
 	// ----------------------------------- CSV Input Format ---------------------------------------
-	
+
 	/**
 	 * Creates a CSV reader to read a comma separated value (CSV) file. The reader has options to
 	 * define parameters and field types and will eventually produce the DataSet that corresponds to
 	 * the read and parsed CSV input.
-	 * 
+	 *
 	 * @param filePath The path of the CSV file.
 	 * @return A CsvReader that can be used to configure the CSV input.
 	 */
@@ -455,7 +460,7 @@ public abstract class ExecutionEnvironment {
 	}
 
 	// ------------------------------------ File Input Format -----------------------------------------
-	
+
 	public <X> DataSource<X> readFile(FileInputFormat<X> inputFormat, String filePath) {
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
@@ -463,7 +468,7 @@ public abstract class ExecutionEnvironment {
 		if (filePath == null) {
 			throw new IllegalArgumentException("The file path must not be null.");
 		}
-		
+
 		inputFormat.setFilePath(new Path(filePath));
 		try {
 			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
@@ -474,11 +479,11 @@ public abstract class ExecutionEnvironment {
 					"'createInput(InputFormat, TypeInformation)' method instead.");
 		}
 	}
-	
+
 	// ----------------------------------- Generic Input Format ---------------------------------------
-	
+
 	/**
-	 * Generic method to create an input DataSet with in {@link InputFormat}. The DataSet will not be
+	 * Generic method to create an input {@link DataSet} with in {@link InputFormat}. The DataSet will not be
 	 * immediately created - instead, this method returns a DataSet that will be lazily created from
 	 * the input format once the program is executed.
 	 * <p>
@@ -487,17 +492,17 @@ public abstract class ExecutionEnvironment {
 	 * by reflection, unless the input format implements the {@link ResultTypeQueryable} interface.
 	 * In the latter case, this method will invoke the {@link ResultTypeQueryable#getProducedType()}
 	 * method to determine data type produced by the input format.
-	 * 
+	 *
 	 * @param inputFormat The input format used to create the data set.
-	 * @return A DataSet that represents the data created by the input format.
-	 * 
+	 * @return A {@link DataSet} that represents the data created by the input format.
+	 *
 	 * @see #createInput(InputFormat, TypeInformation)
 	 */
 	public <X> DataSource<X> createInput(InputFormat<X, ?> inputFormat) {
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
-		
+
 		try {
 			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
 		}
@@ -509,29 +514,29 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Generic method to create an input DataSet with in {@link InputFormat}. The DataSet will not be
-	 * immediately created - instead, this method returns a DataSet that will be lazily created from
+	 * Generic method to create an input DataSet with in {@link InputFormat}. The {@link DataSet} will not be
+	 * immediately created - instead, this method returns a {@link DataSet} that will be lazily created from
 	 * the input format once the program is executed.
 	 * <p>
-	 * The data set is typed to the given TypeInformation. This method is intended for input formats that
+	 * The {@link DataSet} is typed to the given TypeInformation. This method is intended for input formats that
 	 * where the return type cannot be determined by reflection analysis, and that do not implement the
 	 * {@link ResultTypeQueryable} interface.
-	 * 
+	 *
 	 * @param inputFormat The input format used to create the data set.
-	 * @return A DataSet that represents the data created by the input format.
-	 * 
+	 * @return A {@link DataSet} that represents the data created by the input format.
+	 *
 	 * @see #createInput(InputFormat)
 	 */
 	public <X> DataSource<X> createInput(InputFormat<X, ?> inputFormat, TypeInformation<X> producedType) {
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("InputFormat must not be null.");
 		}
-		
+
 		if (producedType == null) {
 			throw new IllegalArgumentException("Produced type information must not be null.");
 		}
-		
-		return new DataSource<X>(this, inputFormat, producedType, Utils.getCallLocationName());
+
+		return new DataSource<>(this, inputFormat, producedType, Utils.getCallLocationName());
 	}
 
 	// ----------------------------------- Hadoop Input Format ---------------------------------------
@@ -549,6 +554,14 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a {@link DataSet} from {@link org.apache.hadoop.mapred.SequenceFileInputFormat}
+	 * A {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
+ 	 */
+	public <K,V> DataSource<Tuple2<K, V>> readSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
+		return readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat<K, V>(), key, value, inputPath);
+	}
+
+	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}. A
 	 * {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
 	 */
@@ -560,7 +573,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.InputFormat}.
 	 */
 	public <K,V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
-		HadoopInputFormat<K, V> hadoopInputFormat = new HadoopInputFormat<K, V>(mapredInputFormat, key, value, job);
+		HadoopInputFormat<K, V> hadoopInputFormat = new HadoopInputFormat<>(mapredInputFormat, key, value, job);
 
 		return this.createInput(hadoopInputFormat);
 	}
@@ -569,8 +582,8 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. The
 	 * given inputName is set on the given job.
 	 */
-	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath, Job job) throws IOException {
-		DataSource<Tuple2<K, V>> result = createHadoopInput(mapredInputFormat, key, value, job);
+	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath, Job job) throws IOException {
+		DataSource<Tuple2<K, V>> result = createHadoopInput(mapreduceInputFormat, key, value, job);
 
 		org.apache.hadoop.mapreduce.lib.input.FileInputFormat.addInputPath(job, new org.apache
 				.hadoop.fs.Path(inputPath));
@@ -582,15 +595,15 @@ public abstract class ExecutionEnvironment {
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. A
 	 * {@link org.apache.hadoop.mapreduce.Job} with the given inputPath is created.
 	 */
-	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath) throws IOException {
-		return readHadoopFile(mapredInputFormat, key, value, inputPath, Job.getInstance());
+	public <K,V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath) throws IOException {
+		return readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance());
 	}
 
 	/**
 	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.InputFormat}.
 	 */
-	public <K,V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, Job job) {
-		org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> hadoopInputFormat = new org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V>(mapredInputFormat, key, value, job);
+	public <K,V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
+		org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> hadoopInputFormat = new org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<>(mapreduceInputFormat, key, value, job);
 
 		return this.createInput(hadoopInputFormat);
 	}
@@ -625,7 +638,7 @@ public abstract class ExecutionEnvironment {
 		
 		TypeInformation<X> type = TypeExtractor.getForObject(firstValue);
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer(config)), type, Utils.getCallLocationName());
+		return new DataSource<>(this, new CollectionInputFormat<>(data, type.createSerializer(config)), type, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -646,7 +659,7 @@ public abstract class ExecutionEnvironment {
 	
 	private <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type, String callLocationName) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer(config)), type, callLocationName);
+		return new DataSource<>(this, new CollectionInputFormat<>(data, type.createSerializer(config)), type, callLocationName);
 	}
 	
 	/**
@@ -685,7 +698,7 @@ public abstract class ExecutionEnvironment {
 	 * @see #fromCollection(Iterator, Class)
 	 */
 	public <X> DataSource<X> fromCollection(Iterator<X> data, TypeInformation<X> type) {
-		return new DataSource<X>(this, new IteratorInputFormat<X>(data), type, Utils.getCallLocationName());
+		return new DataSource<>(this, new IteratorInputFormat<>(data), type, Utils.getCallLocationName());
 	}
 	
 	
@@ -703,7 +716,8 @@ public abstract class ExecutionEnvironment {
 	 * @param data The elements to make up the data set.
 	 * @return A DataSet representing the given list of elements.
 	 */
-	public <X> DataSource<X> fromElements(X... data) {
+	@SafeVarargs
+	public final <X> DataSource<X> fromElements(X... data) {
 		if (data == null) {
 			throw new IllegalArgumentException("The data must not be null.");
 		}
@@ -754,12 +768,12 @@ public abstract class ExecutionEnvironment {
 	
 	// private helper for passing different call location names
 	private <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type, String callLocationName) {
-		return new DataSource<X>(this, new ParallelIteratorInputFormat<X>(iterator), type, callLocationName);
+		return new DataSource<>(this, new ParallelIteratorInputFormat<>(iterator), type, callLocationName);
 	}
 	
 	/**
 	 * Creates a new data set that contains a sequence of numbers. The data set will be created in parallel,
-	 * so there is no guarantee about the oder of the elements.
+	 * so there is no guarantee about the order of the elements.
 	 * 
 	 * @param from The number to start at (inclusive).
 	 * @param to The number to stop at (inclusive).
@@ -848,7 +862,7 @@ public abstract class ExecutionEnvironment {
 	 * @param executable flag indicating whether the file should be executable
 	 */
 	public void registerCachedFile(String filePath, String name, boolean executable){
-		this.cacheFile.add(new Tuple2<String, DistributedCacheEntry>(name, new DistributedCacheEntry(filePath, executable)));
+		this.cacheFile.add(new Tuple2<>(name, new DistributedCacheEntry(filePath, executable)));
 	}
 	
 	/**
@@ -874,7 +888,7 @@ public abstract class ExecutionEnvironment {
 	 * 
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan() {
+	public Plan createProgramPlan() {
 		return createProgramPlan(null);
 	}
 	
@@ -889,7 +903,7 @@ public abstract class ExecutionEnvironment {
 	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan(String jobName) {
+	public Plan createProgramPlan(String jobName) {
 		return createProgramPlan(jobName, true);
 	}
 
@@ -904,7 +918,7 @@ public abstract class ExecutionEnvironment {
 	 * @param clearSinks Whether or not to start a new stage of execution.
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan(String jobName, boolean clearSinks) {
+	public Plan createProgramPlan(String jobName, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -922,7 +936,7 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		OperatorTranslation translator = new OperatorTranslation();
-		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
+		Plan plan = translator.translateToPlan(this.sinks, jobName);
 
 		if (getParallelism() > 0) {
 			plan.setDefaultParallelism(getParallelism());
@@ -941,8 +955,8 @@ public abstract class ExecutionEnvironment {
 					}
 				}
 				if(typeInfo instanceof CompositeType) {
-					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<GenericTypeInfo<?>>();
-					Utils.getContainedGenericTypes((CompositeType)typeInfo, genericTypesInComposite);
+					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<>();
+					Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
 					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
 						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
 					}
@@ -986,10 +1000,10 @@ public abstract class ExecutionEnvironment {
 
 		if(LOG.isDebugEnabled()) {
 			LOG.debug("Registered Kryo types: {}", Joiner.on(',').join(config.getRegisteredKryoTypes()));
-			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers()));
-			LOG.debug("Registered Kryo with Serializer Classes types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializerClasses()));
-			LOG.debug("Registered Kryo default Serializers: {}", Joiner.on(',').join(config.getDefaultKryoSerializers()));
-			LOG.debug("Registered Kryo default Serializers Classes {}", Joiner.on(',').join(config.getDefaultKryoSerializerClasses()));
+			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers().entrySet()));
+			LOG.debug("Registered Kryo with Serializer Classes types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializerClasses().entrySet()));
+			LOG.debug("Registered Kryo default Serializers: {}", Joiner.on(',').join(config.getDefaultKryoSerializers().entrySet()));
+			LOG.debug("Registered Kryo default Serializers Classes {}", Joiner.on(',').join(config.getDefaultKryoSerializerClasses().entrySet()));
 			LOG.debug("Registered POJO types: {}", Joiner.on(',').join(config.getRegisteredPojoTypes()));
 
 			// print information about static code analysis
@@ -1082,9 +1096,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalEnvironment createLocalEnvironment(Configuration customConfiguration) {
-		LocalEnvironment lee = new LocalEnvironment();
-		lee.setConfiguration(customConfiguration);
-		return lee;
+		return new LocalEnvironment(customConfiguration);
 	}
 	
 	/**
@@ -1102,6 +1114,27 @@ public abstract class ExecutionEnvironment {
 	 */
 	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, String... jarFiles) {
 		return new RemoteEnvironment(host, port, jarFiles);
+	}
+
+	/**
+	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program
+	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
+	 * cluster. The custom configuration file is used to configure Akka specific configuration parameters
+	 * for the Client only; Program parallelism can be set via {@link ExecutionEnvironment#setParallelism(int)}.
+	 *
+	 * Cluster configuration has to be done in the remotely running Flink instance.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param clientConfiguration Configuration used by the client that connects to the cluster.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 * @return A remote environment that executes the program on a cluster.
+	 */
+	public static ExecutionEnvironment createRemoteEnvironment(
+			String host, int port, Configuration clientConfiguration, String... jarFiles) {
+		return new RemoteEnvironment(host, port, clientConfiguration, jarFiles, null);
 	}
 
 	/**
@@ -1134,22 +1167,40 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	//  Methods to control the context and local environments for execution from packaged programs
+	//  Methods to control the context environment and creation of explicit environments other
+	//  than the context environment
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Sets a context environment factory, that creates the context environment for running programs
+	 * with pre-configured environments. Examples are running programs from the command line, and
+	 * running programs in the Scala shell.
+	 * 
+	 * <p>When the context environment factors is set, no other environments can be explicitly used.
+	 * 
+	 * @param ctx The context environment factory.
+	 */
 	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
-		contextEnvironmentFactory = ctx;
+		contextEnvironmentFactory = Preconditions.checkNotNull(ctx);
 	}
-	
-	protected static boolean isContextEnvironmentSet() {
-		return contextEnvironmentFactory != null;
+
+	/**
+	 * Un-sets the context environment factory. After this method is called, the call to
+	 * {@link #getExecutionEnvironment()} will again return a default local execution environment, and
+	 * it is possible to explicitly instantiate the LocalEnvironment and the RemoteEnvironment.
+	 */
+	protected static void resetContextEnvironment() {
+		contextEnvironmentFactory = null;
 	}
-	
-	protected static void enableLocalExecution(boolean enabled) {
-		allowLocalExecution = enabled;
-	}
-	
-	public static boolean localExecutionIsAllowed() {
-		return allowLocalExecution;
+
+	/**
+	 * Checks whether it is currently permitted to explicitly instantiate a LocalEnvironment
+	 * or a RemoteEnvironment.
+	 * 
+	 * @return True, if it is possible to explicitly instantiate a LocalEnvironment or a
+	 *         RemoteEnvironment, false otherwise.
+	 */
+	public static boolean areExplicitEnvironmentsAllowed() {
+		return contextEnvironmentFactory == null;
 	}
 }

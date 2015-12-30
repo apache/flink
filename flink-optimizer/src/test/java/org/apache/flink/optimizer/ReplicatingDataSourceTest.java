@@ -18,6 +18,7 @@
 
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -27,9 +28,8 @@ import org.apache.flink.api.common.io.ReplicatingInputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.CsvInputFormat;
+import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.operators.DataSink;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -58,7 +58,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -67,7 +67,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -95,7 +95,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -105,7 +105,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -133,7 +133,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -143,7 +143,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -171,7 +171,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -181,7 +181,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -209,7 +209,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -219,7 +219,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -247,7 +247,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -260,7 +260,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -288,7 +288,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -297,7 +297,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.cross(source2)
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -325,7 +325,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -336,7 +336,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.cross(source2)
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -364,7 +364,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -373,7 +373,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*").setParallelism(DEFAULT_PARALLELISM+2)
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -390,7 +390,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -400,7 +400,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -417,7 +417,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -427,7 +427,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -443,7 +443,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 		TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
 
 		DataSet<Tuple1<String>> source1 = env.createInput(rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
 		DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
@@ -453,7 +453,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 				.join(source2).where("*").equalTo("*")
 				.writeAsText("/some/newpath");
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);

@@ -21,17 +21,41 @@
 # Common
 #==============================================================================
 
+# The host on which the JobManager runs. Only used in non-high-availability mode.
+# The JobManager process will use this hostname to bind the listening servers to.
+# The TaskManagers will try to connect to the JobManager on that host.
+
 jobmanager.rpc.address: localhost
+
+
+# The port where the JobManager's main actor system listens for messages.
 
 jobmanager.rpc.port: 6123
 
+
+# The heap size for the JobManager JVM
+
 jobmanager.heap.mb: 256
+
+
+# The heap size for the TaskManager JVM
 
 taskmanager.heap.mb: 512
 
+
+# The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
+
 taskmanager.numberOfTaskSlots: 1
 
+# Specify whether TaskManager memory should be allocated when starting up (true) or when
+# memory is required in the memory manager (false)
+
+taskmanager.memory.preallocate: false
+
+# The parallelism used for programs that did not specify and other parallelism.
+
 parallelism.default: 1
+
 
 #==============================================================================
 # Web Frontend
@@ -42,27 +66,32 @@ parallelism.default: 1
 
 jobmanager.web.port: 8081
 
+
 # The port uder which the standalone web client
 # (for job upload and submit) listens.
 
 webclient.port: 8080
 
+
 #==============================================================================
 # Streaming state checkpointing
 #==============================================================================
 
-# The backend that will be used to store operator state checkpoints if 
-# checkpointing is enabled. 
+# The backend that will be used to store operator state checkpoints if
+# checkpointing is enabled.
 #
-# Supported backends: jobmanager, filesystem
-
-state.backend: jobmanager
-
-# Directory for storing checkpoints in a flink supported filesystem
-# Note: State backend must be accessible from the JobManager, use file://
-# only for local setups. 
+# Supported backends: jobmanager, filesystem, <class-name-of-factory>
 #
-# state.backend.fs.checkpointdir: hdfs://checkpoints
+#state.backend: filesystem
+
+
+# Directory for storing checkpoints in a Flink-supported filesystem
+# Note: State backend must be accessible from the JobManager and all TaskManagers.
+# Use "hdfs://" for HDFS setups, "file://" for UNIX/POSIX-compliant file systems,
+# (or any local file system under Windows), or "S3://" for S3 file system.
+#
+# state.backend.fs.checkpointdir: hdfs://namenode-host:port/flink-checkpoints
+
 
 #==============================================================================
 # Advanced
@@ -71,6 +100,7 @@ state.backend: jobmanager
 # The number of buffers for the network stack.
 #
 # taskmanager.network.numberOfBuffers: 2048
+
 
 # Directories for temporary files.
 #
@@ -88,6 +118,7 @@ state.backend: jobmanager
 #
 # taskmanager.tmp.dirs: /tmp
 
+
 # Path to the Hadoop configuration directory.
 #
 # This configuration is used when writing into HDFS. Unless specified otherwise,
@@ -98,3 +129,21 @@ state.backend: jobmanager
 # via keys 'fs.hdfs.hdfsdefault' and 'fs.hdfs.hdfssite'.
 #
 # fs.hdfs.hadoopconf: /path/to/hadoop/conf/
+
+
+#==============================================================================
+# Master High Availability (required configuration)
+#==============================================================================
+
+# The list of ZooKepper quorum peers that coordinate the high-availability
+# setup. This must be a list of the form:
+# "host1:clientPort,host2[:clientPort],..." (default clientPort: 2181)
+#
+# recovery.mode: zookeeper
+#
+# recovery.zookeeper.quorum: localhost:2181,...
+#
+# Note: You need to set the state backend to 'filesystem' and the checkpoint
+# directory (see above) before configuring the storageDir.
+#
+# recovery.zookeeper.storageDir: hdfs:///recovery

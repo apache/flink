@@ -34,7 +34,7 @@ public final class MathUtils {
 	 * @return The logarithm (rounded down) to the base of 2.
 	 * @throws ArithmeticException Thrown, if the given value is zero.
 	 */
-	public static final int log2floor(int value) throws ArithmeticException {
+	public static int log2floor(int value) throws ArithmeticException {
 		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
 		}
@@ -56,7 +56,7 @@ public final class MathUtils {
 	 * @throws ArithmeticException Thrown, if the given value is zero.
 	 * @throws IllegalArgumentException Thrown, if the given value is not a power of two.
 	 */
-	public static final int log2strict(int value) throws ArithmeticException, IllegalArgumentException {
+	public static int log2strict(int value) throws ArithmeticException, IllegalArgumentException {
 		if (value == 0) {
 			throw new ArithmeticException("Logarithm of zero is undefined.");
 		}
@@ -79,7 +79,7 @@ public final class MathUtils {
 	 * @param value The value to round down.
 	 * @return The closest value that is a power of to and less or equal than the given value.
 	 */
-	public static final int roundDownToPowerOf2(int value) {
+	public static int roundDownToPowerOf2(int value) {
 		return Integer.highestOneBit(value);
 	}
 	
@@ -93,7 +93,7 @@ public final class MathUtils {
 	 * @param value The value to be cast to an integer.
 	 * @return The given value as an integer.
 	 */
-	public static final int checkedDownCast(long value) {
+	public static int checkedDownCast(long value) {
 		if (value > Integer.MAX_VALUE) {
 			throw new IllegalArgumentException("Cannot downcast long value " + value + " to integer.");
 		}

@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -38,9 +40,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
@@ -61,6 +63,8 @@ import static org.mockito.Mockito.when;
 
 public class MockEnvironment implements Environment {
 	
+	private final TaskInfo taskInfo;
+	
 	private final MemoryManager memManager;
 
 	private final IOManager ioManager;
@@ -79,18 +83,23 @@ public class MockEnvironment implements Environment {
 
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 
+	private final AccumulatorRegistry accumulatorRegistry;
+
 	private final int bufferSize;
 
-	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
+		this.taskInfo = new TaskInfo(taskName, 0, 1, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<InputGate>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 
-		this.memManager = new DefaultMemoryManager(memorySize, 1);
+		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
+
+		this.accumulatorRegistry = new AccumulatorRegistry(jobID, getExecutionId());
 	}
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
@@ -116,7 +125,7 @@ public class MockEnvironment implements Environment {
 
 				@Override
 				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
-					return new Buffer(new MemorySegment(new byte[bufferSize]), mock(BufferRecycler.class));
+					return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), mock(BufferRecycler.class));
 				}
 			});
 
@@ -187,13 +196,8 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public int getNumberOfSubtasks() {
-		return 1;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return 0;
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return new TaskManagerRuntimeInfo("localhost", new UnmodifiableConfiguration(new Configuration()));
 	}
 
 	@Override
@@ -202,13 +206,8 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public String getTaskName() {
-		return null;
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return null;
+	public TaskInfo getTaskInfo() {
+		return taskInfo;
 	}
 
 	@Override
@@ -259,8 +258,8 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-		// discard, this is only for testing
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return this.accumulatorRegistry;
 	}
 
 	@Override

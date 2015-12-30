@@ -29,6 +29,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /**
  * Comparator for all Value types that extend Key
@@ -63,7 +64,8 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
 	@Override
 	public void setReference(T toCompare) {
 		checkKryoInitialized();
-		reference = this.kryo.copy(toCompare);
+
+		reference = KryoUtils.copy(toCompare, kryo, new ValueSerializer<T>(type));
 	}
 
 	@Override
@@ -138,6 +140,11 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
+
+			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
+			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+			kryo.setInstantiatorStrategy(instantiatorStrategy);
+
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(type);
 		}

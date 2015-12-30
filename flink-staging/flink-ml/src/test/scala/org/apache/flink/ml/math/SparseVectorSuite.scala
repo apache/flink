@@ -56,7 +56,7 @@ class SparseVectorSuite extends FlatSpec with Matchers {
       groupBy{_._1}.
       mapValues{
       entries =>
-        entries.map(_._2).reduce(_ + _)
+        entries.map(_._2).sum
     }
 
     for(index <- 0 until size) {
@@ -95,7 +95,7 @@ class SparseVectorSuite extends FlatSpec with Matchers {
 
     copy(3) = 3
 
-    sparseVector should not equal(copy)
+    sparseVector should not equal copy
   }
 
   it should "calculate dot product with SparseVector" in {
@@ -132,5 +132,20 @@ class SparseVectorSuite extends FlatSpec with Matchers {
     val vec = SparseVector.fromCOO(3, (0, 1), (1, 4), (2, 8))
 
     vec.magnitude should be(9)
+  }
+
+  it should "convert from and to Breeze vectors" in {
+    import Breeze._
+
+    val flinkVector = SparseVector.fromCOO(3, (1, 1.0), (2, 2.0))
+    val breezeVector = breeze.linalg.SparseVector(3)(1 -> 1.0, 2 -> 2.0)
+
+    // use the vector BreezeVectorConverter
+    flinkVector should equal(breezeVector.fromBreeze)
+
+    // use the sparse vector BreezeVectorConverter
+    flinkVector should equal(breezeVector.fromBreeze(SparseVector.sparseVectorConverter))
+
+    flinkVector.asBreeze should be(breezeVector)
   }
 }

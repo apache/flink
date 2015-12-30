@@ -77,4 +77,9 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeChar(source.readChar());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof CharSerializer;
+	}
 }

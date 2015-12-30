@@ -28,7 +28,7 @@ Start working on your Flink Scala program in a few simple steps.
 
 ## Requirements
 
-The only requirements are working __Maven 3.0.4__ (or higher) and __Java 6.x__ (or higher) installations.
+The only requirements are working __Maven 3.0.4__ (or higher) and __Java 7.x__ (or higher) installations.
 
 
 ## Create Project
@@ -42,7 +42,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
 {% highlight bash %}
-$ curl http://flink.apache.org/q/quickstart-scala.sh | bash
+$ curl https://flink.apache.org/q/quickstart-scala.sh | bash
 {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
@@ -123,9 +123,6 @@ object WordCountJob {
 
     // emit result
     counts.print()
-
-    // execute program
-    env.execute("WordCount Example")
   }
 }
 ~~~
@@ -144,7 +141,7 @@ To build and run applications with SBT instead of Maven is pretty straight forwa
 libraryDependencies ++= Seq("org.apache.flink" % "flink-scala" % "{{site.version}}", "org.apache.flink" % "flink-clients" % "{{site.version}}") 
 ~~~
 
-Now the application can be executed by `sbt run`. By default SBT runs an application in the same JVM itself is running in. This can lead to lass loading issues with Flink. To avoid these, append the following line to `build.sbt`:
+Now the application can be executed by `sbt run`. By default SBT runs an application in the same JVM itself is running in. This can lead to class loading issues with Flink. To avoid these, append the following line to `build.sbt`:
 
 ~~~scala
 fork in run := true 

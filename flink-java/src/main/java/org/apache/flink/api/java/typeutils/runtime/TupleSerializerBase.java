@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Objects;
 
 
 public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
@@ -32,14 +34,14 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	protected final Class<T> tupleClass;
 
-	protected TypeSerializer<Object>[] fieldSerializers;
+	protected final TypeSerializer<Object>[] fieldSerializers;
 
 	protected final int arity;
 
 	@SuppressWarnings("unchecked")
 	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		this.tupleClass = tupleClass;
-		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
+		this.tupleClass = Preconditions.checkNotNull(tupleClass);
+		this.fieldSerializers = (TypeSerializer<Object>[]) Preconditions.checkNotNull(fieldSerializers);
 		this.arity = fieldSerializers.length;
 	}
 	
@@ -65,6 +67,8 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	// of immutable Typles (i.e. Scala Tuples)
 	public abstract T createInstance(Object[] fields);
 
+	public abstract T createOrReuseInstance(Object[] fields, T reuse);
+
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		for (int i = 0; i < arity; i++) {
@@ -74,23 +78,25 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		int hashCode = arity * 47;
-		for (TypeSerializer<?> ser : this.fieldSerializers) {
-			hashCode = (hashCode << 7) | (hashCode >>> -7);
-			hashCode += ser.hashCode();
-		}
-		return hashCode;
+		return 31 * Arrays.hashCode(fieldSerializers) + Objects.hash(tupleClass, arity);
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof TupleSerializerBase) {
-			TupleSerializerBase<?> otherTS = (TupleSerializerBase<?>) obj;
-			return (otherTS.tupleClass == this.tupleClass) && 
-					Arrays.deepEquals(this.fieldSerializers, otherTS.fieldSerializers);
-		}
-		else {
+		if (obj instanceof TupleSerializerBase) {
+			TupleSerializerBase<?> other = (TupleSerializerBase<?>) obj;
+
+			return other.canEqual(this) &&
+				tupleClass == other.tupleClass &&
+				Arrays.equals(fieldSerializers, other.fieldSerializers) &&
+				arity == other.arity;
+		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof TupleSerializerBase;
 	}
 }

@@ -19,32 +19,25 @@
 package org.apache.flink.test.iterative;
 
 import java.io.BufferedReader;
-import java.io.Serializable;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsSecond;
-import org.apache.flink.api.java.record.io.CsvInputFormat;
-import org.apache.flink.api.java.record.io.CsvOutputFormat;
-import org.apache.flink.api.java.record.operators.CoGroupOperator;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.DuplicateLongMap;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents.NeighborWithComponentIDJoin;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.JoinOperator;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.Record;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
-
-@SuppressWarnings("deprecation")
-public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
+public class CoGroupConnectedComponentsITCase extends JavaProgramTestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	
@@ -53,13 +46,11 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	private static final int NUM_EDGES = 10000;
 
 	
+	private static final int MAX_ITERATIONS = 100;
+
 	protected String verticesPath;
 	protected String edgesPath;
 	protected String resultPath;
-
-	public CoGroupConnectedComponentsITCase(){
-		setTaskManagerNumSlots(parallelism);
-	}
 	
 	
 	@Override
@@ -67,11 +58,6 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
 		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
 		resultPath = getTempFilePath("results");
-	}
-	
-	@Override
-	protected Plan getTestJob() {
-		return getPlan(parallelism, verticesPath, edgesPath, resultPath, 100);
 	}
 
 	@Override
@@ -85,83 +71,70 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	//  The test program
 	// --------------------------------------------------------------------------------------------
 	
+	@Override
+	protected void testProgram() throws Exception {
 
-	@ConstantFieldsFirst(0)
-	@ConstantFieldsSecond(0)
-	public static final class MinIdAndUpdate extends CoGroupFunction implements Serializable {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple1<Long>> initialVertices = env.readCsvFile(verticesPath).fieldDelimiter(" ").types(Long.class).name("Vertices");
+
+		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class).name("Edges");
+
+		DataSet<Tuple2<Long, Long>> verticesWithId = initialVertices.map(new MapFunction<Tuple1<Long>, Tuple2<Long, Long>>() {
+			@Override
+			public Tuple2<Long, Long> map(Tuple1<Long> value) throws Exception {
+				return new Tuple2<>(value.f0, value.f0);
+			}
+		}).name("Assign Vertex Ids");
+
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = verticesWithId.iterateDelta(verticesWithId, MAX_ITERATIONS, 0);
+
+		JoinOperator<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> joinWithNeighbors = iteration.getWorkset()
+				.join(edges).where(0).equalTo(0)
+				.with(new JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+					@Override
+					public Tuple2<Long, Long> join(Tuple2<Long, Long> first, Tuple2<Long, Long> second) throws Exception {
+						return new Tuple2<>(second.f1, first.f1);
+					}
+				})
+				.name("Join Candidate Id With Neighbor");
+
+		CoGroupOperator<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> minAndUpdate = joinWithNeighbors
+				.coGroup(iteration.getSolutionSet()).where(0).equalTo(0)
+				.with(new MinIdAndUpdate())
+				.name("min Id and Update");
+
+		iteration.closeWith(minAndUpdate, minAndUpdate).writeAsCsv(resultPath, "\n", " ").name("Result");
+
+		env.execute("Workset Connected Components");
+	}
+
+	@ForwardedFieldsFirst("f1->f1")
+	@ForwardedFieldsSecond("f0->f0")
+	public static final class MinIdAndUpdate implements CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		private static final long serialVersionUID = 1L;
 
-		private final LongValue newComponentId = new LongValue();
-		
 		@Override
-		public void coGroup(Iterator<Record> candidates, Iterator<Record> current, Collector<Record> out) throws Exception {
+		public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<Tuple2<Long, Long>> second, Collector<Tuple2<Long, Long>> out) throws Exception {
+			Iterator<Tuple2<Long, Long>> current = second.iterator();
 			if (!current.hasNext()) {
 				throw new Exception("Error: Id not encountered before.");
 			}
-			Record old = current.next();
-			long oldId = old.getField(1, LongValue.class).getValue();
+			Tuple2<Long, Long> old = current.next();
+			long oldId = old.f1;
 
 			long minimumComponentID = Long.MAX_VALUE;
 
-			while (candidates.hasNext()) {
-				Record candidate = candidates.next();
-				long candidateComponentID = candidate.getField(1, LongValue.class).getValue();
+			for (Tuple2<Long, Long> candidate : first) {
+				long candidateComponentID = candidate.f1;
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}
 			}
 
 			if (minimumComponentID < oldId) {
-				newComponentId.setValue(minimumComponentID);
-				old.setField(1, newComponentId);
-				out.collect(old);
+				out.collect(new Tuple2<>(old.f0, minimumComponentID));
 			}
 		}
-	}
-	
-	@SuppressWarnings("unchecked")
-	public static Plan getPlan(int numSubTasks, String verticesInput, String edgeInput, String output, int maxIterations) {
-
-		// data source for initial vertices
-		FileDataSource initialVertices = new FileDataSource(new CsvInputFormat(' ', LongValue.class), verticesInput, "Vertices");
-		
-		MapOperator verticesWithId = MapOperator.builder(DuplicateLongMap.class).input(initialVertices).name("Assign Vertex Ids").build();
-		
-		DeltaIteration iteration = new DeltaIteration(0, "Connected Components Iteration");
-		iteration.setInitialSolutionSet(verticesWithId);
-		iteration.setInitialWorkset(verticesWithId);
-		iteration.setMaximumNumberOfIterations(maxIterations);
-		
-		// create DataSourceContract for the edges
-		FileDataSource edges = new FileDataSource(new CsvInputFormat(' ', LongValue.class, LongValue.class), edgeInput, "Edges");
-
-		// create CrossOperator for distance computation
-		JoinOperator joinWithNeighbors = JoinOperator.builder(new NeighborWithComponentIDJoin(), LongValue.class, 0, 0)
-				.input1(iteration.getWorkset())
-				.input2(edges)
-				.name("Join Candidate Id With Neighbor")
-				.build();
-
-		CoGroupOperator minAndUpdate = CoGroupOperator.builder(new MinIdAndUpdate(), LongValue.class, 0, 0)
-				.input1(joinWithNeighbors)
-				.input2(iteration.getSolutionSet())
-				.name("Min Id and Update")
-				.build();
-		
-		iteration.setNextWorkset(minAndUpdate);
-		iteration.setSolutionSetDelta(minAndUpdate);
-
-		// create DataSinkContract for writing the new cluster positions
-		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, iteration, "Result");
-		CsvOutputFormat.configureRecordFormat(result)
-			.recordDelimiter('\n')
-			.fieldDelimiter(' ')
-			.field(LongValue.class, 0)
-			.field(LongValue.class, 1);
-
-		// return the PACT plan
-		Plan plan = new Plan(result, "Workset Connected Components");
-		plan.setDefaultParallelism(numSubTasks);
-		return plan;
 	}
 }

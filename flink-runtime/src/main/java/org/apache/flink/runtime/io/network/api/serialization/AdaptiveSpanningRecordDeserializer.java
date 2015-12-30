@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
@@ -44,6 +45,8 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	private final SpanningWrapper spanningWrapper;
 
 	private Buffer currentBuffer;
+
+	private AccumulatorRegistry.Reporter reporter;
 
 	public AdaptiveSpanningRecordDeserializer() {
 		this.nonSpanningWrapper = new NonSpanningWrapper();
@@ -90,9 +93,17 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		if (nonSpanningRemaining >= 4) {
 			int len = this.nonSpanningWrapper.readInt();
 
+			if (reporter != null) {
+				reporter.reportNumBytesIn(len);
+			}
+
 			if (len <= nonSpanningRemaining - 4) {
 				// we can get a full record from here
 				target.read(this.nonSpanningWrapper);
+
+				if (reporter != null) {
+					reporter.reportNumRecordsIn(1);
+				}
 
 				return (this.nonSpanningWrapper.remaining() == 0) ?
 						DeserializationResult.LAST_RECORD_FROM_BUFFER :
@@ -116,6 +127,10 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		if (this.spanningWrapper.hasFullRecord()) {
 			// get the full record
 			target.read(this.spanningWrapper);
+
+			if (reporter != null) {
+				reporter.reportNumRecordsIn(1);
+			}
 
 			// move the remainder to the non-spanning wrapper
 			// this does not copy it, only sets the memory segment
@@ -142,6 +157,12 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 	@Override
 	public boolean hasUnfinishedData() {
 		return this.nonSpanningWrapper.remaining() > 0 || this.spanningWrapper.getNumGatheredBytes() > 0;
+	}
+
+	@Override
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		this.reporter = reporter;
+		this.spanningWrapper.setReporter(reporter);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -209,21 +230,21 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 		@Override
 		public final short readShort() throws IOException {
-			final short v = this.segment.getShort(this.position);
+			final short v = this.segment.getShortBigEndian(this.position);
 			this.position += 2;
 			return v;
 		}
 
 		@Override
 		public final int readUnsignedShort() throws IOException {
-			final int v = this.segment.getShort(this.position) & 0xffff;
+			final int v = this.segment.getShortBigEndian(this.position) & 0xffff;
 			this.position += 2;
 			return v;
 		}
 
 		@Override
 		public final char readChar() throws IOException  {
-			final char v = this.segment.getChar(this.position);
+			final char v = this.segment.getCharBigEndian(this.position);
 			this.position += 2;
 			return v;
 		}
@@ -426,6 +447,8 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 		private int recordLimit;
 
+		private AccumulatorRegistry.Reporter reporter;
+
 		public SpanningWrapper() {
 			this.lengthBuffer = ByteBuffer.allocate(4);
 			this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
@@ -462,6 +485,10 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 					return;
 				} else {
 					this.recordLength = this.lengthBuffer.getInt(0);
+
+					if (reporter != null) {
+						reporter.reportNumBytesIn(this.recordLength);
+					}
 
 					this.lengthBuffer.clear();
 					segmentPosition = toPut;
@@ -606,6 +633,10 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 		@Override
 		public int read(byte[] b) throws IOException {
 			return this.serializationReadBuffer.read(b);
+		}
+
+		public void setReporter(AccumulatorRegistry.Reporter reporter) {
+			this.reporter = reporter;
 		}
 	}
 }

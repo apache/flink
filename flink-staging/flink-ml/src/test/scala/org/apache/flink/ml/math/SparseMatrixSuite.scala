@@ -66,7 +66,7 @@ class SparseMatrixSuite extends FlatSpec with Matchers {
       groupBy{_._1}.
       mapValues{
       entries =>
-        entries.map(_._2).reduce(_ + _)
+        entries.map(_._2).sum
     }
 
     for(row <- 0 until numRows; col <- 0 until numCols) {
@@ -129,6 +129,6 @@ class SparseMatrixSuite extends FlatSpec with Matchers {
 
     copy(2, 3) = 2
 
-    sparseMatrix should not equal(copy)
+    sparseMatrix should not equal copy
   }
 }

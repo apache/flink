@@ -20,6 +20,7 @@ package org.apache.flink.test.javaApiOperators;
 
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -37,12 +38,8 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoWithDateAndEnum;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -52,22 +49,6 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 
 	public ReduceITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -82,15 +63,16 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).reduce(new Tuple3Reduce("B-)"));
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"5,2,B-)\n" +
 				"15,3,B-)\n" +
 				"34,4,B-)\n" +
 				"65,5,B-)\n" +
 				"111,6,B-)\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -105,10 +87,10 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
 				groupBy(4,0).reduce(new Tuple5Reduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs
+				.collect();
 
-		expected = "1,1,0,Hallo,1\n" +
+		String expected = "1,1,0,Hallo,1\n" +
 				"2,3,2,Hallo Welt wie,1\n" +
 				"2,2,1,Hallo Welt,2\n" +
 				"3,9,0,P-),2\n" +
@@ -118,6 +100,8 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 				"5,11,10,GHI,1\n" +
 				"5,29,0,P-),2\n" +
 				"5,25,0,P-),3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -132,15 +116,16 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(new KeySelector1()).reduce(new Tuple3Reduce("B-)"));
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"5,2,B-)\n" +
 				"15,3,B-)\n" +
 				"34,4,B-)\n" +
 				"65,5,B-)\n" +
 				"111,6,B-)\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector1 implements KeySelector<Tuple3<Integer,Long,String>, Long> {
@@ -163,15 +148,16 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> reduceDs = ds.
 				groupBy(new KeySelector2()).reduce(new CustomTypeReduce());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = reduceDs.collect();
 
-		expected = "1,0,Hi\n" +
+		String expected = "1,0,Hi\n" +
 				"2,3,Hello!\n" +
 				"3,12,Hello!\n" +
 				"4,30,Hello!\n" +
 				"5,60,Hello!\n" +
 				"6,105,Hello!\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class KeySelector2 implements KeySelector<CustomType, Integer> {
@@ -194,10 +180,11 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				reduce(new AllAddingTuple3Reduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "231,91,Hello World\n";
+		String expected = "231,91,Hello World\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -212,10 +199,11 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<CustomType> reduceDs = ds.
 				reduce(new AllAddingCustomTypeReduce());
 
-		reduceDs.writeAsText(resultPath);
-		env.execute();
+		List<CustomType> result = reduceDs.collect();
 
-		expected = "91,210,Hello!";
+		String expected = "91,210,Hello!";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -232,15 +220,16 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
 				groupBy(1).reduce(new BCTuple3Reduce()).withBroadcastSet(intDs, "ints");
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple3<Integer, Long, String>> result = reduceDs.collect();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"5,2,55\n" +
 				"15,3,55\n" +
 				"34,4,55\n" +
 				"65,5,55\n" +
 				"111,6,55\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -255,10 +244,10 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> reduceDs = ds .
 				groupBy(new KeySelector3()).reduce(new Tuple5Reduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs
+				.collect();
 
-		expected = "1,1,0,Hallo,1\n" +
+		String expected = "1,1,0,Hallo,1\n" +
 				"2,3,2,Hallo Welt wie,1\n" +
 				"2,2,1,Hallo Welt,2\n" +
 				"3,9,0,P-),2\n" +
@@ -268,6 +257,8 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 				"5,11,10,GHI,1\n" +
 				"5,29,0,P-),2\n" +
 				"5,25,0,P-),3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	public static class KeySelector3 implements KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>> {
@@ -291,10 +282,10 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
 				groupBy("f4","f0").reduce(new Tuple5Reduce());
 
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
+		List<Tuple5<Integer, Long, Integer, String, Long>> result = reduceDs
+				.collect();
 
-		expected = "1,1,0,Hallo,1\n" +
+		String expected = "1,1,0,Hallo,1\n" +
 				"2,3,2,Hallo Welt wie,1\n" +
 				"2,2,1,Hallo Welt,2\n" +
 				"3,9,0,P-),2\n" +
@@ -304,6 +295,8 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 				"5,11,10,GHI,1\n" +
 				"5,29,0,P-),2\n" +
 				"5,25,0,P-),3\n";
+
+		compareResultAsTuples(result, expected);
 	}
 
 	@Test
@@ -317,9 +310,11 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 
 		DataSet<String> res = ds.groupBy("group").reduceGroup(new GroupReducer1());
 
-		res.writeAsText(resultPath);
-		env.execute();
-		expected = "ok\nok";
+		List<String> result = res.collect();
+
+		String expected = "ok\nok";
+
+		compareResultAsText(result, expected);
 	}
 
 	public static class Mapper1 implements MapFunction<Long, PojoWithDateAndEnum> {
@@ -369,20 +364,20 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 			out.collect("ok");
 		}
 	}
-	
+
 	public static class Tuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		private final String f2Replace;
-		
-		public Tuple3Reduce() { 
+
+		public Tuple3Reduce() {
 			this.f2Replace = null;
 		}
-		
-		public Tuple3Reduce(String f2Replace) { 
+
+		public Tuple3Reduce(String f2Replace) {
 			this.f2Replace = f2Replace;
 		}
-		
+
 
 		@Override
 		public Tuple3<Integer, Long, String> reduce(
@@ -397,41 +392,41 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 			return out;
 		}
 	}
-	
+
 	public static class Tuple5Reduce implements ReduceFunction<Tuple5<Integer, Long, Integer, String, Long>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple5<Integer, Long, Integer, String, Long> out = new Tuple5<Integer, Long, Integer, String, Long>();
-		
+
 		@Override
 		public Tuple5<Integer, Long, Integer, String, Long> reduce(
 				Tuple5<Integer, Long, Integer, String, Long> in1,
 				Tuple5<Integer, Long, Integer, String, Long> in2)
-				throws Exception {
-			
+						throws Exception {
+
 			out.setFields(in1.f0, in1.f1+in2.f1, 0, "P-)", in1.f4);
 			return out;
 		}
 	}
-	
+
 	public static class CustomTypeReduce implements ReduceFunction<CustomType> {
 		private static final long serialVersionUID = 1L;
 		private final CustomType out = new CustomType();
-		
+
 		@Override
 		public CustomType reduce(CustomType in1, CustomType in2)
 				throws Exception {
-			
+
 			out.myInt = in1.myInt;
 			out.myLong = in1.myLong + in2.myLong;
 			out.myString = "Hello!";
 			return out;
 		}
 	}
-	
+
 	public static class AllAddingTuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
-		
+
 		@Override
 		public Tuple3<Integer, Long, String> reduce(
 				Tuple3<Integer, Long, String> in1,
@@ -441,37 +436,37 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 			return out;
 		}
 	}
-	
+
 	public static class AllAddingCustomTypeReduce implements ReduceFunction<CustomType> {
 		private static final long serialVersionUID = 1L;
 		private final CustomType out = new CustomType();
-		
+
 		@Override
 		public CustomType reduce(CustomType in1, CustomType in2)
 				throws Exception {
-			
+
 			out.myInt = in1.myInt + in2.myInt;
 			out.myLong = in1.myLong + in2.myLong;
 			out.myString = "Hello!";
 			return out;
 		}
 	}
-	
+
 	public static class BCTuple3Reduce extends RichReduceFunction<Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple3<Integer, Long, String> out = new Tuple3<Integer, Long, String>();
 		private String f2Replace = "";
-		
+
 		@Override
 		public void open(Configuration config) {
-			
+
 			Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
 			int sum = 0;
 			for(Integer i : ints) {
 				sum += i;
 			}
 			f2Replace = sum+"";
-			
+
 		}
 
 		@Override
@@ -483,5 +478,5 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 			return out;
 		}
 	}
-	
+
 }

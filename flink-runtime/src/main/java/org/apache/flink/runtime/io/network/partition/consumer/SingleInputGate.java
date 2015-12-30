@@ -23,8 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
-import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -66,17 +66,17 @@ import static com.google.common.base.Preconditions.checkState;
  * <p> As an example, consider a map-reduce program, where the map operator produces data and the
  * reduce operator consumes the produced data.
  *
- * <pre>
+ * <pre>{@code
  * +-----+              +---------------------+              +--------+
  * | Map | = produce => | Intermediate Result | <= consume = | Reduce |
  * +-----+              +---------------------+              +--------+
- * </pre>
+ * }</pre>
  *
  * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
  *
- * <pre>
+ * <pre>{@code
  *                            Intermediate result
  *               +-----------------------------------------+
  *               |                      +----------------+ |              +-----------------------+
@@ -91,7 +91,7 @@ import static com.google.common.base.Preconditions.checkState;
  * +-------+     | +-------------+  +=> | Subpartition 2 | | <==+======== | Input Gate | Reduce 2 |
  *               |                      +----------------+ |              +-----------------------+
  *               +-----------------------------------------+
- * </pre>
+ * }</pre>
  *
  * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
@@ -209,6 +209,16 @@ public class SingleInputGate implements InputGate {
 
 	BufferProvider getBufferProvider() {
 		return bufferPool;
+	}
+
+	@Override
+	public int getPageSize() {
+		if (bufferPool != null) {
+			return bufferPool.getMemorySegmentSize();
+		}
+		else {
+			throw new IllegalStateException("Input gate has not been initialized with buffers.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -408,7 +418,7 @@ public class SingleInputGate implements InputGate {
 
 		// Sanity check that notifications only happen when data is available
 		if (buffer == null) {
-			throw new IllegalStateException("Bug in input gate/channel logic: input gate got" +
+			throw new IllegalStateException("Bug in input gate/channel logic: input gate got " +
 					"notified by channel about available data, but none was available.");
 		}
 

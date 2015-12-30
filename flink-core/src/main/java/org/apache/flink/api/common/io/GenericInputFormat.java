@@ -26,9 +26,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 
 /**
- * Generic base class for all inputs that are not based on files.
+ * Generic base class for all Rich inputs that are not based on files.
  */
-public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericInputSplit> {
+public abstract class GenericInputFormat<OT> extends RichInputFormat<OT, GenericInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 	

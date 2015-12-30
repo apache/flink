@@ -37,18 +37,18 @@ import org.slf4j.LoggerFactory;
 *
 * @see GroupCombineFunction
 */
-public class AllGroupCombineDriver<IN, OUT> implements PactDriver<GroupCombineFunction<IN, OUT>, OUT> {
+public class AllGroupCombineDriver<IN, OUT> implements Driver<GroupCombineFunction<IN, OUT>, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AllGroupCombineDriver.class);
 
-	private PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
+	private TaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
 
 	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
+	public void setup(TaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
 		this.taskContext = context;
 	}
 

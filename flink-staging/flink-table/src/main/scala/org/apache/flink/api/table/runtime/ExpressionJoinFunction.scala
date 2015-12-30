@@ -19,6 +19,7 @@ package org.apache.flink.api.table.runtime
 
 import org.apache.flink.api.common.functions.{FlatJoinFunction, RichFlatJoinFunction}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.GenerateJoin
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.configuration.Configuration
@@ -33,18 +34,20 @@ class ExpressionJoinFunction[L, R, O](
     leftType: CompositeType[L],
     rightType: CompositeType[R],
     resultType: CompositeType[O],
-    outputFields: Seq[Expression]) extends RichFlatJoinFunction[L, R, O] {
+    outputFields: Seq[Expression],
+    config: TableConfig = TableConfig.DEFAULT) extends RichFlatJoinFunction[L, R, O] {
 
   var compiledJoin: FlatJoinFunction[L, R, O] = null
 
-  override def open(config: Configuration): Unit = {
+  override def open(c: Configuration): Unit = {
     val codegen = new GenerateJoin[L, R, O](
       leftType,
       rightType,
       resultType,
       predicate,
       outputFields,
-      getRuntimeContext.getUserCodeClassLoader)
+      getRuntimeContext.getUserCodeClassLoader,
+      config)
     compiledJoin = codegen.generate()
   }
 

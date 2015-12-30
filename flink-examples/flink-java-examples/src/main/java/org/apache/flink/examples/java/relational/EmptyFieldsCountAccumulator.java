@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.DataSet;
@@ -183,9 +183,8 @@ public class EmptyFieldsCountAccumulator {
 	}
 
 	/**
-	 * This accumulator lets you increase vector components distributedly. The {@link #add(Integer)} method lets you
-	 * increase the <i>n</i>-th vector component by 1, whereat <i>n</i> is the methods parameter. The size of the vector
-	 * is automatically managed.
+	 * This accumulator maintains a vector of counts. Calling {@link #add(Integer)} increments the
+	 * <i>n</i>-th vector component. The size of the vector is automatically managed.
 	 */
 	public static class VectorAccumulator implements Accumulator<Integer, ArrayList<Integer>> {
 

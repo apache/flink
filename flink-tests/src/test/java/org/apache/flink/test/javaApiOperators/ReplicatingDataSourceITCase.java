@@ -19,6 +19,8 @@
 package org.apache.flink.test.javaApiOperators;
 
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.ReplicatingInputFormat;
@@ -32,11 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.NumberSequenceIterator;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,23 +47,6 @@ public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {
 
 	public ReplicatingDataSourceITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-
-	private String expectedResult;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expectedResult, resultPath); // 500500 = 0+1+2+3+...+999+1000
 	}
 
 	@Test
@@ -85,11 +66,11 @@ public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {
 				.projectFirst(0)
 				.sum(0);
 
-		pairs.writeAsText(resultPath);
-		env.execute();
+		List<Tuple> result = pairs.collect();
 
-		expectedResult = "(500500)";
+		String expectedResult = "(500500)";
 
+		compareResultAsText(result, expectedResult);
 	}
 
 	@Test
@@ -120,11 +101,11 @@ public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {
 				})
 				.sum(0);
 
-		pairs.writeAsText(resultPath);
-		env.execute();
+		List<Tuple1<Long>> result = pairs.collect();
 
-		expectedResult = "(500500)";
+		String expectedResult = "(500500)";
 
+		compareResultAsText(result, expectedResult);
 	}
 
 

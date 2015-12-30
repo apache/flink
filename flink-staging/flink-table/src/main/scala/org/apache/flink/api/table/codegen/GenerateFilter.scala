@@ -19,12 +19,12 @@ package org.apache.flink.api.table.codegen
 
 import java.io.StringReader
 
-import org.slf4j.LoggerFactory
-
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.Indenter._
 import org.apache.flink.api.table.expressions.Expression
+import org.slf4j.LoggerFactory
 
 /**
  * Code generator for a unary predicate, i.e. a Filter.
@@ -32,9 +32,11 @@ import org.apache.flink.api.table.expressions.Expression
 class GenerateFilter[T](
     inputType: CompositeType[T],
     predicate: Expression,
-    cl: ClassLoader) extends ExpressionCodeGenerator[FilterFunction[T]](
+    cl: ClassLoader,
+    config: TableConfig) extends ExpressionCodeGenerator[FilterFunction[T]](
       Seq(("in0", inputType)),
-      cl = cl) {
+      cl = cl,
+      config) {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -50,6 +52,13 @@ class GenerateFilter[T](
       j"""
         public class $generatedName
             implements org.apache.flink.api.common.functions.FilterFunction<$tpe> {
+
+          org.apache.flink.api.table.TableConfig config = null;
+
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+          }
+
           public boolean filter(Object _in0) {
             $tpe in0 = ($tpe) _in0;
             ${pred.code}
@@ -65,6 +74,13 @@ class GenerateFilter[T](
       j"""
         public class $generatedName
             implements org.apache.flink.api.common.functions.FilterFunction<$tpe> {
+
+          org.apache.flink.api.table.TableConfig config = null;
+
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+          }
+
           public boolean filter(Object _in0) {
             $tpe in0 = ($tpe) _in0;
             ${pred.code}
@@ -77,6 +93,7 @@ class GenerateFilter[T](
     LOG.debug(s"""Generated unary predicate "$predicate":\n$code""")
     compiler.cook(new StringReader(code))
     val clazz = compiler.getClassLoader().loadClass(generatedName)
-    clazz.newInstance().asInstanceOf[FilterFunction[T]]
+    val constructor = clazz.getConstructor(classOf[TableConfig])
+    constructor.newInstance(config).asInstanceOf[FilterFunction[T]]
   }
 }

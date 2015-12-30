@@ -35,5 +35,6 @@ public abstract class RichFoldFunction<O, T> extends AbstractRichFunction implem
 
 	private static final long serialVersionUID = 1L;
 
+	@Override
 	public abstract T fold(T accumulator, O value) throws Exception;
 }

@@ -77,4 +77,9 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeLong(source.readLong());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof LongSerializer;
+	}
 }

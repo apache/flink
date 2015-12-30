@@ -49,7 +49,7 @@ public abstract class RichGroupReduceFunction<IN, OUT> extends AbstractRichFunct
 	 * <p>
 	 * This method is only ever invoked when the subclass of {@link RichGroupReduceFunction}
 	 * adds the {@link Combinable} annotation, or if the <i>combinable</i> flag is set when defining
-	 * the <i>reduceGroup<i> operation via
+	 * the <i>reduceGroup</i> operation via
 	 * org.apache.flink.api.java.operators.GroupReduceOperator#setCombinable(boolean).
 	 * <p>
 	 * Since the reduce function will be called on the result of this method, it is important that this

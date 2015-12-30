@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
 public class VertexSlotSharingTest {
@@ -68,7 +69,11 @@ public class VertexSlotSharingTest {
 			
 			List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 			
-			ExecutionGraph eg = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+			ExecutionGraph eg = new ExecutionGraph(
+					TestingUtils.defaultExecutionContext(),
+					new JobID(),
+					"test job",
+					new Configuration(),
 					AkkaUtils.getDefaultTimeout());
 			eg.attachJobGraph(vertices);
 			

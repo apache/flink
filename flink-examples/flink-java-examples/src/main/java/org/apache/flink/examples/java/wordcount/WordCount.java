@@ -60,7 +60,7 @@ public class WordCount {
 		
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+
 		// get input data
 		DataSet<String> text = getTextDataSet(env);
 
@@ -90,7 +90,7 @@ public class WordCount {
 	/**
 	 * Implements the string tokenizer that splits sentences into words as a user-defined
 	 * FlatMapFunction. The function takes a line (String) and splits it into 
-	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 * multiple pairs in the form of "(word,1)" ({@code Tuple2<String, Integer>}).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
 

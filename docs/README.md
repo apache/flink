@@ -6,15 +6,33 @@ http://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-We use Markdown to write and Jekyll to translate the documentation to static HTML. You can install
-all needed software via:
+We use Markdown to write and Jekyll to translate the documentation to static HTML. Kramdown is 
+needed for Markdown processing and the Python based Pygments is used for syntax highlighting. To run
+Javascript code from Ruby, you need to install a javascript runtime (e.g. `therubyracer`). You can 
+install all needed software via the following commands:
 
-    gem install jekyll
-    gem install kramdown
+    gem install jekyll -v 2.5.3
+    gem install kramdown -v 1.9.0
+    gem install pygments.rb -v 0.6.3
+    gem install therubyracer -v 0.12.2
     sudo easy_install Pygments
+    
+Note that in Ubuntu based systems, it may be necessary to install the `ruby-dev` and 
+`python-setuptools` packages via apt.
 
-Kramdown is needed for Markdown processing and the Python based Pygments is used for syntax
-highlighting.
+# Using Dockerized Jekyll
+
+We dockerized the jekyll environment above. If you have [docker](https://docs.docker.com/), 
+you can run following command to start the container.
+
+```
+cd flink/docs/docker
+./run.sh
+```
+
+It takes a few moment to build the image for the first time, but will be a second from the second time.
+The run.sh command brings you in a bash session where you can run following doc commands.
+
 
 # Build
 

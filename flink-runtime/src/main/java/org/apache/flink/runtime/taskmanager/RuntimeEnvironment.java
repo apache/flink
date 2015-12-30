@@ -18,33 +18,29 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import akka.actor.ActorRef;
-
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.messages.accumulators.ReportAccumulatorResult;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * In implementation of the {@link Environment}.
@@ -55,10 +51,7 @@ public class RuntimeEnvironment implements Environment {
 	private final JobVertexID jobVertexId;
 	private final ExecutionAttemptID executionId;
 	
-	private final String taskName;
-	private final String taskNameWithSubtasks;
-	private final int subtaskIndex;
-	private final int parallelism;
+	private final TaskInfo taskInfo;
 	
 	private final Configuration jobConfiguration;
 	private final Configuration taskConfiguration;
@@ -75,45 +68,51 @@ public class RuntimeEnvironment implements Environment {
 	private final ResultPartitionWriter[] writers;
 	private final InputGate[] inputGates;
 	
-	private final ActorRef jobManagerActor;
-	
+	private final ActorGateway jobManager;
+
+	private final AccumulatorRegistry accumulatorRegistry;
+
+	private final TaskManagerRuntimeInfo taskManagerInfo;
+
 	// ------------------------------------------------------------------------
 
-	public RuntimeEnvironment(JobID jobId, JobVertexID jobVertexId, ExecutionAttemptID executionId,
-								String taskName, String taskNameWithSubtasks,
-								int subtaskIndex, int parallelism,
-								Configuration jobConfiguration, Configuration taskConfiguration,
-								ClassLoader userCodeClassLoader,
-								MemoryManager memManager, IOManager ioManager,
-								BroadcastVariableManager bcVarManager,
-								InputSplitProvider splitProvider,
-								Map<String, Future<Path>> distCacheEntries,
-								ResultPartitionWriter[] writers,
-								InputGate[] inputGates,
-								ActorRef jobManagerActor) {
-		
-		checkArgument(parallelism > 0 && subtaskIndex >= 0 && subtaskIndex < parallelism);
-		
+	public RuntimeEnvironment(
+			JobID jobId,
+			JobVertexID jobVertexId,
+			ExecutionAttemptID executionId,
+			TaskInfo taskInfo,
+			Configuration jobConfiguration,
+			Configuration taskConfiguration,
+			ClassLoader userCodeClassLoader,
+			MemoryManager memManager,
+			IOManager ioManager,
+			BroadcastVariableManager bcVarManager,
+			AccumulatorRegistry accumulatorRegistry,
+			InputSplitProvider splitProvider,
+			Map<String, Future<Path>> distCacheEntries,
+			ResultPartitionWriter[] writers,
+			InputGate[] inputGates,
+			ActorGateway jobManager,
+			TaskManagerRuntimeInfo taskManagerInfo) {
+
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
 		this.executionId = checkNotNull(executionId);
-		this.taskName = checkNotNull(taskName);
-		this.taskNameWithSubtasks = checkNotNull(taskNameWithSubtasks);
-		this.subtaskIndex = subtaskIndex;
-		this.parallelism = parallelism;
+		this.taskInfo = checkNotNull(taskInfo);
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 		this.memManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.bcVarManager = checkNotNull(bcVarManager);
+		this.accumulatorRegistry = checkNotNull(accumulatorRegistry);
 		this.splitProvider = checkNotNull(splitProvider);
 		this.distCacheEntries = checkNotNull(distCacheEntries);
 		this.writers = checkNotNull(writers);
 		this.inputGates = checkNotNull(inputGates);
-		this.jobManagerActor = checkNotNull(jobManagerActor);
+		this.jobManager = checkNotNull(jobManager);
+		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 	}
-
 
 	// ------------------------------------------------------------------------
 	
@@ -133,23 +132,8 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public String getTaskName() {
-		return taskName;
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return taskNameWithSubtasks;
-	}
-
-	@Override
-	public int getNumberOfSubtasks() {
-		return parallelism;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return subtaskIndex;
+	public TaskInfo getTaskInfo() {
+		return this.taskInfo;
 	}
 
 	@Override
@@ -161,7 +145,12 @@ public class RuntimeEnvironment implements Environment {
 	public Configuration getTaskConfiguration() {
 		return taskConfiguration;
 	}
-	
+
+	@Override
+	public TaskManagerRuntimeInfo getTaskManagerInfo() {
+		return taskManagerInfo;
+	}
+
 	@Override
 	public ClassLoader getUserClassLoader() {
 		return userCodeClassLoader;
@@ -180,6 +169,11 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return bcVarManager;
+	}
+
+	@Override
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return accumulatorRegistry;
 	}
 
 	@Override
@@ -213,20 +207,6 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-		AccumulatorEvent evt;
-		try {
-			evt = new AccumulatorEvent(getJobID(), accumulators);
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Cannot serialize accumulators to send them to JobManager", e);
-		}
-
-		ReportAccumulatorResult accResult = new ReportAccumulatorResult(jobId, executionId, evt);
-		jobManagerActor.tell(accResult, ActorRef.noSender());
-	}
-
-	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {
 		acknowledgeCheckpoint(checkpointId, null);
 	}
@@ -246,6 +226,6 @@ public class RuntimeEnvironment implements Environment {
 		}
 		
 		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(jobId, executionId, checkpointId, serializedState);
-		jobManagerActor.tell(message, ActorRef.noSender());
+		jobManager.tell(message);
 	}
 }

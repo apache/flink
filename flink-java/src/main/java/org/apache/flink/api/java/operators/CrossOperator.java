@@ -108,7 +108,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * A Cross transformation that wraps pairs of crossed elements into {@link Tuple2}.<br/>
+	 * A Cross transformation that wraps pairs of crossed elements into {@link Tuple2}.<br>
 	 * It also represents the {@link DataSet} that is the result of a Cross transformation. 
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Cross transformation.
@@ -137,7 +137,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Finalizes a Cross transformation by applying a {@link CrossFunction} to each pair of crossed elements.<br/>
+		 * Finalizes a Cross transformation by applying a {@link CrossFunction} to each pair of crossed elements.<br>
 		 * Each CrossFunction call returns exactly one element. 
 		 * 
 		 * @param function The CrossFunction that is called for each pair of crossed elements.
@@ -157,9 +157,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 		
 		/**
-		 * Initiates a ProjectCross transformation and projects the first cross input<br/>
+		 * Initiates a ProjectCross transformation and projects the first cross input<br>
 		 * If the first cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
@@ -182,9 +182,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 		
 		/**
-		 * Initiates a ProjectCross transformation and projects the second cross input<br/>
+		 * Initiates a ProjectCross transformation and projects the second cross input<br>
 		 * If the second cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
@@ -210,7 +210,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 	/**
 	 * A Cross transformation that projects crossing elements or fields of crossing {@link Tuple Tuples}
-	 * into result {@link Tuple Tuples}. <br/>
+	 * into result {@link Tuple Tuples}. <br>
 	 * It also represents the {@link DataSet} that is the result of a Cross transformation.
 	 *
 	 * @param <I1> The type of the first input DataSet of the Cross transformation.
@@ -250,9 +250,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 		
 		/**
-		 * Continues a ProjectCross transformation and adds fields of the first cross input to the projection.<br/>
+		 * Continues a ProjectCross transformation and adds fields of the first cross input to the projection.<br>
 		 * If the first cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Additional fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
@@ -277,9 +277,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Continues a ProjectCross transformation and adds fields of the second cross input to the projection.<br/>
+		 * Continues a ProjectCross transformation and adds fields of the second cross input to the projection.<br>
 		 * If the second cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Additional fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
@@ -493,9 +493,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Continues a ProjectCross transformation and adds fields of the first cross input.<br/>
+		 * Continues a ProjectCross transformation and adds fields of the first cross input.<br>
 		 * If the first cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#projectFirst(int...)} and
@@ -559,9 +559,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Continues a ProjectCross transformation and adds fields of the second cross input.<br/>
+		 * Continues a ProjectCross transformation and adds fields of the second cross input.<br>
 		 * If the second cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br>
 		 *
 		 * Fields of the first and second input can be added by chaining the method calls of
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#projectFirst(int...)} and

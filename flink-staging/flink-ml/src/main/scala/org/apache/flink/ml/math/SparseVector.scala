@@ -25,10 +25,7 @@ import scala.util.Sorting
 /** Sparse vector implementation storing the data in two arrays. One index contains the sorted
   * indices of the non-zero vector entries and the other the corresponding vector entries
   */
-case class SparseVector(
-    val size: Int,
-    val indices: Array[Int],
-    val data: Array[Double])
+case class SparseVector(size: Int, indices: Array[Int], data: Array[Double])
   extends Vector
   with Serializable {
   /** Updates the element at the given index with the provided value
@@ -119,7 +116,7 @@ case class SparseVector(
   override def equals(obj: Any): Boolean = {
     obj match {
       case sv: SparseVector if size == sv.size =>
-        indices.sameElements(indices) && data.sameElements(sv.data)
+        indices.sameElements(sv.indices) && data.sameElements(sv.data)
       case _ => false
     }
   }
@@ -242,7 +239,7 @@ object SparseVector {
             dense.iterator.toIterable)
         case sparse: BreezeSparseVector[Double] =>
           new SparseVector(
-            sparse.used,
+            sparse.length,
             sparse.index.take(sparse.used),
             sparse.data.take(sparse.used))
       }

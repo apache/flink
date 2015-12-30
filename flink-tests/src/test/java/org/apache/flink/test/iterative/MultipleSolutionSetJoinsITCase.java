@@ -26,7 +26,7 @@ import org.junit.Assert;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.test.compiler.iterations.MultipleJoinsWithSolutionSetCompilerTest;
+import org.apache.flink.test.optimizer.iterations.MultipleJoinsWithSolutionSetCompilerTest;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 

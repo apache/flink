@@ -19,12 +19,12 @@ package org.apache.flink.api.table.codegen
 
 import java.io.StringReader
 
-import org.slf4j.LoggerFactory
-
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.codegen.Indenter._
 import org.apache.flink.api.table.expressions.{Expression, NopExpression}
+import org.slf4j.LoggerFactory
 
 /**
  * Code generator for assembling the result of a binary operation.
@@ -35,10 +35,12 @@ class GenerateJoin[L, R, O](
     resultTypeInfo: CompositeType[O],
     predicate: Expression,
     outputFields: Seq[Expression],
-    cl: ClassLoader)
+    cl: ClassLoader,
+    config: TableConfig)
   extends GenerateResultAssembler[FlatJoinFunction[L, R, O]](
     Seq(("in0", leftTypeInfo), ("in1", rightTypeInfo)),
-    cl = cl) {
+    cl = cl,
+    config) {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -66,6 +68,11 @@ class GenerateJoin[L, R, O](
 
           ${reuseCode(resultTypeInfo)}
 
+          public org.apache.flink.api.table.TableConfig config = null;
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+          }
+
           public void join(Object _in0, Object _in1, org.apache.flink.util.Collector coll) {
             $leftTpe in0 = ($leftTpe) _in0;
             $rightTpe in1 = ($rightTpe) _in1;
@@ -80,6 +87,11 @@ class GenerateJoin[L, R, O](
             implements org.apache.flink.api.common.functions.FlatJoinFunction {
 
           ${reuseCode(resultTypeInfo)}
+
+          public org.apache.flink.api.table.TableConfig config = null;
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+          }
 
           public void join(Object _in0, Object _in1, org.apache.flink.util.Collector coll) {
             $leftTpe in0 = ($leftTpe) _in0;
@@ -102,6 +114,13 @@ class GenerateJoin[L, R, O](
 
           ${reuseCode(resultTypeInfo)}
 
+          org.apache.flink.api.table.TableConfig config = null;
+
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+            ${reuseInitCode()}
+          }
+
           public void join(Object _in0, Object _in1, org.apache.flink.util.Collector coll) {
             $leftTpe in0 = ($leftTpe) _in0;
             $rightTpe in1 = ($rightTpe) _in1;
@@ -121,6 +140,13 @@ class GenerateJoin[L, R, O](
 
           ${reuseCode(resultTypeInfo)}
 
+          org.apache.flink.api.table.TableConfig config = null;
+
+          public $generatedName(org.apache.flink.api.table.TableConfig config) {
+            this.config = config;
+            ${reuseInitCode()}
+          }
+
           public void join(Object _in0, Object _in1, org.apache.flink.util.Collector coll) {
             $leftTpe in0 = ($leftTpe) _in0;
             $rightTpe in1 = ($rightTpe) _in1;
@@ -139,6 +165,7 @@ class GenerateJoin[L, R, O](
     LOG.debug(s"""Generated join:\n$code""")
     compiler.cook(new StringReader(code))
     val clazz = compiler.getClassLoader().loadClass(generatedName)
-    clazz.newInstance().asInstanceOf[FlatJoinFunction[L, R, O]]
+    val constructor = clazz.getConstructor(classOf[TableConfig])
+    constructor.newInstance(config).asInstanceOf[FlatJoinFunction[L, R, O]]
   }
 }

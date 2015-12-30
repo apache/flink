@@ -31,7 +31,7 @@
  * <p>
  * Example:
  *
- * <code>
+ * <pre>{@code
  * ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
  *
  * DataSet<WC> input = env.fromElements(
@@ -50,11 +50,11 @@
  *
  * result.print();
  * env.execute();
- * </code>
+ * }</pre>
  *
  * <p>
  * As seen above, a {@link org.apache.flink.api.table.Table} can be converted back to the
- * underlying API representation using {@link org.apache.flink.api.java.table.TableEnvironment.toSet}
- * or {@link org.apache.flink.api.java.table.TableEnvironment.toStream}.
+ * underlying API representation using {@link org.apache.flink.api.java.table.TableEnvironment#toDataSet(org.apache.flink.api.table.Table, java.lang.Class)}
+ * or {@link org.apache.flink.api.java.table.TableEnvironment#toDataStream(org.apache.flink.api.table.Table, java.lang.Class)}}.
  */
 package org.apache.flink.api.java.table;
