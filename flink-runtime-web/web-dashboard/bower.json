@@ -1,10 +1,8 @@
 {
   "name": "flink-dashboard",
   "version": "1.0.0",
-  "authors": [
-    "Piotr Godek <piotr.godek@gmail.com>"
-  ],
-  "license": "The Apache Software Foundation Individual Contributor License Agreement",
+ 
+  "license": "The Apache Software License 2.0",
   "private": true,
   "ignore": [
     "**/.*",
