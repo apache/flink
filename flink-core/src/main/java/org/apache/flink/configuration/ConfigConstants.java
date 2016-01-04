@@ -354,33 +354,6 @@ public final class ConfigConstants {
 
 	/** Config parameter defining the number of checkpoints to remember for recent history. */
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
-
-	// ------------------------------ Web Client ------------------------------
-
-	/**
-	 * The config parameter defining port for the pact web-frontend server.
-	 */
-	public static final String WEB_FRONTEND_PORT_KEY = "webclient.port";
-
-	/**
-	 * The config parameter defining the temporary data directory for the web client.
-	 */
-	public static final String WEB_TMP_DIR_KEY = "webclient.tempdir";
-
-	/**
-	 * The config parameter defining the directory that programs are uploaded to.
-	 */
-	public static final String WEB_JOB_UPLOAD_DIR_KEY = "webclient.uploaddir";
-
-	/**
-	 * The config parameter defining the directory that JSON plan dumps are written to.
-	 */
-	public static final String WEB_PLAN_DUMP_DIR_KEY = "webclient.plandump";
-
-	/**
-	 * The config parameter defining the port to the htaccess file protecting the web client.
-	 */
-	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
 	
 
 	// ------------------------------ AKKA ------------------------------------
@@ -708,35 +681,6 @@ public final class ConfigConstants {
 
 	/** Default number of checkpoints to remember for recent history. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
-	
-	// ------------------------------ Web Client ------------------------------
-	
-	/**
-	 * The default port to launch the web frontend server on.
-	 */
-	public static final int DEFAULT_WEBCLIENT_PORT = 8080;
-
-	/**
-	 * The default directory to store temporary objects (e.g. during file uploads).
-	 */
-	public static final String DEFAULT_WEB_TMP_DIR = 
-			System.getProperty("java.io.tmpdir") == null ? "/tmp" : System.getProperty("java.io.tmpdir");
-
-	/**
-	 * The default directory for temporary plan dumps from the web frontend.
-	 */
-	public static final String DEFAULT_WEB_PLAN_DUMP_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-plans/";
-
-	/**
-	 * The default directory to store uploaded jobs in.
-	 */
-	public static final String DEFAULT_WEB_JOB_STORAGE_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-jobs/";
-	
-
-	/**
-	 * The default path to the file containing the list of access privileged users and passwords.
-	 */
-	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
 
 	// ------------------------------ Akka Values ------------------------------
 
