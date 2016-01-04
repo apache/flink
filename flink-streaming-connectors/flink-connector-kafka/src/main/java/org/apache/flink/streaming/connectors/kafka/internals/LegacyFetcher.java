@@ -448,19 +448,18 @@ public class LegacyFetcher implements Fetcher {
 
 								final long offset = msg.offset();
 
-								// put value into byte array
 								ByteBuffer payload = msg.message().payload();
+
+								// If the message value is null, this represents a delete command for the message key.
+								// Log this and pass it on to the client who might want to also receive delete messages.
+								byte[] valueBytes;
 								if (payload == null) {
-									// This message has no value (which means it has been deleted from the Kafka topic)
 									deletedMessages++;
-									// advance offset in state to avoid re-reading the message
-									synchronized (sourceContext.getCheckpointLock()) {
-										offsetsState.put(topicPartition, offset);
-									}
-									continue;
+									valueBytes = null;
+								} else {
+									valueBytes = new byte[payload.remaining()];
+									payload.get(valueBytes);
 								}
-								byte[] valueBytes = new byte[payload.remaining()];
-								payload.get(valueBytes);
 
 								// put key into byte array
 								byte[] keyBytes = null;
