@@ -41,12 +41,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.api.java.typeutils.runtime.ByteArrayInputView;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -75,6 +78,7 @@ import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationKeyValueSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.testutils.junit.RetryOnException;
@@ -107,6 +111,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -122,10 +127,20 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	// ------------------------------------------------------------------------
 
 	protected abstract <T> FlinkKafkaConsumer<T> getConsumer(
-			List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props);
+			List<String> topics, KeyedDeserializationSchema<T> deserializationSchema, Properties props);
+
+	protected <T> FlinkKafkaConsumer<T> getConsumer(
+			List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
+		return getConsumer(topics, new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props);
+	}
 
 	protected <T> FlinkKafkaConsumer<T> getConsumer(
 			String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
+		return getConsumer(Collections.singletonList(topic), new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props);
+	}
+
+	protected <T> FlinkKafkaConsumer<T> getConsumer(
+			String topic, KeyedDeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(Collections.singletonList(topic), deserializationSchema, props);
 	}
 
@@ -832,7 +847,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Assert.assertEquals((NUM_TOPICS * (NUM_TOPICS + 1))/2, topicPartitions.size());
 
 		KeyedDeserializationSchema<Tuple3<Integer, Integer, String>> readSchema = new Tuple2WithTopicDeserializationSchema(env.getConfig());
-		DataStreamSource<Tuple3<Integer, Integer, String>> stream = env.addSource(new FlinkKafkaConsumer082<>(topics, readSchema, standardProps));
+		DataStreamSource<Tuple3<Integer, Integer, String>> stream = env.addSource(getConsumer(topics, readSchema, standardProps));
 
 		stream.flatMap(new FlatMapFunction<Tuple3<Integer, Integer, String>, Integer>() {
 			Map<String, Integer> countPerTopic = new HashMap<>(NUM_TOPICS);
@@ -1120,7 +1135,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		KeyedDeserializationSchema<Tuple2<Long, PojoValue>> readSchema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
 
-		DataStream<Tuple2<Long, PojoValue>> fromKafka = env.addSource(new FlinkKafkaConsumer082<>(topic, readSchema, standardProps));
+		DataStream<Tuple2<Long, PojoValue>> fromKafka = env.addSource(getConsumer(topic, readSchema, standardProps));
 		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<Long,PojoValue>, Object>() {
 			long counter = 0;
 			@Override
@@ -1152,7 +1167,66 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		public PojoValue() {}
 	}
 
+	public void runAllDeletesTest() throws Exception {
+		final String topic = "alldeletestest";
+		createTestTopic(topic, 1, 1);
+		final int ELEMENT_COUNT = 300;
 
+		// ----------- Write some data into Kafka -------------------
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.setParallelism(1);
+		env.setNumberOfExecutionRetries(3);
+		env.getConfig().disableSysoutLogging();
+
+		DataStream<Tuple2<byte[], PojoValue>> kvStream = env.addSource(new SourceFunction<Tuple2<byte[], PojoValue>>() {
+			@Override
+			public void run(SourceContext<Tuple2<byte[], PojoValue>> ctx) throws Exception {
+				Random rnd = new Random(1337);
+				for (long i = 0; i < ELEMENT_COUNT; i++) {
+					final byte[] key = new byte[200];
+					rnd.nextBytes(key);
+					ctx.collect(new Tuple2<>(key, (PojoValue) null));
+				}
+			}
+			@Override
+			public void cancel() {
+			}
+		});
+
+		TypeInformationKeyValueSerializationSchema<byte[], PojoValue> schema = new TypeInformationKeyValueSerializationSchema<>(byte[].class, PojoValue.class, env.getConfig());
+
+		kvStream.addSink(new FlinkKafkaProducer<>(topic, schema,
+				FlinkKafkaProducer.getPropertiesFromBrokerList(brokerConnectionStrings)));
+		env.execute("Write deletes to Kafka");
+
+		// ----------- Read the data again -------------------
+
+		env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.setParallelism(1);
+		env.setNumberOfExecutionRetries(3);
+		env.getConfig().disableSysoutLogging();
+
+		DataStream<Tuple2<byte[], PojoValue>> fromKafka = env.addSource(getConsumer(topic, schema, standardProps));
+
+		fromKafka.flatMap(new RichFlatMapFunction<Tuple2<byte[], PojoValue>, Object>() {
+			long counter = 0;
+			@Override
+			public void flatMap(Tuple2<byte[], PojoValue> value, Collector<Object> out) throws Exception {
+				// ensure that deleted messages are passed as nulls
+				assertNull(value.f1);
+				counter++;
+				if (counter == ELEMENT_COUNT) {
+					// we got the right number of elements
+					throw new SuccessException();
+				}
+			}
+		});
+
+		tryExecute(env, "Read deletes from Kafka");
+
+		deleteTestTopic(topic);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Reading writing test data sets

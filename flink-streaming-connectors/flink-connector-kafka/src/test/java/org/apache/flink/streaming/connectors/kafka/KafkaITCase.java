@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 
 import org.junit.Test;
 
@@ -28,7 +28,7 @@ import java.util.Properties;
 public class KafkaITCase extends KafkaConsumerTestBase {
 	
 	@Override
-	protected <T> FlinkKafkaConsumer<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
+	protected <T> FlinkKafkaConsumer<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> deserializationSchema, Properties props) {
 		return new FlinkKafkaConsumer082<>(topics, deserializationSchema, props);
 	}
 	
@@ -123,6 +123,11 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	@Test
 	public void testMultipleTopics() throws Exception {
 		runConsumeMultipleTopics();
+	}
+
+	@Test
+	public void testAllDeletes() throws Exception {
+		runAllDeletesTest();
 	}
 
 }
