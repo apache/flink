@@ -965,57 +965,54 @@ public class CliFrontend {
 		final String[] params = Arrays.copyOfRange(args, 1, args.length);
 
 		// do action
-		if (action.equals(ACTION_RUN)) {
-			// run() needs to run in a secured environment for the optimizer.
-			if (SecurityUtils.isSecurityEnabled()) {
-				String message = "Secure Hadoop environment setup detected. Running in secure context.";
-				LOG.info(message);
-				if (!webFrontend) {
-					System.out.println(message);
-				}
+		switch (action) {
+			case ACTION_RUN:
+				// run() needs to run in a secured environment for the optimizer.
+				if (SecurityUtils.isSecurityEnabled()) {
+					String message = "Secure Hadoop environment setup detected. Running in secure context.";
+					LOG.info(message);
+					if (!webFrontend) {
+						System.out.println(message);
+					}
 
-				try {
-					return SecurityUtils.runSecured(new SecurityUtils.FlinkSecuredRunner<Integer>() {
-						@Override
-						public Integer run() throws Exception {
-							return CliFrontend.this.run(params);
-						}
-					});
-				} catch (Exception e) {
-					handleError(e);
+					try {
+						return SecurityUtils.runSecured(new SecurityUtils.FlinkSecuredRunner<Integer>() {
+							@Override
+							public Integer run() throws Exception {
+								return CliFrontend.this.run(params);
+							}
+						});
+					} catch (Exception e) {
+						return handleError(e);
+					}
 				}
-			}
-			return run(params);
-		}
-		else if (action.equals(ACTION_LIST)) {
-			return list(params);
-		}
-		else if (action.equals(ACTION_INFO)) {
-			return info(params);
-		}
-		else if (action.equals(ACTION_CANCEL)) {
-			return cancel(params);
-		}
-		else if (action.equals("-h") || action.equals("--help")) {
-			CliFrontendParser.printHelp();
-			return 0;
-		}
-		else if (action.equals("-v") || action.equals("--version")) {
-			String version = EnvironmentInformation.getVersion();
-			String commitID = EnvironmentInformation.getRevisionInformation().commitId;
-			System.out.print("Version: " + version);
-			System.out.println(!commitID.equals(EnvironmentInformation.UNKNOWN) ? ", Commit ID: " + commitID : "");
-			return 0;
-		}
-		else {
-			System.out.printf("\"%s\" is not a valid action.\n", action);
-			System.out.println();
-			System.out.println("Valid actions are \"run\", \"list\", \"info\", or \"cancel\".");
-			System.out.println();
-			System.out.println("Specify the version option (-v or --version) to print Flink version.");
-			System.out.println();
-			System.out.println("Specify the help option (-h or --help) to get help on the command.");
-			return 1;
+				return run(params);
+			case ACTION_LIST:
+				return list(params);
+			case ACTION_INFO:
+				return info(params);
+			case ACTION_CANCEL:
+				return cancel(params);
+			case "-h":
+			case "--help":
+				CliFrontendParser.printHelp();
+				return 0;
+			case "-v":
+			case "--version":
+				String version = EnvironmentInformation.getVersion();
+				String commitID = EnvironmentInformation.getRevisionInformation().commitId;
+				System.out.print("Version: " + version);
+				System.out.println(!commitID.equals(EnvironmentInformation.UNKNOWN) ? ", Commit ID: " + commitID : "");
+				return 0;
+			default:
+				System.out.printf("\"%s\" is not a valid action.\n", action);
+				System.out.println();
+				System.out.println("Valid actions are \"run\", \"list\", \"info\", or \"cancel\".");
+				System.out.println();
+				System.out.println("Specify the version option (-v or --version) to print Flink version.");
+				System.out.println();
+				System.out.println("Specify the help option (-h or --help) to get help on the command.");
+				return 1;
 		}
 	}
 
