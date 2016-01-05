@@ -500,6 +500,13 @@ object MultinomialNaiveBayes {
       (Int, String),
       (Int, String)]() {
 
+    //TOOD adjust generics so that no compile errors are present anymore
+    def mapInitializer[K,V]() = new BroadcastVariableInitializer[(K, V), Map[K, V]] {
+      def initializeBroadcastVariable(data: Iterable[(K, V)]): Map[K, V] = {
+        data.asScala.toMap
+      }
+    }
+
     override def predictDataSet(
         instance: MultinomialNaiveBayes,
         predictParameters: ParameterMap,

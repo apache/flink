@@ -19,9 +19,10 @@
 package org.apache.flink
 
 
-import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{BroadcastVariableInitializer, RichFilterFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.DataSink
+import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
@@ -80,6 +81,26 @@ package object ml {
       dataSet.map(new BroadcastSetMapper[T, B, O](dataSet.clean(fun)))
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
+
+    def mapWithBcInitializer[B, O: TypeInformation: ClassTag](
+        broadcast: DataSet[B])(
+        initializer: BroadcastVariableInitializer[T, B])(
+        func: (B, T) => O)
+    : DataSet[O] = {
+      dataSet.map{new RichMapFunction[T, O]() {
+        var broadcastValue: B = _
+
+        override def open(config: Configuration): Unit = {
+          broadcastValue = getRuntimeContext()
+            .getBroadcastVariableWithInitializer("broadcastSet", initializer)
+        }
+
+        def map(element: T): O = {
+          func(broadcastValue, element)
+        }
+      }}.withBroadcastSet(broadcast, "broadcastSet")
+    }
+
   }
 
   private class BroadcastSingleElementMapper[T, B, O](
