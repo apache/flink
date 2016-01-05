@@ -34,7 +34,7 @@ import java.util.Map;
 /**
  * Request handler providing details about a single task execution attempt.
  */
-public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemptRequestHandler implements RequestHandler.JsonResponse {
+public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemptRequestHandler {
 	
 	public SubtaskExecutionAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -75,7 +75,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 		}
 
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeNumberField("subtask", execAttempt.getVertex().getParallelSubtaskIndex());

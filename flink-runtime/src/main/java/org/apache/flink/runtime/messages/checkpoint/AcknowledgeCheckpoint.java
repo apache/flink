@@ -36,18 +36,35 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	
 	private final SerializedValue<StateHandle<?>> state;
 
+	/**
+	 * The state size. This is an optimization in order to not deserialize the
+	 * state handle at the checkpoint coordinator when gathering stats about
+	 * the checkpoints.
+	 */
+	private final long stateSize;
+
 	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
-		this(job, taskExecutionId, checkpointId, null);
+		this(job, taskExecutionId, checkpointId, null, 0);
 	}
 
-	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId,
-									SerializedValue<StateHandle<?>> state) {
+	public AcknowledgeCheckpoint(
+			JobID job,
+			ExecutionAttemptID taskExecutionId,
+			long checkpointId,
+			SerializedValue<StateHandle<?>> state,
+			long stateSize) {
+
 		super(job, taskExecutionId, checkpointId);
 		this.state = state;
+		this.stateSize = stateSize;
 	}
 
 	public SerializedValue<StateHandle<?>> getState() {
 		return state;
+	}
+
+	public long getStateSize() {
+		return stateSize;
 	}
 
 	// --------------------------------------------------------------------------------------------

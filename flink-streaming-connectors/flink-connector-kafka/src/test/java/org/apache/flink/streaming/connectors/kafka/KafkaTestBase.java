@@ -27,6 +27,10 @@ import kafka.server.KafkaServer;
 import org.I0Itec.zkclient.ZkClient;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
@@ -292,9 +296,11 @@ public abstract class KafkaTestBase extends TestLogger {
 	//  Execution utilities
 	// ------------------------------------------------------------------------
 	
-	protected ZkClient createZookeeperClient() {
-		return new ZkClient(standardCC.zkConnect(), standardCC.zkSessionTimeoutMs(),
-				standardCC.zkConnectionTimeoutMs(), new ZooKeeperStringSerializer());
+	protected CuratorFramework createZookeeperClient() {
+		RetryPolicy retryPolicy = new ExponentialBackoffRetry(100, 10);
+		CuratorFramework curatorClient = CuratorFrameworkFactory.newClient(standardProps.getProperty("zookeeper.connect"), retryPolicy);
+		curatorClient.start();
+		return curatorClient;
 	}
 	
 	protected static void tryExecute(StreamExecutionEnvironment see, String name) throws Exception {

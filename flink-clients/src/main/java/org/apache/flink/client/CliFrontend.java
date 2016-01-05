@@ -1040,7 +1040,6 @@ public class CliFrontend {
 	 */
 	public static void main(String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
-		EnvironmentInformation.checkJavaVersion();
 
 		try {
 			CliFrontend cli = new CliFrontend();

@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
+import java.io.IOException;
 import java.util.HashMap;
 
 /**
@@ -91,5 +92,16 @@ public class FsHeapKvStateSnapshot<K, V> extends AbstractFileState implements Kv
 		catch (Exception e) {
 			throw new Exception("Failed to restore state from file system", e);
 		}
+	}
+
+	/**
+	 * Returns the file size in bytes.
+	 *
+	 * @return The file size in bytes.
+	 * @throws IOException Thrown if the file system cannot be accessed.
+	 */
+	@Override
+	public long getStateSize() throws IOException {
+		return getFileSize();
 	}
 }

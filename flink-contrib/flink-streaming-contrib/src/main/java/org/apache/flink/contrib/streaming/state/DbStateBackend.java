@@ -149,14 +149,15 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 					long handleId = rnd.nextLong();
 					String jobIdShort = env.getJobID().toShortString();
 
+					byte[] serializedState = InstantiationUtil.serializeObject(state);
 					dbAdapter.setCheckpointInsertParams(jobIdShort, insertStatement,
 							checkpointID, timestamp, handleId,
-							InstantiationUtil.serializeObject(state));
+							serializedState);
 
 					insertStatement.executeUpdate();
 
 					return new DbStateHandle<S>(jobIdShort, checkpointID, timestamp, handleId,
-							dbConfig);
+							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {

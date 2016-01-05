@@ -198,6 +198,40 @@ angular.module('flinkApp')
 
     deferred.promise
 
+  # Job-level checkpoint stats
+  @getJobCheckpointStats = (jobid) ->
+    deferred = $q.defer()
+
+    $http.get flinkConfig.jobServer + "jobs/" + jobid + "/checkpoints"
+    .success (data, status, headers, config) =>
+      if (angular.equals({}, data))
+        deferred.resolve(deferred.resolve(null))
+      else
+        deferred.resolve(data)
+
+    deferred.promise
+
+  # Operator-level checkpoint stats
+  @getOperatorCheckpointStats = (vertexid) ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/checkpoints"
+      .success (data) ->
+        # If no data available, we are done.
+        if (angular.equals({}, data))
+          deferred.resolve({ operatorStats: null, subtasksStats: null })
+        else
+          operatorStats = { id: data['id'], timestamp: data['timestamp'], duration: data['duration'], size: data['size'] }
+
+          if (angular.equals({}, data['subtasks']))
+            deferred.resolve({ operatorStats: operatorStats, subtasksStats: null })
+          else
+            subtaskStats = data['subtasks']
+            deferred.resolve({ operatorStats: operatorStats, subtasksStats: subtaskStats })
+
+    deferred.promise
+
   @loadExceptions = ->
     deferred = $q.defer()
 

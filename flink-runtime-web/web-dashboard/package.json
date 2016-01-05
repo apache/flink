@@ -1,7 +1,6 @@
 {
   "name": "flink-dashboard",
   "version": "1.0.0",
-  "author": "Piotr Godek",
   "description": "",
   "repository": "",
   "devDependencies": {

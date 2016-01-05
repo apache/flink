@@ -30,8 +30,6 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
-
 import java.io.UnsupportedEncodingException;
 
 /**
@@ -39,8 +37,6 @@ import java.io.UnsupportedEncodingException;
  */
 @ChannelHandler.Sharable
 public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
-	
-	private static final String MIME_TYPE = MimeTypes.getMimeTypeForExtension("txt");
 	
 	private final byte[] encodedText;
 	
@@ -58,10 +54,10 @@ public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
 		HttpResponse response = new DefaultFullHttpResponse(
 			HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(encodedText));
 
-		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, encodedText.length);
-		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, MIME_TYPE);
-
+		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");
+		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+		
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}
 }

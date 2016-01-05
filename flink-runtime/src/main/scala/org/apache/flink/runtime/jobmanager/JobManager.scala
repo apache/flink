@@ -1388,7 +1388,6 @@ object JobManager {
   def main(args: Array[String]): Unit = {
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG.logger, "JobManager", args)
-    EnvironmentInformation.checkJavaVersion()
     SignalHandler.register(LOG.logger)
 
     // parsing the command line arguments
@@ -1719,7 +1718,7 @@ object JobManager {
         0
       }
       else {
-        LOG.info("Staring JobManager without high-availability")
+        LOG.info("Starting JobManager without high-availability")
   
         configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
             ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)

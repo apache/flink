@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -836,8 +837,8 @@ public class CheckpointCoordinatorTest {
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
-					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
-
+					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
+					new DisabledCheckpointStatsTracker());
 
 			coord.startCheckpointScheduler();
 
@@ -906,8 +907,8 @@ public class CheckpointCoordinatorTest {
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter
-					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
-
+					(), new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
+					new DisabledCheckpointStatsTracker());
 
 			coord.startCheckpointScheduler();
 
@@ -985,7 +986,8 @@ public class CheckpointCoordinatorTest {
 					new ExecutionVertex[] { triggerVertex },
 					new ExecutionVertex[] { ackVertex },
 					new ExecutionVertex[] { commitVertex }, cl, new StandaloneCheckpointIDCounter(),
-					new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE);
+					new StandaloneCompletedCheckpointStore(2, cl), RecoveryMode.STANDALONE,
+					new DisabledCheckpointStatsTracker());
 			
 			coord.startCheckpointScheduler();
 

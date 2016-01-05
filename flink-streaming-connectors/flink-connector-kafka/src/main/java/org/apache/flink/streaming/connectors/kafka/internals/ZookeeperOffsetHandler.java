@@ -18,19 +18,17 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
-import kafka.common.TopicAndPartition;
 import kafka.utils.ZKGroupTopicDirs;
-import kafka.utils.ZkUtils;
 
-import org.I0Itec.zkclient.ZkClient;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.zookeeper.data.Stat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.Option;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,16 +40,14 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(ZookeeperOffsetHandler.class);
 	
 	private static final long OFFSET_NOT_SET = FlinkKafkaConsumer.OFFSET_NOT_SET;
-	
-	
-	private final ZkClient zkClient;
-	
+
 	private final String groupId;
 
-	
+	private final CuratorFramework curatorClient;
+
+
 	public ZookeeperOffsetHandler(Properties props) {
 		this.groupId = props.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
-		
 		if (this.groupId == null) {
 			throw new IllegalArgumentException("Required property '"
 					+ ConsumerConfig.GROUP_ID_CONFIG + "' has not been set");
@@ -61,30 +57,37 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 		if (zkConnect == null) {
 			throw new IllegalArgumentException("Required property 'zookeeper.connect' has not been set");
 		}
+
+		// we use Curator's default timeouts
+		int sessionTimeoutMs =  Integer.valueOf(props.getProperty("zookeeper.session.timeout.ms", "60000"));
+		int connectionTimeoutMs = Integer.valueOf(props.getProperty("zookeeper.connection.timeout.ms", "15000"));
 		
-		zkClient = new ZkClient(zkConnect,
-				Integer.valueOf(props.getProperty("zookeeper.session.timeout.ms", "6000")),
-				Integer.valueOf(props.getProperty("zookeeper.connection.timeout.ms", "6000")),
-				new ZooKeeperStringSerializer());
+		// undocumented config options allowing users to configure the retry policy. (they are "flink." prefixed as they are no official kafka configs)
+		int backoffBaseSleepTime = Integer.valueOf(props.getProperty("flink.zookeeper.base-sleep-time.ms", "100"));
+		int backoffMaxRetries =  Integer.valueOf(props.getProperty("flink.zookeeper.max-retries", "10"));
+		
+		RetryPolicy retryPolicy = new ExponentialBackoffRetry(backoffBaseSleepTime, backoffMaxRetries);
+		curatorClient = CuratorFrameworkFactory.newClient(zkConnect, sessionTimeoutMs, connectionTimeoutMs, retryPolicy);
+		curatorClient.start();
 	}
 
 
 	@Override
-	public void commit(Map<KafkaTopicPartition, Long> offsetsToCommit) {
+	public void commit(Map<KafkaTopicPartition, Long> offsetsToCommit) throws Exception {
 		for (Map.Entry<KafkaTopicPartition, Long> entry : offsetsToCommit.entrySet()) {
 			KafkaTopicPartition tp = entry.getKey();
 			long offset = entry.getValue();
 			
 			if (offset >= 0) {
-				setOffsetInZooKeeper(zkClient, groupId, tp.getTopic(), tp.getPartition(), offset);
+				setOffsetInZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition(), offset);
 			}
 		}
 	}
 
 	@Override
-	public void seekFetcherToInitialOffsets(List<KafkaTopicPartitionLeader> partitions, Fetcher fetcher) {
+	public void seekFetcherToInitialOffsets(List<KafkaTopicPartitionLeader> partitions, Fetcher fetcher) throws Exception {
 		for (KafkaTopicPartitionLeader tp : partitions) {
-			long offset = getOffsetFromZooKeeper(zkClient, groupId, tp.getTopicPartition().getTopic(), tp.getTopicPartition().getPartition());
+			long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopicPartition().getTopic(), tp.getTopicPartition().getPartition());
 
 			if (offset != OFFSET_NOT_SET) {
 				LOG.info("Offset for partition {} was set to {} in ZooKeeper. Seeking fetcher to that position.",
@@ -98,30 +101,43 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 
 	@Override
 	public void close() throws IOException {
-		zkClient.close();
+		curatorClient.close();
 	}
 
 	// ------------------------------------------------------------------------
 	//  Communication with Zookeeper
 	// ------------------------------------------------------------------------
 	
-	public static void setOffsetInZooKeeper(ZkClient zkClient, String groupId, String topic, int partition, long offset) {
-		TopicAndPartition tap = new TopicAndPartition(topic, partition);
-		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, tap.topic());
-		ZkUtils.updatePersistentPath(zkClient, topicDirs.consumerOffsetDir() + "/" + tap.partition(), Long.toString(offset));
+	public static void setOffsetInZooKeeper(CuratorFramework curatorClient, String groupId, String topic, int partition, long offset) throws Exception {
+		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topic);
+		String path = topicDirs.consumerOffsetDir() + "/" + partition;
+		curatorClient.newNamespaceAwareEnsurePath(path).ensure(curatorClient.getZookeeperClient());
+		byte[] data = Long.toString(offset).getBytes();
+		curatorClient.setData().forPath(path, data);
 	}
 
-	public static long getOffsetFromZooKeeper(ZkClient zkClient, String groupId, String topic, int partition) {
-		TopicAndPartition tap = new TopicAndPartition(topic, partition);
-		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, tap.topic());
-
-		scala.Tuple2<Option<String>, Stat> data = ZkUtils.readDataMaybeNull(zkClient,
-				topicDirs.consumerOffsetDir() + "/" + tap.partition());
-
-		if (data._1().isEmpty()) {
+	public static long getOffsetFromZooKeeper(CuratorFramework curatorClient, String groupId, String topic, int partition) throws Exception {
+		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topic);
+		String path = topicDirs.consumerOffsetDir() + "/" + partition;
+		curatorClient.newNamespaceAwareEnsurePath(path).ensure(curatorClient.getZookeeperClient());
+		
+		byte[] data = curatorClient.getData().forPath(path);
+		
+		if (data == null) {
 			return OFFSET_NOT_SET;
 		} else {
-			return Long.valueOf(data._1().get());
+			String asString = new String(data);
+			if (asString.length() == 0) {
+				return OFFSET_NOT_SET;
+			} else {
+				try {
+					return Long.parseLong(asString);
+				} catch (NumberFormatException e) {
+					throw new Exception(String.format(
+						"The offset in ZooKeeper for group '%s', topic '%s', partition %d is a malformed string: %s",
+						groupId, topic, partition, asString));
+				}
+			}
 		}
 	}
 }

@@ -33,7 +33,7 @@ import java.util.Map;
  * Request handler that returns the state transition timestamps for all subtasks, plus their
  * location and duration.
  */
-public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler implements RequestHandler.JsonResponse {
+public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 
 	
 	public SubtasksTimesHandler(ExecutionGraphHolder executionGraphHolder) {
@@ -45,7 +45,7 @@ public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler implem
 		final long now = System.currentTimeMillis();
 
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 

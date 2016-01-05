@@ -29,7 +29,7 @@ import java.util.Map;
 /**
  * Request handler that returns the aggregated user accumulators of a job.
  */
-public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler {
 	
 	public JobAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -40,7 +40,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
 		
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 

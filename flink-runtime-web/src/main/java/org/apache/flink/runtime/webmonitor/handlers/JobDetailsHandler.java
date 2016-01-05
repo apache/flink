@@ -43,7 +43,7 @@ import java.util.Map;
  *     <li>info about job vertices, including runtime, status, I/O bytes and records, subtasks in each status</li>
  * </ul>
  */
-public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 	
 	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -52,7 +52,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler impl
 	@Override
 	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
 		final StringWriter writer = new StringWriter();
-		final JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		final JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		final long now = System.currentTimeMillis();
 		
