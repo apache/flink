@@ -602,7 +602,7 @@ dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // L
             <p>Applies a general function to the window as a whole. Below is a function that manually sums the elements of a window.</p>
             <p><strong>Note:</strong> If you are using a windowAll transformation, you need to use an AllWindowFunction instead.</p>
     {% highlight java %}
-windowedStream.apply (new WindowFunction<Tuple2<String,Integer>,Integer>, Tuple, Window>() {
+windowedStream.apply (new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, Window>() {
     public void apply (Tuple tuple,
             Window window,
             Iterable<Tuple2<String, Integer>> values,
@@ -613,7 +613,20 @@ windowedStream.apply (new WindowFunction<Tuple2<String,Integer>,Integer>, Tuple,
         }
         out.collect (new Integer(sum));
     }
-};
+});
+
+// applying an AllWindowFunction on non-keyed window stream
+allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, Window>() {
+    public void apply (Window window,
+            Iterable<Tuple2<String, Integer>> values,
+            Collector<Integer> out) throws Exception {
+        int sum = 0;
+        for (value t: values) {
+            sum += t.f1;
+        }
+        out.collect (new Integer(sum));
+    }
+});
     {% endhighlight %}
           </td>
         </tr>
@@ -965,7 +978,11 @@ dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))) // La
             <p>Applies a general function to the window as a whole. Below is a function that manually sums the elements of a window.</p>
             <p><strong>Note:</strong> If you are using a windowAll transformation, you need to use an AllWindowFunction instead.</p>
     {% highlight scala %}
-windowedStream.apply { applyFunction }
+windowedStream.apply { WindowFunction }
+
+// applying an AllWindowFunction on non-keyed window stream
+allWindowedStream.apply { AllWindowFunction }
+
     {% endhighlight %}
           </td>
         </tr>
