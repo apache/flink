@@ -23,8 +23,9 @@ under the License.
 <a href="#top"></a>
 
 You can run Flink using Tez as an execution environment. Flink on Tez 
-is currently included in *flink-staging* in alpha. All classes are
-located in the *org.apache.flink.tez* package.
+is currently included in the *flink-contrib* module, which means it is 
+in alpha stability. All classes are located in the *org.apache.flink.tez* 
+package.
 
 * This will be replaced by the TOC
 {:toc}
@@ -101,7 +102,7 @@ public class WordCountExample {
   using `mvn -DskipTests clean package -Pinclude-tez -Dhadoop.version=X.X.X -Dtez.version=X.X.X`.
   Make sure that the Hadoop version matches the version that Tez uses.
   Obtain the jar file contained in the Flink distribution under
-  `flink-staging/flink-tez/target/flink-tez-x.y.z-flink-fat-jar.jar` 
+  `flink-contrib/flink-tez/target/flink-tez-x.y.z-flink-fat-jar.jar` 
   and upload it to some directory in HDFS. E.g., to upload the file
   to the directory `/apps`, execute
   {% highlight bash %}

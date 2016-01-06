@@ -16,13 +16,11 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
-
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-	<modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
@@ -31,28 +29,17 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-contrib-parent</artifactId>
-	<name>flink-contrib-parent</name>
 
+	<artifactId>flink-batch-connectors</artifactId>
+	<name>flink-batch-connectors</name>
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-storm</module>
-		<module>flink-storm-examples</module>
-		<module>flink-streaming-contrib</module>
-		<module>flink-tweet-inputformat</module>
-		<module>flink-operator-stats</module>
-		<module>flink-connector-wikiedits</module>
+		<module>flink-avro</module>
+		<module>flink-jdbc</module>
+		<module>flink-hadoop-compatibility</module>
+		<module>flink-hbase</module>
+		<module>flink-hcatalog</module>
 	</modules>
-
-
-	<profiles>
-		<profile>
-			<id>include-tez</id>
-			<modules>
-				<module>flink-tez</module>
-			</modules>
-		</profile>
-	</profiles>
-
+	
 </project>

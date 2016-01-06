@@ -62,12 +62,13 @@ under the License.
 		<module>flink-streaming-java</module>
 		<module>flink-streaming-scala</module>
 		<module>flink-streaming-connectors</module>
+		<module>flink-batch-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>
 		<module>flink-test-utils</module>
-		<module>flink-staging</module>
 		<module>flink-libraries</module>
+		<module>flink-scala-shell</module>
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
@@ -428,6 +429,10 @@ under the License.
 			</properties>
 			<modules>
 				<module>flink-yarn</module>
+				<!-- Include the flink-fs-tests project only for HD2.
+				 	The HDFS minicluster interfaces changed between the two versions.
+				 -->
+				<module>flink-fs-tests</module>
 			</modules>
 		</profile>
 
@@ -802,13 +807,13 @@ under the License.
 
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
+						<exclude>flink-batch-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
-						<exclude>flink-staging/flink-table/src/test/scala/resources/*.out</exclude>
+						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 						<!-- TweetInputFormat Test Data-->
 						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
-						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
-						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
+						<exclude>flink-batch-connectors/flink-avro/src/test/resources/testdata.avro</exclude>
+						<exclude>flink-batch-connectors/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_text</exclude>
 						<!-- Configuration Files. -->

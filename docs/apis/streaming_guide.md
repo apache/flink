@@ -3916,7 +3916,7 @@ After installing Docker an image can be pulled for each connector. Containers ca
 For the easiest setup, create a jar with all the dependencies of the *flink-streaming-connectors* project.
 
 ~~~bash
-cd /PATH/TO/GIT/flink/flink-staging/flink-streaming-connectors
+cd /PATH/TO/GIT/flink/flink-streaming-connectors
 mvn assembly:assembly
 ~~~bash
 

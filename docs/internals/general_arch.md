@@ -97,9 +97,7 @@ In addition to the projects listed in the figure above, Flink currently contains
 - `flink-dist`: The *distribution* project. It defines how to assemble the compiled code, scripts, and other resources
 into the final folder structure that is ready to use.
 
-- `flink-staging`: A series of projects that are in an early version. Currently contains
-among other things projects for YARN support, JDBC data sources and sinks, hadoop compatibility,
-graph specific operators, and HBase connectors.
+- `flink-contrib`: A series of projects that are in an early version.
 
 - `flink-quickstart`: Scripts, maven archetypes, and example programs for the quickstarts and tutorials.
 

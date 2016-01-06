@@ -46,7 +46,7 @@ The code is located in `org.apache.flink.api.java.hadoop` and
 `org.apache.flink.api.scala.hadoop` in an additional sub-package for the
 `mapred` and `mapreduce` API.
 
-Support for Hadoop Mappers and Reducers is contained in the `flink-staging`
+Support for Hadoop Mappers and Reducers is contained in the `flink-hadoop-compatibility`
 Maven module.
 This code resides in the `org.apache.flink.hadoopcompatibility`
 package.

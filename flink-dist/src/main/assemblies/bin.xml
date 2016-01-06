@@ -71,7 +71,7 @@ under the License.
 		
 		<!-- flink scala shell-->
 		<fileSet>
-			<directory>../flink-staging/flink-scala-shell/start-script/</directory>
+			<directory>../flink-scala-shell/start-script/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>755</fileMode>
 		</fileSet>
@@ -137,17 +137,6 @@ under the License.
 			<directory>src/main/flink-bin/tools</directory>
 			<outputDirectory>tools</outputDirectory>
 			<fileMode>0644</fileMode>
-		</fileSet>
-		<fileSet>
-			<directory>../flink-clients/src/main/resources/web-docs</directory>
-			<outputDirectory>tools</outputDirectory>
-			<fileMode>0644</fileMode>
-			<excludes>
-				<exclude>*.html</exclude>
-				<exclude>img/delete-icon.png</exclude>
-				<exclude>img/GradientBoxes.png</exclude>
-				<exclude>img/gradient.jpg</exclude>
-			</excludes>
 		</fileSet>
 
 		<!-- copy jar files of the batch examples -->
