@@ -35,12 +35,12 @@ import java.util.Collections;
  * elements. Windows cannot overlap.
  *
  * <p>
- * For example, in order to window into windows of 1 minute, every 10 seconds:
+ * For example, in order to window into windows of 1 minute:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
- * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
- * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(TumblingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
+ * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);
+ * WindowedStream<Tuple2<String, Integer>, String, TimeWindow> windowed =
+ *   keyed.window(TumblingTimeWindows.of(Time.minutes(1)));
  * } </pre>
  */
 public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
