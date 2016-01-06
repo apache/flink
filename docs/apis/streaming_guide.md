@@ -1790,7 +1790,7 @@ env.execute()
 </div>
 </div>
 
-### Collection Data Sources
+### Collection Data Sources and Sinks
 
 Flink provides special data sources which are backed
 by Java collections to ease testing. Once a program has been tested, the sources and sinks can be
@@ -1814,6 +1814,16 @@ DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 Iterator<Long> longIt = ...
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 {% endhighlight %}
+
+A collection data sink is specified as follows:
+
+{% highlight java %}
+import org.apache.flink.contrib.streaming.DataStreamUtils
+
+DataStream<Tuple2<String, Integer>> myResult = ...
+Iterator<Tuple2<String, Integer>> it = DataStreamUtils.collect(myResult)
+{% endhighlight %}
+
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
@@ -1830,6 +1840,17 @@ val myTuples = env.fromCollection(data)
 val longIt: Iterator[Long] = ...
 val myLongs = env.fromCollection(longIt)
 {% endhighlight %}
+
+A collection data sink is specified as follows:
+
+{% highlight scala %}
+import org.apache.flink.contrib.streaming.DataStreamUtils
+import scala.collection.JavaConverters.asScalaIteratorConverter
+
+val myResult: DataStream[(String, Int)] = ...
+val myOutput = DataStreamUtils.collect(myResult.getJavaStream).asScala.toList
+{% endhighlight %}
+
 </div>
 </div>
 
