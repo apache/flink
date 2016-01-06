@@ -139,13 +139,6 @@ under the License.
 									<exclude>com.typesafe.akka:akka-slf4j_*</exclude>
 									<exclude>io.netty:netty-all</exclude>
 									<exclude>io.netty:netty</exclude>
-									<exclude>org.eclipse.jetty:jetty-server</exclude>
-									<exclude>org.eclipse.jetty:jetty-continuation</exclude>
-									<exclude>org.eclipse.jetty:jetty-http</exclude>
-									<exclude>org.eclipse.jetty:jetty-io</exclude>
-									<exclude>org.eclipse.jetty:jetty-util</exclude>
-									<exclude>org.eclipse.jetty:jetty-security</exclude>
-									<exclude>org.eclipse.jetty:jetty-servlet</exclude>
 									<exclude>commons-fileupload:commons-fileupload</exclude>
 									<exclude>org.apache.avro:avro</exclude>
 									<exclude>commons-collections:commons-collections</exclude>
@@ -175,18 +168,14 @@ under the License.
 									<exclude>org.apache.commons:commons-math</exclude>
 									<exclude>org.apache.sling:org.apache.sling.commons.json</exclude>
 									<exclude>commons-logging:commons-logging</exclude>
-									<exclude>org.apache.httpcomponents:httpclient</exclude>
-									<exclude>org.apache.httpcomponents:httpcore</exclude>
 									<exclude>commons-codec:commons-codec</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-core</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
-									<exclude>org.codehaus.jettison:jettison</exclude>
 									<exclude>stax:stax-api</exclude>
 									<exclude>com.typesafe:config</exclude>
 									<exclude>org.uncommons.maths:uncommons-maths</exclude>
 									<exclude>com.github.scopt:scopt_*</exclude>
-									<exclude>org.mortbay.jetty:servlet-api</exclude>
 									<exclude>commons-io:commons-io</exclude>
 									<exclude>commons-cli:commons-cli</exclude>
 								</excludes>

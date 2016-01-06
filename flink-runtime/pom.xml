@@ -71,17 +71,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-			<!-- Version is set in root POM -->
-		</dependency>
-
-		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
 			<!-- Version is set in root POM -->
@@ -92,12 +81,6 @@ under the License.
 			<groupId>org.javassist</groupId>
 			<artifactId>javassist</artifactId>
 			<!-- Version is set in root POM -->
-		</dependency>
-
-		<dependency>
-			<groupId>org.codehaus.jettison</groupId>
-			<artifactId>jettison</artifactId>
-			<version>1.1</version>
 		</dependency>
 
 		<dependency>
