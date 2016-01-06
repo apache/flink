@@ -20,7 +20,8 @@ package org.apache.flink.examples.java.ml.util;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.examples.java.ml.LinearRegression;
+import org.apache.flink.examples.java.ml.LinearRegression.Params;
+import org.apache.flink.examples.java.ml.LinearRegression.Data;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -50,20 +51,20 @@ public class LinearRegressionData {
 			new Object[] { 0.28, 0.57 }, new Object[] { 1.65, 3.30 },
 			new Object[] { -0.55, -1.08 } };
 
-	public static DataSet<LinearRegression.Params> getDefaultParamsDataSet(
+	public static DataSet<Params> getDefaultParamsDataSet(
 			ExecutionEnvironment env) {
-		List<LinearRegression.Params> paramsList = new LinkedList<LinearRegression.Params>();
+		List<Params> paramsList = new LinkedList<>();
 		for (Object[] params : PARAMS) {
-			paramsList.add(new LinearRegression.Params((Double) params[0], (Double) params[1]));
+			paramsList.add(new Params((Double) params[0], (Double) params[1]));
 		}
 		return env.fromCollection(paramsList);
 	}
 
-	public static DataSet<LinearRegression.Data> getDefaultDataDataSet(ExecutionEnvironment env) {
+	public static DataSet<Data> getDefaultDataDataSet(ExecutionEnvironment env) {
 
-		List<LinearRegression.Data> dataList = new LinkedList<LinearRegression.Data>();
+		List<Data> dataList = new LinkedList<>();
 		for (Object[] data : DATA) {
-			dataList.add(new LinearRegression.Data((Double) data[0], (Double) data[1]));
+			dataList.add(new Data((Double) data[0], (Double) data[1]));
 		}
 		return env.fromCollection(dataList);
 	}

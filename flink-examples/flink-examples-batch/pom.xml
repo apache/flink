@@ -256,13 +256,13 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.examples.java.graph.EnumTrianglesBasic</program-class>
+									<program-class>org.apache.flink.examples.java.graph.EnumTriangles</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>**/java/graph/EnumTrianglesBasic.class</include>
-								<include>**/java/graph/EnumTrianglesBasic$*.class</include>
+								<include>**/java/graph/EnumTriangles.class</include>
+								<include>**/java/graph/EnumTriangles$*.class</include>
 								<include>**/java/graph/util/EnumTrianglesDataTypes.class</include>
 								<include>**/java/graph/util/EnumTrianglesDataTypes$*.class</include>
 								<include>**/java/graph/util/EnumTrianglesData.class</include>

@@ -71,7 +71,7 @@ import java.util.List;
  * 
  */
 @SuppressWarnings("serial")
-public class EnumTrianglesBasic {
+public class EnumTriangles {
 
 	static boolean fileOutput = false;
 	static String edgePath = null;

@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.examples.java.graph.util.EnumTrianglesDataTypes.Edge;
 
 /**
  * Provides the default data sets used for the Triangle Enumeration example programs.
@@ -50,7 +51,7 @@ public class EnumTrianglesData {
 		
 		List<EnumTrianglesDataTypes.Edge> edges = new ArrayList<EnumTrianglesDataTypes.Edge>();
 		for(Object[] e : EDGES) {
-			edges.add(new EnumTrianglesDataTypes.Edge((Integer)e[0], (Integer)e[1]));
+			edges.add(new Edge((Integer)e[0], (Integer)e[1]));
 		}
 		
 		return env.fromCollection(edges);

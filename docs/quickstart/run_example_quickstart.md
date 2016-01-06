@@ -23,7 +23,8 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-This guide walks you through the steps of executing an example program ([K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering)) on Flink. On the way, you will see the a visualization of the program, the optimized execution plan, and track the progress of its execution.
+This guide walks you through the steps of executing an example program ([K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering)) on Flink. 
+On the way, you will see the a visualization of the program, the optimized execution plan, and track the progress of its execution.
 
 ## Setup Flink
 Follow the [instructions](setup_quickstart.html) to setup Flink and enter the root directory of your Flink setup.
@@ -36,7 +37,7 @@ Flink contains a data generator for K-Means.
 mkdir kmeans
 cd kmeans
 # Run data generator
-java -cp ../examples/KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
+java -cp ../examples/batch/KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
   org.apache.flink.examples.java.clustering.util.KMeansDataGenerator \
   -points 500 -k 10 -stddev 0.08 -output `pwd`
 ~~~
@@ -78,61 +79,41 @@ Start Flink and the web job submission client on your local machine.
 cd ..
 # start Flink
 ./bin/start-local.sh
-# Start the web client
-./bin/start-webclient.sh
 ~~~
 
 ## Inspect and Run the K-Means Example Program
-The Flink web client allows to submit Flink programs using a graphical user interface.
+The Flink web interface allows to submit Flink programs using a graphical user interface.
 
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/webclient_job_view.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/webclient_job_view.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_submit.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_submit.png" /></a>
 	</div>
 	<div class="col-md-6">
-		1. Open web client on  <a href="http://localhost:8080/launch.html">localhost:8080</a> <br>
-		2. Upload the K-Mean job JAR file. 
+		1. Open web interface on <a href="http://localhost:8081">localhost:8081</a> <br>
+		2. Select the "Submit new Job" page in the menu <br>
+		3. Upload the <code>KMeans.jar</code> from <code>examples/batch</code> by clicking the "Add New" button, and then the "Upload" button. <br>
+		4. Select the <code>KMeans.jar</code> form the list of jobs <br>
+		5. Enter the arguments and options in the lower box: <br>
+		    Leave the <i>Entry Class</i> and <i>Parallelism</i> form empty<br>
+		    Enter the following program arguments: <br>
+		    (KMeans expects the following args: <code>&lt;points path&gt; &lt;centers path&gt; &lt;result path&gt; &lt;num iterations&gt;</code>
 			{% highlight bash %}
-			./examples/KMeans.jar
-			{% endhighlight %} </br>
-		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
-		4. Enter the arguments and options in the lower left box: <br>
-            Arguments: <br>
-			{% highlight bash %}
-			file://<pathToFlink>/kmeans/points file://<pathToFlink>/kmeans/centers file://<pathToFlink>/kmeans/result 10
-			{% endhighlight %}
-			For example:
-			{% highlight bash %}
-			file:///tmp/flink/kmeans/points file:///tmp/flink/kmeans/centers file:///tmp/flink/kmeans/result 10
-			{% endhighlight %}
-            Options (optional): (set the default parallelims, e.g., to 4) <br>
-			{% highlight bash %}
-            -p 4
-			{% endhighlight %}
+            /tmp/kmeans/points /tmp/kmeans/centers /tmp/kmeans/result 10
+			{% endhighlight %} <br>
+		6. Press <b>Submit</b> to start the job
 	</div>
 </div>
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/webclient_plan_view.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/webclient_plan_view.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_execute.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_execute.png" /></a>
 	</div>
 
 	<div class="col-md-6">
-		1. Press the <b>RunJob</b> to see the optimizer plan. <br>
-		2. Inspect the operators and see the properties (input sizes, cost estimation) determined by the optimizer.
+		Watch the job executing.
 	</div>
 </div>
-<hr>
-<div class="row" style="padding-top:15px">
-	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/jobmanager.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/jobmanager.png" /></a>
-	</div>
-	<div class="col-md-6">
-		1. Press the <b>Continue</b> button to start executing the job. <br>
-		2. <a href="http://localhost:8080/launch.html">Open Flink's monitoring interface</a> to see the job's progress. (Due to the small input data, the job will finish really quick!)<br>
-		3. Once the job has finished, you can analyze the runtime of the individual operators.
-	</div>
-</div>
+
 
 ## Shutdown Flink
 Stop Flink when you are done.
@@ -140,8 +121,6 @@ Stop Flink when you are done.
 ~~~ bash
 # stop Flink
 ./bin/stop-local.sh
-# Stop the Flink web client
-./bin/stop-webclient.sh
 ~~~
 
 ## Analyze the Result
