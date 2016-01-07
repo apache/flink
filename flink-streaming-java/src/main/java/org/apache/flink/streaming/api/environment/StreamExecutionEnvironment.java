@@ -85,7 +85,7 @@ import static java.util.Objects.requireNonNull;
  * The StreamExecutionEnvironment is the context in which a streaming program is executed. A
  * {@link LocalStreamEnvironment} will cause execution in the current JVM, a
  * {@link RemoteStreamEnvironment} will cause execution on a remote setup.
- * 
+ *
  * <p>The environment provides methods to control the job execution (such as setting the parallelism
  * or the fault tolerance/checkpointing parameters) and to interact with the outside world (data access).
  *
@@ -96,7 +96,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/** The default name to use for a streaming job if no other name has been specified */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
-	
+
 	/** The time characteristic that is used if none other is set */
 	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
 
@@ -108,28 +108,28 @@ public abstract class StreamExecutionEnvironment {
 
 	/** The default parallelism used when creating a local environment */
 	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
-	
+
 	// ------------------------------------------------------------------------
 
 	/** The execution configuration for this environment */
 	private final ExecutionConfig config = new ExecutionConfig();
-	
-	/** Settings that control the checkpointing behavior */ 
+
+	/** Settings that control the checkpointing behavior */
 	private final CheckpointConfig checkpointCfg = new CheckpointConfig();
-	
+
 	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
-	
+
 	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
-	
+
 	protected boolean isChainingEnabled = true;
-	
+
 	/** The state backend used for storing k/v state and state snapshots */
 	private StateBackend<?> defaultStateBackend;
-	
+
 	/** The time characteristic used by the data streams */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -240,7 +240,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Gets the checkpoint config, which defines values like checkpoint interval, delay between
 	 * checkpoints, etc.
-	 * 
+	 *
 	 * @return The checkpoint config.
 	 */
 	public CheckpointConfig getCheckpointConfig() {
@@ -252,13 +252,13 @@ public abstract class StreamExecutionEnvironment {
 	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
 	 * dataflow will be restarted from the latest completed checkpoint. This method selects
 	 * {@link CheckpointingMode#EXACTLY_ONCE} guarantees.
-	 * 
+	 *
 	 * <p>The job draws checkpoints periodically, in the given interval. The state will be
 	 * stored in the configured state backend.</p>
-	 * 
+	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. For that reason, iterative jobs will not be started if used
-	 * with enabled checkpointing. To override this mechanism, use the 
+	 * with enabled checkpointing. To override this mechanism, use the
 	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 *
 	 * @param interval Time interval between state checkpoints in milliseconds.
@@ -279,12 +279,12 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. For that reason, iterative jobs will not be started if used
-	 * with enabled checkpointing. To override this mechanism, use the 
+	 * with enabled checkpointing. To override this mechanism, use the
 	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
 	 *
-	 * @param interval 
+	 * @param interval
 	 *             Time interval between state checkpoints in milliseconds.
-	 * @param mode 
+	 * @param mode
 	 *             The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
 	 */
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode) {
@@ -292,7 +292,7 @@ public abstract class StreamExecutionEnvironment {
 		checkpointCfg.setCheckpointInterval(interval);
 		return this;
 	}
-	
+
 	/**
 	 * Enables checkpointing for the streaming job. The distributed state of the streaming
 	 * dataflow will be periodically snapshotted. In case of a failure, the streaming
@@ -304,7 +304,7 @@ public abstract class StreamExecutionEnvironment {
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. If the "force" parameter is set to true, the system will execute the
 	 * job nonetheless.</p>
-	 * 
+	 *
 	 * @param interval
 	 *            Time interval between state checkpoints in millis.
 	 * @param mode
@@ -332,9 +332,9 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>NOTE: Checkpointing iterative streaming dataflows in not properly supported at
 	 * the moment. For that reason, iterative jobs will not be started if used
-	 * with enabled checkpointing. To override this mechanism, use the 
+	 * with enabled checkpointing. To override this mechanism, use the
 	 * {@link #enableCheckpointing(long, CheckpointingMode, boolean)} method.</p>
-	 * 
+	 *
 	 * @deprecated Use {@link #enableCheckpointing(long)} instead.
 	 */
 	@Deprecated
@@ -345,7 +345,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Returns the checkpointing interval or -1 if checkpointing is disabled.
-	 * 
+	 *
 	 * <p>Shorthand for {@code getCheckpointConfig().getCheckpointInterval()}.
 	 *
 	 * @return The checkpointing interval or -1
@@ -365,9 +365,9 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Returns the checkpointing mode (exactly-once vs. at-least-once).
-	 * 
+	 *
 	 * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingMode()}.
-	 * 
+	 *
 	 * @return The checkpoin
 	 */
 	public CheckpointingMode getCheckpointingMode() {
@@ -385,7 +385,7 @@ public abstract class StreamExecutionEnvironment {
 	 * <p>The {@link org.apache.flink.runtime.state.memory.MemoryStateBackend} for example
 	 * maintains the state in heap memory, as objects. It is lightweight without extra dependencies,
 	 * but can checkpoint only small states (some counters).
-	 * 
+	 *
 	 * <p>In contrast, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend}
 	 * stores checkpoints of the state (also maintained as heap objects) in files. When using a replicated
 	 * file system (like HDFS, S3, MapR FS, Tachyon, etc) this will guarantee that state is not lost upon
@@ -393,7 +393,7 @@ public abstract class StreamExecutionEnvironment {
 	 * consistent (assuming that Flink is run in high-availability mode).
 	 *
 	 * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
-	 * 
+	 *
 	 * @see #getStateBackend()
 	 */
 	public StreamExecutionEnvironment setStateBackend(StateBackend<?> backend) {
@@ -404,7 +404,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Returns the state backend that defines how to store and checkpoint state.
 	 * @return The state backend that defines how to store and checkpoint state.
-	 * 
+	 *
 	 * @see #setStateBackend(StateBackend)
 	 */
 	public StateBackend<?> getStateBackend() {
@@ -544,7 +544,7 @@ public abstract class StreamExecutionEnvironment {
 	 * If you set the characteristic to IngestionTime of EventTime this will set a default
 	 * watermark update interval of 200 ms. If this is not applicable for your application
 	 * you should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
-	 * 
+	 *
 	 * @param characteristic The time characteristic.
 	 */
 	public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
@@ -568,7 +568,7 @@ public abstract class StreamExecutionEnvironment {
 	public TimeCharacteristic getStreamTimeCharacteristic() {
 		return timeCharacteristic;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Data stream creations
 	// --------------------------------------------------------------------------------------------
@@ -670,7 +670,7 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a data stream from the given non-empty collection.
-	 * 
+	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source,
 	 * i.e., a data stream source with a parallelism one.</p>
 	 *
@@ -684,7 +684,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> fromCollection(Collection<OUT> data, TypeInformation<OUT> typeInfo) {
 		Preconditions.checkNotNull(data, "Collection must not be null");
-		
+
 		// must not have null elements and mixed elements
 		FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
 
@@ -700,11 +700,11 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a data stream from the given iterator.
-	 * 
+	 *
 	 * <p>Because the iterator will remain unmodified until the actual execution happens,
 	 * the type of data returned by the iterator must be given explicitly in the form of the type
 	 * class (this is due to the fact that the Java compiler erases the generic type information).</p>
-	 * 
+	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
 	 * a data stream source with a parallelism of one.</p>
 	 *
@@ -723,13 +723,13 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Creates a data stream from the given iterator.
-	 * 
+	 *
 	 * <p>Because the iterator will remain unmodified until the actual execution happens,
 	 * the type of data returned by the iterator must be given explicitly in the form of the type
 	 * information. This method is useful for cases where the type is generic.
 	 * In that case, the type class (as given in
 	 * {@link #fromCollection(java.util.Iterator, Class)} does not supply all type information.</p>
-	 * 
+	 *
 	 * <p>Note that this operation will result in a non-parallel data stream source, i.e.,
 	 * a data stream source with a parallelism one.</p>
 	 *
@@ -751,7 +751,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a new data stream that contains elements in the iterator. The iterator is splittable, allowing the
 	 * framework to create a parallel data stream source that returns the elements in the iterator.
-	 * 
+	 *
 	 * <p>Because the iterator will remain unmodified until the actual execution happens, the type of data returned by the
 	 * iterator must be given explicitly in the form of the type class (this is due to the fact that the Java compiler
 	 * erases the generic type information).</p>
@@ -996,7 +996,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		a	negative value ensures retrying forever.
 	 * @return A data stream containing the strings received from the socket
 	 */
-	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
+	public DataStreamSource<String> socketTextStream(String hostname, int port, String delimiter, long maxRetry) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry),
 				"Socket Stream");
 	}
@@ -1014,7 +1014,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		A character which splits received strings into records
 	 * @return A data stream containing the strings received from the socket
 	 */
-	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
+	public DataStreamSource<String> socketTextStream(String hostname, int port, String delimiter) {
 		return socketTextStream(hostname, port, delimiter, 0);
 	}
 
@@ -1031,7 +1031,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A data stream containing the strings received from the socket
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
-		return socketTextStream(hostname, port, '\n');
+		return socketTextStream(hostname, port, "\n");
 	}
 
 	/**
@@ -1279,7 +1279,7 @@ public abstract class StreamExecutionEnvironment {
 		// because the streaming project depends on "flink-clients" (and not the other way around)
 		// we currently need to intercept the data set environment and create a dependent stream env.
 		// this should be fixed once we rework the project dependencies
-		
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
 			return new StreamContextEnvironment((ContextEnvironment) env);
@@ -1417,7 +1417,7 @@ public abstract class StreamExecutionEnvironment {
 	{
 		return new RemoteStreamEnvironment(host, port, clientConfig, jarFiles);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Methods to control the context and local environments for execution from packaged programs
 	// --------------------------------------------------------------------------------------------
@@ -1425,7 +1425,7 @@ public abstract class StreamExecutionEnvironment {
 	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = ctx;
 	}
-	
+
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
 	}
