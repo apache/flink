@@ -1790,7 +1790,7 @@ env.execute()
 </div>
 </div>
 
-### Collection Data Sources and Sinks
+### Collection Data Sources
 
 Flink provides special data sources which are backed
 by Java collections to ease testing. Once a program has been tested, the sources and sinks can be
@@ -1814,16 +1814,6 @@ DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 Iterator<Long> longIt = ...
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 {% endhighlight %}
-
-A collection data sink is specified as follows:
-
-{% highlight java %}
-import org.apache.flink.contrib.streaming.DataStreamUtils
-
-DataStream<Tuple2<String, Integer>> myResult = ...
-Iterator<Tuple2<String, Integer>> it = DataStreamUtils.collect(myResult)
-{% endhighlight %}
-
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
@@ -1840,23 +1830,39 @@ val myTuples = env.fromCollection(data)
 val longIt: Iterator[Long] = ...
 val myLongs = env.fromCollection(longIt)
 {% endhighlight %}
-
-A collection data sink is specified as follows:
-
-{% highlight scala %}
-import org.apache.flink.contrib.streaming.DataStreamUtils
-import scala.collection.JavaConverters.asScalaIteratorConverter
-
-val myResult: DataStream[(String, Int)] = ...
-val myOutput = DataStreamUtils.collect(myResult.getJavaStream).asScala.toList
-{% endhighlight %}
-
 </div>
 </div>
 
 **Note:** Currently, the collection data source requires that data types and iterators implement
 `Serializable`. Furthermore, collection data sources can not be executed in parallel (
 parallelism = 1).
+
+### Iterator Data Sink
+
+Flink also provides a sink to collect DataDtream results for testing and debugging purposes, which can be used as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.contrib.streaming.DataStreamUtils
+
+DataStream<Tuple2<String, Integer>> myResult = ...
+Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
+{% endhighlight %}
+
+</div>
+<div data-lang="scala" markdown="1">
+
+{% highlight scala %}
+import org.apache.flink.contrib.streaming.DataStreamUtils
+import scala.collection.JavaConverters.asScalaIteratorConverter
+
+val myResult: DataStream[(String, Int)] = ...
+val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.getJavaStream).asScala
+{% endhighlight %}
+</div>
+</div>
+
 
 [Back to top](#top)
 
