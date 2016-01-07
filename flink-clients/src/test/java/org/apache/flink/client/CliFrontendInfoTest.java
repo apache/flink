@@ -61,7 +61,7 @@ public class CliFrontendInfoTest {
 		replaceStdOut();
 		try {
 
-			String[] parameters = new String[] { CliFrontendTestUtils.getTestJarPath() };
+			String[] parameters = new String[] { CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
 			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
