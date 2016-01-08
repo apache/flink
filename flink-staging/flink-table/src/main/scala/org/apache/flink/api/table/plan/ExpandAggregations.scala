@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.table.plan
 
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.expressions.analysis.SelectionAnalyzer
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -43,7 +44,7 @@ import scala.collection.mutable
  * If the input of the [[Select]] is a [[GroupBy]] this is preserved before the aggregation.
  */
 object ExpandAggregations {
-  def apply(select: Select): PlanNode = select match {
+  def apply(config: TableConfig, select: Select): PlanNode = select match {
     case Select(input, selection) =>
 
       val aggregations = mutable.HashMap[(Expression, Aggregations), String]()
@@ -114,11 +115,12 @@ object ExpandAggregations {
         }
       }
 
-      val intermediateAnalyzer = new SelectionAnalyzer(input.outputFields)
+      val intermediateAnalyzer = new SelectionAnalyzer(config, input.outputFields)
       val analyzedIntermediates = intermediateFields.toSeq.map(intermediateAnalyzer.analyze)
 
       val finalAnalyzer =
-        new SelectionAnalyzer(analyzedIntermediates.map(e => (e.name, e.typeInfo)))
+        new SelectionAnalyzer(config: TableConfig,
+          analyzedIntermediates.map(e => (e.name, e.typeInfo)))
       val analyzedFinals = finalFields.map(finalAnalyzer.analyze)
 
       val result = input match {

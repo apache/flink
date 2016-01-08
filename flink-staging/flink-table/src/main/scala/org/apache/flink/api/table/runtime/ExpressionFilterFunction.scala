@@ -31,7 +31,7 @@ import org.apache.flink.configuration.Configuration
 class ExpressionFilterFunction[T](
     predicate: Expression,
     inputType: CompositeType[T],
-    config: TableConfig = TableConfig.DEFAULT) extends RichFilterFunction[T] {
+    config: TableConfig) extends RichFilterFunction[T] {
 
   var compiledFilter: FilterFunction[T] = null
 

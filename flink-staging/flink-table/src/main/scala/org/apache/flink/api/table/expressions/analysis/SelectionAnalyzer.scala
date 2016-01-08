@@ -18,17 +18,19 @@
 package org.apache.flink.api.table.expressions.analysis
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.TableConfig
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.trees.Analyzer
 
 /**
  * This analyzes selection expressions.
  */
-class SelectionAnalyzer(inputFields: Seq[(String, TypeInformation[_])])
+class SelectionAnalyzer(config: TableConfig, inputFields: Seq[(String, TypeInformation[_])])
   extends Analyzer[Expression] {
 
   def rules = Seq(
     new ResolveFieldReferences(inputFields),
+    new ResolveRowFunctionCalls(config),
     new VerifyNoNestedAggregates,
     new InsertAutoCasts,
     new TypeCheck)

@@ -15,24 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.TableConfig
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.table
 
 /**
- * Analyzer for predicates, i.e. filter operations and where clauses of joins.
+ * General interface for implementing custom row functions.
+ *
+ * @tparam R return type of the function
  */
-class PredicateAnalyzer(config: TableConfig, inputFields: Seq[(String, TypeInformation[_])])
-  extends Analyzer[Expression] {
+trait RowFunction[R] extends Serializable {
 
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields),
-    new ResolveRowFunctionCalls(config),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean)
+  def call(args: Array[Any]): R
+
 }

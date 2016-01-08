@@ -33,6 +33,11 @@ abstract class TreeNode[A <: TreeNode[A]] { self: A with Product =>
    */
   def fastEquals(other: TreeNode[_]): Boolean = this.eq(other) || this == other
 
+  /**
+   * Tests for Seq equality by first testing for reference equality.
+   */
+  def fastEqualsSeq(o1: Seq[TreeNode[_]], o2: Seq[TreeNode[_]]): Boolean = o1.eq(o2) || o1 == o2
+
   def transformPre(rule: PartialFunction[A, A]): A = {
     val afterTransform = rule.applyOrElse(this, identity[A])
 
@@ -54,6 +59,15 @@ abstract class TreeNode[A <: TreeNode[A]] { self: A with Product =>
           changed = true
           newChild
         }
+      case childSeq: Seq[A] if fastEqualsSeq(children, childSeq) =>
+        val newChildSeq = children.map(_.transformPre(rule))
+        if (fastEqualsSeq(newChildSeq, childSeq)) {
+          childSeq
+        }
+        else {
+          changed = true
+          newChildSeq
+        }
       case other: AnyRef => other
       case null => null
     } toArray
@@ -72,6 +86,7 @@ abstract class TreeNode[A <: TreeNode[A]] { self: A with Product =>
 
   def transformChildrenPost(rule: PartialFunction[A, A]): A = {
     var changed = false
+    // iterate through the arguments of the case class
     val newArgs = productIterator map {
       case child: A if children.contains(child) =>
         val newChild = child.transformPost(rule)
@@ -80,6 +95,15 @@ abstract class TreeNode[A <: TreeNode[A]] { self: A with Product =>
         } else {
           changed = true
           newChild
+        }
+      case childSeq: Seq[A] if fastEqualsSeq(children, childSeq) =>
+        val newChildSeq = children.map(_.transformPost(rule))
+        if (fastEqualsSeq(newChildSeq, childSeq)) {
+          childSeq
+        }
+        else {
+          changed = true
+          newChildSeq
         }
       case other: AnyRef => other
       case null => null
@@ -95,7 +119,7 @@ abstract class TreeNode[A <: TreeNode[A]] { self: A with Product =>
       case e: A => if (predicate(e)) {
         exists = true
       }
-        e
+      e
     }
     exists
   }

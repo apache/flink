@@ -35,7 +35,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class FilterITCase extends MultipleProgramsTestBase {
 
-
 	public FilterITCase(TestExecutionMode mode){
 		super(mode);
 	}

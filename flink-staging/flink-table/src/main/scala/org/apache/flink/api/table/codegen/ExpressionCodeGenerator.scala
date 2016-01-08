@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenamingProxyTypeInfo, RowTypeInfo}
-import org.apache.flink.api.table.{ExpressionException, TableConfig, expressions}
+import org.apache.flink.api.table.{ExpressionException, FunctionSignature, TableConfig, expressions}
 import org.codehaus.janino.SimpleCompiler
 import org.slf4j.LoggerFactory
 
@@ -59,9 +59,13 @@ abstract class ExpressionCodeGenerator[R](
   val compiler = new SimpleCompiler()
   compiler.setParentClassLoader(cl)
 
-  protected val reusableMemberStatements = mutable.Set[String]()
+  // set of member statements that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  protected val reusableMemberStatements = mutable.LinkedHashSet[String]()
 
-  protected val reusableInitStatements = mutable.Set[String]()
+  // set of constructor statements that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  protected val reusableInitStatements = mutable.LinkedHashSet[String]()
 
   protected def reuseMemberCode(): String = {
     reusableMemberStatements.mkString("", "\n", "\n")
@@ -139,11 +143,11 @@ abstract class ExpressionCodeGenerator[R](
         if (nullCheck) {
           s"""
             |boolean $nullTerm = true;
-            |$resultTpe resultTerm = null;
+            |$resultTpe $resultTerm = null;
           """.stripMargin
         } else {
           s"""
-            |$resultTpe resultTerm = null;
+            |$resultTpe $resultTerm = null;
           """.stripMargin
         }
 
@@ -221,10 +225,7 @@ abstract class ExpressionCodeGenerator[R](
         }
 
       case expressions.Literal(dateValue: Date, DATE_TYPE_INFO) =>
-        val dateName = s"""date_${dateValue.getTime}"""
-        val dateStmt = s"""static java.util.Date $dateName
-             |= new java.util.Date(${dateValue.getTime});""".stripMargin
-        reusableMemberStatements.add(dateStmt)
+        val dateName = addDate(dateValue)
 
         if (nullCheck) {
           s"""
@@ -344,9 +345,9 @@ abstract class ExpressionCodeGenerator[R](
         if child.typeInfo == BasicTypeInfo.STRING_TYPE_INFO =>
         val childGen = generateExpression(child)
 
-        addDateFormatter()
-        addTimeFormatter()
-        addTimestampFormatter()
+        val dateFormatterName = addDateFormatter()
+        val timeFormatterName = addTimeFormatter()
+        val timestampFormatterName = addTimestampFormatter()
 
         // tries to parse
         // "2011-05-03 15:51:36.234"
@@ -358,13 +359,13 @@ abstract class ExpressionCodeGenerator[R](
           s"""
             |java.util.Date $parsedName = null;
             |try {
-            |  $parsedName = timestampFormatter.parse(${childGen.resultTerm});
+            |  $parsedName = $timestampFormatterName.parse(${childGen.resultTerm});
             |} catch (java.text.ParseException e1) {
             |  try {
-            |    $parsedName = dateFormatter.parse(${childGen.resultTerm});
+            |    $parsedName = $dateFormatterName.parse(${childGen.resultTerm});
             |  } catch (java.text.ParseException e2) {
             |    try {
-            |      $parsedName = timeFormatter.parse(${childGen.resultTerm});
+            |      $parsedName = $timeFormatterName.parse(${childGen.resultTerm});
             |    } catch (java.text.ParseException e3) {
             |      $parsedName = new java.util.Date(Long.valueOf(${childGen.resultTerm}));
             |    }
@@ -664,6 +665,43 @@ abstract class ExpressionCodeGenerator[R](
             """.stripMargin
         }
 
+      case ResolvedRowFunctionCall(name, typeInfo, args) =>
+        val childrenCode = args.map(generateExpression(_))
+
+        val rowFunctions = config.getRegisteredRowFunctions.toIndexedSeq
+        val signature = FunctionSignature(name, args.map(_.typeInfo))
+        val index = rowFunctions
+          .zipWithIndex
+          .find(_._1._1 == signature)
+          .getOrElse(throw new ExpressionException("Invalid signature."))
+          ._2
+
+        val rowFunctionName = addRowFunction(index, args.size)
+
+        val arguments = childrenCode
+          .zipWithIndex
+          .map(codeWithIndex => s"""
+              |${rowFunctionName}_args[${codeWithIndex._2}] = ${codeWithIndex._1.resultTerm};
+            """.stripMargin
+          )
+          .mkString("\n", "\n", "")
+
+        val resultTermCode = childrenCode.map(_.code).mkString("\n") +
+          arguments +
+          s"""
+            |$resultTpe $resultTerm = ($resultTpe) $rowFunctionName
+            |  .call(${rowFunctionName}_args);
+          """.stripMargin
+
+        if (nullCheck) {
+          resultTermCode +
+            s"""
+              |boolean $nullTerm = $resultTerm == null;
+            """.stripMargin
+        } else {
+          resultTermCode
+        }
+
       case _ => throw new ExpressionException("Could not generate code for expression " + expr)
     }
 
@@ -794,36 +832,94 @@ abstract class ExpressionCodeGenerator[R](
 
   }
 
-  def addDateFormatter(): Unit = {
+  // ----------------------------------------------------------------------------------------------
+
+  def addDateFormatter(): String = {
+    val name = s"dateFormatter"
+
     reusableMemberStatements.add(s"""
-    |java.text.SimpleDateFormat dateFormatter =
-    |  new java.text.SimpleDateFormat("yyyy-MM-dd");
-    |""".stripMargin)
+      |java.text.SimpleDateFormat $name =
+      |  new java.text.SimpleDateFormat("yyyy-MM-dd");
+      """.stripMargin)
 
     reusableInitStatements.add(s"""
-    |dateFormatter.setTimeZone(config.getTimeZone());
-    |""".stripMargin)
+      |$name.setTimeZone(config.getTimeZone());
+      """.stripMargin)
+
+    name
   }
 
-  def addTimeFormatter(): Unit = {
+  def addTimeFormatter(): String = {
+    val name = s"timeFormatter"
+
     reusableMemberStatements.add(s"""
-    |java.text.SimpleDateFormat timeFormatter =
-    |  new java.text.SimpleDateFormat("HH:mm:ss");
-    |""".stripMargin)
+      |java.text.SimpleDateFormat $name =
+      |  new java.text.SimpleDateFormat("HH:mm:ss");
+      """.stripMargin)
 
     reusableInitStatements.add(s"""
-    |timeFormatter.setTimeZone(config.getTimeZone());
-    |""".stripMargin)
+      |$name.setTimeZone(config.getTimeZone());
+      """.stripMargin)
+
+    name
   }
 
-  def addTimestampFormatter(): Unit = {
+  def addTimestampFormatter(): String = {
+    val name = s"timestampFormatter"
+
     reusableMemberStatements.add(s"""
-    |java.text.SimpleDateFormat timestampFormatter =
-    |  new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-    |""".stripMargin)
+      |java.text.SimpleDateFormat $name =
+      |  new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+      """.stripMargin)
 
     reusableInitStatements.add(s"""
-    |timestampFormatter.setTimeZone(config.getTimeZone());
-    |""".stripMargin)
+      |$name.setTimeZone(config.getTimeZone());
+      """.stripMargin)
+
+    name
+  }
+
+  def addDate(date: Date): String = {
+    val name = s"date_${date.getTime}"
+
+    reusableMemberStatements.add(s"""
+      |java.util.Date $name
+      |  = new java.util.Date(${date.getTime});
+      """.stripMargin)
+
+    name
+  }
+
+  def addRowFunction(index: Int, numberOfArgs: Int): String = {
+    val name = s"rowFunction_$index"
+
+    // add global index of row functions
+    reusableMemberStatements.add(s"""
+      |scala.collection.immutable.IndexedSeq rowFunctions = null;
+      """.stripMargin)
+
+    reusableInitStatements.add(s"""
+      |rowFunctions = config
+      |  .getRegisteredRowFunctions()
+      |  .values()
+      |  .toIndexedSeq();
+      """.stripMargin)
+
+    // add shortcut for called row function
+    reusableMemberStatements.add(s"""
+      |org.apache.flink.api.table.RowFunction $name = null;
+      """.stripMargin)
+
+    reusableInitStatements.add(s"""
+      |$name = ((org.apache.flink.api.table.RowFunctionInfo) rowFunctions.apply($index))
+      |  .rowFunction();
+      """.stripMargin)
+
+    // add array for parameters
+    reusableMemberStatements.add(s"""
+      |java.lang.Object[] ${name}_args = new Object[$numberOfArgs];
+      """.stripMargin)
+
+    name
   }
 }

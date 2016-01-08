@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.table.JavaStreamingTranslator
-import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.streaming.api.scala.{DataStream, javaToScalaStream}
@@ -33,9 +33,10 @@ import org.apache.flink.streaming.api.scala.{DataStream, javaToScalaStream}
  * This is very limited right now. Only select and filter are implemented. Also, the expression
  * operations must be extended to allow windowing operations.
  */
-class ScalaStreamingTranslator extends PlanTranslator {
+class ScalaStreamingTranslator(config: TableConfig = TableConfig.DEFAULT)
+  extends PlanTranslator(config) {
 
-  private val javaTranslator = new JavaStreamingTranslator
+  private val javaTranslator = new JavaStreamingTranslator(config)
 
   override type Representation[A] = DataStream[A]
 
@@ -53,6 +54,6 @@ class ScalaStreamingTranslator extends PlanTranslator {
     val result =
       javaTranslator.createTable(repr.getJavaStream, inputType, expressions, resultFields)
 
-    new Table(result.operation)
+    new Table(config, result.operation)
   }
 }

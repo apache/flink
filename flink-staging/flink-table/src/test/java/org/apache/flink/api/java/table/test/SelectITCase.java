@@ -36,7 +36,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class SelectITCase extends MultipleProgramsTestBase {
 
-
 	public SelectITCase(TestExecutionMode mode) {
 		super(mode);
 	}

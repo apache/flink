@@ -15,24 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
+package org.apache.flink.api.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.TableConfig
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.trees.Analyzer
+import org.apache.flink.api.table.ExpressionException
 
 /**
- * Analyzer for predicates, i.e. filter operations and where clauses of joins.
+ * General expression for custom function calls (row or aggregate calls).
  */
-class PredicateAnalyzer(config: TableConfig, inputFields: Seq[(String, TypeInformation[_])])
-  extends Analyzer[Expression] {
+case class Call(functionName: String, args: Expression*) extends Expression {
+  def typeInfo = throw new ExpressionException(s"Unresolved call: $this")
 
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields),
-    new ResolveRowFunctionCalls(config),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean)
+  override def children: Seq[Expression] = args
+
+  override def toString = s"\\$functionName(${args.mkString(", ")})"
+}
+
+case class ResolvedRowFunctionCall(
+    functionName: String,
+    returnType: TypeInformation[_],
+    args: Seq[Expression])
+  extends Expression {
+
+  def typeInfo = returnType
+
+  override def children: Seq[Expression] = args
+
+  override def toString = s"$functionName(${args.mkString(", ")})"
 }

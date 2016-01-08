@@ -19,6 +19,12 @@ package org.apache.flink.api.table
 
 import java.util.TimeZone
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.ClosureCleaner
+import org.apache.flink.api.java.typeutils.TypeExtractor
+
+import scala.collection.mutable
+
 /**
  * A config to define the runtime behavior of the Table API.
  */
@@ -35,9 +41,15 @@ class TableConfig extends Serializable {
   private var nullCheck: Boolean = false
 
   /**
+   * Contains registered custom row functions.
+   */
+  private val rowFunctions: mutable.LinkedHashMap[FunctionSignature, RowFunctionInfo[_]] =
+    mutable.LinkedHashMap()
+
+  /**
    * Sets the timezone for date/time/timestamp conversions.
    */
-  def setTimeZone(timeZone: TimeZone) = {
+  def setTimeZone(timeZone: TimeZone): Unit = {
     require(timeZone != null, "timeZone must not be null.")
     this.timeZone = timeZone
   }
@@ -55,11 +67,49 @@ class TableConfig extends Serializable {
   /**
    * Sets the NULL check. If enabled, all fields need to be checked for NULL first.
    */
-  def setNullCheck(nullCheck: Boolean) = {
+  def setNullCheck(nullCheck: Boolean): Unit = {
     this.nullCheck = nullCheck
   }
 
+  /**
+   * Registers a custom row function to be used in Table API expressions.
+   *
+   * @param name function name for API
+   * @param function implementation to be called during runtime
+   * @param argsTypeInfo function arguments
+   */
+  @annotation.varargs
+  def registerRowFunction[R](
+      name: String,
+      function: RowFunction[R],
+      argsTypeInfo: TypeInformation[_]*): Unit = {
+    require(name != null, "name must not be null.")
+    val signature = FunctionSignature(name, argsTypeInfo)
+    if (rowFunctions.contains(signature)) {
+      throw new ExpressionException("Function with same signature already registered.")
+    }
+    val returnType: TypeInformation[R] = TypeExtractor.createTypeInfo(
+      classOf[RowFunction[R]],
+      function.getClass,
+      0,
+      null,
+      null)
+    ClosureCleaner.clean(function, true)
+    rowFunctions(signature) = RowFunctionInfo(function, returnType)
+  }
+
+  /**
+   * Returns the registered custom row functions.
+   */
+  def getRegisteredRowFunctions = rowFunctions
+
 }
+
+// ------------------------------------------------------------------------------------------------
+
+case class FunctionSignature(name: String, args: Seq[TypeInformation[_]]) extends Serializable
+case class RowFunctionInfo[R](rowFunction: RowFunction[R], returnType: TypeInformation[R])
+  extends Serializable
 
 object TableConfig {
   val DEFAULT = new TableConfig()

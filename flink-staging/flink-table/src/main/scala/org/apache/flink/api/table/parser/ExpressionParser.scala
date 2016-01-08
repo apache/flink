@@ -17,12 +17,11 @@
  */
 package org.apache.flink.api.table.parser
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.table.plan.As
 import org.apache.flink.api.table.expressions._
 
-import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
+import scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
  * Parser for expressions inside a String. This parses exactly the same expressions that
@@ -136,10 +135,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
     }
 
+  lazy val functionCall = ident ~ "(" ~ rep1sep(expression, ",") ~ ")" ^^ {
+    case name ~ _ ~ args ~ _ => Call(name, args: _*)
+  }
+
+  lazy val functionCallWithoutArgs = ident ~ "()" ^^ {
+    case name ~ _ => Call(name)
+  }
+
   lazy val suffix =
     isNull | isNotNull |
       abs | sum | min | max | count | avg | cast |
-      substring | substringWithoutEnd | atom
+      substring | substringWithoutEnd | functionCall | functionCallWithoutArgs | atom
 
 
   // unary ops

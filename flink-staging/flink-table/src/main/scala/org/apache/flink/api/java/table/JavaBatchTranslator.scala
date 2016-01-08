@@ -33,13 +33,14 @@ import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime._
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenameOperator, RenamingProxyTypeInfo, RowTypeInfo}
-import org.apache.flink.api.table.{ExpressionException, Row, Table}
+import org.apache.flink.api.table.{TableConfig, ExpressionException, Row, Table}
 
 /**
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
  * translating them back to Java [[org.apache.flink.api.java.DataSet]]s.
  */
-class JavaBatchTranslator extends PlanTranslator {
+class JavaBatchTranslator(config: TableConfig = TableConfig.DEFAULT)
+  extends PlanTranslator(config) {
 
   type Representation[A] = JavaDataSet[A]
 
@@ -51,7 +52,7 @@ class JavaBatchTranslator extends PlanTranslator {
 
     val rowDataSet = createSelect(expressions, repr, inputType)
 
-    Table(Root(rowDataSet, resultFields))
+    Table(config, Root(rowDataSet, resultFields))
   }
 
   override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
@@ -105,7 +106,8 @@ class JavaBatchTranslator extends PlanTranslator {
     val function = new ExpressionSelectFunction(
       resultSet.getType.asInstanceOf[RowTypeInfo],
       outputType,
-      outputFields)
+      outputFields,
+      config)
 
     val opName = s"select(${outputFields.mkString(",")})"
     val operator = new MapOperator(resultSet, outputType, function, opName)
@@ -134,7 +136,7 @@ class JavaBatchTranslator extends PlanTranslator {
 
       case sel@Select(Filter(Join(leftInput, rightInput), predicate), selection) =>
 
-        val expandedInput = ExpandAggregations(sel)
+        val expandedInput = ExpandAggregations(config, sel)
 
         if (expandedInput.eq(sel)) {
           val translatedLeftInput = translateInternal(leftInput)
@@ -176,7 +178,7 @@ class JavaBatchTranslator extends PlanTranslator {
 
       case sel@Select(input, selection) =>
 
-        val expandedInput = ExpandAggregations(sel)
+        val expandedInput = ExpandAggregations(config, sel)
 
         if (expandedInput.eq(sel)) {
           val translatedInput = input match {
@@ -271,7 +273,7 @@ class JavaBatchTranslator extends PlanTranslator {
       case Filter(input, predicate) =>
         val translatedInput = translateInternal(input)
         val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-        val filter = new ExpressionFilterFunction[Row](predicate, inType)
+        val filter = new ExpressionFilterFunction[Row](predicate, inType, config)
         translatedInput.filter(filter).name(predicate.toString)
 
       case uni@UnionAll(left, right) =>
@@ -296,7 +298,7 @@ class JavaBatchTranslator extends PlanTranslator {
 
     val resultType = new RowTypeInfo(fields)
 
-    val function = new ExpressionSelectFunction(inputType, resultType, fields)
+    val function = new ExpressionSelectFunction(inputType, resultType, fields, config)
 
     val opName = s"select(${fields.mkString(",")})"
     val operator = new MapOperator(input, resultType, function, opName)
@@ -331,7 +333,8 @@ class JavaBatchTranslator extends PlanTranslator {
       leftType,
       rightType,
       resultType,
-      fields)
+      fields,
+      config)
 
     new EquiJoin[L, R, Row](
       leftInput,

@@ -35,7 +35,7 @@ class ExpressionJoinFunction[L, R, O](
     rightType: CompositeType[R],
     resultType: CompositeType[O],
     outputFields: Seq[Expression],
-    config: TableConfig = TableConfig.DEFAULT) extends RichFlatJoinFunction[L, R, O] {
+    config: TableConfig) extends RichFlatJoinFunction[L, R, O] {
 
   var compiledJoin: FlatJoinFunction[L, R, O] = null
 
