@@ -27,9 +27,9 @@
 # to reference a specific Flink version, because this is the only place where
 # we change the version for the complete docs when forking of a release branch
 # etc.
-version: "0.10.0"
-version_hadoop1: "0.10.0-hadoop1"
-version_short: "0.10.0" # Used for the top navbar w/o snapshot suffix
+version: "0.10.1"
+version_hadoop1: "0.10.1-hadoop1"
+version_short: "0.10.1" # Used for the top navbar w/o snapshot suffix
 
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
@@ -39,8 +39,8 @@ github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
 # Setup quickstart uses this => to be changed
-FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.10.0/flink-0.10.0-bin-hadoop1-scala_2.10.tgz"
-FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.10.0/flink-0.10.0-bin-hadoop2-scala_2.10.tgz"
+FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.10.1/flink-0.10.1-bin-hadoop1-scala_2.10.tgz"
+FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.10.1/flink-0.10.1-bin-hadoop2-scala_2.10.tgz"
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG
