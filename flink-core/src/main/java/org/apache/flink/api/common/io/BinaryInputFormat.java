@@ -190,7 +190,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 
 	/**
 	 * Fill in the statistics. The last modification time and the total input size are prefilled.
-	 * 
+	 *
 	 * @param files
 	 *        The files that are associated with this block input format.
 	 * @param stats
@@ -213,9 +213,10 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 
 			FSDataInputStream fdis = file.getPath().getFileSystem().open(file.getPath(), blockInfo.getInfoSize());
 			fdis.seek(file.getLen() - blockInfo.getInfoSize());
-			
+
 			blockInfo.read(new DataInputViewStreamWrapper(fdis));
 			totalCount += blockInfo.getAccumulatedRecordCount();
+			fdis.close();
 		}
 
 		final float avgWidth = totalCount == 0 ? 0 : ((float) stats.getTotalInputSize() / totalCount);
@@ -268,7 +269,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		if (this.reachedEnd()) {
 			return null;
 		}
-		
+
 		record = this.deserialize(record, this.dataInputStream);
 		this.readRecords++;
 		return record;
