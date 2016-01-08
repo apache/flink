@@ -28,7 +28,7 @@ import java.util.List;
 
 public class PlanJsonParser {
 	
-	public String getSqlExecutionPlan(String t, boolean extended) throws Exception{
+	public static String getSqlExecutionPlan(String t, boolean extended) throws Exception{
 		StringWriter sw = new StringWriter();
 		PrintWriter pw = new PrintWriter(sw);
 		buildSqlExecutionPlan(t, extended, pw);
@@ -36,12 +36,12 @@ public class PlanJsonParser {
 		return sw.toString();
 	}
 
-	private void printTab(int tabCount, PrintWriter pw) {
+	private static void printTab(int tabCount, PrintWriter pw) {
 		for (int i = 0; i < tabCount; i++)
 			pw.print("\t");
 	}
 
-	private void buildSqlExecutionPlan(String t, Boolean extended, PrintWriter pw) throws Exception {
+	private static void buildSqlExecutionPlan(String t, Boolean extended, PrintWriter pw) throws Exception {
 		LinkedHashMap<String, Integer> map = new LinkedHashMap<>();
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -71,6 +71,12 @@ public class PlanJsonParser {
 			//drop the hashcode of object instance
 			int dele = tempNode.getContents().indexOf("@");
 			if (dele > -1) content = tempNode.getContents().substring(0, dele);
+			
+			//replace with certain content if node is dataSource to pass
+			//unit tests, because java and scala use different api to
+			//get input element
+			if (tempNode.getPact().equals("Data Source"))
+				content = "collect elements with CollectionInputFormat";
 			pw.print("content : " + content + "\n");
 
 			List<Predecessors> predecessors = tempNode.getPredecessors();

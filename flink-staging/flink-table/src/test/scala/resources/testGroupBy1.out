@@ -1,9 +1,9 @@
 == Abstract Syntax Tree ==
-Select(GroupBy(As(Root(ArraySeq((word,String), (count,Integer))), a,b), 'a), a,('b).sum as 'c)
+Select(GroupBy(As(Root(ArraySeq((count,Integer), (word,String))), a,b), 'a), 'a,('b).count as 'c)
 
 == Physical Execution Plan ==
 Stage 6 : Data Source
-	content : at org.apache.flink.api.scala.ExecutionEnvironment.fromElements(ExecutionEnvironment.scala:520) (org.apache.flink.api.java.io.CollectionInputFormat)
+	content : collect elements with CollectionInputFormat
 	Partitioning : RANDOM_PARTITIONED
 	Partitioning Order : (none)
 	Uniqueness : not unique
@@ -24,7 +24,7 @@ Stage 6 : Data Source
 	Filter Factor : (none)
 
 	Stage 5 : Map
-		content : Map at select('word as 'word,'count as 'count)
+		content : Map at select('count as 'count,'word as 'word)
 		ship_strategy : Forward
 		exchange_mode : PIPELINED
 		driver_strategy : Map
@@ -48,7 +48,7 @@ Stage 6 : Data Source
 		Filter Factor : (none)
 
 		Stage 4 : Map
-			content : Map at select('a as 'a,'b as 'intermediate.1)
+			content : Map at select(1 as 'intermediate.1,'a as 'a)
 			ship_strategy : Forward
 			exchange_mode : PIPELINED
 			driver_strategy : Map
@@ -72,7 +72,7 @@ Stage 6 : Data Source
 			Filter Factor : (none)
 
 			Stage 3 : GroupCombine
-				content : GroupReduce at Expression Aggregation: Aggregate(GroupBy(Select(As(Root(ArraySeq((word,String), (count,Integer))), a,b), 'a as 'a,'b as 'intermediate.1), 'a), (intermediate.1,SUM))
+				content : GroupReduce at Expression Aggregation: Aggregate(GroupBy(Select(As(Root(ArraySeq((count,Integer), (word,String))), a,b), 1 as 'intermediate.1,'a as 'a), 'a), (intermediate.1,SUM))
 				ship_strategy : Forward
 				exchange_mode : PIPELINED
 				driver_strategy : Sorted Combine
@@ -96,8 +96,8 @@ Stage 6 : Data Source
 				Filter Factor : (none)
 
 				Stage 2 : GroupReduce
-					content : GroupReduce at Expression Aggregation: Aggregate(GroupBy(Select(As(Root(ArraySeq((word,String), (count,Integer))), a,b), 'a as 'a,'b as 'intermediate.1), 'a), (intermediate.1,SUM))
-					ship_strategy : Hash Partition on [0]
+					content : GroupReduce at Expression Aggregation: Aggregate(GroupBy(Select(As(Root(ArraySeq((count,Integer), (word,String))), a,b), 1 as 'intermediate.1,'a as 'a), 'a), (intermediate.1,SUM))
+					ship_strategy : Hash Partition on [1]
 					exchange_mode : PIPELINED
 					driver_strategy : Sorted Group Reduce
 					Partitioning : RANDOM_PARTITIONED
@@ -120,7 +120,7 @@ Stage 6 : Data Source
 					Filter Factor : (none)
 
 					Stage 1 : Map
-						content : Map at select(a,'intermediate.1 as 'result.1 as 'c)
+						content : Map at select('a,'intermediate.1 as 'result.1 as 'c)
 						ship_strategy : Forward
 						exchange_mode : PIPELINED
 						driver_strategy : Map

@@ -281,8 +281,8 @@ case class Table(private[flink] val operation: PlanNode) {
     val dataSet = this.toDataSet[Row]
     val env = dataSet.getExecutionEnvironment
     dataSet.output(new DiscardingOutputFormat[Row])
-    val string = env.getExecutionPlan()
-    val sqlPlan = new PlanJsonParser().getSqlExecutionPlan(string, extended)
+    val jasonSqlPlan = env.getExecutionPlan()
+    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
     val result = "== Abstract Syntax Tree ==\n" + ast + "\n\n" + "== Physical Execution Plan ==" +
       "\n" + sqlPlan
     return result
