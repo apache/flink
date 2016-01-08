@@ -43,7 +43,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAs() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
@@ -62,7 +62,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testAsWithToFewFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b");
@@ -76,7 +76,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testAsWithToManyFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
@@ -90,7 +90,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testAsWithAmbiguousFields() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
@@ -104,7 +104,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testAsWithNonFieldReference1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
@@ -118,7 +118,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testAsWithNonFieldReference2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +

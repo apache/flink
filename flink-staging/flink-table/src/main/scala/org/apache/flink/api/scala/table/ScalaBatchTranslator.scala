@@ -19,14 +19,15 @@
 package org.apache.flink.api.scala.table
 
 
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.table.JavaBatchTranslator
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.scala.wrap
-import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.Table
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.DataSet
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.ExecutionEnvironment
+import org.apache.flink.api.java.table.JavaBatchTranslator
+import org.apache.flink.api.scala.{DataSet, wrap}
+import org.apache.flink.api.table.{ExpressionException, Table}
+import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.input.TableSource
+import org.apache.flink.api.table.plan._
 
 import scala.reflect.ClassTag
 
@@ -35,9 +36,9 @@ import scala.reflect.ClassTag
  * [[PlanTranslator]] for creating [[Table]]s from Scala [[DataSet]]s and
  * translating them back to Scala [[DataSet]]s.
  */
-class ScalaBatchTranslator extends PlanTranslator {
+class ScalaBatchTranslator(javaEnv: Option[ExecutionEnvironment]) extends PlanTranslator {
 
-  private val javaTranslator = new JavaBatchTranslator
+  private val javaTranslator = new JavaBatchTranslator(javaEnv)
 
   type Representation[A] = DataSet[A]
 
@@ -64,5 +65,16 @@ class ScalaBatchTranslator extends PlanTranslator {
     val result = javaTranslator.createTable(repr.javaSet, inputType, expressions, resultFields)
 
     Table(result.operation)
+  }
+
+  override def createTable(tableSource: TableSource): Table = {
+    // a TableSource requires an ExecutionEnvironment
+    if (javaEnv.isEmpty) {
+      throw new ExpressionException("This operation requires an ExecutionEnvironment." +
+        "Scala implicit conversions can not be used in this case. Use a TableEnvironment instead.")
+    }
+    val result = javaTranslator.createTable(tableSource)
+
+    new Table(result.operation)
   }
 }

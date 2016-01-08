@@ -45,7 +45,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testUnion() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
@@ -64,7 +64,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testUnionWithFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -83,7 +83,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testUnionFieldsNameNotOverlap1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -102,7 +102,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testUnionFieldsNameNotOverlap2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
@@ -121,7 +121,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testUnionWithAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);

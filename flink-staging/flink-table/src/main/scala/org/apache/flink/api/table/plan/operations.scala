@@ -20,6 +20,7 @@ package org.apache.flink.api.table.plan
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.input.TableSource
 import org.apache.flink.api.table.trees.TreeNode
 
 /**
@@ -32,6 +33,8 @@ sealed abstract class PlanNode extends TreeNode[PlanNode] { self: Product =>
 /**
  * Operation that transforms a [[org.apache.flink.api.scala.DataSet]] or
  * [[org.apache.flink.streaming.api.scala.DataStream]] into a [[org.apache.flink.api.table.Table]].
+ * The input can also be a [[org.apache.flink.api.table.input.AdaptiveTableSource]] that provides
+ * both a DataSet or a DataStream.
  */
 case class Root[T](input: T, outputFields: Seq[(String, TypeInformation[_])]) extends PlanNode {
   val children = Nil
@@ -92,7 +95,7 @@ case class As(input: PlanNode, names: Seq[String]) extends PlanNode {
 }
 
 /**
- * Grouping operation. Keys are specified using field references. A group by operation os only
+ * Grouping operation. Keys are specified using field references. A group by operation is only
  * useful when performing a select with aggregates afterwards.
  * @param input
  * @param fields

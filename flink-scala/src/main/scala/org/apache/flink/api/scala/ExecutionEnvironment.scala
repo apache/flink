@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{AbstractExecutionEnvironment, ExecutionConfig, JobExecutionResult, JobID}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -43,7 +43,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 /**
- * The ExecutionEnviroment is the context in which a program is executed. A local environment will
+ * The ExecutionEnvironment is the context in which a program is executed. A local environment will
  * cause execution in the current JVM, a remote environment will cause execution on a remote
  * cluster installation.
  *
@@ -61,18 +61,19 @@ import scala.reflect.ClassTag
  *  created. If the program is submitted to a cluster a remote execution environment will
  *  be created.
  */
-class ExecutionEnvironment(javaEnv: JavaEnv) {
+class ExecutionEnvironment(javaEnv: JavaEnv) extends AbstractExecutionEnvironment {
 
   /**
-   * @return the Java Execution environment.
+   * Returns the enclosed Java ExecutionEnvironment for special use cases.
+   *
+   * @return reference to the ExecutionEnvironment of the Java API
    */
   def getJavaEnv: JavaEnv = javaEnv
+
   /**
    * Gets the config object.
    */
-  def getConfig: ExecutionConfig = {
-    javaEnv.getConfig
-  }
+  override def getConfig: ExecutionConfig = javaEnv.getConfig
 
   /**
    * Sets the parallelism (parallelism) for operations executed through this environment.

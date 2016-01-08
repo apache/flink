@@ -46,7 +46,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAutoCastToString() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
 				env.fromElements(new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
@@ -66,7 +66,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testNumericAutocastInArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
 				env.fromElements(new Tuple7<>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
@@ -86,7 +86,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testNumericAutocastInComparison() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
 				env.fromElements(
@@ -108,7 +108,7 @@ public class CastingITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testCastFromString() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple3<String, String, String>> input =
 				env.fromElements(new Tuple3<>("1", "true", "2.0"));

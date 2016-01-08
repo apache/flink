@@ -63,7 +63,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAggregationTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table = tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
 
@@ -78,7 +78,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testAggregationOnNonExistingField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		Table table =
 				tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
@@ -95,7 +95,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testWorkingAggregationDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple7<Byte, Short, Integer, Long, Float, Double, String>> input =
 				env.fromElements(
@@ -117,7 +117,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAggregationWithArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input =
 				env.fromElements(
@@ -163,7 +163,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testNonWorkingDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input = env.fromElements(new Tuple2<>(1f, "Hello"));
 
@@ -183,7 +183,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testNoNestedAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSource<Tuple2<Float, String>> input = env.fromElements(new Tuple2<>(1f, "Hello"));
 

@@ -78,7 +78,7 @@ package object table extends ImplicitExpressionConversions {
 
   implicit def table2RowDataSet(
       table: Table): DataSet[Row] = {
-    new ScalaBatchTranslator().translate[Row](table.operation)
+    new ScalaBatchTranslator(None).translate[Row](table.operation)
   }
 
   implicit def rowDataSet2Table(
@@ -95,7 +95,7 @@ package object table extends ImplicitExpressionConversions {
 
   implicit def table2RowDataStream(
       table: Table): DataStream[Row] = {
-    new ScalaStreamingTranslator().translate[Row](table.operation)
+    new ScalaStreamingTranslator(None).translate[Row](table.operation)
   }
 
   implicit def rowDataStream2Table(

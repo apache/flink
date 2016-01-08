@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.AbstractExecutionEnvironment;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -91,7 +92,7 @@ import com.google.common.base.Preconditions;
  * @see LocalEnvironment
  * @see RemoteEnvironment
  */
-public abstract class ExecutionEnvironment {
+public abstract class ExecutionEnvironment implements AbstractExecutionEnvironment {
 
 	/** The logger used by the environment and its subclasses */
 	protected static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
@@ -140,6 +141,7 @@ public abstract class ExecutionEnvironment {
 	 *
 	 * @return The environment's execution configuration.
 	 */
+	@Override
 	public ExecutionConfig getConfig() {
 		return config;
 	}

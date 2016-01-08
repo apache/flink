@@ -15,22 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
 
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.common;
 
 /**
- * Analyzer for predicates, i.e. filter operations and where clauses of joins.
+ * The AbstractExecutionEnvironment is the context in which a program is executed. The context can be a
+ * ExecutionEnvironment for working with DataSets or a StreamExecutionEnvironment for working
+ * with DataStreams.
  */
-class PredicateAnalyzer(inputOperation: PlanNode)
-  extends Analyzer[Expression] {
-  def rules = Seq(
-    new ResolveFieldReferences(inputOperation, true),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean,
-    new PredicatePushdown(inputOperation))
+public interface AbstractExecutionEnvironment {
+
+	/**
+	 * Gets the config object.
+	 */
+	public ExecutionConfig getConfig();
 }

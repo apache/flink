@@ -15,22 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.expressions.analysis
 
-import org.apache.flink.api.table.expressions.Expression
-import org.apache.flink.api.table.plan.PlanNode
-import org.apache.flink.api.table.trees.Analyzer
+package org.apache.flink.api.table.input
+
+import org.apache.flink.api.table.Table
 
 /**
- * Analyzer for predicates, i.e. filter operations and where clauses of joins.
+ * Base class for input formats of [[Table]]s.
+ *
+ * See also [[AdaptiveTableSource]] and [[StaticTableSource]].
  */
-class PredicateAnalyzer(inputOperation: PlanNode)
-  extends Analyzer[Expression] {
-  def rules = Seq(
-    new ResolveFieldReferences(inputOperation, true),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean,
-    new PredicatePushdown(inputOperation))
+trait TableSource {
+
 }

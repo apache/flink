@@ -38,7 +38,7 @@ class DataStreamConversions[T](stream: DataStream[T], inputType: CompositeType[T
    */
 
   def as(fields: Expression*): Table = {
-     new ScalaStreamingTranslator().createTable(
+     new ScalaStreamingTranslator(Some(stream.getExecutionEnvironment.getJavaEnv)).createTable(
        stream,
        fields.toArray,
        checkDeterministicFields = true)

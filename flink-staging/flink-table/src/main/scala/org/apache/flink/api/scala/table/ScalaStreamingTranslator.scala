@@ -21,9 +21,11 @@ package org.apache.flink.api.scala.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.table.JavaStreamingTranslator
-import org.apache.flink.api.table.Table
-import org.apache.flink.api.table.plan._
+import org.apache.flink.api.table.{ExpressionException, Table}
 import org.apache.flink.api.table.expressions.Expression
+import org.apache.flink.api.table.input.TableSource
+import org.apache.flink.api.table.plan._
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{DataStream, javaToScalaStream}
 
 /**
@@ -33,9 +35,10 @@ import org.apache.flink.streaming.api.scala.{DataStream, javaToScalaStream}
  * This is very limited right now. Only select and filter are implemented. Also, the expression
  * operations must be extended to allow windowing operations.
  */
-class ScalaStreamingTranslator extends PlanTranslator {
+class ScalaStreamingTranslator(javaEnv: Option[StreamExecutionEnvironment])
+  extends PlanTranslator {
 
-  private val javaTranslator = new JavaStreamingTranslator
+  private val javaTranslator = new JavaStreamingTranslator(javaEnv)
 
   override type Representation[A] = DataStream[A]
 
@@ -52,6 +55,17 @@ class ScalaStreamingTranslator extends PlanTranslator {
 
     val result =
       javaTranslator.createTable(repr.getJavaStream, inputType, expressions, resultFields)
+
+    new Table(result.operation)
+  }
+
+  override def createTable(tableSource: TableSource): Table = {
+    // a TableSource requires an StreamExecutionEnvironment
+    if (javaEnv.isEmpty) {
+      throw new ExpressionException("This operation requires a StreamExecutionEnvironment." +
+        "Scala implicit conversions can not be used in this case. Use a TableEnvironment instead.")
+    }
+    val result = javaTranslator.createTable(tableSource)
 
     new Table(result.operation)
   }

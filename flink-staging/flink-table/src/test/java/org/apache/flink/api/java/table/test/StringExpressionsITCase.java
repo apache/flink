@@ -43,7 +43,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testSubstring() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
 				new Tuple2<>("AAAA", 2),
@@ -63,7 +63,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testSubstringWithMaxEnd() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple2<String, Integer>> ds = env.fromElements(
 				new Tuple2<>("ABCD", 2),
@@ -83,7 +83,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testNonWorkingSubstring1() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple2<String, Float>> ds = env.fromElements(
 				new Tuple2<>("ABCD", 2.0f),
@@ -103,7 +103,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 	@Test(expected = ExpressionException.class)
 	public void testNonWorkingSubstring2() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment(env);
 
 		DataSet<Tuple2<String, String>> ds = env.fromElements(
 				new Tuple2<>("ABCD", "a"),
