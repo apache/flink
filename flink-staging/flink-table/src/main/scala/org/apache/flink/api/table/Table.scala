@@ -18,9 +18,10 @@
 package org.apache.flink.api.table
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.table.explain.PlanJsonParser
 import org.apache.flink.api.table.expressions.analysis.{GroupByAnalyzer, PredicateAnalyzer, SelectionAnalyzer}
 import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReference, UnresolvedFieldReference}
-import org.apache.flink.api.table.parser.{PlanJsonParser, ExpressionParser, PlanTrees}
+import org.apache.flink.api.table.parser.ExpressionParser
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._

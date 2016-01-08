@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.parser;
+package org.apache.flink.api.table.explain;
 
 import java.util.List;
 
-public class Nodes {
+public class Node {
 	private int id;
 	private String type;
 	private String pact;

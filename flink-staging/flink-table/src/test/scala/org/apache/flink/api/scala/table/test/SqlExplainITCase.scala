@@ -33,7 +33,7 @@ class SqlExplainITCase {
   def testGroupByWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
     val expr = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1)).toTable.as('a, 'b)
-    val result = expr.groupBy('a).select('a, 'b.sum as 'c).explain()
+    val result = expr.groupBy('a).select("a", 'b.sum as 'c).explain()
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testGroupBy0.out").mkString
     assert(result.equals(source))
@@ -43,7 +43,7 @@ class SqlExplainITCase {
   def testGroupByWithExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
     val expr = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1)).toTable.as('a, 'b)
-    val result = expr.groupBy('a).select('a, 'b.sum as 'c).explain(true)
+    val result = expr.groupBy('a).select("a", 'b.sum as 'c).explain(true)
     val source = scala.io.Source.fromFile(testFilePath +
       "../../src/test/scala/resources/testGroupBy1.out").mkString
     assert(result.equals(source))
