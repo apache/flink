@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
@@ -44,6 +45,17 @@ public class FileStreamStateHandle extends AbstractFileState implements StreamSt
 	@Override
 	public InputStream getState(ClassLoader userCodeClassLoader) throws Exception {
 		return getFileSystem().open(getFilePath());
+	}
+
+	/**
+	 * Returns the file size in bytes.
+	 *
+	 * @return The file size in bytes.
+	 * @throws IOException Thrown if the file system cannot be accessed.
+	 */
+	@Override
+	public long getStateSize() throws IOException {
+		return getFileSize();
 	}
 
 	@Override

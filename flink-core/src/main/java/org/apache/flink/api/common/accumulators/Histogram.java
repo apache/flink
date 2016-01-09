@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -29,6 +31,7 @@ import java.util.TreeMap;
  * This class does not extend to continuous values later, because it makes no
  * attempt to put the data in bins.
  */
+@Public
 public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>> {
 
 	private static final long serialVersionUID = 1L;

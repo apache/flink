@@ -20,6 +20,8 @@ limitations under the License.
 <nav class="navbar navbar-default navbar-fixed-top navbar-main">
   <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
   <div class="navbar-title">Overview</div>
+  <div class="navbar-info last first">Version: {{overview['flink-version']}}</div>
+  <div ng-if="overview['flink-commit']" class="navbar-info last first">Commit: {{overview['flink-commit']}}</div>
 </nav>
 <div id="content-inner">
   <div class="row">

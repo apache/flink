@@ -602,7 +602,7 @@ dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // L
             <p>Applies a general function to the window as a whole. Below is a function that manually sums the elements of a window.</p>
             <p><strong>Note:</strong> If you are using a windowAll transformation, you need to use an AllWindowFunction instead.</p>
     {% highlight java %}
-windowedStream.apply (new WindowFunction<Tuple2<String,Integer>,Integer>, Tuple, Window>() {
+windowedStream.apply (new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, Window>() {
     public void apply (Tuple tuple,
             Window window,
             Iterable<Tuple2<String, Integer>> values,
@@ -613,7 +613,20 @@ windowedStream.apply (new WindowFunction<Tuple2<String,Integer>,Integer>, Tuple,
         }
         out.collect (new Integer(sum));
     }
-};
+});
+
+// applying an AllWindowFunction on non-keyed window stream
+allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, Window>() {
+    public void apply (Window window,
+            Iterable<Tuple2<String, Integer>> values,
+            Collector<Integer> out) throws Exception {
+        int sum = 0;
+        for (value t: values) {
+            sum += t.f1;
+        }
+        out.collect (new Integer(sum));
+    }
+});
     {% endhighlight %}
           </td>
         </tr>
@@ -965,7 +978,11 @@ dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))) // La
             <p>Applies a general function to the window as a whole. Below is a function that manually sums the elements of a window.</p>
             <p><strong>Note:</strong> If you are using a windowAll transformation, you need to use an AllWindowFunction instead.</p>
     {% highlight scala %}
-windowedStream.apply { applyFunction }
+windowedStream.apply { WindowFunction }
+
+// applying an AllWindowFunction on non-keyed window stream
+allWindowedStream.apply { AllWindowFunction }
+
     {% endhighlight %}
           </td>
         </tr>
@@ -1836,6 +1853,33 @@ val myLongs = env.fromCollection(longIt)
 **Note:** Currently, the collection data source requires that data types and iterators implement
 `Serializable`. Furthermore, collection data sources can not be executed in parallel (
 parallelism = 1).
+
+### Iterator Data Sink
+
+Flink also provides a sink to collect DataStream results for testing and debugging purposes. It can be used as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.contrib.streaming.DataStreamUtils
+
+DataStream<Tuple2<String, Integer>> myResult = ...
+Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
+{% endhighlight %}
+
+</div>
+<div data-lang="scala" markdown="1">
+
+{% highlight scala %}
+import org.apache.flink.contrib.streaming.DataStreamUtils
+import scala.collection.JavaConverters.asScalaIteratorConverter
+
+val myResult: DataStream[(String, Int)] = ...
+val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.getJavaStream).asScala
+{% endhighlight %}
+</div>
+</div>
+
 
 [Back to top](#top)
 

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -30,7 +31,6 @@ import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
@@ -60,7 +60,7 @@ public class NamesTest implements Serializable {
 				return value.equals("a");
 			}
 		}).output(new DiscardingOutputFormat<String>());
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		testForName("Filter at testDefaultName(NamesTest.java:55)", plan);
 	}
 
@@ -76,7 +76,7 @@ public class NamesTest implements Serializable {
 				return value.equals("a");
 			}
 		}).name("GivenName").output(new DiscardingOutputFormat<String>());
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		testForName("GivenName", plan);
 	}
 
@@ -98,7 +98,7 @@ public class NamesTest implements Serializable {
 			}
 		})
 				.output(new DiscardingOutputFormat<String>());
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		plan.accept(new Visitor<Operator<?>>() {
 			@Override
 			public boolean preVisit(Operator<?> visitable) {
@@ -112,7 +112,7 @@ public class NamesTest implements Serializable {
 		});
 	}
 
-	private static void testForName(final String expected, JavaPlan plan) {
+	private static void testForName(final String expected, Plan plan) {
 		plan.accept(new Visitor<Operator<?>>() {
 			@Override
 			public boolean preVisit(Operator<?> visitable) {

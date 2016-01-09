@@ -343,7 +343,7 @@ public class NetworkEnvironment {
 
 	public void unregisterTask(Task task) {
 		LOG.debug("Unregister task {} from network environment (state: {}).",
-				task.getTaskNameWithSubtasks(), task.getExecutionState());
+				task.getTaskInfo().getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
 

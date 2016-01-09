@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -40,6 +42,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * A function can, during runtime, obtain the RuntimeContext via a call to
  * {@link AbstractRichFunction#getRuntimeContext()}.
  */
+@Public
 public interface RuntimeContext {
 
 	/**
@@ -63,6 +66,22 @@ public interface RuntimeContext {
 	 * @return The index of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
+
+	/**
+	 * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+	 *
+	 * @return Attempt number of the subtask.
+	 */
+	int getAttemptNumber();
+
+	/**
+	 * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+	 * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be
+	 * {@link #getNumberOfParallelSubtasks()}.
+	 *
+	 * @return The name of the task, with subtask indicator.
+	 */
+	String getTaskNameWithSubtasks();
 
 	/**
 	 * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
@@ -100,21 +119,25 @@ public interface RuntimeContext {
 	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
 	 */
 	@Deprecated
+	@Experimental
 	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.
 	 */
+	@Experimental
 	IntCounter getIntCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for longs.
 	 */
+	@Experimental
 	LongCounter getLongCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for doubles.
 	 */
+	@Experimental
 	DoubleCounter getDoubleCounter(String name);
 
 	/**

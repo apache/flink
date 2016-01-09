@@ -39,9 +39,9 @@ import java.util.List;
  * For example, in order to window into windows of 1 minute, every 10 seconds:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
- * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
- * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(SlidingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
+ * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);
+ * WindowedStream<Tuple2<String, Integer>, String, TimeWindow> windowed =
+ *   keyed.window(SlidingTimeWindows.of(Time.minutes(1), Time.seconds(10)));
  * } </pre>
  */
 public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {

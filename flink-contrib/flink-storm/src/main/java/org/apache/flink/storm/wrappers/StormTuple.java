@@ -39,7 +39,7 @@ import java.util.List;
 /**
  * {@link StormTuple} converts a Flink tuple of type {@code IN} into a Storm tuple.
  */
-class StormTuple<IN> implements backtype.storm.tuple.Tuple {
+public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	/** The Storm representation of the original Flink tuple */
 	private final Values stormTuple;
@@ -60,8 +60,8 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 	 * @param flinkTuple the Flink tuple
 	 * @param schema The schema of the storm fields
 	 */
-	StormTuple(final IN flinkTuple, final Fields schema) {
-		this(flinkTuple, schema, -1, Utils.DEFAULT_STREAM_ID, BoltWrapper.DEFAULT_OPERATOR_ID);
+	public StormTuple(final IN flinkTuple, final Fields schema) {
+		this(flinkTuple, schema, -1, Utils.DEFAULT_STREAM_ID, BoltWrapper.DEFAULT_ID);
 	}
 
 	/**
@@ -71,7 +71,7 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 	 * @param schema The schema (ie, ordered field names) of the tuple.
 	 * @param producerComponentId The component id of the producer.
 	 */
-	StormTuple(final IN flinkTuple, final Fields schema, int taskId, String producerStreamId, String producerComponentId) {
+	public StormTuple(final IN flinkTuple, final Fields schema, int taskId, String producerStreamId, String producerComponentId) {
 		if (flinkTuple instanceof org.apache.flink.api.java.tuple.Tuple) {
 			this.schema = schema;
 			final org.apache.flink.api.java.tuple.Tuple t = (org.apache.flink.api.java.tuple.Tuple) flinkTuple;

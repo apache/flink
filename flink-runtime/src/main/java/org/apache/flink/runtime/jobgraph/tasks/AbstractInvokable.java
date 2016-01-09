@@ -96,7 +96,7 @@ public abstract class AbstractInvokable {
 	 * @return the current number of subtasks the respective task is split into
 	 */
 	public int getCurrentNumberOfSubtasks() {
-		return this.environment.getNumberOfSubtasks();
+		return this.environment.getTaskInfo().getNumberOfParallelSubtasks();
 	}
 
 	/**
@@ -105,7 +105,7 @@ public abstract class AbstractInvokable {
 	 * @return the index of this subtask in the subtask group
 	 */
 	public int getIndexInSubtaskGroup() {
-		return this.environment.getIndexInSubtaskGroup();
+		return this.environment.getTaskInfo().getIndexOfThisSubtask();
 	}
 
 	/**

@@ -376,7 +376,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			}, stateBackend.getConfiguration().getMaxNumberOfSqlRetries(),
 					stateBackend.getConfiguration().getSleepBetweenSqlRetries());
 
-			boolean cleanup = stateBackend.getEnvironment().getIndexInSubtaskGroup() == 0;
+			boolean cleanup = stateBackend.getEnvironment().getTaskInfo().getIndexOfThisSubtask() == 0;
 
 			// Restore the KvState
 			LazyDbKvState<K, V> restored = new LazyDbKvState<K, V>(kvStateId, cleanup,
@@ -393,6 +393,13 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		@Override
 		public void discardState() throws Exception {
 			// Don't discard, it will be compacted by the LazyDbKvState
+		}
+
+		@Override
+		public long getStateSize() throws Exception {
+			// Because the state is serialzied in a lazy fashion we don't know
+			// the size of the state yet.
+			return 0;
 		}
 
 	}

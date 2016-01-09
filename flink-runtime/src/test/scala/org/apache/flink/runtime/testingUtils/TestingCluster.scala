@@ -24,7 +24,6 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
@@ -45,21 +44,13 @@ import scala.concurrent.{Await, Future}
 class TestingCluster(
                       userConfiguration: Configuration,
                       singleActorSystem: Boolean,
-                      synchronousDispatcher: Boolean,
-                      streamingMode: StreamingMode)
+                      synchronousDispatcher: Boolean)
   extends FlinkMiniCluster(
     userConfiguration,
-    singleActorSystem,
-    streamingMode) {
+    singleActorSystem) {
 
-
-  def this(userConfiguration: Configuration,
-           singleActorSystem: Boolean,
-           synchronousDispatcher: Boolean)
-  = this(userConfiguration, singleActorSystem, synchronousDispatcher, StreamingMode.BATCH_ONLY)
-
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean)
-  = this(userConfiguration, singleActorSystem, false)
+  def this(userConfiguration: Configuration, singleActorSystem: Boolean) =
+    this(userConfiguration, singleActorSystem, false)
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true, false)
 
@@ -127,7 +118,6 @@ class TestingCluster(
         executionRetries,
         delayBetweenRetries,
         timeout,
-        streamingMode,
         leaderElectionService,
         submittedJobsGraphs,
         checkpointRecoveryFactory))
@@ -153,7 +143,6 @@ class TestingCluster(
       Some(tmActorName),
       Some(createLeaderRetrievalService),
       numTaskManagers == 1,
-      streamingMode,
       classOf[TestingTaskManager])
   }
 

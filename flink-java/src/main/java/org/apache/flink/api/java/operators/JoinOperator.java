@@ -559,16 +559,16 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
-			TypeInformation<R> returnType = TypeExtractor.getFlatJoinReturnTypes(function, getInput1Type(), getInput2Type());
+			TypeInformation<R> returnType = TypeExtractor.getFlatJoinReturnTypes(function, getInput1Type(), getInput2Type(), Utils.getCallLocationName(), true);
 			return new EquiJoin<>(getInput1(), getInput2(), getKeys1(), getKeys2(), clean(function), returnType, getJoinHint(), Utils.getCallLocationName(), joinType);
 		}
 
-		public <R> EquiJoin<I1, I2, R> with (JoinFunction<I1, I2, R> function) {
+		public <R> EquiJoin<I1, I2, R> with(JoinFunction<I1, I2, R> function) {
 			if (function == null) {
 				throw new NullPointerException("Join function must not be null.");
 			}
 			FlatJoinFunction<I1, I2, R> generatedFunction = new WrappingFlatJoinFunction<>(clean(function));
-			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type());
+			TypeInformation<R> returnType = TypeExtractor.getJoinReturnTypes(function, getInput1Type(), getInput2Type(), Utils.getCallLocationName(), true);
 			return new EquiJoin<>(getInput1(), getInput2(), getKeys1(), getKeys2(), generatedFunction, function, returnType, getJoinHint(), Utils.getCallLocationName(), joinType);
 		}
 
@@ -582,7 +582,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			@Override
 			public void join(IN1 left, IN2 right, Collector<OUT> out) throws Exception {
-				out.collect (this.wrappedFunction.join(left, right));
+				out.collect(this.wrappedFunction.join(left, right));
 			}
 		}
 

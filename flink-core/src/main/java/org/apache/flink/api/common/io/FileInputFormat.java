@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
@@ -53,6 +54,7 @@ import org.apache.flink.core.fs.Path;
  * <p>After the {@link #open(FileInputSplit)} method completed, the file input data is available
  * from the {@link #stream} field.</p>
  */
+@Public
 public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputSplit> {
 	
 	// -------------------------------------- Constants -------------------------------------------

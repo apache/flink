@@ -27,7 +27,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -125,7 +124,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 1);
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 
-		TestingCluster flink = new TestingCluster(config, false, false, StreamingMode.STREAMING);
+		TestingCluster flink = new TestingCluster(config, false, false);
 
 		try {
 			final Deadline deadline = TestTimeOut.fromNow();
@@ -164,7 +163,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 
-		TestingCluster flink = new TestingCluster(config, false, false, StreamingMode.STREAMING);
+		TestingCluster flink = new TestingCluster(config, false, false);
 
 		try {
 			final Deadline deadline = TestTimeOut.fromNow();
@@ -267,7 +266,7 @@ public class JobManagerSubmittedJobGraphsRecoveryITCase extends TestLogger {
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
-					false, StreamingMode.STREAMING, TaskManager.class);
+					false, TaskManager.class);
 
 			// Client test actor
 			TestActorRef<RecordingTestClient> clientRef = TestActorRef.create(

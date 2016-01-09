@@ -29,7 +29,7 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 /**
  * Request handler that returns the execution config of a job.
  */
-public class JobConfigHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 
 	public JobConfigHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -39,7 +39,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler imple
 	public String handleRequest(ExecutionGraph graph, Map<String, String> params) throws Exception {
 
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 		gen.writeStringField("jid", graph.getJobID().toString());

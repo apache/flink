@@ -79,12 +79,15 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 
 
 	@Override
-	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, long offset) throws IOException {
+	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, String topic, long offset) throws IOException {
 		K key = null;
 		if(messageKey != null) {
 			key = keySerializer.deserialize(new ByteArrayInputView(messageKey));
 		}
-		V value = valueSerializer.deserialize(new ByteArrayInputView(message));
+		V value = null;
+		if(message != null) {
+			value = valueSerializer.deserialize(new ByteArrayInputView(message));
+		}
 		return new Tuple2<>(key, value);
 	}
 
@@ -128,6 +131,11 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 
 	@Override
 	public byte[] serializeValue(Tuple2<K, V> element) {
+		// if the value is null, its serialized value is null as well.
+		if(element.f1 == null) {
+			return null;
+		}
+
 		if (valueOutputSerializer == null) {
 			valueOutputSerializer = new DataOutputSerializer(16);
 		}

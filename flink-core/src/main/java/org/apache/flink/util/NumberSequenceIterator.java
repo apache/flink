@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.NoSuchElementException;
 
 /**
@@ -25,17 +27,21 @@ import java.util.NoSuchElementException;
  * The iterator is splittable (as defined by {@link SplittableIterator}, i.e., it can be divided into multiple
  * iterators that each return a subsequence of the number sequence.
  */
+@Public
 public class NumberSequenceIterator extends SplittableIterator<Long> {
 	
 	private static final long serialVersionUID = 1L;
 
+	/** The last number returned by the iterator */
 	private final long to;
 	
+	/** The next number to be returned */
 	private long current;
 	
 	
 	/**
-	 * Internal constructor to allow for empty iterators.
+	 * Creates a new splittable iterator, returning the range [from, to].
+	 * Both boundaries of the interval are inclusive.
 	 * 
 	 * @param from The first number returned by the iterator.
 	 * @param to The last number returned by the iterator.

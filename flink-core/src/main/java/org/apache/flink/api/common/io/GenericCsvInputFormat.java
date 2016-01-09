@@ -23,6 +23,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
@@ -40,13 +41,14 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 
+@Public
 public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GenericCsvInputFormat.class);
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final Class<?>[] EMPTY_TYPES = new Class[0];
+	private static final Class<?>[] EMPTY_TYPES = new Class<?>[0];
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
 	
@@ -240,9 +242,8 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				fieldIncluded[i] = true;
 			}
 		}
-		
-		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
-		this.fieldTypes = denseTypeArray;
+
+		this.fieldTypes = types.toArray(new Class<?>[types.size()]);
 	}
 	
 	protected void setFieldsGeneric(int[] sourceFieldIndices, Class<?>[] fieldTypes) {
@@ -275,8 +276,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			}
 		}
 
-		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
-		this.fieldTypes = denseTypeArray;
+		this.fieldTypes = types.toArray(new Class<?>[types.size()]);
 	}
 	
 	protected void setFieldsGeneric(boolean[] includedMask, Class<?>[] fieldTypes) {
@@ -307,8 +307,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			}
 		}
 
-		Class<?>[] denseTypeArray = (Class<?>[]) types.toArray(new Class[types.size()]);
-		this.fieldTypes = denseTypeArray;
+		this.fieldTypes = types.toArray(new Class<?>[types.size()]);
 		this.fieldIncluded = includedMask;
 	}
 
@@ -321,7 +320,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		super.open(split);
 		
 		// instantiate the parsers
-		FieldParser<?>[] parsers = new FieldParser[fieldTypes.length];
+		FieldParser<?>[] parsers = new FieldParser<?>[fieldTypes.length];
 		
 		for (int i = 0; i < fieldTypes.length; i++) {
 			if (fieldTypes[i] != null) {
@@ -441,7 +440,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 		final int delimLimit = limit - delim.length + 1;
 
-		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
+		if (quotedStringParsing && bytes[i] == quoteCharacter) {
 
 			// quoted string parsing enabled and field is quoted
 			// search for ending quote character, continue when it is escaped

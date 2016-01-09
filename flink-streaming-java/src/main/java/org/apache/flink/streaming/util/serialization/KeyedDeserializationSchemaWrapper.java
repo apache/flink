@@ -35,7 +35,7 @@ public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializatio
 		this.deserializationSchema = deserializationSchema;
 	}
 	@Override
-	public T deserialize(byte[] messageKey, byte[] message, long offset) throws IOException {
+	public T deserialize(byte[] messageKey, byte[] message, String topic, long offset) throws IOException {
 		return deserializationSchema.deserialize(message);
 	}
 

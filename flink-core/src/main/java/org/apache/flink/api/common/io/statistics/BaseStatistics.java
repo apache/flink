@@ -19,9 +19,12 @@
 
 package org.apache.flink.api.common.io.statistics;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Interface describing the basic statistics that can be obtained from the input.
  */
+@Public
 public interface BaseStatistics {
 	
 	/**

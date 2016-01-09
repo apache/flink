@@ -66,6 +66,16 @@ under the License.
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
 		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang3\.SerializationUtils"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use Flink's InstantiationUtil instead of common's SerializationUtils"/>
+		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.apache\.commons\.lang\."/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use commons-lang3 instead of commons-lang."/>
+		</module>
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>
 		</module>

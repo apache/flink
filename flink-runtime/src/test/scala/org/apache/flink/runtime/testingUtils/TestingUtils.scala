@@ -29,10 +29,9 @@ import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
-import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor, StreamingMode}
+import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
-import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -223,7 +222,6 @@ object TestingUtils {
       None,
       leaderRetrievalService,
       useLocalCommunication,
-      StreamingMode.BATCH_ONLY,
       classOf[TestingTaskManager]
     )
 
@@ -274,7 +272,6 @@ object TestingUtils {
         actorSystem,
         Some(JobManager.JOB_MANAGER_NAME),
         Some(JobManager.ARCHIVE_NAME),
-        StreamingMode.BATCH_ONLY,
         classOf[JobManager],
         classOf[MemoryArchivist])
 

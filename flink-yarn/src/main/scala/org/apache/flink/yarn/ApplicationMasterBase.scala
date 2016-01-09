@@ -19,23 +19,27 @@
 package org.apache.flink.yarn
 
 import java.io.{FileWriter, BufferedWriter, PrintWriter}
+import java.net.{BindException, ServerSocket}
 import java.security.PrivilegedAction
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManagerMode, JobManager}
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.webmonitor.WebMonitor
+import org.apache.flink.util.NetUtils
 import org.apache.flink.yarn.YarnMessages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.jboss.netty.channel.ChannelException
 import org.slf4j.LoggerFactory
 
+import scala.annotation.tailrec
 import scala.io.Source
+import scala.util.{Success, Failure, Try}
 
 /** Base class for all application masters. This base class provides functionality to start a
   * [[JobManager]] implementation in a Yarn container.
@@ -62,7 +66,6 @@ abstract class ApplicationMasterBase {
       s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
 
     EnvironmentInformation.logEnvironmentInfo(log, "YARN ApplicationMaster/JobManager", args)
-    EnvironmentInformation.checkJavaVersion()
     org.apache.flink.runtime.util.SignalHandler.register(log)
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
@@ -93,14 +96,6 @@ abstract class ApplicationMasterBase {
       val currDir = env.get(Environment.PWD.key())
       require(currDir != null, "Current directory unknown.")
 
-      val streamingMode = if(ApplicationMasterBase.hasStreamingMode(env)) {
-        log.info("Starting ApplicationMaster/JobManager in streaming mode")
-        StreamingMode.STREAMING
-      } else {
-        log.info("Starting ApplicationMaster/JobManager in batch only mode")
-        StreamingMode.BATCH_ONLY
-      }
-
       // Note that we use the "ownHostname" given by YARN here, to make sure
       // we use the hostnames given by YARN consistently throughout akka.
       // for akka "localhost" and "localhost.localdomain" are different actors.
@@ -120,18 +115,78 @@ abstract class ApplicationMasterBase {
         config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0)
       }
 
-      val (actorSystem, jmActor, archiveActor, webMonitor) =
+      // we try to start the JobManager actor system using the port definition
+      // from the config.
+      // first, we check if the port is available by opening a socket
+      // if the actor system fails to start on the port, we try further
+      val amPortRange: String = config.getString(ConfigConstants.YARN_APPLICATION_MASTER_PORT,
+        ConfigConstants.DEFAULT_YARN_APPLICATION_MASTER_PORT)
+      val portsIterator = NetUtils.getPortRangeFromString(amPortRange)
+
+      // method to start the actor system.
+      def startActorSystem(
+          portsIterator: java.util.Iterator[Integer])
+        : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
+        val availableSocket = NetUtils.createSocketFromPorts(
+          portsIterator,
+          new NetUtils.SocketFactory {
+            override def createSocket(port: Int): ServerSocket = new ServerSocket(port)
+          })
+
+        // get port as integer and close socket
+       val tryPort = if (availableSocket == null) {
+          throw new BindException(s"Unable to allocate port for ApplicationMaster in " +
+            s"specified port range: $amPortRange ")
+        } else {
+          val port = availableSocket.getLocalPort
+          availableSocket.close()
+          port // return for if
+        }
+
         JobManager.startActorSystemAndJobManagerActors(
           config,
           JobManagerMode.CLUSTER,
-          streamingMode,
           ownHostname,
-          0,
+          tryPort,
           getJobManagerClass,
           getArchivistClass
         )
+      }
 
-      actorSystemOption = Option(actorSystem)
+      @tailrec
+      def retry[T](fn: => T, stopCond: => Boolean): Try[T] = {
+        Try {
+          fn
+        } match {
+          case Failure(x: BindException) =>
+            if (stopCond) {
+              Failure(new RuntimeException("Unable to do further retries starting the actor " +
+                "system"))
+            } else {
+              retry(fn, stopCond)
+            }
+          case Failure(x: Exception) => x.getCause match {
+            case c: ChannelException =>
+              if (stopCond) {
+                Failure(new RuntimeException("Unable to do further retries starting the actor " +
+                  "system"))
+              } else {
+                retry(fn, stopCond)
+              }
+            case _ => Failure(x)
+          }
+          case f => f
+        }
+      }
+
+      // try starting the actor system
+      val result = retry(startActorSystem(portsIterator), {portsIterator.hasNext})
+
+      val (actorSystem, jmActor, archiveActor, webMonitor) = result match {
+        case Success(r) => r
+        case Failure(failure) => throw new RuntimeException("Unable to start actor system", failure)
+      }
+
       webMonitorOption = webMonitor
 
       val address = AkkaUtils.getAddress(actorSystem)

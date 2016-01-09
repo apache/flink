@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * Request handler that returns the JSON program plan of a job graph.
  */
-public class JobPlanHandler extends AbstractExecutionGraphRequestHandler implements RequestHandler.JsonResponse {
+public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 
 	
 	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {

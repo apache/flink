@@ -23,6 +23,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.MultiShotLatch;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AscendingTimestampExtractor;
@@ -133,7 +134,7 @@ public class TimestampITCase {
 		source1.union(source2)
 				.map(new IdentityMap())
 				.connect(source2).map(new IdentityCoMap())
-				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Custom Operator", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.addSink(new NoOpSink<Integer>());
 
 		env.execute();
@@ -293,7 +294,7 @@ public class TimestampITCase {
 				});
 
 		extractOp
-				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check",
 						BasicTypeInfo.INT_TYPE_INFO,
 						new TimestampCheckingOperator());
@@ -362,7 +363,7 @@ public class TimestampITCase {
 				return Long.MIN_VALUE;
 			}
 		})
-				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
 
@@ -429,7 +430,7 @@ public class TimestampITCase {
 				return Long.MIN_VALUE;
 			}
 		})
-				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator())
+				.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true))
 				.transform("Timestamp Check", BasicTypeInfo.INT_TYPE_INFO, new TimestampCheckingOperator());
 
 
@@ -444,6 +445,68 @@ public class TimestampITCase {
 		if (!CustomOperator.finalWatermarks[0].get(NUM_ELEMENTS).equals(new Watermark(Long.MAX_VALUE))) {
 			Assert.fail("Wrong watermark.");
 		}
+	}
+
+	/**
+	 * This test verifies that the timestamp extractor forwards Long.MAX_VALUE watermarks.
+	 */
+	@Test
+	public void testTimestampExtractorWithLongMaxWatermarkFromSource() throws Exception {
+		final int NUM_ELEMENTS = 10;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		env.setParallelism(2);
+		env.getConfig().disableSysoutLogging();
+		env.getConfig().enableTimestamps();
+		env.getConfig().setAutoWatermarkInterval(1);
+
+
+		DataStream<Integer> source1 = env.addSource(new EventTimeSourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+				int index = 0;
+				while (index < NUM_ELEMENTS) {
+					ctx.collectWithTimestamp(index, index);
+					ctx.collectWithTimestamp(index - 1, index - 1);
+					index++;
+					ctx.emitWatermark(new Watermark(index-2));
+				}
+
+				// emit the final Long.MAX_VALUE watermark, do it twice and verify that
+				// we only see one in the result
+				ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+				ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+			}
+
+			@Override
+			public void cancel() {
+
+			}
+		});
+
+		source1.assignTimestamps(new TimestampExtractor<Integer>() {
+			@Override
+			public long extractTimestamp(Integer element, long currentTimestamp) {
+				return element;
+			}
+
+			@Override
+			public long extractWatermark(Integer element, long currentTimestamp) {
+				return Long.MIN_VALUE;
+			}
+
+			@Override
+			public long getCurrentWatermark() {
+				return Long.MIN_VALUE;
+			}
+		})
+			.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(true));
+
+
+		env.execute();
+
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
 	}
 
 	/**
@@ -503,23 +566,50 @@ public class TimestampITCase {
 		env.execute();
 	}
 
+	/**
+	 * This verifies that an event time source works when setting stream time characteristic to
+	 * processing time. In this case, the watermarks should just be swallowed.
+	 */
+	@Test
+	public void testEventTimeSourceWithProcessingTime() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getLeaderRPCPort());
+		env.setParallelism(2);
+		env.getConfig().disableSysoutLogging();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		env.getConfig().disableTimestamps();
+
+		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
+
+		source1
+			.map(new IdentityMap())
+			.transform("Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false));
+
+		env.execute();
+
+		// verify that we don't get any watermarks, the source is used as watermark source in
+		// other tests, so it normally emits watermarks
+		Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 0);
+	}
+
 	@SuppressWarnings("unchecked")
 	public static class CustomOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
 
 		List<Watermark> watermarks;
 		public static List<Watermark>[] finalWatermarks = new List[PARALLELISM];
-		private long oldTimestamp;
+		private final boolean timestampsEnabled;
 
-		public CustomOperator() {
+		public CustomOperator(boolean timestampsEnabled) {
 			setChainingStrategy(ChainingStrategy.ALWAYS);
+			this.timestampsEnabled = timestampsEnabled;
 		}
 
 		@Override
 		public void processElement(StreamRecord<Integer> element) throws Exception {
-			if (element.getTimestamp() != element.getValue()) {
-				Assert.fail("Timestamps are not properly handled.");
+			if (timestampsEnabled) {
+				if (element.getTimestamp() != element.getValue()) {
+					Assert.fail("Timestamps are not properly handled.");
+				}
 			}
-			oldTimestamp = element.getTimestamp();
 			output.collect(element);
 		}
 

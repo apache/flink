@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
+import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;

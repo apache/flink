@@ -1,0 +1,80 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<div ng-if="!jobCheckpointStats">
+  <p><em>No checkpoints</em></p>
+</div>
+<table ng-if="jobCheckpointStats" class="table table-hover table-inner">
+  <thead>
+    <tr>
+      <td colspan="3"><strong>Overview</strong></td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Count</strong></td>
+      <td colspan="3"><span>{{ jobCheckpointStats['count'] }}</span></td>
+    </tr>
+    <tr>
+      <td><strong>Duration</strong></td>
+      <td>
+        <p><strong>Minimum:</strong><span> {{ jobCheckpointStats['duration']['min'] | humanizeDuration }}</span></p>
+      </td>
+      <td>
+        <p><strong>Maximum:</strong><span> {{ jobCheckpointStats['duration']['max'] | humanizeDuration }}</span></p>
+      </td>
+      <td>
+        <p><strong>Average:</strong><span> {{ jobCheckpointStats['duration']['avg'] | humanizeDuration }}</span></p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>State Size</strong></td>
+      <td>
+        <p><strong>Minimum:</strong><span> {{ jobCheckpointStats['size']['min'] | humanizeBytes }}</span></p>
+      </td>
+      <td>
+        <p><strong>Maximum:</strong><span> {{ jobCheckpointStats['size']['max'] | humanizeBytes }}</span></p>
+      </td>
+      <td>
+        <p><strong>Average:</strong><span> {{ jobCheckpointStats['size']['avg'] | humanizeBytes }}</span></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<div ng-if="!showHistory &amp;&amp; jobCheckpointStats &amp;&amp; jobCheckpointStats['history'].length &gt; 0"><a ng-click="toggleHistory()" class="btn btn-default"><strong>Show history</strong> ({{ jobCheckpointStats['history'].length }}) <i class="fa fa-chevron-down"></i></a></div>
+<div ng-if="showHistory &amp;&amp; jobCheckpointStats &amp;&amp; jobCheckpointStats['history'].length &gt; 0"><a ng-click="toggleHistory()" class="btn btn-default">Hide history ({{ jobCheckpointStats['history'].length }}) <i class="fa fa-chevron-up"></i></a>
+  <table class="table table-hover table-inner">
+    <thead>
+      <tr>
+        <td><strong>ID</strong></td>
+        <td><strong>Trigger Time</strong></td>
+        <td><strong>Duration</strong></td>
+        <td><strong>State Size</strong></td>
+      </tr>
+    </thead>
+    <tbody ng-if="jobCheckpointStats['history'] &amp;&amp; jobCheckpointStats['history'].length &gt; 0" ng-repeat="historic in jobCheckpointStats['history']">
+      <tr>
+        <td>{{ historic['id'] }}</td>
+        <td>{{ historic['timestamp'] | amDateFormat:'H:mm:ss' }}</td>
+        <td>{{ historic['duration'] | humanizeDuration }}</td>
+        <td>{{ historic['size'] | humanizeBytes }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

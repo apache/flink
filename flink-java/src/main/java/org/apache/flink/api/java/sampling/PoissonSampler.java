@@ -111,7 +111,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 				return currentElement;
 			}
 			
-			public int poisson_ge1(double p){
+			public int poisson_ge1(double p) {
 				// sample 'k' from Poisson(p), conditioned to k >= 1.
 				double q = Math.pow(Math.E, -p);
 				// simulate a poisson trial such that k >= 1.
@@ -129,13 +129,13 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 			private void skipGapElements(int num) {
 				// skip the elements that occurrence number is zero.
 				int elementCount = 0;
-				while (input.hasNext() && elementCount < num){
+				while (input.hasNext() && elementCount < num) {
 					currentElement = input.next();
 					elementCount++;
 				}
 			}
 			
-			private void samplingProcess(){
+			private void samplingProcess() {
 				if (fraction <= THRESHOLD) {
 					double u = Math.max(random.nextDouble(), EPSILON);
 					int gap = (int) (Math.log(u) / -fraction);
@@ -145,7 +145,7 @@ public class PoissonSampler<T> extends RandomSampler<T> {
 						currentCount = poisson_ge1(fraction);
 					}
 				} else {
-					while (input.hasNext()){
+					while (input.hasNext()) {
 						currentElement = input.next();
 						currentCount = poissonDistribution.sample();
 						if (currentCount > 0) {

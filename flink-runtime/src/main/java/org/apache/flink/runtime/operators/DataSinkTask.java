@@ -184,7 +184,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			LOG.debug(getLogString("Starting to produce output"));
 
 			// open
-			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getNumberOfSubtasks());
+			format.open(this.getEnvironment().getTaskInfo().getIndexOfThisSubtask(), this.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks());
 
 			if (objectReuseEnabled) {
 				IT record = serializer.createInstance();
@@ -385,14 +385,13 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message) {
-		return BatchTask.constructLogString(message, this.getEnvironment().getTaskName(), this);
+		return BatchTask.constructLogString(message, this.getEnvironment().getTaskInfo().getTaskName(), this);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

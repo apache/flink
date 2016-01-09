@@ -58,6 +58,14 @@ trait Vector extends Serializable {
     */
   def dot(other: Vector): Double
 
+  /** Returns the outer product of the recipient and the argument
+    *
+    *
+    * @param other a Vector
+    * @return a matrix
+    */
+  def outer(other: Vector): Matrix
+
   /** Magnitude of a vector
     *
     * @return

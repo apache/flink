@@ -51,7 +51,7 @@ For example, on Ubuntu Linux, type in the following commands to install Java and
 ssh:
 
 ~~~bash
-sudo apt-get install ssh 
+sudo apt-get install ssh
 sudo apt-get install openjdk-7-jre
 ~~~
 
@@ -210,9 +210,9 @@ entire Flink directory to every worker node.
 Please see the [configuration page](config.html) for details and additional
 configuration options.
 
-In particular, 
+In particular,
 
- * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
+ * the amount of available memory per TaskManager (`taskmanager.heap.mb`),
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
  * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`taskmanager.tmp.dirs`)
@@ -236,34 +236,18 @@ bin/start-cluster.sh
 
 To stop Flink, there is also a `stop-cluster.sh` script.
 
-
-### Starting Flink in the streaming mode
-
-~~~bash
-bin/start-cluster-streaming.sh
-~~~
-
-The streaming mode changes the startup behavior of Flink: The system is not 
-bringing up the managed memory services with preallocated memory at the beginning.
-Flink streaming is not using the managed memory employed by the batch operators.
-By not starting these services with preallocated memory, streaming jobs can benefit
-from more heap space being available.
-
-Note that you can still start batch jobs in the streaming mode. The memory manager
-will then allocate memory segments from the Java heap as needed.
-
 ### Optional: Adding JobManager/TaskManager instances to a cluster
 
 You can add both TaskManager or JobManager instances to your running cluster with the `bin/taskmanager.sh` and `bin/jobmanager.sh` scripts.
 
 #### Adding a TaskManager
 <pre>
-bin/taskmanager.sh (start [batch|streaming])|stop|stop-all)
+bin/taskmanager.sh start|stop|stop-all
 </pre>
 
 #### Adding a JobManager
 <pre>
-bin/jobmanager.sh (start cluster [batch|streaming])|stop|stop-all)
+bin/jobmanager.sh (start (local|cluster))|stop|stop-all
 </pre>
 
 Make sure to call these scripts on the hosts, on which you want to start/stop the respective instance.
@@ -281,7 +265,7 @@ setup step is not needed.
 The following instructions are a general overview of usual required settings. Please consult one of the
 many installation guides available online for more detailed instructions.
 
-__Note that the following instructions are based on Hadoop 1.2 and might differ 
+__Note that the following instructions are based on Hadoop 1.2 and might differ
 for Hadoop 2.__
 
 ### Downloading, Installing, and Configuring HDFS

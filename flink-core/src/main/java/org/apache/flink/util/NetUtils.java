@@ -18,7 +18,10 @@
 
 package org.apache.flink.util;
 
+import com.google.common.collect.Iterators;
 import com.google.common.net.InetAddresses;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.Inet4Address;
@@ -29,10 +32,13 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class NetUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
 	
 	/**
 	 * Turn a fully qualified domain name (fqdn) into a hostname. If the fqdn has multiple subparts
@@ -170,30 +176,75 @@ public class NetUtils {
 	}
 
 	/**
-	 * Returns a set of available ports defined by the range definition.
+	 * Returns an iterator over available ports defined by the range definition.
 	 *
 	 * @param rangeDefinition String describing a single port, a range of ports or multiple ranges.
 	 * @return Set of ports from the range definition
 	 * @throws NumberFormatException If an invalid string is passed.
 	 */
-	public static Set<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
-		Set<Integer> finalSet = new HashSet<>();
+
+	public static Iterator<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
 		final String[] ranges = rangeDefinition.trim().split(",");
+		List<Iterator<Integer>> iterators = new ArrayList<>(ranges.length);
 		for(String rawRange: ranges) {
+			Iterator<Integer> rangeIterator = null;
 			String range = rawRange.trim();
 			int dashIdx = range.indexOf('-');
 			if (dashIdx == -1) {
 				// only one port in range:
-				finalSet.add(Integer.valueOf(range));
+				rangeIterator = Iterators.singletonIterator(Integer.valueOf(range));
 			} else {
 				// evaluate range
-				int start = Integer.valueOf(range.substring(0, dashIdx));
-				int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
-				for(int i = start; i <= end; i++) {
-					finalSet.add(i);
+				final int start = Integer.valueOf(range.substring(0, dashIdx));
+				final int end = Integer.valueOf(range.substring(dashIdx+1, range.length()));
+				rangeIterator = new Iterator<Integer>() {
+					int i = start;
+					@Override
+					public boolean hasNext() {
+						return i <= end;
+					}
+
+					@Override
+					public Integer next() {
+						return i++;
+					}
+
+					@Override
+					public void remove() {
+						throw new UnsupportedOperationException("Remove not supported");
+					}
+				};
+			}
+			iterators.add(rangeIterator);
+		}
+		return Iterators.concat(iterators.iterator());
+	}
+
+	/**
+	 * Tries to allocate a socket from the given sets of ports.
+	 *
+	 * @param portsIterator A set of ports to choose from.
+	 * @param factory A factory for creating the SocketServer
+	 * @return null if no port was available or an allocated socket.
+	 */
+	public static ServerSocket createSocketFromPorts(Iterator<Integer> portsIterator, SocketFactory factory) throws IOException {
+		while (portsIterator.hasNext()) {
+			int port = portsIterator.next();
+			LOG.debug("Trying to open socket on port {}", port);
+			try {
+				return factory.createSocket(port);
+			} catch (IOException | IllegalArgumentException e) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Unable to allocate socket on port", e);
+				} else {
+					LOG.info("Unable to allocate on port {}, due to error: {}", port, e.getMessage());
 				}
 			}
 		}
-		return finalSet;
+		return null;
+	}
+
+	public interface SocketFactory {
+		ServerSocket createSocket(int port) throws IOException;
 	}
 }

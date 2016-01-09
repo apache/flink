@@ -48,6 +48,12 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	/** The lower part of the actual ID */
 	protected long lowerPart;
 
+	/** The memoized value returned by toString() */
+	private String toString;
+
+	/** The memoized value returned by toShortString() */
+	private String toShortString;
+
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -137,6 +143,9 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	public void read(DataInputView in) throws IOException {
 		this.lowerPart = in.readLong();
 		this.upperPart = in.readLong();
+
+		this.toString = null;
+		this.toShortString = null;
 	}
 
 	@Override
@@ -169,16 +178,26 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	
 	@Override
 	public String toString() {
-		final byte[] ba = new byte[SIZE];
-		longToByteArray(this.lowerPart, ba, 0);
-		longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
-		return StringUtils.byteToHexString(ba);
+		if (this.toString == null) {
+			final byte[] ba = new byte[SIZE];
+			longToByteArray(this.lowerPart, ba, 0);
+			longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
+
+			this.toString = StringUtils.byteToHexString(ba);
+		}
+
+		return this.toString;
 	}
 
 	public String toShortString() {
-		final byte[] ba = new byte[SIZE_OF_LONG];
-		longToByteArray(upperPart, ba, 0);
-		return StringUtils.byteToHexString(ba);
+		if (this.toShortString == null) {
+			final byte[] ba = new byte[SIZE_OF_LONG];
+			longToByteArray(upperPart, ba, 0);
+
+			this.toShortString = StringUtils.byteToHexString(ba);
+		}
+
+		return this.toShortString;
 	}
 	
 	@Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -67,6 +68,7 @@ import java.util.List;
  *
  * @param <T> The type represented by this type information.
  */
+@Public
 public abstract class TypeInformation<T> implements Serializable {
 	
 	private static final long serialVersionUID = -7742311969684489493L;

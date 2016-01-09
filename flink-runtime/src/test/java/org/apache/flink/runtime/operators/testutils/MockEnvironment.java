@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
@@ -62,7 +63,7 @@ import static org.mockito.Mockito.when;
 
 public class MockEnvironment implements Environment {
 	
-	private final String taskName;
+	private final TaskInfo taskInfo;
 	
 	private final MemoryManager memManager;
 
@@ -87,7 +88,7 @@ public class MockEnvironment implements Environment {
 	private final int bufferSize;
 
 	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this.taskName = taskName;
+		this.taskInfo = new TaskInfo(taskName, 0, 1, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<InputGate>();
@@ -200,28 +201,13 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public int getNumberOfSubtasks() {
-		return 1;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return 0;
-	}
-
-	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}
 
 	@Override
-	public String getTaskName() {
-		return taskName;
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return taskName + "(0/1)";
+	public TaskInfo getTaskInfo() {
+		return taskInfo;
 	}
 
 	@Override

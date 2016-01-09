@@ -37,6 +37,7 @@ under the License.
 		<module>flink-streaming-contrib</module>
 		<module>flink-tweet-inputformat</module>
 		<module>flink-operator-stats</module>
+		<module>flink-connector-wikiedits</module>
 	</modules>
 
 	<artifactId>flink-contrib-parent</artifactId>

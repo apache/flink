@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -39,16 +40,12 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 public class DummyEnvironment implements Environment {
 
-	private final String taskName;
-	private final int numSubTasks;
-	private final int subTaskIndex;
+	private final TaskInfo taskInfo;
 	private final JobID jobId = new JobID();
 	private final JobVertexID jobVertexId = new JobVertexID();
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
-		this.taskName = taskName;
-		this.numSubTasks = numSubTasks;
-		this.subTaskIndex = subTaskIndex;
+		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
 	}
 
 	@Override
@@ -82,13 +79,8 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public int getNumberOfSubtasks() {
-		return numSubTasks;
-	}
-
-	@Override
-	public int getIndexInSubtaskGroup() {
-		return subTaskIndex;
+	public TaskInfo getTaskInfo() {
+		return taskInfo;
 	}
 
 	@Override
@@ -104,16 +96,6 @@ public class DummyEnvironment implements Environment {
 	@Override
 	public MemoryManager getMemoryManager() {
 		return null;
-	}
-
-	@Override
-	public String getTaskName() {
-		return taskName;
-	}
-
-	@Override
-	public String getTaskNameWithSubtasks() {
-		return taskName;
 	}
 
 	@Override

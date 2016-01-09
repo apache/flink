@@ -57,14 +57,6 @@ public class ExtractTimestampsOperator<T>
 	}
 
 	@Override
-	public void close() throws Exception {
-		super.close();
-
-		// emit a final +Inf watermark, just like the sources
-		output.emitWatermark(new Watermark(Long.MAX_VALUE));
-	}
-
-	@Override
 	public void processElement(StreamRecord<T> element) throws Exception {
 		long newTimestamp = userFunction.extractTimestamp(element.getValue(), element.getTimestamp());
 		output.collect(element.replace(element.getValue(), newTimestamp));
@@ -90,6 +82,11 @@ public class ExtractTimestampsOperator<T>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-		// ignore them, since we are basically a watermark source
+		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
+		// to signal the end of input and to not block watermark progress downstream
+		if (mark.getTimestamp() == Long.MAX_VALUE && mark.getTimestamp() > currentWatermark) {
+			currentWatermark = Long.MAX_VALUE;
+			output.emitWatermark(mark);
+		}
 	}
 }

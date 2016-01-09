@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.test.web;
 
-
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
@@ -33,7 +34,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
@@ -58,10 +59,9 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	}
 
 	@Parameterized.Parameters(name = "Execution mode = {0}")
-	public static Collection<TestExecutionMode[]> executionModes(){
-		Collection<TestExecutionMode[]> c = new ArrayList<TestExecutionMode[]>(1);
-		c.add(new TestExecutionMode[] {TestExecutionMode.CLUSTER});
-		return c;
+	public static Collection<Object[]> executionModes() {
+		return Arrays.<Object[]>asList(
+			new Object[] { TestExecutionMode.CLUSTER } );
 	}
 
 	@Test
@@ -141,5 +141,4 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
-
 }

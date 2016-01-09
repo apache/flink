@@ -33,6 +33,7 @@ import org.apache.flink.streaming.util.serialization.TypeInformationSerializatio
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -109,7 +110,7 @@ public class KafkaProducerITCase extends KafkaTestBase {
 			// ------ consuming topology ---------
 			
 			FlinkKafkaConsumer<Tuple2<Long, String>> source = 
-					new FlinkKafkaConsumer<>(topic, deserSchema, standardProps, 
+					new FlinkKafkaConsumer<>(Collections.singletonList(topic), deserSchema, standardProps,
 							FlinkKafkaConsumer.OffsetStore.FLINK_ZOOKEEPER,
 							FlinkKafkaConsumer.FetcherType.LEGACY_LOW_LEVEL);
 			

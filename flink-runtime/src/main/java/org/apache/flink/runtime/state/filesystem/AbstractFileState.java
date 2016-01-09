@@ -82,4 +82,14 @@ public abstract class AbstractFileState implements java.io.Serializable {
 		}
 		return fs;
 	}
+
+	/**
+	 * Returns the file size in bytes.
+	 *
+	 * @return The file size in bytes.
+	 * @throws IOException Thrown if the file system cannot be accessed.
+	 */
+	protected long getFileSize() throws IOException {
+		return getFileSystem().getFileStatus(filePath).getLen();
+	}
 }

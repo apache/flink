@@ -31,7 +31,7 @@ import java.util.Map;
  * Base class for request handlers whose response depends on a specific job vertex (defined
  * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).  
  */
-public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler implements RequestHandler.JsonResponse {
+public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler {
 	
 	public SubtaskExecutionAttemptAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -42,7 +42,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
 		
 		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createJsonGenerator(writer);
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		gen.writeStartObject();
 

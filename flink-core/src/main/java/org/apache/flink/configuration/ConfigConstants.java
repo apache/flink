@@ -18,10 +18,13 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
  */
+@Public
 public final class ConfigConstants {
 
 	// ------------------------------------------------------------------------
@@ -86,6 +89,8 @@ public final class ConfigConstants {
 	 * The port can either be a port, such as "9123",
 	 * a range of ports: "50100-50200"
 	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *
+	 * Setting the port to 0 will let the OS choose an available port.
 	 */
 	public static final String BLOB_SERVER_PORT = "blob.server.port";
 
@@ -130,6 +135,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the memory allocation method (JVM heap or off-heap).
 	*/
 	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
+
+	/**
+	 * The config parameter for specifying whether TaskManager managed memory should be preallocated
+	 * when the TaskManager is starting. (default is false)
+	 */
+	public static final String TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY = "taskmanager.memory.preallocate";
 
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
@@ -258,6 +269,20 @@ public final class ConfigConstants {
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
 
 
+
+	 /**
+	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
+	 * JobManager
+	 *
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *
+	 * Setting the port to 0 will let the OS choose an available port.
+	 */
+	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
+
+
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
@@ -324,33 +349,14 @@ public final class ConfigConstants {
 	 */
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
 
+	/** Config parameter indicating whether jobs can be uploaded and run from the web-frontend. */
+	public static final String JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY = "jobmanager.web.submit.enable";
 
-	// ------------------------------ Web Client ------------------------------
+	/** Flag to disable checkpoint stats. */
+	public static final String JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = "jobmanager.web.checkpoints.disable";
 
-	/**
-	 * The config parameter defining port for the pact web-frontend server.
-	 */
-	public static final String WEB_FRONTEND_PORT_KEY = "webclient.port";
-
-	/**
-	 * The config parameter defining the temporary data directory for the web client.
-	 */
-	public static final String WEB_TMP_DIR_KEY = "webclient.tempdir";
-
-	/**
-	 * The config parameter defining the directory that programs are uploaded to.
-	 */
-	public static final String WEB_JOB_UPLOAD_DIR_KEY = "webclient.uploaddir";
-
-	/**
-	 * The config parameter defining the directory that JSON plan dumps are written to.
-	 */
-	public static final String WEB_PLAN_DUMP_DIR_KEY = "webclient.plandump";
-
-	/**
-	 * The config parameter defining the port to the htaccess file protecting the web client.
-	 */
-	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
+	/** Config parameter defining the number of checkpoints to remember for recent history. */
+	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
 	
 
 	// ------------------------------ AKKA ------------------------------------
@@ -582,6 +588,11 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
 
+	/**
+	 * The default setting for TaskManager memory eager allocation of managed memory
+	 */
+	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
+
 	// ------------------------ Runtime Algorithms ------------------------
 	
 	/**
@@ -617,6 +628,12 @@ public final class ConfigConstants {
 	 * Relative amount of memory to subtract from the requested memory.
 	 */
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
+
+	/**
+	 * Default port for the application master is 0, which means
+	 * the operating system assigns an ephemeral port
+	 */
+	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "0";
 	
 	
 	// ------------------------ File System Behavior ------------------------
@@ -652,46 +669,21 @@ public final class ConfigConstants {
 	
 	// ------------------------- JobManager Web Frontend ----------------------
 	
-	/**
-	 * The config key for the port of the JobManager web frontend.
-	 * Setting this value to {@code -1} disables the web frontend.
-	 */
+	/** The config key for the port of the JobManager web frontend.
+	 * Setting this value to {@code -1} disables the web frontend. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 	
-	/**
-	 * The default number of archived jobs for the jobmanager
-	 */
+	/** The default number of archived jobs for the jobmanager */
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
-	
-	
-	// ------------------------------ Web Client ------------------------------
-	
-	/**
-	 * The default port to launch the web frontend server on.
-	 */
-	public static final int DEFAULT_WEBCLIENT_PORT = 8080;
 
-	/**
-	 * The default directory to store temporary objects (e.g. during file uploads).
-	 */
-	public static final String DEFAULT_WEB_TMP_DIR = 
-			System.getProperty("java.io.tmpdir") == null ? "/tmp" : System.getProperty("java.io.tmpdir");
+	/** By default, submitting jobs from the web-frontend is allowed. */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
 
-	/**
-	 * The default directory for temporary plan dumps from the web frontend.
-	 */
-	public static final String DEFAULT_WEB_PLAN_DUMP_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-plans/";
+	/** Default flag to disable checkpoint stats. */
+	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
 
-	/**
-	 * The default directory to store uploaded jobs in.
-	 */
-	public static final String DEFAULT_WEB_JOB_STORAGE_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-jobs/";
-	
-
-	/**
-	 * The default path to the file containing the list of access privileged users and passwords.
-	 */
-	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
+	/** Default number of checkpoints to remember for recent history. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
 
 	// ------------------------------ Akka Values ------------------------------
 

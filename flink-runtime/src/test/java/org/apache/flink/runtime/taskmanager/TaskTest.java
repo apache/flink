@@ -734,7 +734,7 @@ public class TaskTest {
 	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(Class<? extends AbstractInvokable> invokable) {
 		return new TaskDeploymentDescriptor(
 				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
-				"Test Task", 0, 1,
+				"Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				invokable.getName(),
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),

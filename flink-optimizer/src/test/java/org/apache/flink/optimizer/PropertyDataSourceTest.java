@@ -18,13 +18,13 @@
 
 package org.apache.flink.optimizer;
 
+import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DataSource;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -67,7 +67,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long,String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -100,7 +100,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long,String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -132,7 +132,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long,SomePojo,String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -164,7 +164,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long,SomePojo,String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -196,7 +196,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -228,7 +228,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -261,7 +261,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -296,7 +296,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -330,7 +330,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -365,7 +365,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -399,7 +399,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -432,7 +432,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -466,7 +466,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -500,7 +500,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -533,7 +533,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -568,7 +568,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -602,7 +602,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -637,7 +637,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -671,7 +671,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -704,7 +704,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -738,7 +738,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -771,7 +771,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data.output(new DiscardingOutputFormat<Tuple3<Long, SomePojo, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -811,7 +811,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data1.union(data2).output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -859,7 +859,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 
 		data1.union(data2).output(new DiscardingOutputFormat<Tuple2<Long, String>>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);

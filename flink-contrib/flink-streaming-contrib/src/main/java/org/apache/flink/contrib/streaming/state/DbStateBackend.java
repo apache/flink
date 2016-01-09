@@ -149,14 +149,15 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 					long handleId = rnd.nextLong();
 					String jobIdShort = env.getJobID().toShortString();
 
+					byte[] serializedState = InstantiationUtil.serializeObject(state);
 					dbAdapter.setCheckpointInsertParams(jobIdShort, insertStatement,
 							checkpointID, timestamp, handleId,
-							InstantiationUtil.serializeObject(state));
+							serializedState);
 
 					insertStatement.executeUpdate();
 
 					return new DbStateHandle<S>(jobIdShort, checkpointID, timestamp, handleId,
-							dbConfig);
+							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
 		} else {
@@ -181,7 +182,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
 		return new LazyDbKvState<K, V>(
 				stateId + "_" + env.getJobID().toShortString(),
-				env.getIndexInSubtaskGroup() == 0,
+				env.getTaskInfo().getIndexOfThisSubtask() == 0,
 				getConnections(),
 				getConfiguration(),
 				keySerializer,

@@ -23,6 +23,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.CharBuffer;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -42,6 +43,7 @@ import com.google.common.base.Preconditions;
  * @see java.lang.String
  * @see java.lang.CharSequence
  */
+@Public
 public class StringValue implements NormalizableKey<StringValue>, CharSequence, ResettableValue<StringValue>, 
 		CopyableValue<StringValue>, Appendable
 {

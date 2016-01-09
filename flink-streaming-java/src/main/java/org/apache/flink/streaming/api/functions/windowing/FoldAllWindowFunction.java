@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -23,16 +24,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 public class FoldAllWindowFunction<W extends Window, T, R>
@@ -59,9 +58,7 @@ public class FoldAllWindowFunction<W extends Window, T, R>
 		}
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-		InputViewDataInputStreamWrapper in = new InputViewDataInputStreamWrapper(
-				new DataInputStream(bais)
-		);
+		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 		initialValue = outSerializer.deserialize(in);
 	}
 
@@ -81,9 +78,7 @@ public class FoldAllWindowFunction<W extends Window, T, R>
 		outSerializer = outTypeInfo.createSerializer(executionConfig);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		OutputViewDataOutputStreamWrapper out = new OutputViewDataOutputStreamWrapper(
-				new DataOutputStream(baos)
-		);
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 
 		try {
 			outSerializer.serialize(initialValue, out);

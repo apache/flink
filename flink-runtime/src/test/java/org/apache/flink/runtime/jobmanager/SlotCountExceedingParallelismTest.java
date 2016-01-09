@@ -133,7 +133,7 @@ public class SlotCountExceedingParallelismTest {
 		@Override
 		public void invoke() throws Exception {
 			final IntValue subtaskIndex = new IntValue(
-					getEnvironment().getIndexInSubtaskGroup());
+					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 			try {
 				for (int i = 0; i < numberOfTimesToSend; i++) {

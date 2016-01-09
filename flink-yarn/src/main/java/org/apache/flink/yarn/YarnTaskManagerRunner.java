@@ -25,9 +25,7 @@ import java.util.Map;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.yarn.YarnTaskManager;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -47,16 +45,12 @@ public class YarnTaskManagerRunner {
 
 	public static <T extends YarnTaskManager> void runYarnTaskManager(String[] args, final Class<T> taskManager) throws IOException {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
-		EnvironmentInformation.checkJavaVersion();
 		org.apache.flink.runtime.util.SignalHandler.register(LOG);
 
 		// try to parse the command line arguments
 		final Configuration configuration;
-		final StreamingMode mode;
 		try {
-			scala.Tuple2<Configuration, StreamingMode> res = TaskManager.parseArgsAndLoadConfig(args);
-			configuration = res._1();
-			mode = res._2();
+			configuration = TaskManager.parseArgsAndLoadConfig(args);
 		}
 		catch (Throwable t) {
 			LOG.error(t.getMessage(), t);
@@ -94,8 +88,7 @@ public class YarnTaskManagerRunner {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration,
-						mode, taskManager);
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, taskManager);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);

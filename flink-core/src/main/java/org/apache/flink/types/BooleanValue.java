@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableValue<BooleanValue>, CopyableValue<BooleanValue> {
 	
 	private static final long serialVersionUID = 1L;

@@ -19,10 +19,9 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.kafka.common.TopicPartition;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.HashMap;
 
 /**
  * A fetcher pulls data from Kafka, from a fix set of partitions.
@@ -31,15 +30,8 @@ import java.util.List;
 public interface Fetcher {
 
 	/**
-	 * Set which partitions the fetcher should pull from.
-	 * 
-	 * @param partitions The list of partitions for a topic that the fetcher will pull from.
-	 */
-	void setPartitionsToRead(List<TopicPartition> partitions);
-
-	/**
 	 * Closes the fetcher. This will stop any operation in the
-	 * {@link #run(SourceFunction.SourceContext, DeserializationSchema, long[])} method and eventually
+	 * {@link #run(SourceFunction.SourceContext, KeyedDeserializationSchema, HashMap)} method and eventually
 	 * close underlying connections and release all resources.
 	 */
 	void close() throws IOException;
@@ -61,15 +53,14 @@ public interface Fetcher {
 	 *     }
 	 * }
 	 * }</pre>
-	 * 
+	 *
+	 * @param <T> The type of elements produced by the fetcher and emitted to the source context.
 	 * @param sourceContext The source context to emit elements to.
 	 * @param valueDeserializer The deserializer to decode the raw values with.
-	 * @param lastOffsets The array into which to store the offsets for which elements are emitted (operator state)
-	 * 
-	 * @param <T> The type of elements produced by the fetcher and emitted to the source context.
+	 * @param lastOffsets The map into which to store the offsets for which elements are emitted (operator state)
 	 */
 	<T> void run(SourceFunction.SourceContext<T> sourceContext, KeyedDeserializationSchema<T> valueDeserializer,
-					long[] lastOffsets) throws Exception;
+				HashMap<KafkaTopicPartition, Long> lastOffsets) throws Exception;
 	
 	/**
 	 * Set the next offset to read from for the given partition.
@@ -79,7 +70,7 @@ public interface Fetcher {
 	 * @param topicPartition The partition for which to seek the offset.
 	 * @param offsetToRead To offset to seek to.
 	 */
-	void seek(TopicPartition topicPartition, long offsetToRead);
+	void seek(KafkaTopicPartition topicPartition, long offsetToRead);
 
 	/**
 	 * Exit run loop with given error and release all resources.

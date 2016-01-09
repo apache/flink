@@ -30,17 +30,22 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
+
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
+
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -55,6 +60,9 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
+	public static final String WEB_MONITOR_ADDRESS_KEY = "web.monitor.address";
+	
+
 	private final RequestHandler handler;
 
 	private final JobManagerRetriever retriever;
@@ -63,9 +71,8 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 
 	private final FiniteDuration timeout;
 
-	private final String contentType;
-
 	private String localJobManagerAddress;
+	
 
 	public RuntimeMonitorHandler(
 			RequestHandler handler,
@@ -77,7 +84,6 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 		this.retriever = checkNotNull(retriever);
 		this.localJobManagerAddressFuture = checkNotNull(localJobManagerAddressFuture);
 		this.timeout = checkNotNull(timeout);
-		this.contentType = (handler instanceof RequestHandler.JsonResponse) ? "application/json" : "text/plain";
 	}
 
 	@Override
@@ -113,13 +119,23 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 		DefaultFullHttpResponse response;
 
 		try {
-			String result = handler.handleRequest(routed.pathParams(), jobManager);
+			// we only pass the first element in the list to the handlers.
+			Map<String, String> queryParams = new HashMap<>();
+			for (String key : routed.queryParams().keySet()) {
+				queryParams.put(key, routed.queryParam(key));
+			}
+
+			InetSocketAddress address = (InetSocketAddress) ctx.channel().localAddress();
+			queryParams.put(WEB_MONITOR_ADDRESS_KEY, address.getHostName() + ":" + address.getPort());
+
+			String result = handler.handleRequest(routed.pathParams(), queryParams, jobManager);
 			byte[] bytes = result.getBytes(ENCODING);
 
 			response = new DefaultFullHttpResponse(
 					HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes));
 
-			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, contentType);
+			response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "application/json");
 		}
 		catch (NotFoundException e) {
 			// this should result in a 404 error code (not found)

@@ -51,7 +51,6 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -889,7 +888,7 @@ public abstract class ExecutionEnvironment {
 	 * 
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan() {
+	public Plan createProgramPlan() {
 		return createProgramPlan(null);
 	}
 	
@@ -904,7 +903,7 @@ public abstract class ExecutionEnvironment {
 	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan(String jobName) {
+	public Plan createProgramPlan(String jobName) {
 		return createProgramPlan(jobName, true);
 	}
 
@@ -919,7 +918,7 @@ public abstract class ExecutionEnvironment {
 	 * @param clearSinks Whether or not to start a new stage of execution.
 	 * @return The program's plan.
 	 */
-	public JavaPlan createProgramPlan(String jobName, boolean clearSinks) {
+	public Plan createProgramPlan(String jobName, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -937,7 +936,7 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		OperatorTranslation translator = new OperatorTranslation();
-		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
+		Plan plan = translator.translateToPlan(this.sinks, jobName);
 
 		if (getParallelism() > 0) {
 			plan.setDefaultParallelism(getParallelism());

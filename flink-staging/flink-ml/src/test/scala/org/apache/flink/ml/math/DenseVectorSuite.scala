@@ -25,13 +25,13 @@ class DenseVectorSuite extends FlatSpec with Matchers {
   behavior of "Flink's DenseVector"
 
   it should "contain the initialization data" in {
-    val data = Array.range(1,10)
+    val data = Array.range(1, 10)
 
     val vector = DenseVector(data)
 
     assertResult(data.length)(vector.size)
 
-    data.zip(vector.map(_._2)).foreach{case (expected, actual) => assertResult(expected)(actual)}
+    data.zip(vector.map(_._2)).foreach { case (expected, actual) => assertResult(expected)(actual) }
   }
 
   it should "fail in case of an illegal element access" in {
@@ -47,7 +47,7 @@ class DenseVectorSuite extends FlatSpec with Matchers {
       vector(size)
     }
   }
-  
+
   it should "calculate dot product with DenseVector" in {
     val vec1 = DenseVector(Array(1, 0, 1))
     val vec2 = DenseVector(Array(0, 1, 0))
@@ -76,6 +76,105 @@ class DenseVectorSuite extends FlatSpec with Matchers {
     intercept[IllegalArgumentException] {
       vec1.dot(vec2)
     }
+  }
+
+  it should "calculate outer product with DenseVector correctly as DenseMatrix" in {
+    val vec1 = DenseVector(Array(1, 0, 1))
+    val vec2 = DenseVector(Array(0, 1, 0))
+
+    vec1.outer(vec2) should be(an[DenseMatrix])
+    vec1.outer(vec2) should be(DenseMatrix(3, 3, Array(0, 1, 0, 0, 0, 0, 0, 1, 0)))
+  }
+
+  it should "calculate outer product with SparseVector correctly as SparseMatrix" in {
+    val vec1 = DenseVector(Array(1, 0, 1))
+    val vec2 = SparseVector(3, Array(1), Array(1))
+
+    vec1.outer(vec2) should be(an[SparseMatrix])
+    vec1.outer(vec2) should be(SparseMatrix.fromCOO(3, 3, (0, 1, 1), (2, 1, 1)))
+  }
+
+  it should "calculate outer product with a DenseVector correctly as DenseMatrix 2" in {
+    val vec1 = DenseVector(Array(1, 0, 1, 0, 0))
+    val vec2 = DenseVector(Array(0, 0, 1, 0, 1))
+
+    val values = Array(0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    vec1.outer(vec2) should be(DenseMatrix(5, 5, values))
+  }
+
+  it should "calculate outer product with a SparseVector correctly as SparseMatrix 2" in {
+    val vec1 = DenseVector(Array(1, 0, 1, 0, 0))
+    val vec2 = SparseVector.fromCOO(5, (2, 1), (4, 1))
+
+    val entries = Iterable((0, 2, 1.0), (0, 4, 1.0), (2, 2, 1.0), (2, 4, 1.0))
+    vec1.outer(vec2) should be(SparseMatrix.fromCOO(5, 5, entries))
+  }
+
+
+
+  it should s"""calculate right outer product with DenseVector
+               |with one-dimensional unit DenseVector as identity""".stripMargin in {
+    val vec = DenseVector(Array(1, 0, 1, 0, 0))
+    val unit = DenseVector(1)
+
+    vec.outer(unit) should equal(DenseMatrix(vec.size, 1, vec.data))
+  }
+
+  it should s"""calculate right outer product with DenseVector
+               |with one-dimensional unit SparseVector as identity""".stripMargin in {
+    val vec = DenseVector(Array(1, 0, 1, 0, 0))
+    val unit = SparseVector(1, Array(0), Array(1))
+
+    vec.outer(unit) should equal(SparseMatrix.fromCOO(vec.size, 1, (0, 0, 1), (2, 0, 1)))
+  }
+
+  it should s"""calculate left outer product for DenseVector
+               |with one-dimensional unit DenseVector as identity""".stripMargin in {
+    val vec = DenseVector(Array(1, 2, 3, 4, 5))
+    val unit = DenseVector(1)
+
+    unit.outer(vec) should equal(DenseMatrix(1, vec.size, vec.data))
+  }
+
+  it should s"""calculate left outer product for SparseVector
+               |with one-dimensional unit DenseVector as identity""".stripMargin in {
+    val vec = SparseVector(5, Array(0, 1, 2, 3, 4), Array(1, 2, 3, 4, 5))
+    val unit = DenseVector(1)
+
+    val entries = Iterable((0, 0, 1.0), (0, 1, 2.0), (0, 2, 3.0), (0, 3, 4.0), (0, 4, 5.0))
+    unit.outer(vec) should equal(SparseMatrix.fromCOO(1, vec.size, entries))
+  }
+
+  it should s"""calculate outer product with DenseVector
+               |via multiplication if both vectors are one-dimensional""".stripMargin in {
+    val vec1 = DenseVector(Array(2))
+    val vec2 = DenseVector(Array(3))
+
+    vec1.outer(vec2) should be(DenseMatrix(1, 1, 2 * 3))
+  }
+
+  it should s"""calculate outer product with SparseVector
+               |via multiplication if both vectors are one-dimensional""".stripMargin in {
+    val vec1 = DenseVector(Array(2))
+    val vec2 = SparseVector(1, Array(0), Array(3))
+
+    vec1.outer(vec2) should be(SparseMatrix.fromCOO(1, 1, (0, 0, 2 * 3)))
+  }
+
+  it should "calculate outer product with DenseVector via multiplication if both vectors " +
+    "are one-dimensional" in {
+    val vec1 = DenseVector(Array(2))
+    val vec2 = DenseVector(Array(3))
+
+    vec1.outer(vec2) should be(DenseMatrix(1, 1, 2 * 3))
+  }
+
+  it should "calculate outer product with SparseVector via multiplication if both vectors are " +
+    "one-dimensioan" in {
+    val vec1 = DenseVector(Array(2))
+    val vec2 = SparseVector(1, Array(0), Array(3))
+
+    vec1.outer(vec2) should be(SparseMatrix.fromCOO(1, 1, (0, 0, 2 * 3)))
   }
 
   it should "calculate magnitude of vector" in {

@@ -733,10 +733,21 @@ DataSet<String> result = in.rebalance()
     <tr>
       <td><strong>Hash-Partition</strong></td>
       <td>
-        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys.</p>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
 DataSet<Integer> result = in.partitionByHash(0)
+                            .mapPartition(new PartitionMapper());
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Range-Partition</strong></td>
+      <td>
+        <p>Range-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
+{% highlight java %}
+DataSet<Tuple2<String,Integer>> in = // [...]
+DataSet<Integer> result = in.partitionByRange(0)
                             .mapPartition(new PartitionMapper());
 {% endhighlight %}
       </td>
@@ -1012,11 +1023,20 @@ val result: DataSet[(Int, String)] = data1.rebalance().map(...)
     <tr>
       <td><strong>Hash-Partition</strong></td>
       <td>
-        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions, tuple positions
-        or case class fields.</p>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in.partitionByHash(0).mapPartition { ... }
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Range-Partition</strong></td>
+      <td>
+        <p>Range-partitions a data set on a given key. Keys can be specified as position keys, expression keys, and key selector functions.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in.partitionByRange(0).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>
@@ -2193,19 +2213,19 @@ DataSet<Tuple2<BookPojo, Double>> pData = // [...]
 DataSet<String> sData = // [...]
 
 // sort output on String field in ascending order
-tData.print().sortLocalOutput(1, Order.ASCENDING);
+tData.sortPartition(1, Order.ASCENDING).print();
 
 // sort output on Double field in descending and Integer field in ascending order
-tData.print().sortLocalOutput(2, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING);
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print();
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.writeAsText(...).sortLocalOutput("f0.author", Order.DESCENDING);
+pData.sortPartition("f0.author", Order.DESCENDING).writeAsText(...);
 
 // sort output on the full tuple in ascending order
-tData.writeAsCsv(...).sortLocalOutput("*", Order.ASCENDING);
+tData.sortPartition("*", Order.ASCENDING).writeAsCsv(...);
 
 // sort atomic type (String) output in descending order
-sData.writeAsText(...).sortLocalOutput("*", Order.DESCENDING);
+sData.sortPartition("*", Order.DESCENDING).writeAsText(...);
 
 {% endhighlight %}
 
@@ -2276,19 +2296,19 @@ val pData: DataSet[(BookPojo, Double)] = // [...]
 val sData: DataSet[String] = // [...]
 
 // sort output on String field in ascending order
-tData.print.sortLocalOutput(1, Order.ASCENDING);
+tData.sortPartition(1, Order.ASCENDING).print;
 
 // sort output on Double field in descending and Int field in ascending order
-tData.print.sortLocalOutput(2, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING);
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print;
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.writeAsText(...).sortLocalOutput("_1.author", Order.DESCENDING);
+pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...);
 
 // sort output on the full tuple in ascending order
-tData.writeAsCsv(...).sortLocalOutput("_", Order.ASCENDING);
+tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...);
 
 // sort atomic type (String) output in descending order
-sData.writeAsText(...).sortLocalOutput("_", Order.DESCENDING);
+sData.sortPartition("_", Order.DESCENDING).writeAsText(...);
 
 {% endhighlight %}
 

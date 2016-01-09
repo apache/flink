@@ -28,7 +28,6 @@ import backtype.storm.generated.TopologyInfo;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -86,7 +85,7 @@ public class FlinkLocalCluster {
 			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
 
-			flink = new LocalFlinkMiniCluster(configuration, true, StreamingMode.STREAMING);
+			flink = new LocalFlinkMiniCluster(configuration, true);
 			this.flink.start();
 		}
 

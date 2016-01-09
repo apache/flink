@@ -20,13 +20,11 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -47,20 +45,12 @@ public final class InstantiationUtil {
 	 *
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
-		private ClassLoader classLoader;
 
-		private static final HashMap<String, Class<?>> primitiveClasses
-				= new HashMap<String, Class<?>>(8, 1.0F);
-		static {
-			primitiveClasses.put("boolean", boolean.class);
-			primitiveClasses.put("byte", byte.class);
-			primitiveClasses.put("char", char.class);
-			primitiveClasses.put("short", short.class);
-			primitiveClasses.put("int", int.class);
-			primitiveClasses.put("long", long.class);
-			primitiveClasses.put("float", float.class);
-			primitiveClasses.put("double", double.class);
-			primitiveClasses.put("void", void.class);
+		private final ClassLoader classLoader;
+
+		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
+			super(in);
+			this.classLoader = classLoader;
 		}
 
 		@Override
@@ -84,10 +74,21 @@ public final class InstantiationUtil {
 
 			return super.resolveClass(desc);
 		}
+		
+		// ------------------------------------------------
 
-		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
-			super(in);
-			this.classLoader = classLoader;
+		private static final HashMap<String, Class<?>> primitiveClasses = new HashMap<>(9);
+		
+		static {
+			primitiveClasses.put("boolean", boolean.class);
+			primitiveClasses.put("byte", byte.class);
+			primitiveClasses.put("char", char.class);
+			primitiveClasses.put("short", short.class);
+			primitiveClasses.put("int", int.class);
+			primitiveClasses.put("long", long.class);
+			primitiveClasses.put("float", float.class);
+			primitiveClasses.put("double", double.class);
+			primitiveClasses.put("void", void.class);
 		}
 	}
 	
@@ -201,19 +202,8 @@ public final class InstantiationUtil {
 	 * @return True, if the class is a non-statically accessible inner class.
 	 */
 	public static boolean isNonStaticInnerClass(Class<?> clazz) {
-		if (clazz.getEnclosingClass() == null) {
-			// no inner class
-			return false;
-		} else {
-			// inner class
-			if (clazz.getDeclaringClass() != null) {
-				// named inner class
-				return !Modifier.isStatic(clazz.getModifiers());
-			} else {
-				// anonymous inner class
-				return true;
-			}
-		}
+		return clazz.getEnclosingClass() != null && 
+			(clazz.getDeclaringClass() == null || !Modifier.isStatic(clazz.getModifiers()));
 	}
 	
 	/**
@@ -266,10 +256,8 @@ public final class InstantiationUtil {
 		}
 
 		ByteArrayOutputStream bos = new ByteArrayOutputStream(64);
-		OutputViewDataOutputStreamWrapper outputViewWrapper = new OutputViewDataOutputStreamWrapper(new DataOutputStream(bos));
-
+		DataOutputViewStreamWrapper outputViewWrapper = new DataOutputViewStreamWrapper(bos);
 		serializer.serialize(record, outputViewWrapper);
-
 		return bos.toByteArray();
 	}
 
@@ -278,7 +266,7 @@ public final class InstantiationUtil {
 			throw new NullPointerException("Byte array to deserialize from must not be null.");
 		}
 
-		InputViewDataInputStreamWrapper inputViewWrapper = new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+		DataInputViewStreamWrapper inputViewWrapper = new DataInputViewStreamWrapper(new ByteArrayInputStream(buf));
 		return serializer.deserialize(inputViewWrapper);
 	}
 
@@ -287,34 +275,28 @@ public final class InstantiationUtil {
 			throw new NullPointerException("Byte array to deserialize from must not be null.");
 		}
 
-		InputViewDataInputStreamWrapper inputViewWrapper = new InputViewDataInputStreamWrapper(new DataInputStream(new ByteArrayInputStream(buf)));
+		DataInputViewStreamWrapper inputViewWrapper = new DataInputViewStreamWrapper(new ByteArrayInputStream(buf));
 		return serializer.deserialize(reuse, inputViewWrapper);
 	}
 	
 	@SuppressWarnings("unchecked")
 	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
-		ObjectInputStream oois = null;
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
-		try {
+		try (ObjectInputStream oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl)) {
 			Thread.currentThread().setContextClassLoader(cl);
-			oois = new ClassLoaderObjectInputStream(new ByteArrayInputStream(bytes), cl);
 			return (T) oois.readObject();
-		} finally {
+		}
+		finally {
 			Thread.currentThread().setContextClassLoader(old);
-			if (oois != null) {
-				oois.close();
-			}
 		}
 	}
 	
 	public static byte[] serializeObject(Object o) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-		try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 			oos.writeObject(o);
+			return baos.toByteArray();
 		}
-
-		return baos.toByteArray();
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -29,16 +29,15 @@ import com.typesafe.config.Config
 
 import org.apache.flink.api.common.{JobID, JobExecutionResult, JobSubmissionResult}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.StreamingMode
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.{JobExecutionException, JobClient}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
+import org.apache.flink.runtime.jobmanager.RecoveryMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalService, LeaderRetrievalListener,
 StandaloneLeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
-import org.apache.flink.runtime.util.{LeaderRetrievalUtils, StandaloneUtils, ZooKeeperUtils}
+import org.apache.flink.runtime.util.ZooKeeperUtils
 import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 
 import org.slf4j.LoggerFactory
@@ -55,18 +54,12 @@ import scala.concurrent._
  * @param userConfiguration Configuration object with the user provided configuration values
  * @param useSingleActorSystem true if all actors (JobManager and TaskManager) shall be run in the
  *                             same [[ActorSystem]], otherwise false
- * @param streamingMode True, if the system should be started in streaming mode, false if
- *                      in pure batch mode.
  */
 abstract class FlinkMiniCluster(
     val userConfiguration: Configuration,
-    val useSingleActorSystem: Boolean,
-    val streamingMode: StreamingMode)
+    val useSingleActorSystem: Boolean)
   extends LeaderRetrievalListener {
 
-  def this(userConfiguration: Configuration, singleActorSystem: Boolean) 
-         = this(userConfiguration, singleActorSystem, StreamingMode.BATCH_ONLY)
-  
   protected val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
 
   // --------------------------------------------------------------------------

@@ -19,14 +19,12 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -69,7 +67,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedA
 	
 	public FromElementsFunction(TypeSerializer<T> serializer, Iterable<T> elements) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		OutputViewDataOutputStreamWrapper wrapper = new OutputViewDataOutputStreamWrapper(new DataOutputStream(baos));
+		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 
 		int count = 0;
 		try {
@@ -90,7 +88,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedA
 	@Override
 	public void run(SourceContext<T> ctx) throws Exception {
 		ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
-		final DataInputView input = new InputViewDataInputStreamWrapper(new DataInputStream(bais));
+		final DataInputView input = new DataInputViewStreamWrapper(bais);
 		
 		// if we are restored from a checkpoint and need to skip elements, skip them now.
 		int toSkip = numElementsToSkip;

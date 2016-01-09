@@ -151,14 +151,20 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 					final Collector<OT> output = this.output;
 
 					if (objectReuseEnabled) {
-						OT reuse = serializer.createInstance();
+						OT reuse1 = serializer.createInstance();
+						OT reuse2 = serializer.createInstance();
+						OT reuse3 = serializer.createInstance();
 
 						// as long as there is data to read
 						while (!this.taskCanceled && !format.reachedEnd()) {
 
 							OT returned;
-							if ((returned = format.nextRecord(reuse)) != null) {
+							if ((returned = format.nextRecord(reuse1)) != null) {
 								output.collect(returned);
+
+								reuse1 = reuse2;
+								reuse2 = reuse3;
+								reuse3 = returned;
 							}
 						}
 					} else {
@@ -297,7 +303,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	 * @return The string ready for logging.
 	 */
 	private String getLogString(String message) {
-		return getLogString(message, this.getEnvironment().getTaskName());
+		return getLogString(message, this.getEnvironment().getTaskInfo().getTaskName());
 	}
 	
 	/**
@@ -365,8 +371,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskName(), env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(),
-				env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap());
 	}
 }

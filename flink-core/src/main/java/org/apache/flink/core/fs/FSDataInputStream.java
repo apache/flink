@@ -25,6 +25,8 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -32,6 +34,7 @@ import java.io.InputStream;
  * Interface for a data input stream to a file on a {@link FileSystem}.
  * 
  */
+@Public
 public abstract class FSDataInputStream extends InputStream {
 
 	/**

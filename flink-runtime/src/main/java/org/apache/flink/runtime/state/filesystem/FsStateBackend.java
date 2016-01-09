@@ -468,22 +468,20 @@ public class FsStateBackend extends StateBackend<FsStateBackend> {
 		 */
 		@Override
 		public void close() {
-			synchronized (this) {
-				if (!closed) {
-					closed = true;
-					if (outStream != null) {
+			if (!closed) {
+				closed = true;
+				if (outStream != null) {
+					try {
+						outStream.close();
+						fs.delete(statePath, false);
+
+						// attempt to delete the parent (will fail and be ignored if the parent has more files)
 						try {
-							outStream.close();
-							fs.delete(statePath, false);
-	
-							// attempt to delete the parent (will fail and be ignored if the parent has more files)
-							try {
-								fs.delete(basePath, false);
-							} catch (IOException ignored) {}
-						}
-						catch (Exception e) {
-							LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
-						}
+							fs.delete(basePath, false);
+						} catch (IOException ignored) {}
+					}
+					catch (Exception e) {
+						LOG.warn("Cannot delete closed and discarded state stream for " + statePath, e);
 					}
 				}
 			}
