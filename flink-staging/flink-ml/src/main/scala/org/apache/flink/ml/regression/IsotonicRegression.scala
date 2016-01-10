@@ -21,6 +21,7 @@ package org.apache.flink.ml.regression
 import java.util.Arrays.binarySearch
 
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common.ParameterMap
 import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
@@ -38,11 +39,20 @@ case class IsotonicRegressionModel(boundaries: Array[Double], predictions: Array
  */
 class IsotonicRegression extends Predictor[IsotonicRegression] {
 
+    var isotonic = true
+
     var model: Option[DataSet[IsotonicRegressionModel]] = None
+
+    def setIsotonic(isotonic: Boolean): this.type = {
+        this.isotonic = isotonic
+        this
+    }
 
 }
 
 object IsotonicRegression {
+
+    println("v11")
 
     class AdjacentPoolViolatersMapper extends MapFunction[Array[(Double, Double, Double)], Array[
         (Double, Double, Double)]] {
@@ -142,11 +152,16 @@ object IsotonicRegression {
                          fitParameters: ParameterMap,
                          input: DataSet[(Double, Double, Double)]): Unit = {
 
-            // assume input is correctly range partitioned :-)
+            val isotonic = instance.isotonic
 
-            val parallelStepResult = input
-                // TODO: only to avoid false results because of missing range partitioning
-                .setParallelism(1)
+            val preprocessedInput = if (isotonic) {
+                input
+            } else {
+                input.map(x => (-x._1, x._2, x._3))
+            }
+
+            val parallelStepResult = preprocessedInput
+                .partitionByRange(1)
                 .mapPartition(partition => {
                     val buffer = new ArrayBuffer[(Double, Double, Double)]
                     buffer ++= partition
@@ -166,7 +181,7 @@ object IsotonicRegression {
                     val boundaries = new ArrayBuffer[Double]
                     val predictions = new ArrayBuffer[Double]
                     for (x <- arr) {
-                        predictions += x._1
+                        predictions += (if (isotonic) x._1 else -x._1)
                         boundaries += x._2
                     }
                     IsotonicRegressionModel(boundaries.toArray, predictions.toArray)
