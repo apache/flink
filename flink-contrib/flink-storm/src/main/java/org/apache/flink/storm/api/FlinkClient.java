@@ -31,8 +31,10 @@ import backtype.storm.generated.NotAliveException;
 import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
 
+import com.esotericsoftware.kryo.Serializer;
 import com.google.common.collect.Lists;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
@@ -48,8 +50,10 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
-
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -63,12 +67,16 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * {@link FlinkClient} mimics a Storm {@link NimbusClient} and {@link Nimbus}{@code .Client} at once, to interact with
  * Flink's JobManager instead of Storm's Nimbus.
  */
 public class FlinkClient {
+
+	/** The log used by this client. */
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkClient.class);
 
 	/** The client's configuration */
 	private final Map<?,?> conf;
@@ -163,9 +171,8 @@ public class FlinkClient {
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support
 	 * uploading a jar file before hand. Jar files are always uploaded directly when a program is submitted.
 	 */
-	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final FlinkTopology
-			topology)
-					throws AlreadyAliveException, InvalidTopologyException {
+	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final FlinkTopology topology)
+			throws AlreadyAliveException, InvalidTopologyException {
 
 		if (this.getTopologyJobId(name) != null) {
 			throw new AlreadyAliveException();
@@ -181,9 +188,11 @@ public class FlinkClient {
 			throw new RuntimeException("Problem with jar file " + uploadedJarLocation, e);
 		}
 
-		/* set storm configuration */
-		if (this.conf != null) {
-			topology.getExecutionEnvironment().getConfig().setGlobalJobParameters(new StormConfig(this.conf));
+		try {
+			FlinkClient.addStormConfigToTopology(topology, conf);
+		} catch(ClassNotFoundException e) {
+			LOG.error("Could not register class for Kryo serialization.", e);
+			throw new InvalidTopologyException("Could not register class for Kryo serialization.");
 		}
 
 		final StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
@@ -325,4 +334,27 @@ public class FlinkClient {
 				actorSystem, AkkaUtils.getLookupTimeout(configuration));
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	static void addStormConfigToTopology(FlinkTopology topology, Map conf) throws ClassNotFoundException {
+		if (conf != null) {
+			ExecutionConfig flinkConfig = topology.getExecutionEnvironment().getConfig();
+
+			flinkConfig.setGlobalJobParameters(new StormConfig(conf));
+
+			// add all registered types to ExecutionConfig
+			List<?> registeredClasses = (List<?>) conf.get(Config.TOPOLOGY_KRYO_REGISTER);
+			if (registeredClasses != null) {
+				for (Object klass : registeredClasses) {
+					if (klass instanceof String) {
+						flinkConfig.registerKryoType(Class.forName((String) klass));
+					} else {
+						for (Entry<String,String> register : ((Map<String,String>)klass).entrySet()) {
+							flinkConfig.registerTypeWithKryoSerializer(Class.forName(register.getKey()),
+									(Class<? extends Serializer<?>>)Class.forName(register.getValue()));
+						}
+					}
+				}
+			}
+		}
+	}
 }
