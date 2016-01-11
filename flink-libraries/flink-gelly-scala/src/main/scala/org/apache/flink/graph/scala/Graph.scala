@@ -22,7 +22,6 @@ import com.google.common.base.Preconditions
 import org.apache.flink.api.common.functions.{FilterFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{tuple => jtuple}
-import org.apache.flink.api.java.Utils.Checksum;
 import org.apache.flink.api.scala._
 import org.apache.flink.graph._
 import org.apache.flink.graph.validation.GraphValidator
@@ -1110,13 +1109,4 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
     jgraph.validate(validator)
   }
 
-  /**
-   * Computes the checksum over the Graph
-   *
-   * @return the checksum over the vertices and edges.
-   */
-  @throws(classOf[Exception])
-  def checksum(): Checksum = {
-    jgraph.checksum()
-  }
 }

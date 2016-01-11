@@ -27,7 +27,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.Utils.{Checksum, ChecksumHelper, CountHelper}
+import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
@@ -38,7 +38,6 @@ import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
 import org.apache.flink.api.scala.operators.{ScalaAggregateOperator, ScalaCsvOutputFormat}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
-import org.apache.flink.types.NullValue
 import org.apache.flink.util.{AbstractID, Collector}
 
 import scala.collection.JavaConverters._
@@ -525,22 +524,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[java.lang.Long])
     val res = getExecutionEnvironment.execute()
     res.getAccumulatorResult[Long](id)
-  }
-
-  /**
-   * Convenience method to get the count (number of elements) of a DataSet
-   * as well as the checksum (sum over element hashes).
-   *
-   * @return A Checksum that represents the count and checksum of elements in the data set.
-   *
-   * @see org.apache.flink.api.java.Utils.ChecksumHelper
-   */
-  @throws(classOf[Exception])
-  def checksum(): Checksum = {
-    val id = new AbstractID().toString
-    javaSet.flatMap(new ChecksumHelper[T](id)).output(new DiscardingOutputFormat[NullValue])
-    val res = getExecutionEnvironment.execute()
-    res.getAccumulatorResult[Checksum](id)
   }
 
   /**

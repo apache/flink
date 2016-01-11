@@ -16,30 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.test.operations;
+package org.apache.flink.graph.test.util;
 
 import static org.junit.Assert.assertEquals;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.Utils.Checksum;
+import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
+import org.apache.flink.graph.utils.GraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class ChecksumITCase extends MultipleProgramsTestBase {
+public class GraphUtilsITCase extends MultipleProgramsTestBase {
 
-	public ChecksumITCase(TestExecutionMode mode){
+	public GraphUtilsITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
 	@Test
-	public void testChecksumVerticesAndEdges() throws Exception {
+	public void testChecksumHashCodeVerticesAndEdges() throws Exception {
 		/*
-		* Test outDegrees()
+		* Test checksum hashcode
 		*/
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -48,7 +49,7 @@ public class ChecksumITCase extends MultipleProgramsTestBase {
 			TestGraphUtils.getLongLongEdgeData(env),
 			env);
 
-		Checksum checksum = graph.checksum();
+		ChecksumHashCode checksum = GraphUtils.checksumHashCode(graph);
 
 		assertEquals(checksum.getCount(), 12L);
 		assertEquals(checksum.getChecksum(), 19665L);

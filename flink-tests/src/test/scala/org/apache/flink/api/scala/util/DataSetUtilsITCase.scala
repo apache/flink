@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.util
 
+import org.apache.flink.api.java.Utils.ChecksumHashCode
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase
@@ -60,5 +61,16 @@ class DataSetUtilsITCase (
     val result = numbers.zipWithUniqueId.collect().map(_._1).toSet
 
     Assert.assertEquals(expectedSize, result.size)
+  }
+
+  @Test
+  def testIntegerDataSetChecksumHashCode(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val ds = CollectionDataSets.getIntDataSet(env)
+
+    val checksum: ChecksumHashCode = ds.checksumHashCode()
+    Assert.assertEquals(checksum.getCount, 15)
+    Assert.assertEquals(checksum.getChecksum, 55)
   }
 }

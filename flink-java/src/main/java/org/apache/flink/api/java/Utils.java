@@ -22,12 +22,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.types.NullValue;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -65,7 +66,7 @@ public final class Utils {
 	/**
 	 * Returns all GenericTypeInfos contained in a composite type.
 	 *
-	 * @param typeInfo
+	 * @param typeInfo {@link CompositeType}
 	 */
 	public static void getContainedGenericTypes(CompositeType typeInfo, List<GenericTypeInfo<?>> target) {
 		for(int i = 0; i < typeInfo.getArity(); i++) {
@@ -104,90 +105,6 @@ public final class Utils {
 		}
 	}
 
-	public static class Checksum implements SimpleAccumulator<Checksum> {
-
-		private static final long serialVersionUID = 1L;
-
-		private long count;
-		private long checksum;
-
-		public Checksum() {}
-
-		public Checksum(long count, long checksum) {
-			this.count = count;
-			this.checksum = checksum;
-		}
-
-		public long getCount() {
-			return count;
-		}
-
-		public long getChecksum() {
-			return checksum;
-		}
-
-		@Override
-		public void add(Checksum value) {
-			this.count += value.count;
-			this.checksum += value.checksum;
-		}
-
-		@Override
-		public Checksum getLocalValue() {
-			return this;
-		}
-
-		@Override
-		public void resetLocal() {
-			this.count = 0;
-			this.checksum = 0;
-		}
-
-		@Override
-		public void merge(Accumulator<Checksum, Checksum> other) {
-			this.add(other.getLocalValue());
-		}
-
-		@Override
-		public Checksum clone() {
-			return new Checksum(count, checksum);
-		}
-
-		@Override
-		public String toString() {
-			return "Checksum " + this.checksum + ", count " + this.count;
-		}
-	}
-
-	@SkipCodeAnalysis
-	public static class ChecksumHelper<T> extends RichFlatMapFunction<T, NullValue> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final String id;
-		private long counter;
-		private long checksum;
-
-		public ChecksumHelper(String id) {
-			this.id = id;
-			this.counter = 0L;
-			this.checksum = 0L;
-		}
-
-		@Override
-		public void flatMap(T value, Collector<NullValue> out) throws Exception {
-			this.counter++;
-			// convert 32-bit integer to non-negative long
-			this.checksum += value.hashCode() & 0xffffffffL;
-		}
-
-		@Override
-		public void close() throws Exception {
-			Checksum update = new Checksum(counter, checksum);
-			getRuntimeContext().addAccumulator(id, update);
-		}
-	}
-
 	@SkipCodeAnalysis
 	public static class CollectHelper<T> extends RichFlatMapFunction<T, T> {
 
@@ -195,7 +112,7 @@ public final class Utils {
 
 		private final String id;
 		private final TypeSerializer<T> serializer;
-		
+
 		private SerializedListAccumulator<T> accumulator;
 
 		public CollectHelper(String id, TypeSerializer<T> serializer) {
@@ -217,6 +134,98 @@ public final class Utils {
 		public void close() throws Exception {
 			// Important: should only be added in close method to minimize traffic of accumulators
 			getRuntimeContext().addAccumulator(id, accumulator);
+		}
+	}
+
+	public static class ChecksumHashCode implements SimpleAccumulator<ChecksumHashCode> {
+
+		private static final long serialVersionUID = 1L;
+
+		private long count;
+		private long checksum;
+
+		public ChecksumHashCode() {}
+
+		public ChecksumHashCode(long count, long checksum) {
+			this.count = count;
+			this.checksum = checksum;
+		}
+
+		public long getCount() {
+			return count;
+		}
+
+		public long getChecksum() {
+			return checksum;
+		}
+
+		@Override
+		public void add(ChecksumHashCode value) {
+			this.count += value.count;
+			this.checksum += value.checksum;
+		}
+
+		@Override
+		public ChecksumHashCode getLocalValue() {
+			return this;
+		}
+
+		@Override
+		public void resetLocal() {
+			this.count = 0;
+			this.checksum = 0;
+		}
+
+		@Override
+		public void merge(Accumulator<ChecksumHashCode, ChecksumHashCode> other) {
+			this.add(other.getLocalValue());
+		}
+
+		@Override
+		public ChecksumHashCode clone() {
+			return new ChecksumHashCode(count, checksum);
+		}
+
+		@Override
+		public String toString() {
+			return "ChecksumHashCode " + this.checksum + ", count " + this.count;
+		}
+	}
+
+	@SkipCodeAnalysis
+	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final String id;
+		private long counter;
+		private long checksum;
+
+		public ChecksumHashCodeHelper(String id) {
+			this.id = id;
+			this.counter = 0L;
+			this.checksum = 0L;
+		}
+
+		@Override
+		public void configure(Configuration parameters) {
+		}
+
+		@Override
+		public void open(int taskNumber, int numTasks) throws IOException {
+		}
+
+		@Override
+		public void writeRecord(T record) throws IOException {
+			counter++;
+			// convert 32-bit integer to non-negative long
+			checksum += record.hashCode() & 0xffffffffL;
+		}
+
+		@Override
+		public void close() throws IOException {
+			ChecksumHashCode update = new ChecksumHashCode(counter, checksum);
+			getRuntimeContext().addAccumulator(id, update);
 		}
 	}
 

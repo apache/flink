@@ -15,30 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.java.Utils.Checksum
-import org.apache.flink.api.java.aggregation.Aggregations
+package org.apache.flink.graph.scala.test.util
+
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.Assert._
+import org.apache.flink.graph.scala._
+import org.apache.flink.graph.scala.utils._
+import org.apache.flink.graph.scala.test.TestGraphUtils
+import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.junit.Assert.assertEquals
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Test
 
 @RunWith(classOf[Parameterized])
-class ChecksumITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class GraphUtilsITCase(mode: MultipleProgramsTestBase.TestExecutionMode) extends
+MultipleProgramsTestBase(mode) {
 
   @Test
-  def testIntegerDataSetChecksum(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val ds = CollectionDataSets.getIntDataSet(env)
-
-    val checksum: Checksum = ds.checksum
-    assertEquals(checksum.getChecksum, 55)
+  @throws(classOf[Exception])
+  def testChecksumHashCodeVerticesAndEdges() {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val graph: Graph[Long, Long, Long] = Graph.fromDataSet(TestGraphUtils
+      .getLongLongVertexData(env), TestGraphUtils.getLongLongEdgeData(env), env)
+    val checksum = graph.checksumHashCode()
+    assertEquals(checksum.getCount, 12L)
+    assertEquals(checksum.getChecksum, 19665L)
   }
+
 }
