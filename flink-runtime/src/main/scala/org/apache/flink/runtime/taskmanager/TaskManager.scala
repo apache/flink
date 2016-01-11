@@ -1572,8 +1572,6 @@ object TaskManager {
 
     val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
 
-    val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
-
     // now start the memory manager
     val memoryManager = try {
       new DefaultMemoryManager(
