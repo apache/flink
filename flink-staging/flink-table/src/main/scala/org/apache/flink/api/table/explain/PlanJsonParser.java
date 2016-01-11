@@ -27,28 +27,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 public class PlanJsonParser {
-	
-	public static String getSqlExecutionPlan(String t, boolean extended) throws Exception{
-		StringWriter sw = new StringWriter();
-		PrintWriter pw = new PrintWriter(sw);
-		buildSqlExecutionPlan(t, extended, pw);
-		pw.close();
-		return sw.toString();
-	}
 
-	private static void printTab(int tabCount, PrintWriter pw) {
-		for (int i = 0; i < tabCount; i++)
-			pw.print("\t");
-	}
-
-	private static void buildSqlExecutionPlan(String t, Boolean extended, PrintWriter pw) throws Exception {
-		LinkedHashMap<String, Integer> map = new LinkedHashMap<>();
+	public static String getSqlExecutionPlan(String t, Boolean extended) throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		//not every node is same, ignore the unknown field
 		objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
 		PlanTree tree = objectMapper.readValue(t, PlanTree.class);
+		LinkedHashMap<String, Integer> map = new LinkedHashMap<>();
+		StringWriter sw = new StringWriter();
+		PrintWriter pw = new PrintWriter(sw);
 		int tabCount = 0;
 
 		for (int index = 0; index < tree.getNodes().size(); index++) {
@@ -136,6 +125,13 @@ public class PlanJsonParser {
 			tabCount++;
 			pw.print("\n");
 		}
+		pw.close();
+		return sw.toString();
+	}
+
+	private static void printTab(int tabCount, PrintWriter pw) {
+		for (int i = 0; i < tabCount; i++)
+			pw.print("\t");
 	}
 }
 

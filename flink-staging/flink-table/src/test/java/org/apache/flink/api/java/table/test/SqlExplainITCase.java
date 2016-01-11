@@ -47,53 +47,49 @@ public class SqlExplainITCase {
 	}
 
 	@Test
-	public void testGroupByWithoutExtended() throws Exception{
+	public void testGroupByWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<WC> input = env.fromElements(
 				new WC(1,"d"),
-				new WC(1,"d"),
-				new WC(1,"d"));
+				new WC(2,"d"),
+				new WC(3,"d"));
 
 		Table table = tableEnv.fromDataSet(input).as("a, b");
 
-		System.out.println(testFilePath);
 		String result = table
-				.groupBy("a")
-				.select("a, b.count as c")
+				.filter("a % 2 = 0")
 				.explain();
 		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testGroupBy0.out"))
+				"../../src/test/scala/resources/testFilter0.out"))
 				.useDelimiter("\\A").next();
 		assertEquals(result, source);
 	}
 
 	@Test
-	public void testGroupByWithExtended() throws Exception{
+	public void testGroupByWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
 		DataSet<WC> input = env.fromElements(
-				new WC(1,"d"),
-				new WC(1,"d"),
-				new WC(1,"d"));
+				new WC(1, "d"),
+				new WC(2, "d"),
+				new WC(3, "d"));
 
 		Table table = tableEnv.fromDataSet(input).as("a, b");
 
-		System.out.println(testFilePath);
 		String result = table
-				.groupBy("a")
-				.select("a, b.count as c")
+				.filter("a % 2 = 0")
 				.explain(true);
 		String source = new Scanner(new File(testFilePath +
-				"../../src/test/scala/resources/testGroupBy1.out"))
+				"../../src/test/scala/resources/testFilter1.out"))
 				.useDelimiter("\\A").next();
 		assertEquals(result, source);
 	}
 
 	@Test
-	public void testJoinWithoutExtended() throws Exception{
+	public void testJoinWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -111,7 +107,6 @@ public class SqlExplainITCase {
 
 		Table table2 = tableEnv.fromDataSet(input2).as("c, d");
 
-		System.out.println(testFilePath);
 		String result = table1
 				.join(table2)
 				.where("b = d")
@@ -124,7 +119,7 @@ public class SqlExplainITCase {
 	}
 
 	@Test
-	public void testJoinWithExtended() throws Exception{
+	public void testJoinWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -142,7 +137,6 @@ public class SqlExplainITCase {
 
 		Table table2 = tableEnv.fromDataSet(input2).as("c, d");
 
-		System.out.println(testFilePath);
 		String result = table1
 				.join(table2)
 				.where("b = d")
@@ -155,7 +149,7 @@ public class SqlExplainITCase {
 	}
 
 	@Test
-	public void testUnionWithoutExtended() throws Exception{
+	public void testUnionWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -173,7 +167,6 @@ public class SqlExplainITCase {
 
 		Table table2 = tableEnv.fromDataSet(input2);
 
-		System.out.println(testFilePath);
 		String result = table1
 				.unionAll(table2)
 				.explain();
@@ -184,7 +177,7 @@ public class SqlExplainITCase {
 	}
 
 	@Test
-	public void testUnionWithExtended() throws Exception{
+	public void testUnionWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -202,7 +195,6 @@ public class SqlExplainITCase {
 
 		Table table2 = tableEnv.fromDataSet(input2);
 
-		System.out.println(testFilePath);
 		String result = table1
 				.unionAll(table2)
 				.explain(true);
