@@ -37,10 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration._
-<<<<<<< HEAD
-=======
 
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessages, LogMessages, StreamingMode}
@@ -220,11 +217,7 @@ class TaskManager(
    */
   override def postStop(): Unit = {
     log.info(s"Stopping TaskManager ${self.path.toSerializationFormat}.")
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
     cancelAndClearEverything(new Exception("TaskManager is shutting down."))
 
     if (isConnected) {
@@ -457,11 +450,7 @@ class TaskManager(
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
         log.debug(s"Receiver TriggerCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
 
         val task = runningTasks.get(taskExecutionId)
@@ -475,15 +464,9 @@ class TaskManager(
         val taskExecutionId = message.getTaskExecutionId
         val checkpointId = message.getCheckpointId
         val timestamp = message.getTimestamp
-<<<<<<< HEAD
 
         log.debug(s"Receiver ConfirmCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
 
-=======
-
-        log.debug(s"Receiver ConfirmCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
-
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
         val task = runningTasks.get(taskExecutionId)
         if (task != null) {
           task.notifyCheckpointComplete(checkpointId)
@@ -867,11 +850,7 @@ class TaskManager(
       }
     }
   }
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
   // --------------------------------------------------------------------------
   //  Task Operations
   // --------------------------------------------------------------------------
@@ -894,7 +873,6 @@ class TaskManager(
       val libCache = libraryCacheManager match {
         case Some(manager) => manager
         case None => throw new IllegalStateException("There is no valid library cache manager.")
-<<<<<<< HEAD
       }
 
       val slot = tdd.getTargetSlotNumber
@@ -939,52 +917,6 @@ class TaskManager(
     }
     catch {
       case t: Throwable =>
-=======
-      }
-
-      val slot = tdd.getTargetSlotNumber
-      if (slot < 0 || slot >= numberOfSlots) {
-        throw new IllegalArgumentException(s"Target slot $slot does not exist on TaskManager.")
-      }
-
-      // create the task. this does not grab any TaskManager resources or download
-      // and libraries - the operation does not block
-
-      val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID)
-      val selfGateway = new AkkaActorGateway(self, leaderSessionID)
-
-      val task = new Task(
-        tdd,
-        memoryManager,
-        ioManager,
-        network,
-        bcVarManager,
-        selfGateway,
-        jobManagerGateway,
-        config.timeout,
-        libCache,
-        fileCache,
-        runtimeInfo)
-
-      log.info(s"Received task ${task.getTaskNameWithSubtasks}")
-
-      val execId = tdd.getExecutionId
-      // add the task to the map
-      val prevTask = runningTasks.put(execId, task)
-      if (prevTask != null) {
-        // already have a task for that ID, put if back and report an error
-        runningTasks.put(execId, prevTask)
-        throw new IllegalStateException("TaskManager already contains a task for id " + execId)
-      }
-      
-      // all good, we kick off the task, which performs its own initialization
-      task.startTaskThread()
-      
-      sender ! decorateMessage(Acknowledge)
-    }
-    catch {
-      case t: Throwable => 
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
         log.error("SubmitTask failed", t)
         sender ! decorateMessage(Failure(t))
     }
@@ -1058,11 +990,6 @@ class TaskManager(
   private def cancelAndClearEverything(cause: Throwable) {
     if (runningTasks.size > 0) {
       log.info("Cancelling all computations and discarding all cached data.")
-<<<<<<< HEAD
-
-=======
-      
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
       for (t <- runningTasks.values().asScala) {
         t.failExternally(cause)
       }
@@ -1071,17 +998,8 @@ class TaskManager(
   }
 
   private def unregisterTaskAndNotifyFinalState(executionID: ExecutionAttemptID): Unit = {
-<<<<<<< HEAD
-
     val task = runningTasks.remove(executionID)
     if (task != null) {
-
-=======
-
-    val task = runningTasks.remove(executionID)
-    if (task != null) {
-
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
       // the task must be in a terminal state
       if (!task.getExecutionState.isTerminal) {
         try {
@@ -1243,11 +1161,6 @@ object TaskManager {
     } else {
       LOG.info("Cannot determine the maximum number of open file descriptors")
     }
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
     // try to parse the command line arguments
     val (configuration: Configuration,
          mode: StreamingMode) = try {
@@ -1292,19 +1205,9 @@ object TaskManager {
    */
   @throws(classOf[Exception])
   def parseArgsAndLoadConfig(args: Array[String]): (Configuration, StreamingMode) = {
-<<<<<<< HEAD
-
     // set up the command line parser
     val parser = new scopt.OptionParser[TaskManagerCliOptions]("TaskManager") {
       head("Flink TaskManager")
-
-=======
-    
-    // set up the command line parser
-    val parser = new scopt.OptionParser[TaskManagerCliOptions]("TaskManager") {
-      head("Flink TaskManager")
-      
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
       opt[String]("configDir") action { (param, conf) =>
         conf.setConfigDir(param)
         conf
@@ -1335,11 +1238,6 @@ object TaskManager {
     catch {
       case e: Exception => throw new Exception("Could not load configuration", e)
     }
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
     (conf, cliConfig.getMode)
   }
 
@@ -1671,7 +1569,7 @@ object TaskManager {
 
       relativeMemSize
     }
-    
+
     val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
 
     val preAllocateMemory: Boolean = streamingMode == StreamingMode.BATCH_ONLY
@@ -1808,37 +1706,7 @@ object TaskManager {
 
     checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
       ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)
-    
-    val pageSizeNew: Int = configuration.getInteger(
-      ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, -1)
-    
-    val pageSizeOld: Int = configuration.getInteger(
-      ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY, -1)
 
-    val pageSize: Int =
-      if (pageSizeNew != -1) {
-        // new page size has been configured
-        checkConfigParameter(pageSizeNew >= DefaultMemoryManager.MIN_PAGE_SIZE, pageSizeNew,
-          ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-          "Minimum memory segment size is " + DefaultMemoryManager.MIN_PAGE_SIZE)
-
-        checkConfigParameter(MathUtils.isPowerOf2(pageSizeNew), pageSizeNew,
-          ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-          "Memory segment size must be a power of 2.")
-
-        pageSizeNew
-      }
-      else if (pageSizeOld == -1) {
-        // nothing has been configured, take the default
-        ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE
-      }
-      else {
-        // old page size has been configured
-        checkConfigParameter(pageSizeOld >= DefaultMemoryManager.MIN_PAGE_SIZE, pageSizeOld,
-          ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-          "Minimum buffer size is " + DefaultMemoryManager.MIN_PAGE_SIZE)
-
-<<<<<<< HEAD
     val pageSizeNew: Int = configuration.getInteger(
       ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY, -1)
 
@@ -1874,15 +1742,7 @@ object TaskManager {
 
         pageSizeOld
       }
-=======
-        checkConfigParameter(MathUtils.isPowerOf2(pageSizeOld), pageSizeOld,
-          ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-          "Buffer size must be a power of 2.")
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
 
-        pageSizeOld
-      }
-    
     val tmpDirs = configuration.getString(
       ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH)
@@ -2068,13 +1928,7 @@ object TaskManager {
 
     // Pre-processing steps for registering cpuLoad
     val osBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean()
-<<<<<<< HEAD
-
     val fetchCPULoadMethod: Option[Method] =
-=======
-        
-    val fetchCPULoadMethod: Option[Method] = 
->>>>>>> ec23273aa3481faa867ef0f990d6873ecef27558
       try {
         Class.forName("com.sun.management.OperatingSystemMXBean")
           .getMethods()
