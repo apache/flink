@@ -46,7 +46,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
@@ -387,8 +386,7 @@ public abstract class DataSet<T> {
 	public long count() throws Exception {
 		final String id = new AbstractID().toString();
 
-		flatMap(new Utils.CountHelper<T>(id)).name("count()")
-				.output(new DiscardingOutputFormat<Long>()).name("count() sink");
+		output(new Utils.CountHelper<T>(id)).name("count()");
 
 		JobExecutionResult res = getExecutionEnvironment().execute();
 		return res.<Long> getAccumulatorResult(id);
@@ -405,8 +403,7 @@ public abstract class DataSet<T> {
 		final String id = new AbstractID().toString();
 		final TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
 		
-		this.flatMap(new Utils.CollectHelper<>(id, serializer)).name("collect()")
-				.output(new DiscardingOutputFormat<T>()).name("collect() sink");
+		this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
 		JobExecutionResult res = getExecutionEnvironment().execute();
 
 		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
