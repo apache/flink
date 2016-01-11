@@ -45,9 +45,12 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.testutils.junit.RetryOnFailure;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +75,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 public class JobManagerCheckpointRecoveryITCase extends TestLogger {
+
+	@Rule
+	public RetryRule retryRule = new RetryRule();
 
 	private final static ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
@@ -129,6 +135,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 	 * this test actually tests something.
 	 */
 	@Test
+	@RetryOnFailure(times=1)
 	public void testCheckpointedStreamingSumProgram() throws Exception {
 		// Config
 		final int checkpointingInterval = 200;
@@ -279,6 +286,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-3185">FLINK-3185</a>
 	 */
 	@Test
+	@RetryOnFailure(times=1)
 	public void testCheckpointRecoveryFailure() throws Exception {
 		final Deadline testDeadline = TestTimeOut.fromNow();
 		final String zooKeeperQuorum = ZooKeeper.getConnectString();
