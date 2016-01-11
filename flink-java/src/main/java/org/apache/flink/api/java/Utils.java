@@ -20,20 +20,19 @@ package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Random;
 
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
-
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Collector;
 import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
 /**
@@ -78,7 +77,7 @@ public final class Utils {
 	}
 
 	@SkipCodeAnalysis
-	public static class CountHelper<T> extends RichFlatMapFunction<T, Long> {
+	public static class CountHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -91,18 +90,26 @@ public final class Utils {
 		}
 
 		@Override
-		public void flatMap(T value, Collector<Long> out) throws Exception {
+		public void configure(Configuration parameters) {
+		}
+
+		@Override
+		public void open(int taskNumber, int numTasks) throws IOException {
+		}
+
+		@Override
+		public void writeRecord(T record) throws IOException {
 			counter++;
 		}
 
 		@Override
-		public void close() throws Exception {
+		public void close() throws IOException {
 			getRuntimeContext().getLongCounter(id).add(counter);
 		}
 	}
 
 	@SkipCodeAnalysis
-	public static class CollectHelper<T> extends RichFlatMapFunction<T, T> {
+	public static class CollectHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -117,17 +124,21 @@ public final class Utils {
 		}
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
+		public void configure(Configuration parameters) {
+		}
+
+		@Override
+		public void open(int taskNumber, int numTasks) throws IOException {
 			this.accumulator = new SerializedListAccumulator<>();
 		}
 
 		@Override
-		public void flatMap(T value, Collector<T> out) throws Exception {
-			accumulator.add(value, serializer);
+		public void writeRecord(T record) throws IOException {
+			accumulator.add(record, serializer);
 		}
 
 		@Override
-		public void close() throws Exception {
+		public void close() throws IOException {
 			// Important: should only be added in close method to minimize traffic of accumulators
 			getRuntimeContext().addAccumulator(id, accumulator);
 		}
