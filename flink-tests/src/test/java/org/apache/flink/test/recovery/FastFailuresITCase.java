@@ -72,6 +72,9 @@ public class FastFailuresITCase {
 
 			@Override
 			public void cancel() {}
+
+			@Override
+			public void stop() {}
 		});
 
 		input

@@ -124,11 +124,12 @@ public class ExecutionGraphRestartTest {
 		groupVertex.setStrictlyCoLocatedWith(groupVertex2);
 		
 		//initiate and schedule job
-		JobGraph jobGraph = new JobGraph("Pointwise job", groupVertex, groupVertex2);
+		JobGraph jobGraph = new JobGraph("Pointwise job", JobType.BATCHING, groupVertex, groupVertex2);
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"test job",
+			JobType.BATCHING,
 			new Configuration(),
 			AkkaUtils.getDefaultTimeout());
 		eg.setNumberOfRetriesLeft(1);
@@ -350,12 +351,13 @@ public class ExecutionGraphRestartTest {
 		sender.setInvokableClass(Tasks.NoOpInvokable.class);
 		sender.setParallelism(NUM_TASKS);
 
-		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
+		JobGraph jobGraph = new JobGraph("Pointwise job", JobType.BATCHING, sender);
 
 		ExecutionGraph eg = spy(new ExecutionGraph(
 				TestingUtils.defaultExecutionContext(),
 				new JobID(),
 				"Test job",
+				JobType.BATCHING,
 				new Configuration(),
 				AkkaUtils.getDefaultTimeout()));
 

@@ -405,9 +405,10 @@ public class Execution implements Serializable {
 		}
 	}
 
+	/**
+	 * Sends stop RPC call.
+	 */
 	public void stop() {
-		// sends stop RPC call
-
 		final SimpleSlot slot = this.assignedResource;
 
 		if (slot != null) {
@@ -427,7 +428,7 @@ public class Execution implements Serializable {
 					} else {
 						TaskOperationResult result = (TaskOperationResult) success;
 						if (!result.success()) {
-							LOG.info("Stopping task call did not find task. Description: {}",
+							LOG.info("Stopping task was not successful. Description: {}",
 									result.description());
 						}
 					}

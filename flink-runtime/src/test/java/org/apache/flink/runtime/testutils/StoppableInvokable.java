@@ -19,9 +19,6 @@ public final class StoppableInvokable extends AbstractInvokable implements Stopp
 	private boolean isRunning = true;
 
 	@Override
-	public void registerInputOutput() {}
-
-	@Override
 	public void invoke() throws Exception {
 		while(isRunning) {
 			Thread.sleep(100);

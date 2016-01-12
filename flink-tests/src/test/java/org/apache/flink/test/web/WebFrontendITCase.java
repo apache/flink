@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 
+import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
@@ -34,10 +36,8 @@ import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
-
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONObject;
-import org.junit.Assert;
+import org.apache.sling.commons.json.JSONArray;
+import org.apache.sling.commons.json.JSONObject;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -80,7 +80,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Parameterized.Parameters(name = "Execution mode = {0}")
 	public static Collection<Object[]> executionModes() {
 		return Arrays.<Object[]>asList(
-			new Object[] { TestExecutionMode.CLUSTER } );
+				new Object[] { TestExecutionMode.CLUSTER } );
 	}
 
 	@Test
@@ -104,7 +104,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode response = mapper.readTree(json);
 			ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
-			
+
 			assertNotNull(taskManagers);
 			assertEquals(cluster.numTaskManagers(), taskManagers.size());
 		}
@@ -122,7 +122,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			ObjectMapper mapper = new ObjectMapper();
 			JsonNode parsed = mapper.readTree(json);
 			ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
-			
+
 			assertNotNull(taskManagers);
 			assertEquals(cluster.numTaskManagers(), taskManagers.size());
 
@@ -163,8 +163,8 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 			assertTrue(conf.get(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY).startsWith(logDir.toString()));
 			assertEquals(
-				cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
-				conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
+					cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
+					conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

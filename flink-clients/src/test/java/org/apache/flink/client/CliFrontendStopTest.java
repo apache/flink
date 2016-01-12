@@ -27,6 +27,7 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -37,7 +38,7 @@ import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.apache.flink.client.CliFrontendTestUtils.clearGlobalConfiguration;
 import static org.junit.Assert.*;
 
-public class CliFrontendStopTest {
+public class CliFrontendStopTest extends TestLogger {
 
 	private static ActorSystem actorSystem;
 
@@ -89,7 +90,7 @@ public class CliFrontendStopTest {
 			assertTrue(retCode == 0);
 		}
 
-		// test stop properly
+		// test unknown job Id
 		{
 			JobID jid1 = new JobID();
 			JobID jid2 = new JobID();

@@ -192,6 +192,8 @@ public class ExecutionGraphSignalsTest {
 
 	}
 
+	// test that all source tasks receive STOP signal
+	// test that all non-source tasks do not receive STOP signal
 	@Test
 	public void testStop() throws Exception {
 		Field f = eg.getClass().getDeclaredField("jobType");

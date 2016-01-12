@@ -468,9 +468,11 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
           try {
-            if (executionGraph.getState() != JobStatus.RUNNING) {
+            if (executionGraph.getState() != JobStatus.CREATED
+                && executionGraph.getState() != JobStatus.RUNNING
+                && executionGraph.getState() != JobStatus.RESTARTING) {
               sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
-                "is not in state RUNNING."))
+                "is not in state CREATED, RUNNING, or RESTARTING."))
             } else {
               executionGraph.stop()
               sender ! StoppingSuccess(jobID)

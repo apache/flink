@@ -19,6 +19,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import java.lang.reflect.Field;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -56,6 +57,7 @@ public class TaskStopTest {
 
 		TaskDeploymentDescriptor tddMock = mock(TaskDeploymentDescriptor.class);
 		when(tddMock.getTaskInfo()).thenReturn(taskInfoMock);
+		when(tddMock.getApplicationID()).thenReturn(new ApplicationID());
 		when(tddMock.getJobID()).thenReturn(mock(JobID.class));
 		when(tddMock.getVertexID()).thenReturn(mock(JobVertexID.class));
 		when(tddMock.getExecutionId()).thenReturn(mock(ExecutionAttemptID.class));
@@ -100,10 +102,6 @@ public class TaskStopTest {
 		public volatile boolean stopCalled = false;
 
 		@Override
-		public void registerInputOutput() throws Exception {
-		}
-
-		@Override
 		public void invoke() throws Exception {
 		}
 
@@ -111,6 +109,6 @@ public class TaskStopTest {
 		public void stop() {
 			this.stopCalled = true;
 		}
-
 	}
+
 }

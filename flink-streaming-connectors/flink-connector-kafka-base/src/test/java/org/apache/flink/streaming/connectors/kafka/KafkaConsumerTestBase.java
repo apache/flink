@@ -1030,9 +1030,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					ctx.collect(new Tuple2<>(key, (PojoValue) null));
 				}
 			}
+
 			@Override
-			public void cancel() {
-			}
+			public void cancel() {}
+
+			@Override
+			public void stop() {}
 		});
 
 		TypeInformationKeyValueSerializationSchema<byte[], PojoValue> schema = new TypeInformationKeyValueSerializationSchema<>(byte[].class, PojoValue.class, env.getConfig());

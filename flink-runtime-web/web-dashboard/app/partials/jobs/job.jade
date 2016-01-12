@@ -43,7 +43,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main(ng-if="job")
     span.navbar-info-button.btn.btn-default(ng-click="cancelJob($event)")
       | Cancel
 
-  .navbar-info.last.first(ng-if!="job.type=='STREAMING' && (job.state=='RUNNING' || job.state=='CREATED')")
+  .navbar-info.last.first(ng-if!="job.type=='STREAMING' && (job.state=='CREATED' || job.state=='RUNNING' || job.state=='RESTARTING')")
     span.navbar-info-button.btn.btn-default(ng-click="stopJob($event)")
       | Stop
 

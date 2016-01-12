@@ -13,7 +13,9 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 /**
- * Must be implemented by stoppable tasks.
+ * Must be implemented by stoppable tasks, ie, source tasks of streaming jobs. The method {@link #stop()} will be called
+ * when the job received the STOP signal. On this signal, the source task must stop emitting new data and terminate
+ * gracefully.
  */
 public interface Stoppable {
 	/**

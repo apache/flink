@@ -780,7 +780,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(JobType.STREAMING, jobVertex)
 
           // Submit job w/o checkpointing configured
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
@@ -813,7 +813,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(JobType.STREAMING, jobVertex)
           jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -866,7 +866,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(JobType.STREAMING, jobVertex)
           jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -924,7 +924,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
-          val jobGraph = new JobGraph(jobVertex)
+          val jobGraph = new JobGraph(JobType.STREAMING, jobVertex)
           jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),

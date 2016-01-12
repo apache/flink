@@ -431,7 +431,7 @@ public class Client {
 			LOG.info("Job cancellation with ID " + jobId + " failed.", t);
 			throw new Exception("Failed to cancel the job because of \n" + t.getMessage());
 		} else {
-			throw new Exception("Unknown message received while cancelling.");
+			throw new Exception("Unknown message received while cancelling: " + result.getClass().getName());
 		}
 	}
 
@@ -466,7 +466,7 @@ public class Client {
 			LOG.info("Job stopping with ID " + jobId + " failed.", t);
 			throw new Exception("Failed to stop the job because of \n" + t.getMessage());
 		} else {
-			throw new Exception("Unknown message received while cancelling.");
+			throw new Exception("Unknown message received while stopping: " + result.getClass().getName());
 		}
 	}
 

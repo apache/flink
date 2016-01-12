@@ -612,9 +612,9 @@ public class CliFrontend {
 
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new StopJob(jobId), askTimeout);
+			Future<Object> response = jobManager.ask(new StopJob(jobId), clientTimeout);
 
-			final Object rc = Await.result(response, askTimeout);
+			final Object rc = Await.result(response, clientTimeout);
 
 			if (rc instanceof StoppingFailure) {
 				throw new Exception("Stopping the job with ID " + jobId + " failed.",

@@ -501,6 +501,10 @@ public class StreamingJobGraphGeneratorNodeHashTest {
 		@Override
 		public void cancel() {
 		}
+
+		@Override
+		public void stop() {
+		}
 	}
 
 	private static class NoOpSinkFunction implements SinkFunction<String> {
