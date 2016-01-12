@@ -603,12 +603,12 @@ dataStream.windowAll(TumblingTimeWindows.of(Time.of(5, TimeUnit.SECONDS))); // L
             <p><strong>Note:</strong> If you are using a windowAll transformation, you need to use an AllWindowFunction instead.</p>
     {% highlight java %}
 windowedStream.apply (new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, Window>() {
-    public void apply (Tuple tuple,
+    public void apply (Tuple key,
             Window window,
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
         int sum = 0;
-        for (value t: values) {
+        for (Tuple2<String,Integer> t: values) {
             sum += t.f1;
         }
         out.collect (new Integer(sum));
@@ -621,7 +621,7 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
         int sum = 0;
-        for (value t: values) {
+        for (Tuple2<String,Integer> t: values) {
             sum += t.f1;
         }
         out.collect (new Integer(sum));
