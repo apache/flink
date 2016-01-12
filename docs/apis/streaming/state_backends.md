@@ -1,5 +1,8 @@
 ---
 title:  "State Backends"
+sub-nav-group: streaming
+sub-nav-pos: 1
+sub-nav-parent: fault_tolerance
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -61,7 +64,7 @@ The MemoryStateBackend is encouraged for:
 
 ### The FsStateBackend
 
-The *FsStateBackend* (FileSystemStateBackend) is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints". 
+The *FsStateBackend* (FileSystemStateBackend) is configured with a file system URL (type, address, path), such as for example "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
 
 The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpoints, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
 
@@ -118,4 +121,3 @@ state.backend: filesystem
 
 state.backend.fs.checkpointdir: hdfs://namenode:40010/flink/checkpoints
 ~~~
-

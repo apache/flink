@@ -20,14 +20,92 @@ specific language governing permissions and limitations
 under the License.
 -->
 <div class="row">
-  <div class="col-sm-10 col-sm-offset-1">
-    <h1>{{ page.title }}{% if page.is_beta %} <span class="badge">Beta</span>{% endif %}</h1>
+{% if page.sub-nav-group %}
+{% comment %}
+The plain layout with a sub navigation.
 
+- This is activated via the 'sub-nav-group' field in the preemble.
+- All pages of this sub nav group will be displayed in the sub navigation:
+  * Each element without a 'sub-nav-parent' field will be displayed on the 1st level, where the position is defined via 'sub-nav-pos'.
+  * If the page should be displayed as a child element, it needs to specify a 'sub-nav-parent' field, which matches the 'sub-nav-id' of its parent. The parent only needs to specify this if it expects child nodes.
+{% endcomment %}
+  <!-- Sub Navigation -->
+  <div class="col-sm-3">
+    <ul id="sub-nav">
+      {% comment %} Get all pages belonging to this group sorted by their position {% endcomment %}
+      {% assign group = (site.pages | where: "sub-nav-group" , page.sub-nav-group | where: "sub-nav-parent" , nil | sort: "sub-nav-pos") %}
+      {% for group_page in group %}
+        {% if group_page.sub-nav-id  %}
+        {% assign sub_group = (site.pages | where: "sub-nav-group" , page.sub-nav-group | where: "sub-nav-parent" , group_page.sub-nav-id | sort: "sub-nav-pos") %}
+        {% else %}
+        {% assign sub_group = nil %}
+        {% endif %}
+        <li><a href="{{ site.baseurl }}{{ group_page.url }}" class="{% if page.url contains group_page.url %}active{% endif %}">{% if group_page.sub-nav-title %}{{ group_page.sub-nav-title }}{% else %}{{ group_page.title }}{% endif %}</a>
+          {% if sub_group and sub_group.size() > 0 %}
+          <ul>
+            {% for sub_group_page in sub_group %}
+              <li><a href="{{ site.baseurl }}{{ sub_group_page.url }}" class="{% if page.url contains sub_group_page.url or (sub_group_page.sub-nav-id and page.sub-nav-parent and sub_group_page.sub-nav-id == page.sub-nav-parent) %}active{% endif %}">{% if sub_group_page.sub-nav-title %}{{ sub_group_page.sub-nav-title }}{% else %}{{ sub_group_page.title }}{% endif %}</a></li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <!-- Main -->
+  <div class="col-sm-9">
+    <!-- Top anchor -->
+    <a href="#top"></a>
+
+    <!-- Breadcrumbs above the main heading -->
+    <ol class="breadcrumb">
+      {% for group_page in group %}
+      {% if group_page.sub-nav-group-title %}
+      <li><a href="{{ site.baseurl }}{{ group_page.url }}">{{ group_page.sub-nav-group-title }}</a></li>
+      {% endif %}
+      {% endfor %}
+
+      {% if page.sub-nav-parent %}
+      {% assign parent = (site.pages | where: "sub-nav-group" , page.sub-nav-group | where: "sub-nav-id" , page.sub-nav-parent | first) %}
+      {% if parent %}
+
+      {% if parent.sub-nav-parent %}
+      {% assign grandparent = (site.pages | where: "sub-nav-group" , page.sub-nav-group | where: "sub-nav-id" , parent.sub-nav-parent | first) %}
+
+      {% if grandparent %}
+      <li><a href="{{ site.baseurl }}{{ grandparent.url }}">{% if grandparent.sub-nav-title %}{{ grandparent.sub-nav-title }}{% else %}{{ grandparent.title }}{% endif %}</a></li>
+      {% endif %}
+
+      {% endif %}
+
+      <li><a href="{{ site.baseurl }}{{ parent.url }}">{% if parent.sub-nav-title %}{{ parent.sub-nav-title }}{% else %}{{ parent.title }}{% endif %}</a></li>
+      {% endif %}
+      {% endif %}
+      <li class="active">{% if page.sub-nav-title %}{{ page.sub-nav-title }}{% else %}{{ page.title }}{% endif %}</li>
+    </ol>
+
+    <div class="text">
+      <!-- Main heading -->
+      <h1>{{ page.title }}{% if page.is_beta %} <span class="beta">(Beta)</span>{% endif %}</h1>
+
+      <!-- Content -->
+      {{ content }}
+    </div>
+  </div>
+{% else %}
+{% comment %}
+The plain layout without a sub navigation (only text).
+{% endcomment %}
+  <div class="col-md-8 col-md-offset-2 text">
+    <h1>{{ page.title }}{% if page.is_beta %} <span class="badge">Beta</span>{% endif %}</h1>
 {{ content }}
   </div>
-
-  <div class="col-sm-10 col-sm-offset-1">
+{% endif %}
+  {% comment %}
+  Removed until Robert complains... ;)
+  <div class="col-sm-8 col-sm-offset-2">
     <!-- Disqus thread and some vertical offset -->
     <div style="margin-top: 75px; margin-bottom: 50px" id="disqus_thread"></div>
   </div>
+  {% endcomment %}
 </div>

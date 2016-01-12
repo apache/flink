@@ -1,5 +1,8 @@
 ---
 title: "Best Practices"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,9 +22,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<a href="#top"></a>
-
 
 This page contains a collection of best practices for Flink programmers on how to solve frequently encountered problems.
 
@@ -397,4 +397,3 @@ Next, you need to put the following jar files into the `lib/` folder:
  * `logback-classic.jar`
  * `logback-core.jar`
  * `log4j-over-slf4j.jar`: This bridge needs to be present in the classpath for redirecting logging calls from Hadoop (which is using Log4j) to Slf4j.
-

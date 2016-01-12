@@ -1,7 +1,11 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Multiple linear regression
-title: <a href="../ml">FlinkML</a> - Multiple linear regression
+title: FlinkML - Multiple linear regression
+
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Multiple Linear Regression
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

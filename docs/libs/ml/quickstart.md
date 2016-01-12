@@ -1,7 +1,10 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Quickstart Guide
-title: <a href="../ml">FlinkML</a> - Quickstart Guide
+title: FlinkML - Quickstart Guide
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Quickstart Guide
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

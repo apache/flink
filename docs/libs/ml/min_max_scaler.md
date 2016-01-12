@@ -1,7 +1,11 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - MinMax Scaler
 title: <a href="../ml">FlinkML</a> - MinMax Scaler
+
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: MinMax Scaler
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

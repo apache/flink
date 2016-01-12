@@ -1,6 +1,8 @@
 ---
 title: "Storm Compatibility"
 is_beta: true
+sub-nav-group: streaming
+sub-nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -97,7 +99,7 @@ if(runLocal) { // submit to test cluster
 </div>
 </div>
 
-# Embed Storm Operators in Flink Streaming Programs 
+# Embed Storm Operators in Flink Streaming Programs
 
 As an alternative, Spouts and Bolts can be embedded into regular streaming programs.
 The Storm compatibility layer offers a wrapper classes for each, namely `SpoutWrapper` and `BoltWrapper` (`org.apache.flink.storm.wrappers`).

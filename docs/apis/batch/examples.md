@@ -1,5 +1,10 @@
 ---
 title:  "Bundled Examples"
+
+# Sub-level navigation
+sub-nav-group: batch
+sub-nav-pos: 5
+sub-nav-title: Examples
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,9 +25,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The following example programs showcase different applications of Flink 
-from simple word counting to graph algorithms. The code samples illustrate the 
-use of [Flink's API](programming_guide.html). 
+The following example programs showcase different applications of Flink
+from simple word counting to graph algorithms. The code samples illustrate the
+use of [Flink's API](index.html).
 
 The full source code of the following and more examples can be found in the __flink-java-examples__
 or __flink-scala-examples__ module of the Flink source repository.
@@ -65,9 +70,9 @@ WordCount is the "Hello World" of Big Data processing systems. It computes the f
 ~~~java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-DataSet<String> text = env.readTextFile("/path/to/file"); 
+DataSet<String> text = env.readTextFile("/path/to/file");
 
-DataSet<Tuple2<String, Integer>> counts = 
+DataSet<Tuple2<String, Integer>> counts =
         // split up the lines in pairs (2-tuples) containing: (word,1)
         text.flatMap(new Tokenizer())
         // group by the tuple field "0" and sum up tuple field "1"
@@ -83,7 +88,7 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
     public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
         // normalize and split the line
         String[] tokens = value.toLowerCase().split("\\W+");
-        
+
         // emit the pairs
         for (String token : tokens) {
             if (token.length() > 0) {
@@ -150,7 +155,7 @@ DataSet<Tuple2<Long, Double>> newRanks = iteration
         .map(new Dampener(DAMPENING_FACTOR, numPages));
 
 DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(
-        newRanks, 
+        newRanks,
         newRanks.join(iteration).where(0).equalTo(0)
         // termination condition
         .filter(new EpsilonFilter()));
@@ -159,17 +164,17 @@ finalPageRanks.writeAsCsv(outputPath, "\n", " ");
 
 // User-defined functions
 
-public static final class JoinVertexWithEdgesMatch 
-                    implements FlatJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Long[]>, 
+public static final class JoinVertexWithEdgesMatch
+                    implements FlatJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Long[]>,
                                             Tuple2<Long, Double>> {
 
     @Override
-    public void join(<Tuple2<Long, Double> page, Tuple2<Long, Long[]> adj, 
+    public void join(<Tuple2<Long, Double> page, Tuple2<Long, Long[]> adj,
                         Collector<Tuple2<Long, Double>> out) {
         Long[] neigbors = adj.f1;
         double rank = page.f1;
         double rankToDistribute = rank / ((double) neigbors.length);
-            
+
         for (int i = 0; i < neigbors.length; i++) {
             out.collect(new Tuple2<Long, Double>(neigbors[i], rankToDistribute));
         }
@@ -191,7 +196,7 @@ public static final class Dampener implements MapFunction<Tuple2<Long,Double>, T
     }
 }
 
-public static final class EpsilonFilter 
+public static final class EpsilonFilter
                 implements FilterFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Double>>> {
 
     @Override
@@ -297,12 +302,12 @@ DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge
 
 // assign the initial component IDs (equal to the vertex ID)
 DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
-        
+
 // open a delta iteration
 DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
         verticesWithInitialId.iterateDelta(verticesWithInitialId, maxIterations, 0);
 
-// apply the step logic: 
+// apply the step logic:
 DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset()
         // join with the edges
         .join(edges).where(0).equalTo(0).with(new NeighborWithComponentIDJoin())
@@ -321,17 +326,17 @@ result.writeAsCsv(outputPath, "\n", " ");
 // User-defined functions
 
 public static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
-    
+
     @Override
     public Tuple2<T, T> map(T vertex) {
         return new Tuple2<T, T>(vertex, vertex);
     }
 }
 
-public static final class UndirectEdge 
+public static final class UndirectEdge
                     implements FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
     Tuple2<Long, Long> invertedEdge = new Tuple2<Long, Long>();
-    
+
     @Override
     public void flatMap(Tuple2<Long, Long> edge, Collector<Tuple2<Long, Long>> out) {
         invertedEdge.f0 = edge.f1;
@@ -341,7 +346,7 @@ public static final class UndirectEdge
     }
 }
 
-public static final class NeighborWithComponentIDJoin 
+public static final class NeighborWithComponentIDJoin
                 implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
     @Override
@@ -350,12 +355,12 @@ public static final class NeighborWithComponentIDJoin
     }
 }
 
-public static final class ComponentIdFilter 
-                    implements FlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, 
+public static final class ComponentIdFilter
+                    implements FlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>,
                                             Tuple2<Long, Long>> {
 
     @Override
-    public void flatMap(Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> value, 
+    public void flatMap(Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> value,
                         Collector<Tuple2<Long, Long>> out) {
         if (value.f0.f1 < value.f1.f1) {
             out.collect(value.f0);
@@ -404,7 +409,7 @@ val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Arra
 }
 
 verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
-    
+
 ~~~
 
 The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
@@ -427,7 +432,7 @@ The example implements the following SQL query.
 SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
     FROM orders, lineitem
 WHERE l_orderkey = o_orderkey
-    AND o_orderstatus = "F" 
+    AND o_orderstatus = "F"
     AND YEAR(o_orderdate) > 1993
     AND o_orderpriority LIKE "5%"
 GROUP BY l_orderkey, o_shippriority;
@@ -468,14 +473,14 @@ DataSet<Tuple2<Integer, Integer>> ordersFilteredByYear =
         .project(0,4).types(Integer.class, Integer.class);
 
 // join orders with lineitems: (orderkey, shippriority, extendedprice)
-DataSet<Tuple3<Integer, Integer, Double>> lineitemsOfOrders = 
+DataSet<Tuple3<Integer, Integer, Double>> lineitemsOfOrders =
         ordersFilteredByYear.joinWithHuge(lineitems)
                             .where(0).equalTo(0)
                             .projectFirst(0,1).projectSecond(1)
                             .types(Integer.class, Integer.class, Double.class);
 
 // extendedprice sums: (orderkey, shippriority, sum(extendedprice))
-DataSet<Tuple3<Integer, Integer, Double>> priceSums = 
+DataSet<Tuple3<Integer, Integer, Double>> priceSums =
         // group by order and sum extendedprice
         lineitemsOfOrders.groupBy(0,1).aggregate(Aggregations.SUM, 2);
 
@@ -494,7 +499,7 @@ The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/fl
 </div>
 </div>
 
-The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
+The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN).
 Take the following steps to generate arbitrary large input files for the provided Flink programs:
 
 1.  Download and unpack DBGEN

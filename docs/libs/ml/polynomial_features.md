@@ -1,7 +1,10 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Polynomial Features
-title: <a href="../ml">FlinkML</a> - Polynomial Features
+title: FlinkML - Polynomial Features
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Polynomial Features
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

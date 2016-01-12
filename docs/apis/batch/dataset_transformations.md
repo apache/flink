@@ -1,5 +1,11 @@
 ---
 title: "DataSet Transformations"
+
+# Sub-level navigation
+sub-nav-group: batch
+sub-nav-parent: dataset_api
+sub-nav-pos: 1
+sub-nav-title: Transformations
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -930,7 +936,7 @@ The following code removes all duplicate elements from the DataSet:
 ~~~java
 DataSet<Tuple2<Integer, Double>> input = // [...]
 DataSet<Tuple2<Integer, Double>> output = input.distinct();
-                                     
+
 ~~~
 
 </div>
@@ -966,7 +972,7 @@ It is also possible to change how the distinction of the elements in the DataSet
 ~~~java
 DataSet<Tuple2<Integer, Double, String>> input = // [...]
 DataSet<Tuple2<Integer, Double, String>> output = input.distinct(0,2);
-                                     
+
 ~~~
 
 </div>
@@ -1003,7 +1009,7 @@ private static final long serialVersionUID = 1L;
 }
 DataSet<Integer> input = // [...]
 DataSet<Integer> output = input.distinct(new AbsSelector());
-                                     
+
 ~~~
 
 </div>
@@ -1040,7 +1046,7 @@ public class CustomType {
 
 DataSet<CustomType> input = // [...]
 DataSet<CustomType> output = input.distinct("aName", "aNumber");
-                                     
+
 ~~~
 
 </div>
@@ -1073,7 +1079,7 @@ It is also possible to indicate to use all the fields by the wildcard character:
 ~~~java
 DataSet<CustomType> input = // [...]
 DataSet<CustomType> output = input.distinct("*");
-                                     
+
 ~~~
 
 </div>
@@ -1212,10 +1218,10 @@ val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
 ~~~python
  class PointWeighter(JoinFunction):
    def join(self, rating, weight):
-     return (rating[0], rating[1] * weight[1]) 
+     return (rating[0], rating[1] * weight[1])
        if value1[3]:
 
- weightedRatings = 
+ weightedRatings =
    ratings.join(weights).where(0).equal_to(0). \
    with(new PointWeighter(), (STRING, FLOAT));
 ~~~
@@ -1294,7 +1300,7 @@ val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
 A Join transformation can construct result tuples using a projection as shown here:
 
 ~~~python
- result = input1.join(input2).where(0).equal_to(0) \ 
+ result = input1.join(input2).where(0).equal_to(0) \
   .project_first(0,2).project_second(1).project_first(1);
 ~~~
 
@@ -1429,7 +1435,7 @@ The following hints are available:
 
 ### OuterJoin
 
-The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitararily many (including none) elements. 
+The OuterJoin transformation performs a left, right, or full outer join on two data sets. Outer joins are similar to regular (inner) joins and create all pairs of elements that are equal on their keys. In addition, records of the "outer" side (left, right, or both in case of full) are preserved if no matching key is found in the other side. Matching pair of elements (or one element and a `null` value for the other input) are given to a `JoinFunction` to turn the pair of elements into a single element, or to a `FlatJoinFunction` to turn the pair of elements into arbitararily many (including none) elements.
 
 The elements of both DataSets are joined on one or more keys which can be specified using
 
@@ -1599,7 +1605,7 @@ The following hints are available.
 * `REPARTITION_HASH_FIRST`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the first input. This strategy is good if the first
   input is smaller than the second, but both inputs are still large.
-  
+
 * `REPARTITION_HASH_SECOND`: The system partitions (shuffles) each input (unless the input is already
   partitioned) and builds a hash table from the second input. This strategy is good if the second
   input is smaller than the first, but both inputs are still large.

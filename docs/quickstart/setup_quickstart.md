@@ -1,5 +1,9 @@
 ---
 title: "Quickstart: Setup"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 1
+top-nav-title: Setup
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

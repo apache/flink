@@ -1,5 +1,8 @@
 ---
 title:  "Jobs and Scheduling"
+# Top navigation
+top-nav-group: internals
+top-nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

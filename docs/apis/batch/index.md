@@ -1,5 +1,17 @@
 ---
 title: "Flink DataSet API Programming Guide"
+
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 2
+top-nav-title: <strong>Batch Guide</strong> (DataSet API)
+
+# Sub-level navigation
+sub-nav-group: batch
+sub-nav-group-title: Batch Guide
+sub-nav-id: dataset_api
+sub-nav-pos: 1
+sub-nav-title: DataSet API
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,8 +31,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<a href="#top"></a>
 
 DataSet programs in Flink are regular programs that implement transformations on data sets
 (e.g., filtering, mapping, joining, grouping). The data sets are initially created from certain
@@ -103,7 +113,7 @@ object WordCount {
 
 </div>
 
-[Back to top](#top)
+{% top %}
 
 
 Linking with Flink
@@ -197,7 +207,7 @@ to run your program on Flink with Scala 2.11, you need to add a `_2.11` suffix t
 values of the Flink modules in your dependencies section.
 
 If you are looking for building Flink with Scala 2.11, please check
-[build guide](../setup/building.html#build-flink-for-a-specific-scala-version).
+[build guide]({{ site.baseurl }}/setup/building.html#scala-versions).
 
 #### Hadoop Dependency Versions
 
@@ -211,9 +221,9 @@ In order to link against the latest SNAPSHOT versions of the code, please follow
 
 The *flink-clients* dependency is only necessary to invoke the Flink program locally (for example to
 run it standalone for testing and debugging).  If you intend to only export the program as a JAR
-file and [run it on a cluster](cluster_execution.html), you can skip that dependency.
+file and [run it on a cluster]({{ site.baseurl }}/apis/cluster_execution.html), you can skip that dependency.
 
-[Back to top](#top)
+{% top %}
 
 Program Skeleton
 ----------------
@@ -253,8 +263,8 @@ Typically, you only need to use `getExecutionEnvironment()`, since this
 will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
-you created a JAR file from your program, and invoke it through the [command line](cli.html)
-or the [web interface](web_client.html),
+you created a JAR file from your program, and invoke it through the [command line]({{ site.baseurl }}/apis/cli.html)
+or the [web interface]({{ site.baseurl }}/apis/web_client.html),
 the Flink cluster manager will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -294,7 +304,7 @@ This will create a new DataSet by converting every String in the original
 set to an Integer. For more information and a list of all the transformations,
 please refer to [Transformations](#transformations).
 
-Once you have a DataSet containing your final results, you can either write the result 
+Once you have a DataSet containing your final results, you can either write the result
 to a file system (HDFS or local) or print it.
 
 {% highlight java %}
@@ -321,7 +331,7 @@ programs with a `main()` method. Each program consists of the same basic parts:
 5. Trigger the program execution
 
 We will now give an overview of each of those steps, please refer to the respective sections for
-more details. Note that all core classes of the Scala API are found in the package 
+more details. Note that all core classes of the Scala API are found in the package
 {% gh_link /flink-scala/src/main/scala/org/apache/flink/api/scala "org.apache.flink.api.scala" %}.
 
 
@@ -405,16 +415,16 @@ def collect()
 </div>
 
 
-The first two methods (`writeAsText()` and `writeAsCsv()`) do as the name suggests, the third one 
-can be used to specify a custom data output format. Please refer to [Data Sinks](#data-sinks) for 
+The first two methods (`writeAsText()` and `writeAsCsv()`) do as the name suggests, the third one
+can be used to specify a custom data output format. Please refer to [Data Sinks](#data-sinks) for
 more information on writing to files and also about custom data output formats.
 
-The `print()` method is useful for developing/debugging. It will output the contents of the DataSet 
+The `print()` method is useful for developing/debugging. It will output the contents of the DataSet
 to standard output (on the JVM starting the Flink execution). **NOTE** The behavior of the `print()`
-method changed with Flink 0.9.x. Before it was printing to the log file of the workers, now its 
+method changed with Flink 0.9.x. Before it was printing to the log file of the workers, now its
 sending the DataSet results to the client and printing the results there.
 
-`collect()` retrieve the DataSet from the cluster to the local JVM. The `collect()` method 
+`collect()` retrieve the DataSet from the cluster to the local JVM. The `collect()` method
 will return a `List` containing the elements.
 
 Both `print()` and `collect()` will trigger the execution of the program. You don't need to further call `execute()`.
@@ -424,14 +434,14 @@ Both `print()` and `collect()` will trigger the execution of the program. You do
 the data sizes you can retrieve with `collect()` are limited due to our RPC system. It is not advised
 to collect DataSets larger than 10MBs.
 
-There is also a `printOnTaskManager()` method which will print the DataSet contents on the TaskManager 
+There is also a `printOnTaskManager()` method which will print the DataSet contents on the TaskManager
 (so you have to get them from the log file). The `printOnTaskManager()` method will not trigger a
 program execution.
 
 Once you specified the complete program you need to **trigger the program execution**. You can call
 `execute()` directly on the `ExecutionEnviroment` or you implicitly trigger the execution with
 `collect()` or `print()`.
-Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local 
+Depending on the type of the `ExecutionEnvironment` the execution will be triggered on your local
 machine or submit your program for execution on a cluster.
 
 Note that you can not call both `print()` (or `collect()`) and `execute()` at the end of program.
@@ -441,7 +451,7 @@ accumulator results. `print()` and `collect()` are not returning the result, but
 accessed from the `getLastJobExecutionResult()` method.
 
 
-[Back to top](#top)
+{% top %}
 
 
 DataSet abstraction
@@ -450,13 +460,13 @@ DataSet abstraction
 A `DataSet` is an abstract representation of a finite immutable collection of data of the same type that may contain duplicates.
 
 Note that Flink is not always physically creating (materializing) each DataSet at runtime. This
-depends on the used runtime, the configuration and optimizer decisions. DataSets may be "streamed through" 
+depends on the used runtime, the configuration and optimizer decisions. DataSets may be "streamed through"
 operations during execution, as under the hood Flink uses a streaming data processing engine.
 
 Some DataSets are materialized automatically to avoid distributed deadlocks (at points where the data flow graph branches
 out and joins again later) or if the execution mode has explicitly been set to blocking execution.
 
-[Back to top](#top)
+{% top %}
 
 
 Lazy Evaluation
@@ -464,7 +474,7 @@ Lazy Evaluation
 
 All Flink DataSet programs are executed lazily: When the program's main method is executed, the data loading
 and transformations do not happen directly. Rather, each operation is created and added to the
-program's plan. The operations are actually executed when the execution is explicitly triggered by 
+program's plan. The operations are actually executed when the execution is explicitly triggered by
 an `execute()` call on the ExecutionEnvironment object. Also, `collect()` and `print()` will trigger
 the job execution. Whether the program is executed locally or on a cluster depends
 on the environment of the program.
@@ -472,7 +482,7 @@ on the environment of the program.
 The lazy evaluation lets you construct sophisticated programs that Flink executes as one
 holistically planned unit.
 
-[Back to top](#top)
+{% top %}
 
 
 Transformations
@@ -552,7 +562,7 @@ data.mapPartition(new MapPartitionFunction<String, Long>() {
       <td>
         <p>Evaluates a boolean function for each element and retains those for which the function
         returns true.<br/>
-        
+
         <strong>IMPORTANT:</strong> The system assumes that the function does not modify the elements on which the predicate is applied. Violating this assumption
         can lead to incorrect results.
         </p>
@@ -617,14 +627,14 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries
         from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
     {% highlight java %}
-        data.distinct(); 
+        data.distinct();
     {% endhighlight %}
       </td>
     </tr>
-    
+
     <tr>
       <td><strong>Join</strong></td>
       <td>
@@ -639,11 +649,11 @@ result = input1.join(input2)
 {% endhighlight %}
         You can specify the way that the runtime executes the join via <i>Join Hints</i>. The hints
         describe whether the join happens through partitioning or broadcasting, and whether it uses
-        a sort-based or a hash-based algorithm. Please refer to the 
+        a sort-based or a hash-based algorithm. Please refer to the
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
         a list of possible hints and an example.</br>
         If no hint is specified, the system will try to make an estimate of the input sizes and
-        pick a the best strategy according to those estimates. 
+        pick a the best strategy according to those estimates.
 {% highlight java %}
 // This executes a join by broadcasting the first data set
 // using a hash table for the broadcasted data
@@ -664,7 +674,7 @@ input1.leftOuterJoin(input2) // rightOuterJoin or fullOuterJoin for right or ful
       .equalTo(1)            // key of the second input (tuple field 1)
       .with(new JoinFunction<String, String, String>() {
           public String join(String v1, String v2) {
-             // NOTE: 
+             // NOTE:
              // - v2 might be null for leftOuterJoin
              // - v1 might be null for rightOuterJoin
              // - v1 OR v2 might be null for fullOuterJoin
@@ -767,8 +777,8 @@ DataSet<Integer> result = in.partitionCustom(Partitioner<K> partitioner, key)
     <tr>
       <td><strong>Sort Partition</strong></td>
       <td>
-        <p>Locally sorts all partitions of a data set on a specified field in a specified order. 
-          Fields can be specified as tuple positions or field expressions. 
+        <p>Locally sorts all partitions of a data set on a specified field in a specified order.
+          Fields can be specified as tuple positions or field expressions.
           Sorting on multiple fields is done by chaining sortPartition() calls.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
@@ -920,16 +930,16 @@ val output: DataSet[(Int, String, Doublr)] = input.sum(0).min(2)
 {% endhighlight %}
       </td>
     </tr>
-    
+
     <tr>
       <td><strong>Distinct</strong></td>
       <td>
-        <p>Returns the distinct elements of a data set. It removes the duplicate entries 
+        <p>Returns the distinct elements of a data set. It removes the duplicate entries
         from the input DataSet, with respect to all fields of the elements, or a subset of fields.</p>
       {% highlight scala %}
-         data.distinct() 
+         data.distinct()
       {% endhighlight %}
-      </td> 
+      </td>
     </tr>
 
     </tr>
@@ -946,7 +956,7 @@ val result = input1.join(input2).where(0).equalTo(1)
 {% endhighlight %}
         You can specify the way that the runtime executes the join via <i>Join Hints</i>. The hints
         describe whether the join happens through partitioning or broadcasting, and whether it uses
-        a sort-based or a hash-based algorithm. Please refer to the 
+        a sort-based or a hash-based algorithm. Please refer to the
         <a href="dataset_transformations.html#join-algorithm-hints">Transformations Guide</a> for
         a list of possible hints and an example.</br>
         If no hint is specified, the system will try to make an estimate of the input sizes and
@@ -1057,8 +1067,8 @@ val result = in
     <tr>
       <td><strong>Sort Partition</strong></td>
       <td>
-        <p>Locally sorts all partitions of a data set on a specified field in a specified order. 
-          Fields can be specified as tuple positions or field expressions. 
+        <p>Locally sorts all partitions of a data set on a specified field in a specified order.
+          Fields can be specified as tuple positions or field expressions.
           Sorting on multiple fields is done by chaining sortPartition() calls.</p>
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
@@ -1094,7 +1104,7 @@ possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
 `withParameters(Configuration)` passes Configuration objects, which can be accessed from the `open()` method inside the user function.
 
-[Back to Top](#top)
+{% top %}
 
 
 Specifying Keys
@@ -1208,7 +1218,7 @@ In the example below, we have a `WC` POJO with two fields "word" and "count". To
 {% highlight java %}
 // some ordinary POJO (Plain old Java Object)
 public class WC {
-  public String word; 
+  public String word;
   public int count;
 }
 DataSet<WC> words = // [...]
@@ -1317,8 +1327,8 @@ These are valid field expressions for the example code above:
 ### Define keys using Key Selector Functions
 {:.no_toc}
 
-An additional way to define keys are "key selector" functions. A key selector function 
-takes a single dataset element as input and returns the key for the element. The key can be of any type and be derived from arbitrary computations. 
+An additional way to define keys are "key selector" functions. A key selector function
+takes a single dataset element as input and returns the key for the element. The key can be of any type and be derived from arbitrary computations.
 
 The following example shows a key selector function that simply returns the field of an object:
 
@@ -1349,7 +1359,7 @@ val wordCounts = words
 </div>
 
 
-[Back to top](#top)
+{% top %}
 
 
 Passing Functions to Flink
@@ -1382,7 +1392,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambdas
 
-Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide](java8.html).
+Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide]({{ site.baseurl }}/apis/java8.html).
 
 {% highlight java %}
 DataSet<String> data = // [...]
@@ -1495,7 +1505,7 @@ the
 [transformations documentation](dataset_transformations.html)
 for a complete example.
 
-[Back to top](#top)
+{% top %}
 
 
 Data Types
@@ -1520,7 +1530,7 @@ There are six different categories of data types:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-Tuples are composite types that contain a fixed number of fields with various types. 
+Tuples are composite types that contain a fixed number of fields with various types.
 The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple
 can be an arbitrary Flink type including further tuples, resulting in nested tuples. Fields of a
 tuple can be accessed directly using the field's name as `tuple.f4`, or using the generic getter method
@@ -1634,16 +1644,16 @@ wordCounts groupBy { _.word } reduce(new MyReduceFunction())
 
 #### Primitive Types
 
-Flink supports all Java and Scala primitive types such as `Integer`, `String`, and `Double`. 
+Flink supports all Java and Scala primitive types such as `Integer`, `String`, and `Double`.
 
 #### General Class Types
 
-Flink supports most Java and Scala classes (API and custom). 
+Flink supports most Java and Scala classes (API and custom).
 Restrictions apply to classes containing fields that cannot be serialized, like file pointers, I/O streams, or other native
 resources. Classes that follow the Java Beans conventions work well in general.
 
-All classes that are not identified as POJO types (see POJO requirements above) are handled by Flink as general class types. 
-Flink treats these data types as black boxes and is not able to access their their content (i.e., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo). 
+All classes that are not identified as POJO types (see POJO requirements above) are handled by Flink as general class types.
+Flink treats these data types as black boxes and is not able to access their their content (i.e., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
 
 When grouping, sorting, or joining a data set of generic types, keys must be specified with key selector functions. See the [key definition section](#specifying-keys) or [data transformation section](#transformations) for details.
 
@@ -1721,7 +1731,7 @@ There is a switch at the `ExectionConfig` which allows users to enable the objec
 
 
 
-[Back to top](#top)
+{% top %}
 
 
 Data Sources
@@ -1750,16 +1760,16 @@ File-based:
 
 - `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
   delimited primitive data types such as `String` or `Integer`.
-   
+
 - `readFileOfPrimitives(path, delimiter, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
    delimited primitive data types such as `String` or `Integer` using the given delimiter.
-   
-- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified 
+
+- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified
    path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
-   
+
 - `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
    type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
- 
+
 
 Collection-based:
 
@@ -1807,12 +1817,12 @@ DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file
 // read a CSV file with three fields into a POJO (Person.class) with corresponding fields
 DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
                          .pojoType(Person.class, "name", "age", "zipcode");  
-                                                 
 
-// read a file from the specified path of type TextInputFormat 
+
+// read a file from the specified path of type TextInputFormat
 DataSet<Tuple2<LongWritable, Text>> tuples =
  env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
-                         
+
 // read a file from the specified path of type SequenceFileInputFormat
 DataSet<Tuple2<IntWritable, Text>> tuples =
  env.readSequenceFile(IntWritable.class, Text.class, "hdfs://nnHost:nnPort/path/to/file");
@@ -1824,7 +1834,7 @@ DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
 DataSet<Long> numbers = env.generateSequence(1, 10000000);
 
 // Read data from a relational database using the JDBC input format
-DataSet<Tuple2<String, Integer> dbData = 
+DataSet<Tuple2<String, Integer> dbData =
     env.createInput(
       // create and configure input format
       JDBCInputFormat.buildJDBCInputFormat()
@@ -1905,10 +1915,10 @@ File-based:
 
 - `readFileOfPrimitives(path, delimiter)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence)
   delimited primitive data types such as `String` or `Integer` using the given delimiter.
-  
-- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified 
+
+- `readHadoopFile(FileInputFormat, Key, Value, path)` / `FileInputFormat` - Creates a JobConf and reads file from the specified
    path with the specified FileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.
-   
+
 - `readSequenceFile(Key, Value, path)` / `SequenceFileInputFormat` - Creates a JobConf and reads file from the specified path with
    type SequenceFileInputFormat, Key class and Value class and returns them as Tuple2<Key, Value>.  
 
@@ -1971,10 +1981,10 @@ val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 // generate a number sequence
 val numbers = env.generateSequence(1, 10000000);
 
-// read a file from the specified path of type TextInputFormat 
+// read a file from the specified path of type TextInputFormat
 val tuples = env.readHadoopFile(new TextInputFormat, classOf[LongWritable],
  classOf[Text], "hdfs://nnHost:nnPort/path/to/file")
-                         
+
 // read a file from the specified path of type SequenceFileInputFormat
 val tuples = env.readSequenceFile(classOf[IntWritable], classOf[Text],
  "hdfs://nnHost:nnPort/path/to/file")
@@ -2054,7 +2064,7 @@ The following table lists the currently supported compression methods.
 </table>
 
 
-[Back to top](#top)
+{% top %}
 
 
 Execution Configuration
@@ -2088,13 +2098,13 @@ With the closure cleaner disabled, it might happen that an anonymous user functi
 
 - `getExecutionRetryDelay()` / `setExecutionRetryDelay(long executionRetryDelay)` Sets the delay in milliseconds that the system waits after a job has failed, before re-executing it. The delay starts after all tasks have been successfully been stopped on the TaskManagers, and once the delay is past, the tasks are re-started. This parameter is useful to delay re-execution in order to let certain time-out related failures surface fully (like broken connections that have not fully timed out), before attempting a re-execution and immediately failing again due to the same problem. This parameter only has an effect if the number of execution re-tries is one or more.
 
-- `getExecutionMode()` / `setExecutionMode()`. The default execution mode is PIPELINED. Sets the execution mode to execute the program. The execution mode defines whether data exchanges are performed in a batch or on a pipelined manner. 
+- `getExecutionMode()` / `setExecutionMode()`. The default execution mode is PIPELINED. Sets the execution mode to execute the program. The execution mode defines whether data exchanges are performed in a batch or on a pipelined manner.
 
 - `enableForceKryo()` / **`disableForceKryo`**. Kryo is not forced by default. Forces the GenericTypeInformation to use the Kryo serializer for POJOS even though we could analyze them as a POJO. In some cases this might be preferable. For example, when Flink's internal serializers fail to handle a POJO properly.
 
 - `enableForceAvro()` / **`disableForceAvro()`**. Avro is not forced by default. Forces the Flink AvroTypeInformation to use the Avro serializer instead of Kryo for serializing Avro POJOs.
 
-- `enableObjectReuse()` / **`disableObjectReuse()`** By default, objects are not reused in Flink. Enabling the [object reuse mode](programming_guide.html#object-reuse-behavior) will instruct the runtime to reuse user objects for better performance. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behavior. 
+- `enableObjectReuse()` / **`disableObjectReuse()`** By default, objects are not reused in Flink. Enabling the [object reuse mode](#object-reuse-behavior) will instruct the runtime to reuse user objects for better performance. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behavior.
 
 - **`enableSysoutLogging()`** / `disableSysoutLogging()` JobManager status updates are printed to `System.out` by default. This setting allows to disable this behavior.
 
@@ -2108,7 +2118,7 @@ With the closure cleaner disabled, it might happen that an anonymous user functi
 
 - `registerKryoType(Class<?> type)` If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags (integer IDs) are written. If a type is not registered with Kryo, its entire class-name will be serialized with every instance, leading to much higher I/O costs.
 
-- `registerPojoType(Class<?> type)` Registers the given type with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written. If a type is not registered with Kryo, its entire class-name will be serialized with every instance, leading to much higher I/O costs. 
+- `registerPojoType(Class<?> type)` Registers the given type with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written. If a type is not registered with Kryo, its entire class-name will be serialized with every instance, leading to much higher I/O costs.
 
 Note that types registered with `registerKryoType()` are not available to Flink's Kryo serializer instance.
 
@@ -2119,7 +2129,7 @@ Note that types registered with `registerKryoType()` are not available to Flink'
 The `RuntimeContext` which is accessible in `Rich*` functions through the `getRuntimeContext()` method also allows to access the `ExecutionConfig` in all user defined functions.
 
 
-[Back to top](#top)
+{% top %}
 
 Data Sinks
 ----------
@@ -2156,7 +2166,7 @@ same time run additional transformations on them.
 Standard data sink methods:
 
 {% highlight java %}
-// text data 
+// text data
 DataSet<String> textData = // [...]
 
 // write DataSet to a file on the local file system
@@ -2258,7 +2268,7 @@ same time run additional transformations on them.
 Standard data sink methods:
 
 {% highlight scala %}
-// text data 
+// text data
 val textData: DataSet[String] = // [...]
 
 // write DataSet to a file on the local file system
@@ -2317,7 +2327,7 @@ Globally sorted output is not supported yet.
 </div>
 </div>
 
-[Back to top](#top)
+{% top %}
 
 Debugging
 ---------
@@ -2422,7 +2432,7 @@ val myLongs = env.fromCollection(longIt)
 `Serializable`. Furthermore, collection data sources can not be executed in parallel (
 parallelism = 1).
 
-[Back to top](#top)
+{% top %}
 
 Iteration Operators
 -------------------
@@ -2565,7 +2575,7 @@ val env = ExecutionEnvironment.getExecutionEnvironment()
 val initial = env.fromElements(0)
 
 val count = initial.iterate(10000) { iterationInput: DataSet[Int] =>
-  val result = iterationInput.map { i => 
+  val result = iterationInput.map { i =>
     val x = Math.random()
     val y = Math.random()
     i + (if (x * x + y * y < 1) 1 else 0)
@@ -2632,24 +2642,24 @@ env.execute()
 </div>
 </div>
 
-[Back to top](#top)
+{% top %}
 
 
 Semantic Annotations
 -----------
 
-Semantic annotations can be used to give Flink hints about the behavior of a function. 
+Semantic annotations can be used to give Flink hints about the behavior of a function.
 They tell the system which fields of a function's input the function reads and evaluates and
-which fields it unmodified forwards from its input to its output. 
+which fields it unmodified forwards from its input to its output.
 Semantic annotations are a powerful means to speed up execution, because they
 allow the system to reason about reusing sort orders or partitions across multiple operations. Using
 semantic annotations may eventually save the program from unnecessary data shuffling or unnecessary
 sorts and significantly improve the performance of a program.
 
-**Note:** The use of semantic annotations is optional. However, it is absolutely crucial to 
-be conservative when providing semantic annotations! 
-Incorrect semantic annotations will cause Flink to make incorrect assumptions about your program and 
-might eventually lead to incorrect results. 
+**Note:** The use of semantic annotations is optional. However, it is absolutely crucial to
+be conservative when providing semantic annotations!
+Incorrect semantic annotations will cause Flink to make incorrect assumptions about your program and
+might eventually lead to incorrect results.
 If the behavior of an operator is not clearly predictable, no annotation should be provided.
 Please read the documentation carefully.
 
@@ -2657,15 +2667,15 @@ The following semantic annotations are currently supported.
 
 #### Forwarded Fields Annotation
 
-Forwarded fields information declares input fields which are unmodified forwarded by a function to the same position or to another position in the output. 
-This information is used by the optimizer to infer whether a data property such as sorting or 
+Forwarded fields information declares input fields which are unmodified forwarded by a function to the same position or to another position in the output.
+This information is used by the optimizer to infer whether a data property such as sorting or
 partitioning is preserved by a function.
 For functions that operate on groups of input elements such as `GroupReduce`, `GroupCombine`, `CoGroup`, and `MapPartition`, all fields that are defined as forwarded fields must always be jointly forwarded from the same input element. The forwarded fields of each element that is emitted by a group-wise function may originate from a different element of the function's input group.
 
 Field forward information is specified using [field expressions](#define-keys-using-field-expressions).
-Fields that are forwarded to the same position in the output can be specified by their position. 
+Fields that are forwarded to the same position in the output can be specified by their position.
 The specified position must be valid for the input and output data type and have the same type.
-For example the String `"f2"` declares that the third field of a Java input tuple is always equal to the third field in the output tuple. 
+For example the String `"f2"` declares that the third field of a Java input tuple is always equal to the third field in the output tuple.
 
 Fields which are unmodified forwarded to another position in the output are declared by specifying the
 source field in the input and the target field in the output as field expressions.
@@ -2674,7 +2684,7 @@ unchanged copied to the third field of the Java output tuple. The wildcard expre
 
 Multiple forwarded fields can be declared in a single String by separating them with semicolons as `"f0; f2->f1; f3->f2"` or in separate Strings `"f0", "f2->f1", "f3->f2"`. When specifying forwarded fields it is not required that all forwarded fields are declared, but all declarations must be correct.
 
-Forwarded field information can be declared by attaching Java annotations on function class definitions or 
+Forwarded field information can be declared by attaching Java annotations on function class definitions or
 by passing them as operator arguments after invoking a function on a DataSet as shown below.
 
 ##### Function Class Annotations
@@ -2686,10 +2696,10 @@ by passing them as operator arguments after invoking a function on a DataSet as 
 ##### Operator Arguments
 
 * `data.map(myMapFnc).withForwardedFields()` for single input function such as Map and Reduce.
-* `data1.join(data2).where().equalTo().with(myJoinFnc).withForwardFieldsFirst()` for the first input of a function with two inputs such as Join and CoGroup. 
+* `data1.join(data2).where().equalTo().with(myJoinFnc).withForwardFieldsFirst()` for the first input of a function with two inputs such as Join and CoGroup.
 * `data1.join(data2).where().equalTo().with(myJoinFnc).withForwardFieldsSecond()` for the second input of a function with two inputs such as Join and CoGroup.
 
-Please note that it is not possible to overwrite field forward information which was specified as a class annotation by operator arguments. 
+Please note that it is not possible to overwrite field forward information which was specified as a class annotation by operator arguments.
 
 ##### Example
 
@@ -2699,7 +2709,7 @@ The following example shows how to declare forwarded field information using a f
 <div data-lang="java" markdown="1">
 {% highlight java %}
 @ForwardedFields("f0->f2")
-public class MyMap implements 
+public class MyMap implements
               MapFunction<Tuple2<Integer, Integer>, Tuple3<String, Integer, Integer>> {
   @Override
   public Tuple3<String, Integer, Integer> map(Tuple2<Integer, Integer> val) {
@@ -2723,17 +2733,17 @@ class MyMap extends MapFunction[(Int, Int), (String, Int, Int)]{
 
 #### Non-Forwarded Fields
 
-Non-forwarded fields information declares all fields which are not preserved on the same position in a function's output. 
-The values of all other fields are considered to be preserved at the same position in the output. 
-Hence, non-forwarded fields information is inverse to forwarded fields information. 
+Non-forwarded fields information declares all fields which are not preserved on the same position in a function's output.
+The values of all other fields are considered to be preserved at the same position in the output.
+Hence, non-forwarded fields information is inverse to forwarded fields information.
 Non-forwarded field information for group-wise operators such as `GroupReduce`, `GroupCombine`, `CoGroup`, and `MapPartition` must fulfill the same requirements as for forwarded field information.
 
-**IMPORTANT**: The specification of non-forwarded fields information is optional. However if used, 
+**IMPORTANT**: The specification of non-forwarded fields information is optional. However if used,
 **ALL!** non-forwarded fields must be specified, because all other fields are considered to be forwarded in place. It is safe to declare a forwarded field as non-forwarded.
 
-Non-forwarded fields are specified as a list of [field expressions](#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings. 
-For example both `"f1; f3"` and `"f1", "f3"` declare that the second and fourth field of a Java tuple 
-are not preserved in place and all other fields are preserved in place. 
+Non-forwarded fields are specified as a list of [field expressions](#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings.
+For example both `"f1; f3"` and `"f1", "f3"` declare that the second and fourth field of a Java tuple
+are not preserved in place and all other fields are preserved in place.
 Non-forwarded field information can only be specified for functions which have identical input and output types.
 
 Non-forwarded field information is specified as function class annotations using the following annotations:
@@ -2750,7 +2760,7 @@ The following example shows how to declare non-forwarded field information:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 @NonForwardedFields("f1") // second field is not forwarded
-public class MyMap implements 
+public class MyMap implements
               MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
   @Override
   public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> val) {
@@ -2779,10 +2789,10 @@ all fields that are used by the function to compute its result.
 For example, fields which are evaluated in conditional statements or used for computations must be marked as read when specifying read fields information.
 Fields which are only unmodified forwarded to the output without evaluating their values or fields which are not accessed at all are not considered to be read.
 
-**IMPORTANT**: The specification of read fields information is optional. However if used, 
+**IMPORTANT**: The specification of read fields information is optional. However if used,
 **ALL!** read fields must be specified. It is safe to declare a non-read field as read.
 
-Read fields are specified as a list of [field expressions](#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings. 
+Read fields are specified as a list of [field expressions](#define-keys-using-field-expressions). The list can be either given as a single String with field expressions separated by semicolons or as multiple Strings.
 For example both `"f1; f3"` and `"f1", "f3"` declare that the second and fourth field of a Java tuple are read and evaluated by the function.
 
 Read field information is specified as function class annotations using the following annotations:
@@ -2798,9 +2808,9 @@ The following example shows how to declare read field information:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-@ReadFields("f0; f3") // f0 and f3 are read and evaluated by the function. 
-public class MyMap implements 
-              MapFunction<Tuple4<Integer, Integer, Integer, Integer>, 
+@ReadFields("f0; f3") // f0 and f3 are read and evaluated by the function.
+public class MyMap implements
+              MapFunction<Tuple4<Integer, Integer, Integer, Integer>,
                           Tuple2<Integer, Integer>> {
   @Override
   public Tuple2<Integer, Integer> map(Tuple4<Integer, Integer, Integer, Integer> val) {
@@ -2830,7 +2840,7 @@ class MyMap extends MapFunction[(Int, Int, Int, Int), (Int, Int)]{
 </div>
 </div>
 
-[Back to top](#top)
+{% top %}
 
 
 Broadcast Variables
@@ -2903,14 +2913,14 @@ accessing broadcasted data sets. For a complete example program, have a look at
 too large. For simpler things like scalar values you can simply make parameters part of the closure
 of a function, or use the `withParameters(...)` method to pass in a configuration.
 
-[Back to top](#top)
+{% top %}
 
 Passing Parameters to Functions
 -------------------
 
 Parameters can be passed to functions using either the constructor or the `withParameters(Configuration)` method. The parameters are serialized as part of the function object and shipped to all parallel task instances.
 
-Check also the [best practices guide on how to pass command line arguments to functions](best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
+Check also the [best practices guide on how to pass command line arguments to functions]({{ site.baseurl }}/apis/best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
 
 #### Via Constructor
 
@@ -3049,7 +3059,7 @@ public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<S
     // ... more here ...
 {% endhighlight %}
 
-[Back to top](#top)
+{% top %}
 
 Program Packaging and Distributed Execution
 -----------------------------------------
@@ -3057,7 +3067,7 @@ Program Packaging and Distributed Execution
 As described in the [program skeleton](#program-skeleton) section, Flink programs can be executed on
 clusters by using the `RemoteEnvironment`. Alternatively, programs can be packaged into JAR Files
 (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the
-[command line interface](cli.html) or the [web interface](web_client.html).
+[command line interface]({{ site.baseurl }}/apis/cli.html) or the [web interface]({{ site.baseurl }}/apis/web_client.html).
 
 #### Packaging Programs
 
@@ -3104,7 +3114,7 @@ calls the `getPlan(String...)` method to obtain the program plan to execute.
 3. If the entry point class does not implement the `org.apache.flinkapi.common.Program` interface,
 the system will invoke the main method of the class.
 
-[Back to top](#top)
+{% top %}
 
 Accumulators & Counters
 ---------------------------
@@ -3123,7 +3133,7 @@ interface.
 
 - {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/IntCounter.java "__IntCounter__" %},
   {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/LongCounter.java "__LongCounter__" %}
-  and {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}: 
+  and {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}:
   See below for an example using a counter.
 - {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Histogram.java "__Histogram__" %}:
   A histogram implementation for a discrete number of bins. Internally it is just a map from Integer
@@ -3186,7 +3196,7 @@ or {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators
 result type ```R``` for the final result. E.g. for a histogram, ```V``` is a number and ```R``` i
  a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
-[Back to top](#top)
+{% top %}
 
 Parallel Execution
 ------------------
@@ -3339,7 +3349,7 @@ A system-wide default parallelism for all execution environments can be defined 
 `parallelism.default` property in `./conf/flink-conf.yaml`. See the
 [Configuration]({{ site.baseurl }}/setup/config.html) documentation for details.
 
-[Back to top](#top)
+{% top %}
 
 Execution Plans
 ---------------
@@ -3398,4 +3408,4 @@ The script to start the webinterface is located under ```bin/start-webclient.sh`
 
 You are able to specify program arguments in the textbox at the bottom of the page. Checking the plan visualization checkbox shows the execution plan before executing the actual program.
 
-[Back to top](#top)
+{% top %}
