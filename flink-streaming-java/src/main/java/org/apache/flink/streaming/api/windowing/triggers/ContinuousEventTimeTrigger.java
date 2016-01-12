@@ -22,6 +22,8 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.time.AbstractTime;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+import java.util.Collection;
+
 /**
  * A {@link Trigger} that continuously fires based on a given time interval. This fires based
  * on {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks}.
@@ -64,6 +66,14 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public TriggerResult onMerge(Collection<W> oldWindows,
+		Collection<TriggerContext> oldTriggerCtxs,
+		W mergedWindow,
+		TriggerContext ctx) {
 		return TriggerResult.CONTINUE;
 	}
 

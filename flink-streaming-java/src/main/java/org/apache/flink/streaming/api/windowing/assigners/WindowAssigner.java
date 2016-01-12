@@ -60,4 +60,29 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
 	 * this {@code WindowAssigner}.
 	 */
 	public abstract TypeSerializer<W> getWindowSerializer(ExecutionConfig executionConfig);
+
+	/**
+	 * Returns {@code true} if the {@code Window}s assigned by this {@code WindowAssigner} can
+	 * be merged}.
+	 */
+	public abstract boolean isMerging();
+
+	/**
+	 * Determines which windows (if any) should be merged.
+	 * @param windows The window candidates.
+	 * @param callback A callback that can be invoked to signal which windows should be merged.
+	 */
+	public abstract void mergeWindows(Collection<W> windows, MergeCallback<W> callback);
+
+	/**
+	 * Callback to be used in {@link #mergeWindows(Collection, MergeCallback)} for specifying which
+	 * windows should be merged.
+	 */
+	public interface MergeCallback<W> {
+
+		/**
+		 * Specifies that the given windows should be merged into the result window.
+		 */
+		void merge(Collection<W> toBeMerged, W mergeResult);
+	}
 }

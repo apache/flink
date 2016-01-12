@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 /**
  * A {@link Trigger} that fires based on a {@link DeltaFunction} and a threshold.
@@ -65,6 +66,14 @@ public class DeltaTrigger<T extends Serializable, W extends Window> implements T
 
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
+		return TriggerResult.CONTINUE;
+	}
+
+	@Override
+	public TriggerResult onMerge(Collection<W> oldWindows,
+		Collection<TriggerContext> oldTriggerCtxs,
+		W mergedWindow,
+		TriggerContext ctx) {
 		return TriggerResult.CONTINUE;
 	}
 

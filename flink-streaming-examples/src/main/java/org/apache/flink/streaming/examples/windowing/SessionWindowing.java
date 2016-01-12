@@ -17,16 +17,14 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.api.windowing.assigners.SessionWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,10 +49,7 @@ public class SessionWindowing {
 		input.add(new Tuple3<>("b", 3L, 1));
 		input.add(new Tuple3<>("b", 5L, 1));
 		input.add(new Tuple3<>("c", 6L, 1));
-		// We expect to detect the session "a" earlier than this point (the old
-		// functionality can only detect here when the next starts)
 		input.add(new Tuple3<>("a", 10L, 1));
-		// We expect to detect session "b" and "c" at this point as well
 		input.add(new Tuple3<>("c", 11L, 1));
 
 		DataStream<Tuple3<String, Long, Integer>> source = env
@@ -66,9 +61,6 @@ public class SessionWindowing {
 						for (Tuple3<String, Long, Integer> value : input) {
 							ctx.collectWithTimestamp(value, value.f1);
 							ctx.emitWatermark(new Watermark(value.f1 - 1));
-							if (!fileOutput) {
-								System.out.println("Collected: " + value);
-							}
 						}
 						ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
 					}
@@ -81,8 +73,7 @@ public class SessionWindowing {
 		// We create sessions for each id with max timeout of 3 time units
 		DataStream<Tuple3<String, Long, Integer>> aggregated = source
 				.keyBy(0)
-				.window(GlobalWindows.create())
-				.trigger(new SessionTrigger(3L))
+				.window(SessionWindows.withGap(Time.milliseconds(3)))
 				.sum(2);
 
 		if (fileOutput) {
@@ -92,54 +83,6 @@ public class SessionWindowing {
 		}
 
 		env.execute();
-	}
-
-	private static class SessionTrigger implements Trigger<Tuple3<String, Long, Integer>, GlobalWindow> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final Long sessionTimeout;
-
-		public SessionTrigger(Long sessionTimeout) {
-			this.sessionTimeout = sessionTimeout;
-
-		}
-
-		@Override
-		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) throws Exception {
-
-			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
-			Long lastSeen = lastSeenState.value();
-
-			Long timeSinceLastEvent = timestamp - lastSeen;
-
-			// Update the last seen event time
-			lastSeenState.update(timestamp);
-
-			ctx.registerEventTimeTimer(lastSeen + sessionTimeout);
-
-			if (timeSinceLastEvent > sessionTimeout) {
-				return TriggerResult.FIRE_AND_PURGE;
-			} else {
-				return TriggerResult.CONTINUE;
-			}
-		}
-
-		@Override
-		public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
-			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
-			Long lastSeen = lastSeenState.value();
-
-			if (time - lastSeen >= sessionTimeout) {
-				return TriggerResult.FIRE_AND_PURGE;
-			}
-			return TriggerResult.CONTINUE;
-		}
-
-		@Override
-		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
-			return TriggerResult.CONTINUE;
-		}
 	}
 
 	// *************************************************************************

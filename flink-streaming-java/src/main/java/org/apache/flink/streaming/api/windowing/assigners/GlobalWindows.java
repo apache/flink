@@ -34,7 +34,7 @@ import java.util.Collections;
  * {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} to do flexible, policy based
  * windows.
  */
-public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
+public class GlobalWindows extends NonMergingWindowAssigner<Object, GlobalWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private GlobalWindows() {}
@@ -85,6 +85,14 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
 		@Override
 		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) {
+			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public TriggerResult onMerge(Collection<GlobalWindow> oldWindows,
+			Collection<TriggerContext> oldTriggerCtxs,
+			GlobalWindow mergedWindow,
+			TriggerContext ctx) {
 			return TriggerResult.CONTINUE;
 		}
 	}

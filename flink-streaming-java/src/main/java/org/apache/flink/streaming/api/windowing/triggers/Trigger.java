@@ -21,6 +21,7 @@ import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 /**
  * A {@code Trigger} determines when a pane of a window should be evaluated to emit the
@@ -70,6 +71,16 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 */
 	TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
 
+	/**
+	 * Called when several windows have been merged into one window by the
+	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}.
+	 *
+	 * @param oldWindows The windows that were merged.
+	 * @param oldTriggerCtxs The contexts of the windows that were merged.
+	 * @param mergedWindow The newly merged window.
+	 * @param ctx A context object that can be used to register timer callbacks.
+	 */
+	TriggerResult onMerge(Collection<W> oldWindows, Collection<TriggerContext> oldTriggerCtxs, W mergedWindow, TriggerContext ctx);
 
 	/**
 	 * Result type for trigger methods. This determines what happens which the window.

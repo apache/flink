@@ -43,7 +43,7 @@ import java.util.Collections;
  *   keyed.window(TumblingTimeWindows.of(Time.minutes(1)));
  * } </pre>
  */
-public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
+public class TumblingTimeWindows extends NonMergingWindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private long size;
