@@ -82,20 +82,20 @@ package object ml {
         .withBroadcastSet(broadcastVariable, "broadcastVariable")
     }
 
-    def mapWithBcInitializer[B, O: TypeInformation: ClassTag](
-        broadcast: DataSet[B])(
-        initializer: BroadcastVariableInitializer[T, B])(
-        func: (B, T) => O)
-    : DataSet[O] = {
-      dataSet.map{new RichMapFunction[T, O]() {
-        var broadcastValue: B = _
+    def mapWithBcInitializer[BCST, INIT, OUT: TypeInformation: ClassTag](
+        broadcast: DataSet[BCST])(
+        initializer: BroadcastVariableInitializer[BCST, INIT])(
+        func: (INIT, T) => OUT)
+    : DataSet[OUT] = {
+      dataSet.map{new RichMapFunction[T, OUT]() {
+        var broadcastValue: INIT = _
 
         override def open(config: Configuration): Unit = {
           broadcastValue = getRuntimeContext()
-            .getBroadcastVariableWithInitializer("broadcastSet", initializer)
+            .getBroadcastVariableWithInitializer[BCST, INIT]("broadcastSet", initializer)
         }
 
-        def map(element: T): O = {
+        def map(element: T): OUT = {
           func(broadcastValue, element)
         }
       }}.withBroadcastSet(broadcast, "broadcastSet")
