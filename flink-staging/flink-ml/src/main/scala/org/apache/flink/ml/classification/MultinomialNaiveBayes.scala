@@ -24,12 +24,13 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.ml._
 import org.apache.flink.ml.common.{ParameterMap, Parameter}
 import org.apache.flink.ml.pipeline.{PredictDataSetOperation, FitOperation, Predictor}
 import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map
 
@@ -500,10 +501,13 @@ object MultinomialNaiveBayes {
       (Int, String),
       (Int, String)]() {
 
-    //TOOD adjust generics so that no compile errors are present anymore
-    def mapInitializer[K,V]() = new BroadcastVariableInitializer[(K, V), Map[K, V]] {
-      def initializeBroadcastVariable(data: Iterable[(K, V)]): Map[K, V] = {
-        data.asScala.toMap
+    val mapInitializer = new BroadcastVariableInitializer[
+        (String, Double, Double),
+        immutable.Map[String, Double]] {
+      def initializeBroadcastVariable(
+          data: java.lang.Iterable[(String, Double, Double)])
+        : immutable.Map[String, Double] = {
+        data.asScala.map(x => (x._1, x._3)).toMap
       }
     }
 
@@ -632,25 +636,10 @@ object MultinomialNaiveBayes {
           .reduce((line1, line2) => (line1._1, line1._2, line1._3 + line2._3))
           .join(wordsInText).where(0).equalTo(0) {
           (foundW, wordsIT) => (foundW._1, foundW._2, foundW._3, wordsIT._2)
-        }.map(new RichMapFunction[(Int, String, Int, Int), (Int, String, Double)] {
-
-          var broadcastMap: mutable.Map[String, Double] = mutable
-            .Map[String, Double]() //class -> log(P(w|c) not found word in class)
-
-          override def open(config: Configuration): Unit = {
-            val collection = getRuntimeContext
-              .getBroadcastVariable[(String, Double, Double)]("classRelatedModelData")
-              .asScala
-            for (record <- collection) {
-              broadcastMap.put(record._1, record._3)
-            }
-          }
-
-          override def map(value: (Int, String, Int, Int)): (Int, String, Double) = {
-            (value._1, value._2, (value._4 - value._3) * broadcastMap(value._2))
-          }
-        }).withBroadcastSet(classRelatedModelData, "classRelatedModelData")
-
+        }.mapWithBcInitializer(classRelatedModelData)(mapInitializer){
+          (map, value) =>
+            (value._1, value._2, (value._4 - value._3) * map(value._2))
+        }
       } else {
         //If the word frequency is changed (as in SR1 = 1, SR1 = 2, R1 = 1), the
         //sumPwcNotFoundWords can not be calculated as above. They must be calculated the same way
