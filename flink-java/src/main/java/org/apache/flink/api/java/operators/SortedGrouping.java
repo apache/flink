@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.Utils;
@@ -123,6 +124,16 @@ public class SortedGrouping<T> extends Grouping<T> {
 	
 	protected Order[] getGroupSortOrders() {
 		return this.groupSortOrders;
+	}
+
+	protected Ordering getGroupOrdering() {
+
+		Ordering o = new Ordering();
+		for(int i=0; i < this.groupSortKeyPositions.length; i++) {
+			o.appendOrdering(this.groupSortKeyPositions[i], null, this.groupSortOrders[i]);
+		}
+
+		return o;
 	}
 	
 	/**

@@ -26,13 +26,23 @@ import java.util.List;
 import com.google.common.base.Joiner;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.UnaryOperatorInformation;
+import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
+import org.apache.flink.api.java.operators.translation.KeyRemovingMapper;
+import org.apache.flink.api.java.operators.translation.TwoKeyExtractingMapper;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.slf4j.Logger;
@@ -69,6 +79,7 @@ public abstract class Keys<T> {
 	public static class SelectorFunctionKeys<T, K> extends Keys<T> {
 
 		private final KeySelector<T, K> keyExtractor;
+		private final TypeInformation<T> inputType;
 		private final TypeInformation<K> keyType;
 		private final int[] logicalKeyFields;
 
@@ -81,6 +92,7 @@ public abstract class Keys<T> {
 			}
 
 			this.keyExtractor = keyExtractor;
+			this.inputType = inputType;
 			this.keyType = keyType;
 
 			if(!keyType.isKeyType()) {
@@ -90,7 +102,7 @@ public abstract class Keys<T> {
 			// we have to handle a special case here:
 			// if the keyType is a composite type, we need to select the full type with all its fields.
 			if(keyType instanceof CompositeType) {
-				ExpressionKeys<K> ek = new ExpressionKeys<K>(new String[] {ExpressionKeys.SELECT_ALL_CHAR}, keyType);
+				ExpressionKeys<K> ek = new ExpressionKeys<>(new String[]{ExpressionKeys.SELECT_ALL_CHAR}, keyType);
 				logicalKeyFields = ek.computeLogicalKeyPositions();
 			} else {
 				logicalKeyFields = new int[] {0};
@@ -99,6 +111,10 @@ public abstract class Keys<T> {
 
 		public TypeInformation<K> getKeyType() {
 			return keyType;
+		}
+
+		public TypeInformation<T> getInputType() {
+			return inputType;
 		}
 
 		public KeySelector<T, K> getKeyExtractor() {
@@ -171,9 +187,90 @@ public abstract class Keys<T> {
 			}
 			
 			if (typeInfo != null && !(typeInfo instanceof GenericTypeInfo) && (!keyType.equals(typeInfo))) {
-				throw new InvalidProgramException("The partitioner is imcompatible with the key type. "
+				throw new InvalidProgramException("The partitioner is incompatible with the key type. "
 						+ "Partitioner type: " + typeInfo + " , key type: " + keyType);
 			}
+		}
+
+		@SuppressWarnings("unchecked")
+		public static <T, K> Operator<Tuple2<K, T>> appendKeyExtractor(
+			Operator<T> input,
+			SelectorFunctionKeys<T, K> key)
+		{
+
+			TypeInformation<T> inputType = key.getInputType();
+			TypeInformation<Tuple2<K, T>> typeInfoWithKey = createTypeWithKey(key);
+			KeyExtractingMapper<T, K> extractor = new KeyExtractingMapper(key.getKeyExtractor());
+
+			MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>> mapper =
+				new MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>>(
+					extractor,
+					new UnaryOperatorInformation(inputType, typeInfoWithKey),
+					"Key Extractor"
+				);
+
+			mapper.setInput(input);
+			mapper.setParallelism(input.getParallelism());
+
+			return mapper;
+		}
+
+		@SuppressWarnings("unchecked")
+		public static <T, K1, K2> Operator<Tuple3<K1, K2, T>> appendKeyExtractor(
+			Operator<T> input,
+			SelectorFunctionKeys<T, K1> key1,
+			SelectorFunctionKeys<T, K2> key2)
+		{
+
+			TypeInformation<T> inputType = key1.getInputType();
+			TypeInformation<Tuple3<K1, K2, T>> typeInfoWithKey = createTypeWithKey(key1, key2);
+			TwoKeyExtractingMapper<T, K1, K2> extractor =
+				new TwoKeyExtractingMapper<>(key1.getKeyExtractor(), key2.getKeyExtractor());
+
+			MapOperatorBase<T, Tuple3<K1, K2, T>, MapFunction<T, Tuple3<K1, K2, T>>> mapper =
+				new MapOperatorBase<T, Tuple3<K1, K2, T>, MapFunction<T, Tuple3<K1, K2, T>>>(
+					extractor,
+					new UnaryOperatorInformation<>(inputType, typeInfoWithKey),
+					"Key Extractor"
+				);
+
+			mapper.setInput(input);
+			mapper.setParallelism(input.getParallelism());
+
+			return mapper;
+		}
+
+		public static <T, K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> appendKeyRemover(
+			Operator<Tuple2<K, T>> inputWithKey,
+			SelectorFunctionKeys<T, K> key)
+		{
+
+			TypeInformation<T> inputType = key.getInputType();
+			TypeInformation<Tuple2<K, T>> typeInfoWithKey = createTypeWithKey(key);
+
+			MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>> mapper =
+				new MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>>(
+					new KeyRemovingMapper<T, K>(),
+					new UnaryOperatorInformation<>(typeInfoWithKey, inputType),
+					"Key Remover"
+				);
+			mapper.setInput(inputWithKey);
+			mapper.setParallelism(inputWithKey.getParallelism());
+
+			return mapper;
+		}
+
+		public static <T, K> TypeInformation<Tuple2<K, T>> createTypeWithKey(
+			SelectorFunctionKeys<T, K> key)
+		{
+			return new TupleTypeInfo<>(key.getKeyType(), key.getInputType());
+		}
+
+		public static <T, K1, K2> TypeInformation<Tuple3<K1, K2, T>> createTypeWithKey(
+			SelectorFunctionKeys<T, K1> key1,
+			SelectorFunctionKeys<T, K2> key2)
+		{
+			return new TupleTypeInfo<>(key1.getKeyType(), key2.getKeyType(), key1.getInputType());
 		}
 
 		@Override
@@ -228,35 +325,30 @@ public abstract class Keys<T> {
 			}
 			Preconditions.checkArgument(groupingFields.length > 0, "Grouping fields can not be empty at this point");
 			
-			keyFields = new ArrayList<FlatFieldDescriptor>(type.getTotalFields());
+			keyFields = new ArrayList<>(type.getTotalFields());
 			// for each key, find the field:
-			for(int j = 0; j < groupingFields.length; j++) {
-				int keyPos = groupingFields[j];
-
+			for (int keyPos : groupingFields) {
 				int offset = 0;
-				for(int i = 0; i < type.getArity(); i++) {
+				for (int i = 0; i < type.getArity(); i++) {
 
-					TypeInformation fieldType = ((CompositeType<?>) type).getTypeAt(i);
-					if(i < keyPos) {
+					TypeInformation<?> fieldType = ((CompositeType<?>) type).getTypeAt(i);
+					if (i < keyPos) {
 						// not yet there, increment key offset
 						offset += fieldType.getTotalFields();
-					}
-					else {
+					} else {
 						// arrived at key position
 						if (!fieldType.isKeyType()) {
 							throw new InvalidProgramException("This type (" + fieldType + ") cannot be used as key.");
 						}
-						if(fieldType instanceof CompositeType) {
+						if (fieldType instanceof CompositeType) {
 							// add all nested fields of composite type
-							((CompositeType) fieldType).getFlatFields("*", offset, keyFields);
-						}
-						else if(fieldType instanceof AtomicType) {
+							((CompositeType<?>) fieldType).getFlatFields("*", offset, keyFields);
+						} else if (fieldType instanceof AtomicType) {
 							// add atomic type field
 							keyFields.add(new FlatFieldDescriptor(offset, fieldType));
-						}
-						else {
+						} else {
 							// type should either be composite or atomic
-							throw new InvalidProgramException("Field type is neither CompositeType nor AtomicType: "+fieldType);
+							throw new InvalidProgramException("Field type is neither CompositeType nor AtomicType: " + fieldType);
 						}
 						// go to next key
 						break;
@@ -267,7 +359,7 @@ public abstract class Keys<T> {
 		}
 
 		public static <R> List<R> removeNullElementsFromList(List<R> in) {
-			List<R> elements = new ArrayList<R>();
+			List<R> elements = new ArrayList<>();
 			for(R e: in) {
 				if(e != null) {
 					elements.add(e);
@@ -289,7 +381,7 @@ public abstract class Keys<T> {
 					throw new InvalidProgramException("Field expression for atomic type must be equal to '*' or '_'.");
 				}
 
-				keyFields = new ArrayList<FlatFieldDescriptor>(1);
+				keyFields = new ArrayList<>(1);
 				keyFields.add(new FlatFieldDescriptor(0, type));
 			} else {
 				CompositeType<T> cType = (CompositeType<T>) type;
@@ -299,9 +391,9 @@ public abstract class Keys<T> {
 					LOG.warn("The key expressions contained duplicates. They are now unique");
 				}
 				// extract the keys on their flat position
-				keyFields = new ArrayList<FlatFieldDescriptor>(expressions.length);
-				for (int i = 0; i < expressions.length; i++) {
-					List<FlatFieldDescriptor> keys = cType.getFlatFields(expressions[i]); // use separate list to do a size check
+				keyFields = new ArrayList<>(expressions.length);
+				for (String expression : expressions) {
+					List<FlatFieldDescriptor> keys = cType.getFlatFields(expression); // use separate list to do a size check
 					for (FlatFieldDescriptor key : keys) {
 						TypeInformation<?> keyType = key.getType();
 						if (!keyType.isKeyType()) {
@@ -311,8 +403,8 @@ public abstract class Keys<T> {
 							throw new InvalidProgramException("Field type is neither CompositeType nor AtomicType: " + keyType);
 						}
 					}
-					if(keys.size() == 0) {
-						throw new InvalidProgramException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
+					if (keys.size() == 0) {
+						throw new InvalidProgramException("Unable to extract key from expression '" + expression + "' on key " + cType);
 					}
 					keyFields.addAll(keys);
 				}
@@ -351,7 +443,7 @@ public abstract class Keys<T> {
 
 		@Override
 		public int[] computeLogicalKeyPositions() {
-			List<Integer> logicalKeys = new ArrayList<Integer>();
+			List<Integer> logicalKeys = new ArrayList<>();
 			for (FlatFieldDescriptor kd : keyFields) {
 				logicalKeys.add(kd.getPosition());
 			}
@@ -390,7 +482,7 @@ public abstract class Keys<T> {
 	}
 	
 	private static String[] removeDuplicates(String[] in) {
-		List<String> ret = new LinkedList<String>();
+		List<String> ret = new LinkedList<>();
 		for(String el : in) {
 			if(!ret.contains(el)) {
 				ret.add(el);
@@ -406,7 +498,7 @@ public abstract class Keys<T> {
 	// --------------------------------------------------------------------------------------------
 
 
-	private static final int[] rangeCheckFields(int[] fields, int maxAllowedField) {
+	private static int[] rangeCheckFields(int[] fields, int maxAllowedField) {
 
 		// range check and duplicate eliminate
 		int i = 1, k = 0;

@@ -20,24 +20,20 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
+import org.apache.flink.api.java.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedReduceGroupOperator;
-import org.apache.flink.api.java.operators.translation.TwoKeyExtractingMapper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.DataSet;
 
 /**
@@ -132,9 +128,9 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		// offset semantic information by extracted key fields
 		if(props != null &&
 				this.grouper != null &&
-				this.grouper.keys instanceof Keys.SelectorFunctionKeys) {
+				this.grouper.keys instanceof SelectorFunctionKeys) {
 
-			int offset = ((Keys.SelectorFunctionKeys<?,?>) this.grouper.keys).getKeyType().getTotalFields();
+			int offset = ((SelectorFunctionKeys<?,?>) this.grouper.keys).getKeyType().getTotalFields();
 			if(this.grouper instanceof SortedGrouping) {
 				offset += ((SortedGrouping<?>) this.grouper).getSortSelectionFunctionKey().getKeyType().getTotalFields();
 			}
@@ -156,9 +152,9 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
-			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
+			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
-					new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, new int[0], name);
+					new GroupReduceOperatorBase<>(function, operatorInfo, new int[0], name);
 			
 			po.setCombinable(combinable);
 			po.setInput(input);
@@ -167,34 +163,27 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			return po;
 		}
 	
-		if (grouper.getKeys() instanceof Keys.SelectorFunctionKeys) {
+		if (grouper.getKeys() instanceof SelectorFunctionKeys) {
 		
 			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
+			SelectorFunctionKeys<IN, ?> selectorKeys = (SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 
 			if (grouper instanceof SortedGrouping) {
-				SortedGrouping<IN> sortedGrouper = (SortedGrouping<IN>) grouper;
-				Keys.SelectorFunctionKeys<IN, ?> sortKeys = sortedGrouper.getSortSelectionFunctionKey();
+				SortedGrouping<IN> sortedGrouping = (SortedGrouping<IN>) grouper;
+				SelectorFunctionKeys<IN, ?> sortKeys = sortedGrouping.getSortSelectionFunctionKey();
+				Ordering groupOrder = sortedGrouping.getGroupOrdering();
 
-				PlanUnwrappingSortedReduceGroupOperator<IN, OUT, ?, ?> po = translateSelectorFunctionSortedReducer(
-						selectorKeys, sortKeys, function, getInputType(), getResultType(), name, input, isCombinable());
-
-				// set group order
-				int[] sortKeyPositions = sortedGrouper.getGroupSortKeyPositions();
-				Order[] sortOrders = sortedGrouper.getGroupSortOrders();
-
-				Ordering o = new Ordering();
-				for(int i=0; i < sortKeyPositions.length; i++) {
-					o.appendOrdering(sortKeyPositions[i], null, sortOrders[i]);
-				}
-				po.setGroupOrder(o);
+				PlanUnwrappingSortedReduceGroupOperator<IN, OUT, ?, ?> po =
+					translateSelectorFunctionSortedReducer(
+						selectorKeys, sortKeys, groupOrder, function, getResultType(), name, input, isCombinable()
+					);
 
 				po.setParallelism(this.getParallelism());
 				po.setCustomPartitioner(grouper.getCustomPartitioner());
 				return po;
 			} else {
 				PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
-							selectorKeys, function, getInputType(), getResultType(), name, input, isCombinable());
+							selectorKeys, function, getResultType(), name, input, isCombinable());
 
 				po.setParallelism(this.getParallelism());
 				po.setCustomPartitioner(grouper.getCustomPartitioner());
@@ -204,9 +193,9 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
-			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
+			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
-					new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+					new GroupReduceOperatorBase<>(function, operatorInfo, logicalKeyPositions, name);
 
 			po.setCombinable(combinable);
 			po.setInput(input);
@@ -216,7 +205,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			// set group order
 			if (grouper instanceof SortedGrouping) {
 				SortedGrouping<IN> sortedGrouper = (SortedGrouping<IN>) grouper;
-								
+
 				int[] sortKeyPositions = sortedGrouper.getGroupSortKeyPositions();
 				Order[] sortOrders = sortedGrouper.getGroupSortOrders();
 				
@@ -236,56 +225,50 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	@SuppressWarnings("unchecked")
 	private static <IN, OUT, K> PlanUnwrappingReduceGroupOperator<IN, OUT, K> translateSelectorFunctionReducer(
-			Keys.SelectorFunctionKeys<IN, ?> rawKeys, GroupReduceFunction<IN, OUT> function,
-			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input,
+			SelectorFunctionKeys<IN, ?> rawKeys,
+			GroupReduceFunction<IN, OUT> function,
+			TypeInformation<OUT> outputType,
+			String name,
+			Operator<IN> input,
 			boolean combinable)
 	{
-		@SuppressWarnings("unchecked")
-		final Keys.SelectorFunctionKeys<IN, K> keys = (Keys.SelectorFunctionKeys<IN, K>) rawKeys;
-		
-		TypeInformation<Tuple2<K, IN>> typeInfoWithKey = new TupleTypeInfo<Tuple2<K, IN>>(keys.getKeyType(), inputType);
-		
-		KeyExtractingMapper<IN, K> extractor = new KeyExtractingMapper<IN, K>(keys.getKeyExtractor());
-		
-		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer = new PlanUnwrappingReduceGroupOperator<IN, OUT, K>(function, keys, name, outputType, typeInfoWithKey, combinable);
-		
-		MapOperatorBase<IN, Tuple2<K, IN>, MapFunction<IN, Tuple2<K, IN>>> mapper = new MapOperatorBase<IN, Tuple2<K, IN>, MapFunction<IN, Tuple2<K, IN>>>(extractor, new UnaryOperatorInformation<IN, Tuple2<K, IN>>(inputType, typeInfoWithKey), "Key Extractor");
+		SelectorFunctionKeys<IN, K> keys = (SelectorFunctionKeys<IN, K>) rawKeys;
+		TypeInformation<Tuple2<K, IN>> typeInfoWithKey = SelectorFunctionKeys.createTypeWithKey(keys);
 
-		reducer.setInput(mapper);
-		mapper.setInput(input);
-		
-		// set the mapper's parallelism to the input parallelism to make sure it is chained
-		mapper.setParallelism(input.getParallelism());
-		
+		Operator<Tuple2<K, IN>> keyedInput = SelectorFunctionKeys.appendKeyExtractor(input, keys);
+
+		PlanUnwrappingReduceGroupOperator<IN, OUT, K> reducer =
+			new PlanUnwrappingReduceGroupOperator(function, keys, name, outputType, typeInfoWithKey, combinable);
+		reducer.setInput(keyedInput);
+
 		return reducer;
 	}
 
+	@SuppressWarnings("unchecked")
 	private static <IN, OUT, K1, K2> PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2> translateSelectorFunctionSortedReducer(
-		Keys.SelectorFunctionKeys<IN, ?> rawGroupingKey, Keys.SelectorFunctionKeys<IN, ?> rawSortingKey, GroupReduceFunction<IN, OUT> function,
-		TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input,
+		SelectorFunctionKeys<IN, ?> rawGroupingKey,
+		SelectorFunctionKeys<IN, ?> rawSortingKey,
+		Ordering groupOrdering,
+		GroupReduceFunction<IN, OUT> function,
+		TypeInformation<OUT> outputType,
+		String name,
+		Operator<IN> input,
 		boolean combinable)
 	{
-		@SuppressWarnings("unchecked")
-		final Keys.SelectorFunctionKeys<IN, K1> groupingKey = (Keys.SelectorFunctionKeys<IN, K1>) rawGroupingKey;
+		final SelectorFunctionKeys<IN, K1> groupingKey = (SelectorFunctionKeys<IN, K1>) rawGroupingKey;
+		final SelectorFunctionKeys<IN, K2> sortingKey = (SelectorFunctionKeys<IN, K2>) rawSortingKey;
+		TypeInformation<Tuple3<K1, K2, IN>> typeInfoWithKey = SelectorFunctionKeys.createTypeWithKey(groupingKey,sortingKey);
 
-		@SuppressWarnings("unchecked")
-		final Keys.SelectorFunctionKeys<IN, K2> sortingKey = (Keys.SelectorFunctionKeys<IN, K2>) rawSortingKey;
+		Operator<Tuple3<K1, K2, IN>> inputWithKey = SelectorFunctionKeys.appendKeyExtractor(input, groupingKey, sortingKey);
 
-		TypeInformation<Tuple3<K1, K2, IN>> typeInfoWithKey = new TupleTypeInfo<Tuple3<K1, K2, IN>>(groupingKey.getKeyType(), sortingKey.getKeyType(), inputType);
-
-		TwoKeyExtractingMapper<IN, K1, K2> extractor = new TwoKeyExtractingMapper<IN, K1, K2>(groupingKey.getKeyExtractor(), sortingKey.getKeyExtractor());
-
-		PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2> reducer = new PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2>(function, groupingKey, sortingKey, name, outputType, typeInfoWithKey, combinable);
-
-		MapOperatorBase<IN, Tuple3<K1, K2, IN>, MapFunction<IN, Tuple3<K1, K2, IN>>> mapper = new MapOperatorBase<IN, Tuple3<K1, K2, IN>, MapFunction<IN, Tuple3<K1, K2, IN>>>(extractor, new UnaryOperatorInformation<IN, Tuple3<K1, K2, IN>>(inputType, typeInfoWithKey), "Key Extractor");
-
-		reducer.setInput(mapper);
-		mapper.setInput(input);
-
-		// set the mapper's parallelism to the input parallelism to make sure it is chained
-		mapper.setParallelism(input.getParallelism());
+		PlanUnwrappingSortedReduceGroupOperator<IN, OUT, K1, K2> reducer =
+			new PlanUnwrappingSortedReduceGroupOperator<>(
+				function, groupingKey, sortingKey, name, outputType, typeInfoWithKey, combinable);
+		reducer.setInput(inputWithKey);
+		reducer.setGroupOrder(groupOrdering);
 
 		return reducer;
 	}
