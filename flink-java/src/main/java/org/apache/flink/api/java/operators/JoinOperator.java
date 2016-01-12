@@ -25,17 +25,14 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
-import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.OuterJoinOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -47,10 +44,10 @@ import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
+import org.apache.flink.api.java.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.operators.join.JoinOperatorSetsBase;
 import org.apache.flink.api.java.operators.join.JoinType;
 import org.apache.flink.api.java.operators.join.JoinFunctionAssigner;
-import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.TupleRightUnwrappingJoiner;
 import org.apache.flink.api.java.operators.translation.TupleLeftUnwrappingJoiner;
 import org.apache.flink.api.java.operators.translation.TupleUnwrappingJoiner;
@@ -104,7 +101,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		// sanity check solution set key mismatches
 		if (input1 instanceof SolutionSetPlaceHolder) {
 			if (keys1 instanceof ExpressionKeys) {
-				int[] positions = ((ExpressionKeys<?>) keys1).computeLogicalKeyPositions();
+				int[] positions = keys1.computeLogicalKeyPositions();
 				((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
 			} else {
 				throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
@@ -112,7 +109,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		if (input2 instanceof SolutionSetPlaceHolder) {
 			if (keys2 instanceof ExpressionKeys) {
-				int[] positions = ((ExpressionKeys<?>) keys2).computeLogicalKeyPositions();
+				int[] positions = keys2.computeLogicalKeyPositions();
 				((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
 			} else {
 				throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
@@ -260,15 +257,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			// offset semantic information by extracted key fields
 			if(props != null &&
-					(this.keys1 instanceof Keys.SelectorFunctionKeys ||
-							this.keys2 instanceof Keys.SelectorFunctionKeys)) {
+					(this.keys1 instanceof SelectorFunctionKeys ||
+							this.keys2 instanceof SelectorFunctionKeys)) {
 
 				int numFields1 = this.getInput1Type().getTotalFields();
 				int numFields2 = this.getInput2Type().getTotalFields();
-				int offset1 = (this.keys1 instanceof Keys.SelectorFunctionKeys) ?
-						((Keys.SelectorFunctionKeys<?,?>) this.keys1).getKeyType().getTotalFields() : 0;
-				int offset2 = (this.keys2 instanceof Keys.SelectorFunctionKeys) ?
-						((Keys.SelectorFunctionKeys<?,?>) this.keys2).getKeyType().getTotalFields() : 0;
+				int offset1 = (this.keys1 instanceof SelectorFunctionKeys) ?
+						((SelectorFunctionKeys<?,?>) this.keys1).getKeyType().getTotalFields() : 0;
+				int offset2 = (this.keys2 instanceof SelectorFunctionKeys) ?
+						((SelectorFunctionKeys<?,?>) this.keys2).getKeyType().getTotalFields() : 0;
 
 				props = SemanticPropUtil.addSourceFieldOffsets(props, numFields1, numFields2, offset1, offset2);
 			}
@@ -315,40 +312,40 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 					.withJoinHint(getJoinHint())
 					.withResultType(getResultType());
 
-			final boolean requiresTupleUnwrapping = keys1 instanceof Keys.SelectorFunctionKeys || keys2 instanceof Keys.SelectorFunctionKeys;
+			final boolean requiresTupleUnwrapping = keys1 instanceof SelectorFunctionKeys || keys2 instanceof SelectorFunctionKeys;
 			if (requiresTupleUnwrapping) {
-				if (keys1 instanceof Keys.SelectorFunctionKeys && keys2 instanceof Keys.SelectorFunctionKeys) {
+				if (keys1 instanceof SelectorFunctionKeys && keys2 instanceof SelectorFunctionKeys) {
 					// Both join sides have a key selector function, so we need to do the
 					// tuple wrapping/unwrapping on both sides.
 
 					@SuppressWarnings("unchecked")
-					Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+					SelectorFunctionKeys<I1, ?> selectorKeys1 = (SelectorFunctionKeys<I1, ?>) keys1;
 					@SuppressWarnings("unchecked")
-					Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+					SelectorFunctionKeys<I2, ?> selectorKeys2 = (SelectorFunctionKeys<I2, ?>) keys2;
 
 					builder = builder
 							.withUdf(new TupleUnwrappingJoiner<>(function))
-							.withWrappedInput1(input1, selectorKeys1, getInput1Type())
-							.withWrappedInput2(input2, selectorKeys2, getInput2Type());
-				} else if (keys2 instanceof Keys.SelectorFunctionKeys) {
+							.withWrappedInput1(input1, selectorKeys1)
+							.withWrappedInput2(input2, selectorKeys2);
+				} else if (keys2 instanceof SelectorFunctionKeys) {
 					// The right side of the join needs the tuple wrapping/unwrapping
 
 					@SuppressWarnings("unchecked")
-					Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+					SelectorFunctionKeys<I2, ?> selectorKeys2 = (SelectorFunctionKeys<I2, ?>) keys2;
 
 					builder = builder
 							.withUdf(new TupleRightUnwrappingJoiner<>(function))
 							.withInput1(input1, getInput1Type(), keys1)
-							.withWrappedInput2(input2, selectorKeys2, getInput2Type());
+							.withWrappedInput2(input2, selectorKeys2);
 				} else {
 					// The left side of the join needs the tuple wrapping/unwrapping
 
 					@SuppressWarnings("unchecked")
-					Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+					SelectorFunctionKeys<I1, ?> selectorKeys1 = (SelectorFunctionKeys<I1, ?>) keys1;
 
 					builder = builder
 							.withUdf(new TupleLeftUnwrappingJoiner<>(function))
-							.withWrappedInput1(input1, selectorKeys1, getInput1Type())
+							.withWrappedInput1(input1, selectorKeys1)
 							.withInput2(input2, getInput2Type(), keys2);
 				}
 			} else if (keys1 instanceof Keys.ExpressionKeys && keys2 instanceof Keys.ExpressionKeys) {
@@ -393,24 +390,24 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			public <I1, K> JoinOperatorBaseBuilder<OUT> withWrappedInput1(
 					Operator<I1> input1,
-					Keys.SelectorFunctionKeys<I1, ?> rawKeys1,
-					TypeInformation<I1> inputType1) {
-				TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<>(rawKeys1.getKeyType(), inputType1);
+					SelectorFunctionKeys<I1, ?> rawKeys1) {
 
-				MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-						createKeyMapper(rawKeys1, inputType1, input1, "Key Extractor 1");
+				@SuppressWarnings("unchecked")
+				SelectorFunctionKeys<I1, K> keys1 = (SelectorFunctionKeys<I1, K>)rawKeys1;
+				TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = SelectorFunctionKeys.createTypeWithKey(keys1);
+				Operator<Tuple2<K, I1>> keyMapper1 = SelectorFunctionKeys.appendKeyExtractor(input1, keys1);
 
 				return this.withInput1(keyMapper1, typeInfoWithKey1, rawKeys1);
 			}
 
 			public <I2, K> JoinOperatorBaseBuilder<OUT> withWrappedInput2(
 					Operator<I2> input2,
-					Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
-					TypeInformation<I2> inputType2) {
-				TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<>(rawKeys2.getKeyType(), inputType2);
+					SelectorFunctionKeys<I2, ?> rawKeys2) {
 
-				MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-						createKeyMapper(rawKeys2, inputType2, input2, "Key Extractor 2");
+				@SuppressWarnings("unchecked")
+				SelectorFunctionKeys<I2, K> keys2 = (SelectorFunctionKeys<I2, K>)rawKeys2;
+				TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = SelectorFunctionKeys.createTypeWithKey(keys2);
+				Operator<Tuple2<K, I2>> keyMapper2 = SelectorFunctionKeys.appendKeyExtractor(input2, keys2);
 
 				return withInput2(keyMapper2, typeInfoWithKey2, rawKeys2);
 			}
@@ -500,27 +497,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 						throw new UnsupportedOperationException();
 				}
 			}
-
-			private static <I, K> MapOperatorBase<I, Tuple2<K, I>, MapFunction<I, Tuple2<K, I>>> createKeyMapper(
-					Keys.SelectorFunctionKeys<I, ?> rawKeys,
-					TypeInformation<I> inputType,
-					Operator<I> input,
-					String mapperName) {
-
-				@SuppressWarnings("unchecked")
-				final Keys.SelectorFunctionKeys<I, K> keys = (Keys.SelectorFunctionKeys<I, K>) rawKeys;
-				final TypeInformation<Tuple2<K, I>> typeInfoWithKey = new TupleTypeInfo<>(keys.getKeyType(), inputType);
-				final KeyExtractingMapper<I, K> extractor = new KeyExtractingMapper<>(keys.getKeyExtractor());
-
-				final MapOperatorBase<I, Tuple2<K, I>, MapFunction<I, Tuple2<K, I>>> keyMapper =
-						new MapOperatorBase<I, Tuple2<K, I>, MapFunction<I, Tuple2<K, I>>>(
-								extractor,
-								new UnaryOperatorInformation<>(inputType, typeInfoWithKey),
-								mapperName);
-				keyMapper.setInput(input);
-				keyMapper.setParallelism(input.getParallelism());
-				return keyMapper;
-			}
 		}
 	}
 	
@@ -607,7 +583,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
-			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
+			JoinProjection<I1, I2> joinProjection = new JoinProjection<>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
 
 			return joinProjection.projectTupleX();
 		}
@@ -633,7 +609,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
-			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes);
+			JoinProjection<I1, I2> joinProjection = new JoinProjection<>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes);
 			
 			return joinProjection.projectTupleX();
 		}
@@ -901,7 +877,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		@Override
 		public <K> JoinOperatorSetsPredicate where(KeySelector<I1, K> keySelector) {
 			TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
-			return new JoinOperatorSetsPredicate(new Keys.SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
+			return new JoinOperatorSetsPredicate(new SelectorFunctionKeys<>(keySelector, input1.getType(), keyType));
 		}
 
 
@@ -965,7 +941,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			@Override
 			public <K> DefaultJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
 				TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-				return createDefaultJoin(new Keys.SelectorFunctionKeys<>(keySelector, input2.getType(), keyType));
+				return createDefaultJoin(new SelectorFunctionKeys<>(keySelector, input2.getType(), keyType));
 			}
 		}
 	}
@@ -980,7 +956,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	public static final class DefaultFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;
-		private final Tuple2<T1, T2> outTuple = new Tuple2<T1, T2>();
+		private final Tuple2<T1, T2> outTuple = new Tuple2<>();
 
 		@Override
 		public void join(T1 first, T2 second, Collector<Tuple2<T1,T2>> out) throws Exception {
@@ -1071,14 +1047,14 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			boolean isSecondTuple;
 			
 			if(ds1.getType() instanceof TupleTypeInfo) {
-				numFieldsDs1 = ((TupleTypeInfo<?>)ds1.getType()).getArity();
+				numFieldsDs1 = ds1.getType().getArity();
 				isFirstTuple = true;
 			} else {
 				numFieldsDs1 = 1;
 				isFirstTuple = false;
 			}
 			if(ds2.getType() instanceof TupleTypeInfo) {
-				numFieldsDs2 = ((TupleTypeInfo<?>)ds2.getType()).getArity();
+				numFieldsDs2 = ds2.getType().getArity();
 				isSecondTuple = true;
 			} else {
 				numFieldsDs2 = 1;
@@ -1162,12 +1138,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		protected JoinProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
 			
 			boolean isFirstTuple;
-			
-			if(ds1.getType() instanceof TupleTypeInfo && firstFieldIndexes.length > 0) {
-				isFirstTuple = true;
-			} else {
-				isFirstTuple = false;
-			}
+
+			isFirstTuple = ds1.getType() instanceof TupleTypeInfo && firstFieldIndexes.length > 0;
 			
 			if(!isFirstTuple && firstFieldIndexes.length != 0) {
 				// field index provided for non-Tuple input
@@ -1226,12 +1198,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		protected JoinProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
 			
 			boolean isSecondTuple;
-			
-			if(ds2.getType() instanceof TupleTypeInfo && secondFieldIndexes.length > 0) {
-				isSecondTuple = true;
-			} else {
-				isSecondTuple = false;
-			}
+
+			isSecondTuple = ds2.getType() instanceof TupleTypeInfo && secondFieldIndexes.length > 0;
 			
 			if(!isSecondTuple && secondFieldIndexes.length != 0) {
 				// field index provided for non-Tuple input
