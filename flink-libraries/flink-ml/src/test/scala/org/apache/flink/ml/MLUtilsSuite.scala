@@ -40,9 +40,9 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val content =
       """
-        |1 2:10.0 4:4.5 8:4.2 # foo
+        |1  2:10.0 4:4.5 8:4.2 # foo
         |-1 1:9.0 4:-4.5 7:2.4 # bar
-        |0.4 3:1.0 8:-5.6 10:1.0
+        |0.4  3:1.0 8:-5.6 10:1.0
         |-42.1 2:2.0 4:-6.1 3:5.1 # svm
       """.stripMargin
 
