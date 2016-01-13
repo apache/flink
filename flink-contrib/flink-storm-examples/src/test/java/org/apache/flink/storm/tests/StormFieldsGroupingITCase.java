@@ -17,9 +17,9 @@
  */
 package org.apache.flink.storm.tests;
 
+import backtype.storm.Config;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
@@ -61,12 +61,9 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 		builder.setBolt(sinkId, new BoltFileSink(outputFile)).shuffleGrouping(boltId);
 
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, FlinkTopology.createTopology(builder));
-
-		Utils.sleep(10 * 1000);
-
-		// TODO kill does no do anything so far
-		cluster.killTopology(topologyId);
+		Config conf = new Config();
+		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true); // only required to stabilize integration test
+		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
 		cluster.shutdown();
 	}
 

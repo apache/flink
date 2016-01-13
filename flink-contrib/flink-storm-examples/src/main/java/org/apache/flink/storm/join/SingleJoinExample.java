@@ -22,11 +22,13 @@ import backtype.storm.testing.FeederSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
+
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.util.BoltFileSink;
+import org.apache.flink.storm.util.NullTerminatingSpout;
 import org.apache.flink.storm.util.TupleOutputFormatter;
+
 import storm.starter.bolt.PrinterBolt;
 import storm.starter.bolt.SingleJoinBolt;
 
@@ -37,12 +39,16 @@ public class SingleJoinExample {
 		final FeederSpout genderSpout = new FeederSpout(new Fields("id", "gender", "hobbies"));
 		final FeederSpout ageSpout = new FeederSpout(new Fields("id", "age"));
 
+		Config conf = new Config();
 		TopologyBuilder builder = new TopologyBuilder();
 
-		builder.setSpout("gender", genderSpout);
+		//  only required to stabilize integration test
+		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true);
+		final NullTerminatingSpout finalGenderSpout = new NullTerminatingSpout(genderSpout);
+		final NullTerminatingSpout finalAgeSpout  = new NullTerminatingSpout(ageSpout);
 
-		builder.setSpout("age", ageSpout);
-
+		builder.setSpout("gender", finalGenderSpout);
+		builder.setSpout("age", finalAgeSpout);
 		builder.setBolt("join", new SingleJoinBolt(new Fields("gender", "age")))
 			.fieldsGrouping("gender", new Fields("id"))
 			.fieldsGrouping("age", new Fields("id"));
@@ -55,9 +61,6 @@ public class SingleJoinExample {
 		} else {
 			builder.setBolt("print", new PrinterBolt()).shuffleGrouping("join");
 		}
-
-		Config conf = new Config();
-		conf.setDebug(true);
 
 		String[] hobbies = new String[] {"reading", "biking", "travelling", "watching tv"};
 
@@ -79,10 +82,6 @@ public class SingleJoinExample {
 
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology("joinTopology", conf, FlinkTopology.createTopology(builder));
-
-		Utils.sleep(10 * 1000);
-
 		cluster.shutdown();
-
 	}
 }

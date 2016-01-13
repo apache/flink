@@ -47,10 +47,10 @@ public class SplitSpoutTopology {
 			final String[] tokens = outputPath.split(":");
 			final String outputFile = tokens[tokens.length - 1];
 			builder.setBolt(sinkId, new BoltFileSink(outputFile, formatter))
-			.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
+				.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
 		} else {
 			builder.setBolt(sinkId, new BoltPrintSink(formatter), 4)
-			.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
+				.shuffleGrouping(evenVerifierId).shuffleGrouping(oddVerifierId);
 		}
 
 		return builder;

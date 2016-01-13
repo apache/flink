@@ -616,7 +616,7 @@ public class StormTupleTest extends AbstractTest {
 	@Test
 	public void testGetSourceGlobalStreamid() {
 		GlobalStreamId globalStreamid =
-			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceGlobalStreamid();
+			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceGlobalStreamid();
 		Assert.assertEquals("streamId", globalStreamid.get_streamId());
 		Assert.assertEquals("componentID", globalStreamid.get_componentId());
 	}
@@ -624,21 +624,21 @@ public class StormTupleTest extends AbstractTest {
 	@Test
 	public void testGetSourceComponent() {
 		String sourceComponent =
-			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceComponent();
+			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceComponent();
 		Assert.assertEquals("componentID", sourceComponent);
 	}
 
 	@Test
 	public void testGetSourceTask() {
 		String sourceStreamId =
-			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceStreamId();
+			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceStreamId();
 		Assert.assertEquals("streamId", sourceStreamId);
 	}
 
 	@Test
 	public void testGetSourceStreamId() {
 		String sourceStreamId =
-			new StormTuple<>(new Tuple1(), null, 0, "streamId", "componentID").getSourceStreamId();
+			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceStreamId();
 		Assert.assertEquals("streamId", sourceStreamId);
 	}
 
