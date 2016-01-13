@@ -338,7 +338,15 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-all</artifactId>
-				<version>4.0.31.Final</version>
+				<!-- Don't upgrade for now. Netty versions >= 4.0.28.Final
+				contain an improvement by Netty, which slices a Netty buffer
+				instead of doing a memory copy [1] in the
+				LengthFieldBasedFrameDecoder. In some situations, this
+				interacts badly with our Netty pipeline leading to OutOfMemory
+				errors.
+
+				[1] https://github.com/netty/netty/issues/3704 -->
+				<version>4.0.27.Final</version>
 			</dependency>
 
 			<dependency>
