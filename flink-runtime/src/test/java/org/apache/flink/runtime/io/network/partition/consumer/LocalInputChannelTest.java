@@ -118,6 +118,7 @@ public class LocalInputChannelTest {
 					jobId,
 					partitionIds[i],
 					ResultPartitionType.PIPELINED,
+					false,
 					parallelism,
 					partitionManager,
 					partitionConsumableNotifier,

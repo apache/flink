@@ -29,11 +29,11 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-
 
 @SuppressWarnings("serial")
 public class JobTaskVertexTest {
@@ -130,7 +130,36 @@ public class JobTaskVertexTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Verifies correct setting of eager deploy settings.
+	 */
+	@Test
+	public void testEagerlyDeployConsumers() throws Exception {
+		JobVertex producer = new JobVertex("producer");
+
+		{
+			JobVertex consumer = new JobVertex("consumer");
+			JobEdge edge = consumer.connectNewDataSetAsInput(
+					producer, DistributionPattern.ALL_TO_ALL);
+			assertFalse(edge.getSource().getEagerlyDeployConsumers());
+		}
+
+		{
+			JobVertex consumer = new JobVertex("consumer");
+			JobEdge edge = consumer.connectNewDataSetAsInput(
+					producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			assertFalse(edge.getSource().getEagerlyDeployConsumers());
+		}
+
+		{
+			JobVertex consumer = new JobVertex("consumer");
+			JobEdge edge = consumer.connectNewDataSetAsInput(
+					producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED, true);
+			assertTrue(edge.getSource().getEagerlyDeployConsumers());
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	private static final class TestingOutputFormat extends DiscardingOutputFormat<Object> implements InitializeOnMaster {
