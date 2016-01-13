@@ -637,7 +637,7 @@ object MultinomialNaiveBayes {
           .join(wordsInText).where(0).equalTo(0) {
           (foundW, wordsIT) => (foundW._1, foundW._2, foundW._3, wordsIT._2)
         }.mapWithBcInitializer(classRelatedModelData)(mapInitializer){
-          (map, value) =>
+          (value, map) =>
             (value._1, value._2, (value._4 - value._3) * map(value._2))
         }
       } else {
