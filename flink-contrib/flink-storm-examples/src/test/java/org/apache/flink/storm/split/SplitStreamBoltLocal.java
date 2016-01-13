@@ -20,7 +20,6 @@ import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.utils.Utils;
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 public class SplitStreamBoltLocal {
 	public final static String topologyId = "Bolt split stream example";
@@ -41,7 +40,8 @@ public class SplitStreamBoltLocal {
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
 		cluster.submitTopology(topologyId, null, FlinkTopology.createTopology(builder));
 
-		Utils.sleep(10 * 1000);
+		// run topology for 5 seconds
+		Utils.sleep(5 * 1000);
 
 		cluster.shutdown();
 	}

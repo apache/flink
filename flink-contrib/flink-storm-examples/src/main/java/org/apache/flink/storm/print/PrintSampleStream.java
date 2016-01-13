@@ -31,7 +31,7 @@ import java.util.Arrays;
 /**
  * Prints incoming tweets. Tweets can be filtered by keywords.
  */
-public class PrintSampleStream {        
+public class PrintSampleStream {
 	public static void main(String[] args) throws Exception {
 		String consumerKey = args[0];
 		String consumerSecret = args[1];

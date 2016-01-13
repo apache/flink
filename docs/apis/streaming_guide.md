@@ -1438,7 +1438,7 @@ someStream.map(...).disableChaining();
    <tr>
       <td>Start a new resource group</td>
       <td>
-        <p>Start a new resource group containing the map and the subsequent operators.
+        <p>Start a new resource group containing the filter and the subsequent operators.
 {% highlight java %}
 someStream.filter(...).startNewResourceGroup();
 {% endhighlight %}
