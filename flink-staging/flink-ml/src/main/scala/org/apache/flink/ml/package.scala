@@ -94,7 +94,7 @@ package object ml {
 
   }
 
-  private class BroadcastInitializerSingleElementMapper[IN, BCST, INIT, OUT](
+  private class BroadcastInitializerSingleElementMapper[IN, BCST, INIT, OUT] (
       fun: (IN, INIT) => OUT,
       initializer: BroadcastVariableInitializer[BCST, INIT])
     extends RichMapFunction[IN, OUT] {

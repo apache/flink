@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.common.functions;
 
-public interface BroadcastVariableInitializer<T, O> {
+import java.io.Serializable;
+
+public interface BroadcastVariableInitializer<T, O> extends Serializable {
 	
 	O initializeBroadcastVariable(Iterable<T> data);
 }
