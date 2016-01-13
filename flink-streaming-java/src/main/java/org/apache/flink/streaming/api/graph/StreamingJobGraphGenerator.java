@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -358,9 +359,17 @@ public class StreamingJobGraphGenerator {
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 		if (partitioner instanceof ForwardPartitioner) {
-			downStreamVertex.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
+			downStreamVertex.connectNewDataSetAsInput(
+					headVertex,
+					DistributionPattern.POINTWISE,
+					ResultPartitionType.PIPELINED,
+					true);
 		} else {
-			downStreamVertex.connectNewDataSetAsInput(headVertex, DistributionPattern.ALL_TO_ALL);
+			downStreamVertex.connectNewDataSetAsInput(
+					headVertex,
+					DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED,
+					true);
 		}
 
 		if (LOG.isDebugEnabled()) {
