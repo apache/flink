@@ -18,12 +18,13 @@
 
 package org.apache.flink.ml
 
-import org.apache.flink.api.common.functions.RichMapFunction
+import org.apache.flink.api.common.functions.{RichFlatMapFunction, RichMapFunction}
 import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.SparseVector
+import org.apache.flink.util.Collector
 
 /** Convenience functions for machine learning tasks
   *
@@ -53,17 +54,21 @@ object MLUtils {
     *        file
     */
   def readLibSVM(env: ExecutionEnvironment, filePath: String): DataSet[LabeledVector] = {
-    val labelCOODS = env.readTextFile(filePath).flatMap {
-      line =>
-        // remove all comments which start with a '#'
-        val commentFreeLine = line.takeWhile(_ != '#').trim
+    val labelCOODS = env.readTextFile(filePath).flatMap(
+      new RichFlatMapFunction[String, (Double, Array[(Int, Double)])] {
+        val splitPattern = "\\s+".r
 
-        if(commentFreeLine.nonEmpty) {
-          val splits = commentFreeLine.split(' ')
-          val label = splits.head.toDouble
-          val sparseFeatures = splits.tail
-          val coos = sparseFeatures.map {
-            str =>
+        override def flatMap(
+          line: String,
+          out: Collector[(Double, Array[(Int, Double)])]
+        ): Unit = {
+          val commentFreeLine = line.takeWhile(_ != '#').trim
+
+          if (commentFreeLine.nonEmpty) {
+            val splits = splitPattern.split(commentFreeLine)
+            val label = splits.head.toDouble
+            val sparseFeatures = splits.tail
+            val coos = sparseFeatures.flatMap { str =>
               val pair = str.split(':')
               require(pair.length == 2, "Each feature entry has to have the form <feature>:<value>")
 
@@ -71,14 +76,13 @@ object MLUtils {
               val index = pair(0).toInt - 1
               val value = pair(1).toDouble
 
-              (index, value)
-          }
+              Some((index, value))
+            }
 
-          Some((label, coos))
-        } else {
-          None
+            out.collect((label, coos))
+          }
         }
-    }
+      })
 
     // Calculate maximum dimension of vectors
     val dimensionDS = labelCOODS.map {
