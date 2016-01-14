@@ -31,7 +31,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,24 +67,21 @@ public class FlinkLocalCluster {
 	public void submitTopologyWithOpts(final String topologyName, final Map conf, final FlinkTopology topology, final SubmitOptions submitOpts) throws Exception {
 		LOG.info("Running Storm topology on FlinkLocalCluster");
 
-		if(conf != null) {
-			topology.getExecutionEnvironment().getConfig().setGlobalJobParameters(new StormConfig(conf));
-		}
+		FlinkClient.addStormConfigToTopology(topology, conf);
 
 		StreamGraph streamGraph = topology.getExecutionEnvironment().getStreamGraph();
 		streamGraph.setJobName(topologyName);
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 
-		if (flink == null) {
-
+		if (this.flink == null) {
 			Configuration configuration = new Configuration();
 			configuration.addAll(jobGraph.getJobConfiguration());
 
 			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, jobGraph.getMaximumParallelism());
 
-			flink = new LocalFlinkMiniCluster(configuration, true);
+			this.flink = new LocalFlinkMiniCluster(configuration, true);
 			this.flink.start();
 		}
 
