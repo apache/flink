@@ -66,7 +66,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where(0, 1).equalTo(2)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[IndexOutOfBoundsException])
   def testJoinKeyIndices4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -76,7 +76,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where(5).equalTo(0)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[IndexOutOfBoundsException])
   def testJoinKeyIndices5(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -86,14 +86,14 @@ class JoinOperatorTest {
     ds1.join(ds2).where(-1).equalTo(-1)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[InvalidProgramException])
   def testJoinKeyIndices6(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(customTypeData)
 
     // should not work, key index on custom type
-    ds1.join(ds2).where(5).equalTo(0)
+    ds1.join(ds2).where(4).equalTo(0)
   }
 
   @Test

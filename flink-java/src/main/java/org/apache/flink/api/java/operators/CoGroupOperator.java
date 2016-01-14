@@ -35,7 +35,6 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
@@ -633,13 +632,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				 * @see Order
 				 */
 				public CoGroupOperatorWithoutFunction sortFirstGroup(int field, Order order) {
-					if (!input1.getType().isTupleType()) {
-						throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
-					}
-					if (field >= input1.getType().getArity()) {
-						throw new IllegalArgumentException("Order key out of tuple bounds.");
-					}
-					ExpressionKeys<I1> ek = new ExpressionKeys<>(new int[]{field}, input1.getType());
+
+					ExpressionKeys<I1> ek = new ExpressionKeys<>(field, input1.getType());
 					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
 					
 					for (int key : groupOrderKeys) {
@@ -663,13 +657,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				 * @see Order
 				 */
 				public CoGroupOperatorWithoutFunction sortSecondGroup(int field, Order order) {
-					if (!input2.getType().isTupleType()) {
-						throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
-					}
-					if (field >= input2.getType().getArity()) {
-						throw new IllegalArgumentException("Order key out of tuple bounds.");
-					}
-					ExpressionKeys<I2> ek = new ExpressionKeys<>(new int[]{field}, input2.getType());
+
+					ExpressionKeys<I2> ek = new ExpressionKeys<>(field, input2.getType());
 					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
 					
 					for (int key : groupOrderKeys) {
@@ -691,10 +680,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				 * @see Order
 				 */
 				public CoGroupOperatorWithoutFunction sortFirstGroup(String fieldExpression, Order order) {
-					if (! (input1.getType() instanceof CompositeType)) {
-						throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
-					}
-					ExpressionKeys<I1> ek = new ExpressionKeys<>(new String[]{fieldExpression}, input1.getType());
+
+					ExpressionKeys<I1> ek = new ExpressionKeys<>(fieldExpression, input1.getType());
 					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
 					
 					for (int key : groupOrderKeys) {
@@ -716,10 +703,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				 * @see Order
 				 */
 				public CoGroupOperatorWithoutFunction sortSecondGroup(String fieldExpression, Order order) {
-					if (! (input2.getType() instanceof CompositeType)) {
-						throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
-					}
-					ExpressionKeys<I2> ek = new ExpressionKeys<>(new String[]{fieldExpression}, input2.getType());
+
+					ExpressionKeys<I2> ek = new ExpressionKeys<>(fieldExpression, input2.getType());
 					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
 					
 					for (int key : groupOrderKeys) {

@@ -27,8 +27,6 @@ import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.java.DataSet;
 
@@ -109,22 +107,13 @@ public class DataSink<T> {
 	@Deprecated
 	public DataSink<T> sortLocalOutput(int field, Order order) {
 
-		if (!this.type.isTupleType()) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
-		}
-		if (field >= this.type.getArity()) {
-			throw new InvalidProgramException("Order key out of tuple bounds.");
-		}
-		isValidSortKeyType(field);
-
 		// get flat keys
-		Keys.ExpressionKeys<T> ek;
-		try {
-			ek = new Keys.ExpressionKeys<>(new int[]{field}, this.type);
-		} catch(IllegalArgumentException iae) {
-			throw new InvalidProgramException("Invalid specification of field expression.", iae);
-		}
+		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(field, this.type);
 		int[] flatKeys = ek.computeLogicalKeyPositions();
+
+		if (!Keys.ExpressionKeys.isSortKey(field, this.type)) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
+		}
 
 		if(this.sortKeyPositions == null) {
 			// set sorting info
@@ -168,33 +157,17 @@ public class DataSink<T> {
 		int[] fields;
 		Order[] orders;
 
-		if(this.type instanceof CompositeType) {
+		// compute flat field positions for (nested) sorting fields
+		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(fieldExpression, this.type);
+		fields = ek.computeLogicalKeyPositions();
 
-			// compute flat field positions for (nested) sorting fields
-			Keys.ExpressionKeys<T> ek;
-			try {
-				isValidSortKeyType(fieldExpression);
-				ek = new Keys.ExpressionKeys<>(new String[]{fieldExpression}, this.type);
-			} catch(IllegalArgumentException iae) {
-				throw new InvalidProgramException("Invalid specification of field expression.", iae);
-			}
-			fields = ek.computeLogicalKeyPositions();
-			numFields = fields.length;
-			orders = new Order[numFields];
-			Arrays.fill(orders, order);
-		} else {
-			fieldExpression = fieldExpression.trim();
-			if (!(fieldExpression.equals("*") || fieldExpression.equals("_"))) {
-				throw new InvalidProgramException("Output sorting of non-composite types can only be defined on the full type. " +
-						"Use a field wildcard for that (\"*\" or \"_\")");
-			} else {
-				isValidSortKeyType(fieldExpression);
-
-				numFields = 1;
-				fields = new int[]{0};
-				orders = new Order[]{order};
-			}
+		if (!Keys.ExpressionKeys.isSortKey(fieldExpression, this.type)) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
+
+		numFields = fields.length;
+		orders = new Order[numFields];
+		Arrays.fill(orders, order);
 
 		if(this.sortKeyPositions == null) {
 			// set sorting info
@@ -213,28 +186,6 @@ public class DataSink<T> {
 		}
 
 		return this;
-	}
-
-	private void isValidSortKeyType(int field) {
-		TypeInformation<?> sortKeyType = ((TupleTypeInfoBase<?>) this.type).getTypeAt(field);
-		if (!sortKeyType.isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
-		}
-	}
-
-	private void isValidSortKeyType(String field) {
-		TypeInformation<?> sortKeyType;
-
-		field = field.trim();
-		if(field.equals("*") || field.equals("_")) {
-			sortKeyType = this.type;
-		} else {
-			sortKeyType = ((CompositeType<?>) this.type).getTypeAt(field);
-		}
-
-		if (!sortKeyType.isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
-		}
 	}
 
 	/**
