@@ -33,7 +33,7 @@ if [[ $RECOVERY_MODE == "zookeeper" ]]; then
     # HA Mode
     readMasters
 
-    echo "Starting HA cluster with ${#MASTERS[@]} masters and ${#ZK_QUORUM[@]} peers in ZooKeeper quorum."
+    echo "Starting HA cluster with ${#MASTERS[@]} masters."
 
     for ((i=0;i<${#MASTERS[@]};++i)); do
         master=${MASTERS[i]}
