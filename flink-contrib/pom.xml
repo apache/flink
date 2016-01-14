@@ -44,15 +44,4 @@ under the License.
 		<module>flink-operator-stats</module>
 		<module>flink-connector-wikiedits</module>
 	</modules>
-
-
-	<profiles>
-		<profile>
-			<id>include-tez</id>
-			<modules>
-				<module>flink-tez</module>
-			</modules>
-		</profile>
-	</profiles>
-
 </project>

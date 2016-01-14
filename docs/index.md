@@ -54,5 +54,4 @@ This is an overview of Flink's stack. Click on any component to go to the respec
   <area shape="rect" coords="333,405,473,455" alt="Remote" href="apis/cluster_execution.html">
   <area shape="rect" coords="478,405,638,455" alt="Embedded" href="apis/local_execution.html">
   <area shape="rect" coords="643,405,765,455" alt="YARN" href="setup/yarn_setup.html">
-  <area shape="rect" coords="770,405,893,455" alt="Tez" href="setup/flink_on_tez.html">
 </map>
