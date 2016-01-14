@@ -95,7 +95,7 @@ To bring up the Flink cluster on Google Compute Engine, execute:
 
     ./bdutil shell
     cd /home/hadoop/flink-install/bin
-    ./flink run ../examples/WordCount.jar gs://dataflow-samples/shakespeare/othello.txt gs://<bucket_name>/output
+    ./flink run ../examples/batch/WordCount.jar gs://dataflow-samples/shakespeare/othello.txt gs://<bucket_name>/output
 
 ## Shut down your cluster
 

@@ -61,7 +61,6 @@ under the License.
 		<module>flink-optimizer</module>
 		<module>flink-streaming-java</module>
 		<module>flink-streaming-scala</module>
-		<module>flink-streaming-examples</module>
 		<module>flink-streaming-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>

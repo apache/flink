@@ -602,8 +602,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testDetachedPerJobYarnCluster() {
 		LOG.info("Starting testDetachedPerJobYarnCluster()");
 
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
-		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+		File exampleJarLocation = YarnTestBase.findFile(
+			".." + File.separator + "flink-examples" + File.separator + "flink-examples-batch",
+			new ContainsName(new String[] {"-WordCount.jar"}));
+		
+		Assert.assertNotNull("Could not find batch wordcount jar", exampleJarLocation);
 
 		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 
@@ -617,8 +620,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public void testDetachedPerJobYarnClusterWithStreamingJob() {
 		LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
 
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"flink-streaming-examples", "-WordCount.jar"}));
-		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+		File exampleJarLocation = YarnTestBase.findFile(
+			".." + File.separator + "flink-examples" + File.separator + "flink-examples-streaming",
+			new ContainsName(new String[] {"-WordCount.jar"}));
+		Assert.assertNotNull("Could not find streaming wordcount jar", exampleJarLocation);
 
 		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 

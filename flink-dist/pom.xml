@@ -85,13 +85,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala-examples</artifactId>
+			<artifactId>flink-examples-batch</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
