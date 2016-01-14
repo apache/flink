@@ -43,7 +43,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class SocketTextStreamFunction implements SourceFunction<String> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
 
 	/** Default delay between successive connection attempts */
@@ -51,28 +51,28 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 
 	/** Default connection timeout when connecting to the server socket (infinite) */
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
-	
-	
+
+
 	private final String hostname;
 	private final int port;
-	private final char delimiter;
+	private final String delimiter;
 	private final long maxNumRetries;
 	private final long delayBetweenRetries;
-	
+
 	private transient Socket currentSocket;
-	
+
 	private volatile boolean isRunning = true;
 
-	
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxNumRetries) {
+
+	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries) {
 		this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);
 	}
-	
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxNumRetries, long delayBetweenRetries) {
+
+	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries, long delayBetweenRetries) {
 		checkArgument(port > 0 && port < 65536, "port is out of range");
 		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
 		checkArgument(delayBetweenRetries >= 0, "delayBetweenRetries must be zero or positive");
-		
+
 		this.hostname = checkNotNull(hostname, "hostname must not be null");
 		this.port = port;
 		this.delimiter = delimiter;
@@ -84,25 +84,25 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	public void run(SourceContext<String> ctx) throws Exception {
 		final StringBuilder buffer = new StringBuilder();
 		long attempt = 0;
-		
+
 		while (isRunning) {
-			
+
 			try (Socket socket = new Socket()) {
 				currentSocket = socket;
-				
+
 				LOG.info("Connecting to server socket " + hostname + ':' + port);
 				socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
 				BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-				int data;
-				while (isRunning && (data = reader.read()) != -1) {
-					// check if the string is complete
-					if (data != delimiter) {
-						buffer.append((char) data);
-					}
-					else {
-						// truncate trailing carriage return
-						if (delimiter == '\n' && buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\r') {
+				char[] charBuffer = new char[Math.max(8192,delimiter.length()*2)];
+				int bytesRead;
+				while (isRunning && (bytesRead = reader.read(charBuffer)) != -1) {
+					String input = new String(charBuffer, 0, bytesRead);
+					int start = 0,pos;
+					while ((pos = input.indexOf(delimiter, start)) > -1) {
+						buffer.append(input.substring(start, pos));
+						start = pos + delimiter.length();
+						if (delimiter.equals("\n") && buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\r') {
 							buffer.setLength(buffer.length() - 1);
 						}
 						ctx.collect(buffer.toString());
@@ -135,7 +135,7 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	@Override
 	public void cancel() {
 		isRunning = false;
-		
+
 		// we need to close the socket as well, because the Thread.interrupt() function will
 		// not wake the thread in the socketStream.read() method when blocked.
 		Socket theSocket = this.currentSocket;
