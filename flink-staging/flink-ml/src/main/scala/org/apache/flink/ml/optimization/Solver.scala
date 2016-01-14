@@ -105,7 +105,7 @@ object Solver {
   }
 
   case object RegularizationConstant extends Parameter[Double] {
-    val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
+    val defaultValue = Some(0.0001) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 }
 
@@ -131,6 +131,16 @@ abstract class IterativeSolver() extends Solver {
     parameters.add(ConvergenceThreshold, convergenceThreshold)
     this
   }
+
+  def setOptimizationMethod(optimizationMethod: String): this.type = {
+    parameters.add(OptimizationMethod, optimizationMethod)
+    this
+  }
+
+  def setDecay(decay: Double): this.type = {
+    parameters.add(Decay, decay)
+    this
+  }
 }
 
 object IterativeSolver {
@@ -148,5 +158,13 @@ object IterativeSolver {
 
   case object ConvergenceThreshold extends Parameter[Double] {
     val defaultValue = None
+  }
+
+  case object OptimizationMethod extends Parameter[String] {
+    val defaultValue = Some("default")
+  }
+
+  case object Decay extends Parameter[Double] {
+    val defaultValue = Some(0.0)
   }
 }

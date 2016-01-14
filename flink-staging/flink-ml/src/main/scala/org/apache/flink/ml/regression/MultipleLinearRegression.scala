@@ -107,6 +107,11 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
     this
   }
 
+  def setOptimizationMethod(optimizationMethod: String): this.type = {
+    parameters.add(OptimizationMethod, optimizationMethod)
+    this
+  }
+
   def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
     weightsOption match {
       case Some(weights) => {
@@ -146,6 +151,10 @@ object MultipleLinearRegression {
     val defaultValue = None
   }
 
+  case object OptimizationMethod extends Parameter[String] {
+    val defaultValue = Some("default")
+  }
+
   // ======================================== Factory methods ======================================
 
   def apply(): MultipleLinearRegression = {
@@ -169,6 +178,7 @@ object MultipleLinearRegression {
       // retrieve parameters of the algorithm
       val numberOfIterations = map(Iterations)
       val stepsize = map(Stepsize)
+      val optimizationMethod = map(OptimizationMethod)
       val convergenceThreshold = map.get(ConvergenceThreshold)
 
       val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
@@ -177,6 +187,7 @@ object MultipleLinearRegression {
         .setIterations(numberOfIterations)
         .setStepsize(stepsize)
         .setLossFunction(lossFunction)
+        .setOptimizationMethod(optimizationMethod)
 
       convergenceThreshold match {
         case Some(threshold) => optimizer.setConvergenceThreshold(threshold)
