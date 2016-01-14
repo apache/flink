@@ -137,7 +137,7 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where(0,1).equalTo(2);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testJoinKeyFields4() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -148,7 +148,7 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where(5).equalTo(0);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testJoinKeyFields5() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -159,7 +159,7 @@ public class JoinOperatorTest {
 		ds1.join(ds2).where(-1).equalTo(-1);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = InvalidProgramException.class)
 	public void testJoinKeyFields6() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -167,7 +167,7 @@ public class JoinOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, join key fields on custom type
-		ds1.join(ds2).where(5).equalTo(0);
+		ds1.join(ds2).where(4).equalTo(0);
 	}
 
 	@Test

@@ -50,7 +50,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 		// if keys is null distinction is done on all fields
 		if (keys == null) {
-			keys = new Keys.ExpressionKeys<>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
+			keys = new Keys.ExpressionKeys<>(input.getType());
 		}
 
 		this.keys = keys;

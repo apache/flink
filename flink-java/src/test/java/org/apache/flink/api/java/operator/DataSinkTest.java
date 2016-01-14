@@ -63,7 +63,7 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			tupleDs.sortPartition(0, Order.ANY).writeAsText("/tmp/willNotHappen");
+			tupleDs.writeAsText("/tmp/willNotHappen").sortLocalOutput(0, Order.ANY);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -79,9 +79,9 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			tupleDs.sortPartition(0, Order.ASCENDING)
-					.sortPartition(3, Order.DESCENDING)
-					.writeAsText("/tmp/willNotHappen");
+			tupleDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput(0, Order.ASCENDING)
+				.sortLocalOutput(3, Order.DESCENDING);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -97,13 +97,13 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			tupleDs.sortPartition("f0", Order.ANY).writeAsText("/tmp/willNotHappen");
+			tupleDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("f0", Order.ANY);
 		} catch (Exception e) {
 			Assert.fail();
 		}
 	}
 
-	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
 	public void testTupleSingleOrderExpFull() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment
@@ -112,7 +112,8 @@ public class DataSinkTest {
 				.fromCollection(emptyTupleData, tupleTypeInfo);
 
 		// should not work
-		tupleDs.sortPartition("*", Order.ANY).writeAsText("/tmp/willNotHappen");
+		tupleDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("*", Order.ANY);
 	}
 
 	@Test
@@ -125,9 +126,9 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			tupleDs.sortPartition("f1", Order.ASCENDING)
-					.sortPartition("f4", Order.DESCENDING)
-					.writeAsText("/tmp/willNotHappen");
+			tupleDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("f1", Order.ASCENDING)
+				.sortLocalOutput("f4", Order.DESCENDING);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -143,9 +144,9 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			tupleDs.sortPartition(4, Order.ASCENDING)
-					.sortPartition("f2", Order.DESCENDING)
-					.writeAsText("/tmp/willNotHappen");
+			tupleDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput(4, Order.ASCENDING)
+				.sortLocalOutput("f2", Order.DESCENDING);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -160,9 +161,9 @@ public class DataSinkTest {
 				.fromCollection(emptyTupleData, tupleTypeInfo);
 
 		// must not work
-		tupleDs.sortPartition(3, Order.ASCENDING)
-				.sortPartition(5, Order.DESCENDING)
-				.writeAsText("/tmp/willNotHappen");
+		tupleDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput(3, Order.ASCENDING)
+			.sortLocalOutput(5, Order.DESCENDING);
 	}
 
 	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
@@ -174,9 +175,9 @@ public class DataSinkTest {
 				.fromCollection(emptyTupleData, tupleTypeInfo);
 
 		// must not work
-		tupleDs.sortPartition("notThere", Order.ASCENDING)
-				.sortPartition("f4", Order.DESCENDING)
-				.writeAsText("/tmp/willNotHappen");
+		tupleDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("notThere", Order.ASCENDING)
+			.sortLocalOutput("f4", Order.DESCENDING);
 	}
 
 	@Test
@@ -189,7 +190,8 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			longDs.sortPartition("*", Order.ASCENDING).writeAsText("/tmp/willNotHappen");
+			longDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("*", Order.ASCENDING);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -204,7 +206,8 @@ public class DataSinkTest {
 				.generateSequence(0,2);
 
 		// must not work
-		longDs.sortPartition(0, Order.ASCENDING).writeAsText("/tmp/willNotHappen");
+		longDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput(0, Order.ASCENDING);
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -216,7 +219,8 @@ public class DataSinkTest {
 				.generateSequence(0,2);
 
 		// must not work
-		longDs.sortPartition("0", Order.ASCENDING).writeAsText("/tmp/willNotHappen");
+		longDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("0", Order.ASCENDING);
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -228,7 +232,8 @@ public class DataSinkTest {
 				.generateSequence(0,2);
 
 		// must not work
-		longDs.sortPartition("nope", Order.ASCENDING).writeAsText("/tmp/willNotHappen");
+		longDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("nope", Order.ASCENDING);
 	}
 
 	@Test
@@ -241,7 +246,8 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			pojoDs.sortPartition("myString", Order.ASCENDING).writeAsText("/tmp/willNotHappen");
+			pojoDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("myString", Order.ASCENDING);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -257,9 +263,9 @@ public class DataSinkTest {
 
 		// should work
 		try {
-			pojoDs.sortPartition("myLong", Order.ASCENDING)
-					.sortPartition("myString", Order.DESCENDING)
-					.writeAsText("/tmp/willNotHappen");
+			pojoDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("myLong", Order.ASCENDING)
+				.sortLocalOutput("myString", Order.DESCENDING);
 		} catch (Exception e) {
 			Assert.fail();
 		}
@@ -274,7 +280,8 @@ public class DataSinkTest {
 				.fromCollection(pojoData);
 
 		// must not work
-		pojoDs.sortPartition(1, Order.DESCENDING).writeAsText("/tmp/willNotHappen");
+		pojoDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput(1, Order.DESCENDING);
 	}
 
 	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
@@ -286,12 +293,12 @@ public class DataSinkTest {
 				.fromCollection(pojoData);
 
 		// must not work
-		pojoDs.sortPartition("myInt", Order.ASCENDING)
-				.sortPartition("notThere", Order.DESCENDING)
-				.writeAsText("/tmp/willNotHappen");
+		pojoDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("myInt", Order.ASCENDING)
+			.sortLocalOutput("notThere", Order.DESCENDING);
 	}
 
-	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
+	@Test(expected = InvalidProgramException.class)
 	public void testPojoSingleOrderFull() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment
@@ -300,8 +307,8 @@ public class DataSinkTest {
 				.fromCollection(pojoData);
 
 		// must not work
-		pojoDs.sortPartition("*", Order.ASCENDING)
-				.writeAsText("/tmp/willNotHappen");
+		pojoDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("*", Order.ASCENDING);
 	}
 
 	@Test(expected = InvalidProgramException.class)
@@ -316,8 +323,8 @@ public class DataSinkTest {
 				.fromCollection(arrayData);
 
 		// must not work
-		pojoDs.sortPartition("*", Order.ASCENDING)
-				.writeAsText("/tmp/willNotHappen");
+		pojoDs.writeAsText("/tmp/willNotHappen")
+			.sortLocalOutput("*", Order.ASCENDING);
 	}
 
 	/**

@@ -112,7 +112,7 @@ public class DistinctOperatorTest {
 		customDs.distinct();
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testDistinctByKeyFields6() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

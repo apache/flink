@@ -67,7 +67,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
 				.partitionByHash(1)
-				.mapPartition(new UniqueLongMapper());
+				.mapPartition(new UniqueTupleLongMapper());
 		List<Long> result = uniqLongs.collect();
 
 		String expected = "1\n" +
@@ -91,7 +91,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
 			.partitionByRange(1)
-			.mapPartition(new UniqueLongMapper());
+			.mapPartition(new UniqueTupleLongMapper());
 		List<Long> result = uniqLongs.collect();
 
 		String expected = "1\n" +
@@ -163,6 +163,56 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testHashPartitionOfAtomicType() throws Exception {
+		/*
+		 * Test hash partition of atomic type
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Long> uniqLongs = env.generateSequence(1, 6)
+			.union(env.generateSequence(1, 6))
+			.rebalance()
+			.partitionByHash("*")
+			.mapPartition(new UniqueLongMapper());
+		List<Long> result = uniqLongs.collect();
+
+		String expected = "1\n" +
+			"2\n" +
+			"3\n" +
+			"4\n" +
+			"5\n" +
+			"6\n";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testRangePartitionOfAtomicType() throws Exception {
+		/*
+		 * Test range partition of atomic type
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Long> uniqLongs = env.generateSequence(1, 6)
+			.union(env.generateSequence(1, 6))
+			.rebalance()
+			.partitionByRange("*")
+			.mapPartition(new UniqueLongMapper());
+		List<Long> result = uniqLongs.collect();
+
+		String expected = "1\n" +
+			"2\n" +
+			"3\n" +
+			"4\n" +
+			"5\n" +
+			"6\n";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
 	public void testHashPartitionByKeySelector() throws Exception {
 		/*
 		 * Test hash partition by key selector
@@ -173,7 +223,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
 				.partitionByHash(new KeySelector1())
-				.mapPartition(new UniqueLongMapper());
+				.mapPartition(new UniqueTupleLongMapper());
 		List<Long> result = uniqLongs.collect();
 
 		String expected = "1\n" +
@@ -207,7 +257,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
 			.partitionByRange(new KeySelector1())
-			.mapPartition(new UniqueLongMapper());
+			.mapPartition(new UniqueTupleLongMapper());
 		List<Long> result = uniqLongs.collect();
 
 		String expected = "1\n" +
@@ -306,7 +356,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
 				.partitionByHash(1).setParallelism(4)
-				.mapPartition(new UniqueLongMapper());
+				.mapPartition(new UniqueTupleLongMapper());
 		List<Long> result = uniqLongs.collect();
 
 		String expected = "1\n" +
@@ -331,7 +381,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
 			.partitionByRange(1).setParallelism(4)
-			.mapPartition(new UniqueLongMapper());
+			.mapPartition(new UniqueTupleLongMapper());
 		List<Long> result = uniqLongs.collect();
 
 		String expected = "1\n" +
@@ -388,7 +438,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		compareResultAsText(result, expected);
 	}
 
-	public static class UniqueLongMapper implements MapPartitionFunction<Tuple3<Integer,Long,String>, Long> {
+	public static class UniqueTupleLongMapper implements MapPartitionFunction<Tuple3<Integer,Long,String>, Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -396,6 +446,21 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 			HashSet<Long> uniq = new HashSet<>();
 			for(Tuple3<Integer,Long,String> t : records) {
 				uniq.add(t.f1);
+			}
+			for(Long l : uniq) {
+				out.collect(l);
+			}
+		}
+	}
+
+	public static class UniqueLongMapper implements MapPartitionFunction<Long, Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void mapPartition(Iterable<Long> longs, Collector<Long> out) throws Exception {
+			HashSet<Long> uniq = new HashSet<>();
+			for(Long l : longs) {
+				uniq.add(l);
 			}
 			for(Long l : uniq) {
 				out.collect(l);

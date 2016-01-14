@@ -251,17 +251,12 @@ class CoGroupDataSet[L, R](
                                       new ImmutablePair[java.lang.Integer, Order](position, order))
         
         case ( Right(expression), order ) =>
-          if (!typeInfo.isInstanceOf[CompositeType[_]]) {
-            throw new InvalidProgramException("Specifying order keys via field positions is only "
-                                   + "valid for composite data types (pojo / tuple / case class)")
-          }
-          else {
-            val ek = new ExpressionKeys[T](Array[String](expression), typeInfo)
-            val groupOrderKeys : Array[Int] = ek.computeLogicalKeyPositions()
-            
-            for (k <- groupOrderKeys) {
-              result.add(new ImmutablePair[java.lang.Integer, Order](k, order))
-            }
+
+          val ek = new ExpressionKeys[T](Array[String](expression), typeInfo)
+          val groupOrderKeys : Array[Int] = ek.computeLogicalKeyPositions()
+
+          for (k <- groupOrderKeys) {
+            result.add(new ImmutablePair[java.lang.Integer, Order](k, order))
           }
       }
       

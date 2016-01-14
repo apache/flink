@@ -101,7 +101,7 @@ public class CoGroupOperatorTest {
 		ds1.coGroup(ds2).where(0,1).equalTo(2);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCoGroupKeyFields4() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -112,7 +112,7 @@ public class CoGroupOperatorTest {
 		ds1.coGroup(ds2).where(5).equalTo(0);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = IndexOutOfBoundsException.class)
 	public void testCoGroupKeyFields5() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -123,7 +123,7 @@ public class CoGroupOperatorTest {
 		ds1.coGroup(ds2).where(-1).equalTo(-1);
 	}
 	
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = InvalidProgramException.class)
 	public void testCoGroupKeyFields6() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -131,7 +131,7 @@ public class CoGroupOperatorTest {
 		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
 		// should not work, cogroup key fields on custom type
-		ds1.coGroup(ds2).where(5).equalTo(0);
+		ds1.coGroup(ds2).where(4).equalTo(0);
 	}
 
 	@Test

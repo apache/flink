@@ -92,7 +92,26 @@ class RenamingProxyTypeInfo[T](
       fieldExpression: String,
       offset: Int,
       result: util.List[FlatFieldDescriptor]): Unit = {
-    tpe.getFlatFields(fieldExpression, offset, result)
+
+    // split of head of field expression
+    val (head, tail) = if (fieldExpression.indexOf('.') >= 0) {
+      fieldExpression.splitAt(fieldExpression.indexOf('.'))
+    } else {
+      (fieldExpression, "")
+    }
+
+    // replace proxy field name by original field name of wrapped type
+    val headPos = getFieldIndex(head)
+    if (headPos >= 0) {
+      val resolvedHead = tpe.getFieldNames()(headPos)
+      val resolvedFieldExpr = resolvedHead + tail
+
+      // get flat fields with wrapped field name
+      tpe.getFlatFields(resolvedFieldExpr, offset, result)
+    }
+    else {
+      throw new IllegalArgumentException(s"Invalid field expression: ${fieldExpression}")
+    }
   }
 
   override def getTypeAt[X](fieldExpression: String): TypeInformation[X] = {

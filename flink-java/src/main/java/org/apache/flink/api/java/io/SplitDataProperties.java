@@ -24,7 +24,6 @@ import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Keys;
 
@@ -124,7 +123,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 
 		this.splitPartitionKeys = getAllFlatKeys(partitionFields);
 		if (partitionMethodId != null) {
-			this.splitPartitioner = new SourcePartitionerMarker<T>(partitionMethodId);
+			this.splitPartitioner = new SourcePartitionerMarker<>(partitionMethodId);
 		} else {
 			this.splitPartitioner = null;
 		}
@@ -175,7 +174,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 
 		this.splitPartitionKeys = getAllFlatKeys(partitionKeysA);
 		if(partitionMethodId != null) {
-			this.splitPartitioner = new SourcePartitionerMarker<T>(partitionMethodId);
+			this.splitPartitioner = new SourcePartitionerMarker<>(partitionMethodId);
 		}
 		else {
 			this.splitPartitioner = null;
@@ -331,7 +330,8 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 
 		for(int i=0; i<orderKeysA.length; i++) {
 			String keyExp = orderKeysA[i];
-			int[] flatKeys = this.computeFlatKeys(keyExp);
+			Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(keyExp, this.type);
+			int[] flatKeys = ek.computeLogicalKeyPositions();
 
 			for(int key : flatKeys) {
 				// check for duplicates
@@ -371,7 +371,9 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 		int[] allKeys = null;
 
 		for(String keyExp : fieldExpressions) {
-			int[] flatKeys = this.computeFlatKeys(keyExp);
+			Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(keyExp, this.type);
+			int[] flatKeys = ek.computeLogicalKeyPositions();
+
 			if(allKeys == null) {
 				allKeys = flatKeys;
 			} else {
@@ -387,9 +389,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 				int oldLength = allKeys.length;
 				int newLength = oldLength + flatKeys.length;
 				allKeys = Arrays.copyOf(allKeys, newLength);
-				for(int i=0;i<flatKeys.length; i++) {
-					allKeys[oldLength+i] = flatKeys[i];
-				}
+				System.arraycopy(flatKeys, 0, allKeys, oldLength, flatKeys.length);
 			}
 		}
 
@@ -397,39 +397,8 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	}
 
 	private int[] getAllFlatKeys(int[] fieldPositions) {
-
-		Keys.ExpressionKeys<T> ek;
-		try {
-			ek = new Keys.ExpressionKeys<T>(fieldPositions, this.type);
-		} catch(IllegalArgumentException iae) {
-			throw new InvalidProgramException("Invalid specification of field expression.", iae);
-		}
+		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(fieldPositions, this.type);
 		return ek.computeLogicalKeyPositions();
-	}
-
-
-	private int[] computeFlatKeys(String fieldExpression) {
-
-		fieldExpression = fieldExpression.trim();
-
-		if(this.type instanceof CompositeType) {
-			// compute flat field positions for (nested) sorting fields
-			Keys.ExpressionKeys<T> ek;
-			try {
-				ek = new Keys.ExpressionKeys<T>(new String[]{fieldExpression}, this.type);
-			} catch(IllegalArgumentException iae) {
-				throw new InvalidProgramException("Invalid specification of field expression.", iae);
-			}
-			return ek.computeLogicalKeyPositions();
-		} else {
-			fieldExpression = fieldExpression.trim();
-			if (!(fieldExpression.equals("*") || fieldExpression.equals("_"))) {
-				throw new InvalidProgramException("Data properties on non-composite types can only be defined on the full type. " +
-						"Use a field wildcard for that (\"*\" or \"_\")");
-			} else {
-				return new int[]{0};
-			}
-		}
 	}
 
 	/**
@@ -438,6 +407,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 	 * @param <T> The type of the partitioned data.
 	 */
 	public static class SourcePartitionerMarker<T> implements Partitioner<T> {
+		private static final long serialVersionUID = -8554223652384442571L;
 
 		String partitionMarker;
 
@@ -454,7 +424,7 @@ public class SplitDataProperties<T> implements GenericDataSourceBase.SplitDataPr
 		@Override
 		public boolean equals(Object o) {
 			if(o instanceof SourcePartitionerMarker) {
-				return this.partitionMarker.equals(((SourcePartitionerMarker) o).partitionMarker);
+				return this.partitionMarker.equals(((SourcePartitionerMarker<?>) o).partitionMarker);
 			} else {
 				return false;
 			}

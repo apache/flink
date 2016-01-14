@@ -752,7 +752,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, true),
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName()))
   }
 
@@ -813,7 +813,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def groupBy(fields: Int*): GroupedDataSet[T] = {
     new GroupedDataSet[T](
       this,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType,false))
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType))
   }
 
   /**
@@ -1162,7 +1162,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int])(
       stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
 
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
@@ -1190,7 +1190,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int],
                                  solutionSetUnManaged: Boolean)(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val key = new ExpressionKeys[T](keyFields, javaSet.getType, false)
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
 
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
@@ -1307,7 +1307,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, false),
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1361,7 +1361,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.RANGE,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType, false),
+      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1415,7 +1415,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataSet[T] = {
     val op = new PartitionOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](Array[Int](field), javaSet.getType, false),
+      new Keys.ExpressionKeys[T](Array[Int](field), javaSet.getType),
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
