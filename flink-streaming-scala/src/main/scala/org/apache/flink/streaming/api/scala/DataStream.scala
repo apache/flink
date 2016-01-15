@@ -560,8 +560,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @param size The size of the window.
    */
   def timeWindowAll(size: Time): AllWindowedStream[T, TimeWindow] = {
-    val assigner = TumblingTimeWindows.of(size).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    windowAll(assigner)
+    new AllWindowedStream(javaStream.timeWindowAll(size))
   }
 
   /**
@@ -579,8 +578,8 @@ class DataStream[T](stream: JavaStream[T]) {
    * @param size The size of the window.
    */
   def timeWindowAll(size: Time, slide: Time): AllWindowedStream[T, TimeWindow] = {
-    val assigner = SlidingTimeWindows.of(size, slide).asInstanceOf[WindowAssigner[T, TimeWindow]]
-    windowAll(assigner)
+    new AllWindowedStream(javaStream.timeWindowAll(size, slide))
+
   }
 
   /**
