@@ -17,14 +17,22 @@
  */
 package org.apache.flink.api.table
 
-import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.table.explain.PlanJsonParser
-import org.apache.flink.api.table.expressions.analysis.{GroupByAnalyzer, PredicateAnalyzer, SelectionAnalyzer}
-import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReference, UnresolvedFieldReference}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataTypeField
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
+import org.apache.flink.api.table.plan.RexNodeTranslator
+import RexNodeTranslator.{toRexNode, extractAggCalls}
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.parser.ExpressionParser
-import org.apache.flink.api.table.plan._
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.table._
+
+import scala.collection.JavaConverters._
+
+case class BaseTable(
+    private[flink] val relNode: RelNode,
+    private[flink] val relBuilder: RelBuilder)
 
 /**
  * The abstraction for writing Table API programs. Similar to how the batch and streaming APIs
@@ -50,7 +58,11 @@ import org.apache.flink.api.scala.table._
  * in a Scala DSL or as an expression String. Please refer to the documentation for the expression
  * syntax.
  */
-case class Table(private[flink] val operation: PlanNode) {
+class Table(
+  private[flink] override val relNode: RelNode,
+  private[flink] override val relBuilder: RelBuilder)
+  extends BaseTable(relNode, relBuilder)
+{
 
   /**
    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -63,14 +75,30 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def select(fields: Expression*): Table = {
-    val analyzer = new SelectionAnalyzer(operation.outputFields)
-    val analyzedFields = fields.map(analyzer.analyze)
-    val fieldNames = analyzedFields map(_.name)
-    if (fieldNames.toSet.size != fieldNames.size) {
-      throw new ExpressionException(s"Resulting fields names are not unique in expression" +
-        s""" "${fields.mkString(", ")}".""")
+
+    relBuilder.push(relNode)
+
+    // separate aggregations and selection expressions
+    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
+      .map(extractAggCalls(_, relBuilder)).toList
+
+    // get aggregation calls
+    val aggCalls: List[AggCall] = extractedAggCalls
+      .map(_._2).reduce( (x,y) => x ::: y)
+
+    // apply aggregations
+    if (aggCalls.nonEmpty) {
+      val emptyKey: GroupKey = relBuilder.groupKey()
+      relBuilder.aggregate(emptyKey, aggCalls.toIterable.asJava)
     }
-    this.copy(operation = Select(operation, analyzedFields))
+
+    // get selection expressions
+    val exprs: List[RexNode] = extractedAggCalls
+      .map(_._1)
+      .map(toRexNode(_, relBuilder))
+
+    relBuilder.project(exprs.toIterable.asJava)
+    new Table(relBuilder.build(), relBuilder)
   }
 
   /**
@@ -99,13 +127,12 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def as(fields: Expression*): Table = {
-    fields forall {
-      f => f.isInstanceOf[UnresolvedFieldReference]
-    } match {
-      case true =>
-      case false => throw new ExpressionException("Only field expression allowed in as().")
-    }
-    this.copy(operation = As(operation, fields.toArray map { _.name }))
+
+    relBuilder.push(relNode)
+    val expressions = fields.map(toRexNode(_, relBuilder)).toIterable.asJava
+    val names = fields.map(_.name).toIterable.asJava
+    relBuilder.project(expressions, names)
+    new Table(relBuilder.build(), relBuilder)
   }
 
   /**
@@ -134,9 +161,11 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def filter(predicate: Expression): Table = {
-    val analyzer = new PredicateAnalyzer(operation.outputFields)
-    val analyzedPredicate = analyzer.analyze(predicate)
-    this.copy(operation = Filter(operation, analyzedPredicate))
+
+    relBuilder.push(relNode)
+    val pred = toRexNode(predicate, relBuilder)
+    relBuilder.filter(pred)
+    new Table(relBuilder.build(), relBuilder)
   }
 
   /**
@@ -192,20 +221,13 @@ case class Table(private[flink] val operation: PlanNode) {
    *   in.groupBy('key).select('key, 'value.avg)
    * }}}
    */
-  def groupBy(fields: Expression*): Table = {
-    val analyzer = new GroupByAnalyzer(operation.outputFields)
-    val analyzedFields = fields.map(analyzer.analyze)
+  def groupBy(fields: Expression*): GroupedTable = {
 
-    val illegalKeys = analyzedFields filter {
-      case fe: ResolvedFieldReference => false // OK
-      case e => true
-    }
+    relBuilder.push(relNode)
+    val groupExpr = fields.map(toRexNode(_, relBuilder)).toIterable.asJava
+    val groupKey = relBuilder.groupKey(groupExpr)
 
-    if (illegalKeys.nonEmpty) {
-      throw new ExpressionException("Illegal key expressions: " + illegalKeys.mkString(", "))
-    }
-
-    this.copy(operation = GroupBy(operation, analyzedFields))
+    new GroupedTable(relBuilder.build(), relBuilder, groupKey)
   }
 
   /**
@@ -218,7 +240,7 @@ case class Table(private[flink] val operation: PlanNode) {
    *   in.groupBy("key").select("key, value.avg")
    * }}}
    */
-  def groupBy(fields: String): Table = {
+  def groupBy(fields: String): GroupedTable = {
     val fieldsExpr = ExpressionParser.parseExpressionList(fields)
     groupBy(fieldsExpr: _*)
   }
@@ -235,16 +257,21 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def join(right: Table): Table = {
-    val leftInputNames = operation.outputFields.map(_._1).toSet
-    val rightInputNames = right.operation.outputFields.map(_._1).toSet
-    if (leftInputNames.intersect(rightInputNames).nonEmpty) {
-      throw new ExpressionException(
-        "Overlapping fields names on join input, result would be ambiguous: " +
-          operation.outputFields.mkString(", ") +
-          " and " +
-          right.operation.outputFields.mkString(", ") )
+
+    // check that join inputs do not have overlapping field names
+    val leftFields = relNode.getRowType.getFieldNames.asScala.toSet
+    val rightFields = right.relNode.getRowType.getFieldNames.asScala.toSet
+    if (leftFields.intersect(rightFields).nonEmpty) {
+      throw new IllegalArgumentException("Overlapping fields names on join input.")
     }
-    this.copy(operation = Join(operation, right.operation))
+
+    relBuilder.push(relNode)
+    relBuilder.push(right.relNode)
+
+    relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
+    val join = relBuilder.build()
+    val rowT = join.getRowType()
+    new Table(join, relBuilder)
   }
 
   /**
@@ -258,17 +285,27 @@ case class Table(private[flink] val operation: PlanNode) {
    * }}}
    */
   def unionAll(right: Table): Table = {
-    val leftInputFields = operation.outputFields
-    val rightInputFields = right.operation.outputFields
-    if (!leftInputFields.equals(rightInputFields)) {
-      throw new ExpressionException(
-        "The fields names of join inputs should be fully overlapped, left inputs fields:" +
-          operation.outputFields.mkString(", ") +
-          " and right inputs fields" +
-          right.operation.outputFields.mkString(", ")
-      )
+
+    val leftRowType: List[RelDataTypeField] = relNode.getRowType.getFieldList.asScala.toList
+    val rightRowType: List[RelDataTypeField] = right.relNode.getRowType.getFieldList.asScala.toList
+
+    if (leftRowType.length != rightRowType.length) {
+      throw new IllegalArgumentException("Unioned tables have varying row schema.")
     }
-    this.copy(operation = UnionAll(operation, right.operation))
+    else {
+      val zipped: List[(RelDataTypeField, RelDataTypeField)] = leftRowType.zip(rightRowType)
+      zipped.foreach { case (x, y) =>
+        if (!x.getName.equals(y.getName) || x.getType != y.getType) {
+          throw new IllegalArgumentException("Unioned tables have varying row schema.")
+        }
+      }
+    }
+
+    relBuilder.push(relNode)
+    relBuilder.push(right.relNode)
+
+    relBuilder.union(true)
+    new Table(relBuilder.build(), relBuilder)
   }
 
   /**
@@ -277,18 +314,79 @@ case class Table(private[flink] val operation: PlanNode) {
    * referenced by the statement will be scanned.
    */
   def explain(extended: Boolean): String = {
-    val ast = operation
-    val dataSet = this.toDataSet[Row]
-    val env = dataSet.getExecutionEnvironment
-    dataSet.output(new DiscardingOutputFormat[Row])
-    val jasonSqlPlan = env.getExecutionPlan()
-    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
-    val result = "== Abstract Syntax Tree ==\n" + ast + "\n\n" + "== Physical Execution Plan ==" +
-      "\n" + sqlPlan
-    return result
+
+    // TODO: enable once toDataSet() is working again
+
+//    val ast = operation
+//    val dataSet = this.toDataSet[Row]
+//    val env = dataSet.getExecutionEnvironment
+//    dataSet.output(new DiscardingOutputFormat[Row])
+//    val jasonSqlPlan = env.getExecutionPlan()
+//    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
+//    val result = "== Abstract Syntax Tree ==\n" + ast + "\n\n" + "== Physical Execution Plan ==" +
+//      "\n" + sqlPlan
+//    return result
+
+    ""
   }
-  
+
   def explain(): String = explain(false)
-  
-  override def toString: String = s"Expression($operation)"
+}
+
+class GroupedTable(
+    private[flink] override val relNode: RelNode,
+    private[flink] override val relBuilder: RelBuilder,
+    private[flink] val groupKey: GroupKey) extends BaseTable(relNode, relBuilder) {
+
+  /**
+    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+    * can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   in.select('key, 'value.avg + " The average" as 'average, 'other.substring(0, 10))
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+
+    relBuilder.push(relNode)
+
+    // separate aggregations and selection expressions
+    val extractedAggCalls: List[(Expression, List[AggCall])] = fields
+      .map(extractAggCalls(_, relBuilder)).toList
+
+    // get aggregation calls
+    val aggCalls: List[AggCall] = extractedAggCalls
+      .map(_._2).reduce( (x,y) => x ::: y)
+
+    // apply aggregations
+    if (aggCalls.nonEmpty) {
+      relBuilder.aggregate(groupKey, aggCalls.toIterable.asJava)
+    }
+
+    // get selection expressions
+    val exprs: List[RexNode] = extractedAggCalls
+      .map(_._1)
+      .map(toRexNode(_, relBuilder))
+
+    relBuilder.project(exprs.toIterable.asJava)
+    new Table(relBuilder.build(), relBuilder)
+  }
+
+  /**
+    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+    * can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   in.select("key, value.avg + " The average" as average, other.substring(0, 10)")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
+
 }

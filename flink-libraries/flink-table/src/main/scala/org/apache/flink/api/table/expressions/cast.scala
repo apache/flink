@@ -31,4 +31,9 @@ case class Cast(child: Expression, tpe: TypeInformation[_]) extends UnaryExpress
   }
 
   override def toString = s"$child.cast($tpe)"
+
+  override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
+    val child: Expression = anyRefs.head.asInstanceOf[Expression]
+    copy(child, tpe).asInstanceOf[this.type]
+  }
 }

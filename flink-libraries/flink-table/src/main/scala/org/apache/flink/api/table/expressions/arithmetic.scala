@@ -17,8 +17,8 @@
  */
 package org.apache.flink.api.table.expressions
 
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NumericTypeInfo}
 import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, IntegerTypeInfo, NumericTypeInfo, TypeInformation}
 
 abstract class BinaryArithmetic extends BinaryExpression { self: Product =>
   def typeInfo = {
@@ -83,7 +83,7 @@ case class Mul(left: Expression, right: Expression) extends BinaryArithmetic {
 }
 
 case class Mod(left: Expression, right: Expression) extends BinaryArithmetic {
-  override def toString = s"($left * $right)"
+  override def toString = s"($left % $right)"
 }
 
 case class Abs(child: Expression) extends UnaryExpression {
@@ -91,55 +91,3 @@ case class Abs(child: Expression) extends UnaryExpression {
 
   override def toString = s"abs($child)"
 }
-
-abstract class BitwiseBinaryArithmetic extends BinaryExpression { self: Product =>
-  def typeInfo: TypeInformation[_] = {
-    if (!left.typeInfo.isInstanceOf[IntegerTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""Non-integer operand ${left} of type ${left.typeInfo} in $this""")
-    }
-    if (!right.typeInfo.isInstanceOf[IntegerTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""Non-integer operand "${right}" of type ${right.typeInfo} in $this""")
-    }
-    if (left.typeInfo != right.typeInfo) {
-      throw new ExpressionException(s"Differing operand data types ${left.typeInfo} and " +
-        s"${right.typeInfo} in $this")
-    }
-    if (left.typeInfo == BasicTypeInfo.LONG_TYPE_INFO) {
-      left.typeInfo
-    } else {
-      BasicTypeInfo.INT_TYPE_INFO
-    }
-  }
-}
-
-case class BitwiseAnd(left: Expression, right: Expression) extends BitwiseBinaryArithmetic {
-  override def toString = s"($left & $right)"
-}
-
-case class BitwiseOr(left: Expression, right: Expression) extends BitwiseBinaryArithmetic {
-  override def toString = s"($left | $right)"
-}
-
-
-case class BitwiseXor(left: Expression, right: Expression) extends BitwiseBinaryArithmetic {
-  override def toString = s"($left ^ $right)"
-}
-
-case class BitwiseNot(child: Expression) extends UnaryExpression {
-  def typeInfo: TypeInformation[_] = {
-    if (!child.typeInfo.isInstanceOf[IntegerTypeInfo[_]]) {
-      throw new ExpressionException(
-        s"""Non-integer operand ${child} of type ${child.typeInfo} in $this""")
-    }
-    if (child.typeInfo == BasicTypeInfo.LONG_TYPE_INFO) {
-      child.typeInfo
-    } else {
-      BasicTypeInfo.INT_TYPE_INFO
-    }
-  }
-
-  override def toString = s"~($child)"
-}
-
