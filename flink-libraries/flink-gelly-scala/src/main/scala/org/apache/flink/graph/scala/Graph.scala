@@ -26,7 +26,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.graph._
 import org.apache.flink.graph.validation.GraphValidator
 import org.apache.flink.graph.gsa.{ApplyFunction, GSAConfiguration, GatherFunction, SumFunction}
-import org.apache.flink.graph.spargel.{MessagingFunction, VertexCentricConfiguration, VertexUpdateFunction}
+import org.apache.flink.graph.spargel.{MessagingFunction, ScatterGatherConfiguration, VertexUpdateFunction}
 import org.apache.flink.{graph => jg}
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.reflect.ClassTag
@@ -1027,39 +1027,39 @@ TypeInformation : ClassTag](jgraph: jg.Graph[K, VV, EV]) {
   }
 
   /**
-   * Runs a Vertex-Centric iteration on the graph.
+   * Runs a scatter-gather iteration on the graph.
    * No configuration options are provided.
    *
    * @param vertexUpdateFunction the vertex update function
    * @param messagingFunction the messaging function
    * @param maxIterations maximum number of iterations to perform
    *
-   * @return the updated Graph after the vertex-centric iteration has converged or
+   * @return the updated Graph after the scatter-gather iteration has converged or
    *         after maximumNumberOfIterations.
    */
-  def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M],
+  def runScatterGatherIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M],
                                    messagingFunction: MessagingFunction[K, VV, M, EV],
                                    maxIterations: Int): Graph[K, VV, EV] = {
-    wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
+    wrapGraph(jgraph.runScatterGatherIteration(vertexUpdateFunction, messagingFunction,
       maxIterations))
   }
 
   /**
-   * Runs a Vertex-Centric iteration on the graph with configuration options.
+   * Runs a scatter-gather iteration on the graph with configuration options.
    *
    * @param vertexUpdateFunction the vertex update function
    * @param messagingFunction the messaging function
    * @param maxIterations maximum number of iterations to perform
    * @param parameters the iteration configuration parameters
    *
-   * @return the updated Graph after the vertex-centric iteration has converged or
+   * @return the updated Graph after the scatter-gather iteration has converged or
    *         after maximumNumberOfIterations.
    */
-  def runVertexCentricIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M],
+  def runScatterGatherIteration[M](vertexUpdateFunction: VertexUpdateFunction[K, VV, M],
                                    messagingFunction: MessagingFunction[K, VV, M, EV],
-                                   maxIterations: Int, parameters: VertexCentricConfiguration):
+                                   maxIterations: Int, parameters: ScatterGatherConfiguration):
   Graph[K, VV, EV] = {
-    wrapGraph(jgraph.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
+    wrapGraph(jgraph.runScatterGatherIteration(vertexUpdateFunction, messagingFunction,
       maxIterations, parameters))
   }
 

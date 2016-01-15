@@ -33,8 +33,8 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricConfiguration;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
+import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
+import org.apache.flink.graph.spargel.ScatterGatherIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
@@ -45,9 +45,9 @@ import org.junit.runners.Parameterized;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 
 @RunWith(Parameterized.class)
-public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
+public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 
-	public VertexCentricConfigurationITCase(TestExecutionMode mode){
+	public ScatterGatherConfigurationITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -56,7 +56,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testRunWithConfiguration() throws Exception {
 		/*
-		 * Test Graph's runVertexCentricIteration when configuration parameters are provided
+		 * Test Graph's runScatterGatherIteration when configuration parameters are provided
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
@@ -64,14 +64,14 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
 		// create the configuration object
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.addBroadcastSetForUpdateFunction("updateBcastSet", env.fromElements(1, 2, 3));
 		parameters.addBroadcastSetForMessagingFunction("messagingBcastSet", env.fromElements(4, 5, 6));
 		parameters.registerAggregator("superstepAggregator", new LongSumAggregator());
 		parameters.setOptNumVertices(true);
 
-		Graph<Long, Long, Long> res = graph.runVertexCentricIteration(
+		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
 				new UpdateFunction(), new MessageFunction(), 10, parameters);
 
 		DataSet<Vertex<Long,Long>> data = res.getVertices();
@@ -94,11 +94,11 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		VertexCentricIteration<Long, Long, Long, Long> iteration = VertexCentricIteration
+		ScatterGatherIteration<Long, Long, Long, Long> iteration = ScatterGatherIteration
 				.withEdges(TestGraphUtils.getLongLongEdgeData(env), new DummyUpdateFunction(), 
 						new DummyMessageFunction(), 10);
 		
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 		parameters.setName("gelly iteration");
 		parameters.setParallelism(2);
 		parameters.setSolutionSetUnmanagedMemory(true);
@@ -124,7 +124,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testDefaultConfiguration() throws Exception {
 		/*
-		 * Test Graph's runVertexCentricIteration when configuration parameters are not provided
+		 * Test Graph's runScatterGatherIteration when configuration parameters are not provided
 		 * i.e. degrees and numVertices will be -1, EdgeDirection will be OUT.
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -132,7 +132,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(), 
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
-		Graph<Long, Long, Long> res = graph.runVertexCentricIteration(
+		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
 				new UpdateFunctionDefault(), new MessageFunctionDefault(), 5);
 
 		
@@ -162,7 +162,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.mapVertices(new InitialiseHashSetMapper());
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerTrg(), 5)
+				.runScatterGatherIteration(new VertexUpdateDirection(), new IdMessengerTrg(), 5)
 				.getVertices();
 
         List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
@@ -190,12 +190,12 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setDirection(EdgeDirection.IN);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerSrc(), 5, parameters)
+				.runScatterGatherIteration(new VertexUpdateDirection(), new IdMessengerSrc(), 5, parameters)
 				.getVertices();
 
         List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
@@ -223,12 +223,12 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setDirection(EdgeDirection.ALL);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runVertexCentricIteration(new VertexUpdateDirection(), new IdMessengerAll(), 5, parameters)
+				.runScatterGatherIteration(new VertexUpdateDirection(), new IdMessengerAll(), 5, parameters)
 				.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result= resultedVertices.collect();
@@ -256,12 +256,12 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setDirection(EdgeDirection.IN);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
+				.runScatterGatherIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
 				.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
@@ -289,12 +289,12 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setDirection(EdgeDirection.OUT);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
+				.runScatterGatherIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
 				.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
@@ -322,12 +322,12 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.mapVertices(new InitialiseHashSetMapper());
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setDirection(EdgeDirection.ALL);
 
 		DataSet<Vertex<Long, HashSet<Long>>> resultedVertices = graph
-				.runVertexCentricIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
+				.runScatterGatherIteration(new VertexUpdateDirection(), new SendMsgToAll(), 5, parameters)
 				.getVertices();
 
 		List<Vertex<Long, HashSet<Long>>> result = resultedVertices.collect();
@@ -353,7 +353,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
 				TestGraphUtils.getLongLongEdges(), env);
 
-		DataSet<Vertex<Long, Long>> verticesWithNumVertices = graph.runVertexCentricIteration(new UpdateFunctionNumVertices(),
+		DataSet<Vertex<Long, Long>> verticesWithNumVertices = graph.runScatterGatherIteration(new UpdateFunctionNumVertices(),
 				new DummyMessageFunction(), 2).getVertices();
 
 		List<Vertex<Long, Long>> result= verticesWithNumVertices.collect();
@@ -381,11 +381,11 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdges(), env);
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setOptDegrees(true);
 
-		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
+		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
 				new UpdateFunctionInDegrees(), new DegreesMessageFunction(), 5, parameters).getVertices();
 
 		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
@@ -410,7 +410,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
 				TestGraphUtils.getLongLongEdges(), env);
 
-		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
+		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
 				new UpdateFunctionInDegrees(), new DummyMessageFunction(), 2).getVertices();
 
 		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
@@ -438,11 +438,11 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdges(), env);
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setOptDegrees(true);
 
-		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
+		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
 				new UpdateFunctionOutDegrees(), new DegreesMessageFunction(), 5, parameters).getVertices();
 
 		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
@@ -467,7 +467,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
 				TestGraphUtils.getLongLongEdges(), env);
 
-		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runVertexCentricIteration(
+		DataSet<Vertex<Long, Long>> verticesWithDegrees = graph.runScatterGatherIteration(
 				new UpdateFunctionInDegrees(), new DummyMessageFunction(), 2).getVertices();
 
 		List<Vertex<Long, Long>> result= verticesWithDegrees.collect();
@@ -494,12 +494,12 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdges(), env);
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		parameters.setOptDegrees(true);
 		parameters.setDirection(EdgeDirection.ALL);
 
-		DataSet<Vertex<Long, Boolean>> verticesWithNumNeighbors = graph.runVertexCentricIteration(
+		DataSet<Vertex<Long, Boolean>> verticesWithNumNeighbors = graph.runScatterGatherIteration(
 				new VertexUpdateNumNeighbors(), new IdMessenger(), 1, parameters).getVertices();
 
 		List<Vertex<Long, Boolean>> result= verticesWithNumNeighbors.collect();

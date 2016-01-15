@@ -78,7 +78,7 @@ public class CommunityDetection<K> implements GraphAlgorithm<K, Long, Double, Gr
 		Graph<K, Tuple2<Long, Double>, Double> graphWithScoredVertices =
 				Graph.fromDataSet(initializedVertices, graph.getEdges(), graph.getContext()).getUndirected();
 
-		return graphWithScoredVertices.runVertexCentricIteration(new VertexLabelUpdater<K>(delta),
+		return graphWithScoredVertices.runScatterGatherIteration(new VertexLabelUpdater<K>(delta),
 				new LabelMessenger<K>(), maxIterations)
 				.mapVertices(new RemoveScoreFromVertexValuesMapper<K>());
 	}

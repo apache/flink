@@ -47,7 +47,7 @@ public class CollectionModeSuperstepITCase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(), 
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 		
-		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(
+		Graph<Long, Long, Long> result = graph.runScatterGatherIteration(
 				new UpdateFunction(), new MessageFunction(), 10);
 
 		result.getVertices().map(

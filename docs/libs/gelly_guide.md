@@ -790,28 +790,28 @@ When the aggregation computation does not require access to the vertex value (fo
 
 Iterative Graph Processing
 -----------
-Gelly exploits Flink's efficient iteration operators to support large-scale iterative graph processing. Currently, we provide implementations of the popular vertex-centric iterative model and a variation of Gather-Sum-Apply. In the following sections, we describe these models and show how you can use them in Gelly.
+Gelly exploits Flink's efficient iteration operators to support large-scale iterative graph processing. Currently, we provide implementations of the popular scatter-gather iterative model and a variation of Gather-Sum-Apply. In the following sections, we describe these models and show how you can use them in Gelly.
 
-### Vertex-centric Iterations
-The vertex-centric model, also known as "think like a vertex" model, expresses computation from the perspective of a vertex in the graph. The computation proceeds in synchronized iteration steps, called supersteps. In each superstep, a vertex produces messages for other vertices and updates its value based on the messages it receives. To use vertex-centric iterations in Gelly, the user only needs to define how a vertex behaves in each superstep:
+### Scatter-Gather Iterations
+The scatter-gather model, also known as "signal/collect" model, expresses computation from the perspective of a vertex in the graph. The computation proceeds in synchronized iteration steps, called supersteps. In each superstep, a vertex produces messages for other vertices and updates its value based on the messages it receives. To use scatter-gather iterations in Gelly, the user only needs to define how a vertex behaves in each superstep:
 
-* <strong>Messaging</strong>:  produce the messages that a vertex will send to other vertices.
-* <strong>Value Update</strong>: update the vertex value using the received messages.
+* <strong>Messaging</strong>:  corresponds to the scatter phase and produces the messages that a vertex will send to other vertices.
+* <strong>Value Update</strong>: corresponds to the gather phase and updates the vertex value using the received messages.
 
-Gelly provides methods for vertex-centric iterations. The user only needs to implement two functions, corresponding to the phases above: a `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
-These functions and the maximum number of iterations to run are given as parameters to Gelly's `runVertexCentricIteration`. This method will execute the vertex-centric iteration on the input Graph and return a new Graph, with updated vertex values.
+Gelly provides methods for scatter-gather iterations. The user only needs to implement two functions, corresponding to the scatter and gather phases. The first function is a `MessagingFunction`, which allows a vertex to send out messages for other vertices. Messages are recieved during the same superstep as they are sent. The second function is `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages.
+These functions and the maximum number of iterations to run are given as parameters to Gelly's `runScatterGatherIteration`. This method will execute the scatter-gather iteration on the input Graph and return a new Graph, with updated vertex values.
 
-A vertex-centric iteration can be extended with information such as the total number of vertices, the in degree and out degree.
-Additionally, the  neighborhood type (in/out/all) over which to run the vertex-centric iteration can be specified. By default, the updates from the in-neighbors are used to modify the current vertex's state and messages are sent to out-neighbors.
+A scatter-gather iteration can be extended with information such as the total number of vertices, the in degree and out degree.
+Additionally, the  neighborhood type (in/out/all) over which to run the scatter-gather iteration can be specified. By default, the updates from the in-neighbors are used to modify the current vertex's state and messages are sent to out-neighbors.
 
-Let us consider computing Single-Source-Shortest-Paths with vertex-centric iterations on the following graph and let vertex 1 be the source. In each superstep, each vertex sends a candidate distance message to all its neighbors. The message value is the sum of the current value of the vertex and the edge weight connecting this vertex with its neighbor. Upon receiving candidate distance messages, each vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The algorithm converges when there are no value updates.
+Let us consider computing Single-Source-Shortest-Paths with scatter-gather iterations on the following graph and let vertex 1 be the source. In each superstep, each vertex sends a candidate distance message to all its neighbors. The message value is the sum of the current value of the vertex and the edge weight connecting this vertex with its neighbor. Upon receiving candidate distance messages, each vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The algorithm converges when there are no value updates.
 
 <p class="text-center">
-    <img alt="Vertex-centric SSSP superstep 1" width="70%" src="fig/gelly-vc-sssp1.png"/>
+    <img alt="Scatter-gather SSSP superstep 1" width="70%" src="fig/gelly-vc-sssp1.png"/>
 </p>
 
 <p class="text-center">
-    <img alt="Vertex-centric SSSP superstep 2" width="70%" src="fig/gelly-vc-sssp2.png"/>
+    <img alt="Scatter-gather SSSP superstep 2" width="70%" src="fig/gelly-vc-sssp2.png"/>
 </p>
 
 <div class="codetabs" markdown="1">
@@ -823,8 +823,8 @@ Graph<Long, Double, Double> graph = ...
 // define the maximum number of iterations
 int maxIterations = 10;
 
-// Execute the vertex-centric iteration
-Graph<Long, Double, Double> result = graph.runVertexCentricIteration(
+// Execute the scatter-gather iteration
+Graph<Long, Double, Double> result = graph.runScatterGatherIteration(
 			new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
 
 // Extract the vertices as the result
@@ -833,7 +833,7 @@ DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
 
 // - - -  UDFs - - - //
 
-// messaging
+// scatter: messaging
 public static final class MinDistanceMessenger extends MessagingFunction<Long, Double, Double, Double> {
 
 	public void sendMessages(Vertex<Long, Double> vertex) {
@@ -843,7 +843,7 @@ public static final class MinDistanceMessenger extends MessagingFunction<Long, D
 	}
 }
 
-// vertex update
+// gather: vertex update
 public static final class VertexDistanceUpdater extends VertexUpdateFunction<Long, Double, Double> {
 
 	public void updateVertex(Vertex<Long, Double> vertex, MessageIterator<Double> inMessages) {
@@ -872,8 +872,8 @@ val graph: Graph[Long, Double, Double] = ...
 // define the maximum number of iterations
 val maxIterations = 10
 
-// Execute the vertex-centric iteration
-val result = graph.runVertexCentricIteration(new VertexDistanceUpdater, new MinDistanceMessenger, maxIterations)
+// Execute the scatter-gather iteration
+val result = graph.runScatterGatherIteration(new VertexDistanceUpdater, new MinDistanceMessenger, maxIterations)
 
 // Extract the vertices as the result
 val singleSourceShortestPaths = result.getVertices
@@ -915,11 +915,11 @@ final class VertexDistanceUpdater extends VertexUpdateFunction[Long, Double, Dou
 
 {% top %}
 
-### Configuring a Vertex-Centric Iteration
-A vertex-centric iteration can be configured using a `VertexCentricConfiguration` object.
+### Configuring a Scatter-Gather Iteration
+A scatter-gather iteration can be configured using a `ScatterGatherConfiguration` object.
 Currently, the following parameters can be specified:
 
-* <strong>Name</strong>: The name for the vertex-centric iteration. The name is displayed in logs and messages
+* <strong>Name</strong>: The name for the scatter-gather iteration. The name is displayed in logs and messages
 and can be specified using the `setName()` method.
 
 * <strong>Parallelism</strong>: The parallelism for the iteration. It can be set using the `setParallelism()` method.
@@ -947,7 +947,7 @@ If the degrees option is not set in the configuration, these methods will return
 Graph<Long, Double, Double> graph = ...
 
 // configure the iteration
-VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 // set the iteration name
 parameters.setName("Gelly Iteration");
@@ -958,9 +958,9 @@ parameters.setParallelism(16);
 // register an aggregator
 parameters.registerAggregator("sumAggregator", new LongSumAggregator());
 
-// run the vertex-centric iteration, also passing the configuration parameters
+// run the scatter-gather iteration, also passing the configuration parameters
 Graph<Long, Double, Double> result =
-			graph.runVertexCentricIteration(
+			graph.runScatterGatherIteration(
 			new VertexUpdater(), new Messenger(), maxIterations, parameters);
 
 // user-defined functions
@@ -998,7 +998,7 @@ public static final class Messenger extends MessagingFunction {...}
 
 val graph: Graph[Long, Double, Double] = ...
 
-val parameters = new VertexCentricConfiguration
+val parameters = new ScatterGatherConfiguration
 
 // set the iteration name
 parameters.setName("Gelly Iteration")
@@ -1009,8 +1009,8 @@ parameters.setParallelism(16)
 // register an aggregator
 parameters.registerAggregator("sumAggregator", new LongSumAggregator)
 
-// run the vertex-centric iteration, also passing the configuration parameters
-val result = graph.runVertexCentricIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
+// run the scatter-gather iteration, also passing the configuration parameters
+val result = graph.runScatterGatherIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
 
 // user-defined functions
 final class VertexUpdater extends VertexUpdateFunction {
@@ -1052,7 +1052,7 @@ The following example illustrates the usage of the degree as well as the number 
 Graph<Long, Double, Double> graph = ...
 
 // configure the iteration
-VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 // set the number of vertices option to true
 parameters.setOptNumVertices(true);
@@ -1060,9 +1060,9 @@ parameters.setOptNumVertices(true);
 // set the degree option to true
 parameters.setOptDegrees(true);
 
-// run the vertex-centric iteration, also passing the configuration parameters
+// run the scatter-gather iteration, also passing the configuration parameters
 Graph<Long, Double, Double> result =
-			graph.runVertexCentricIteration(
+			graph.runScatterGatherIteration(
 			new VertexUpdater(), new Messenger(), maxIterations, parameters);
 
 // user-defined functions
@@ -1089,7 +1089,7 @@ public static final class Messenger {
 val graph: Graph[Long, Double, Double] = ...
 
 // configure the iteration
-val parameters = new VertexCentricConfiguration
+val parameters = new ScatterGatherConfiguration
 
 // set the number of vertices option to true
 parameters.setOptNumVertices(true)
@@ -1097,8 +1097,8 @@ parameters.setOptNumVertices(true)
 // set the degree option to true
 parameters.setOptDegrees(true)
 
-// run the vertex-centric iteration, also passing the configuration parameters
-val result = graph.runVertexCentricIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
+// run the scatter-gather iteration, also passing the configuration parameters
+val result = graph.runScatterGatherIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
 
 // user-defined functions
 final class VertexUpdater {
@@ -1127,14 +1127,14 @@ The following example illustrates the usage of the edge direction option. Vertic
 Graph<Long, HashSet<Long>, Double> graph = ...
 
 // configure the iteration
-VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 // set the messaging direction
 parameters.setDirection(EdgeDirection.IN);
 
-// run the vertex-centric iteration, also passing the configuration parameters
+// run the scatter-gather iteration, also passing the configuration parameters
 DataSet<Vertex<Long, HashSet<Long>>> result =
-			graph.runVertexCentricIteration(
+			graph.runScatterGatherIteration(
 			new VertexUpdater(), new Messenger(), maxIterations, parameters)
 			.getVertices();
 
@@ -1151,13 +1151,13 @@ public static final class Messenger {...}
 val graph: Graph[Long, HashSet[Long], Double] = ...
 
 // configure the iteration
-val parameters = new VertexCentricConfiguration
+val parameters = new ScatterGatherConfiguration
 
 // set the messaging direction
 parameters.setDirection(EdgeDirection.IN)
 
-// run the vertex-centric iteration, also passing the configuration parameters
-val result = graph.runVertexCentricIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
+// run the scatter-gather iteration, also passing the configuration parameters
+val result = graph.runScatterGatherIteration(new VertexUpdater, new Messenger, maxIterations, parameters)
 			.getVertices
 
 // user-defined functions
@@ -1172,7 +1172,7 @@ final class Messenger {...}
 {% top %}
 
 ### Gather-Sum-Apply Iterations
-Like in the vertex-centric model, Gather-Sum-Apply also proceeds in synchronized iterative steps, called supersteps. Each superstep consists of the following three phases:
+Like in the scatter-gather model, Gather-Sum-Apply also proceeds in synchronized iterative steps, called supersteps. Each superstep consists of the following three phases:
 
 * <strong>Gather</strong>: a user-defined function is invoked in parallel on the edges and neighbors of each vertex, producing a partial value.
 * <strong>Sum</strong>: the partial values produced in the Gather phase are aggregated to a single value, using a user-defined reducer.
@@ -1442,16 +1442,16 @@ val result = graph.runGatherSumApplyIteration(new Gather, new Sum, new Apply, ma
 </div>
 {% top %}
 
-### Vertex-centric and GSA Comparison
-As seen in the examples above, Gather-Sum-Apply iterations are quite similar to vertex-centric iterations. In fact, any algorithm which can be expressed as a GSA iteration can also be written in the vertex-centric model.
-The messaging phase of the vertex-centric model is equivalent to the Gather and Sum steps of GSA: Gather can be seen as the phase where the messages are produced and Sum as the phase where they are routed to the target vertex. Similarly, the value update phase corresponds to the Apply step.
+### Scatter-Gather and GSA Comparison
+As seen in the examples above, Gather-Sum-Apply iterations are quite similar to scatter-gather iterations. In fact, any algorithm which can be expressed as a GSA iteration can also be written in the scatter-gather model.
+The messaging phase of the scatter-gather model is equivalent to the Gather and Sum steps of GSA: Gather can be seen as the phase where the messages are produced and Sum as the phase where they are routed to the target vertex. Similarly, the value update phase corresponds to the Apply step.
 
-The main difference between the two implementations is that the Gather phase of GSA parallelizes the computation over the edges, while the messaging phase distributes the computation over the vertices. Using the SSSP examples above, we see that in the first superstep of the vertex-centric case, vertices 1, 2 and 3 produce messages in parallel. Vertex 1 produces 3 messages, while vertices 2 and 3 produce one message each. In the GSA case on the other hand, the computation is parallelized over the edges: the three candidate distance values of vertex 1 are produced in parallel. Thus, if the Gather step contains "heavy" computation, it might be a better idea to use GSA and spread out the computation, instead of burdening a single vertex. Another case when parallelizing over the edges might prove to be more efficient is when the input graph is skewed (some vertices have a lot more neighbors than others).
+The main difference between the two implementations is that the Gather phase of GSA parallelizes the computation over the edges, while the messaging phase distributes the computation over the vertices. Using the SSSP examples above, we see that in the first superstep of the scatter-gather case, vertices 1, 2 and 3 produce messages in parallel. Vertex 1 produces 3 messages, while vertices 2 and 3 produce one message each. In the GSA case on the other hand, the computation is parallelized over the edges: the three candidate distance values of vertex 1 are produced in parallel. Thus, if the Gather step contains "heavy" computation, it might be a better idea to use GSA and spread out the computation, instead of burdening a single vertex. Another case when parallelizing over the edges might prove to be more efficient is when the input graph is skewed (some vertices have a lot more neighbors than others).
 
-Another difference between the two implementations is that the vertex-centric implementation uses a `coGroup` operator internally, while GSA uses a `reduce`. Therefore, if the function that combines neighbor values (messages) requires the whole group of values for the computation, vertex-centric should be used. If the update function is associative and commutative, then the GSA's reducer is expected to give a more efficient implementation, as it can make use of a combiner.
+Another difference between the two implementations is that the scatter-gather implementation uses a `coGroup` operator internally, while GSA uses a `reduce`. Therefore, if the function that combines neighbor values (messages) requires the whole group of values for the computation, scatter-gather should be used. If the update function is associative and commutative, then the GSA's reducer is expected to give a more efficient implementation, as it can make use of a combiner.
 
-Another thing to note is that GSA works strictly on neighborhoods, while in the vertex-centric model, a vertex can send a message to any vertex, given that it knows its vertex ID, regardless of whether it is a neighbor.
-Finally, in Gelly's vertex-centric implementation, one can choose the messaging direction, i.e. the direction in which updates propagate. GSA does not support this yet, so each vertex will be updated based on the values of its in-neighbors only.
+Another thing to note is that GSA works strictly on neighborhoods, while in the scatter-gather model, a vertex can send a message to any vertex, given that it knows its vertex ID, regardless of whether it is a neighbor.
+Finally, in Gelly's scatter-gather implementation, one can choose the messaging direction, i.e. the direction in which updates propagate. GSA does not support this yet, so each vertex will be updated based on the values of its in-neighbors only.
 
 Graph Validation
 -----------
@@ -1556,7 +1556,7 @@ In graph theory, communities refer to groups of nodes that are well connected in
 This library method is an implementation of the community detection algorithm described in the paper [Towards real-time community detection in large networks](http://arxiv.org/pdf/0808.2633.pdf%22%3Earticle%20explaining%20the%20algorithm%20in%20detail).
 
 #### Details
-The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
 Initially, each vertex is assigned a `Tuple2` containing its initial value along with a score equal to 1.0.
 In each iteration, vertices send their labels and scores to their neighbors. Upon receiving messages from its neighbors,
 a vertex chooses the label with the highest score and subsequently re-scores it using the edge values,
@@ -1578,7 +1578,7 @@ The constructor takes two parameters:
 This is an implementation of the well-known Label Propagation algorithm described in [this paper](http://journals.aps.org/pre/abstract/10.1103/PhysRevE.76.036106). The algorithm discovers communities in a graph, by iteratively propagating labels between neighbors. Unlike the [Community Detection library method](#community-detection), this implementation does not use scores associated with the labels.
 
 #### Details
-The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
 Labels are expected to be of type `Comparable` and are initialized using the vertex values of the input `Graph`.
 The algorithm iteratively refines discovered communities by propagating labels. In each iteration, a vertex adopts
 the label that is most frequent among its neighbors' labels. In case of a tie (i.e. two or more labels appear with the 
@@ -1599,7 +1599,7 @@ This is an implementation of the Weakly Connected Components algorithm. Upon con
 without taking edge direction into account.
 
 #### Details
-The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
 This implementation assumes that the vertex values of the input Graph are initialized with Long component IDs.
 The vertices propagate their current component ID in iterations. Upon receiving component IDs from its neighbors, a vertex adopts a new component ID if its value
 is lower than its current component ID. The algorithm converges when vertices no longer update their component ID value or when the maximum number of iterations has been reached.
@@ -1619,7 +1619,7 @@ See the [Connected Components](#connected-components) library method for impleme
 ### PageRank
 
 #### Overview
-An implementation of a simple [PageRank algorithm](https://en.wikipedia.org/wiki/PageRank), using [vertex-centric iterations](#vertex-centric-iterations).
+An implementation of a simple [PageRank algorithm](https://en.wikipedia.org/wiki/PageRank), using [scatter-gather iterations](#scatter-gather-iterations).
 PageRank is an algorithm that was first used to rank web search engine results. Today, the algorithm and many variations, are used in various graph application domains. The idea of PageRank is that important or relevant pages tend to link to other important pages.
 
 #### Details
@@ -1646,7 +1646,7 @@ See the [PageRank](#pagerank) library method for implementation details and usag
 An implementation of the Single-Source-Shortest-Paths algorithm for weighted graphs. Given a source vertex, the algorithm computes the shortest paths from this source to all other nodes in the graph.
 
 #### Details
-The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
+The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).
 In each iteration, a vertex sends to its neighbors a message containing the sum its current distance and the edge weight connecting this vertex with the neighbor. Upon receiving candidate distance messages, a vertex calculates the minimum distance and, if a shorter path has been discovered, it updates its value. If a vertex does not change its value during a superstep, then it does not produce messages for its neighbors for the next superstep. The computation terminates after the specified maximum number of supersteps or when there are no value updates.
 
 #### Usage

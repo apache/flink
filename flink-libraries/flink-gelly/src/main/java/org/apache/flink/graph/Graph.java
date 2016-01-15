@@ -52,8 +52,8 @@ import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricConfiguration;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
+import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
+import org.apache.flink.graph.spargel.ScatterGatherIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
 import org.apache.flink.graph.utils.Tuple2ToVertexMap;
@@ -1585,42 +1585,42 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Runs a Vertex-Centric iteration on the graph.
+	 * Runs a ScatterGather iteration on the graph.
 	 * No configuration options are provided.
 	 *
 	 * @param vertexUpdateFunction the vertex update function
 	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * 
-	 * @return the updated Graph after the vertex-centric iteration has converged or
+	 * @return the updated Graph after the scatter-gather iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
-	public <M> Graph<K, VV, EV> runVertexCentricIteration(
+	public <M> Graph<K, VV, EV> runScatterGatherIteration(
 			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
 			MessagingFunction<K, VV, M, EV> messagingFunction,
 			int maximumNumberOfIterations) {
 
-		return this.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
+		return this.runScatterGatherIteration(vertexUpdateFunction, messagingFunction,
 				maximumNumberOfIterations, null);
 	}
 
 	/**
-	 * Runs a Vertex-Centric iteration on the graph with configuration options.
+	 * Runs a ScatterGather iteration on the graph with configuration options.
 	 * 
 	 * @param vertexUpdateFunction the vertex update function
 	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * @param parameters the iteration configuration parameters
 	 * 
-	 * @return the updated Graph after the vertex-centric iteration has converged or
+	 * @return the updated Graph after the scatter-gather iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
-	public <M> Graph<K, VV, EV> runVertexCentricIteration(
+	public <M> Graph<K, VV, EV> runScatterGatherIteration(
 			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
 			MessagingFunction<K, VV, M, EV> messagingFunction,
-			int maximumNumberOfIterations, VertexCentricConfiguration parameters) {
+			int maximumNumberOfIterations, ScatterGatherConfiguration parameters) {
 
-		VertexCentricIteration<K, VV, M, EV> iteration = VertexCentricIteration.withEdges(
+		ScatterGatherIteration<K, VV, M, EV> iteration = ScatterGatherIteration.withEdges(
 				edges, vertexUpdateFunction, messagingFunction, maximumNumberOfIterations);
 
 		iteration.configure(parameters);

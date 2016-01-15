@@ -29,14 +29,14 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.IncrementalSSSPData;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricConfiguration;
+import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 /**
  * This example illustrates how to 
  * <ul>
  *  <li> create a Graph directly from CSV files
- *  <li> use the vertex-centric iteration's messaging direction configuration option
+ *  <li> use the scatter-gather iteration's messaging direction configuration option
  * </ul>
  * 
  * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
@@ -89,15 +89,15 @@ public class IncrementalSSSP implements ProgramDescription {
 		graph.removeEdge(edgeToBeRemoved);
 
 		// configure the iteration
-		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+		ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 		if(isInSSSP(edgeToBeRemoved, ssspGraph.getEdges())) {
 
 			parameters.setDirection(EdgeDirection.IN);
 			parameters.setOptDegrees(true);
 
-			// run the vertex centric iteration to propagate info
-			Graph<Long, Double, Double> result = ssspGraph.runVertexCentricIteration(new VertexDistanceUpdater(),
+			// run the scatter-gather iteration to propagate info
+			Graph<Long, Double, Double> result = ssspGraph.runScatterGatherIteration(new VertexDistanceUpdater(),
 					new InvalidateMessenger(edgeToBeRemoved), maxIterations, parameters);
 
 			DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();
