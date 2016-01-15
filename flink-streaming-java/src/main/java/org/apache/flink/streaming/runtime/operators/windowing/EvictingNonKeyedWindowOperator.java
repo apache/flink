@@ -76,13 +76,6 @@ public class EvictingNonKeyedWindowOperator<IN, OUT, W extends Window> extends N
 				timestampedCollector);
 	}
 
-	@Override
-	public EvictingNonKeyedWindowOperator<IN, OUT, W> enableSetProcessingTime(boolean setProcessingTime) {
-		super.enableSetProcessingTime(setProcessingTime);
-		return this;
-	}
-
-
 	// ------------------------------------------------------------------------
 	// Getters for testing
 	// ------------------------------------------------------------------------

@@ -95,13 +95,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	private final WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory;
 
 	/**
-	 * If this is true. The current processing time is set as the timestamp of incoming elements.
-	 * This for use with a {@link org.apache.flink.streaming.api.windowing.evictors.TimeEvictor}
-	 * if eviction should happen based on processing time.
-	 */
-	private boolean setProcessingTime = false;
-
-	/**
 	 * This is used to copy the incoming element because it can be put into several window
 	 * buffers.
 	 */
@@ -238,10 +231,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	@Override
 	@SuppressWarnings("unchecked")
 	public final void processElement(StreamRecord<IN> element) throws Exception {
-		if (setProcessingTime) {
-			element.replace(element.getValue(), System.currentTimeMillis());
-		}
-
 		Collection<W> elementWindows = windowAssigner.assignWindows(element.getValue(), element.getTimestamp());
 
 		for (W window: elementWindows) {
@@ -585,17 +574,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		}
 	}
 
-	/**
-	 * When this flag is enabled the current processing time is set as the timestamp of elements
-	 * upon arrival. This must be used, for example, when using the
-	 * {@link org.apache.flink.streaming.api.windowing.evictors.TimeEvictor} with processing
-	 * time semantics.
-	 */
-	public NonKeyedWindowOperator<IN, OUT, W> enableSetProcessingTime(boolean setProcessingTime) {
-		this.setProcessingTime = setProcessingTime;
-		return this;
-	}
-
 	// ------------------------------------------------------------------------
 	//  Checkpointing
 	// ------------------------------------------------------------------------
@@ -641,11 +619,6 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	// ------------------------------------------------------------------------
 	// Getters for testing
 	// ------------------------------------------------------------------------
-
-	@VisibleForTesting
-	public boolean isSetProcessingTime() {
-		return setProcessingTime;
-	}
 
 	@VisibleForTesting
 	public Trigger<? super IN, ? super W> getTrigger() {

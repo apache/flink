@@ -17,13 +17,12 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import java.util.ArrayList;
@@ -31,33 +30,33 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * A {@link WindowAssigner} that windows elements into sliding windows based on the timestamp of the
- * elements. Windows can possibly overlap.
+ * A {@link WindowAssigner} that windows elements into sliding windows based on the current
+ * system time of the machine the operation is running on. Windows can possibly overlap.
  *
  * <p>
  * For example, in order to window into windows of 1 minute, every 10 seconds:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
- * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);
- * WindowedStream<Tuple2<String, Integer>, String, TimeWindow> windowed =
- *   keyed.window(SlidingTimeWindows.of(Time.minutes(1), Time.seconds(10)));
+ * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
+ * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
+ *   keyed.window(SlidingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS));
  * } </pre>
  */
-@PublicEvolving
-public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
+public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private final long size;
 
 	private final long slide;
 
-	private SlidingTimeWindows(long size, long slide) {
+	private SlidingProcessingTimeWindows(long size, long slide) {
 		this.size = size;
 		this.slide = slide;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp) {
+		timestamp = System.currentTimeMillis();
 		List<TimeWindow> windows = new ArrayList<>((int) (size / slide));
 		long lastStart = timestamp - timestamp % slide;
 		for (long start = lastStart;
@@ -78,12 +77,12 @@ public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 
 	@Override
 	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return EventTimeTrigger.create();
+		return ProcessingTimeTrigger.create();
 	}
 
 	@Override
 	public String toString() {
-		return "SlidingTimeWindows(" + size + ", " + slide + ")";
+		return "SlidingProcessingTimeWindows(" + size + ", " + slide + ")";
 	}
 
 	/**
@@ -94,8 +93,8 @@ public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	 * @param slide The slide interval of the generated windows.
 	 * @return The time policy.
 	 */
-	public static SlidingTimeWindows of(Time size, Time slide) {
-		return new SlidingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
+	public static SlidingProcessingTimeWindows of(Time size, Time slide) {
+		return new SlidingProcessingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
 	}
 
 	@Override
