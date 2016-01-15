@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
-import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
+import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.operators.join.JoinType
@@ -521,7 +521,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   @throws(classOf[Exception])
   def count(): Long = {
     val id = new AbstractID().toString
-    javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[java.lang.Long])
+    javaSet.output(new CountHelper[T](id))
     val res = getExecutionEnvironment.execute()
     res.getAccumulatorResult[Long](id)
   }
@@ -539,8 +539,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val id = new AbstractID().toString
     val serializer = getType().createSerializer(getExecutionEnvironment.getConfig)
     
-    javaSet.flatMap(new Utils.CollectHelper[T](id, serializer))
-           .output(new DiscardingOutputFormat[T])
+    javaSet.output(new Utils.CollectHelper[T](id, serializer))
     
     val res = getExecutionEnvironment.execute()
 

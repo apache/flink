@@ -183,7 +183,7 @@ public class JsonJobGraphGenerationTest {
 			// without arguments
 			try {
 				final int parallelism = 1; // some ops have DOP 1 forced
-				JsonValidator validator = new GenericValidator(parallelism, 10);
+				JsonValidator validator = new GenericValidator(parallelism, 9);
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
 
 				ConnectedComponents.main();
