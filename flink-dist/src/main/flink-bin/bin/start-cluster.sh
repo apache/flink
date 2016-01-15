@@ -49,9 +49,14 @@ else
 fi
 shopt -u nocasematch
 
-# Start TaskManager instance(s)
+# Start TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
 readSlaves
 
-for slave in ${SLAVES[@]}; do
-    ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start &"
-done
+command -v pdsh >/dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+    for slave in ${SLAVES[@]}; do
+        ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start &"
+    done
+else
+    pdsh -w $(IFS=, ; echo "${SLAVES[*]}") "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" start"
+fi
