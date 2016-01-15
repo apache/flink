@@ -21,12 +21,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.Table
-import org.apache.flink.streaming.api.datastream.DataStream
 
 /**
  * Environment for working with the Table API.
  *
- * This can be used to convert [[DataSet]] or [[DataStream]] to a [[Table]] and back again. You
+ * This can be used to convert a [[DataSet]] to a [[Table]] and back again. You
  * can also use the provided methods to create a [[Table]] directly from a data source.
  */
 class TableEnvironment {
@@ -58,32 +57,6 @@ class TableEnvironment {
   }
 
   /**
-   * Transforms the given DataStream to a [[org.apache.flink.api.table.Table]].
-   * The fields of the DataStream type are renamed to the given set of fields:
-   *
-   * Example:
-   *
-   * {{{
-   *   tableEnv.fromDataStream(set, "a, b")
-   * }}}
-   *
-   * This will transform the set containing elements of two fields to a table where the fields
-   * are named a and b.
-   */
-  def fromDataStream[T](set: DataStream[T], fields: String): Table = {
-    new JavaStreamingTranslator().createTable(set, fields)
-  }
-
-  /**
-   * Transforms the given DataStream to a [[org.apache.flink.api.table.Table]].
-   * The fields of the DataStream type are used to name the
-   * [[org.apache.flink.api.table.Table]] fields.
-   */
-  def fromDataStream[T](set: DataStream[T]): Table = {
-    new JavaStreamingTranslator().createTable(set)
-  }
-
-  /**
    * Converts the given [[org.apache.flink.api.table.Table]] to
    * a DataSet. The given type must have exactly the same fields as the
    * [[org.apache.flink.api.table.Table]]. That is, the names of the
@@ -91,21 +64,9 @@ class TableEnvironment {
    */
   @SuppressWarnings(Array("unchecked"))
   def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
-    new JavaBatchTranslator().translate[T](table.operation)(
+    new JavaBatchTranslator().translate[T](table.relNode)(
       TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
   }
 
-  /**
-   * Converts the given [[org.apache.flink.api.table.Table]] to
-   * a DataStream. The given type must have exactly the same fields as the
-   * [[org.apache.flink.api.table.Table]]. That is, the names of the
-   * fields and the types must match.
-   */
-  @SuppressWarnings(Array("unchecked"))
-  def toDataStream[T](table: Table, clazz: Class[T]): DataStream[T] = {
-    new JavaStreamingTranslator().translate[T](table.operation)(
-      TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
-
-  }
 }
 

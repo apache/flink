@@ -19,7 +19,6 @@ package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table.{Row, Table}
-import org.apache.flink.streaming.api.scala.DataStream
 
 import scala.language.implicitConversions
 
@@ -32,7 +31,7 @@ import scala.language.implicitConversions
  *   import org.apache.flink.api.scala.table._
  * }}}
  *
- * imports implicit conversions for converting a [[DataSet]] or [[DataStream]] to a
+ * imports implicit conversions for converting a [[DataSet]] to a
  * [[Table]]. This can be used to perform SQL-like queries on data. Please have
  * a look at [[Table]] to see which operations are supported and
  * [[org.apache.flink.api.scala.table.ImplicitExpressionOperations]] to see how an
@@ -78,7 +77,7 @@ package object table extends ImplicitExpressionConversions {
 
   implicit def table2RowDataSet(
       table: Table): DataSet[Row] = {
-    new ScalaBatchTranslator().translate[Row](table.operation)
+    new ScalaBatchTranslator().translate[Row](table.relNode)
   }
 
   implicit def rowDataSet2Table(
@@ -86,20 +85,4 @@ package object table extends ImplicitExpressionConversions {
     rowDataSet.toTable
   }
 
-  implicit def dataStream2DataSetConversions[T](
-      stream: DataStream[T]): DataStreamConversions[T] = {
-    new DataStreamConversions[T](
-      stream,
-      stream.javaStream.getType.asInstanceOf[CompositeType[T]])
-  }
-
-  implicit def table2RowDataStream(
-      table: Table): DataStream[Row] = {
-    new ScalaStreamingTranslator().translate[Row](table.operation)
-  }
-
-  implicit def rowDataStream2Table(
-      rowDataStream: DataStream[Row]): Table = {
-    rowDataStream.toTable
-  }
 }
