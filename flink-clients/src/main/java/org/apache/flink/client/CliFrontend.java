@@ -19,13 +19,14 @@
 package org.apache.flink.client;
 
 import akka.actor.ActorSystem;
+
 import org.apache.commons.cli.CommandLine;
+
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
@@ -65,8 +66,10 @@ import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -87,6 +90,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -95,7 +99,6 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
 import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.getRequestRunningJobsStatus;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -133,6 +136,7 @@ public class CliFrontend {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CliFrontend.class);
 
+
 	private final Configuration config;
 
 	private final FiniteDuration askTimeout;
@@ -142,12 +146,6 @@ public class CliFrontend {
 	private ActorSystem actorSystem;
 
 	private AbstractFlinkYarnCluster yarnCluster;
-
-	static boolean webFrontend = false;
-
-	private FlinkPlan optimizedPlan;
-
-	private PackagedProgram packagedProgram;
 
 	/**
 	 *
@@ -222,9 +220,9 @@ public class CliFrontend {
 
 			// handle the YARN client's dynamic properties
 			String dynamicPropertiesEncoded = yarnProperties.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
-			List<Tuple2<String, String>> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
-			for (Tuple2<String, String> dynamicProperty : dynamicProperties) {
-				this.config.setString(dynamicProperty.f0, dynamicProperty.f1);
+			Map<String, String> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
+			for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
+				this.config.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
 			}
 		}
 
@@ -408,42 +406,34 @@ public class CliFrontend {
 			LOG.info("Creating program plan dump");
 
 			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-
 			FlinkPlan flinkPlan = Client.getOptimizedPlan(compiler, program, parallelism);
+			
+			String jsonPlan = null;
+			if (flinkPlan instanceof OptimizedPlan) {
+				jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
+			} else if (flinkPlan instanceof StreamingPlan) {
+				jsonPlan = ((StreamingPlan) flinkPlan).getStreamingPlanAsJSON();
+			}
 
-			if (webFrontend) {
-				this.optimizedPlan = flinkPlan;
-				this.packagedProgram = program;
-			} else {
-				String jsonPlan = null;
-				if (flinkPlan instanceof OptimizedPlan) {
-					jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON((OptimizedPlan) flinkPlan);
-				} else if (flinkPlan instanceof StreamingPlan) {
-					jsonPlan = ((StreamingPlan) flinkPlan).getStreamingPlanAsJSON();
-				}
+			if (jsonPlan != null) {
+				System.out.println("----------------------- Execution Plan -----------------------");
+				System.out.println(jsonPlan);
+				System.out.println("--------------------------------------------------------------");
+			}
+			else {
+				System.out.println("JSON plan could not be generated.");
+			}
 
-				if (jsonPlan != null) {
-					System.out.println("----------------------- Execution Plan -----------------------");
-					System.out.println(jsonPlan);
-					System.out.println("--------------------------------------------------------------");
-				}
-				else {
-					System.out.println("JSON plan could not be generated.");
-				}
-
-				String description = program.getDescription();
-				if (description != null) {
-					System.out.println();
-					System.out.println(description);
-				}
-				else {
-					System.out.println();
-					System.out.println("No description provided.");
-				}
+			String description = program.getDescription();
+			if (description != null) {
+				System.out.println();
+				System.out.println(description);
+			}
+			else {
+				System.out.println();
+				System.out.println("No description provided.");
 			}
 			return 0;
-
-
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -492,7 +482,7 @@ public class CliFrontend {
 
 			LOG.info("Connecting to JobManager to retrieve list of jobs");
 			Future<Object> response = jobManagerGateway.ask(
-					getRequestRunningJobsStatus(),
+					JobManagerMessages.getRequestRunningJobsStatus(),
 					askTimeout);
 
 			Object result;
@@ -792,10 +782,8 @@ public class CliFrontend {
 			yarnCluster.stopAfterJob(result.getJobID());
 			yarnCluster.disconnect();
 		}
-
-		if (!webFrontend) {
-			System.out.println("Job has been submitted with JobID " + result.getJobID());
-		}
+		
+		System.out.println("Job has been submitted with JobID " + result.getJobID());
 
 		return 0;
 	}
@@ -816,7 +804,7 @@ public class CliFrontend {
 
 		LOG.info("Program execution finished");
 
-		if (result instanceof JobExecutionResult && !webFrontend) {
+		if (result instanceof JobExecutionResult) {
 			JobExecutionResult execResult = (JobExecutionResult) result;
 			System.out.println("Job with JobID " + execResult.getJobID() + " has finished.");
 			System.out.println("Job Runtime: " + execResult.getNetRuntime() + " ms");
@@ -933,7 +921,6 @@ public class CliFrontend {
 	 * @param options Command line options which contain JobManager address
 	 * @param programName Program name
 	 * @param userParallelism Given user parallelism
-	 * @return
 	 * @throws Exception
 	 */
 	protected Client getClient(
@@ -1035,9 +1022,6 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private int handleArgException(Exception e) {
-		if (webFrontend) {
-			throw new RuntimeException(e);
-		}
 		LOG.error("Invalid command line arguments." + (e.getMessage() == null ? "" : e.getMessage()));
 
 		System.out.println(e.getMessage());
@@ -1053,9 +1037,6 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private int handleError(Throwable t) {
-		if (webFrontend) {
-			throw new RuntimeException(t);
-		}
 		LOG.error("Error while running the command.", t);
 
 		System.err.println();
@@ -1080,9 +1061,7 @@ public class CliFrontend {
 
 	private void logAndSysout(String message) {
 		LOG.info(message);
-		if (!webFrontend) {
-			System.out.println(message);
-		}
+		System.out.println(message);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1117,9 +1096,6 @@ public class CliFrontend {
 				if (SecurityUtils.isSecurityEnabled()) {
 					String message = "Secure Hadoop environment setup detected. Running in secure context.";
 					LOG.info(message);
-					if (!webFrontend) {
-						System.out.println(message);
-					}
 
 					try {
 						return SecurityUtils.runSecured(new SecurityUtils.FlinkSecuredRunner<Integer>() {
@@ -1163,14 +1139,6 @@ public class CliFrontend {
 				System.out.println("Specify the help option (-h or --help) to get help on the command.");
 				return 1;
 		}
-	}
-
-	public FlinkPlan getFlinkPlan() {
-		return this.optimizedPlan;
-	}
-
-	public PackagedProgram getPackagedProgram() {
-		return this.packagedProgram;
 	}
 
 	public void shutdown() {
@@ -1251,20 +1219,25 @@ public class CliFrontend {
 		return location;
 	}
 
-	public static List<Tuple2<String, String>> getDynamicProperties(String dynamicPropertiesEncoded) {
-		List<Tuple2<String, String>> ret = new ArrayList<Tuple2<String, String>>();
-		if(dynamicPropertiesEncoded != null && dynamicPropertiesEncoded.length() > 0) {
+	public static Map<String, String> getDynamicProperties(String dynamicPropertiesEncoded) {
+		if (dynamicPropertiesEncoded != null && dynamicPropertiesEncoded.length() > 0) {
+			Map<String, String> properties = new HashMap<>();
+			
 			String[] propertyLines = dynamicPropertiesEncoded.split(CliFrontend.YARN_DYNAMIC_PROPERTIES_SEPARATOR);
-			for(String propLine : propertyLines) {
-				if(propLine == null) {
+			for (String propLine : propertyLines) {
+				if (propLine == null) {
 					continue;
 				}
+				
 				String[] kv = propLine.split("=");
 				if (kv.length >= 2 && kv[0] != null && kv[1] != null && kv[0].length() > 0) {
-					ret.add(new Tuple2<String, String>(kv[0], kv[1]));
+					properties.put(kv[0], kv[1]);
 				}
 			}
+			return properties;
 		}
-		return ret;
+		else {
+			return Collections.emptyMap();
+		}
 	}
 }

@@ -244,8 +244,8 @@ abstract class ApplicationMasterBase {
 
     import scala.collection.JavaConverters._
 
-    for(property <- dynamicProperties.asScala){
-      output.println(s"${property.f0}: ${property.f1}")
+    for (property <- dynamicProperties.asScala){
+      output.println(s"${property._1}: ${property._2}")
     }
 
     output.close()
@@ -262,8 +262,8 @@ abstract class ApplicationMasterBase {
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
     import scala.collection.JavaConverters._
-    for(property <- dynamicProperties.asScala){
-      configuration.setString(property.f0, property.f1)
+    for (property <- dynamicProperties.asScala){
+      configuration.setString(property._1, property._2)
     }
 
     configuration

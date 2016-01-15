@@ -22,11 +22,12 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.test.util.TestBaseUtils;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +36,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class FlinkYarnSessionCliTest {
@@ -69,10 +69,8 @@ public class FlinkYarnSessionCliTest {
 
 		Assert.assertNotNull(flinkYarnClient);
 
-		List<Tuple2<String, String>> dynProperties = CliFrontend.getDynamicProperties(flinkYarnClient.getDynamicPropertiesEncoded());
+		Map<String, String> dynProperties = CliFrontend.getDynamicProperties(flinkYarnClient.getDynamicPropertiesEncoded());
 		Assert.assertEquals(1, dynProperties.size());
-		Assert.assertEquals("akka.ask.timeout", dynProperties.get(0).f0);
-		Assert.assertEquals("5 min", dynProperties.get(0).f1);
+		Assert.assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
 	}
-
 }

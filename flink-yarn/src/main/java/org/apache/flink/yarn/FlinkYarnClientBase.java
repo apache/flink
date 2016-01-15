@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
@@ -26,6 +25,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -50,6 +50,7 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -358,9 +359,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 		// ------------------ Add dynamic properties to local flinkConfiguraton ------
 
-		List<Tuple2<String, String>> dynProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncoded);
-		for (Tuple2<String, String> dynProperty : dynProperties) {
-			flinkConfiguration.setString(dynProperty.f0, dynProperty.f1);
+		Map<String, String> dynProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncoded);
+		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
+			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
 
 		// ------------------ Check if the specified queue exists --------------
