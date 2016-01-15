@@ -73,10 +73,9 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		this.windowStateDescriptor = windowStateDescriptor;
 	}
 
-
 	@Override
 	@SuppressWarnings("unchecked")
-	public final void processElement(StreamRecord<IN> element) throws Exception {
+	public void processElement(StreamRecord<IN> element) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(element.getValue(), element.getTimestamp());
 
 		K key = (K) getStateBackend().getCurrentKey();
@@ -144,13 +143,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 			windowState.clear();
 		}
 	}
-
-	@Override
-	public EvictingWindowOperator<K, IN, OUT, W> enableSetProcessingTime(boolean setProcessingTime) {
-		super.enableSetProcessingTime(setProcessingTime);
-		return this;
-	}
-
 
 	// ------------------------------------------------------------------------
 	// Getters for testing
