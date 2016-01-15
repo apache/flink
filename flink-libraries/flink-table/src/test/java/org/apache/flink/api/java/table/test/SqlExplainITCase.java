@@ -22,6 +22,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.table.Table;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -46,6 +47,7 @@ public class SqlExplainITCase {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testGroupByWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -67,6 +69,7 @@ public class SqlExplainITCase {
 		assertEquals(result, source);
 	}
 
+	@Ignore
 	@Test
 	public void testGroupByWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -88,6 +91,7 @@ public class SqlExplainITCase {
 		assertEquals(result, source);
 	}
 
+	@Ignore
 	@Test
 	public void testJoinWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -118,6 +122,7 @@ public class SqlExplainITCase {
 		assertEquals(result, source);
 	}
 
+	@Ignore
 	@Test
 	public void testJoinWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -148,6 +153,7 @@ public class SqlExplainITCase {
 		assertEquals(result, source);
 	}
 
+	@Ignore
 	@Test
 	public void testUnionWithoutExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
@@ -176,6 +182,7 @@ public class SqlExplainITCase {
 		assertEquals(result, source);
 	}
 
+	@Ignore
 	@Test
 	public void testUnionWithExtended() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();

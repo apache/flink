@@ -18,23 +18,14 @@
 
 package org.apache.flink.api.java.table
 
-import java.lang.reflect.Modifier
-
-import org.apache.flink.api.common.operators.Keys
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.tools.{RelBuilder, Frameworks}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.aggregation.AggregationFunction
-import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
-import Keys.ExpressionKeys
-import org.apache.flink.api.java.operators.{GroupReduceOperator, MapOperator, UnsortedGrouping}
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
-import org.apache.flink.api.table.expressions.analysis.ExtractEquiJoinFields
 import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.runtime._
-import org.apache.flink.api.table.expressions._
-import org.apache.flink.api.table.typeinfo.{RenameOperator, RenamingProxyTypeInfo, RowTypeInfo}
-import org.apache.flink.api.table.{ExpressionException, Row, Table}
+import org.apache.flink.api.table.plan.operators.DataSetTable
+import org.apache.flink.api.table.Table
 
 /**
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
@@ -46,302 +37,41 @@ class JavaBatchTranslator extends PlanTranslator {
 
   override def createTable[A](
       repr: Representation[A],
-      inputType: CompositeType[A],
-      expressions: Array[Expression],
-      resultFields: Seq[(String, TypeInformation[_])]): Table = {
+      fieldNames: Array[String]): Table = {
 
-    val rowDataSet = createSelect(expressions, repr, inputType)
+    // create table representation from DataSet
+    val dataSetTable = new DataSetTable[A](
+    repr.asInstanceOf[JavaDataSet[A]],
+    fieldNames
+    )
 
-    Table(Root(rowDataSet, resultFields))
+    // register table in Cascading schema
+    val schema = Frameworks.createRootSchema(true)
+    val tableName = repr.hashCode().toString
+    schema.add(tableName, dataSetTable)
+
+    // initialize RelBuilder
+    val frameworkConfig = Frameworks
+      .newConfigBuilder
+      .defaultSchema(schema)
+      .build
+    val relBuilder = RelBuilder.create(frameworkConfig)
+
+    // create table scan operator
+    relBuilder.scan(tableName)
+    new Table(relBuilder.build(), relBuilder)
   }
 
-  override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
+  override def translate[A](lPlan: RelNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
 
-    if (tpe.getTypeClass == classOf[Row]) {
-      // shortcut for DataSet[Row]
-      return translateInternal(op).asInstanceOf[JavaDataSet[A]]
-    }
+    println(RelOptUtil.toString(lPlan))
 
-    val clazz = tpe.getTypeClass
-    if (clazz.isMemberClass && !Modifier.isStatic(clazz.getModifiers)) {
-      throw new ExpressionException("Cannot create DataSet of type " +
-        clazz.getName + ". Only top-level classes or static member classes are supported.")
-    }
+    // TODO: optimize & translate:
+    // - optimize RelNode plan
+    // - translate to Flink RelNode plan
+    // - generate DataSet program
 
-
-    if (!implicitly[TypeInformation[A]].isInstanceOf[CompositeType[A]]) {
-      throw new ExpressionException(
-        "A Table can only be converted to composite types, type is: " +
-          implicitly[TypeInformation[A]] +
-          ". Composite types would be tuples, case classes and POJOs.")
-    }
-
-    val resultSet = translateInternal(op)
-
-    val resultType = resultSet.getType.asInstanceOf[RowTypeInfo]
-
-    val outputType = implicitly[TypeInformation[A]].asInstanceOf[CompositeType[A]]
-
-    val resultNames = resultType.getFieldNames
-    val outputNames = outputType.getFieldNames.toSeq
-
-    if (resultNames.toSet != outputNames.toSet) {
-      throw new ExpressionException(s"Expression result type $resultType does not have the same " +
-        s"fields as output type $outputType")
-    }
-
-    for (f <- outputNames) {
-      val in = resultType.getTypeAt(resultType.getFieldIndex(f))
-      val out = outputType.getTypeAt(outputType.getFieldIndex(f))
-      if (!in.equals(out)) {
-        throw new ExpressionException(s"Types for field $f differ on input $resultType and " +
-          s"output $outputType.")
-      }
-    }
-
-    val outputFields = outputNames map {
-      f => ResolvedFieldReference(f, resultType.getTypeAt(f))
-    }
-
-    val function = new ExpressionSelectFunction(
-      resultSet.getType.asInstanceOf[RowTypeInfo],
-      outputType,
-      outputFields)
-
-    val opName = s"select(${outputFields.mkString(",")})"
-    val operator = new MapOperator(resultSet, outputType, function, opName)
-
-    operator
+    null
   }
 
-  private def translateInternal(op: PlanNode): JavaDataSet[Row] = {
-    op match {
-      case Root(dataSet: JavaDataSet[Row], resultFields) =>
-        dataSet
-
-      case Root(_, _) =>
-        throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op + ". " +
-          "Did you try converting a Table based on a DataSet to a DataStream or vice-versa?")
-
-      case GroupBy(_, fields) =>
-        throw new ExpressionException("Dangling GroupBy operation. Did you forget a " +
-          "SELECT statement?")
-
-      case As(input, newNames) =>
-        val translatedInput = translateInternal(input)
-        val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-        val proxyType = new RenamingProxyTypeInfo[Row](inType, newNames.toArray)
-        new RenameOperator(translatedInput, proxyType)
-
-      case sel@Select(Filter(Join(leftInput, rightInput), predicate), selection) =>
-
-        val expandedInput = ExpandAggregations(sel)
-
-        if (expandedInput.eq(sel)) {
-          val translatedLeftInput = translateInternal(leftInput)
-          val translatedRightInput = translateInternal(rightInput)
-          val leftInType = translatedLeftInput.getType.asInstanceOf[CompositeType[Row]]
-          val rightInType = translatedRightInput.getType.asInstanceOf[CompositeType[Row]]
-
-          createJoin(
-            predicate,
-            selection,
-            translatedLeftInput,
-            translatedRightInput,
-            leftInType,
-            rightInType,
-            JoinHint.OPTIMIZER_CHOOSES)
-        } else {
-          translateInternal(expandedInput)
-        }
-
-      case Filter(Join(leftInput, rightInput), predicate) =>
-        val translatedLeftInput = translateInternal(leftInput)
-        val translatedRightInput = translateInternal(rightInput)
-        val leftInType = translatedLeftInput.getType.asInstanceOf[CompositeType[Row]]
-        val rightInType = translatedRightInput.getType.asInstanceOf[CompositeType[Row]]
-
-        createJoin(
-          predicate,
-          leftInput.outputFields.map( f => ResolvedFieldReference(f._1, f._2)) ++
-            rightInput.outputFields.map( f => ResolvedFieldReference(f._1, f._2)),
-          translatedLeftInput,
-          translatedRightInput,
-          leftInType,
-          rightInType,
-          JoinHint.OPTIMIZER_CHOOSES)
-
-      case Join(leftInput, rightInput) =>
-        throw new ExpressionException("Join without filter condition encountered. " +
-          "Did you forget to add .where(...) ?")
-
-      case sel@Select(input, selection) =>
-
-        val expandedInput = ExpandAggregations(sel)
-
-        if (expandedInput.eq(sel)) {
-          val translatedInput = input match {
-            case GroupBy(groupByInput, groupExpressions) =>
-              val translatedGroupByInput = translateInternal(groupByInput)
-              val inType = translatedGroupByInput.getType.asInstanceOf[CompositeType[Row]]
-
-              val keyIndices = groupExpressions map {
-                case fe: ResolvedFieldReference => inType.getFieldIndex(fe.name)
-                case e =>
-                  throw new ExpressionException(s"Expression $e is not a valid key expression.")
-              }
-
-              val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType)
-              val grouping = new UnsortedGrouping(translatedGroupByInput, keys)
-
-              new GroupReduceOperator(
-                grouping,
-                inType,
-                new NoExpressionAggregateFunction(),
-                "Nop Expression Aggregation")
-
-            case _ => translateInternal(input)
-          }
-
-          val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-          val inputFields = inType.getFieldNames
-          createSelect(
-            selection,
-            translatedInput,
-            inType)
-        } else {
-          translateInternal(expandedInput)
-        }
-
-      case agg@Aggregate(GroupBy(input, groupExpressions), aggregations) =>
-        val translatedInput = translateInternal(input)
-        val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-
-        val keyIndices = groupExpressions map {
-          case fe: ResolvedFieldReference => inType.getFieldIndex(fe.name)
-          case e => throw new ExpressionException(s"Expression $e is not a valid key expression.")
-        }
-
-        val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType)
-
-        val grouping = new UnsortedGrouping(translatedInput, keys)
-
-        val aggFunctions: Seq[AggregationFunction[Any]] = aggregations map {
-          case (fieldName, fun) =>
-            fun.getFactory.createAggregationFunction[Any](
-              inType.getTypeAt[Any](inType.getFieldIndex(fieldName)).getTypeClass)
-        }
-
-        val aggIndices = aggregations map {
-          case (fieldName, _) =>
-            inType.getFieldIndex(fieldName)
-        }
-
-        val result = new GroupReduceOperator(
-          grouping,
-          inType,
-          new ExpressionAggregateFunction(aggIndices, aggFunctions),
-          "Expression Aggregation: " + agg)
-
-        result
-
-      case agg@Aggregate(input, aggregations) =>
-        val translatedInput = translateInternal(input)
-        val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-
-        val aggFunctions: Seq[AggregationFunction[Any]] = aggregations map {
-          case (fieldName, fun) =>
-            fun.getFactory.createAggregationFunction[Any](
-              inType.getTypeAt[Any](inType.getFieldIndex(fieldName)).getTypeClass)
-        }
-
-        val aggIndices = aggregations map {
-          case (fieldName, _) =>
-            inType.getFieldIndex(fieldName)
-        }
-
-        val result = new GroupReduceOperator(
-          translatedInput,
-          inType,
-          new ExpressionAggregateFunction(aggIndices, aggFunctions),
-          "Expression Aggregation: " + agg)
-
-        result
-
-
-      case Filter(input, predicate) =>
-        val translatedInput = translateInternal(input)
-        val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
-        val filter = new ExpressionFilterFunction[Row](predicate, inType)
-        translatedInput.filter(filter).name(predicate.toString)
-
-      case uni@UnionAll(left, right) =>
-        val translatedLeft = translateInternal(left)
-        val translatedRight = translateInternal(right)
-        translatedLeft.union(translatedRight).name("Union: " + uni)
-    }
-  }
-
-  private def createSelect[I](
-      fields: Seq[Expression],
-      input: JavaDataSet[I],
-      inputType: CompositeType[I]): JavaDataSet[Row] = {
-
-    fields foreach {
-      f =>
-        if (f.exists(_.isInstanceOf[Aggregation])) {
-          throw new ExpressionException("Found aggregate in " + fields.mkString(", ") + ".")
-        }
-
-    }
-
-    val resultType = new RowTypeInfo(fields)
-
-    val function = new ExpressionSelectFunction(inputType, resultType, fields)
-
-    val opName = s"select(${fields.mkString(",")})"
-    val operator = new MapOperator(input, resultType, function, opName)
-
-    operator
-  }
-
-  private def createJoin[L, R](
-      predicate: Expression,
-      fields: Seq[Expression],
-      leftInput: JavaDataSet[L],
-      rightInput: JavaDataSet[R],
-      leftType: CompositeType[L],
-      rightType: CompositeType[R],
-      joinHint: JoinHint): JavaDataSet[Row] = {
-
-    val resultType = new RowTypeInfo(fields)
-
-    val (reducedPredicate, leftFields, rightFields) =
-      ExtractEquiJoinFields(leftType, rightType, predicate)
-
-    if (leftFields.isEmpty || rightFields.isEmpty) {
-      throw new ExpressionException("Could not derive equi-join predicates " +
-        "for predicate " + predicate + ".")
-    }
-
-    val leftKey = new ExpressionKeys[L](leftFields, leftType)
-    val rightKey = new ExpressionKeys[R](rightFields, rightType)
-
-    val joiner = new ExpressionJoinFunction[L, R, Row](
-      reducedPredicate,
-      leftType,
-      rightType,
-      resultType,
-      fields)
-
-    new EquiJoin[L, R, Row](
-      leftInput,
-      rightInput,
-      leftKey,
-      rightKey,
-      joiner,
-      resultType,
-      joinHint,
-      predicate.toString)
-  }
 }

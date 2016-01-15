@@ -561,41 +561,6 @@ abstract class ExpressionCodeGenerator[R](
             """.stripMargin
         }
 
-      case BitwiseAnd(left, right) =>
-        generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => s"(int) $leftTerm & (int) $rightTerm"
-        }
-
-      case BitwiseOr(left, right) =>
-        generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => s"(int) $leftTerm | (int) $rightTerm"
-        }
-
-      case BitwiseXor(left, right) =>
-        generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => s"(int) $leftTerm ^ (int) $rightTerm"
-        }
-
-      case BitwiseNot(child) =>
-        val childCode = generateExpression(child)
-        if (nullCheck) {
-          childCode.code +
-            s"""
-              |boolean $nullTerm = ${childCode.nullTerm};
-              |$resultTpe $resultTerm;
-              |if ($nullTerm) {
-              |  $resultTerm = ${defaultPrimitive(child.typeInfo)};
-              |} else {
-              |  $resultTerm = ~((int) ${childCode.resultTerm});
-              |}
-            """.stripMargin
-        } else {
-          childCode.code +
-            s"""
-              |$resultTpe $resultTerm = ~((int) ${childCode.resultTerm});
-            """.stripMargin
-        }
-
       case Not(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {

@@ -55,11 +55,6 @@ trait ImplicitExpressionOperations {
   def * (other: Expression) = Mul(expr, other)
   def % (other: Expression) = Mod(expr, other)
 
-  def & (other: Expression) = BitwiseAnd(expr, other)
-  def | (other: Expression) = BitwiseOr(expr, other)
-  def ^ (other: Expression) = BitwiseXor(expr, other)
-  def unary_~ = BitwiseNot(expr)
-
   def abs = Abs(expr)
 
   def sum = Sum(expr)

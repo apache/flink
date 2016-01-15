@@ -30,6 +30,7 @@ class SqlExplainITCase {
 
   val testFilePath = SqlExplainITCase.this.getClass.getResource("/").getFile
 
+  @Ignore
   @Test
   def testGroupByWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
@@ -40,6 +41,7 @@ class SqlExplainITCase {
     assertEquals(result, source)
   }
 
+  @Ignore
   @Test
   def testGroupByWithExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
@@ -50,6 +52,7 @@ class SqlExplainITCase {
     assertEquals(result, source)
   }
 
+  @Ignore
   @Test
   def testJoinWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
@@ -61,6 +64,7 @@ class SqlExplainITCase {
     assertEquals(result, source)
   }
 
+  @Ignore
   @Test
   def testJoinWithExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
@@ -72,6 +76,7 @@ class SqlExplainITCase {
     assertEquals(result, source)
   }
 
+  @Ignore
   @Test
   def testUnionWithoutExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()
@@ -83,6 +88,7 @@ class SqlExplainITCase {
     assertEquals(result, source)
   }
 
+  @Ignore
   @Test
   def testUnionWithExtended() : Unit = {
     val env = ExecutionEnvironment.createLocalEnvironment()

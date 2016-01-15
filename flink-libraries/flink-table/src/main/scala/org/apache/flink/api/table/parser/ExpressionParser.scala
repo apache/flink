@@ -17,9 +17,8 @@
  */
 package org.apache.flink.api.table.parser
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.table.plan.As
 import org.apache.flink.api.table.expressions._
 
 import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
@@ -148,20 +147,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val unaryMinus: PackratParser[Expression] = "-" ~> suffix ^^ { e => UnaryMinus(e) }
 
-  lazy val unaryBitwiseNot: PackratParser[Expression] = "~" ~> suffix ^^ { e => BitwiseNot(e) }
-
-  lazy val unary = unaryNot | unaryMinus | unaryBitwiseNot | suffix
-
-  // binary bitwise opts
-
-  lazy val binaryBitwise = unary * (
-    "&" ^^^ { (a:Expression, b:Expression) => BitwiseAnd(a,b) } |
-      "|" ^^^ { (a:Expression, b:Expression) => BitwiseOr(a,b) } |
-      "^" ^^^ { (a:Expression, b:Expression) => BitwiseXor(a,b) } )
+  lazy val unary = unaryNot | unaryMinus | suffix
 
   // arithmetic
 
-  lazy val product = binaryBitwise * (
+  lazy val product = unary * (
     "*" ^^^ { (a:Expression, b:Expression) => Mul(a,b) } |
       "/" ^^^ { (a:Expression, b:Expression) => Div(a,b) } |
       "%" ^^^ { (a:Expression, b:Expression) => Mod(a,b) } )

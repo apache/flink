@@ -38,4 +38,9 @@ case class Naming(child: Expression, override val name: String) extends UnaryExp
   def typeInfo = child.typeInfo
 
   override def toString = s"$child as '$name"
+
+  override def makeCopy(anyRefs: Seq[AnyRef]): this.type = {
+    val child: Expression = anyRefs.head.asInstanceOf[Expression]
+    copy(child, name).asInstanceOf[this.type]
+  }
 }
