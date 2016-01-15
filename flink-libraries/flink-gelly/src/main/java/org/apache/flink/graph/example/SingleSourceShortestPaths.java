@@ -32,7 +32,7 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * This example shows how to use Gelly's vertex-centric iterations.
+ * This example shows how to use Gelly's scatter-gather iterations.
  * 
  * It is an implementation of the Single-Source-Shortest-Paths algorithm.
  * For a gather-sum-apply implementation of the same algorithm, please refer to {@link GSASingleSourceShortestPaths}. 
@@ -60,8 +60,8 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges, new InitVertices(srcVertexId), env);
 
-		// Execute the vertex-centric iteration
-		Graph<Long, Double, Double> result = graph.runVertexCentricIteration(
+		// Execute the scatter-gather iteration
+		Graph<Long, Double, Double> result = graph.runScatterGatherIteration(
 				new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
 
 		// Extract the vertices as the result
@@ -196,6 +196,6 @@ public class SingleSourceShortestPaths implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Vertex-centric Single Source Shortest Paths";
+		return "Scatter-gather Single Source Shortest Paths";
 	}
 }

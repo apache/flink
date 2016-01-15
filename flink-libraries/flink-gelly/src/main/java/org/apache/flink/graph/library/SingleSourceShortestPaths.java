@@ -29,7 +29,7 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 /**
- * This is an implementation of the Single-Source-Shortest Paths algorithm, using a vertex-centric iteration.
+ * This is an implementation of the Single-Source-Shortest Paths algorithm, using a scatter-gather iteration.
  */
 @SuppressWarnings("serial")
 public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double, DataSet<Vertex<K, Double>>> {
@@ -52,7 +52,7 @@ public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, D
 	public DataSet<Vertex<K, Double>> run(Graph<K, Double, Double> input) {
 
 		return input.mapVertices(new InitVerticesMapper<K>(srcVertexId))
-				.runVertexCentricIteration(new VertexDistanceUpdater<K>(), new MinDistanceMessenger<K>(),
+				.runScatterGatherIteration(new VertexDistanceUpdater<K>(), new MinDistanceMessenger<K>(),
 				maxIterations).getVertices();
 	}
 

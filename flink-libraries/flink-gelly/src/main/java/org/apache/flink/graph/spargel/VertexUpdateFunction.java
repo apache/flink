@@ -157,7 +157,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link org.apache.flink.graph.spargel.VertexCentricConfiguration#addBroadcastSetForUpdateFunction(String, org.apache.flink.api.java.DataSet)}.
+	 * {@link org.apache.flink.graph.spargel.ScatterGatherConfiguration#addBroadcastSetForUpdateFunction(String, org.apache.flink.api.java.DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
@@ -230,7 +230,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 
 	/**
 	 * In order to hide the Tuple3(actualValue, inDegree, OutDegree) vertex value from the user,
-	 * another function will be called from {@link org.apache.flink.graph.spargel.VertexCentricIteration}.
+	 * another function will be called from {@link org.apache.flink.graph.spargel.ScatterGatherIteration}.
 	 *
 	 * This function will retrieve the vertex from the vertexState and will set its degrees, afterwards calling
 	 * the regular updateVertex function.
@@ -240,7 +240,7 @@ public abstract class VertexUpdateFunction<K, VV, Message> implements Serializab
 	 * @throws Exception
 	 */
 	@SuppressWarnings("unchecked")
-	<VertexWithDegree> void updateVertexFromVertexCentricIteration(Vertex<K, VertexWithDegree> vertexState,
+	<VertexWithDegree> void updateVertexFromScatterGatherIteration(Vertex<K, VertexWithDegree> vertexState,
 												MessageIterator<Message> inMessages) throws Exception {
 
 		Vertex<K, VV> vertex = new Vertex<K, VV>(vertexState.f0,

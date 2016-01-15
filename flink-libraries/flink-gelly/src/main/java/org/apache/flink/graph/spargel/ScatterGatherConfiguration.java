@@ -27,16 +27,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A VertexCentricConfiguration object can be used to set the iteration name and
+ * A ScatterGatherConfiguration object can be used to set the iteration name and
  * degree of parallelism, to register aggregators and use broadcast sets in
  * the {@link org.apache.flink.graph.spargel.VertexUpdateFunction} and {@link org.apache.flink.graph.spargel.MessagingFunction}
  *
  * The VertexCentricConfiguration object is passed as an argument to
- * {@link org.apache.flink.graph.Graph#runVertexCentricIteration (
+ * {@link org.apache.flink.graph.Graph#runScatterGatherIteration (
  * org.apache.flink.graph.spargel.VertexUpdateFunction, org.apache.flink.graph.spargel.MessagingFunction, int,
- * VertexCentricConfiguration)}.
+ * ScatterGatherConfiguration)}.
  */
-public class VertexCentricConfiguration extends IterationConfiguration {
+public class ScatterGatherConfiguration extends IterationConfiguration {
 
 	/** the broadcast variables for the update function **/
 	private List<Tuple2<String, DataSet<?>>> bcVarsUpdate = new ArrayList<Tuple2<String,DataSet<?>>>();
@@ -50,7 +50,7 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 	/** the direction in which the messages should be sent **/
 	private EdgeDirection direction = EdgeDirection.OUT;
 
-	public VertexCentricConfiguration() {}
+	public ScatterGatherConfiguration() {}
 
 	/**
 	 * Adds a data set as a broadcast set to the messaging function.

@@ -45,11 +45,10 @@ import org.apache.flink.util.Collector;
 import com.google.common.base.Preconditions;
 
 /**
- * This class represents iterative graph computations, programmed in a vertex-centric perspective.
- * It is a special case of <i>Bulk Synchronous Parallel</i> computation. The paradigm has also been
- * implemented by Google's <i>Pregel</i> system and by <i>Apache Giraph</i>.
+ * This class represents iterative graph computations, programmed in a scatter-gather perspective.
+ * It is a special case of <i>Bulk Synchronous Parallel</i> computation.
  * <p>
- * Vertex centric algorithms operate on graphs, which are defined through vertices and edges. The 
+ * Scatter-Gather algorithms operate on graphs, which are defined through vertices and edges. The 
  * algorithms send messages along the edges and update the state of vertices based on
  * the old state and the incoming messages. All vertices have an initial state.
  * The computation terminates once no vertex updates it state any more.
@@ -65,15 +64,15 @@ import com.google.common.base.Preconditions;
  * </ul>
  * <p>
  *
- * Vertex-centric graph iterations are are run by calling
- * {@link Graph#runVertexCentricIteration(VertexUpdateFunction, MessagingFunction, int)}.
+ * Scatter-Gather graph iterations are are run by calling
+ * {@link Graph#runScatterGatherIteration(VertexUpdateFunction, MessagingFunction, int)}.
  *
  * @param <K> The type of the vertex key (the vertex identifier).
  * @param <VV> The type of the vertex value (the state of the vertex).
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EV> The type of the values that are associated with the edges.
  */
-public class VertexCentricIteration<K, VV, Message, EV> 
+public class ScatterGatherIteration<K, VV, Message, EV> 
 	implements CustomUnaryOperation<Vertex<K, VV>, Vertex<K, VV>>
 {
 	private final VertexUpdateFunction<K, VV, Message> updateFunction;
@@ -88,11 +87,11 @@ public class VertexCentricIteration<K, VV, Message, EV>
 	
 	private DataSet<Vertex<K, VV>> initialVertices;
 
-	private VertexCentricConfiguration configuration;
+	private ScatterGatherConfiguration configuration;
 
 	// ----------------------------------------------------------------------------------
 	
-	private VertexCentricIteration(VertexUpdateFunction<K, VV, Message> uf,
+	private ScatterGatherIteration(VertexUpdateFunction<K, VV, Message> uf,
 			MessagingFunction<K, VV, Message, EV> mf,
 			DataSet<Edge<K, EV>> edgesWithValue, 
 			int maximumNumberOfIterations)
@@ -132,9 +131,9 @@ public class VertexCentricIteration<K, VV, Message, EV>
 	}
 	
 	/**
-	 * Creates the operator that represents this vertex-centric graph computation.
+	 * Creates the operator that represents this scatter-gather graph computation.
 	 * 
-	 * @return The operator that represents this vertex-centric graph computation.
+	 * @return The operator that represents this scatter-gather graph computation.
 	 */
 	@Override
 	public DataSet<Vertex<K, VV>> createResult() {
@@ -182,7 +181,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 	}
 
 	/**
-	 * Creates a new vertex-centric iteration operator for graphs where the edges are associated with a value (such as
+	 * Creates a new scatter-gather iteration operator for graphs where the edges are associated with a value (such as
 	 * a weight or distance).
 	 * 
 	 * @param edgesWithValue The data set containing edges.
@@ -194,31 +193,31 @@ public class VertexCentricIteration<K, VV, Message, EV>
 	 * @param <Message> The type of the message sent between vertices along the edges.
 	 * @param <EV> The type of the values that are associated with the edges.
 	 * 
-	 * @return An in stance of the vertex-centric graph computation operator.
+	 * @return An in stance of the scatter-gather graph computation operator.
 	 */
 	public static final <K, VV, Message, EV>
-			VertexCentricIteration<K, VV, Message, EV> withEdges(
+			ScatterGatherIteration<K, VV, Message, EV> withEdges(
 					DataSet<Edge<K, EV>> edgesWithValue,
 					VertexUpdateFunction<K, VV, Message> uf,
 					MessagingFunction<K, VV, Message, EV> mf,
 					int maximumNumberOfIterations)
 	{
-		return new VertexCentricIteration<K, VV, Message, EV>(uf, mf, edgesWithValue, maximumNumberOfIterations);
+		return new ScatterGatherIteration<K, VV, Message, EV>(uf, mf, edgesWithValue, maximumNumberOfIterations);
 	}
 
 	/**
-	 * Configures this vertex-centric iteration with the provided parameters.
+	 * Configures this scatter-gather iteration with the provided parameters.
 	 *
 	 * @param parameters the configuration parameters
 	 */
-	public void configure(VertexCentricConfiguration parameters) {
+	public void configure(ScatterGatherConfiguration parameters) {
 		this.configuration = parameters;
 	}
 
 	/**
-	 * @return the configuration parameters of this vertex-centric iteration
+	 * @return the configuration parameters of this scatter-gather iteration
 	 */
-	public VertexCentricConfiguration getIterationConfiguration() {
+	public ScatterGatherConfiguration getIterationConfiguration() {
 		return this.configuration;
 	}
 
@@ -329,7 +328,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 				vertexUpdateFunction.setOutDegree(vertexWithDegrees.f1.f2);
 
 				vertexUpdateFunction.setOutputWithDegrees(vertexWithDegrees, out);
-				vertexUpdateFunction.updateVertexFromVertexCentricIteration(vertexWithDegrees, messageIter);
+				vertexUpdateFunction.updateVertexFromScatterGatherIteration(vertexWithDegrees, messageIter);
 			}
 			else {
 				final Iterator<Tuple2<K, Message>> messageIter = messages.iterator();
@@ -528,7 +527,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 		// set up the iteration operator
 		if (this.configuration != null) {
 
-			iteration.name(this.configuration.getName("Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")"));
+			iteration.name(this.configuration.getName("Scatter-gather iteration (" + updateFunction + " | " + messagingFunction + ")"));
 			iteration.parallelism(this.configuration.getParallelism());
 			iteration.setSolutionSetUnManaged(this.configuration.isSolutionSetUnmanagedMemory());
 
@@ -539,12 +538,12 @@ public class VertexCentricIteration<K, VV, Message, EV>
 		}
 		else {
 			// no configuration provided; set default name
-			iteration.name("Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")");
+			iteration.name("Scatter-gather iteration (" + updateFunction + " | " + messagingFunction + ")");
 		}
 	}
 
 	/**
-	 * Creates the operator that represents this vertex centric graph computation for a simple vertex.
+	 * Creates the operator that represents this scatter-gather graph computation for a simple vertex.
 	 *
 	 * @param messagingDirection
 	 * @param messageTypeInfo
@@ -589,7 +588,7 @@ public class VertexCentricIteration<K, VV, Message, EV>
 	}
 
 	/**
-	 * Creates the operator that represents this vertex centric graph computation for a vertex with in
+	 * Creates the operator that represents this scatter-gather graph computation for a vertex with in
 	 * and out degrees added to the vertex value.
 	 *
 	 * @param graph
