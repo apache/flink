@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-streaming-connectors-parent</artifactId>
+	<artifactId>flink-streaming-connectors</artifactId>
 	<name>flink-streaming-connectors</name>
 
 	<packaging>pom</packaging>
