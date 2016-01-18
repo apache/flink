@@ -17,8 +17,6 @@
 
 # ---------------------------------------------------------
 # Expands a github link shortcut into a proper markdown link
-#
-# Written by Ufuk Celebi
 # ---------------------------------------------------------
 
 module Jekyll
