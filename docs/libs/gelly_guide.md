@@ -1663,10 +1663,10 @@ The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-app
 
 See the [Single Source Shortest Paths](#single-source-shortest-paths) library method for implementation details and usage information.
 
-### GSA Triangle Count
+### Triangle Count
 
 #### Overview
-An implementation of the Triangle Count algorithm. Given an input graph, it returns the number of unique triangles in it.
+An implementation of the Triangle Count algorithm described in [this paper](http://www.cc.gatech.edu/~bader/papers/GraphBSPonXMT-MTAAP2013.pdf). Given an input graph, it returns the number of unique triangles in it.
 
 #### Details
 This algorithm operates in three phases. First, vertices select neighbors with IDs greater than theirs
@@ -1676,6 +1676,11 @@ Finally, if a node encounters the target ID in the list of received messages, it
 #### Usage
 The algorithm takes an undirected, unweighted graph as input and outputs a `DataSet` which contains a single integer corresponding to the number of triangles
 in the graph. The algorithm constructor takes no arguments.
+
+### GSA Triangle Count
+The algorithm is implemented using [gather-sum-apply iterations](#gather-sum-apply-iterations).
+
+See the [Triangle Count](#triangle-count) library method for implementation details and usage information.
 
 ### Triangle Enumerator
 

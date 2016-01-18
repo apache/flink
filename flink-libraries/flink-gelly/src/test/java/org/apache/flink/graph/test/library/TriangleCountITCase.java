@@ -22,6 +22,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.example.utils.TriangleCountData;
 import org.apache.flink.graph.library.GSATriangleCount;
+import org.apache.flink.graph.library.TriangleCount;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
 import org.junit.Assert;
@@ -48,6 +49,20 @@ public class TriangleCountITCase extends MultipleProgramsTestBase {
 
 		List<Integer> numberOfTriangles = graph.run(new GSATriangleCount<Long, NullValue, NullValue>()).collect();
 		String expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
+
+		Assert.assertEquals(numberOfTriangles.get(0).intValue(), Integer.parseInt(expectedResult));
+	}
+
+	@Test
+	public void testTriangleCount() throws Exception {
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
+				env).getUndirected();
+
+		List<Integer> numberOfTriangles = graph.run(new TriangleCount<Long, NullValue, NullValue>()).collect();
+		expectedResult = TriangleCountData.RESULTED_NUMBER_OF_TRIANGLES;
 
 		Assert.assertEquals(numberOfTriangles.get(0).intValue(), Integer.parseInt(expectedResult));
 	}
