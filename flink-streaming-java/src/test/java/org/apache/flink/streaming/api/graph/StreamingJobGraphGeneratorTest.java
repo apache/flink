@@ -14,29 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.graph;
 
 import java.io.IOException;
 import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.InstantiationUtil;
-import org.junit.Assert;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class StreamingJobGraphGeneratorTest extends StreamingMultipleProgramsTestBase {
-	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGeneratorTest.class);
+import org.junit.Test;
+
+import static org.junit.Assert.*;
+
+public class StreamingJobGraphGeneratorTest {
 	
 	@Test
 	public void testExecutionConfigSerialization() throws IOException, ClassNotFoundException {
 		final long seed = System.currentTimeMillis();
-		LOG.info("Test seed: {}", new Long(seed));
 		final Random r = new Random(seed);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -76,16 +77,62 @@ public class StreamingJobGraphGeneratorTest extends StreamingMultipleProgramsTes
 		config.setParallelism(dop);
 		
 		JobGraph jobGraph = compiler.createJobGraph("test");
-		ExecutionConfig executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+		
+		ExecutionConfig executionConfig = InstantiationUtil.readObjectFromConfig(
 				jobGraph.getJobConfiguration(),
 				ExecutionConfig.CONFIG_KEY,
 				Thread.currentThread().getContextClassLoader());
 		
-		Assert.assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
-		Assert.assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
-		Assert.assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());
-		Assert.assertEquals(objectReuseEnabled, executionConfig.isObjectReuseEnabled());
-		Assert.assertEquals(sysoutLoggingEnabled, executionConfig.isSysoutLoggingEnabled());
-		Assert.assertEquals(dop, executionConfig.getParallelism());
+		assertNotNull(executionConfig);
+		
+		assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
+		assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
+		assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());
+		assertEquals(objectReuseEnabled, executionConfig.isObjectReuseEnabled());
+		assertEquals(sysoutLoggingEnabled, executionConfig.isSysoutLoggingEnabled());
+		assertEquals(dop, executionConfig.getParallelism());
+	}
+	
+	@Test
+	public void testParallelismOneNotChained() {
+
+		// --------- the program ---------
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+
+		DataStream<Tuple2<String, String>> input = env
+				.fromElements("a", "b", "c", "d", "e", "f")
+				.map(new MapFunction<String, Tuple2<String, String>>() {
+					@Override
+					public Tuple2<String, String> map(String value) {
+						return new Tuple2<>(value, value);
+					}
+				});
+
+		DataStream<Tuple2<String, String>> result = input
+				.keyBy(0)
+				.map(new MapFunction<Tuple2<String, String>, Tuple2<String, String>>() {
+
+					@Override
+					public Tuple2<String, String> map(Tuple2<String, String> value) {
+						return value;
+					}
+				});
+
+		result.addSink(new SinkFunction<Tuple2<String, String>>() {
+			@Override
+			public void invoke(Tuple2<String, String> value) {}
+		});
+
+		// --------- the job graph ---------
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.setJobName("test job");
+		JobGraph jobGraph = streamGraph.getJobGraph();
+		
+		assertEquals(2, jobGraph.getNumberOfVertices());
+		assertEquals(1, jobGraph.getVerticesAsArray()[0].getParallelism());
+		assertEquals(1, jobGraph.getVerticesAsArray()[1].getParallelism());
 	}
 }
