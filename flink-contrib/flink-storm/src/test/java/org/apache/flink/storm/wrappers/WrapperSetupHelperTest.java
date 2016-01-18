@@ -182,20 +182,15 @@ public class WrapperSetupHelperTest extends AbstractTest {
 				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		int counter = 0;
-		while (true) {
-			LocalCluster cluster = new LocalCluster();
-			Config c = new Config();
-			c.setNumAckers(0);
-			c.setDebug(true);
-			cluster.submitTopology("test", c, builder.createTopology());
-			Utils.sleep(++counter * 3000);
-			cluster.shutdown();
+		LocalCluster cluster = new LocalCluster();
+		Config c = new Config();
+		c.setNumAckers(0);
+		cluster.submitTopology("test", c, builder.createTopology());
 
-			if (TestSink.result.size() == 8) {
-				break;
-			}
+		while (TestSink.result.size() != 8) {
+			Utils.sleep(100);
 		}
+		cluster.shutdown();
 
 		final FlinkTopology flinkBuilder = FlinkTopology.createTopology(builder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();
