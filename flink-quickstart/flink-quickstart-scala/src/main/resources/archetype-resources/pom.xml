@@ -124,9 +124,8 @@ under the License.
 									<exclude>org.apache.flink:flink-optimizer</exclude>
 									<exclude>org.apache.flink:flink-clients</exclude>
 									<exclude>org.apache.flink:flink-avro</exclude>
-									<exclude>org.apache.flink:flink-java-examples</exclude>
-									<exclude>org.apache.flink:flink-scala-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-examples</exclude>
+									<exclude>org.apache.flink:flink-examples-batch</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming</exclude>
 									<exclude>org.apache.flink:flink-streaming-java</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink

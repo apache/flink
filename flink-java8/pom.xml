@@ -101,7 +101,7 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- get default data from flink-java-examples package -->
+			<!-- get default data from flink-examples-batch package -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
@@ -117,7 +117,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-java-examples</artifactId>
+									<artifactId>flink-examples-batch</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>

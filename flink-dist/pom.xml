@@ -289,9 +289,8 @@ under the License.
 							</filters>
 							<artifactSet>
 								<excludes>
-									<exclude>org.apache.flink:flink-java-examples</exclude>
-									<exclude>org.apache.flink:flink-scala-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-examples</exclude>
+									<exclude>org.apache.flink:flink-examples-batch</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming</exclude>
 									<exclude>org.apache.flink:flink-python</exclude>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>

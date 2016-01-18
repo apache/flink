@@ -2495,7 +2495,7 @@ env.execute("Iterative Pi Example");
 {% endhighlight %}
 
 You can also check out the
-{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java "K-Means example" %},
+{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java "K-Means example" %},
 which uses a BulkIteration to cluster a set of unlabeled points.
 
 #### Delta Iterations
@@ -2591,7 +2591,7 @@ env.execute("Iterative Pi Example");
 {% endhighlight %}
 
 You can also check out the
-{% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala "K-Means example" %},
+{% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala "K-Means example" %},
 which uses a BulkIteration to cluster a set of unlabeled points.
 
 #### Delta Iterations
@@ -2879,7 +2879,7 @@ data.map(new RichMapFunction<String, String>() {
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
 accessing broadcasted data sets. For a complete example program, have a look at
-{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java#L96 "K-Means Algorithm" %}.
+{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java#L96 "K-Means Algorithm" %}.
 </div>
 <div data-lang="scala" markdown="1">
 
@@ -2905,7 +2905,7 @@ data.map(new RichMapFunction[String, String]() {
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
 accessing broadcasted data sets. For a complete example program, have a look at
-{% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala#L96 "KMeans Algorithm" %}.
+{% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala#L96 "KMeans Algorithm" %}.
 </div>
 </div>
 

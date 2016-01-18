@@ -29,8 +29,8 @@ The following example programs showcase different applications of Flink
 from simple word counting to graph algorithms. The code samples illustrate the
 use of [Flink's API](index.html).
 
-The full source code of the following and more examples can be found in the __flink-java-examples__
-or __flink-scala-examples__ module of the Flink source repository.
+The full source code of the following and more examples can be found in the __flink-examples-batch__
+or __flink-examples-streaming__ module of the Flink source repository.
 
 * This will be replaced by the TOC
 {:toc}
@@ -99,7 +99,7 @@ public static class Tokenizer implements FlatMapFunction<String, Tuple2<String, 
 }
 ~~~
 
-The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
 </div>
 <div data-lang="scala" markdown="1">
@@ -118,7 +118,7 @@ val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
 counts.writeAsCsv(outputPath, "\n", " ")
 ~~~
 
-The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
+The {% gh_link /flink-examples/flink-exampls-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
 
 </div>
@@ -206,7 +206,7 @@ public static final class EpsilonFilter
 }
 ~~~
 
-The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/PageRank.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
 
 </div>
@@ -273,7 +273,7 @@ val result = finalRanks
 result.writeAsCsv(outputPath, "\n", " ")
 ~~~
 
-he {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
+he {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
 </div>
 </div>
@@ -369,7 +369,7 @@ public static final class ComponentIdFilter
 }
 ~~~
 
-The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
 </div>
 <div data-lang="scala" markdown="1">
@@ -412,7 +412,7 @@ verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
 
 ~~~
 
-The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 </div>
 </div>
 
@@ -488,13 +488,13 @@ DataSet<Tuple3<Integer, Integer, Double>> priceSums =
 priceSums.writeAsCsv(outputPath);
 ~~~
 
-The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/relational/TPCHQuery10.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/relational/TPCHQuery10.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
 </div>
 <div data-lang="scala" markdown="1">
 Coming soon...
 
-The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/relational/TPCHQuery3.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/relational/TPCHQuery3.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
 </div>
 </div>
