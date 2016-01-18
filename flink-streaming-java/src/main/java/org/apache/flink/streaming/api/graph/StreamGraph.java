@@ -465,7 +465,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public Set<Tuple2<Integer, StreamOperator<?>>> getOperators() {
-		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<Tuple2<Integer, StreamOperator<?>>>();
+		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<>();
 		for (StreamNode vertex : streamNodes.values()) {
 			operatorSet.add(new Tuple2<Integer, StreamOperator<?>>(vertex.getId(), vertex
 					.getOperator()));
@@ -496,7 +496,7 @@ public class StreamGraph extends StreamingPlan {
 		sinks.add(sink.getId());
 		setParallelism(sink.getId(), parallelism);
 
-		iterationSourceSinkPairs.add(new Tuple2<StreamNode, StreamNode>(source, sink));
+		iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
 
 		source.setOperatorName("IterationSource-" + loopId);
 		sink.setOperatorName("IterationSink-" + loopId);
@@ -505,7 +505,7 @@ public class StreamGraph extends StreamingPlan {
 		this.vertexIDtoLoopTimeout.put(source.getId(), timeout);
 		this.vertexIDtoLoopTimeout.put(sink.getId(), timeout);
 
-		return new Tuple2<StreamNode, StreamNode>(source, sink);
+		return new Tuple2<>(source, sink);
 	}
 
 	public Set<Tuple2<StreamNode, StreamNode>> getIterationSourceSinkPairs() {
@@ -518,7 +518,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	private void removeVertex(StreamNode toRemove) {
-		Set<StreamEdge> edgesToRemove = new HashSet<StreamEdge>();
+		Set<StreamEdge> edgesToRemove = new HashSet<>();
 
 		edgesToRemove.addAll(toRemove.getInEdges());
 		edgesToRemove.addAll(toRemove.getOutEdges());
