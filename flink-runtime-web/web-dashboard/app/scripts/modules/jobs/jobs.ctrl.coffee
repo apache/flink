@@ -163,7 +163,6 @@ angular.module('flinkApp')
   # Get the per operator stats
   if $scope.nodeid and (!$scope.vertex or !$scope.vertex.operatorCheckpointStats)
     JobsService.getOperatorCheckpointStats($scope.nodeid).then (data) ->
-      console.log('resvoled 1')
       $scope.operatorCheckpointStats = data.operatorStats
       $scope.subtasksCheckpointStats = data.subtasksStats
 

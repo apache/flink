@@ -15,11 +15,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-div(ng-if="!operatorCheckpointStats")
+div(ng-if="!jobCheckpointStats")
   p
     em No checkpoints
 
-div(ng-if="operatorCheckpointStats")
+div(ng-if="jobCheckpointStats")
   h2 Overview
 
   div(ng-include=" 'partials/jobs/job.plan.node.checkpoints.job.html' ")
