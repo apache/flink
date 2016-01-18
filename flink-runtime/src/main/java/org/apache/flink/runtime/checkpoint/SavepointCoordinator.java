@@ -197,11 +197,6 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 
 			LOG.info("Savepoint: {}@{}", checkpoint.getCheckpointID(), checkpoint.getTimestamp());
 
-			// Sanity check to ensure that the parallelism has not been changed. If the tasks have
-			// lower parallelism than the savepoint tasks, this will be noticed during reset, but
-			// the other way around (higher parallelism than savepoint tasks) might go unnoticed.
-			Map<JobVertexID, IntValue> vertexParallelism = new HashMap<>();
-
 			// Set the initial state of all tasks
 			for (StateForTask state : checkpoint.getStates()) {
 				ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
@@ -214,28 +209,10 @@ public class SavepointCoordinator extends CheckpointCoordinator {
 					throw new IllegalStateException(msg);
 				}
 
-				IntValue parallelism = vertexParallelism.get(vertex.getJobVertexId());
-
-				if (parallelism == null) {
-					parallelism = new IntValue(vertex.getParallelism());
-					vertexParallelism.put(vertex.getJobVertexId(), parallelism);
-				}
-
 				Execution exec = vertex.getTaskVertices()[state.getSubtask()]
 						.getCurrentExecutionAttempt();
 
 				exec.setInitialState(state.getState(), recoveryTimestamp);
-
-				parallelism.setValue(parallelism.getValue() - 1);
-			}
-
-			// If the parallelism matches, each count is 0
-			for (IntValue parallelism : vertexParallelism.values()) {
-				if (parallelism.getValue() != 0) {
-					throw new IllegalStateException("Parallelism mismatch between savepoint " +
-							"tasks and new program. This indicates that the program has been " +
-							"changed after the savepoint.");
-				}
 			}
 
 			// Reset the checkpoint ID counter

@@ -259,22 +259,8 @@ public class SavepointCoordinatorTest {
 		String savepointPath = Await.result(savepointPathFuture, FiniteDuration.Zero());
 		assertNotNull(savepointPath);
 
-		// Change parallelism higher than original (subtask without matching state)
-		for (int i = 0; i < jobVertices.length; i++) {
-			jobVertices[i] = mockExecutionJobVertex(jobId, jobVertices[i].getJobVertexId(), 8);
-		}
-
-		try {
-			// Rollback
-			coordinator.restoreSavepoint(
-					createExecutionJobVertexMap(jobVertices),
-					savepointPath);
-			fail("Did not throw expected Exception after rollback with parallelism mismatch.");
-		}
-		catch (Exception ignored) {
-		}
-
-		// Change parallelism lower than original (state without matching subtask)
+		// Change parallelism lower than original (state without matching subtask). The
+		// other way around (subtask without matching state) is OK.
 		for (int i = 0; i < jobVertices.length; i++) {
 			jobVertices[i] = mockExecutionJobVertex(jobId, jobVertices[i].getJobVertexId(), 2);
 		}
