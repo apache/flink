@@ -317,10 +317,10 @@ public class StreamingJobGraphGenerator {
 
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
 		
+		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
 		if (ceckpointCfg.isCheckpointingEnabled()) {
 			config.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
-			config.setStateBackend(streamGraph.getStateBackend());
 		}
 		else {
 			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
