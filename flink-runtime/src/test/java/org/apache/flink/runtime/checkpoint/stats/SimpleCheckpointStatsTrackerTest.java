@@ -85,12 +85,7 @@ public class SimpleCheckpointStatsTrackerTest {
 
 		assertTrue(tracker.getJobStats().isDefined());
 
-		try {
-			tracker.getOperatorStats(new JobVertexID());
-			fail("Did not throw expected Exception");
-		}
-		catch (IllegalArgumentException ignored) {
-		}
+		assertTrue(tracker.getOperatorStats(new JobVertexID()).isEmpty());
 	}
 
 	@Test
