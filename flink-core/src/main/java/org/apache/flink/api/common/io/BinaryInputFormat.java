@@ -29,7 +29,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,13 +168,17 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 			return createStatistics(allFiles, stats);
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn(String.format("Could not determine complete statistics for file '%s' due to an I/O error: %s",
-					this.filePath, StringUtils.stringifyException(ioex)));
+				LOG.warn(
+					String.format("Could not determine complete statistics for file '%s' due to an I/O error",
+						this.filePath),
+					ioex);
 			}
 		} catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error(String.format("Unexpected problem while getting the file statistics for file '%s' due to %s",
-					this.filePath, StringUtils.stringifyException(t)));
+				LOG.error(
+					String.format("Unexpected problem while getting the file statistics for file '%s'",
+						this.filePath),
+					t);
 			}
 		}
 		// no stats available
