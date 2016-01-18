@@ -274,10 +274,10 @@ public class StreamingJobGraphGenerator {
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
+		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
 		if (streamGraph.isCheckpointingEnabled()) {
 			config.setCheckpointMode(streamGraph.getCheckpointingMode());
-			config.setStateBackend(streamGraph.getStateBackend());
 		} else {
 			// the at least once input handler is slightly cheaper (in the absence of checkpoints),
 			// so we use that one if checkpointing is not enabled
