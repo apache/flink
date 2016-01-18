@@ -551,43 +551,49 @@ val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
 #### Combinable GroupReduceFunctions
 
 In contrast to a reduce function, a group-reduce function is not
-necessarily combinable. In order to make a group-reduce function
-combinable, you need to use the `RichGroupReduceFunction` variant,
-implement (override) the `combine()` method, and annotate the
-`RichGroupReduceFunction` with the `@Combinable` annotation as shown here:
+implicitly combinable. In order to make a group-reduce function
+combinable it must implement the `GroupCombineFunction` interface.
+
+**Important**: The generic input and output types of 
+the `GroupCombineFunction` interface must be equal to the generic input type 
+of the `GroupReduceFunction` as shown in the following example:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
 ~~~java
-// Combinable GroupReduceFunction that computes two sums.
-// Note that we use the RichGroupReduceFunction because it defines the combine method
-@Combinable
-public class MyCombinableGroupReducer
-         extends RichGroupReduceFunction<Tuple3<String, Integer, Double>,
-                                     Tuple3<String, Integer, Double>> {
+// Combinable GroupReduceFunction that computes a sum.
+public class MyCombinableGroupReducer implements
+  GroupReduceFunction<Tuple2<String, Integer>, String>,
+  GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> 
+{
   @Override
-  public void reduce(Iterable<Tuple3<String, Integer, Double>> in,
-                     Collector<Tuple3<String, Integer, Double>> out) {
+  public void reduce(Iterable<Tuple2<String, Integer>> in,
+                     Collector<String> out) {
 
     String key = null;
-    int intSum = 0;
-    double doubleSum = 0.0;
+    int sum = 0;
 
-    for (Tuple3<String, Integer, Double> curr : in) {
+    for (Tuple2<String, Integer> curr : in) {
       key = curr.f0;
-      intSum += curr.f1;
-      doubleSum += curr.f2;
+      sum += curr.f1;
     }
-    // emit a tuple with both sums
-    out.collect(new Tuple3<String, Integer, Double>(key, intSum, doubleSum));
+    // concat key and sum and emit
+    out.collect(key + "-" + sum);
   }
 
   @Override
-  public void combine(Iterable<Tuple3<String, Integer, Double>> in,
-                      Collector<Tuple3<String, Integer, Double>> out) {
-    // in some cases combine() calls can simply be forwarded to reduce().
-    this.reduce(in, out);
+  public void combine(Iterable<Tuple2<String, Integer>> in,
+                      Collector<Tuple2<String, Integer>> out) {
+    String key = null;
+    int sum = 0;
+
+    for (Tuple2<String, Integer> curr : in) {
+      key = curr.f0;
+      sum += curr.f1;
+    }
+    // emit tuple with key and sum
+    out.collect(new Tuple2<>(key, sum)); 
   }
 }
 ~~~
@@ -598,33 +604,28 @@ public class MyCombinableGroupReducer
 ~~~scala
 
 // Combinable GroupReduceFunction that computes two sums.
-// Note that we use the RichGroupReduceFunction because it defines the combine method
-@Combinable
 class MyCombinableGroupReducer
-  extends RichGroupReduceFunction[(String, Int, Double), (String, Int, Double)] {}
-
-  def reduce(
-      in: java.lang.Iterable[(String, Int, Double)],
-      out: Collector[(String, Int, Double)]): Unit = {
-
-    val key: String = null
-    val intSum = 0
-    val doubleSum = 0.0
-
-    for (curr <- in) {
-      key = curr._1
-      intSum += curr._2
-      doubleSum += curr._3
-    }
-    // emit a tuple with both sums
-    out.collect(key, intSum, doubleSum);
+  extends GroupReduceFunction[(String, Int), String]
+  with GroupCombineFunction[(String, Int), (String, Int)]
+{
+  override def reduce(
+    in: java.lang.Iterable[(String, Int)],
+    out: Collector[String]): Unit =
+  {
+    val r: (String, Int) =
+      in.asScala.reduce( (a,b) => (a._1, a._2 + b._2) )
+    // concat key and sum and emit
+    out.collect (r._1 + "-" + r._2)
   }
 
-  def combine(
-      in: java.lang.Iterable[(String, Int, Double)],
-      out: Collector[(String, Int, Double)]): Unit = {
-    // in some cases combine() calls can simply be forwarded to reduce().
-    this.reduce(in, out)
+  override def combine(
+    in: java.lang.Iterable[(String, Int)],
+    out: Collector[(String, Int)]): Unit =
+  {
+    val r: (String, Int) =
+      in.asScala.reduce( (a,b) => (a._1, a._2 + b._2) )
+    // emit tuple with key and sum
+    out.collect(r)
   }
 }
 ~~~
@@ -635,14 +636,16 @@ class MyCombinableGroupReducer
 ~~~python
  class GroupReduce(GroupReduceFunction):
    def reduce(self, iterator, collector):
-     key, int_sum, float_sum = iterator.next()
+     key, int_sum = iterator.next()
      for value in iterator:
        int_sum += value[1]
-       float_sum += value[2]
-     collector.collect((key, int_sum, float_sum))
-   # in some cases combine() calls can simply be forwarded to reduce().
+     collector.collect(key + "-" + int_sum))
+
    def combine(self, iterator, collector):
-     return self.reduce(iterator, collector)
+     key, int_sum = iterator.next()
+     for value in iterator:
+       int_sum += value[1]
+     collector.collect((key, int_sum))
 
 data.reduce_group(GroupReduce(), combinable=True)
 ~~~
@@ -653,7 +656,7 @@ data.reduce_group(GroupReduce(), combinable=True)
 ### GroupCombine on a Grouped DataSet
 
 The GroupCombine transformation is the generalized form of the combine step in
-the Combinable GroupReduceFunction. It is generalized in the sense that it
+the combinable GroupReduceFunction. It is generalized in the sense that it
 allows combining of input type `I` to an arbitrary output type `O`. In contrast,
 the combine step in the GroupReduce only allows combining from input type `I` to
 output type `I`. This is because the reduce step in the GroupReduceFunction
@@ -872,7 +875,7 @@ val output = input.reduceGroup(new MyGroupReducer())
 
 **Note:** A GroupReduce transformation on a full DataSet cannot be done in parallel if the
 group-reduce function is not combinable. Therefore, this can be a very compute intensive operation.
-See the paragraph on "Combineable Group-Reduce Functions" above to learn how to implement a
+See the paragraph on "Combinable GroupReduceFunctions" above to learn how to implement a
 combinable group-reduce function.
 
 ### GroupCombine on a full DataSet
