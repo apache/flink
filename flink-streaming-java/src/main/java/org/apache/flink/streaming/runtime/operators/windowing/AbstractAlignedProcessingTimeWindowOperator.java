@@ -171,13 +171,8 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 	public void close() throws Exception {
 		super.close();
 		
-		final long finalWindowTimestamp = nextEvaluationTime;
-
 		// early stop the triggering thread, so it does not attempt to return any more data
 		stopTriggers();
-
-		// emit the remaining data
-		computeWindow(finalWindowTimestamp);
 	}
 
 	@Override

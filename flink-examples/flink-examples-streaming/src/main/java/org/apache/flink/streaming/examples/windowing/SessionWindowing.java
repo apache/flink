@@ -116,7 +116,7 @@ public class SessionWindowing {
 			// Update the last seen event time
 			lastSeenState.update(timestamp);
 
-			ctx.registerEventTimeTimer(lastSeen + sessionTimeout);
+			ctx.registerEventTimeTimer(timestamp + sessionTimeout);
 
 			if (timeSinceLastEvent > sessionTimeout) {
 				return TriggerResult.FIRE_AND_PURGE;

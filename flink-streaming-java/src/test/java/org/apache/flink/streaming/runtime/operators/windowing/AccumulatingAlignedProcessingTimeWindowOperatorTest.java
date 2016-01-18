@@ -251,12 +251,14 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
+			// get and verify the result
+			out.waitForNElements(numElements, 60_000);
+
 			synchronized (lock) {
 				op.close();
 			}
 			op.dispose();
 
-			// get and verify the result
 			List<Integer> result = out.getElements();
 			assertEquals(numElements, result.size());
 
@@ -441,102 +443,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			timerService.shutdown();
 		}
 	}
-	
-	@Test
-	public void testEmitTrailingDataOnClose() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
-			
-			// the operator has a window time that is so long that it will not fire in this test
-			final long oneYear = 365L * 24 * 60 * 60 * 1000;
-			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
-					new AccumulatingProcessingTimeWindowOperator<>(
-							validatingIdentityFunction, identitySelector,
-							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
-							oneYear, oneYear);
 
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
-			
-			List<Integer> data = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-			for (Integer i : data) {
-				synchronized (lock) {
-					op.processElement(new StreamRecord<Integer>(i));
-				}
-			}
-
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
-			
-			// get and verify the result
-			List<Integer> result = out.getElements();
-			Collections.sort(result);
-			assertEquals(data, result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdown();
-		}
-	}
-
-	@Test
-	public void testPropagateExceptionsFromClose() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final CollectingOutput<Integer> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
-
-			WindowFunction<Integer, Integer, Integer, TimeWindow> failingFunction = new FailingFunction(100);
-
-			// the operator has a window time that is so long that it will not fire in this test
-			final long hundredYears = 100L * 365 * 24 * 60 * 60 * 1000;
-			AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> op =
-					new AccumulatingProcessingTimeWindowOperator<>(
-							failingFunction, identitySelector,
-							IntSerializer.INSTANCE, IntSerializer.INSTANCE,
-							hundredYears, hundredYears);
-
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
-
-			for (int i = 0; i < 150; i++) {
-				synchronized (lock) {
-					op.processElement(new StreamRecord<Integer>(i));
-				}
-			}
-			
-			try {
-				synchronized (lock) {
-					op.close();
-				}
-				fail("This should fail with an exception");
-			}
-			catch (Exception e) {
-				assertTrue(
-						e.getMessage().contains("Artificial Test Exception") ||
-						(e.getCause() != null && e.getCause().getMessage().contains("Artificial Test Exception")));
-			}
-
-			op.dispose();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdown();
-		}
-	}
-	
 	@Test
 	public void checkpointRestoreWithPendingWindowTumbling() {
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
@@ -607,15 +514,18 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
+
+			out2.waitForNElements(numElements - resultAtSnapshot.size(), 60_000);
 
 			// get and verify the result
 			List<Integer> finalResult = new ArrayList<>(resultAtSnapshot);
 			finalResult.addAll(out2.getElements());
 			assertEquals(numElements, finalResult.size());
+
+			synchronized (lock) {
+				op.close();
+			}
+			op.dispose();
 
 			Collections.sort(finalResult);
 			for (int i = 0; i < numElements; i++) {

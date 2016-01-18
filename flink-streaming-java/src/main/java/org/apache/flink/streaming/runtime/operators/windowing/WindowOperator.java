@@ -251,17 +251,14 @@ public class WindowOperator<K, IN, OUT, W extends Window>
 	}
 
 	@Override
-	public final void close() throws Exception {
-		super.close();
-		// emit the elements that we still keep
-		for (Map.Entry<K, Map<W, Context>> entry: windows.entrySet()) {
-			Map<W, Context> keyWindows = entry.getValue();
-			for (Context window: keyWindows.values()) {
-				emitWindow(window);
-			}
-		}
+	public final void dispose() {
+		super.dispose();
 		windows.clear();
-		windowBufferFactory.close();
+		try {
+			windowBufferFactory.close();
+		} catch (Exception e) {
+			throw new RuntimeException("Error while closing WindowBufferFactory.", e);
+		}
 	}
 
 	@Override
