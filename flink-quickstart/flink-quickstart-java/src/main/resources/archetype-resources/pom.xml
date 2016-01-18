@@ -111,6 +111,7 @@ under the License.
 									<!-- This list contains all dependencies of flink-dist
 									Everything else will be packaged into the fat-jar
 									-->
+									<exclude>org.apache.flink:flink-annotations</exclude>
 									<exclude>org.apache.flink:flink-shaded-*</exclude>
 									<exclude>org.apache.flink:flink-core</exclude>
 									<exclude>org.apache.flink:flink-java</exclude>
