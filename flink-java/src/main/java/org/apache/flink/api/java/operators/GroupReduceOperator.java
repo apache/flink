@@ -27,7 +27,6 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
@@ -35,6 +34,11 @@ import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedReduc
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.DataSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
 /**
  * This operator represents the application of a "reduceGroup" function on a data set, and the
@@ -44,6 +48,8 @@ import org.apache.flink.api.java.DataSet;
  * @param <OUT> The type of the data set created by the operator.
  */
 public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, GroupReduceOperator<IN, OUT>> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceOperator.class);
 
 	private final GroupReduceFunction<IN, OUT> function;
 
@@ -88,9 +94,48 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 
 	private void checkCombinability() {
-		if (function instanceof GroupCombineFunction &&
-				function.getClass().getAnnotation(RichGroupReduceFunction.Combinable.class) != null) {
-			this.combinable = true;
+		if (function instanceof GroupCombineFunction) {
+
+			// check if the generic types of GroupCombineFunction and GroupReduceFunction match, i.e.,
+			//   GroupCombineFunction<IN, IN> and GroupReduceFunction<IN, OUT>.
+			// This is a best effort check. If the check cannot be done, we might fail at runtime.
+			Type[] reduceTypes = null;
+			Type[] combineTypes = null;
+
+			Type[] genInterfaces = function.getClass().getGenericInterfaces();
+			for (Type genInterface : genInterfaces) {
+				if (genInterface instanceof ParameterizedType) {
+					// get parameters of GroupReduceFunction
+					if (((ParameterizedType) genInterface).getRawType().equals(GroupReduceFunction.class)) {
+						reduceTypes = ((ParameterizedType) genInterface).getActualTypeArguments();
+					// get parameters of GroupCombineFunction
+					} else if (((ParameterizedType) genInterface).getRawType().equals(GroupCombineFunction.class)) {
+						combineTypes = ((ParameterizedType) genInterface).getActualTypeArguments();
+					}
+				}
+			}
+
+			if (reduceTypes != null && reduceTypes.length == 2 &&
+				combineTypes != null && combineTypes.length == 2) {
+
+				if (reduceTypes[0].equals(combineTypes[0]) && reduceTypes[0].equals(combineTypes[1])) {
+					this.combinable = true;
+				} else {
+					LOG.warn("GroupCombineFunction cannot be used as combiner for GroupReduceFunction. " +
+						"Generic types are incompatible.");
+					this.combinable = false;
+				}
+			}
+			else if (reduceTypes == null || reduceTypes.length != 2) {
+				LOG.warn("Cannot check generic types of GroupReduceFunction. " +
+					"Enabling combiner but combine function might fail at runtime.");
+				this.combinable = true;
+			}
+			else {
+				LOG.warn("Cannot check generic types of GroupCombineFunction. " +
+					"Enabling combiner but combine function might fail at runtime.");
+				this.combinable = true;
+			}
 		}
 	}
 	

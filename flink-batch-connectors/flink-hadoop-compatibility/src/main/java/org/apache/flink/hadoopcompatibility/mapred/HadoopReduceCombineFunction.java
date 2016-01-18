@@ -23,6 +23,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -44,10 +45,10 @@ import org.apache.hadoop.mapred.Reporter;
  * This wrapper maps a Hadoop Reducer and Combiner (mapred API) to a combinable Flink GroupReduceFunction.
  */
 @SuppressWarnings("rawtypes")
-@org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable
 public final class HadoopReduceCombineFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT> 
-					extends RichGroupReduceFunction<Tuple2<KEYIN,VALUEIN>,Tuple2<KEYOUT,VALUEOUT>> 
-					implements ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>>, Serializable {
+	extends RichGroupReduceFunction<Tuple2<KEYIN,VALUEIN>,Tuple2<KEYOUT,VALUEOUT>>
+	implements GroupCombineFunction<Tuple2<KEYIN,VALUEIN>, Tuple2<KEYIN,VALUEIN>>,
+				ResultTypeQueryable<Tuple2<KEYOUT,VALUEOUT>>, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -104,10 +105,10 @@ public final class HadoopReduceCombineFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		
 		this.reporter = new HadoopDummyReporter();
 		Class<KEYIN> inKeyClass = (Class<KEYIN>) TypeExtractor.getParameterType(Reducer.class, reducer.getClass(), 0);
-		TypeSerializer<KEYIN> keySerializer = TypeExtractor.getForClass((Class<KEYIN>) inKeyClass).createSerializer(getRuntimeContext().getExecutionConfig());
-		this.valueIterator = new HadoopTupleUnwrappingIterator<KEYIN, VALUEIN>(keySerializer);
-		this.combineCollector = new HadoopOutputCollector<KEYIN, VALUEIN>();
-		this.reduceCollector = new HadoopOutputCollector<KEYOUT, VALUEOUT>();
+		TypeSerializer<KEYIN> keySerializer = TypeExtractor.getForClass(inKeyClass).createSerializer(getRuntimeContext().getExecutionConfig());
+		this.valueIterator = new HadoopTupleUnwrappingIterator<>(keySerializer);
+		this.combineCollector = new HadoopOutputCollector<>();
+		this.reduceCollector = new HadoopOutputCollector<>();
 	}
 
 	@Override
@@ -131,9 +132,9 @@ public final class HadoopReduceCombineFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		Class<KEYOUT> outKeyClass = (Class<KEYOUT>) TypeExtractor.getParameterType(Reducer.class, reducer.getClass(), 2);
 		Class<VALUEOUT> outValClass = (Class<VALUEOUT>)TypeExtractor.getParameterType(Reducer.class, reducer.getClass(), 3);
 
-		final TypeInformation<KEYOUT> keyTypeInfo = TypeExtractor.getForClass((Class<KEYOUT>) outKeyClass);
-		final TypeInformation<VALUEOUT> valueTypleInfo = TypeExtractor.getForClass((Class<VALUEOUT>) outValClass);
-		return new TupleTypeInfo<Tuple2<KEYOUT,VALUEOUT>>(keyTypeInfo, valueTypleInfo);
+		final TypeInformation<KEYOUT> keyTypeInfo = TypeExtractor.getForClass(outKeyClass);
+		final TypeInformation<VALUEOUT> valueTypleInfo = TypeExtractor.getForClass(outValClass);
+		return new TupleTypeInfo<>(keyTypeInfo, valueTypleInfo);
 	}
 
 	/**
@@ -161,4 +162,5 @@ public final class HadoopReduceCombineFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 		jobConf = new JobConf();
 		jobConf.readFields(in);
 	}
+
 }

@@ -23,6 +23,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -252,7 +253,10 @@ public class CombiningUnilateralSortMergerITCase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public static class TestCountCombiner extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
+	public static class TestCountCombiner
+		extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+		implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	{
 		private static final long serialVersionUID = 1L;
 		
 		private Integer count = 0;
@@ -290,7 +294,10 @@ public class CombiningUnilateralSortMergerITCase {
 		}
 	}
 
-	public static class TestCountCombiner2 extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
+	public static class TestCountCombiner2
+		extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>
+		implements GroupCombineFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>
+	{
 		private static final long serialVersionUID = 1L;
 		
 		public volatile boolean opened = false;

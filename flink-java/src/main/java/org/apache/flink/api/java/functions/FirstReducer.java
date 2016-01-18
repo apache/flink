@@ -19,10 +19,8 @@
 package org.apache.flink.api.java.functions;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.util.Collector;
 
-@Combinable
 public class FirstReducer<T> implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 	private static final long serialVersionUID = 1L;
 
