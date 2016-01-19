@@ -336,6 +336,13 @@ public final class ConfigConstants {
 	// ------------------------ File System Behavior ------------------------
 
 	/**
+	 * Key to specify the default filesystem to be used by a job. In the case of
+	 * <code>file:///</code>, which is the default (see {@link ConfigConstants#DEFAULT_FILESYSTEM_SCHEME}),
+	 * the local filesystem is going to be used to resolve URIs without an explicit scheme.
+	 * */
+	public static final String FILESYSTEM_SCHEME = "fs.default-scheme";
+
+	/**
 	 * Key to specify whether the file systems should simply overwrite existing files.
 	 */
 	public static final String FILESYSTEM_DEFAULT_OVERWRITE_KEY = "fs.overwrite-files";
@@ -693,6 +700,12 @@ public final class ConfigConstants {
 	
 	// ------------------------ File System Behavior ------------------------
 
+	/**
+	 * The default filesystem to be used, if no other scheme is specified in the
+	 * user-provided URI (= local filesystem)
+	 * */
+	public static final String DEFAULT_FILESYSTEM_SCHEME = "file:///";
+	
 	/**
 	 * The default behavior with respect to overwriting existing files (= not overwrite)
 	 */

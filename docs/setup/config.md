@@ -54,6 +54,13 @@ The configuration files for the TaskManagers can be different, Flink does not as
 - `parallelism.default`: The default parallelism to use for programs that have no parallelism specified. (DEFAULT: 1). For setups that have no concurrent jobs running, setting this value to NumTaskManagers * NumSlotsPerTaskManager will cause the system to use all available execution resources for the program's execution. **Note**: The default parallelism can be overwriten for an entire job by calling `setParallelism(int parallelism)` on the `ExecutionEnvironment` or by passing `-p <parallelism>` to the Flink Command-line frontend. It can be overwritten for single transformations by calling `setParallelism(int
 parallelism)` on an operator. See the [programming guide]({{site.baseurl}}/apis/programming_guide.html#parallel-execution) for more information about the parallelism.
 
+- `fs.default-scheme`: The default filesystem scheme to be used, with the necessary authority to contact, e.g. the host:port of the NameNode in the case of HDFS (if needed). 
+By default, this is set to `file:///` which points to the local filesystem. This means that the local 
+filesystem is going to be used to search for user-specified files **without** an explicit scheme 
+definition. As another example, if this is set to `hdfs://localhost:9000/`, then a user-specified file path 
+without explicit scheme definition, such as `/user/USERNAME/in.txt`, is going to be transformed into 
+`hdfs://localhost:9000/user/USERNAME/in.txt`. This scheme is used **ONLY** if no other scheme is specified (explicitly) in the user-provided `URI`.
+
 - `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS) configuration **directory** (OPTIONAL VALUE). Specifying this value allows programs to reference HDFS files using short URIs (`hdfs:///path/to/files`, without including the address and port of the NameNode in the file URI). Without this option, HDFS files can be accessed, but require fully qualified URIs like `hdfs://address:port/path/to/files`. This option also causes file writers to pick up the HDFS's default values for block sizes and replication factors. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in teh specified directory.
 
 ## Advanced Options
@@ -193,6 +200,11 @@ The following parameters configure Flink's JobManager and TaskManagers.
 ### File Systems
 
 The parameters define the behavior of tasks that create result files.
+
+- `fs.default-scheme`: The default filesystem scheme to be used, with the necessary authority to contact, e.g. the host:port of the NameNode in the case of HDFS (if needed). 
+By default, this is set to `file:///` which points to the local filesystem. This means that the local 
+filesystem is going to be used to search for user-specified files **without** an explicit scheme 
+definition. This scheme is used **ONLY** if no other scheme is specified (explicitly) in the user-provided `URI`.
 
 - `fs.overwrite-files`: Specifies whether file output writers should overwrite existing files by default. Set to *true* to overwrite by default, *false* otherwise. (DEFAULT: false)
 - `fs.output.always-create-directory`: File writers running with a parallelism larger than one create a directory for the output file path and put the different result files (one per parallel writer task) into that directory. If this option is set to *true*, writers with a parallelism of 1 will also create a directory and place a single result file into it. If the option is set to *false*, the writer will directly create the file directly at the output path, without creating a containing directory. (DEFAULT: false)

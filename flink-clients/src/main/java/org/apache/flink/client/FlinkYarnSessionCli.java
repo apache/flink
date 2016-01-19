@@ -393,7 +393,7 @@ public class FlinkYarnSessionCli {
 			printUsage();
 			return 1;
 		}
-
+		
 		// Query cluster for metrics
 		if (cmd.hasOption(QUERY.getOpt())) {
 			AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
@@ -414,7 +414,6 @@ public class FlinkYarnSessionCli {
 				System.err.println("Error while starting the YARN Client. Please check log output!");
 				return 1;
 			}
-
 
 			try {
 				yarnCluster = flinkYarnClient.deploy();
