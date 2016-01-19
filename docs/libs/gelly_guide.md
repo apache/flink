@@ -1579,15 +1579,15 @@ This is an implementation of the well-known Label Propagation algorithm describe
 
 #### Details
 The algorithm is implemented using [vertex-centric iterations](#vertex-centric-iterations).
-Labels are expected to be of `Long` types and are initialized using the vertex values of the input `Graph`.
+Labels are expected to be of type `Comparable` and are initialized using the vertex values of the input `Graph`.
 The algorithm iteratively refines discovered communities by propagating labels. In each iteration, a vertex adopts
-the label that is most frequent among its neighbors' labels. In order to break ties, we assume a total ordering among vertex IDs.
-The algorithm converges when no vertex changes its value or the maximum number of iterations has been reached. Note that different
-initializations might lead to different results.
+the label that is most frequent among its neighbors' labels. In case of a tie (i.e. two or more labels appear with the 
+same frequency), the algorithm picks the greater label. The algorithm converges when no vertex changes its value or 
+the maximum number of iterations has been reached. Note that different initializations might lead to different results.
 
 #### Usage
-The algorithm takes as input a `Graph` with a `Comparable` vertex type, `Long` vertex values, and any edge value type. It returns a `DataSet`,
-of vertices, where the vertex value corresponds to the community in which this vertex belongs after convergence.
+The algorithm takes as input a `Graph` with a `Comparable` vertex type, a `Comparable` vertex value type and an arbitrary edge value type. 
+It returns a `DataSet` of vertices, where the vertex value corresponds to the community in which this vertex belongs after convergence.
 The constructor takes one parameter:
 
 * `maxIterations`: the maximum number of iterations to run.
