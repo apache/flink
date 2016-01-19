@@ -59,13 +59,16 @@ public class PlanJsonParser {
 
 			//drop the hashcode of object instance
 			int dele = tempNode.getContents().indexOf("@");
-			if (dele > -1) content = tempNode.getContents().substring(0, dele);
+			if (dele > -1) {
+				content = tempNode.getContents().substring(0, dele);
+			}
 			
 			//replace with certain content if node is dataSource to pass
 			//unit tests, because java and scala use different api to
 			//get input element
-			if (tempNode.getPact().equals("Data Source"))
+			if (tempNode.getPact().equals("Data Source")) {
 				content = "collect elements with CollectionInputFormat";
+			}
 			pw.print("content : " + content + "\n");
 
 			List<Predecessors> predecessors = tempNode.getPredecessors();
