@@ -35,7 +35,8 @@ import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration._
-import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
+import org.apache.flink.core.fs.FileSystem
+import org.apache.flink.core.memory.{HybridMemorySegment, HeapMemorySegment, MemorySegmentFactory, MemoryType}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobCache, BlobService}
@@ -1422,7 +1423,17 @@ object TaskManager {
     catch {
       case e: Exception => throw new Exception("Could not load configuration", e)
     }
-    
+
+    try {
+      FileSystem.setDefaultScheme(conf)
+    }
+    catch {
+      case e: IOException => {
+        throw new Exception("Error while setting the default " +
+          "filesystem scheme from configuration.", e)
+      }
+    }
+
     conf
   }
 

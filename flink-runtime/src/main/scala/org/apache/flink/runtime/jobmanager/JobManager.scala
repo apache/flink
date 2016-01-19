@@ -31,6 +31,7 @@ import grizzled.slf4j.Logger
 
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
+import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
@@ -92,7 +93,7 @@ import scala.language.postfixOps
  *  is indicated by [[CancellationSuccess]] and a failure by [[CancellationFailure]]
  *
  * - [[UpdateTaskExecutionState]] is sent by a TaskManager to update the state of an
-  * ExecutionVertex contained in the [[ExecutionGraph]].
+ * ExecutionVertex contained in the [[ExecutionGraph]].
  * A successful update is acknowledged by true and otherwise false.
  *
  * - [[RequestNextInputSplit]] requests the next input split for a running task on a
@@ -1991,6 +1992,16 @@ object JobManager {
     LOG.info("Loading configuration from " + configDir)
     GlobalConfiguration.loadConfiguration(configDir)
     val configuration = GlobalConfiguration.getConfiguration()
+
+    try {
+      FileSystem.setDefaultScheme(configuration)
+    }
+    catch {
+      case e: IOException => {
+        throw new Exception("Error while setting the default " +
+          "filesystem scheme from configuration.", e)
+      }
+    }
 
     if (new File(configDir).isDirectory) {
       configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..")

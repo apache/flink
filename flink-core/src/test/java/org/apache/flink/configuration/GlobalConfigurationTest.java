@@ -221,5 +221,4 @@ public class GlobalConfigurationTest extends TestLogger {
 	private File createRandomFile(File path, String suffix) {
 		return new File(path.getAbsolutePath() + File.separator + CommonTestUtils.getRandomDirectoryName() + suffix);
 	}
-
 }

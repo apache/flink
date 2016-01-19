@@ -43,6 +43,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
@@ -229,6 +230,13 @@ public class CliFrontend {
 			for (Map.Entry<String, String> dynamicProperty : dynamicProperties.entrySet()) {
 				this.config.setString(dynamicProperty.getKey(), dynamicProperty.getValue());
 			}
+		}
+
+		try {
+			FileSystem.setDefaultScheme(config);
+		} catch (IOException e) {
+			throw new Exception("Error while setting the default " +
+				"filesystem scheme from configuration.", e);
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(config);
