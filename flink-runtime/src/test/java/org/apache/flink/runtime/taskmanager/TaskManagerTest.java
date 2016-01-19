@@ -1101,16 +1101,10 @@ public class TaskManagerTest {
 	public static final class TestInvokableCorrect extends AbstractInvokable {
 
 		@Override
-		public void registerInputOutput() {}
-
-		@Override
 		public void invoke() {}
 	}
 	
 	public static final class TestInvokableBlockingCancelable extends AbstractInvokable {
-
-		@Override
-		public void registerInputOutput() {}
 
 		@Override
 		public void invoke() throws Exception {

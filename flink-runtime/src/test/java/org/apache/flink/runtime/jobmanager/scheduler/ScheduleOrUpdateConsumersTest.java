@@ -125,28 +125,23 @@ public class ScheduleOrUpdateConsumersTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private List<RecordWriter<IntValue>> writers = Lists.newArrayListWithCapacity(2);
-
-		private int numberOfTimesToSend;
-
 		@Override
-		public void registerInputOutput() {
+		public void invoke() throws Exception {
+			List<RecordWriter<IntValue>> writers = Lists.newArrayListWithCapacity(2);
+
 			// The order of intermediate result creation in the job graph specifies which produced
 			// result partition is pipelined/blocking.
 			final RecordWriter<IntValue> pipelinedWriter =
-					new RecordWriter<IntValue>(getEnvironment().getWriter(0));
+					new RecordWriter<>(getEnvironment().getWriter(0));
 
 			final RecordWriter<IntValue> blockingWriter =
-					new RecordWriter<IntValue>(getEnvironment().getWriter(1));
+					new RecordWriter<>(getEnvironment().getWriter(1));
 
 			writers.add(pipelinedWriter);
 			writers.add(blockingWriter);
 
-			numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
-		}
+			final int numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 
-		@Override
-		public void invoke() throws Exception {
 			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 

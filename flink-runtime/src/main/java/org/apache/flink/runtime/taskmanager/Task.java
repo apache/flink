@@ -505,18 +505,12 @@ public class Task implements Runnable {
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
-			try {
-				invokable.registerInputOutput();
-			}
-			catch (Exception e) {
-				throw new Exception("Call to registerInputOutput() of invokable failed", e);
-			}
 
 			// the very last thing before the actual execution starts running is to inject
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
 
-			// get our private reference onto the stack (be safe against concurrent changes) 
+			// get our private reference onto the stack (be safe against concurrent changes)
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
 			long recoveryTs = this.recoveryTs;
 

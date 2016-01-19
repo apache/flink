@@ -179,9 +179,6 @@ public class TaskAsyncCallTest {
 		private volatile Exception error;
 		
 		@Override
-		public void registerInputOutput() {}
-
-		@Override
 		public void invoke() throws Exception {
 			awaitLatch.trigger();
 			

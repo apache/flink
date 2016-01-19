@@ -70,16 +70,13 @@ import org.slf4j.LoggerFactory;
  *
  * The life cycle of the task is set up as follows: 
  * <pre>{@code
- *  -- registerInputOutput()
- *         |
- *         +----> Create basic utils (config, etc) and load the chain of operators
- *         +----> operators.setup()
- *         +----> task specific init()
- *  
  *  -- restoreState() -> restores state of all operators in the chain
  *  
  *  -- invoke()
  *        |
+ *        +----> Create basic utils (config, etc) and load the chain of operators
+ *        +----> operators.setup()
+ *        +----> task specific init()
  *        +----> open-operators()
  *        +----> run()
  *        +----> close-operators()
@@ -169,8 +166,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public final void registerInputOutput() throws Exception {
-		LOG.debug("registerInputOutput for {}", getName());
+	public final void invoke() throws Exception {
+		// --------------------------------------------------------------------
+		// Initialize
+		// --------------------------------------------------------------------
+		LOG.debug("Initializing {}", getName());
 
 		boolean initializationCompleted = false;
 		try {
@@ -194,7 +194,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 			// task specific initialization
 			init();
-			
+
 			initializationCompleted = true;
 		}
 		finally {
@@ -207,10 +207,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				}
 			}
 		}
-	}
-	
-	@Override
-	public final void invoke() throws Exception {
+
+		// --------------------------------------------------------------------
+		// Invoke
+		// --------------------------------------------------------------------
 		LOG.debug("Invoking {}", getName());
 		
 		boolean disposed = false;
@@ -298,6 +298,10 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	public final void cancel() throws Exception {
 		isRunning = false;
 		cancelTask();
+	}
+
+	public final boolean isRunning() {
+		return isRunning;
 	}
 	
 	private void openAllOperators() throws Exception {

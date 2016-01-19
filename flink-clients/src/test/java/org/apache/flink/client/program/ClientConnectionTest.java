@@ -149,8 +149,6 @@ public class ClientConnectionTest {
 	// --------------------------------------------------------------------------------------------
 
 	public static class TestInvokable extends AbstractInvokable {
-		@Override
-		public void registerInputOutput() {}
 
 		@Override
 		public void invoke() {}

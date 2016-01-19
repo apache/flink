@@ -71,6 +71,7 @@ public class TwoInputStreamTaskTest {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processElement(new StreamRecord<String>("Hello", initialTime + 1), 0, 0);
 		expectedOutput.add(new StreamRecord<String>("Hello", initialTime + 1));
@@ -110,6 +111,7 @@ public class TwoInputStreamTaskTest {
 		long initialTime = 0L;
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processElement(new Watermark(initialTime), 0, 0);
 		testHarness.processElement(new Watermark(initialTime), 0, 1);
@@ -189,6 +191,7 @@ public class TwoInputStreamTaskTest {
 		long initialTime = 0L;
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
 
@@ -255,6 +258,7 @@ public class TwoInputStreamTaskTest {
 		long initialTime = 0L;
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
 
