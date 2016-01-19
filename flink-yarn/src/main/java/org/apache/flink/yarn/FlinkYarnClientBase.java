@@ -364,6 +364,13 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
 		}
 
+		try {
+			org.apache.flink.core.fs.FileSystem.setDefaultScheme(flinkConfiguration);
+		} catch (IOException e) {
+			LOG.error("Error while setting the default " +
+				"filesystem scheme from configuration.", e);
+			return null;
+		}
 		// ------------------ Check if the specified queue exists --------------
 
 		try {

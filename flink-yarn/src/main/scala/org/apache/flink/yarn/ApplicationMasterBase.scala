@@ -18,13 +18,14 @@
 
 package org.apache.flink.yarn
 
-import java.io.{BufferedWriter, FileWriter, PrintWriter}
+import java.io.{IOException, FileWriter, BufferedWriter, PrintWriter}
 import java.net.{BindException, ServerSocket}
 import java.security.PrivilegedAction
 
 import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.client.CliFrontend
-import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
+import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
+import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode, MemoryArchivist}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -113,6 +114,13 @@ abstract class ApplicationMasterBase {
         config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0)
       }
 
+      try {
+        FileSystem.setDefaultScheme(config)
+      } catch {
+        case t: IOException =>
+          log.error("Error while setting the default filesystem scheme from configuration.", t)
+      }
+
       // we try to start the JobManager actor system using the port definition
       // from the config.
       // first, we check if the port is available by opening a socket
@@ -175,6 +183,8 @@ abstract class ApplicationMasterBase {
       generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, akkaHostname,
         jobManagerPort, webServerPort, slots, taskManagerCount,
         dynamicPropertiesEncodedString)
+
+      //todo should I also set the FS default here????
 
       val hadoopConfig = new YarnConfiguration()
 
