@@ -217,13 +217,14 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	//                                  Task Interface
 	// --------------------------------------------------------------------------------------------
 
-
 	/**
-	 * Initialization method. Runs in the execution graph setup phase in the JobManager
-	 * and as a setup method on the TaskManager.
+	 * The main work method.
 	 */
 	@Override
-	public void registerInputOutput() throws Exception {
+	public void invoke() throws Exception {
+		// --------------------------------------------------------------------
+		// Initialize
+		// --------------------------------------------------------------------
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
@@ -247,20 +248,13 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Finished registering input and output."));
 		}
-	}
 
-
-	/**
-	 * The main work method.
-	 */
-	@Override
-	public void invoke() throws Exception {
-
+		// --------------------------------------------------------------------
+		// Invoke
+		// --------------------------------------------------------------------
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start task code."));
 		}
-
-		Environment env = getEnvironment();
 
 		this.runtimeUdfContext = createRuntimeContext();
 

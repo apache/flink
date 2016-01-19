@@ -83,13 +83,15 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	private volatile boolean cleanupCalled;
 
 	@Override
-	public void registerInputOutput() {
-
+	public void invoke() throws Exception {
+		// --------------------------------------------------------------------
+		// Initialize
+		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Start registering input and output"));
 
 		// initialize OutputFormat
 		initOutputFormat();
-		
+
 		// initialize input readers
 		try {
 			initInputReaders();
@@ -99,12 +101,10 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		}
 
 		LOG.debug(getLogString("Finished registering input and output"));
-	}
 
-
-	@Override
-	public void invoke() throws Exception
-	{
+		// --------------------------------------------------------------------
+		// Invoke
+		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Starting data sink operator"));
 
 		if(RichOutputFormat.class.isAssignableFrom(this.format.getClass())){
