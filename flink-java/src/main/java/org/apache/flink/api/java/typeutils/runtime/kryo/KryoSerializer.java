@@ -323,6 +323,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		if (this.kryo == null) {
 			this.kryo = getKryoInstance();
 
+			// disable reference tracking. reference tracking is costly, usually unnecessary, and
+			// inconsistent with Flink's own serialization (which does not do reference tracking)
+			kryo.setReferences(false);
+			
 			// Throwable and all subclasses should be serialized via java serialization
 			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 
