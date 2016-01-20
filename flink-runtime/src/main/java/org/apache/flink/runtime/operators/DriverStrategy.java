@@ -35,7 +35,7 @@ public enum DriverStrategy {
 	// no local strategy, as for sources and sinks
 	NONE(null, null, PIPELINED, 0),
 	// a unary no-op operator
-	UNARY_NO_OP(NoOpDriver.class, null, PIPELINED, PIPELINED, 0),
+	UNARY_NO_OP(NoOpDriver.class, NoOpChainedDriver.class, PIPELINED, PIPELINED, 0),
 	// a binary no-op operator. non implementation available
 	BINARY_NO_OP(null, null, PIPELINED, PIPELINED, 0),
 

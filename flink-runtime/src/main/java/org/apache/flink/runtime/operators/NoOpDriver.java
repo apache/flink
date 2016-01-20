@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NoOpDriver<T> implements Driver<AbstractRichFunction, T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NoOpDriver.class);
 
 	private TaskContext<AbstractRichFunction, T> taskContext;
 	
