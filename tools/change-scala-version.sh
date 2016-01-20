@@ -47,11 +47,11 @@ check_scala_version() {
 check_scala_version "$TO_VERSION"
 
 if [ $TO_VERSION = "2.11" ]; then
-  FROM_SUFFIX=""
-  TO_SUFFIX="_2.11"
+  FROM_SUFFIX="_2\.10"
+  TO_SUFFIX="_2\.11"
 else
   FROM_SUFFIX="_2\.11"
-  TO_SUFFIX=""
+  TO_SUFFIX="_2\.10"
 fi
 
 sed_i() {

@@ -75,17 +75,17 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala</artifactId>
+			<artifactId>flink-scala_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala</artifactId>
+			<artifactId>flink-streaming-scala_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 	</dependencies>
@@ -119,14 +119,14 @@ under the License.
 									<exclude>org.apache.flink:flink-shaded-*</exclude>
 									<exclude>org.apache.flink:flink-core</exclude>
 									<exclude>org.apache.flink:flink-java</exclude>
-									<exclude>org.apache.flink:flink-scala</exclude>
-									<exclude>org.apache.flink:flink-runtime</exclude>
-									<exclude>org.apache.flink:flink-optimizer</exclude>
-									<exclude>org.apache.flink:flink-clients</exclude>
-									<exclude>org.apache.flink:flink-avro</exclude>
-									<exclude>org.apache.flink:flink-examples-batch</exclude>
-									<exclude>org.apache.flink:flink-examples-streaming</exclude>
-									<exclude>org.apache.flink:flink-streaming-java</exclude>
+									<exclude>org.apache.flink:flink-scala_2.10</exclude>
+									<exclude>org.apache.flink:flink-runtime_2.10</exclude>
+									<exclude>org.apache.flink:flink-optimizer_2.10</exclude>
+									<exclude>org.apache.flink:flink-clients_2.10</exclude>
+									<exclude>org.apache.flink:flink-avro_2.10</exclude>
+									<exclude>org.apache.flink:flink-examples-batch_2.10</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming_2.10</exclude>
+									<exclude>org.apache.flink:flink-streaming-java_2.10</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -315,19 +315,19 @@ under the License.
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-scala</artifactId>
+					<artifactId>flink-scala_2.10</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-java</artifactId>
+					<artifactId>flink-streaming-java_2.10</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-clients</artifactId>
+					<artifactId>flink-clients_2.10</artifactId>
 					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>

@@ -28,14 +28,15 @@ under the License.
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>flink-gelly-scala</artifactId>
+    <artifactId>flink-gelly-scala_2.10</artifactId>
+    <name>flink-gelly-scala</name>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-scala</artifactId>
+            <artifactId>flink-scala_2.10</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- We need to add this explicitly because through shading the dependency on asm seems
@@ -47,24 +48,24 @@ under the License.
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-clients</artifactId>
+            <artifactId>flink-clients_2.10</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-gelly</artifactId>
+            <artifactId>flink-gelly_2.10</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-tests</artifactId>
+            <artifactId>flink-tests_2.10</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils</artifactId>
+            <artifactId>flink-test-utils_2.10</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

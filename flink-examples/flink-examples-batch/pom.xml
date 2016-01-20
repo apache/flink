@@ -23,12 +23,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-examples</artifactId>
+		<artifactId>flink-examples_2.10</artifactId>
 		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-examples-batch</artifactId>
+	<artifactId>flink-examples-batch_2.10</artifactId>
 	<name>flink-examples-batch</name>
 	<packaging>jar</packaging>
 
@@ -41,7 +41,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala</artifactId>
+			<artifactId>flink-scala_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
@@ -381,14 +381,14 @@ under the License.
 						</goals>
 						<configuration> 
 							<target>
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-KMeans.jar" tofile="${project.basedir}/target/KMeans.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-ConnectedComponents.jar" tofile="${project.basedir}/target/ConnectedComponents.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-EnumTriangles.jar" tofile="${project.basedir}/target/EnumTriangles.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-PageRank.jar" tofile="${project.basedir}/target/PageRank.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-TransitiveClosure.jar" tofile="${project.basedir}/target/TransitiveClosure.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-WebLogAnalysis.jar" tofile="${project.basedir}/target/WebLogAnalysis.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
-								<copy file="${project.basedir}/target/flink-examples-batch-${project.version}-DistCp.jar" tofile="${project.basedir}/target/DistCp.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-KMeans.jar" tofile="${project.basedir}/target/KMeans.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-ConnectedComponents.jar" tofile="${project.basedir}/target/ConnectedComponents.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-EnumTriangles.jar" tofile="${project.basedir}/target/EnumTriangles.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-PageRank.jar" tofile="${project.basedir}/target/PageRank.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-TransitiveClosure.jar" tofile="${project.basedir}/target/TransitiveClosure.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-WebLogAnalysis.jar" tofile="${project.basedir}/target/WebLogAnalysis.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-batch_2.10-${project.version}-DistCp.jar" tofile="${project.basedir}/target/DistCp.jar" />
 							</target>
 						</configuration>
 					</execution>

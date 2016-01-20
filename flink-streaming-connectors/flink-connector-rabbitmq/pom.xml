@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-rabbitmq</artifactId>
+	<artifactId>flink-connector-rabbitmq_2.10</artifactId>
 	<name>flink-connector-rabbitmq</name>
 
 	<packaging>jar</packaging>
@@ -44,7 +44,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
