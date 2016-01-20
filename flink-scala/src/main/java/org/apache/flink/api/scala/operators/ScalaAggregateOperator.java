@@ -22,9 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -52,9 +52,9 @@ import scala.Product;
  */
 public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, ScalaAggregateOperator<IN>> {
 
-	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<AggregationFunction<?>>(4);
+	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<>(4);
 
-	private final List<Integer> fields = new ArrayList<Integer>(4);
+	private final List<Integer> fields = new ArrayList<>(4);
 
 	private final Grouping<IN> grouping;
 
@@ -170,7 +170,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		// distinguish between grouped reduce and non-grouped reduce
 		if (this.grouping == null) {
 			// non grouped aggregation
-			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> po =
 					new GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>>(function, operatorInfo, new int[0], name);
 
@@ -187,7 +187,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		if (this.grouping.getKeys() instanceof Keys.ExpressionKeys) {
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
-			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
+			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> po =
 					new GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
 
@@ -230,8 +230,10 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 	// --------------------------------------------------------------------------------------------
 
-	@Combinable
-	public static final class AggregatingUdf<T extends Product> extends RichGroupReduceFunction<T, T> {
+	public static final class AggregatingUdf<T extends Product>
+		extends RichGroupReduceFunction<T, T>
+		implements GroupCombineFunction<T, T>
+	{
 		private static final long serialVersionUID = 1L;
 
 		private final int[] fieldPositions;
@@ -292,6 +294,11 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			T result = serializer.createInstance(fields);
 
 			out.collect(result);
+		}
+
+		@Override
+		public void combine(Iterable<T> records, Collector<T> out) {
+			reduce(records, out);
 		}
 
 	}

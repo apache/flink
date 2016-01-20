@@ -12,6 +12,7 @@
  */
 package org.apache.flink.python.api.functions;
 
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.api.streaming.data.PythonStreamer;
 import org.apache.flink.util.Collector;
@@ -24,7 +25,10 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
  *
  * @param <IN>
  */
-public class PythonCombineIdentity<IN> extends RichGroupReduceFunction<IN, IN> {
+public class PythonCombineIdentity<IN>
+	extends RichGroupReduceFunction<IN, IN>
+	implements GroupCombineFunction<IN, IN>
+{
 	private PythonStreamer streamer;
 
 	public PythonCombineIdentity() {

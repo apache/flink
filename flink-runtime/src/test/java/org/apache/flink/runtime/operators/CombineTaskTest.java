@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -51,15 +53,15 @@ public class CombineTaskTest
 
 	private final double combine_frac;
 	
-	private final ArrayList<Tuple2<Integer, Integer>> outList = new ArrayList<Tuple2<Integer, Integer>>();
+	private final ArrayList<Tuple2<Integer, Integer>> outList = new ArrayList<>();
 
 	@SuppressWarnings("unchecked")
-	private final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<Tuple2<Integer, Integer>>(
+	private final TypeSerializer<Tuple2<Integer, Integer>> serializer = new TupleSerializer<>(
 			(Class<Tuple2<Integer, Integer>>) (Class<?>) Tuple2.class,
 			new TypeSerializer<?>[] { IntSerializer.INSTANCE, IntSerializer.INSTANCE });
 	
 	
-	private final TypeComparator<Tuple2<Integer, Integer>> comparator = new TupleComparator<Tuple2<Integer, Integer>>(
+	private final TypeComparator<Tuple2<Integer, Integer>> comparator = new TupleComparator<>(
 			new int[]{0},
 			new TypeComparator<?>[] { new IntComparator(true) },
 			new TypeSerializer<?>[] { IntSerializer.INSTANCE });
@@ -88,7 +90,7 @@ public class CombineTaskTest
 			getTaskConfig().setFilehandlesDriver(2);
 			
 			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask =
-					new GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>();
+					new GroupReduceCombineDriver<>();
 			
 			testDriver(testTask, MockCombiningReduceStub.class);
 			
@@ -127,7 +129,7 @@ public class CombineTaskTest
 			getTaskConfig().setFilehandlesDriver(2);
 			
 			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = 
-					new GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>();
+					new GroupReduceCombineDriver<>();
 			
 			try {
 				testDriver(testTask, MockFailingCombiningReduceStub.class);
@@ -147,7 +149,7 @@ public class CombineTaskTest
 	public void testCancelCombineTaskSorting()  {
 		try {
 			MutableObjectIterator<Tuple2<Integer, Integer>> slowInfiniteInput =
-					new DelayingIterator<Tuple2<Integer, Integer>>(new InfiniteIntTupleIterator(), 1);
+					new DelayingIterator<>(new InfiniteIntTupleIterator(), 1);
 			
 			setInput(slowInfiniteInput, serializer);
 			addDriverComparator(this.comparator);
@@ -159,7 +161,7 @@ public class CombineTaskTest
 			getTaskConfig().setFilehandlesDriver(2);
 			
 			final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = 
-					new GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>();
+					new GroupReduceCombineDriver<>();
 			
 			Thread taskRunner = new Thread() {
 				@Override
@@ -200,9 +202,9 @@ public class CombineTaskTest
 	//  Test Combiners
 	// ------------------------------------------------------------------------
 	
-	@RichGroupReduceFunction.Combinable
-	public static class MockCombiningReduceStub extends 
-			RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	public static class MockCombiningReduceStub implements
+		GroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
+		GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
 	{
 		private static final long serialVersionUID = 1L;
 
@@ -216,7 +218,7 @@ public class CombineTaskTest
 				sum += next.f1;
 			}
 			
-			out.collect(new Tuple2<Integer, Integer>(key, sum));
+			out.collect(new Tuple2<>(key, sum));
 		}
 		
 		@Override
@@ -225,9 +227,9 @@ public class CombineTaskTest
 		}
 	}
 	
-	@RichGroupReduceFunction.Combinable
-	public static final class MockFailingCombiningReduceStub extends 
-			RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+	public static final class MockFailingCombiningReduceStub implements
+		GroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
+		GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
 	{
 		private static final long serialVersionUID = 1L;
 		
@@ -244,7 +246,7 @@ public class CombineTaskTest
 			}
 			
 			int resultValue = sum - key;
-			out.collect(new Tuple2<Integer, Integer>(key, resultValue));
+			out.collect(new Tuple2<>(key, resultValue));
 		}
 		
 		@Override
@@ -262,7 +264,7 @@ public class CombineTaskTest
 			}
 
 			int resultValue = sum - key;
-			out.collect(new Tuple2<Integer, Integer>(key, resultValue));
+			out.collect(new Tuple2<>(key, resultValue));
 		}
 	}
 }

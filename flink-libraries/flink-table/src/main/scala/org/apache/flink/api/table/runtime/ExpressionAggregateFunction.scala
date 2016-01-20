@@ -18,17 +18,17 @@
 package org.apache.flink.api.table.runtime
 
 import org.apache.flink.api.table.Row
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable
+import org.apache.flink.api.common.functions.{GroupReduceFunction, GroupCombineFunction, RichGroupReduceFunction}
 import org.apache.flink.api.java.aggregation.AggregationFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Collector
 
-@Combinable
 class ExpressionAggregateFunction(
     private val fieldPositions: Seq[Int],
     private val functions: Seq[AggregationFunction[Any]])
-  extends RichGroupReduceFunction[Row, Row] {
+  extends RichGroupReduceFunction[Row, Row]
+  with GroupCombineFunction[Row, Row]
+{
 
   override def open(conf: Configuration): Unit = {
     var i = 0
@@ -69,10 +69,17 @@ class ExpressionAggregateFunction(
     out.collect(current)
   }
 
+  override def combine(in: java.lang.Iterable[Row], out: Collector[Row]): Unit = {
+    reduce(in, out)
+  }
+
 }
 
-@Combinable
-class NoExpressionAggregateFunction() extends RichGroupReduceFunction[Row, Row] {
+
+class NoExpressionAggregateFunction()
+  extends GroupReduceFunction[Row, Row]
+  with GroupCombineFunction[Row, Row]
+{
 
   override def reduce(in: java.lang.Iterable[Row], out: Collector[Row]): Unit = {
 
@@ -84,6 +91,10 @@ class NoExpressionAggregateFunction() extends RichGroupReduceFunction[Row, Row] 
     }
 
     out.collect(first)
+  }
+
+  override def combine(in: java.lang.Iterable[Row], out: Collector[Row]): Unit = {
+    reduce(in, out)
   }
 
 }

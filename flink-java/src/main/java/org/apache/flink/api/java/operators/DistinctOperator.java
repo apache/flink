@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -59,7 +59,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	@Override
 	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<?, T, ?> translateToDataFlow(Operator<T> input) {
 
-		final RichGroupReduceFunction<T, T> function = new DistinctFunction<>();
+		final GroupReduceFunction<T, T> function = new DistinctFunction<>();
 
 		String name = getName() != null ? getName() : "Distinct at " + distinctLocationName;
 
@@ -68,7 +68,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 			int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
 			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
 			GroupReduceOperatorBase<T, T, GroupReduceFunction<T, T>> po =
-					new GroupReduceOperatorBase<T, T, GroupReduceFunction<T, T>>(function, operatorInfo, logicalKeyPositions, name);
+					new GroupReduceOperatorBase<>(function, operatorInfo, logicalKeyPositions, name);
 
 			po.setCombinable(true);
 			po.setInput(input);
@@ -108,7 +108,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 	private static <IN, OUT, K> PlanUnwrappingReduceGroupOperator<IN, OUT, K> translateSelectorFunctionDistinct(
 			SelectorFunctionKeys<IN, ?> rawKeys,
-			RichGroupReduceFunction<IN, OUT> function,
+			GroupReduceFunction<IN, OUT> function,
 			TypeInformation<OUT> outputType,
 			String name,
 			Operator<IN> input)
@@ -126,13 +126,17 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		return reducer;
 	}
 	
-	@RichGroupReduceFunction.Combinable
-	public static final class DistinctFunction<T> extends RichGroupReduceFunction<T, T> {
+	public static final class DistinctFunction<T> implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void reduce(Iterable<T> values, Collector<T> out) {
+			out.collect(values.iterator().next());
+		}
+
+		@Override
+		public void combine(Iterable<T> values, Collector<T> out) {
 			out.collect(values.iterator().next());
 		}
 	}
