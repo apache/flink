@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import com.google.common.collect.Maps;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -742,7 +743,7 @@ public class TaskTest {
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
 				Collections.<URL>emptyList(),
-				0);
+				0, null, -1, new ExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------

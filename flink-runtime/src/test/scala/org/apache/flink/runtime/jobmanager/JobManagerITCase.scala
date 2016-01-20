@@ -126,7 +126,7 @@ class JobManagerITCase(_system: ActorSystem)
           jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
           expectMsg(JobSubmitSuccess(jobGraph.getJobID))
-          
+
           val result = expectMsgType[JobResultSuccess]
           result.result.getJobId() should equal(jobGraph.getJobID)
         }

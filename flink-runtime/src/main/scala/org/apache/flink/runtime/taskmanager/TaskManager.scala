@@ -173,7 +173,6 @@ class TaskManager(
 
   var leaderSessionID: Option[UUID] = None
 
-
   private val runtimeInfo = new TaskManagerRuntimeInfo(
        connectionInfo.getHostname(),
        new UnmodifiableConfiguration(config.configuration))

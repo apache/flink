@@ -2124,7 +2124,7 @@ Note that types registered with `registerKryoType()` are not available to Flink'
 
 - `disableAutoTypeRegistration()` Automatic type registration is enabled by default. The automatic type registration is registering all types (including sub-types) used by usercode with Kryo and the POJO serializer.
 
-
+- `setTaskCancellationInterval(long interval)` Sets the the interval (in milliseconds) to wait between consecutive attempts to cancel a running task. By default this is set to 30000 milliseconds, or 30 seconds.
 
 The `RuntimeContext` which is accessible in `Rich*` functions through the `getRuntimeContext()` method also allows to access the `ExecutionConfig` in all user defined functions.
 

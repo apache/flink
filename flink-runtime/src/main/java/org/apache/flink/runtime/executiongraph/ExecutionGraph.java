@@ -928,11 +928,8 @@ public class ExecutionGraph implements Serializable {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
 		// "unpack" execution config before we throw away the usercode classloader.
-		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY,userClassLoader);
-		} catch (Exception e) {
-			LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
-		}
+		executionConfig = this.getExecutionConfig();
+
 		// clear the non-serializable fields
 		userClassLoader = null;
 		scheduler = null;
@@ -953,6 +950,14 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	public ExecutionConfig getExecutionConfig() {
+		if (this.executionConfig == null) {
+			try {
+				this.executionConfig = (ExecutionConfig) InstantiationUtil
+					.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY, userClassLoader);
+			} catch (Exception e) {
+				LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
+			}
+		}
 		return this.executionConfig;
 	}
 

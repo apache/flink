@@ -229,14 +229,14 @@ public class StreamingJobGraphGenerator {
 			return transitiveOutEdges;
 
 		} else {
-			return new ArrayList<StreamEdge>();
+			return new ArrayList<>();
 		}
 	}
 
 	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
 		String operatorName = streamGraph.getStreamNode(vertexID).getOperatorName();
 		if (chainedOutputs.size() > 1) {
-			List<String> outputChainedNames = new ArrayList<String>();
+			List<String> outputChainedNames = new ArrayList<>();
 			for (StreamEdge chainable : chainedOutputs) {
 				outputChainedNames.add(chainedNames.get(chainable.getTargetId()));
 			}
