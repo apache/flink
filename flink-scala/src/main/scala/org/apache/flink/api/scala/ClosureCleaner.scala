@@ -96,7 +96,7 @@ object ClosureCleaner {
         stack = cls :: stack
       }
     }
-    return (seen - obj.getClass).toList
+    (seen - obj.getClass).toList
   }
 
   private def createNullValue(cls: Class[_]): AnyRef = {
@@ -192,7 +192,7 @@ object ClosureCleaner {
       if (outer != null) {
         params(0) = outer // First param is always outer object
       }
-      return cons.newInstance(params: _*).asInstanceOf[AnyRef]
+      cons.newInstance(params: _*).asInstanceOf[AnyRef]
     } else {
       // Use reflection to instantiate object without calling constructor
       val rf = sun.reflect.ReflectionFactory.getReflectionFactory()
