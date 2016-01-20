@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -158,7 +157,7 @@ public class SingleInputGate implements InputGate {
 	private volatile boolean isReleased;
 
 	/** Registered listener to forward buffer notifications to. */
-	private final List<EventListener<InputGate>> registeredListeners = new CopyOnWriteArrayList<EventListener<InputGate>>();
+	private volatile EventListener<InputGate> registeredListener;
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<TaskEvent>();
 
@@ -281,7 +280,9 @@ public class SingleInputGate implements InputGate {
 
 				inputChannels.put(partitionId, newChannel);
 
-				newChannel.requestSubpartition(consumedSubpartitionIndex);
+				if (requestedPartitionsFlag) {
+					newChannel.requestSubpartition(consumedSubpartitionIndex);
+				}
 
 				for (TaskEvent event : pendingEvents) {
 					newChannel.sendTaskEvent(event);
@@ -381,8 +382,8 @@ public class SingleInputGate implements InputGate {
 					"channels.");
 		}
 
-		if (!requestedPartitionsFlag) {
-			synchronized (requestLock) {
+		synchronized (requestLock) {
+			if (!requestedPartitionsFlag) {
 				for (InputChannel inputChannel : inputChannels.values()) {
 					inputChannel.requestSubpartition(consumedSubpartitionIndex);
 				}
@@ -463,14 +464,19 @@ public class SingleInputGate implements InputGate {
 
 	@Override
 	public void registerListener(EventListener<InputGate> listener) {
-		registeredListeners.add(checkNotNull(listener));
+		if (registeredListener == null) {
+			registeredListener = listener;
+		}
+		else {
+			throw new IllegalStateException("Multiple listeners");
+		}
 	}
 
 	public void onAvailableBuffer(InputChannel channel) {
 		inputChannelsWithData.add(channel);
-
-		for (EventListener<InputGate> registeredListener : registeredListeners) {
-			registeredListener.onEvent(this);
+		EventListener<InputGate> listener = registeredListener;
+		if (listener != null) {
+			listener.onEvent(this);
 		}
 	}
 

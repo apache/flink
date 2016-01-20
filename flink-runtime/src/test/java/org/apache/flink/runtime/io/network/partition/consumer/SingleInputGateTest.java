@@ -25,6 +25,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -48,6 +49,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -147,6 +149,45 @@ public class SingleInputGateTest {
 
 		verify(partitionManager, times(2)).createSubpartitionView(any(ResultPartitionID.class), anyInt(), any(BufferProvider.class));
 		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+	}
+
+	/**
+	 * Tests that an update channel does not trigger a partition request before the UDF has
+	 * requested any partitions. Otherwise, this can lead to races when registering a listener at
+	 * the gate (e.g. in UnionInputGate), which can result in missed buffer notifications at the
+	 * listener.
+	 */
+	@Test
+	public void testUpdateChannelBeforeRequest() throws Exception {
+		SingleInputGate inputGate = new SingleInputGate(
+				"t1",
+				new JobID(),
+				new ExecutionAttemptID(),
+				new IntermediateDataSetID(),
+				0,
+				1,
+				mock(PartitionStateChecker.class));
+
+		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+
+		InputChannel unknown = new UnknownInputChannel(
+				inputGate,
+				0,
+				new ResultPartitionID(),
+				partitionManager,
+				new TaskEventDispatcher(),
+				new LocalConnectionManager(),
+				new Tuple2<>(0, 0));
+
+		inputGate.setInputChannel(unknown.partitionId.getPartitionId(), unknown);
+
+		// Update to a local channel and verify that no request is triggered
+		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
+				unknown.partitionId,
+				ResultPartitionLocation.createLocal()));
+
+		verify(partitionManager, never()).createSubpartitionView(
+				any(ResultPartitionID.class), anyInt(), any(BufferProvider.class));
 	}
 
 	// ---------------------------------------------------------------------------------------------
