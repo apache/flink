@@ -31,8 +31,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-contrib-parent</artifactId>
-	<name>flink-contrib-parent</name>
+	<artifactId>flink-contrib</artifactId>
+	<name>flink-contrib</name>
 
 	<packaging>pom</packaging>
 
