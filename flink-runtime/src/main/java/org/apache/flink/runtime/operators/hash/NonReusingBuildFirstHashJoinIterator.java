@@ -149,10 +149,13 @@ public class NonReusingBuildFirstHashJoinIterator<V1, V2, O> extends HashJoinIte
 					matchFunction.join(nextBuildSideRecord, probeRecord, collector);
 				}
 			} else {
+				// while probe side outer join, join current probe record with null.
 				if (probeSideOuterJoin && probeRecord != null && nextBuildSideRecord == null) {
 					matchFunction.join(null, probeRecord, collector);
 				}
 
+				// while build side outer join, iterate all build records which have not been probed before,
+				// and join with null.
 				if (buildSideOuterJoin && probeRecord == null && nextBuildSideRecord != null) {
 					matchFunction.join(nextBuildSideRecord, null, collector);
 

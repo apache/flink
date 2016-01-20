@@ -151,10 +151,10 @@ public class OuterJoinNode extends TwoInputNode {
 				list.add(new SortMergeFullOuterJoinDescriptor(this.keys1, this.keys2));
 				break;
 			case REPARTITION_HASH_FIRST:
-				list.add(new HashFullOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, false, false, true));
+				list.add(new HashFullOuterJoinBuildFirstDescriptor(this.keys1, this.keys2, true));
 				break;
 			case REPARTITION_HASH_SECOND:
-				list.add(new HashFullOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, false, false, true));
+				list.add(new HashFullOuterJoinBuildSecondDescriptor(this.keys1, this.keys2, true));
 				break;
 			case BROADCAST_HASH_FIRST:
 			case BROADCAST_HASH_SECOND:

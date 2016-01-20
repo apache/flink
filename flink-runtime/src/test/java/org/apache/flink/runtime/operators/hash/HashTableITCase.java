@@ -1590,7 +1590,7 @@ public class HashTableITCase {
 		// The keys of probe and build sides are overlapped, so there would be none unmatched build elements
 		// after probe phase.
 		
-		// create a build input that gives 40000 pairs with 2 values sharing the same key
+		// create a build input that gives 80000 pairs with 2 values sharing the same key
 		MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
 		
 		// create a probe input that gives 20000 pairs with 1 values sharing a key
