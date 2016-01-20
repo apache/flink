@@ -16,9 +16,9 @@
 # limitations under the License.
 ################################################################################
 from abc import ABCMeta, abstractmethod
-import sys
 from collections import deque
 from flink.connection import Connection, Iterator, Collector
+from flink.connection.Iterator import IntegerDeserializer, StringDeserializer, _get_deserializer
 from flink.functions import RuntimeContext
 
 
@@ -30,55 +30,56 @@ class Function(object):
         self._iterator = None
         self._collector = None
         self.context = None
-        self._chain_operator = None
+        self._env = None
 
-    def _configure(self, input_file, output_file, port, env):
+    def _configure(self, input_file, output_file, port, env, info):
         self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
         self._iterator = Iterator.Iterator(self._connection, env)
+        self._collector = Collector.Collector(self._connection, env, info)
         self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
-        self._configure_chain(Collector.Collector(self._connection, env))
+        self._env = env
+        if info.chained_info is not None:
+            info.chained_info.operator._configure_chain(self.context, self._collector, info.chained_info)
+            self._collector = info.chained_info.operator
 
-    def _configure_chain(self, collector):
-        if self._chain_operator is not None:
-            self._collector = self._chain_operator
-            self._collector.context = self.context
-            self._collector._configure_chain(collector)
-            self._collector._open()
-        else:
+    def _configure_chain(self, context, collector, info):
+        self.context = context
+        if info.chained_info is None:
             self._collector = collector
-
-    def _chain(self, operator):
-        self._chain_operator = operator
+        else:
+            self._collector = info.chained_info.operator
+            info.chained_info.operator._configure_chain(context, collector, info.chained_info)
 
     @abstractmethod
     def _run(self):
         pass
 
-    def _open(self):
-        pass
-
     def _close(self):
         self._collector._close()
-        self._connection.close()
+        if self._connection is not None:
+            self._connection.close()
 
     def _go(self):
         self._receive_broadcast_variables()
         self._run()
 
     def _receive_broadcast_variables(self):
-        broadcast_count = self._iterator.next()
-        self._iterator._reset()
-        self._connection.reset()
+        con = self._connection
+        deserializer_int = IntegerDeserializer()
+        broadcast_count = deserializer_int.deserialize(con.read_secondary)
+        deserializer_string = StringDeserializer()
         for _ in range(broadcast_count):
-            name = self._iterator.next()
-            self._iterator._reset()
-            self._connection.reset()
+            name = deserializer_string.deserialize(con.read_secondary)
             bc = deque()
-            while(self._iterator.has_next()):
-                bc.append(self._iterator.next())
+            if con.read_secondary(1) == b"\x01":
+                serializer_data = _get_deserializer(con.read_secondary, self._env._types)
+                value = serializer_data.deserialize(con.read_secondary)
+                bc.append(value)
+                while con.read_secondary(1) == b"\x01":
+                    con.read_secondary(serializer_data.get_type_info_size()) #skip type info
+                    value = serializer_data.deserialize(con.read_secondary)
+                    bc.append(value)
             self.context._add_broadcast_variable(name, bc)
-            self._iterator._reset()
-            self._connection.reset()
 
 
 

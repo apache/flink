@@ -63,11 +63,6 @@ import sys
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
-
-class _Dummy(object):
-    pass
-
-
 if PY2:
     BOOL = True
     INT = 1
@@ -75,11 +70,17 @@ if PY2:
     FLOAT = 2.5
     STRING = "type"
     BYTES = bytearray(b"byte")
-    CUSTOM = _Dummy()
 elif PY3:
     BOOL = True
     INT = 1
     FLOAT = 2.5
     STRING = "type"
     BYTES = bytearray(b"byte")
-    CUSTOM = _Dummy()
+
+
+def _createKeyValueTypeInfo(keyCount):
+    return (tuple([BYTES for _ in range(keyCount)]), BYTES)
+
+
+def _createArrayTypeInfo():
+    return BYTES

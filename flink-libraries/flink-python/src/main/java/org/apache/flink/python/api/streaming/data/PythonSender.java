@@ -20,30 +20,19 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
-import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 /**
  * General-purpose class to write data to memory-mapped files.
  */
-public class PythonSender implements Serializable {
-	public static final byte TYPE_TUPLE = (byte) 11;
-	public static final byte TYPE_BOOLEAN = (byte) 10;
-	public static final byte TYPE_BYTE = (byte) 9;
-	public static final byte TYPE_SHORT = (byte) 8;
-	public static final byte TYPE_INTEGER = (byte) 7;
-	public static final byte TYPE_LONG = (byte) 6;
-	public static final byte TYPE_DOUBLE = (byte) 4;
-	public static final byte TYPE_FLOAT = (byte) 5;
-	public static final byte TYPE_CHAR = (byte) 3;
-	public static final byte TYPE_STRING = (byte) 2;
-	public static final byte TYPE_BYTES = (byte) 1;
-	public static final byte TYPE_NULL = (byte) 0;
+public class PythonSender<IN> implements Serializable {
+	public static final byte TYPE_ARRAY = (byte) 63;
+	public static final byte TYPE_KEY_VALUE = (byte) 62;
+	public static final byte TYPE_VALUE_VALUE = (byte) 61;
 
 	private File outputFile;
 	private RandomAccessFile outputRAF;
@@ -95,7 +84,7 @@ public class PythonSender implements Serializable {
 		fileBuffer.clear();
 	}
 
-	//=====Serialization================================================================================================
+	//=====IO===========================================================================================================
 	/**
 	 * Writes a single record to the memory-mapped file. This method does NOT take care of synchronization. The user
 	 * must guarantee that the file may be written to before calling this method. This method essentially reserves the
@@ -173,75 +162,24 @@ public class PythonSender implements Serializable {
 		return size;
 	}
 
-	private enum SupportedTypes {
-		TUPLE, BOOLEAN, BYTE, BYTES, CHARACTER, SHORT, INTEGER, LONG, FLOAT, DOUBLE, STRING, OTHER, NULL, CUSTOMTYPEWRAPPER
-	}
-
 	//=====Serializer===================================================================================================
-	private Serializer getSerializer(Object value) throws IOException {
-		String className = value.getClass().getSimpleName().toUpperCase();
-		if (className.startsWith("TUPLE")) {
-			className = "TUPLE";
+	private Serializer getSerializer(Object value) {
+		if (value instanceof byte[]) {
+			return new ArraySerializer();
 		}
-		if (className.startsWith("BYTE[]")) {
-			className = "BYTES";
+		if (((Tuple2) value).f0 instanceof byte[]) {
+			return new ValuePairSerializer();
 		}
-		SupportedTypes type = SupportedTypes.valueOf(className);
-		switch (type) {
-			case TUPLE:
-				fileBuffer.put(TYPE_TUPLE);
-				fileBuffer.putInt(((Tuple) value).getArity());
-				return new TupleSerializer((Tuple) value);
-			case BOOLEAN:
-				fileBuffer.put(TYPE_BOOLEAN);
-				return new BooleanSerializer();
-			case BYTE:
-				fileBuffer.put(TYPE_BYTE);
-				return new ByteSerializer();
-			case BYTES:
-				fileBuffer.put(TYPE_BYTES);
-				return new BytesSerializer();
-			case CHARACTER:
-				fileBuffer.put(TYPE_CHAR);
-				return new CharSerializer();
-			case SHORT:
-				fileBuffer.put(TYPE_SHORT);
-				return new ShortSerializer();
-			case INTEGER:
-				fileBuffer.put(TYPE_INTEGER);
-				return new IntSerializer();
-			case LONG:
-				fileBuffer.put(TYPE_LONG);
-				return new LongSerializer();
-			case STRING:
-				fileBuffer.put(TYPE_STRING);
-				return new StringSerializer();
-			case FLOAT:
-				fileBuffer.put(TYPE_FLOAT);
-				return new FloatSerializer();
-			case DOUBLE:
-				fileBuffer.put(TYPE_DOUBLE);
-				return new DoubleSerializer();
-			case NULL:
-				fileBuffer.put(TYPE_NULL);
-				return new NullSerializer();
-			case CUSTOMTYPEWRAPPER:
-				fileBuffer.put(((CustomTypeWrapper) value).getType());
-				return new CustomTypeSerializer();
-			default:
-				throw new IllegalArgumentException("Unknown Type encountered: " + type);
+		if (((Tuple2) value).f0 instanceof Tuple) {
+			return new KeyValuePairSerializer();
 		}
+		throw new IllegalArgumentException("This object can't be serialized: " + value.toString());
 	}
 
 	private abstract class Serializer<T> {
 		protected ByteBuffer buffer;
 
-		public Serializer(int capacity) {
-			buffer = ByteBuffer.allocate(capacity);
-		}
-
 		public ByteBuffer serialize(T value) {
-			buffer.clear();
 			serializeInternal(value);
 			buffer.flip();
 			return buffer;
@@ -250,171 +188,39 @@ public class PythonSender implements Serializable {
 		public abstract void serializeInternal(T value);
 	}
 
-	private class CustomTypeSerializer extends Serializer<CustomTypeWrapper> {
-		public CustomTypeSerializer() {
-			super(0);
-		}
-		@Override
-		public void serializeInternal(CustomTypeWrapper value) {
-			byte[] bytes = value.getData();
-			buffer = ByteBuffer.wrap(bytes);
-			buffer.position(bytes.length);
-		}
-	}
-
-	private class ByteSerializer extends Serializer<Byte> {
-		public ByteSerializer() {
-			super(1);
-		}
-
-		@Override
-		public void serializeInternal(Byte value) {
-			buffer.put(value);
-		}
-	}
-
-	private class BooleanSerializer extends Serializer<Boolean> {
-		public BooleanSerializer() {
-			super(1);
-		}
-
-		@Override
-		public void serializeInternal(Boolean value) {
-			buffer.put(value ? (byte) 1 : (byte) 0);
-		}
-	}
-
-	private class CharSerializer extends Serializer<Character> {
-		public CharSerializer() {
-			super(4);
-		}
-
-		@Override
-		public void serializeInternal(Character value) {
-			buffer.put((value + "").getBytes());
-		}
-	}
-
-	private class ShortSerializer extends Serializer<Short> {
-		public ShortSerializer() {
-			super(2);
-		}
-
-		@Override
-		public void serializeInternal(Short value) {
-			buffer.putShort(value);
-		}
-	}
-
-	private class IntSerializer extends Serializer<Integer> {
-		public IntSerializer() {
-			super(4);
-		}
-
-		@Override
-		public void serializeInternal(Integer value) {
-			buffer.putInt(value);
-		}
-	}
-
-	private class LongSerializer extends Serializer<Long> {
-		public LongSerializer() {
-			super(8);
-		}
-
-		@Override
-		public void serializeInternal(Long value) {
-			buffer.putLong(value);
-		}
-	}
-
-	private class StringSerializer extends Serializer<String> {
-		public StringSerializer() {
-			super(0);
-		}
-
-		@Override
-		public void serializeInternal(String value) {
-			byte[] bytes = value.getBytes();
-			buffer = ByteBuffer.allocate(bytes.length + 4);
-			buffer.putInt(bytes.length);
-			buffer.put(bytes);
-		}
-	}
-
-	private class FloatSerializer extends Serializer<Float> {
-		public FloatSerializer() {
-			super(4);
-		}
-
-		@Override
-		public void serializeInternal(Float value) {
-			buffer.putFloat(value);
-		}
-	}
-
-	private class DoubleSerializer extends Serializer<Double> {
-		public DoubleSerializer() {
-			super(8);
-		}
-
-		@Override
-		public void serializeInternal(Double value) {
-			buffer.putDouble(value);
-		}
-	}
-
-	private class NullSerializer extends Serializer<Object> {
-		public NullSerializer() {
-			super(0);
-		}
-
-		@Override
-		public void serializeInternal(Object value) {
-		}
-	}
-
-	private class BytesSerializer extends Serializer<byte[]> {
-		public BytesSerializer() {
-			super(0);
-		}
-
+	private class ArraySerializer extends Serializer<byte[]> {
 		@Override
 		public void serializeInternal(byte[] value) {
-			buffer = ByteBuffer.allocate(4 + value.length);
-			buffer.putInt(value.length);
+			buffer = ByteBuffer.allocate(value.length + 1);
+			buffer.put(TYPE_ARRAY);
 			buffer.put(value);
 		}
 	}
 
-	private class TupleSerializer extends Serializer<Tuple> {
-		private final Serializer[] serializer;
-		private final List<ByteBuffer> buffers;
-
-		public TupleSerializer(Tuple value) throws IOException {
-			super(0);
-			serializer = new Serializer[value.getArity()];
-			buffers = new ArrayList();
-			for (int x = 0; x < serializer.length; x++) {
-				serializer[x] = getSerializer(value.getField(x));
-			}
-		}
-
+	private class ValuePairSerializer extends Serializer<Tuple2<byte[], byte[]>> {
 		@Override
-		public void serializeInternal(Tuple value) {
-			int length = 0;
-			for (int x = 0; x < serializer.length; x++) {
-				serializer[x].buffer.clear();
-				serializer[x].serializeInternal(value.getField(x));
-				length += serializer[x].buffer.position();
-				buffers.add(serializer[x].buffer);
+		public void serializeInternal(Tuple2<byte[], byte[]> value) {
+			buffer = ByteBuffer.allocate(1 + value.f0.length + value.f1.length);
+			buffer.put(TYPE_VALUE_VALUE);
+			buffer.put(value.f0);
+			buffer.put(value.f1);
+		}
+	}
+
+	private class KeyValuePairSerializer extends Serializer<Tuple2<Tuple, byte[]>> {
+		@Override
+		public void serializeInternal(Tuple2<Tuple, byte[]> value) {
+			int keySize = 0;
+			for (int x = 0; x < value.f0.getArity(); x++) {
+				keySize += ((byte[]) value.f0.getField(x)).length;
 			}
-			buffer = ByteBuffer.allocate(length);
-			for (ByteBuffer b : buffers) {
-				b.flip();
-				buffer.put(b);
+			buffer = ByteBuffer.allocate(5 + keySize + value.f1.length);
+			buffer.put(TYPE_KEY_VALUE);
+			buffer.put((byte) value.f0.getArity());
+			for (int x = 0; x < value.f0.getArity(); x++) {
+				buffer.put((byte[]) value.f0.getField(x));
 			}
-			buffers.clear();
+			buffer.put(value.f1);
 		}
 	}
 }

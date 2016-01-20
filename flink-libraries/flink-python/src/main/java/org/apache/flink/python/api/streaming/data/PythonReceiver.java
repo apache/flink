@@ -20,24 +20,13 @@ import java.io.Serializable;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BOOLEAN;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BYTE;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BYTES;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_DOUBLE;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_FLOAT;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_INTEGER;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_LONG;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_NULL;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_SHORT;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_STRING;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_TUPLE;
-import org.apache.flink.python.api.types.CustomTypeWrapper;
 import org.apache.flink.util.Collector;
 
 /**
- * General-purpose class to read data from memory-mapped files.
+ * This class is used to read data from memory-mapped files.
  */
 public class PythonReceiver implements Serializable {
 	private static final long serialVersionUID = -2474088929850009968L;
@@ -47,11 +36,18 @@ public class PythonReceiver implements Serializable {
 	private FileChannel inputChannel;
 	private MappedByteBuffer fileBuffer;
 
+	private final boolean readAsByteArray;
+
 	private Deserializer<?> deserializer = null;
+
+	public PythonReceiver(boolean usesByteArray) {
+		readAsByteArray = usesByteArray;
+	}
 
 	//=====Setup========================================================================================================
 	public void open(String path) throws IOException {
 		setupMappedFile(path);
+		deserializer = readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer();
 	}
 
 	private void setupMappedFile(String inputFilePath) throws FileNotFoundException, IOException {
@@ -81,6 +77,8 @@ public class PythonReceiver implements Serializable {
 		inputRAF.close();
 	}
 
+
+	//=====IO===========================================================================================================
 	/**
 	 * Reads a buffer of the given size from the memory-mapped file, and collects all records contained. This method
 	 * assumes that all values in the buffer are of the same type. This method does NOT take care of synchronization.
@@ -94,173 +92,46 @@ public class PythonReceiver implements Serializable {
 	public void collectBuffer(Collector c, int bufferSize) throws IOException {
 		fileBuffer.position(0);
 
-		if (deserializer == null) {
-			byte type = fileBuffer.get();
-			deserializer = getDeserializer(type);
-		}
 		while (fileBuffer.position() < bufferSize) {
 			c.collect(deserializer.deserialize());
 		}
 	}
 
 	//=====Deserializer=================================================================================================
-	private Deserializer<?> getDeserializer(byte type) {
-		switch (type) {
-			case TYPE_TUPLE:
-				return new TupleDeserializer();
-			case TYPE_BOOLEAN:
-				return new BooleanDeserializer();
-			case TYPE_BYTE:
-				return new ByteDeserializer();
-			case TYPE_BYTES:
-				return new BytesDeserializer();
-			case TYPE_SHORT:
-				return new ShortDeserializer();
-			case TYPE_INTEGER:
-				return new IntDeserializer();
-			case TYPE_LONG:
-				return new LongDeserializer();
-			case TYPE_STRING:
-				return new StringDeserializer();
-			case TYPE_FLOAT:
-				return new FloatDeserializer();
-			case TYPE_DOUBLE:
-				return new DoubleDeserializer();
-			case TYPE_NULL:
-				return new NullDeserializer();
-			default:
-				return new CustomTypeDeserializer(type);
-
-		}
-	}
-
 	private interface Deserializer<T> {
 		public T deserialize();
 	}
 
-	private class CustomTypeDeserializer implements Deserializer<CustomTypeWrapper> {
-		private final byte type;
-
-		public CustomTypeDeserializer(byte type) {
-			this.type = type;
-		}
-
-		@Override
-		public CustomTypeWrapper deserialize() {
-			int size = fileBuffer.getInt();
-			byte[] data = new byte[size];
-			fileBuffer.get(data);
-			return new CustomTypeWrapper(type, data);
-		}
-	}
-
-	private class BooleanDeserializer implements Deserializer<Boolean> {
-		@Override
-		public Boolean deserialize() {
-			return fileBuffer.get() == 1;
-		}
-	}
-
-	private class ByteDeserializer implements Deserializer<Byte> {
-		@Override
-		public Byte deserialize() {
-			return fileBuffer.get();
-		}
-	}
-
-	private class ShortDeserializer implements Deserializer<Short> {
-		@Override
-		public Short deserialize() {
-			return fileBuffer.getShort();
-		}
-	}
-
-	private class IntDeserializer implements Deserializer<Integer> {
-		@Override
-		public Integer deserialize() {
-			return fileBuffer.getInt();
-		}
-	}
-
-	private class LongDeserializer implements Deserializer<Long> {
-		@Override
-		public Long deserialize() {
-			return fileBuffer.getLong();
-		}
-	}
-
-	private class FloatDeserializer implements Deserializer<Float> {
-		@Override
-		public Float deserialize() {
-			return fileBuffer.getFloat();
-		}
-	}
-
-	private class DoubleDeserializer implements Deserializer<Double> {
-		@Override
-		public Double deserialize() {
-			return fileBuffer.getDouble();
-		}
-	}
-
-	private class StringDeserializer implements Deserializer<String> {
-		private int size;
-
-		@Override
-		public String deserialize() {
-			size = fileBuffer.getInt();
-			byte[] buffer = new byte[size];
-			fileBuffer.get(buffer);
-			return new String(buffer);
-		}
-	}
-
-	private class NullDeserializer implements Deserializer<Object> {
-		@Override
-		public Object deserialize() {
-			return null;
-		}
-	}
-
-	private class BytesDeserializer implements Deserializer<byte[]> {
+	private class ByteArrayDeserializer implements Deserializer<byte[]> {
 		@Override
 		public byte[] deserialize() {
-			int length = fileBuffer.getInt();
-			byte[] result = new byte[length];
-			fileBuffer.get(result);
-			return result;
+			int size = fileBuffer.getInt();
+			byte[] value = new byte[size];
+			fileBuffer.get(value);
+			return value;
 		}
-
 	}
 
-	private class TupleDeserializer implements Deserializer<Tuple> {
-		Deserializer<?>[] deserializer = null;
-		Tuple reuse;
-
-		public TupleDeserializer() {
-			int size = fileBuffer.getInt();
-			reuse = createTuple(size);
-			deserializer = new Deserializer[size];
-			for (int x = 0; x < deserializer.length; x++) {
-				deserializer[x] = getDeserializer(fileBuffer.get());
-			}
-		}
-
+	private class TupleDeserializer implements Deserializer<Tuple2<Tuple, byte[]>> {
 		@Override
-		public Tuple deserialize() {
-			for (int x = 0; x < deserializer.length; x++) {
-				reuse.setField(deserializer[x].deserialize(), x);
+		public Tuple2<Tuple, byte[]> deserialize() {
+			int keyTupleSize = fileBuffer.get();
+			Tuple keys = createTuple(keyTupleSize);
+			for (int x = 0; x < keyTupleSize; x++) {
+				byte[] data = new byte[fileBuffer.getInt()];
+				fileBuffer.get(data);
+				keys.setField(data, x);
 			}
-			return reuse;
+			byte[] value = new byte[fileBuffer.getInt()];
+			fileBuffer.get(value);
+			return new Tuple2(keys, value);
 		}
 	}
 
 	public static Tuple createTuple(int size) {
 		try {
 			return Tuple.getTupleClass(size).newInstance();
-		} catch (InstantiationException e) {
-			throw new RuntimeException(e);
-		} catch (IllegalAccessException e) {
+		} catch (InstantiationException | IllegalAccessException e) {
 			throw new RuntimeException(e);
 		}
 	}

@@ -10,26 +10,23 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.python.api.streaming.plan;
+package org.apache.flink.python.api.functions.util;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Serializable;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.python.api.streaming.util.SerializationUtils;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.Serializer;
 
-/**
- * Instances of this class can be used to send data to the plan process.
- */
-public class PythonPlanSender implements Serializable {
-	private final DataOutputStream output;
+/*
+Utility function to serialize values, usually directly from data sources.
+*/
+public class SerializerMap<IN> implements MapFunction<IN, byte[]> {
+	private Serializer serializer = null;
 
-	public PythonPlanSender(OutputStream output) {
-		this.output = new DataOutputStream(output);
-	}
-
-	public void sendRecord(Object record) throws IOException {
-		byte[] data = SerializationUtils.getSerializer(record).serialize(record);
-		output.write(data);
+	@Override
+	public byte[] map(IN value) throws Exception {
+		if (serializer == null) {
+			serializer = SerializationUtils.getSerializer(value);
+		}
+		return serializer.serialize(value);
 	}
 }

@@ -34,6 +34,8 @@ import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_PLAN_NAM
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_COUNT;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_NAME_PREFIX;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,8 +60,6 @@ public class PythonStreamer implements Serializable {
 	private String inputFilePath;
 	private String outputFilePath;
 
-	private final byte[] buffer = new byte[4];
-
 	private Process process;
 	private Thread shutdownThread;
 	protected ServerSocket server;
@@ -75,13 +75,13 @@ public class PythonStreamer implements Serializable {
 
 	protected final AbstractRichFunction function;
 
-	public PythonStreamer(AbstractRichFunction function, int id) {
+	public PythonStreamer(AbstractRichFunction function, int id, boolean usesByteArray) {
 		this.id = id;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		this.debug = DEBUG;
 		planArguments = PythonPlanBinder.arguments.toString();
 		sender = new PythonSender();
-		receiver = new PythonReceiver();
+		receiver = new PythonReceiver(usesByteArray);
 		this.function = function;
 	}
 
@@ -167,9 +167,9 @@ public class PythonStreamer implements Serializable {
 	 */
 	public void close() throws IOException {
 		try {
-		socket.close();
-		sender.close();
-		receiver.close();
+			socket.close();
+			sender.close();
+			receiver.close();
 		} catch (Exception e) {
 			LOG.error("Exception occurred while closing Streamer. :" + e.getMessage());
 		}
@@ -202,29 +202,16 @@ public class PythonStreamer implements Serializable {
 			}
 		}
 	}
-	
-		private void sendWriteNotification(int size, boolean hasNext) throws IOException {
-		byte[] tmp = new byte[5];
-		putInt(tmp, 0, size);
-		tmp[4] = hasNext ? 0 : SIGNAL_LAST;
-		out.write(tmp, 0, 5);
+
+	private void sendWriteNotification(int size, boolean hasNext) throws IOException {
+		out.writeInt(size);
+		out.writeByte(hasNext ? 0 : SIGNAL_LAST);
 		out.flush();
 	}
 
 	private void sendReadConfirmation() throws IOException {
-		out.write(new byte[1], 0, 1);
+		out.writeByte(1);
 		out.flush();
-	}
-
-	private void checkForError() {
-		if (getInt(buffer, 0) == -2) {
-			try { //wait before terminating to ensure that the complete error message is printed
-				Thread.sleep(2000);
-			} catch (InterruptedException ex) {
-			}
-			throw new RuntimeException(
-					"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
-		}
 	}
 
 	/**
@@ -243,26 +230,19 @@ public class PythonStreamer implements Serializable {
 				names[x] = config.getString(PLANBINDER_CONFIG_BCVAR_NAME_PREFIX + x, null);
 			}
 
-			in.readFully(buffer, 0, 4);
-			checkForError();
-			int size = sender.sendRecord(broadcastCount);
-			sendWriteNotification(size, false);
+			out.write(new IntSerializer().serializeWithoutTypeInfo(broadcastCount));
 
+			StringSerializer stringSerializer = new StringSerializer();
 			for (String name : names) {
 				Iterator bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
 
-				in.readFully(buffer, 0, 4);
-				checkForError();
-				size = sender.sendRecord(name);
-				sendWriteNotification(size, false);
+				out.write(stringSerializer.serializeWithoutTypeInfo(name));
 
-				while (bcv.hasNext() || sender.hasRemaining(0)) {
-					in.readFully(buffer, 0, 4);
-					checkForError();
-					size = sender.sendBuffer(bcv, 0);
-					sendWriteNotification(size, bcv.hasNext() || sender.hasRemaining(0));
+				while (bcv.hasNext()) {
+					out.writeByte(1);
+					out.write((byte[]) bcv.next());
 				}
-				sender.reset();
+				out.writeByte(0);
 			}
 		} catch (SocketTimeoutException ste) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
@@ -281,8 +261,7 @@ public class PythonStreamer implements Serializable {
 			int size;
 			if (i.hasNext()) {
 				while (true) {
-					in.readFully(buffer, 0, 4);
-					int sig = getInt(buffer, 0);
+					int sig = in.readInt();
 					switch (sig) {
 						case SIGNAL_BUFFER_REQUEST:
 							if (i.hasNext() || sender.hasRemaining(0)) {
@@ -326,8 +305,7 @@ public class PythonStreamer implements Serializable {
 			int size;
 			if (i1.hasNext() || i2.hasNext()) {
 				while (true) {
-					in.readFully(buffer, 0, 4);
-					int sig = getInt(buffer, 0);
+					int sig = in.readInt();
 					switch (sig) {
 						case SIGNAL_BUFFER_REQUEST_G0:
 							if (i1.hasNext() || sender.hasRemaining(0)) {
@@ -361,16 +339,4 @@ public class PythonStreamer implements Serializable {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
 		}
 	}
-
-	protected final static int getInt(byte[] array, int offset) {
-		return (array[offset] << 24) | (array[offset + 1] & 0xff) << 16 | (array[offset + 2] & 0xff) << 8 | (array[offset + 3] & 0xff);
-	}
-
-	protected final static void putInt(byte[] array, int offset, int value) {
-		array[offset] = (byte) (value >> 24);
-		array[offset + 1] = (byte) (value >> 16);
-		array[offset + 2] = (byte) (value >> 8);
-		array[offset + 3] = (byte) (value);
-	}
-
 }

@@ -115,6 +115,8 @@ class BufferingTCPMappedFileConnection(object):
             self._read_buffer()
         old_offset = self._input_offset
         self._input_offset += des_size
+        if self._input_offset > self._input_size:
+            raise Exception("BufferUnderFlowException")
         return self._input[old_offset:self._input_offset]
 
     def _read_buffer(self):
@@ -139,6 +141,12 @@ class BufferingTCPMappedFileConnection(object):
         self._input_size = 0
         self._input_offset = 0
         self._input = b""
+
+    def read_secondary(self, des_size):
+        return recv_all(self._socket, des_size)
+
+    def write_secondary(self, data):
+        self._socket.send(data)
 
 
 class TwinBufferingTCPMappedFileConnection(BufferingTCPMappedFileConnection):

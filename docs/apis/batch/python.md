@@ -50,7 +50,6 @@ to run it locally.
 
 {% highlight python %}
 from flink.plan.Environment import get_environment
-from flink.plan.Constants import INT, STRING
 from flink.functions.GroupReduceFunction import GroupReduceFunction
 
 class Adder(GroupReduceFunction):
@@ -59,18 +58,17 @@ class Adder(GroupReduceFunction):
     count += sum([x[0] for x in iterator])
     collector.collect((count, word))
 
-if __name__ == "__main__":
-  env = get_environment()
-  data = env.from_elements("Who's there?",
-   "I think I hear them. Stand, ho! Who's there?")
+env = get_environment()
+data = env.from_elements("Who's there?",
+ "I think I hear them. Stand, ho! Who's there?")
 
-  data \
-    .flat_map(lambda x, c: [(1, word) for word in x.lower().split()], (INT, STRING)) \
-    .group_by(1) \
-    .reduce_group(Adder(), (INT, STRING), combinable=True) \
-    .output()
+data \
+  .flat_map(lambda x, c: [(1, word) for word in x.lower().split()]) \
+  .group_by(1) \
+  .reduce_group(Adder(), combinable=True) \
+  .output()
 
-  env.execute(local=True)
+env.execute(local=True)
 {% endhighlight %}
 
 {% top %}
@@ -78,8 +76,8 @@ if __name__ == "__main__":
 Program Skeleton
 ----------------
 
-As we already saw in the example, Flink programs look like regular python
-programs with a `if __name__ == "__main__":` block. Each program consists of the same basic parts:
+As we already saw in the example, Flink programs look like regular python programs. 
+Each program consists of the same basic parts:
 
 1. Obtain an `Environment`,
 2. Load/create the initial data,
@@ -117,7 +115,7 @@ methods on DataSet with your own custom transformation function. For example,
 a map transformation looks like this:
 
 {% highlight python %}
-data.map(lambda x: x*2, INT)
+data.map(lambda x: x*2)
 {% endhighlight %}
 
 This will create a new DataSet by doubling every value in the original DataSet.
@@ -197,7 +195,7 @@ examples.
       <td>
         <p>Takes one element and produces one element.</p>
 {% highlight python %}
-data.map(lambda x: x * 2, INT)
+data.map(lambda x: x * 2)
 {% endhighlight %}
       </td>
     </tr>
@@ -208,8 +206,7 @@ data.map(lambda x: x * 2, INT)
         <p>Takes one element and produces zero, one, or more elements. </p>
 {% highlight python %}
 data.flat_map(
-  lambda x,c: [(1,word) for word in line.lower().split() for line in x],
-  (INT, STRING))
+  lambda x,c: [(1,word) for word in line.lower().split() for line in x])
 {% endhighlight %}
       </td>
     </tr>
@@ -221,7 +218,7 @@ data.flat_map(
         as an `Iterator` and can produce an arbitrary number of result values. The number of
         elements in each partition depends on the degree-of-parallelism and previous operations.</p>
 {% highlight python %}
-data.map_partition(lambda x,c: [value * 2 for value in x], INT)
+data.map_partition(lambda x,c: [value * 2 for value in x])
 {% endhighlight %}
       </td>
     </tr>
@@ -260,7 +257,7 @@ class Adder(GroupReduceFunction):
     count += sum([x[0] for x in iterator)      
     collector.collect((count, word))
 
-data.reduce_group(Adder(), (INT, STRING))
+data.reduce_group(Adder())
 {% endhighlight %}
       </td>
     </tr>
@@ -392,24 +389,33 @@ They are also the only way to define an optional `combine` function for a reduce
 Lambda functions allow the easy insertion of one-liners. Note that a lambda function has to return
 an iterable, if the operation can return multiple values. (All functions receiving a collector argument)
 
-Flink requires type information at the time when it prepares the program for execution
-(when the main method of the program is called). This is done by passing an exemplary
-object that has the desired type. This holds also for tuples.
-
-{% highlight python %}
-(INT, STRING)
-{% endhighlight %}
-
-Would denote a tuple containing an int and a string. Note that for Operations that work strictly on tuples (like cross), no braces are required.
-
-There are a few Constants defined in flink.plan.Constants that allow this in a more readable fashion.
-
 {% top %}
 
 Data Types
 ----------
 
-Flink's Python API currently only supports primitive python types (int, float, bool, string) and byte arrays.
+Flink's Python API currently only offers native support for primitive python types (int, float, bool, string) and byte arrays.
+
+The type support can be extended by passing a serializer, deserializer and type class to the environment.
+{% highlight python %}
+class MyObj(object):
+    def __init__(self, i):
+        self.value = i
+
+
+class MySerializer(object):
+    def serialize(self, value):
+        return struct.pack(">i", value.value)
+
+
+class MyDeserializer(object):
+    def _deserialize(self, read):
+        i = struct.unpack(">i", read(4))[0]
+        return MyObj(i)
+
+
+env.register_custom_type(MyObj, MySerializer(), MyDeserializer())
+{% endhighlight %}
 
 #### Tuples/Lists
 
@@ -419,7 +425,7 @@ a fix number of fields of various types (up to 25). Every field of a tuple can b
 {% highlight python %}
 word_counts = env.from_elements(("hello", 1), ("world",2))
 
-counts = word_counts.map(lambda x: x[1], INT)
+counts = word_counts.map(lambda x: x[1])
 {% endhighlight %}
 
 When working with operators that require a Key for grouping or matching records,
@@ -455,16 +461,16 @@ Collection-based:
 {% highlight python %}
 env  = get_environment
 
-# read text file from local files system
+\# read text file from local files system
 localLiens = env.read_text("file:#/path/to/my/textfile")
 
- read text file from a HDFS running at nnHost:nnPort
+\# read text file from a HDFS running at nnHost:nnPort
 hdfsLines = env.read_text("hdfs://nnHost:nnPort/path/to/my/textfile")
 
- read a CSV file with three fields
+\# read a CSV file with three fields, schema defined using constants defined in flink.plan.Constants
 csvInput = env.read_csv("hdfs:///the/CSV/file", (INT, STRING, DOUBLE))
 
- create a set from some given elements
+\# create a set from some given elements
 values = env.from_elements("Foo", "bar", "foobar", "fubar")
 {% endhighlight %}
 
@@ -530,7 +536,7 @@ toBroadcast = env.from_elements(1, 2, 3)
 data = env.from_elements("a", "b")
 
 # 2. Broadcast the DataSet
-data.map(MapperBcv(), INT).with_broadcast_set("bcv", toBroadcast)
+data.map(MapperBcv()).with_broadcast_set("bcv", toBroadcast) 
 {% endhighlight %}
 
 Make sure that the names (`bcv` in the previous example) match when registering and
@@ -568,9 +574,9 @@ execution environment as follows:
 env = get_environment()
 env.set_degree_of_parallelism(3)
 
-text.flat_map(lambda x,c: x.lower().split(), (INT, STRING)) \
+text.flat_map(lambda x,c: x.lower().split()) \
     .group_by(1) \
-    .reduce_group(Adder(), (INT, STRING), combinable=True) \
+    .reduce_group(Adder(), combinable=True) \
     .output()
 
 env.execute()

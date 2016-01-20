@@ -159,8 +159,8 @@ class Environment(object):
         if plan_mode:
             port = int(sys.stdin.readline().rstrip('\n'))
             self._connection = Connection.PureTCPConnection(port)
-            self._iterator = Iterator.TypedIterator(self._connection, self)
-            self._collector = Collector.TypedCollector(self._connection, self)
+            self._iterator = Iterator.PlanIterator(self._connection, self)
+            self._collector = Collector.PlanCollector(self._connection, self)
             self._send_plan()
             result = self._receive_result()
             self._connection.close()
@@ -175,13 +175,13 @@ class Environment(object):
                 input_path = sys.stdin.readline().rstrip('\n')
                 output_path = sys.stdin.readline().rstrip('\n')
 
+                used_set = None
                 operator = None
                 for set in self._sets:
                     if set.id == id:
+                        used_set = set
                         operator = set.operator
-                    if set.id == -id:
-                        operator = set.combineop
-                operator._configure(input_path, output_path, port, self)
+                operator._configure(input_path, output_path, port, self, used_set)
                 operator._go()
                 operator._close()
                 sys.stdout.flush()
@@ -211,7 +211,7 @@ class Environment(object):
             if child_type in chainable:
                 parent = child.parent
                 if parent.operator is not None and len(parent.children) == 1 and len(parent.sinks) == 0:
-                    parent.operator._chain(child.operator)
+                    parent.chained_info = child
                     parent.name += " -> " + child.name
                     parent.types = child.types
                     for grand_child in child.children:
@@ -297,11 +297,8 @@ class Environment(object):
                     break
                 if case(_Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST):
                     collect(set.other.id)
+                    collect(set.uses_udf)
                     collect(set.types)
-                    collect(len(set.projections))
-                    for p in set.projections:
-                        collect(p[0])
-                        collect(p[1])
                     collect(set.name)
                     break
                 if case(_Identifier.REDUCE, _Identifier.GROUPREDUCE):
@@ -312,11 +309,8 @@ class Environment(object):
                     collect(set.key1)
                     collect(set.key2)
                     collect(set.other.id)
+                    collect(set.uses_udf)
                     collect(set.types)
-                    collect(len(set.projections))
-                    for p in set.projections:
-                        collect(p[0])
-                        collect(p[1])
                     collect(set.name)
                     break
                 if case(_Identifier.MAP, _Identifier.MAPPARTITION, _Identifier.FLATMAP, _Identifier.FILTER):

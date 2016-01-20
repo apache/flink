@@ -22,7 +22,8 @@ from flink.functions.FilterFunction import FilterFunction
 from flink.functions.MapPartitionFunction import MapPartitionFunction
 from flink.functions.ReduceFunction import ReduceFunction
 from flink.functions.GroupReduceFunction import GroupReduceFunction
-from flink.plan.Constants import INT, STRING, FLOAT, BOOL, BYTES, CUSTOM, Order, WriteMode
+from flink.plan.Constants import Order, WriteMode
+from flink.plan.Constants import INT, STRING
 import struct
 
 #Utilities
@@ -73,7 +74,7 @@ if __name__ == "__main__":
 
     d4 = env.from_elements((1, 0.5, "hello", True), (1, 0.4, "hello", False), (1, 0.5, "hello", True), (2, 0.4, "world", False))
 
-    d5 = env.from_elements((4.4, 4.3, 1), (4.3, 4.4, 1), (4.2, 4.1, 3), (4.1, 4.1, 3))
+    d5 = env.from_elements((1, 2.4), (1, 3.7), (1, 0.4), (1, 5.4))
 
     d6 = env.from_elements(1, 1, 12)
 
@@ -89,19 +90,19 @@ if __name__ == "__main__":
 
     #Types
     env.from_elements(bytearray(b"hello"), bytearray(b"world"))\
-        .map(Id(), BYTES).map_partition(Verify([bytearray(b"hello"), bytearray(b"world")], "Byte"), STRING).output()
+        .map(Id()).map_partition(Verify([bytearray(b"hello"), bytearray(b"world")], "Byte")).output()
 
     env.from_elements(1, 2, 3, 4, 5)\
-        .map(Id(), INT).map_partition(Verify([1,2,3,4,5], "Int"), STRING).output()
+        .map(Id()).map_partition(Verify([1,2,3,4,5], "Int")).output()
 
     env.from_elements(True, True, False)\
-        .map(Id(), BOOL).map_partition(Verify([True, True, False], "Bool"), STRING).output()
+        .map(Id()).map_partition(Verify([True, True, False], "Bool")).output()
 
     env.from_elements(1.4, 1.7, 12312.23)\
-        .map(Id(), FLOAT).map_partition(Verify([1.4, 1.7, 12312.23], "Float"), STRING).output()
+        .map(Id()).map_partition(Verify([1.4, 1.7, 12312.23], "Float")).output()
 
     env.from_elements("hello", "world")\
-        .map(Id(), STRING).map_partition(Verify(["hello", "world"], "String"), STRING).output()
+        .map(Id()).map_partition(Verify(["hello", "world"], "String")).output()
 
     #Custom Serialization
     class Ext(MapPartitionFunction):
@@ -125,16 +126,16 @@ if __name__ == "__main__":
     env.register_type(MyObj, MySerializer(), MyDeserializer())
 
     env.from_elements(MyObj(2), MyObj(4)) \
-        .map(Id(), CUSTOM).map_partition(Ext(), INT) \
-        .map_partition(Verify([2, 4], "CustomTypeSerialization"), STRING).output()
+        .map(Id()).map_partition(Ext()) \
+        .map_partition(Verify([2, 4], "CustomTypeSerialization")).output()
 
     #Map
     class Mapper(MapFunction):
         def map(self, value):
             return value * value
     d1 \
-        .map((lambda x: x * x), INT).map(Mapper(), INT) \
-        .map_partition(Verify([1, 1296, 20736], "Map"), STRING).output()
+        .map((lambda x: x * x)).map(Mapper()) \
+        .map_partition(Verify([1, 1296, 20736], "Map")).output()
 
     #FlatMap
     class FlatMap(FlatMapFunction):
@@ -142,8 +143,8 @@ if __name__ == "__main__":
             collector.collect(value)
             collector.collect(value * 2)
     d1 \
-        .flat_map(FlatMap(), INT).flat_map(FlatMap(), INT) \
-        .map_partition(Verify([1, 2, 2, 4, 6, 12, 12, 24, 12, 24, 24, 48], "FlatMap"), STRING).output()
+        .flat_map(FlatMap()).flat_map(FlatMap()) \
+        .map_partition(Verify([1, 2, 2, 4, 6, 12, 12, 24, 12, 24, 24, 48], "FlatMap")).output()
 
     #MapPartition
     class MapPartition(MapPartitionFunction):
@@ -151,8 +152,8 @@ if __name__ == "__main__":
             for value in iterator:
                 collector.collect(value * 2)
     d1 \
-        .map_partition(MapPartition(), INT) \
-        .map_partition(Verify([2, 12, 24], "MapPartition"), STRING).output()
+        .map_partition(MapPartition()) \
+        .map_partition(Verify([2, 12, 24], "MapPartition")).output()
 
     #Filter
     class Filter(FilterFunction):
@@ -164,7 +165,7 @@ if __name__ == "__main__":
             return value > self.limit
     d1 \
         .filter(Filter(5)).filter(Filter(8)) \
-        .map_partition(Verify([12], "Filter"), STRING).output()
+        .map_partition(Verify([12], "Filter")).output()
 
     #Reduce
     class Reduce(ReduceFunction):
@@ -176,7 +177,11 @@ if __name__ == "__main__":
             return (value1[0] + value2[0], value1[1] + value2[1], value1[2], value1[3] or value2[3])
     d1 \
         .reduce(Reduce()) \
-        .map_partition(Verify([19], "AllReduce"), STRING).output()
+        .map_partition(Verify([19], "AllReduce")).output()
+
+    d4 \
+        .group_by(2).reduce(Reduce2()) \
+        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "GroupedReduce")).output()
 
     #GroupReduce
     class GroupReduce(GroupReduceFunction):
@@ -193,9 +198,31 @@ if __name__ == "__main__":
         def reduce(self, iterator, collector):
             for value in iterator:
                 collector.collect(value)
+
     d4 \
-        .group_by(2).reduce_group(GroupReduce(), (INT, FLOAT, STRING, BOOL), combinable=False) \
-        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "AllGroupReduce"), STRING).output()
+        .reduce_group(GroupReduce2()) \
+        .map_partition(Verify([(1, 0.5, "hello", True), (1, 0.4, "hello", False), (1, 0.5, "hello", True), (2, 0.4, "world", False)], "AllGroupReduce")).output()
+    d4 \
+        .group_by(lambda x: x[2]).reduce_group(GroupReduce(), combinable=False) \
+        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "GroupReduceWithKeySelector")).output()
+    d4 \
+        .group_by(2).reduce_group(GroupReduce()) \
+        .map_partition(Verify([(3, 1.4, "hello", True), (2, 0.4, "world", False)], "GroupReduce")).output()
+    d5 \
+        .group_by(0).sort_group(1, Order.ASCENDING).reduce_group(GroupReduce2(), combinable=True) \
+        .map_partition(Verify([(1, 0.4), (1, 2.4), (1, 3.7), (1, 5.4)], "SortedGroupReduceAsc")).output()
+    d5 \
+        .group_by(0).sort_group(1, Order.DESCENDING).reduce_group(GroupReduce2(), combinable=True) \
+        .map_partition(Verify([(1, 5.4), (1, 3.7), (1, 2.4), (1, 0.4)], "SortedGroupReduceDes")).output()
+    d5 \
+        .group_by(lambda x: x[0]).sort_group(1, Order.DESCENDING).reduce_group(GroupReduce2(), combinable=True) \
+        .map_partition(Verify([(1, 5.4), (1, 3.7), (1, 2.4), (1, 0.4)], "SortedGroupReduceKeySelG")).output()
+    d5 \
+        .group_by(0).sort_group(lambda x: x[1], Order.DESCENDING).reduce_group(GroupReduce2(), combinable=True) \
+        .map_partition(Verify([(1, 5.4), (1, 3.7), (1, 2.4), (1, 0.4)], "SortedGroupReduceKeySelS")).output()
+    d5 \
+        .group_by(lambda x: x[0]).sort_group(lambda x: x[1], Order.DESCENDING).reduce_group(GroupReduce2(), combinable=True) \
+        .map_partition(Verify([(1, 5.4), (1, 3.7), (1, 2.4), (1, 0.4)], "SortedGroupReduceKeySelGS")).output()
 
     #Execution
     env.set_parallelism(1)

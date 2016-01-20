@@ -28,10 +28,7 @@ import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupRawOperator;
 import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
-import org.apache.flink.api.java.operators.CrossOperator.ProjectCross;
 import org.apache.flink.api.java.operators.Grouping;
-import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin;
-import org.apache.flink.api.java.operators.JoinOperator.ProjectJoin;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UdfOperator;
@@ -42,14 +39,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.python.api.functions.util.NestedKeyDiscarder;
+import org.apache.flink.python.api.functions.util.StringTupleDeserializerMap;
 import org.apache.flink.python.api.PythonOperationInfo.DatasizeHint;
 import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.HUGE;
 import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.NONE;
 import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
-import org.apache.flink.python.api.PythonOperationInfo.ProjectionEntry;
 import org.apache.flink.python.api.functions.PythonCoGroup;
-import org.apache.flink.python.api.functions.IdentityGroupReduce;
+import org.apache.flink.python.api.functions.util.IdentityGroupReduce;
 import org.apache.flink.python.api.functions.PythonMapPartition;
+import org.apache.flink.python.api.functions.util.KeyDiscarder;
+import org.apache.flink.python.api.functions.util.SerializerMap;
+import org.apache.flink.python.api.functions.util.StringDeserializerMap;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.slf4j.Logger;
@@ -410,34 +411,35 @@ public class PythonPlanBinder {
 
 		sets.put(info.setID, env.createInput(new TupleCsvInputFormat(new Path(info.path),
 				info.lineDelimiter, info.fieldDelimiter, (TupleTypeInfo) info.types), info.types)
-				.name("CsvSource"));
+				.name("CsvSource").map(new SerializerMap()).name("CsvSourcePostStep"));
 	}
 
 	private void createTextSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.readTextFile(info.path).name("TextSource"));
+		sets.put(info.setID, env.readTextFile(info.path).name("TextSource").map(new SerializerMap()).name("TextSourcePostStep"));
 	}
 
 	private void createValueSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.fromElements(info.values).name("ValueSource"));
+		sets.put(info.setID, env.fromElements(info.values).name("ValueSource").map(new SerializerMap()).name("ValueSourcePostStep"));
 	}
 
 	private void createSequenceSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.generateSequence(info.from, info.to).name("SequenceSource"));
+		sets.put(info.setID, env.generateSequence(info.from, info.to).name("SequenceSource").map(new SerializerMap()).name("SequenceSourcePostStep"));
 	}
 
 	private void createCsvSink(PythonOperationInfo info) throws IOException {
 		DataSet parent = (DataSet) sets.get(info.parentID);
-		parent.writeAsCsv(info.path, info.lineDelimiter, info.fieldDelimiter, info.writeMode).name("CsvSink");
+		parent.map(new StringTupleDeserializerMap()).name("CsvSinkPreStep")
+				.writeAsCsv(info.path, info.lineDelimiter, info.fieldDelimiter, info.writeMode).name("CsvSink");
 	}
 
 	private void createTextSink(PythonOperationInfo info) throws IOException {
 		DataSet parent = (DataSet) sets.get(info.parentID);
-		parent.writeAsText(info.path, info.writeMode).name("TextSink");
+		parent.map(new StringDeserializerMap()).writeAsText(info.path, info.writeMode).name("TextSink");
 	}
 
 	private void createPrintSink(PythonOperationInfo info) throws IOException {
 		DataSet parent = (DataSet) sets.get(info.parentID);
-		parent.output(new PrintingOutputFormat(info.toError));
+		parent.map(new StringDeserializerMap()).name("PrintSinkPreStep").output(new PrintingOutputFormat(info.toError));
 	}
 
 	private void createBroadcastVariable(PythonOperationInfo info) throws IOException {
@@ -471,7 +473,7 @@ public class PythonPlanBinder {
 
 	private void createDistinctOperation(PythonOperationInfo info) throws IOException {
 		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, info.keys.length == 0 ? op.distinct() : op.distinct(info.keys).name("Distinct"));
+		sets.put(info.setID, info.keys.length == 0 ? op.distinct() : op.distinct(info.keys).name("Distinct").map(new KeyDiscarder()).name("DistinctPostStep"));
 	}
 
 	private void createFirstOperation(PythonOperationInfo info) throws IOException {
@@ -486,7 +488,7 @@ public class PythonPlanBinder {
 
 	private void createHashPartitionOperation(PythonOperationInfo info) throws IOException {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.partitionByHash(info.keys));
+		sets.put(info.setID, op1.partitionByHash(info.keys).map(new KeyDiscarder()).name("HashPartitionPostStep"));
 	}
 
 	private void createProjectOperation(PythonOperationInfo info) throws IOException {
@@ -546,23 +548,10 @@ public class PythonPlanBinder {
 			default:
 				throw new IllegalArgumentException("Invalid Cross mode specified: " + mode);
 		}
-		if (info.types != null && (info.projections == null || info.projections.length == 0)) {
+		if (info.usesUDF) {
 			sets.put(info.setID, defaultResult.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
-		} else if (info.projections.length == 0) {
-			sets.put(info.setID, defaultResult.name("DefaultCross"));
 		} else {
-			ProjectCross project = null;
-			for (ProjectionEntry pe : info.projections) {
-				switch (pe.side) {
-					case FIRST:
-						project = project == null ? defaultResult.projectFirst(pe.keys) : project.projectFirst(pe.keys);
-						break;
-					case SECOND:
-						project = project == null ? defaultResult.projectSecond(pe.keys) : project.projectSecond(pe.keys);
-						break;
-				}
-			}
-			sets.put(info.setID, project.name("ProjectCross"));
+			sets.put(info.setID, defaultResult.name("DefaultCross"));
 		}
 	}
 
@@ -616,38 +605,22 @@ public class PythonPlanBinder {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
 
-		if (info.types != null && (info.projections == null || info.projections.length == 0)) {
-			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode).name("PythonJoinPreStep")
+		if (info.usesUDF) {
+			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode)
 					.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
 		} else {
-			DefaultJoin defaultResult = createDefaultJoin(op1, op2, info.keys1, info.keys2, mode);
-			if (info.projections.length == 0) {
-				sets.put(info.setID, defaultResult.name("DefaultJoin"));
-			} else {
-				ProjectJoin project = null;
-				for (ProjectionEntry pe : info.projections) {
-					switch (pe.side) {
-						case FIRST:
-							project = project == null ? defaultResult.projectFirst(pe.keys) : project.projectFirst(pe.keys);
-							break;
-						case SECOND:
-							project = project == null ? defaultResult.projectSecond(pe.keys) : project.projectSecond(pe.keys);
-							break;
-					}
-				}
-				sets.put(info.setID, project.name("ProjectJoin"));
-			}
+			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode));
 		}
 	}
 
-	private DefaultJoin createDefaultJoin(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode) {
+	private DataSet createDefaultJoin(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode) {
 		switch (mode) {
 			case NONE:
-				return op1.join(op2).where(firstKeys).equalTo(secondKeys);
+				return op1.join(op2).where(firstKeys).equalTo(secondKeys).map(new NestedKeyDiscarder()).name("DefaultJoinPostStep");
 			case HUGE:
-				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys);
+				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys).map(new NestedKeyDiscarder()).name("DefaultJoinPostStep");
 			case TINY:
-				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys);
+				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys).map(new NestedKeyDiscarder()).name("DefaultJoinPostStep");
 			default:
 				throw new IllegalArgumentException("Invalid join mode specified.");
 		}

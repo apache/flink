@@ -1,4 +1,4 @@
-################################################################################
+# ###############################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -17,16 +17,12 @@
 ################################################################################
 
 
-class Types(object):
-    TYPE_ARRAY = b'\x3F'
-    TYPE_KEY_VALUE = b'\x3E'
-    TYPE_VALUE_VALUE = b'\x3D'
-    TYPE_BOOLEAN = b'\x22'
-    TYPE_BYTE = b'\x21'
-    TYPE_INTEGER = b'\x20'
-    TYPE_LONG = b'\x1F'
-    TYPE_DOUBLE = b'\x1E'
-    TYPE_FLOAT = b'\x1D'
-    TYPE_STRING = b'\x1C'
-    TYPE_BYTES = b'\x1B'
-    TYPE_NULL = b'\x1A'
+class KeySelectorFunction:
+    def __call__(self, value):
+        return self.get_key(value)
+
+    def callable(self):
+        return True
+
+    def get_key(self, value):
+        pass

@@ -23,21 +23,14 @@ from flink.connection import Connection, Iterator, Collector
 class ReduceFunction(Function.Function):
     def __init__(self):
         super(ReduceFunction, self).__init__()
-        self._keys = None
 
-    def _configure(self, input_file, output_file, port, env):
-        self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
-        self._iterator = Iterator.Iterator(self._connection, env)
-        if self._keys is None:
+    def _configure(self, input_file, output_file, port, env, info):
+        super(ReduceFunction, self)._configure(input_file, output_file, port, env, info)
+        if info.key1 is None:
             self._run = self._run_all_reduce
         else:
             self._run = self._run_grouped_reduce
-            self._group_iterator = Iterator.GroupIterator(self._iterator, self._keys)
-        self._collector = Collector.Collector(self._connection, env)
-        self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
-
-    def _set_grouping_keys(self, keys):
-        self._keys = keys
+            self._group_iterator = Iterator.GroupIterator(self._iterator, info.key1)
 
     def _run(self):
         pass

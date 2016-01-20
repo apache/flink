@@ -71,7 +71,7 @@ val intSums = intPairs.map { pair => pair._1 + pair._2 }
 <div data-lang="python" markdown="1">
 
 ~~~python
- intSums = intPairs.map(lambda x: sum(x), INT)
+ intSums = intPairs.map(lambda x: sum(x))
 ~~~
 
 </div>
@@ -115,7 +115,7 @@ val words = textLines.flatMap { _.split(" ") }
 <div data-lang="python" markdown="1">
 
 ~~~python
- words = lines.flat_map(lambda x,c: [line.split() for line in x], STRING)
+ words = lines.flat_map(lambda x,c: [line.split() for line in x])
 ~~~
 
 </div>
@@ -163,7 +163,7 @@ val counts = texLines.mapPartition { in => Some(in.size) }
 <div data-lang="python" markdown="1">
 
 ~~~python
- counts = lines.map_partition(lambda x,c: [sum(1 for _ in x)], INT)
+ counts = lines.map_partition(lambda x,c: [sum(1 for _ in x)])
 ~~~
 
 </div>
@@ -459,7 +459,7 @@ Works analogous to grouping by Case Class fields in *Reduce* transformations.
      for key in dic.keys():
        collector.collect(key)
 
- output = data.group_by(0).reduce_group(DistinctReduce(), STRING)
+ output = data.group_by(0).reduce_group(DistinctReduce())
 ~~~
 
 
@@ -539,7 +539,7 @@ val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
      for key in dic.keys():
        collector.collect(key)
 
- output = data.group_by(0).sort_group(1, Order.ASCENDING).reduce_group(DistinctReduce(), STRING)
+ output = data.group_by(0).sort_group(1, Order.ASCENDING).reduce_group(DistinctReduce())
 ~~~
 
 
@@ -644,7 +644,7 @@ class MyCombinableGroupReducer
    def combine(self, iterator, collector):
      return self.reduce(iterator, collector)
 
-data.reduce_group(GroupReduce(), (STRING, INT, FLOAT), combinable=True)
+data.reduce_group(GroupReduce(), combinable=True)
 ~~~
 
 </div>
@@ -864,7 +864,7 @@ val output = input.reduceGroup(new MyGroupReducer())
 <div data-lang="python" markdown="1">
 
 ~~~python
- output = data.reduce_group(MyGroupReducer(), ... )
+ output = data.reduce_group(MyGroupReducer())
 ~~~
 
 </div>
@@ -1223,7 +1223,7 @@ val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
 
  weightedRatings =
    ratings.join(weights).where(0).equal_to(0). \
-   with(new PointWeighter(), (STRING, FLOAT));
+   with(new PointWeighter());
 ~~~
 
 </div>
@@ -1719,7 +1719,7 @@ val distances = coords1.cross(coords2) {
    def cross(self, c1, c2):
      return (c1[0], c2[0], sqrt(pow(c1[1] - c2.[1], 2) + pow(c1[2] - c2[2], 2)))
 
- distances = coords1.cross(coords2).using(Euclid(), (INT,INT,FLOAT))
+ distances = coords1.cross(coords2).using(Euclid())
 ~~~
 
 #### Cross with Projection
@@ -1878,7 +1878,7 @@ val output = iVals.coGroup(dVals).where(0).equalTo(0) {
          collector.collect(value[1] * i)
 
 
- output = ivals.co_group(dvals).where(0).equal_to(0).using(CoGroup(), DOUBLE)
+ output = ivals.co_group(dvals).where(0).equal_to(0).using(CoGroup())
 ~~~
 
 </div>

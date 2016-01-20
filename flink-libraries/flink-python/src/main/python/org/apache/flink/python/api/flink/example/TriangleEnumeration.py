@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from flink.plan.Environment import get_environment
-from flink.plan.Constants import INT, Order
+from flink.plan.Constants import Order
 from flink.functions.FlatMapFunction import FlatMapFunction
 from flink.functions.GroupReduceFunction import GroupReduceFunction
 from flink.functions.ReduceFunction import ReduceFunction
@@ -123,27 +123,27 @@ if __name__ == "__main__":
         (1, 2), (1, 3), (1, 4), (1, 5), (2, 3), (2, 5), (3, 4), (3, 7), (3, 8), (5, 6), (7, 8))
 
     edges_with_degrees = edges \
-        .flat_map(EdgeDuplicator(), [INT, INT]) \
+        .flat_map(EdgeDuplicator()) \
         .group_by(0) \
         .sort_group(1, Order.ASCENDING) \
-        .reduce_group(DegreeCounter(), [INT, INT, INT, INT]) \
+        .reduce_group(DegreeCounter()) \
         .group_by(0, 2) \
         .reduce(DegreeJoiner())
 
     edges_by_degree = edges_with_degrees \
-        .map(EdgeByDegreeProjector(), [INT, INT])
+        .map(EdgeByDegreeProjector())
 
     edges_by_id = edges_by_degree \
-        .map(EdgeByIdProjector(), [INT, INT])
+        .map(EdgeByIdProjector())
 
     triangles = edges_by_degree \
         .group_by(0) \
         .sort_group(1, Order.ASCENDING) \
-        .reduce_group(TriadBuilder(), [INT, INT, INT]) \
+        .reduce_group(TriadBuilder()) \
         .join(edges_by_id) \
         .where(1, 2) \
         .equal_to(0, 1) \
-        .using(TriadFilter(), [INT, INT, INT])
+        .using(TriadFilter())
 
     triangles.output()
 

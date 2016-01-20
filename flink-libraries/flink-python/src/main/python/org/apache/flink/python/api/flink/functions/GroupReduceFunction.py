@@ -24,21 +24,14 @@ from flink.plan.Constants import Order
 class GroupReduceFunction(Function.Function):
     def __init__(self):
         super(GroupReduceFunction, self).__init__()
-        self._keys = None
 
-    def _configure(self, input_file, output_file, port, env):
-        self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
-        self._iterator = Iterator.Iterator(self._connection, env)
-        if self._keys is None:
+    def _configure(self, input_file, output_file, port, env, info):
+        super(GroupReduceFunction, self)._configure(input_file, output_file, port, env, info)
+        if info.key1 is None:
             self._run = self._run_all_group_reduce
         else:
             self._run = self._run_grouped_group_reduce
-            self._group_iterator = Iterator.GroupIterator(self._iterator, self._keys)
-        self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
-        self._collector = Collector.Collector(self._connection, env)
-
-    def _set_grouping_keys(self, keys):
-        self._keys = keys
+            self._group_iterator = Iterator.GroupIterator(self._iterator, info.key1)
 
     def _run(self):
         pass

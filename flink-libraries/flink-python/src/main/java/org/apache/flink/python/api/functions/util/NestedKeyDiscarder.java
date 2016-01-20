@@ -10,26 +10,21 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.python.api.streaming.plan;
+package org.apache.flink.python.api.functions.util;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Serializable;
-import org.apache.flink.python.api.streaming.util.SerializationUtils;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 
-/**
- * Instances of this class can be used to send data to the plan process.
- */
-public class PythonPlanSender implements Serializable {
-	private final DataOutputStream output;
-
-	public PythonPlanSender(OutputStream output) {
-		this.output = new DataOutputStream(output);
-	}
-
-	public void sendRecord(Object record) throws IOException {
-		byte[] data = SerializationUtils.getSerializer(record).serialize(record);
-		output.write(data);
+/*
+Utility function to extract values from 2 Key-Value Tuples after a DefaultJoin.
+*/
+@ForwardedFields("f0.f1->f0; f1.f1->f1")
+public class NestedKeyDiscarder<IN> implements MapFunction<IN, Tuple2<byte[], byte[]>> {
+	@Override
+	public Tuple2<byte[], byte[]> map(IN value) throws Exception {
+		Tuple2<Tuple2<Tuple, byte[]>, Tuple2<Tuple, byte[]>> x = (Tuple2<Tuple2<Tuple, byte[]>, Tuple2<Tuple, byte[]>>) value;
+		return new Tuple2<>(x.f0.f1, x.f1.f1);
 	}
 }

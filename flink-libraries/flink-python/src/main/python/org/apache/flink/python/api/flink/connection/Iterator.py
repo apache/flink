@@ -26,6 +26,7 @@ except:
 from flink.connection.Constants import Types
 
 
+#=====Iterator==========================================================================================================
 class ListIterator(defIter.Iterator):
     def __init__(self, values):
         super(ListIterator, self).__init__()
@@ -76,7 +77,7 @@ class GroupIterator(defIter.Iterator):
             else:
                 self.cur = None
                 self.empty = True
-            return tmp
+            return tmp[1]
         else:
             raise StopIteration
 
@@ -93,7 +94,7 @@ class GroupIterator(defIter.Iterator):
         self.empty = False
 
     def _extract_keys(self, x):
-        return [x[k] for k in self.keys]
+        return [x[0][k] for k in self.keys]
 
     def _extract_keys_id(self, x):
         return x
@@ -175,6 +176,7 @@ class Iterator(defIter.Iterator):
         self._group = group
         self._deserializer = None
         self._env = env
+        self._size = 0
 
     def __next__(self):
         return self.next()
@@ -184,8 +186,35 @@ class Iterator(defIter.Iterator):
 
     def next(self):
         if self.has_next():
+            custom_types = self._env._types
+            read = self._read
             if self._deserializer is None:
-                self._deserializer = _get_deserializer(self._group, self._connection.read, self._env._types)
+                type = read(1)
+                if type == Types.TYPE_ARRAY:
+                    key_des = _get_deserializer(read, custom_types)
+                    self._deserializer = ArrayDeserializer(key_des)
+                    return key_des.deserialize(read)
+                elif type == Types.TYPE_KEY_VALUE:
+                    size = ord(read(1))
+                    key_des = []
+                    keys = []
+                    for _ in range(size):
+                        new_d = _get_deserializer(read, custom_types)
+                        key_des.append(new_d)
+                        keys.append(new_d.deserialize(read))
+                    val_des = _get_deserializer(read, custom_types)
+                    val = val_des.deserialize(read)
+                    self._deserializer = KeyValueDeserializer(key_des, val_des)
+                    return (tuple(keys), val)
+                elif type == Types.TYPE_VALUE_VALUE:
+                    des1 = _get_deserializer(read, custom_types)
+                    field1 = des1.deserialize(read)
+                    des2 = _get_deserializer(read, custom_types)
+                    field2 = des2.deserialize(read)
+                    self._deserializer = ValueValueDeserializer(des1, des2)
+                    return (field1, field2)
+                else:
+                    raise Exception("Invalid type ID encountered: " + str(ord(type)))
             return self._deserializer.deserialize(self._read)
         else:
             raise StopIteration
@@ -195,6 +224,16 @@ class Iterator(defIter.Iterator):
 
     def _reset(self):
         self._deserializer = None
+
+
+class PlanIterator(object):
+    def __init__(self, con, env):
+        self._connection = con
+        self._env = env
+
+    def next(self):
+        deserializer = _get_deserializer(self._connection.read, self._env._types)
+        return deserializer.deserialize(self._connection.read)
 
 
 class DummyIterator(Iterator):
@@ -211,12 +250,11 @@ class DummyIterator(Iterator):
         return False
 
 
-def _get_deserializer(group, read, custom_types, type=None):
-    if type is None:
-        type = read(1, group)
-        return _get_deserializer(group, read, custom_types, type)
-    elif type == Types.TYPE_TUPLE:
-        return TupleDeserializer(read, group, custom_types)
+#=====Deserializer======================================================================================================
+def _get_deserializer(read, custom_types):
+    type = read(1)
+    if 0 < ord(type) < 26:
+        return TupleDeserializer([_get_deserializer(read, custom_types) for _ in range(ord(type))])
     elif type == Types.TYPE_BYTE:
         return ByteDeserializer()
     elif type == Types.TYPE_BYTES:
@@ -238,101 +276,125 @@ def _get_deserializer(group, read, custom_types, type=None):
     else:
         for entry in custom_types:
             if type == entry[0]:
-                return entry[3]
-        raise Exception("Unable to find deserializer for type ID " + str(type))
+                return CustomTypeDeserializer(entry[3])
+        raise Exception("Unable to find deserializer for type ID " + str(ord(type)))
 
 
-class TupleDeserializer(object):
-    def __init__(self, read, group, custom_types):
-        size = unpack(">I", read(4, group))[0]
-        self.deserializer = [_get_deserializer(group, read, custom_types) for _ in range(size)]
+class Deserializer(object):
+    def get_type_info_size(self):
+        return 1
 
     def deserialize(self, read):
-        return tuple([s.deserialize(read) for s in self.deserializer])
+        pass
 
 
-class ByteDeserializer(object):
+class ArrayDeserializer(Deserializer):
+    def __init__(self, deserializer):
+        self._deserializer = deserializer
+        self._d_skip = deserializer.get_type_info_size()
+
+    def deserialize(self, read):
+        read(1) #array type
+        read(self._d_skip)
+        return self._deserializer.deserialize(read)
+
+
+class KeyValueDeserializer(Deserializer):
+    def __init__(self, key_deserializer, value_deserializer):
+        self._key_deserializer = [(k, k.get_type_info_size()) for k in key_deserializer]
+        self._value_deserializer = value_deserializer
+        self._value_deserializer_skip = value_deserializer.get_type_info_size()
+
+    def deserialize(self, read):
+        fields = []
+        read(1) #key value type
+        read(1) #key count
+        for dk in self._key_deserializer:
+            read(dk[1])
+            fields.append(dk[0].deserialize(read))
+        dv = self._value_deserializer
+        read(self._value_deserializer_skip)
+        return (tuple(fields), dv.deserialize(read))
+
+
+class ValueValueDeserializer(Deserializer):
+    def __init__(self, d1, d2):
+        self._d1 = d1
+        self._d1_skip = self._d1.get_type_info_size()
+        self._d2 = d2
+        self._d2_skip = self._d2.get_type_info_size()
+
+    def deserialize(self, read):
+        read(1)
+        read(self._d1_skip)
+        f1 = self._d1.deserialize(read)
+        read(self._d2_skip)
+        f2 = self._d2.deserialize(read)
+        return (f1, f2)
+
+
+class CustomTypeDeserializer(Deserializer):
+    def __init__(self, deserializer):
+        self._deserializer = deserializer
+
+    def deserialize(self, read):
+        read(4) #discard binary size
+        return self._deserializer.deserialize(read)
+
+
+class TupleDeserializer(Deserializer):
+    def __init__(self, deserializer):
+        self._deserializer = deserializer
+
+    def get_type_info_size(self):
+        return 1 + sum([d.get_type_info_size() for d in self._deserializer])
+
+    def deserialize(self, read):
+        return tuple([s.deserialize(read) for s in self._deserializer])
+
+
+class ByteDeserializer(Deserializer):
     def deserialize(self, read):
         return unpack(">c", read(1))[0]
 
 
-class ByteArrayDeserializer(object):
+class ByteArrayDeserializer(Deserializer):
     def deserialize(self, read):
         size = unpack(">i", read(4))[0]
         return bytearray(read(size)) if size else bytearray(b"")
 
 
-class BooleanDeserializer(object):
+class BooleanDeserializer(Deserializer):
     def deserialize(self, read):
         return unpack(">?", read(1))[0]
 
 
-class FloatDeserializer(object):
+class FloatDeserializer(Deserializer):
     def deserialize(self, read):
         return unpack(">f", read(4))[0]
 
 
-class DoubleDeserializer(object):
+class DoubleDeserializer(Deserializer):
     def deserialize(self, read):
         return unpack(">d", read(8))[0]
 
 
-class IntegerDeserializer(object):
+class IntegerDeserializer(Deserializer):
     def deserialize(self, read):
         return unpack(">i", read(4))[0]
 
 
-class LongDeserializer(object):
+class LongDeserializer(Deserializer):
     def deserialize(self, read):
         return unpack(">q", read(8))[0]
 
 
-class StringDeserializer(object):
+class StringDeserializer(Deserializer):
     def deserialize(self, read):
         length = unpack(">i", read(4))[0]
         return read(length).decode("utf-8") if length else ""
 
 
-class NullDeserializer(object):
-    def deserialize(self):
+class NullDeserializer(Deserializer):
+    def deserialize(self, read):
         return None
-
-
-class TypedIterator(object):
-    def __init__(self, con, env):
-        self._connection = con
-        self._env = env
-
-    def next(self):
-        read = self._connection.read
-        type = read(1)
-        if type == Types.TYPE_TUPLE:
-            size = unpack(">i", read(4))[0]
-            return tuple([self.next() for x in range(size)])
-        elif type == Types.TYPE_BYTE:
-            return unpack(">c", read(1))[0]
-        elif type == Types.TYPE_BYTES:
-            size = unpack(">i", read(4))[0]
-            return bytearray(read(size)) if size else bytearray(b"")
-        elif type == Types.TYPE_BOOLEAN:
-            return unpack(">?", read(1))[0]
-        elif type == Types.TYPE_FLOAT:
-            return unpack(">f", read(4))[0]
-        elif type == Types.TYPE_DOUBLE:
-            return unpack(">d", read(8))[0]
-        elif type == Types.TYPE_INTEGER:
-            return unpack(">i", read(4))[0]
-        elif type == Types.TYPE_LONG:
-            return unpack(">q", read(8))[0]
-        elif type == Types.TYPE_STRING:
-            length = unpack(">i", read(4))[0]
-            return read(length).decode("utf-8") if length else ""
-        elif type == Types.TYPE_NULL:
-            return None
-        else:
-            for entry in self._env._types:
-                if type == entry[0]:
-                    return entry[3]()
-            raise Exception("Unable to find deserializer for type ID " + str(type))
-
-

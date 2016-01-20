@@ -18,17 +18,15 @@ import java.io.InputStream;
 import java.io.Serializable;
 import org.apache.flink.api.java.tuple.Tuple;
 import static org.apache.flink.python.api.streaming.data.PythonReceiver.createTuple;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BOOLEAN;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BYTE;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_BYTES;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_DOUBLE;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_FLOAT;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_INTEGER;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_LONG;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_NULL;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_SHORT;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_STRING;
-import static org.apache.flink.python.api.streaming.data.PythonSender.TYPE_TUPLE;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BOOLEAN;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BYTE;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_BYTES;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_DOUBLE;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_FLOAT;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_INTEGER;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_LONG;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_NULL;
+import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_STRING;
 import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 /**
@@ -46,62 +44,157 @@ public class PythonPlanReceiver implements Serializable {
 	}
 
 	public Object getRecord(boolean normalized) throws IOException {
-		return receiveField(normalized);
+		return getDeserializer().deserialize(normalized);
 	}
 
-	private Object receiveField(boolean normalized) throws IOException {
+	private Deserializer getDeserializer() throws IOException {
 		byte type = (byte) input.readByte();
+		if (type > 0 && type < 26) {
+				Deserializer[] d = new Deserializer[type];
+				for (int x = 0; x < d.length; x++) {
+					d[x] = getDeserializer();
+				}
+				return new TupleDeserializer(d);
+		}
 		switch (type) {
-			case TYPE_TUPLE:
-				int tupleSize = input.readByte();
-				Tuple tuple = createTuple(tupleSize);
-				for (int x = 0; x < tupleSize; x++) {
-					tuple.setField(receiveField(normalized), x);
-				}
-				return tuple;
 			case TYPE_BOOLEAN:
-				return input.readByte() == 1;
+				return new BooleanDeserializer();
 			case TYPE_BYTE:
-				return (byte) input.readByte();
-			case TYPE_SHORT:
-				if (normalized) {
-					return (int) input.readShort();
-				} else {
-					return input.readShort();
-				}
+				return new ByteDeserializer();
 			case TYPE_INTEGER:
-				return input.readInt();
+				return new IntDeserializer();
 			case TYPE_LONG:
-				if (normalized) {
-					return new Long(input.readLong()).intValue();
-				} else {
-					return input.readLong();
-				}
+				return new LongDeserializer();
 			case TYPE_FLOAT:
-				if (normalized) {
-					return (double) input.readFloat();
-				} else {
-					return input.readFloat();
-				}
+				return new FloatDeserializer();
 			case TYPE_DOUBLE:
-				return input.readDouble();
+				return new DoubleDeserializer();
 			case TYPE_STRING:
-				int stringSize = input.readInt();
-				byte[] string = new byte[stringSize];
-				input.readFully(string);
-				return new String(string);
+				return new StringDeserializer();
 			case TYPE_BYTES:
-				int bytessize = input.readInt();
-				byte[] bytes = new byte[bytessize];
-				input.readFully(bytes);
-				return bytes;
+				return new BytesDeserializer();
 			case TYPE_NULL:
-				return null;
+				return new NullDeserializer();
 			default:
-				int size = input.readInt();
-				byte[] data = new byte[size];
-				input.readFully(data);
-				return new CustomTypeWrapper(type, data);
+				return new CustomTypeDeserializer(type);
+		}
+	}
+
+	private abstract class Deserializer<T> {
+		public T deserialize() throws IOException {
+			return deserialize(false);
+		}
+
+		public abstract T deserialize(boolean normalized) throws IOException;
+	}
+
+	private class TupleDeserializer extends Deserializer<Tuple> {
+		Deserializer[] deserializer;
+
+		public TupleDeserializer(Deserializer[] deserializer) {
+			this.deserializer = deserializer;
+		}
+
+		@Override
+		public Tuple deserialize(boolean normalized) throws IOException {
+			Tuple result = createTuple(deserializer.length);
+			for (int x = 0; x < result.getArity(); x++) {
+				result.setField(deserializer[x].deserialize(normalized), x);
+			}
+			return result;
+		}
+	}
+
+	private class CustomTypeDeserializer extends Deserializer<CustomTypeWrapper> {
+		private final byte type;
+
+		public CustomTypeDeserializer(byte type) {
+			this.type = type;
+		}
+
+		@Override
+		public CustomTypeWrapper deserialize(boolean normalized) throws IOException {
+			int size = input.readInt();
+			byte[] data = new byte[size];
+			input.read(data);
+			return new CustomTypeWrapper(type, data);
+		}
+	}
+
+	private class BooleanDeserializer extends Deserializer<Boolean> {
+		@Override
+		public Boolean deserialize(boolean normalized) throws IOException {
+			return input.readBoolean();
+		}
+	}
+
+	private class ByteDeserializer extends Deserializer<Byte> {
+		@Override
+		public Byte deserialize(boolean normalized) throws IOException {
+			return input.readByte();
+		}
+	}
+
+	private class IntDeserializer extends Deserializer<Integer> {
+		@Override
+		public Integer deserialize(boolean normalized) throws IOException {
+			return input.readInt();
+		}
+	}
+
+	private class LongDeserializer extends Deserializer<Object> {
+		@Override
+		public Object deserialize(boolean normalized) throws IOException {
+			if (normalized) {
+				return new Long(input.readLong()).intValue();
+			} else {
+				return input.readLong();
+			}
+		}
+	}
+
+	private class FloatDeserializer extends Deserializer<Object> {
+		@Override
+		public Object deserialize(boolean normalized) throws IOException {
+			if (normalized) {
+				return (double) input.readFloat();
+			} else {
+				return input.readFloat();
+			}
+		}
+	}
+
+	private class DoubleDeserializer extends Deserializer<Double> {
+		@Override
+		public Double deserialize(boolean normalized) throws IOException {
+			return input.readDouble();
+		}
+	}
+
+	private class StringDeserializer extends Deserializer<String> {
+		@Override
+		public String deserialize(boolean normalized) throws IOException {
+			int size = input.readInt();
+			byte[] buffer = new byte[size];
+			input.read(buffer);
+			return new String(buffer);
+		}
+	}
+
+	private class NullDeserializer extends Deserializer<Object> {
+		@Override
+		public Object deserialize(boolean normalized) throws IOException {
+			return null;
+		}
+	}
+
+	private class BytesDeserializer extends Deserializer<byte[]> {
+		@Override
+		public byte[] deserialize(boolean normalized) throws IOException {
+			int size = input.readInt();
+			byte[] buffer = new byte[size];
+			input.read(buffer);
+			return buffer;
 		}
 	}
 }

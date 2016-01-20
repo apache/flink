@@ -10,16 +10,20 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.python.api.functions;
+package org.apache.flink.python.api.functions.util;
 
-import org.apache.flink.util.Collector;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 
-public class IdentityGroupReduce<IN> implements GroupReduceFunction<IN, IN> {
+/*
+Utility function to extract the value from a Key-Value Tuple.
+*/
+@ForwardedFields("f1->*")
+public class KeyDiscarder implements MapFunction<Tuple2<Tuple, byte[]>, byte[]> {
 	@Override
-	public final void reduce(Iterable<IN> values, Collector<IN> out) throws Exception {
-		for (IN value : values) {
-			out.collect(value);
-		}
+	public byte[] map(Tuple2<Tuple, byte[]> value) throws Exception {
+		return value.f1;
 	}
 }

@@ -33,7 +33,7 @@ public class PythonCoGroup<IN1, IN2, OUT> extends RichCoGroupFunction<IN1, IN2, 
 
 	public PythonCoGroup(int id, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer(this, id);
+		streamer = new PythonStreamer(this, id, true);
 	}
 
 	/**

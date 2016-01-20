@@ -32,10 +32,9 @@ public class PythonOperationInfo {
 	public String[] keys2; //join/cogroup keys
 	public TypeInformation<?> types; //typeinformation about output type
 	public AggregationEntry[] aggregates;
-	public ProjectionEntry[] projections; //projectFirst/projectSecond
 	public Object[] values;
 	public int count;
-	public int field;
+	public String field;
 	public int[] fields;
 	public Order order;
 	public String path;
@@ -46,6 +45,7 @@ public class PythonOperationInfo {
 	public WriteMode writeMode;
 	public boolean toError;
 	public String name;
+	public boolean usesUDF;
 
 	public PythonOperationInfo(PythonPlanStreamer streamer, Operation identifier) throws IOException {
 		Object tmpType;
@@ -127,7 +127,7 @@ public class PythonOperationInfo {
 			case REBALANCE:
 				return;
 			case SORT:
-				field = (Integer) streamer.getRecord(true);
+				field = "f0.f" + (Integer) streamer.getRecord(true);
 				int encodedOrder = (Integer) streamer.getRecord(true);
 				switch (encodedOrder) {
 					case 0:
@@ -162,15 +162,9 @@ public class PythonOperationInfo {
 			case CROSS_H:
 			case CROSS_T:
 				otherID = (Integer) streamer.getRecord(true);
+				usesUDF = (Boolean) streamer.getRecord();
 				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				int cProjectCount = (Integer) streamer.getRecord(true);
-				projections = new ProjectionEntry[cProjectCount];
-				for (int x = 0; x < cProjectCount; x++) {
-					String side = (String) streamer.getRecord();
-					int[] keys = toIntArray((Tuple) streamer.getRecord(true));
-					projections[x] = new ProjectionEntry(ProjectionSide.valueOf(side.toUpperCase()), keys);
-				}
 				name = (String) streamer.getRecord();
 				return;
 			case REDUCE:
@@ -185,15 +179,9 @@ public class PythonOperationInfo {
 				keys1 = normalizeKeys(streamer.getRecord(true));
 				keys2 = normalizeKeys(streamer.getRecord(true));
 				otherID = (Integer) streamer.getRecord(true);
+				usesUDF = (Boolean) streamer.getRecord();
 				tmpType = streamer.getRecord();
 				types = tmpType == null ? null : getForObject(tmpType);
-				int jProjectCount = (Integer) streamer.getRecord(true);
-				projections = new ProjectionEntry[jProjectCount];
-				for (int x = 0; x < jProjectCount; x++) {
-					String side = (String) streamer.getRecord();
-					int[] keys = toIntArray((Tuple) streamer.getRecord(true));
-					projections[x] = new ProjectionEntry(ProjectionSide.valueOf(side.toUpperCase()), keys);
-				}
 				name = (String) streamer.getRecord();
 				return;
 			case MAPPARTITION:
@@ -221,7 +209,6 @@ public class PythonOperationInfo {
 		sb.append("Keys2: ").append(Arrays.toString(keys2)).append("\n");
 		sb.append("Keys: ").append(Arrays.toString(keys)).append("\n");
 		sb.append("Aggregates: ").append(Arrays.toString(aggregates)).append("\n");
-		sb.append("Projections: ").append(Arrays.toString(projections)).append("\n");
 		sb.append("Count: ").append(count).append("\n");
 		sb.append("Field: ").append(field).append("\n");
 		sb.append("Order: ").append(order.toString()).append("\n");
@@ -260,26 +247,6 @@ public class PythonOperationInfo {
 		}
 	}
 
-	public static class ProjectionEntry {
-		public ProjectionSide side;
-		public int[] keys;
-
-		public ProjectionEntry(ProjectionSide side, int[] keys) {
-			this.side = side;
-			this.keys = keys;
-		}
-
-		@Override
-		public String toString() {
-			return side + " - " + Arrays.toString(keys);
-		}
-	}
-
-	public enum ProjectionSide {
-		FIRST,
-		SECOND
-	}
-
 	public enum DatasizeHint {
 		NONE,
 		TINY,
@@ -296,24 +263,24 @@ public class PythonOperationInfo {
 			if (tupleKeys.getField(0) instanceof Integer) {
 				String[] stringKeys = new String[tupleKeys.getArity()];
 				for (int x = 0; x < stringKeys.length; x++) {
-					stringKeys[x] = "f" + (Integer) tupleKeys.getField(x);
+					stringKeys[x] = "f0.f" + (Integer) tupleKeys.getField(x);
 				}
 				return stringKeys;
 			}
 			if (tupleKeys.getField(0) instanceof String) {
 				return tupleToStringArray(tupleKeys);
 			}
-			throw new RuntimeException("Key argument contains field that is neither an int nor a String.");
+			throw new RuntimeException("Key argument contains field that is neither an int nor a String: " + tupleKeys);
 		}
 		if (keys instanceof int[]) {
 			int[] intKeys = (int[]) keys;
 			String[] stringKeys = new String[intKeys.length];
 			for (int x = 0; x < stringKeys.length; x++) {
-				stringKeys[x] = "f" + intKeys[x];
+				stringKeys[x] = "f0.f" + intKeys[x];
 			}
 			return stringKeys;
 		}
-		throw new RuntimeException("Key argument is neither an int[] nor a Tuple.");
+		throw new RuntimeException("Key argument is neither an int[] nor a Tuple: " + keys.toString());
 	}
 
 	private static int[] toIntArray(Object key) {

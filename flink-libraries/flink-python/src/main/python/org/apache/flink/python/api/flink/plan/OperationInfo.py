@@ -23,6 +23,8 @@ class OperationInfo():
         if info is None:
             self.parent = None
             self.other = None
+            self.parent_set = None
+            self.other_set = None
             self.identifier = None
             self.field = None
             self.order = None
@@ -31,6 +33,7 @@ class OperationInfo():
             self.key2 = None
             self.types = None
             self.operator = None
+            self.uses_udf = False
             self.name = None
             self.delimiter_line = "\n"
             self.delimiter_field = ","
@@ -43,6 +46,7 @@ class OperationInfo():
             self.bcvars = []
             self.id = None
             self.to_err = False
+            self.chained_info = None
         else:
             self.__dict__.update(info.__dict__)
 
