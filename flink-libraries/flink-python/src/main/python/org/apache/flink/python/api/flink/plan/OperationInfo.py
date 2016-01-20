@@ -41,6 +41,7 @@ class OperationInfo():
             self.sinks = []
             self.children = []
             self.path = None
+            self.count = 0
             self.values = []
             self.projections = []
             self.bcvars = []

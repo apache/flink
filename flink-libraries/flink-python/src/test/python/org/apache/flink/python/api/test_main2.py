@@ -142,6 +142,16 @@ if __name__ == "__main__":
     d2 \
         .union(d4) \
         .map_partition(Verify2([(1, 0.5, "hello", True), (2, 0.4, "world", False), (1, 0.5, "hello", True), (1, 0.4, "hello", False), (1, 0.5, "hello", True), (2, 0.4, "world", False)], "Union")).output()
+    d1 \
+        .first(1) \
+        .map_partition(Verify([1], "First")).output()
+    d1 \
+        .rebalance()
+    d6 \
+        .distinct() \
+        .map_partition(Verify([1, 12], "Distinct")).output()
+    d2 \
+        .partition_by_hash(3)
 
 
     #Execution

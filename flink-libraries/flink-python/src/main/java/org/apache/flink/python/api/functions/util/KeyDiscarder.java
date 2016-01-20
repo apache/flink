@@ -14,16 +14,15 @@ package org.apache.flink.python.api.functions.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /*
 Utility function to extract the value from a Key-Value Tuple.
 */
 @ForwardedFields("f1->*")
-public class KeyDiscarder implements MapFunction<Tuple2<Tuple, byte[]>, byte[]> {
+public class KeyDiscarder <T> implements MapFunction<Tuple2<T, byte[]>, byte[]> {
 	@Override
-	public byte[] map(Tuple2<Tuple, byte[]> value) throws Exception {
+	public byte[] map(Tuple2<T, byte[]> value) throws Exception {
 		return value.f1;
 	}
 }

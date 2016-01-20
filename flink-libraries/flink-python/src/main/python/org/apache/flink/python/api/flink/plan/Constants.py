@@ -45,6 +45,10 @@ class _Identifier(object):
     SINK_TEXT = "sink_text"
     SINK_PRINT = "sink_print"
     BROADCAST = "broadcast"
+    FIRST = "first"
+    DISTINCT = "distinct"
+    PARTITION_HASH = "partition_hash"
+    REBALANCE = "rebalance"
 
 
 class WriteMode(object):

@@ -277,6 +277,36 @@ class DataSet(object):
         self._env._sets.append(child)
         return child_set
 
+    def distinct(self, *fields):
+        """
+        Returns a distinct set of a tuple DataSet using field position keys.
+
+        :param fields: One or more field positions on which the distinction of the DataSet is decided.
+        :return: The distinct DataSet.
+        """
+        f = None
+        if len(fields) == 0:
+            f = lambda x: (x,)
+            fields = (0,)
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+        return self.map(lambda x: (f(x), x)).name("DistinctPreStep")._distinct(tuple([x for x in range(len(fields))]))
+
+    def _distinct(self, fields):
+        self._info.types = _createKeyValueTypeInfo(len(fields))
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.DISTINCT
+        child.parent = self._info
+        child.keys = fields
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
     def filter(self, operator):
         """
         Applies a Filter transformation on a DataSet.
@@ -298,6 +328,22 @@ class DataSet(object):
         child.operator = operator
         child.name = "PythonFilter"
         child.types = _createArrayTypeInfo()
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def first(self, count):
+        """
+        Returns a new set containing the first n elements in this DataSet.
+
+        :param count: The desired number of elements.
+        :return: A DataSet containing the elements.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.FIRST
+        child.parent = self._info
+        child.count = count
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
@@ -426,6 +472,52 @@ class DataSet(object):
         self._env._sets.append(child)
         return child_set
 
+    def partition_by_hash(self, *fields):
+        f = None
+        if len(fields) == 0:
+            f = lambda x: (x,)
+        if isinstance(fields[0], TYPES.FunctionType):
+            f = lambda x: (fields[0](x),)
+        if isinstance(fields[0], KeySelectorFunction):
+            f = lambda x: (fields[0].get_key(x),)
+        if f is None:
+            f = lambda x: tuple([x[key] for key in fields])
+        return self.map(lambda x: (f(x), x)).name("HashPartitionPreStep")._partition_by_hash(tuple([x for x in range(len(fields))]))
+
+    def _partition_by_hash(self, fields):
+        """
+        Hash-partitions a DataSet on the specified key fields.
+        Important:This operation shuffles the whole DataSet over the network and can take significant amount of time.
+
+        :param fields: The field indexes on which the DataSet is hash-partitioned.
+        :return: The partitioned DataSet.
+        """
+        self._info.types = _createKeyValueTypeInfo(len(fields))
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.PARTITION_HASH
+        child.parent = self._info
+        child.keys = fields
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
+    def rebalance(self):
+        """
+        Enforces a re-balancing of the DataSet, i.e., the DataSet is evenly distributed over all parallel instances of the
+        following task. This can help to improve performance in case of heavy data skew and compute intensive operations.
+        Important:This operation shuffles the whole DataSet over the network and can take significant amount of time.
+
+        :return: The re-balanced DataSet.
+        """
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.REBALANCE
+        child.parent = self._info
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
+
     def union(self, other_set):
         """
         Creates a union of this DataSet with an other DataSet.
@@ -444,6 +536,10 @@ class DataSet(object):
         other_set._info.children.append(child)
         self._env._sets.append(child)
         return child_set
+
+    def name(self, name):
+        self._info.name = name
+        return self
 
 
 class OperatorSet(DataSet):
@@ -471,6 +567,23 @@ class Grouping(object):
 
     def _finalize(self):
         pass
+
+    def first(self, count):
+        """
+        Returns a new set containing the first n elements in this DataSet.
+
+        :param count: The desired number of elements.
+        :return: A DataSet containing the elements.
+        """
+        self._finalize()
+        child = OperationInfo()
+        child_set = DataSet(self._env, child)
+        child.identifier = _Identifier.FIRST
+        child.parent = self._info
+        child.count = count
+        self._info.children.append(child)
+        self._env._sets.append(child)
+        return child_set
 
     def reduce_group(self, operator, combinable=False):
         """

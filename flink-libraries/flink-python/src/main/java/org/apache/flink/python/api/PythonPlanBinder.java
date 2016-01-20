@@ -473,7 +473,7 @@ public class PythonPlanBinder {
 
 	private void createDistinctOperation(PythonOperationInfo info) throws IOException {
 		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, info.keys.length == 0 ? op.distinct() : op.distinct(info.keys).name("Distinct").map(new KeyDiscarder()).name("DistinctPostStep"));
+		sets.put(info.setID, op.distinct(info.keys).name("Distinct").map(new KeyDiscarder()).name("DistinctPostStep"));
 	}
 
 	private void createFirstOperation(PythonOperationInfo info) throws IOException {

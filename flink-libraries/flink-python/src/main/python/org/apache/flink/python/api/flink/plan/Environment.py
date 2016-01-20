@@ -281,6 +281,14 @@ class Environment(object):
             collect(set.id)
             collect(set.parent.id)
             for case in Switch(identifier):
+                if case(_Identifier.REBALANCE):
+                    break
+                if case(_Identifier.DISTINCT, _Identifier.PARTITION_HASH):
+                    collect(set.keys)
+                    break
+                if case(_Identifier.FIRST):
+                    collect(set.count)
+                    break
                 if case(_Identifier.SORT):
                     collect(set.field)
                     collect(set.order)
