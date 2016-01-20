@@ -197,6 +197,10 @@ public class SimpleDataDistributionTest {
 		Assert.assertEquals(((IntValue) boundRec[0]).getValue(), 4);
 		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("D"));
 		
+		//return the upper value (index + total/expectedBucket)
+		//getBuckerBoundary(0,2): 0 + 8/2 = 4, call boundRec[0] ,
+		//then 0 + 4 = 4, return [4][0] = 4, also [4][1] = "D"
+		
 		try {
 			dd.getBucketBoundary(0, 7);
 			Assert.fail();

@@ -1,24 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.flink.api.common.distributions;
-
-import java.io.IOException;
 
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.core.memory.DataInputView;
@@ -26,26 +6,35 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Key;
 import org.apache.flink.util.InstantiationUtil;
 
-public class SimpleDistribution implements DataDistribution {
+import java.io.IOException;
+
+public class ManualDistribution implements DataDistribution{
 	
-	private static final long serialVersionUID = 1L;
+	private static DataDistribution distribution;
 
 	protected Key<?>[][] boundaries;
 
-	private int[] keyPositions; 
+	private int[] keyPositions;
 
-	private Class<? extends Key>[] keyTypes; 
+	private Class<? extends Key>[] keyTypes; //keyType[Class] in a range
 
-	private Order[] keyOrders; 
-	
+	private Order[] keyOrders; //key order in a range
+
 	protected int dim;
 	
-	
-	public SimpleDistribution() {
-		boundaries = new Key[0][];
+	public void setDistribution(DataDistribution dataDistribution) {
+		distribution = dataDistribution;
 	}
 	
-	public SimpleDistribution(Key<?>[] bucketBoundaries) {
+	public DataDistribution getDistribution() {
+		return distribution;
+	}
+
+	public ManualDistribution() {
+		boundaries = new Key[0][];
+	}
+
+	public ManualDistribution(Key<?>[] bucketBoundaries) {
 		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		}
@@ -55,23 +44,25 @@ public class SimpleDistribution implements DataDistribution {
 
 		// dimensionality is one in this case
 		dim = 1;
-		
+
 		@SuppressWarnings("unchecked")
 		Class<? extends Key<?>> clazz = (Class<? extends Key<?>>) bucketBoundaries[0].getClass();
-		
+
 		// make the array 2-dimensional
 		boundaries = new Key[bucketBoundaries.length][];
 		for (int i = 0; i < bucketBoundaries.length; i++) {
 			if (bucketBoundaries[i].getClass() != clazz) {
 				throw new IllegalArgumentException("The bucket boundaries are of different class types.");
 			}
+
+			this.keyTypes[0] = clazz;
 			
 			boundaries[i] = new Key[] { bucketBoundaries[i] };
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	public SimpleDistribution(Key<?>[][] bucketBoundaries) {
+	public ManualDistribution(Key<?>[][] bucketBoundaries) {
 		if (bucketBoundaries == null) {
 			throw new IllegalArgumentException("Bucket boundaries must not be null.");
 		}
@@ -81,12 +72,16 @@ public class SimpleDistribution implements DataDistribution {
 
 		// dimensionality is one in this case
 		dim = bucketBoundaries[0].length;
-		
+
 		Class<? extends Key<?>>[] types = new Class[dim];
 		for (int i = 0; i < dim; i++) {
 			types[i] = (Class<? extends Key<?>>) bucketBoundaries[0][i].getClass();
+			keyPositions[i] = i;
+			keyTypes[i] = types[i];
+			
+			//key Order?
 		}
-		
+
 		// check the array
 		for (int i = 1; i < bucketBoundaries.length; i++) {
 			if (bucketBoundaries[i].length != dim) {
@@ -98,10 +93,10 @@ public class SimpleDistribution implements DataDistribution {
 				}
 			}
 		}
-		
+
 		boundaries = bucketBoundaries;
 	}
-	
+
 	@Override
 	public int getNumberOfFields() {
 		return this.dim;
@@ -118,15 +113,15 @@ public class SimpleDistribution implements DataDistribution {
 		if(totalNumBuckets < 1) {
 			throw new IllegalArgumentException("Total number of bucket must be larger than 0.");
 		}
-		
+
 		final int maxNumBuckets = boundaries.length + 1;
-		
+
 		// check if max number of buckets is equal to or an even multiple of the requested number of buckets
 		if((maxNumBuckets % totalNumBuckets) == 0) {
 			// easy case, just use each n-th boundary
 			final int n = maxNumBuckets / totalNumBuckets;
-			final int bucketId = bucketNum * n + (n -  1); 
-			
+			final int bucketId = bucketNum * n + (n -  1);
+
 			return boundaries[bucketId];
 		} else {
 			throw new IllegalArgumentException("Interpolation of bucket boundaries currently not supported. " +
@@ -139,12 +134,12 @@ public class SimpleDistribution implements DataDistribution {
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.dim);
 		out.writeInt(boundaries.length);
-		
+
 		// write types
 		for (int i = 0; i < dim; i++) {
 			out.writeUTF(boundaries[0][i].getClass().getName());
 		}
-		
+
 		for (int i = 0; i < boundaries.length; i++) {
 			for (int d = 0; d < dim; d++) {
 				boundaries[i][d].write(out);
@@ -157,9 +152,9 @@ public class SimpleDistribution implements DataDistribution {
 	public void read(DataInputView in) throws IOException {
 		this.dim = in.readInt();
 		final int len = in.readInt();
-		
+
 		boundaries = new Key[len][];
-		
+
 		// read types
 		Class<? extends Key<?>>[] types = new Class[dim];
 		for (int i = 0; i < dim; i++) {
@@ -172,19 +167,19 @@ public class SimpleDistribution implements DataDistribution {
 				throw new IOException("Error loading type class '" + className + "'.", t);
 			}
 		}
-		
+
 		for (int i = 0; i < len; i++) {
-			Key<?>[] bucket = new Key[dim]; 
+			Key<?>[] bucket = new Key[dim];
 			for (int d = 0; d < dim; d++) {
 				Key<?> val = InstantiationUtil.instantiate(types[d], Key.class);
 				val.read(in);
 				bucket[d] = val;
 			}
-			
+
 			boundaries[i] = bucket;
 		}
 	}
-
+	
 	@Override
 	public int[] getBoundaryKeyPositions() {
 		return keyPositions;

@@ -21,6 +21,7 @@ package org.apache.flink.optimizer.dataproperties;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -30,6 +31,7 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.types.Key;
 
 /**
  * This class represents the global properties of the data that are requested by an operator.
@@ -96,6 +98,10 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = null;
+		this.dataDistribution = dataDistribution;
+	}
+	
+	public void setDataDistribution(DataDistribution dataDistribution) {
 		this.dataDistribution = dataDistribution;
 	}
 
@@ -405,8 +411,26 @@ public final class RequestedGlobalProperties implements Cloneable {
 				partitionKeys = this.ordering.getInvolvedIndexes();
 				sortDirection = this.ordering.getFieldSortDirections();
 				partitioner = null;
-
+				
 				if (this.dataDistribution != null) {
+					final int[] distKeyPositions = this.dataDistribution.getBoundaryKeyPositions();
+					final Class<? extends Key<?>>[] distKeyTypes = this.dataDistribution.getBoundaryKeyTypes();
+					final Order[] distKeyOrders = this.dataDistribution.getBoundaryKeyOrders();
+
+					final Ordering partitionOrdering = new Ordering();
+					for(int i = 0; i < distKeyPositions.length; i++) {
+						if(this.ordering.getFieldNumber(i) == distKeyPositions[i] &&
+								this.ordering.getType(i).equals(distKeyTypes[i]) &&
+								this.ordering.getOrder(i).equals(distKeyOrders[i])) {
+
+							partitionOrdering.appendOrdering(distKeyPositions[i],
+									distKeyTypes[i],
+									distKeyOrders[i]);
+						} else {
+							throw new IllegalArgumentException("Provided data distribution is incompatible with desired sort order.");
+						}
+					}
+					channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, partitionOrdering.getInvolvedIndexes(), DataExchangeMode.BATCH);
 					channel.setDataDistribution(this.dataDistribution);
 				}
 				break;
