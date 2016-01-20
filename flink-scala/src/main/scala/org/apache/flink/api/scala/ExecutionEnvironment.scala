@@ -39,7 +39,6 @@ import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => MapreduceFileIn
 import org.apache.hadoop.mapreduce.{InputFormat => MapreduceInputFormat, Job}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 /**
@@ -67,6 +66,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @return the Java Execution environment.
    */
   def getJavaEnv: JavaEnv = javaEnv
+
   /**
    * Gets the config object.
    */
@@ -249,7 +249,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * to only read specific fields.
    *
    * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
-   *                 "hdfs://host:port/file/path").   * @param lineDelimiter
+   *                 "hdfs://host:port/file/path").
    * @param lineDelimiter The string that separates lines, defaults to newline.
    * @param fieldDelimiter The string that separates individual fields, defaults to ",".
    * @param quoteCharacter The character to use for quoted String parsing, disabled by default.

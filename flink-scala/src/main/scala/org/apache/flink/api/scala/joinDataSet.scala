@@ -17,8 +17,6 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.api.common.operators.Operator
-import org.apache.flink.api.common.operators.base.JoinOperatorBase
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
