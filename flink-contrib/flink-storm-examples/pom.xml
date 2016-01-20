@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-storm-examples</artifactId>
+	<artifactId>flink-storm-examples_2.10</artifactId>
 	<name>flink-storm-examples</name>
 
 	<packaging>jar</packaging>
@@ -37,19 +37,19 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-storm</artifactId>
+			<artifactId>flink-storm_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch</artifactId>
+			<artifactId>flink-examples-batch_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -57,7 +57,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
+			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -89,7 +89,7 @@ under the License.
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-examples-batch</artifactId>
+									<artifactId>flink-examples-batch_2.10</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -98,7 +98,7 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-storm</artifactId>
+									<artifactId>flink-storm_2.10</artifactId>
 									<version>${project.version}</version>
 									<type>jar</type>
 									<overWrite>false</overWrite>
@@ -282,8 +282,8 @@ under the License.
 									<!-- Storm's recursive dependencies -->
 									<include>org.yaml:snakeyaml</include>
 									<include>com.googlecode.json-simple:json-simple</include>
-									<include>org.apache.flink:flink-storm</include>
-									<include>org.apache.flink:flink-storm-examples</include>
+									<include>org.apache.flink:flink-storm_2.10</include>
+									<include>org.apache.flink:flink-storm-examples_2.10</include>
 								</includes>
 							</artifactSet>
 							<filters>
@@ -308,7 +308,7 @@ under the License.
 									</includes>
 								</filter>
 								<filter>
-									<artifact>org.apache.flink:flink-storm-examples</artifact>
+									<artifact>org.apache.flink:flink-storm-examples_2.10</artifact>
 									<includes>
 										<include>org/apache/flink/storm/wordcount/WordCountRemoteBySubmitter.class</include>
 										<include>org/apache/flink/storm/wordcount/WordCountTopology.class</include>
@@ -318,7 +318,7 @@ under the License.
 									</includes>
 								</filter>
 								<filter>
-									<artifact>org.apache.flink:flink-storm</artifact>
+									<artifact>org.apache.flink:flink-storm_2.10</artifact>
 									<includes>
 										<include>org/apache/flink/storm/api/*.class</include>
 										<include>org/apache/flink/storm/util/*.class</include>

@@ -30,7 +30,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-filesystem</artifactId>
+	<artifactId>flink-connector-filesystem_2.10</artifactId>
 	<name>flink-connector-filesystem</name>
 
 	<packaging>jar</packaging>
@@ -43,7 +43,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -61,7 +61,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -69,7 +69,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests</artifactId>
+			<artifactId>flink-tests_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -77,7 +77,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
+			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -85,7 +85,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-runtime</artifactId>
+			<artifactId>flink-runtime_2.10</artifactId>
 			<scope>test</scope>
 			<type>test-jar</type>
 			<version>${project.version}</version>
