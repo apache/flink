@@ -882,7 +882,11 @@ public class Task implements Runnable {
 							}
 						}
 						catch (Throwable t) {
-							failExternally(new RuntimeException("Error while triggering checkpoint for " + taskName, t));
+							if (getExecutionState() == ExecutionState.RUNNING) {
+								failExternally(new RuntimeException(
+									"Error while triggering checkpoint for " + taskName,
+									t));
+							}
 						}
 					}
 				};
@@ -915,8 +919,12 @@ public class Task implements Runnable {
 							statefulTask.notifyCheckpointComplete(checkpointID);
 						}
 						catch (Throwable t) {
-							// fail task if checkpoint confirmation failed.
-							failExternally(new RuntimeException("Error while confirming checkpoint", t));
+							if (getExecutionState() == ExecutionState.RUNNING) {
+								// fail task if checkpoint confirmation failed.
+								failExternally(new RuntimeException(
+									"Error while confirming checkpoint",
+									t));
+							}
 						}
 					}
 				};

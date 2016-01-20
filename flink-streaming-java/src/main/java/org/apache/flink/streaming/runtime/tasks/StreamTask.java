@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
@@ -457,74 +458,72 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				operatorChain.broadcastCheckpointBarrier(checkpointId, timestamp);
 				
 				// now draw the state snapshot
-				try {
-					final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
-					final StreamTaskState[] states = new StreamTaskState[allOperators.length];
+				final StreamOperator<?>[] allOperators = operatorChain.getAllOperators();
+				final StreamTaskState[] states = new StreamTaskState[allOperators.length];
 
-					boolean hasAsyncStates = false;
+				boolean hasAsyncStates = false;
 
-					for (int i = 0; i < states.length; i++) {
-						StreamOperator<?> operator = allOperators[i];
-						if (operator != null) {
-							StreamTaskState state = operator.snapshotOperatorState(checkpointId, timestamp);
-							if (state.getOperatorState() instanceof AsynchronousStateHandle) {
-								hasAsyncStates = true;
-							}
-							if (state.getFunctionState() instanceof AsynchronousStateHandle) {
-								hasAsyncStates = true;
-							}
-							states[i] = state.isEmpty() ? null : state;
+				for (int i = 0; i < states.length; i++) {
+					StreamOperator<?> operator = allOperators[i];
+					if (operator != null) {
+						StreamTaskState state = operator.snapshotOperatorState(checkpointId, timestamp);
+						if (state.getOperatorState() instanceof AsynchronousStateHandle) {
+							hasAsyncStates = true;
 						}
-					}
-
-
-					StreamTaskStateList allStates = new StreamTaskStateList(states);
-
-					if (allStates.isEmpty()) {
-						getEnvironment().acknowledgeCheckpoint(checkpointId);
-					} else if (!hasAsyncStates) {
-						getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
-					} else {
-						// start a Thread that does the asynchronous materialization and
-						// then sends the checkpoint acknowledge
-
-						Thread checkpointThread = new Thread() {
-							@Override
-							public void run() {
-								try {
-									for (StreamTaskState state : states) {
-										if (state != null) {
-											if (state.getFunctionState() instanceof AsynchronousStateHandle) {
-												AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getFunctionState();
-												state.setFunctionState((StateHandle) asyncState.materialize());
-											}
-											if (state.getOperatorState() instanceof AsynchronousStateHandle) {
-												AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getOperatorState();
-												state.setOperatorState((StateHandle) asyncState.materialize());
-											}
-										}
-									}
-									StreamTaskStateList allStates = new StreamTaskStateList(states);
-									getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
-								} catch (Exception e) {
-									LOG.error("Caught exception while materializing asynchronous checkpoints.", e);
-									if (asyncException == null) {
-										asyncException = new AsynchronousException(e);
-									}
-								}
-								asyncCheckpointThreads.remove(this);
-								LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
-							}
-						};
-
-						asyncCheckpointThreads.add(checkpointThread);
-						checkpointThread.start();
+						if (state.getFunctionState() instanceof AsynchronousStateHandle) {
+							hasAsyncStates = true;
+						}
+						states[i] = state.isEmpty() ? null : state;
 					}
 				}
-				catch (Exception e) {
-					if (isRunning) {
-						throw e;
-					}
+
+				if (!isRunning) {
+					// Rethrow the cancel exception because some state backends could swallow
+					// exceptions and seem to exit cleanly.
+					throw new CancelTaskException();
+				}
+
+				StreamTaskStateList allStates = new StreamTaskStateList(states);
+
+				if (allStates.isEmpty()) {
+					getEnvironment().acknowledgeCheckpoint(checkpointId);
+				} else if (!hasAsyncStates) {
+					getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
+				} else {
+					// start a Thread that does the asynchronous materialization and
+					// then sends the checkpoint acknowledge
+
+					Thread checkpointThread = new Thread() {
+						@Override
+						public void run() {
+							try {
+								for (StreamTaskState state : states) {
+									if (state != null) {
+										if (state.getFunctionState() instanceof AsynchronousStateHandle) {
+											AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getFunctionState();
+											state.setFunctionState((StateHandle) asyncState.materialize());
+										}
+										if (state.getOperatorState() instanceof AsynchronousStateHandle) {
+											AsynchronousStateHandle<?> asyncState = (AsynchronousStateHandle<?>) state.getOperatorState();
+											state.setOperatorState((StateHandle) asyncState.materialize());
+										}
+									}
+								}
+								StreamTaskStateList allStates = new StreamTaskStateList(states);
+								getEnvironment().acknowledgeCheckpoint(checkpointId, allStates);
+							} catch (Exception e) {
+								LOG.error("Caught exception while materializing asynchronous checkpoints.", e);
+								if (asyncException == null) {
+									asyncException = new AsynchronousException(e);
+								}
+							}
+							asyncCheckpointThreads.remove(this);
+							LOG.debug("Finished asynchronous checkpoints for checkpoint {} on task {}", checkpointId, getName());
+						}
+					};
+
+					asyncCheckpointThreads.add(checkpointThread);
+					checkpointThread.start();
 				}
 				return true;
 			} else {
