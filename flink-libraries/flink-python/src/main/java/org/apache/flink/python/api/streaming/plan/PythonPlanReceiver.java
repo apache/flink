@@ -116,7 +116,7 @@ public class PythonPlanReceiver implements Serializable {
 		public CustomTypeWrapper deserialize(boolean normalized) throws IOException {
 			int size = input.readInt();
 			byte[] data = new byte[size];
-			input.read(data);
+			input.readFully(data);
 			return new CustomTypeWrapper(type, data);
 		}
 	}
@@ -176,7 +176,7 @@ public class PythonPlanReceiver implements Serializable {
 		public String deserialize(boolean normalized) throws IOException {
 			int size = input.readInt();
 			byte[] buffer = new byte[size];
-			input.read(buffer);
+			input.readFully(buffer);
 			return new String(buffer);
 		}
 	}
@@ -193,7 +193,7 @@ public class PythonPlanReceiver implements Serializable {
 		public byte[] deserialize(boolean normalized) throws IOException {
 			int size = input.readInt();
 			byte[] buffer = new byte[size];
-			input.read(buffer);
+			input.readFully(buffer);
 			return buffer;
 		}
 	}
