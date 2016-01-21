@@ -448,7 +448,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 
 	@Override
 	@SuppressWarnings("unchecked,rawtypes")
-	public void triggerCheckpoint(final long checkpointId, final long timestamp) throws Exception {
+	public boolean triggerCheckpoint(final long checkpointId, final long timestamp) throws Exception {
 		LOG.debug("Starting checkpoint {} on task {}", checkpointId, getName());
 		
 		synchronized (lock) {
@@ -530,6 +530,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						throw e;
 					}
 				}
+				return true;
+			} else {
+				return false;
 			}
 		}
 	}

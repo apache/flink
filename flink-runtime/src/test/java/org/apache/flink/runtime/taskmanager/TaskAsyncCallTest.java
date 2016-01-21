@@ -201,7 +201,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void triggerCheckpoint(long checkpointId, long timestamp) {
+		public boolean triggerCheckpoint(long checkpointId, long timestamp) {
 			lastCheckpointId++;
 			if (checkpointId == lastCheckpointId) {
 				if (lastCheckpointId == NUM_CALLS) {
@@ -214,6 +214,7 @@ public class TaskAsyncCallTest {
 					notifyAll();
 				}
 			}
+			return true;
 		}
 
 		@Override
