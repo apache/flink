@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -111,6 +112,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			case FILE:
 				String backups = tempFolder.newFolder().getAbsolutePath();
 				this.stateBackend = new FsStateBackend("file://" + backups);
+				break;
+			case ROCKSDB:
+				String rocksDb = tempFolder.newFolder().getAbsolutePath();
+				String rocksDbBackups = tempFolder.newFolder().getAbsolutePath();
+
+				this.stateBackend = new RocksDBStateBackend(rocksDb, "file://" + rocksDbBackups, new MemoryStateBackend());
 				break;
 		}
 	}
@@ -739,6 +746,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		return Arrays.asList(new Object[][] {
 				{StateBackendEnum.MEM},
 				{StateBackendEnum.FILE},
+//				{StateBackendEnum.DB},
+				{StateBackendEnum.ROCKSDB}
 			}
 		);
 	}
