@@ -115,7 +115,7 @@ import breeze.linalg.{DenseVector => BreezeDenseVector, Vector => BreezeVector}
   *
   *  - [[org.apache.flink.ml.classification.SVM.Seed]]:
   *  Defines the seed to initialize the random number generator. The seed directly controls which
-  *  data points are chosen for the SDCA method. (Default value: '''0''')
+  *  data points are chosen for the SDCA method. (Default value: '''Random value''')
   *
   *  - [[org.apache.flink.ml.classification.SVM.ThresholdValue]]:
   *  Defines the limiting value for the decision function above which examples are labeled as
