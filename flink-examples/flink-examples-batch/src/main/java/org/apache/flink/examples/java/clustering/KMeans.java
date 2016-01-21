@@ -20,8 +20,6 @@ package org.apache.flink.examples.java.clustering;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.List;
-import java.util.function.Consumer;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
