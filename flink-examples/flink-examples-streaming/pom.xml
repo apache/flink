@@ -61,6 +61,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -522,6 +528,51 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- Use the shade plugin to build a fat jar for the kafka example -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>fat-jar-kafka-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.kafka.ReadFromKafka</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>Kafka</finalName>
+							<!--- <outputFile>Kafka.jar</outputFile> -->
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<includes>
+										<include>org/apache/flink/streaming/examples/kafka/**</include>
+										<include>org/apache/flink/streaming/**</include>
+										<include>org/apache/kafka/**</include>
+										<include>org/apache/curator/**</include>
+										<include>org/apache/zookeeper/**</include>
+										<include>org/apache/jute/**</include>
+										<include>org/I0Itec/**</include>
+										<include>jline/**</include>
+										<include>com/yammer/**</include>
+										<include>kafka/**</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 		</plugins>
 		
 		<pluginManagement>
