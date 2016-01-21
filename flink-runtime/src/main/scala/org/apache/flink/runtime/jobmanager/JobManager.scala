@@ -51,7 +51,7 @@ import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
-import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
+import org.apache.flink.runtime.messages.checkpoint.{DeclineCheckpoint, AbstractCheckpointMessage, AcknowledgeCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
@@ -1153,11 +1153,49 @@ class JobManager(
             }
             else {
               log.error(
-                s"Received ConfirmCheckpoint message for job $jid with no CheckpointCoordinator")
+                s"Received AcknowledgeCheckpoint message for job $jid with no " +
+                  s"CheckpointCoordinator")
             }
 
-          case None => log.error(s"Received ConfirmCheckpoint for unavailable job $jid")
+          case None => log.error(s"Received AcknowledgeCheckpoint for unavailable job $jid")
         }
+
+      case declineMessage: DeclineCheckpoint =>
+        val jid = declineMessage.getJob()
+        currentJobs.get(jid) match {
+          case Some((graph, _)) =>
+            val checkpointCoordinator = graph.getCheckpointCoordinator()
+            val savepointCoordinator = graph.getSavepointCoordinator()
+
+            if (checkpointCoordinator != null && savepointCoordinator != null) {
+              future {
+                try {
+                  if (checkpointCoordinator.receiveDeclineMessage(declineMessage)) {
+                    // OK, this is the common case
+                  }
+                  else {
+                    // Try the savepoint coordinator if the message was not addressed
+                    // to the periodic checkpoint coordinator.
+                    if (!savepointCoordinator.receiveDeclineMessage(declineMessage)) {
+                      log.info("Received message for non-existing checkpoint " +
+                        declineMessage.getCheckpointId)
+                    }
+                  }
+                }
+                catch {
+                  case t: Throwable =>
+                    log.error(s"Error in CheckpointCoordinator while processing $declineMessage", t)
+                }
+              }(context.dispatcher)
+            }
+            else {
+              log.error(
+                s"Received DeclineCheckpoint message for job $jid with no CheckpointCoordinator")
+            }
+
+          case None => log.error(s"Received DeclineCheckpoint for unavailable job $jid")
+        }
+
 
       // unknown checkpoint message
       case _ => unhandled(actorMessage)
