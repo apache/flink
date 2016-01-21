@@ -19,6 +19,7 @@ package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -51,21 +52,21 @@ public class TopSpeedWindowing {
 
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		System.err.println("Usage: TopSpeedWindowingExample --input <path> --output <path>");
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.getConfig().setGlobalJobParameters(params);
 
 		@SuppressWarnings({"rawtypes", "serial"})
 		DataStream<Tuple4<Integer, Integer, Double, Long>> carData;
-
-		if (fileInput) {
-			carData = env.readTextFile(inputPath).map(new ParseCarData());
+		if (params.has("input")) {
+			carData = env.readTextFile(params.get("input")).map(new ParseCarData());
 		} else {
-			int numOfCars = 2;
-			carData = env.addSource(CarSource.create(numOfCars));
+			System.out.println("Executing TopSpeedWindowing example with default input data set.");
+			System.out.println("Use --input to specify file input.");
+			carData = env.addSource(CarSource.create(2));
 		}
 
 		int evictionSec = 10;
@@ -88,10 +89,10 @@ public class TopSpeedWindowing {
 						}, carData.getType().createSerializer(env.getConfig())))
 				.maxBy(1);
 
-		if (fileOutput) {
-			topSpeeds.print();
-			topSpeeds.writeAsText(outputPath);
+		if (params.has("output")) {
+			topSpeeds.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			topSpeeds.print();
 		}
 
@@ -170,28 +171,4 @@ public class TopSpeedWindowing {
 		}
 	}
 
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileInput = false;
-	private static boolean fileOutput = false;
-	private static String inputPath;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			if (args.length == 2) {
-				fileInput = true;
-				fileOutput = true;
-				inputPath = args[0];
-				outputPath = args[1];
-			} else {
-				System.err.println("Usage: TopSpeedWindowingExample <input path> <output path>");
-				return false;
-			}
-		}
-		return true;
-	}
 }

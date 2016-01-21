@@ -29,8 +29,8 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.functions.RichFilterFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -39,15 +39,16 @@ import org.apache.flink.configuration.Configuration;
  * most contain whitespace characters like space and tab.
  * <p>
  * The input file is a plain text CSV file with the semicolon as field separator and double quotes as field delimiters
- * and three columns. See {@link #getDataSet(ExecutionEnvironment)} for configuration.
+ * and three columns. See {@link #getDataSet(ExecutionEnvironment, ParameterTool)} for configuration.
  * <p>
- * Usage: <code>FilterAndCountIncompleteLines [&lt;input file path&gt; [&lt;result path&gt;]]</code> <br>
+ * Usage: <code>EmptyFieldsCountAccumulator --input &lt;path&gt; --output &lt;path&gt;</code> <br>
  * <p>
  * This example shows how to use:
  * <ul>
  * <li>custom accumulators
  * <li>tuple data types
  * <li>inline-defined functions
+ * <li>naming large tuple types
  * </ul>
  */
 @SuppressWarnings("serial")
@@ -61,28 +62,31 @@ public class EmptyFieldsCountAccumulator {
 
 	public static void main(final String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
+		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		System.out.println("Usage: EmptyFieldsCountAccumulator --input <path> --output <path>");
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 
 		// get the data set
-		final DataSet<Tuple> file = getDataSet(env);
+		final DataSet<StringTriple> file = getDataSet(env, params);
 
 		// filter lines with empty fields
-		final DataSet<Tuple> filteredLines = file.filter(new EmptyFieldFilter());
+		final DataSet<StringTriple> filteredLines = file.filter(new EmptyFieldFilter());
 
 		// Here, we could do further processing with the filtered lines...
 		JobExecutionResult result;
 		// output the filtered lines
-		if (outputPath == null) {
-			filteredLines.print();
-			result = env.getLastJobExecutionResult();
-		} else {
-			filteredLines.writeAsCsv(outputPath);
+		if (params.has("output")) {
+			filteredLines.writeAsCsv(params.get("output"));
 			// execute program
 			result = env.execute("Accumulator example");
+		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
+			filteredLines.print();
+			result = env.getLastJobExecutionResult();
 		}
 
 		// get the accumulator result via its registration key
@@ -94,51 +98,26 @@ public class EmptyFieldsCountAccumulator {
 	// UTIL METHODS
 	// *************************************************************************
 
-	private static String filePath;
-	private static String outputPath;
-
-	private static boolean parseParameters(final String[] programArguments) {
-
-		if (programArguments.length >= 3) {
-			System.err.println("Usage: FilterAndCountIncompleteLines [<input file path> [<result path>]]");
-			return false;
-		}
-
-		if (programArguments.length >= 1) {
-			filePath = programArguments[0];
-			if (programArguments.length == 2) {
-				outputPath = programArguments[1];
-			}
-		}
-
-		return true;
-	}
-
 	@SuppressWarnings("unchecked")
-	private static DataSet<Tuple> getDataSet(final ExecutionEnvironment env) {
-
-		DataSet<? extends Tuple> source;
-		if (filePath == null) {
-			source = env.fromCollection(getExampleInputTuples());
-
+	private static DataSet<StringTriple> getDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("input")) {
+			return env.readCsvFile(params.get("input"))
+				.fieldDelimiter(";")
+				.pojoType(StringTriple.class);
 		} else {
-			source = env
-					.readCsvFile(filePath)
-					.fieldDelimiter(";")
-					.types(String.class, String.class, String.class);
-
+			System.out.println("Executing EmptyFieldsCountAccumulator example with default input data set.");
+			System.out.println("Use --input to specify file input.");
+			return env.fromCollection(getExampleInputTuples());
 		}
-
-		return (DataSet<Tuple>) source;
 	}
 
-	private static Collection<Tuple3<String, String, String>> getExampleInputTuples() {
-		Collection<Tuple3<String, String, String>> inputTuples = new ArrayList<Tuple3<String, String, String>>();
-		inputTuples.add(new Tuple3<String, String, String>("John", "Doe", "Foo Str."));
-		inputTuples.add(new Tuple3<String, String, String>("Joe", "Johnson", ""));
-		inputTuples.add(new Tuple3<String, String, String>(null, "Kate Morn", "Bar Blvd."));
-		inputTuples.add(new Tuple3<String, String, String>("Tim", "Rinny", ""));
-		inputTuples.add(new Tuple3<String, String, String>("Alicia", "Jackson", "  "));
+	private static Collection<StringTriple> getExampleInputTuples() {
+		Collection<StringTriple> inputTuples = new ArrayList<StringTriple>();
+		inputTuples.add(new StringTriple("John", "Doe", "Foo Str."));
+		inputTuples.add(new StringTriple("Joe", "Johnson", ""));
+		inputTuples.add(new StringTriple(null, "Kate Morn", "Bar Blvd."));
+		inputTuples.add(new StringTriple("Tim", "Rinny", ""));
+		inputTuples.add(new StringTriple("Alicia", "Jackson", "  "));
 		return inputTuples;
 	}
 
@@ -147,7 +126,7 @@ public class EmptyFieldsCountAccumulator {
 	 * In doing so, it also counts the number of empty fields per attribute with an accumulator (registered under 
 	 * {@link EmptyFieldsCountAccumulator#EMPTY_FIELD_ACCUMULATOR}).
 	 */
-	public static final class EmptyFieldFilter extends RichFilterFunction<Tuple> {
+	public static final class EmptyFieldFilter extends RichFilterFunction<StringTriple> {
 
 		// create a new accumulator in each filter function instance
 		// accumulators can be merged later on
@@ -163,7 +142,7 @@ public class EmptyFieldsCountAccumulator {
 		}
 
 		@Override
-		public boolean filter(final Tuple t) {
+		public boolean filter(final StringTriple t) {
 			boolean containsEmptyFields = false;
 
 			// iterate over the tuple fields looking for empty ones
@@ -252,4 +231,20 @@ public class EmptyFieldsCountAccumulator {
 			return StringUtils.join(resultVector, ',');
 		}
 	}
+
+	/**
+	 * It is recommended to use POJOs (Plain old Java objects) instead of TupleX for
+	 * data types with many fields. Also, POJOs can be used to give large Tuple-types a name.
+	 * <a href="https://ci.apache.org/projects/flink/flink-docs-master/apis/best_practices.html#naming-large-tuplex-types">Source (docs)</a>
+	 */
+	public static class StringTriple extends Tuple3<String, String, String> {
+
+		public StringTriple() {}
+
+		public StringTriple(String f0, String f1, String f2) {
+			super(f0, f1, f2);
+		}
+
+	}
+
 }

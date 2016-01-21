@@ -30,6 +30,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFir
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
@@ -62,7 +63,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * </ul>
  * 
  * <p>
- * Usage: <code>ConnectedComponents &lt;vertices path&gt; &lt;edges path&gt; &lt;result path&gt; &lt;max number of iterations&gt;</code><br>
+ * Usage: <code>ConnectedComponents --vertices &lt;path&gt; --edges &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link org.apache.flink.examples.java.graph.util.ConnectedComponentsData} and 10 iterations. 
  * 
  * <p>
@@ -80,20 +81,26 @@ public class ConnectedComponents implements ProgramDescription {
 	// *************************************************************************
 	
 	public static void main(String... args) throws Exception {
-		
-		if(!parseParameters(args)) {
-			return;
-		}
-		
+
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		System.out.println("Usage: ConnectedComponents --vertices <path> --edges <path> --output <path> --iterations <n>");
+
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		final int maxIterations = params.getInt("iterations", 10);
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 		
 		// read vertex and edge data
-		DataSet<Long> vertices = getVertexDataSet(env);
-		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge());
+		DataSet<Long> vertices = getVertexDataSet(env, params);
+		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env, params).flatMap(new UndirectEdge());
 		
 		// assign the initial components (equal to the vertex id)
-		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
+		DataSet<Tuple2<Long, Long>> verticesWithInitialId =
+			vertices.map(new DuplicateValue<Long>());
 				
 		// open a delta iteration
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
@@ -109,11 +116,12 @@ public class ConnectedComponents implements ProgramDescription {
 		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
 		
 		// emit result
-		if (fileOutput) {
-			result.writeAsCsv(outputPath, "\n", " ");
+		if (params.has("output")) {
+			result.writeAsCsv(params.get("output"), "\n", " ");
 			// execute program
 			env.execute("Connected Components Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 	}
@@ -181,60 +189,34 @@ public class ConnectedComponents implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Parameters: <vertices-path> <edges-path> <result-path> <max-number-of-iterations>";
+		return "Parameters: --vertices <path> --edges <path> --output <path> --iterations <n>";
 	}
 	
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************
-	
-	private static boolean fileOutput = false;
-	private static String verticesPath = null;
-	private static String edgesPath = null;
-	private static String outputPath = null;
-	private static int maxIterations = 10;
-	
-	private static boolean parseParameters(String[] programArguments) {
-		
-		if(programArguments.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if(programArguments.length == 4) {
-				verticesPath = programArguments[0];
-				edgesPath = programArguments[1];
-				outputPath = programArguments[2];
-				maxIterations = Integer.parseInt(programArguments[3]);
-			} else {
-				System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
-				return false;
-			}
+
+	private static DataSet<Long> getVertexDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("vertices")) {
+			return env.readCsvFile(params.get("vertices")).types(Long.class).map(
+				new MapFunction<Tuple1<Long>, Long>() {
+					public Long map(Tuple1<Long> value) {
+						return value.f0;
+					}
+				});
 		} else {
-			System.out.println("Executing Connected Components example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>");
-		}
-		return true;
-	}
-	
-	private static DataSet<Long> getVertexDataSet(ExecutionEnvironment env) {
-		
-		if(fileOutput) {
-			return env.readCsvFile(verticesPath).types(Long.class)
-						.map(
-								new MapFunction<Tuple1<Long>, Long>() {
-									public Long map(Tuple1<Long> value) { return value.f0; }
-								});
-		} else {
+			System.out.println("Executing Connected Components example with default vertices data set.");
+			System.out.println("Use --vertices to specify file input.");
 			return ConnectedComponentsData.getDefaultVertexDataSet(env);
 		}
 	}
-	
-	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env) {
-		
-		if(fileOutput) {
-			return env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class);
+
+	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("edges")) {
+			return env.readCsvFile(params.get("edges")).fieldDelimiter(" ").types(Long.class, Long.class);
 		} else {
+			System.out.println("Executing Connected Components example with default edges data set.");
+			System.out.println("Use --edges to specify file input.");
 			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 	}

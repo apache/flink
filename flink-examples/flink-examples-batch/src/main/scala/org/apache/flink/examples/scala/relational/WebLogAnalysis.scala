@@ -18,6 +18,7 @@
 
 package org.apache.flink.examples.scala.relational
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.relational.util.WebLogData
 import org.apache.flink.util.Collector
@@ -74,7 +75,7 @@ import org.apache.flink.util.Collector
  *
  * Usage
  * {{{
- *   WebLogAnalysis <documents path> <ranks path> <visits path> <result path>
+ *   WebLogAnalysis --documents <path> --ranks <path> --visits <path> --output <path>
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
@@ -90,15 +91,19 @@ import org.apache.flink.util.Collector
 object WebLogAnalysis {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
-    }
 
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    println("Usage: --documents <path> --ranks <path> --visits <path> --output <path>")
+
+    // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val documents = getDocumentsDataSet(env)
-    val ranks = getRanksDataSet(env)
-    val visits = getVisitsDataSet(env)
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
+    val documents = getDocumentsDataSet(env, params)
+    val ranks = getRanksDataSet(env, params)
+    val visits = getVisitsDataSet(env, params)
 
     val filteredDocs = documents
       .filter(doc => doc._2.contains(" editors ") && doc._2.contains(" oscillations "))
@@ -118,60 +123,27 @@ object WebLogAnalysis {
         if (visits.isEmpty) for (rank <- ranks) out.collect(rank)
     }.withForwardedFieldsFirst("*")
 
-
-
-
     // emit result
-    if (fileOutput) {
-      result.writeAsCsv(outputPath, "\n", "|")
+    if (params.has("output")) {
+      result.writeAsCsv(params.get("output"), "\n", "|")
       env.execute("Scala WebLogAnalysis Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       result.print()
     }
 
   }
 
-  private var fileOutput: Boolean = false
-  private var documentsPath: String = null
-  private var ranksPath: String = null
-  private var visitsPath: String = null
-  private var outputPath: String = null
-
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      fileOutput = true
-      if (args.length == 4) {
-        documentsPath = args(0)
-        ranksPath = args(1)
-        visitsPath = args(2)
-        outputPath = args(3)
-      }
-      else {
-        System.err.println("Usage: WebLogAnalysis <documents path> <ranks path> <visits path> " +
-          "<result path>")
-        return false
-      }
-    }
-    else {
-      System.out.println("Executing WebLog Analysis example with built-in default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  We provide a data generator to create synthetic input files for this " +
-        "program.")
-      System.out.println("  Usage: WebLogAnalysis <documents path> <ranks path> <visits path> " +
-        "<result path>")
-    }
-    true
-  }
-
-  private def getDocumentsDataSet(env: ExecutionEnvironment): DataSet[(String, String)] = {
-    if (fileOutput) {
+  private def getDocumentsDataSet(env: ExecutionEnvironment, params: ParameterTool):
+  DataSet[(String, String)] = {
+    if (params.has("documents")) {
       env.readCsvFile[(String, String)](
-        documentsPath,
+        params.get("documents"),
         fieldDelimiter = "|",
         includedFields = Array(0, 1))
-    }
-    else {
+    } else {
+      println("Executing WebLogAnalysis example with default documents data set.")
+      println("Use --documents to specify file input.")
       val documents = WebLogData.DOCUMENTS map {
         case Array(x, y) => (x.asInstanceOf[String], y.asInstanceOf[String])
       }
@@ -179,14 +151,16 @@ object WebLogAnalysis {
     }
   }
 
-  private def getRanksDataSet(env: ExecutionEnvironment): DataSet[(Int, String, Int)] = {
-    if (fileOutput) {
+  private def getRanksDataSet(env: ExecutionEnvironment, params: ParameterTool):
+  DataSet[(Int, String, Int)] = {
+    if (params.has("ranks")) {
       env.readCsvFile[(Int, String, Int)](
-        ranksPath,
+        params.get("ranks"),
         fieldDelimiter = "|",
         includedFields = Array(0, 1, 2))
-    }
-    else {
+    } else {
+      println("Executing WebLogAnalysis example with default ranks data set.")
+      println("Use --ranks to specify file input.")
       val ranks = WebLogData.RANKS map {
         case Array(x, y, z) => (x.asInstanceOf[Int], y.asInstanceOf[String], z.asInstanceOf[Int])
       }
@@ -194,14 +168,16 @@ object WebLogAnalysis {
     }
   }
 
-  private def getVisitsDataSet(env: ExecutionEnvironment): DataSet[(String, String)] = {
-    if (fileOutput) {
+  private def getVisitsDataSet(env: ExecutionEnvironment, params: ParameterTool):
+  DataSet[(String, String)] = {
+    if (params.has("visits")) {
       env.readCsvFile[(String, String)](
-        visitsPath,
+        params.get("visits"),
         fieldDelimiter = "|",
         includedFields = Array(1, 2))
-    }
-    else {
+    } else {
+      println("Executing WebLogAnalysis example with default visits data set.")
+      println("Use --visits to specify file input.")
       val visits = WebLogData.VISITS map {
         case Array(x, y) => (x.asInstanceOf[String], y.asInstanceOf[String])
       }

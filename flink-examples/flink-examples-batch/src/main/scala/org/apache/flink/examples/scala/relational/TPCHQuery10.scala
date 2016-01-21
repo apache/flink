@@ -18,6 +18,7 @@
 
 package org.apache.flink.examples.scala.relational
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -68,7 +69,7 @@ import org.apache.flink.api.java.aggregation.Aggregations
  *
  * Usage: 
  * {{{
- *TPCHQuery10 <customer-csv path> <orders-csv path> <lineitem-csv path> <nation path> <result path>
+ *TPCHQuery10 --customer <path> --orders <path> --lineitem <path> --nation <path> --output <path>
  * }}}
  *  
  * This example shows how to use:
@@ -80,21 +81,32 @@ import org.apache.flink.api.java.aggregation.Aggregations
 object TPCHQuery10 {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    if (!params.has("lineitem") && !params.has("customer") &&
+      !params.has("orders") && !params.has("nation")) {
+      println("  This program expects data from the TPC-H benchmark as input data.")
+      println("  Due to legal restrictions, we can not ship generated data.")
+      println("  You can find the TPC-H data generator at http://www.tpc.org/tpch/.")
+      println("  Usage: TPCHQuery10" +
+        "--customer <path> --orders <path> --lineitem <path> --nation <path> --output <path>")
       return
     }
 
-    // get execution environment
+    // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
     // get customer data set: (custkey, name, address, nationkey, acctbal) 
-    val customers = getCustomerDataSet(env)
+    val customers = getCustomerDataSet(env, params.get("customer"))
     // get orders data set: (orderkey, custkey, orderdate)
-    val orders = getOrdersDataSet(env)
+    val orders = getOrdersDataSet(env, params.get("orders"))
     // get lineitem data set: (orderkey, extendedprice, discount, returnflag)
-    val lineitems = getLineitemDataSet(env)
+    val lineitems = getLineitemDataSet(env, params.get("lineitem"))
     // get nation data set: (nationkey, name)    
-    val nations = getNationDataSet(env)
+    val nations = getNationDataSet(env, params.get("nation"))
 
     // filter orders by years
     val orders1990 = orders.filter( o => o._3.substring(0,4).toInt > 1990)
@@ -115,67 +127,50 @@ object TPCHQuery10 {
                             .apply( (c, n) => (c._1, c._2, c._3, n._2, c._5) )
                           .join(revenueByCustomer).where(0).equalTo(0)
                             .apply( (c, r) => (c._1, c._2, c._3, c._4, c._5, r._2) )
-    // emit result
-    result.writeAsCsv(outputPath, "\n", "|")
 
-    // execute program
-    env.execute("Scala TPCH Query 10 Example")
+    if (params.has("output")) {
+      // emit result
+      result.writeAsCsv(params.get("output"), "\n", "|")
+      // execute program
+      env.execute("Scala TPCH Query 10 Example")
+    } else {
+      println("Printing result to stdout. Use --output to specify output path.")
+      result.print()
+    }
+
   }
-  
   
   // *************************************************************************
   //     UTIL METHODS
   // *************************************************************************
   
-  private var customerPath: String = null
-  private var ordersPath: String = null
-  private var lineitemPath: String = null
-  private var nationPath: String = null
-  private var outputPath: String = null
-
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length == 5) {
-      customerPath = args(0)
-      ordersPath = args(1)
-      lineitemPath = args(2)
-      nationPath = args(3)
-      outputPath = args(4)
-      true
-    } else {
-      System.err.println("This program expects data from the TPC-H benchmark as input data.\n" +
-          "  Due to legal restrictions, we can not ship generated data.\n" +
-          "  You can find the TPC-H data generator at http://www.tpc.org/tpch/.\n" +
-          "  Usage: TPCHQuery10 <customer-csv path> <orders-csv path> " + 
-                                "<lineitem-csv path> <nation-csv path> <result path>")
-      false
-    }
-  }
-  
-  private def getCustomerDataSet(env: ExecutionEnvironment): 
-                         DataSet[Tuple5[Int, String, String, Int, Double]] = {
-    env.readCsvFile[Tuple5[Int, String, String, Int, Double]](
+  private def getCustomerDataSet(env: ExecutionEnvironment, customerPath: String):
+                         DataSet[(Int, String, String, Int, Double)] = {
+    env.readCsvFile[(Int, String, String, Int, Double)](
         customerPath,
         fieldDelimiter = "|",
         includedFields = Array(0,1,2,3,5) )
   }
   
-  private def getOrdersDataSet(env: ExecutionEnvironment): DataSet[Tuple3[Int, Int, String]] = {
-    env.readCsvFile[Tuple3[Int, Int, String]](
+  private def getOrdersDataSet(env: ExecutionEnvironment, ordersPath: String):
+                       DataSet[(Int, Int, String)] = {
+    env.readCsvFile[(Int, Int, String)](
         ordersPath,
         fieldDelimiter = "|",
         includedFields = Array(0, 1, 4) )
   }
   
-  private def getLineitemDataSet(env: ExecutionEnvironment):
-                         DataSet[Tuple4[Int, Double, Double, String]] = {
-    env.readCsvFile[Tuple4[Int, Double, Double, String]](
+  private def getLineitemDataSet(env: ExecutionEnvironment, lineitemPath: String):
+                         DataSet[(Int, Double, Double, String)] = {
+    env.readCsvFile[(Int, Double, Double, String)](
         lineitemPath,
         fieldDelimiter = "|",
         includedFields = Array(0, 5, 6, 8) )
   }
 
-  private def getNationDataSet(env: ExecutionEnvironment): DataSet[Tuple2[Int, String]] = {
-    env.readCsvFile[Tuple2[Int, String]](
+  private def getNationDataSet(env: ExecutionEnvironment, nationPath: String):
+                       DataSet[(Int, String)] = {
+    env.readCsvFile[(Int, String)](
         nationPath,
         fieldDelimiter = "|",
         includedFields = Array(0, 1) )

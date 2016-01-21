@@ -20,8 +20,8 @@ package org.apache.flink.streaming.examples.join;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -60,18 +60,19 @@ public class WindowJoin {
 
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		System.out.println("Usage: WindowJoin --grades <path> --salaries <path> --output <path>");
 
 		// obtain execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		// connect to the data sources for grades and salaries
-		Tuple2<DataStream<Tuple3<Long, String, Integer>>, DataStream<Tuple3<Long, String, Integer>>> input = getInputStreams(env);
-		DataStream<Tuple3<Long, String, Integer>> grades = input.f0;
-		DataStream<Tuple3<Long, String, Integer>> salaries = input.f1;
+		DataStream<Tuple3<Long, String, Integer>> grades = getGradesPath(env, params);
+		DataStream<Tuple3<Long, String, Integer>> salaries = getSalariesPath(env, params);
 
 		// extract the timestamps
 		grades = grades.assignTimestampsAndWatermarks(new MyTimestampExtractor());
@@ -87,9 +88,10 @@ public class WindowJoin {
 				.apply(new MyJoinFunction());
 
 		// emit result
-		if (fileOutput) {
-			joinedStream.writeAsText(outputPath);
+		if (params.has("output")) {
+			joinedStream.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			joinedStream.print();
 		}
 
@@ -233,54 +235,24 @@ public class WindowJoin {
 	// UTIL METHODS
 	// *************************************************************************
 
-	private static boolean fileInput = false;
-	private static boolean fileOutput = false;
-
-	private static String gradesPath;
-	private static String salariesPath;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			// parse input arguments
-			if (args.length == 1) {
-				fileOutput = true;
-				outputPath = args[0];
-			} else if (args.length == 3) {
-				fileInput = true;
-				fileOutput = true;
-				gradesPath = args[0];
-				salariesPath = args[1];
-				outputPath = args[2];
-			} else {
-				System.err.println("Usage: WindowJoin <result path> or WindowJoin <input path 1> <input path 2> " +
-						"<result path>");
-				return false;
-			}
+	private static DataStream<Tuple3<Long, String, Integer>> getGradesPath(StreamExecutionEnvironment env, ParameterTool params) {
+		if (params.has("grades")) {
+			return env.readTextFile(params.get("grades")).map(new MySourceMap());
 		} else {
-			System.out.println("Executing WindowJoin with generated data.");
-			System.out.println("  Provide parameter to write to file.");
-			System.out.println("  Usage: WindowJoin <result path>");
+			System.out.println("Executing WindowJoin example with default grades data set.");
+			System.out.println("Use --grades to specify file input.");
+			return env.addSource(new GradeSource());
 		}
-		return true;
 	}
 
-	private static Tuple2<DataStream<Tuple3<Long, String, Integer>>, DataStream<Tuple3<Long, String, Integer>>> getInputStreams(
-			StreamExecutionEnvironment env) {
-
-		DataStream<Tuple3<Long, String, Integer>> grades;
-		DataStream<Tuple3<Long, String, Integer>> salaries;
-
-		if (fileInput) {
-			grades = env.readTextFile(gradesPath).map(new MySourceMap());
-			salaries = env.readTextFile(salariesPath).map(new MySourceMap());
+	private static DataStream<Tuple3<Long, String, Integer>> getSalariesPath(StreamExecutionEnvironment env, ParameterTool params) {
+		if (params.has("salaries")) {
+			return env.readTextFile(params.get("salaries")).map(new MySourceMap());
 		} else {
-			grades = env.addSource(new GradeSource());
-			salaries = env.addSource(new SalarySource());
+			System.out.println("Executing WindowJoin example with default salaries data set.");
+			System.out.println("Use --salaries to specify file input.");
+			return env.addSource(new SalarySource());
 		}
-
-		return Tuple2.of(grades, salaries);
 	}
 
 }

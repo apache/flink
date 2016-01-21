@@ -28,6 +28,7 @@ import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -62,18 +63,32 @@ public class DistCp {
 	public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
 
 	public static void main(String[] args) throws Exception {
-		if (args.length != 3) {
-			printHelp();
-			return;
-		}
-
-		final Path sourcePath = new Path(args[0]);
-		final Path targetPath = new Path(args[1]);
-		int parallelism = Integer.valueOf(args[2], 10);
 
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		checkInputParams(env, sourcePath, targetPath, parallelism);
+
+		ParameterTool params = ParameterTool.fromArgs(args);
+		if (!params.has("input") || !params.has("output")) {
+			System.err.println("Usage: --input <path> --output <path> [--parallelism <n>]");
+			return;
+		}
+
+		final Path sourcePath = new Path(params.get("input"));
+		final Path targetPath = new Path(params.get("output"));
+		if (!isLocal(env) && !(isOnDistributedFS(sourcePath) && isOnDistributedFS(targetPath))) {
+			System.out.println("In a distributed mode only HDFS input/output paths are supported");
+			return;
+		}
+
+		final int parallelism = params.getInt("parallelism", 10);
+		if (parallelism <= 0) {
+			System.err.println("Parallelism should be greater than 0");
+			return;
+		}
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
 		env.setParallelism(parallelism);
 
 		long startTime = System.currentTimeMillis();
@@ -142,20 +157,12 @@ public class DistCp {
 	// HELPER METHODS
 	// -----------------------------------------------------------------------------------------
 
-	private static void checkInputParams(ExecutionEnvironment env, Path sourcePath, Path targetPath, int parallelism) throws IOException {
-		if (parallelism <= 0) {
-			throw new IllegalArgumentException("Parallelism should be greater than 0");
-		}
-
-		boolean isLocal = env instanceof LocalEnvironment;
-		if (!isLocal &&
-				!(sourcePath.getFileSystem().isDistributedFS() && targetPath.getFileSystem().isDistributedFS())) {
-			throw new IllegalArgumentException("In a distributed mode only HDFS input/output paths are supported");
-		}
+	private static boolean isLocal(final ExecutionEnvironment env) {
+		return env instanceof LocalEnvironment;
 	}
 
-	private static void printHelp() {
-		System.err.println("Usage: <input_path> <output_path> <level_of_parallelism>");
+	private static boolean isOnDistributedFS(final Path path) throws IOException {
+		return path.getFileSystem().isDistributedFS();
 	}
 
 	private static List<FileCopyTask> getCopyTasks(Path sourcePath) throws IOException {

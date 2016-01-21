@@ -18,6 +18,7 @@
 
 package org.apache.flink.examples.scala.graph
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
 import org.apache.flink.util.Collector
@@ -47,7 +48,7 @@ import org.apache.flink.util.Collector
  *
  * Usage:
  * {{{
- *   ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>
+ *   ConnectedComponents --vertices <path> --edges <path> --result <path> --iterations <n>
  * }}}
  *   
  * If no parameters are provided, the program is run with default data from
@@ -61,20 +62,30 @@ import org.apache.flink.util.Collector
  *   
  */
 object ConnectedComponents {
+
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
-    }
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    println("Usage: ConnectedComponents " +
+      "--vertices <path> --edges <path> --output <path> --iterations <n>")
+
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    val maxIterations: Int = params.getInt("iterations", 10)
+
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
     // read vertex and edge data
     // assign the initial components (equal to the vertex id)
-    val vertices = getVerticesDataSet(env).map { id => (id, id) }.withForwardedFields("*->_1;*->_2")
+    val vertices =
+      getVertexDataSet(env, params).map { id => (id, id) }.withForwardedFields("*->_1;*->_2")
 
-    // undirected edges by emitting for each input edge the input edges itself and an inverted
-    // version
-    val edges = getEdgesDataSet(env).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
+    // undirected edges by emitting for each input edge the input
+    // edges itself and an inverted version
+    val edges =
+      getEdgeDataSet(env, params).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
 
     // open a delta iteration
     val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Array("_1")) {
@@ -97,62 +108,43 @@ object ConnectedComponents {
         // delta and new workset are identical
         (updatedComponents, updatedComponents)
     }
-    if (fileOutput) {
-      verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
+
+    if (params.has("output")) {
+      verticesWithComponents.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala Connected Components Example")
     } else {
+      println("Printing result to stdout. Use --output to specify output path.")
       verticesWithComponents.print()
     }
 
   }
- 
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      fileOutput = true
-      if (args.length == 4) {
-        verticesPath = args(0)
-        edgesPath = args(1)
-        outputPath = args(2)
-        maxIterations = args(3).toInt
 
-        true
-      } else {
-        System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path>" +
-          " <max number of iterations>")
-
-        false
-      }
-    } else {
-      System.out.println("Executing Connected Components example with built-in default data.")
-      System.out.println("  Provide parameters to read input data from a file.")
-      System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path>" +
-        " <max number of iterations>")
-
-      true
-    }
-  }
-
-  private def getVerticesDataSet(env: ExecutionEnvironment): DataSet[Long] = {
-    if (fileOutput) {
-       env.readCsvFile[Tuple1[Long]](
-        verticesPath,
+  private def getVertexDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[Long] = {
+    if (params.has("vertices")) {
+      env.readCsvFile[Tuple1[Long]](
+        params.get("vertices"),
         includedFields = Array(0))
         .map { x => x._1 }
     }
     else {
+      println("Executing ConnectedComponents example with default vertices data set.")
+      println("Use --vertices to specify file input.")
       env.fromCollection(ConnectedComponentsData.VERTICES)
     }
   }
-  
-  private def getEdgesDataSet(env: ExecutionEnvironment): DataSet[(Long, Long)] = {
-    if (fileOutput) {
+
+  private def getEdgeDataSet(env: ExecutionEnvironment, params: ParameterTool):
+                     DataSet[(Long, Long)] = {
+    if (params.has("edges")) {
       env.readCsvFile[(Long, Long)](
-        edgesPath,
+        params.get("edges"),
         fieldDelimiter = " ",
         includedFields = Array(0, 1))
         .map { x => (x._1, x._2)}
     }
     else {
+      println("Executing ConnectedComponents example with default edges data set.")
+      println("Use --edges to specify file input.")
       val edgeData = ConnectedComponentsData.EDGES map {
         case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
       }
@@ -160,9 +152,4 @@ object ConnectedComponents {
     }
   }
 
-  private var fileOutput: Boolean = false
-  private var verticesPath: String = null
-  private var edgesPath: String = null
-  private var maxIterations: Int = 10
-  private var outputPath: String = null
 }
