@@ -97,6 +97,23 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testNotEquals(): Unit = {
+    /*
+     * Test filter on Integer tuple field.
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+
+    val filterDs = ds.filter( 'a % 2 !== 0)
+    val expected = "1,1,Hi\n" + "3,2,Hello world\n" +
+      "5,3,I am fine.\n" + "7,4,Comment#1\n" + "9,4,Comment#3\n" +
+      "11,5,Comment#5\n" + "13,5,Comment#7\n" + "15,5,Comment#9\n" +
+      "17,6,Comment#11\n" + "19,6,Comment#13\n" + "21,6,Comment#15\n"
+    val results = filterDs.collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
   // These two not yet done, but are planned
 
   @Ignore
