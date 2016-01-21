@@ -142,7 +142,7 @@ object KMeans {
         }
       }
     }
-    return parseStatus
+    parseStatus
   }
 
   private def printRunWithDefaultParams() {
@@ -150,7 +150,7 @@ object KMeans {
     println("  Provide parameters to read input data from files.")
     println("  See the documentation for the correct format of input files.")
     println("  We provide a data generator to create synthetic input files for this program.")
-    println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>")
+    println("  Usage: KMeans --points <points path> --centroids <centers path> --output <result path> --iterations <num iterations>")
   }
 
   private def getPointDataSet(env: ExecutionEnvironment): DataSet[Point] = {

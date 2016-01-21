@@ -342,7 +342,7 @@ public class KMeans {
 		System.out.println("  Provide parameters to read input data from files.");
 		System.out.println("  See the documentation for the correct format of input files.");
 		System.out.println("  We provide a data generator to create synthetic input files for this program.");
-		System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>");
+		System.out.println("  Usage: KMeans --points <points path> --centroids <centers path> --output <result path> --iterations <num iterations>");
 	}
 
 	private static DataSet<Point> getPointDataSet(ExecutionEnvironment env) {
