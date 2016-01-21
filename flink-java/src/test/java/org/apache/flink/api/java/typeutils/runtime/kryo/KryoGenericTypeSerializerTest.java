@@ -36,6 +36,8 @@ import java.util.Random;
 
 @SuppressWarnings("unchecked")
 public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
+
+	ExecutionConfig ec = new ExecutionConfig();
 	
 	@Test
 	public void testJavaList(){
@@ -82,7 +84,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		coll.add(49);
 		coll.add(1);
 	}
-	ExecutionConfig ec = new ExecutionConfig();
+
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
 		return new KryoSerializer<T>(type, ec);

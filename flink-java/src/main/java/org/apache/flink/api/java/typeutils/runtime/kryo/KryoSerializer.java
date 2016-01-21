@@ -36,6 +36,9 @@ import org.apache.flink.api.java.typeutils.runtime.NoFetchingInput;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers.SpecificInstanceCollectionSerializerForArrayList;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.objenesis.strategy.StdInstantiatorStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -61,6 +64,8 @@ import java.util.Objects;
 public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 3L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(KryoSerializer.class);
 
 	// ------------------------------------------------------------------------
 
@@ -282,6 +287,11 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Returns the Chill Kryo Serializer which is implictly added to the classpath via flink-runtime.
+	 * Falls back to the default Kryo serializer if it can't be found.
+	 * @return The Kryo serializer instance.
+	 */
 	private Kryo getKryoInstance() {
 
 		try {
@@ -292,13 +302,20 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 			// obtain a Kryo instance through Twitter Chill
 			Method m = chillInstantiatorClazz.getMethod("newKryo");
-			return (Kryo) m.invoke(chillInstantiator);
-		}
-		catch(ClassNotFoundException | InstantiationException | NoSuchMethodException |
-				IllegalAccessException | InvocationTargetException e ) {
 
-			// Chill must be in the classpath. It is added as a dependency to flink-runtime.
-			throw new RuntimeException("Could not instantiate Kryo instance from Chill.", e);
+			return (Kryo) m.invoke(chillInstantiator);
+		} catch (ClassNotFoundException | InstantiationException | NoSuchMethodException |
+			IllegalAccessException | InvocationTargetException e) {
+
+			LOG.warn("Falling back to default Kryo serializer because Chill serializer couldn't be found.", e);
+
+			Kryo.DefaultInstantiatorStrategy initStrategy = new Kryo.DefaultInstantiatorStrategy();
+			initStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+
+			Kryo kryo = new Kryo();
+			kryo.setInstantiatorStrategy(initStrategy);
+
+			return kryo;
 		}
 	}
 
