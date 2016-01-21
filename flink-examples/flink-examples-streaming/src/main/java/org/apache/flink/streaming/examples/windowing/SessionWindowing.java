@@ -20,6 +20,7 @@ package org.apache.flink.streaming.examples.windowing;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -38,13 +39,13 @@ public class SessionWindowing {
 	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
-
+		final ParameterTool params = ParameterTool.fromArgs(args);
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().setGlobalJobParameters(params);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(1);
+
+		final boolean fileOutput = params.has("output");
 
 		final List<Tuple3<String, Long, Integer>> input = new ArrayList<>();
 
@@ -88,7 +89,7 @@ public class SessionWindowing {
 				.sum(2);
 
 		if (fileOutput) {
-			aggregated.writeAsText(outputPath);
+			aggregated.writeAsText(params.get("output"));
 		} else {
 			aggregated.print();
 		}
@@ -159,28 +160,6 @@ public class SessionWindowing {
 			}
 			lastSeenState.clear();
 		}
-	}
-
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileOutput = false;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			// parse input arguments
-			if (args.length == 1) {
-				fileOutput = true;
-				outputPath = args[0];
-			} else {
-				System.err.println("Usage: SessionWindowing <result path>");
-				return false;
-			}
-		}
-		return true;
 	}
 
 }

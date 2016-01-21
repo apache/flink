@@ -19,6 +19,7 @@
 package org.apache.flink.examples.scala.ml
 
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.examples.java.ml.util.LinearRegressionData
@@ -61,13 +62,26 @@ import scala.collection.JavaConverters._
 object LinearRegression {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    if (params.getNumberOfParameters < 3) {
+      println("Executing Linear Regression example with default parameters and built-in " +
+        "default data.")
+      println("  Provide parameters to read input data from files.")
+      println("  See the documentation for the correct format of input files.")
+      println("  We provide a data generator to create synthetic input files for this program.")
+      println("  Usage: LinearRegression --data <path> --output <path> --iterations <n>")
     }
 
+    // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val data = getDataSet(env)
+
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+
+    val data = getDataSet(env, params)
     val parameters = getParamsDataSet(env)
+    val numIterations = params.getInt("iterations", 10)
 
     val result = parameters.iterate(numIterations) { currentParameters =>
       val newParameters = data
@@ -80,11 +94,10 @@ object LinearRegression {
       newParameters
     }
 
-    if (fileOutput) {
-      result.writeAsText(outputPath)
+    if (params.has("output")) {
+      result.writeAsText(params.get("output"))
       env.execute("Scala Linear Regression example")
-    }
-    else {
+    } else {
       result.print()
     }
   }
@@ -136,44 +149,11 @@ object LinearRegression {
   // *************************************************************************
   //     UTIL METHODS
   // *************************************************************************
-  private var fileOutput: Boolean = false
-  private var dataPath: String = null
-  private var outputPath: String = null
-  private var numIterations: Int = 10
 
-  private def parseParameters(programArguments: Array[String]): Boolean = {
-    if (programArguments.length > 0) {
-      fileOutput = true
-      if (programArguments.length == 3) {
-        dataPath = programArguments(0)
-        outputPath = programArguments(1)
-        numIterations = programArguments(2).toInt
-
-        true
-      }
-      else {
-        System.err.println("Usage: LinearRegression <data path> <result path> <num iterations>")
-
-        false
-      }
-    }
-    else {
-      System.out.println("Executing Linear Regression example with default parameters and " +
-        "built-in default data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  We provide a data generator to create synthetic input files for this " +
-        "program.")
-      System.out.println("  Usage: LinearRegression <data path> <result path> <num iterations>")
-
-      true
-    }
-  }
-
-  private def getDataSet(env: ExecutionEnvironment): DataSet[Data] = {
-    if (fileOutput) {
+  private def getDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[Data] = {
+    if (params.has("data")) {
       env.readCsvFile[(Double, Double)](
-        dataPath,
+        params.get("data"),
         fieldDelimiter = " ",
         includedFields = Array(0, 1))
         .map { t => new Data(t._1, t._2) }

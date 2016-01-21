@@ -58,7 +58,7 @@ object DeltaPageRank {
           val targets = adj._2
           val rankPerTarget = INITIAL_RANK * DAMPENING_FACTOR / targets.length
 
-          // dampend fraction to targets
+          // dampen fraction to targets
           for (target <- targets) {
             out.collect((target, rankPerTarget))
           }

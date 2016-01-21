@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -29,7 +30,7 @@ import org.apache.flink.util.Collector;
  * type, but a custom class.
  * 
  * <p>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link WordCountData}.
  * 
@@ -49,15 +50,22 @@ public class PojoExample {
 
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		if (params.getNumberOfParameters() < 2) {
+			System.out.println("Executing PojoExample example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from a file.");
+			System.out.println("  Usage: PojoExample --input <path> [--output <path>]");
 		}
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
 		// get input data
-		DataStream<String> text = getTextDataStream(env);
+		DataStream<String> text = getTextDataStream(env, params);
 
 		DataStream<Word> counts =
 		// split up the lines into Word objects
@@ -65,8 +73,8 @@ public class PojoExample {
 		// group by the field word and sum up the frequency
 				.keyBy("word").sum("frequency");
 
-		if (fileOutput) {
-			counts.writeAsText(outputPath);
+		if (params.has("output")) {
+			counts.writeAsText(params.get("output"));
 		} else {
 			counts.print();
 		}
@@ -150,37 +158,14 @@ public class PojoExample {
 	// UTIL METHODS
 	// *************************************************************************
 
-	private static boolean fileOutput = false;
-	private static String textPath;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if (args.length == 2) {
-				textPath = args[0];
-				outputPath = args[1];
-			} else {
-				System.err.println("Usage: PojoExample <text path> <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing PojoExample example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: PojoExample <text path> <result path>");
-		}
-		return true;
-	}
-
-	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
-		if (fileOutput) {
+	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env, ParameterTool params) {
+		if (params.has("input")) {
 			// read the text file from given input path
-			return env.readTextFile(textPath);
+			return env.readTextFile(params.get("input"));
 		} else {
 			// get default test text data
 			return env.fromElements(WordCountData.WORDS);
 		}
 	}
+
 }

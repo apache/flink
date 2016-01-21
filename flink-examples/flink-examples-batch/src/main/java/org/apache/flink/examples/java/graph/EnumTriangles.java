@@ -26,6 +26,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.EnumTrianglesData;
 import org.apache.flink.examples.java.graph.util.EnumTrianglesDataTypes.Edge;
 import org.apache.flink.examples.java.graph.util.EnumTrianglesDataTypes.Triad;
@@ -59,7 +60,7 @@ import java.util.List;
  *   (2)-(12)
  * </pre>
  * 
- * Usage: <code>EnumTriangleBasic &lt;edge path&gt; &lt;result path&gt;</code><br>
+ * Usage: <code>EnumTriangleBasic --edges &lt;path&gt; --output &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link EnumTrianglesData}. 
  * 
  * <p>
@@ -73,25 +74,29 @@ import java.util.List;
 @SuppressWarnings("serial")
 public class EnumTriangles {
 
-	static boolean fileOutput = false;
-	static String edgePath = null;
-	static String outputPath = null;
-	
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
 	
 	public static void main(String[] args) throws Exception {
-		
-		if(!parseParameters(args)) {
-			return;
+
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		if (params.getNumberOfParameters() < 2) {
+			System.out.println("Executing Enum Triangles Basic example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("  Usage: EnumTriangleBasic --edges <path> --output <path>");
 		}
-		
+
 		// set up execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 	
 		// read input data
-		DataSet<Edge> edges = getEdgeDataSet(env);
+		DataSet<Edge> edges = getEdgeDataSet(env, params);
 		
 		// project edges by vertex id
 		DataSet<Edge> edgesById = edges
@@ -104,8 +109,8 @@ public class EnumTriangles {
 				.join(edgesById).where(Triad.V2, Triad.V3).equalTo(Edge.V1, Edge.V2).with(new TriadFilter());
 
 		// emit result
-		if (fileOutput) {
-			triangles.writeAsCsv(outputPath, "\n", ",");
+		if (params.has("output")) {
+			triangles.writeAsCsv(params.get("output"), "\n", ",");
 			// execute program
 			env.execute("Basic Triangle Enumeration Example");
 		} else {
@@ -195,30 +200,9 @@ public class EnumTriangles {
 	//     UTIL METHODS
 	// *************************************************************************
 	
-	private static boolean parseParameters(String[] args) {
-	
-		if(args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if(args.length == 2) {
-				edgePath = args[0];
-				outputPath = args[1];
-			} else {
-				System.err.println("Usage: EnumTriangleBasic <edge path> <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing Enum Triangles Basic example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>");
-		}
-		return true;
-	}
-	
-	private static DataSet<Edge> getEdgeDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			return env.readCsvFile(edgePath)
+	private static DataSet<Edge> getEdgeDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("edges")) {
+			return env.readCsvFile(params.get("edges"))
 						.fieldDelimiter(" ")
 						.includeFields(true, true)
 						.types(Integer.class, Integer.class)

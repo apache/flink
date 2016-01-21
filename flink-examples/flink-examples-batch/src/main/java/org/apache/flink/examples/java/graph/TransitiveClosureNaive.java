@@ -26,6 +26,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.util.Collector;
 
@@ -36,16 +37,26 @@ import java.util.Set;
 public class TransitiveClosureNaive implements ProgramDescription {
 
 
-	public static void main (String... args) throws Exception{
+	public static void main (String... args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		if (params.getNumberOfParameters() < 3) {
+			System.out.println("Executing TransitiveClosure example with default parameters and built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("  Usage: TransitiveClosure --edges <path> --output <path> [--iterations <n>]");
 		}
 
 		// set up execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env);
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
+		final int maxIterations = params.getInt("iterations", 10);
+
+		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env, params);
 
 		IterativeDataSet<Tuple2<Long,Long>> paths = edges.iterate(maxIterations);
 
@@ -95,8 +106,8 @@ public class TransitiveClosureNaive implements ProgramDescription {
 
 
 		// emit result
-		if (fileOutput) {
-			transitiveClosure.writeAsCsv(outputPath, "\n", " ");
+		if (params.has("output")) {
+			transitiveClosure.writeAsCsv(params.get("output"), "\n", " ");
 
 			// execute program explicitly, because file sinks are lazy
 			env.execute("Transitive Closure Example");
@@ -107,45 +118,17 @@ public class TransitiveClosureNaive implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Parameters: <edges-path> <result-path> <max-number-of-iterations>";
+		return "Parameters: --edges <path> --output <path> --iterations <n>";
 	}
 
 	// *************************************************************************
 	//     UTIL METHODS
 	// *************************************************************************
 
-	private static boolean fileOutput = false;
-	private static String edgesPath = null;
-	private static String outputPath = null;
-	private static int maxIterations = 10;
 
-	private static boolean parseParameters(String[] programArguments) {
-
-		if (programArguments.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if (programArguments.length == 3) {
-				edgesPath = programArguments[0];
-				outputPath = programArguments[1];
-				maxIterations = Integer.parseInt(programArguments[2]);
-			} else {
-				System.err.println("Usage: TransitiveClosure <edges path> <result path> <max number of iterations>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing TransitiveClosure example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: TransitiveClosure <edges path> <result path> <max number of iterations>");
-		}
-		return true;
-	}
-
-
-	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env) {
-
-		if(fileOutput) {
-			return env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class);
+	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("edges")) {
+			return env.readCsvFile(params.get("edges")).fieldDelimiter(" ").types(Long.class, Long.class);
 		} else {
 			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}

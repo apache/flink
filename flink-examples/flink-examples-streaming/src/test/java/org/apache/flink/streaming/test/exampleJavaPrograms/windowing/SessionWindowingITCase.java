@@ -37,6 +37,6 @@ public class SessionWindowingITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		SessionWindowing.main(new String[]{resultPath});
+		SessionWindowing.main(new String[]{"--output", resultPath});
 	}
 }

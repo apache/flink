@@ -72,14 +72,24 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testPageRankWithSmallNumberOfIterations() throws Exception {
-		PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "3"});
+		PageRankBasic.main(new String[] {
+				"--pages", verticesPath,
+				"--links", edgesPath,
+				"--output", resultPath,
+				"--numPages", PageRankData.NUM_VERTICES+"",
+				"--iterations", "3"});
 		expected = PageRankData.RANKS_AFTER_3_ITERATIONS;
 	}
 
 	@Test
 	public void testPageRankWithConvergence() throws Exception {
 		// start with a very high number of iteration such that the dynamic convergence criterion must handle termination
-		PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "1000"});
+		PageRankBasic.main(new String[] {
+				"--pages", verticesPath,
+				"--links", edgesPath,
+				"--output", resultPath,
+				"--numPages", PageRankData.NUM_VERTICES+"",
+				"--iterations", "1000"});
 		expected = PageRankData.RANKS_AFTER_EPSILON_0_0001_CONVERGENCE;
 	}
 }

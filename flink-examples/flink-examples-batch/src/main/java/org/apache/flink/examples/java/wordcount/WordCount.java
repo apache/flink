@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 
@@ -33,7 +34,7 @@ import org.apache.flink.util.Collector;
  * The input is a plain text file with lines separated by newline characters.
  * 
  * <p>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
  * 
  * <p>
@@ -54,15 +55,22 @@ public class WordCount {
 	
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
-		}
-		
+		final ParameterTool params = ParameterTool.fromArgs(args);
+
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
+		if (params.getNumberOfParameters() < 2) {
+			System.out.println("Executing WordCount example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from a file.");
+			System.out.println("  Usage: WordCount --input <path> --output <path>");
+		}
+
 		// get input data
-		DataSet<String> text = getTextDataSet(env);
+		DataSet<String> text = getTextDataSet(env, params);
 
 		DataSet<Tuple2<String, Integer>> counts = 
 				// split up the lines in pairs (2-tuples) containing: (word,1)
@@ -72,8 +80,8 @@ public class WordCount {
 				.sum(1);
 
 		// emit result
-		if (fileOutput) {
-			counts.writeAsCsv(outputPath, "\n", " ");
+		if (params.has("output")) {
+			counts.writeAsCsv(params.get("output"), "\n", " ");
 			// execute program
 			env.execute("WordCount Example");
 		} else {
@@ -112,34 +120,10 @@ public class WordCount {
 	//     UTIL METHODS
 	// *************************************************************************
 	
-	private static boolean fileOutput = false;
-	private static String textPath;
-	private static String outputPath;
-	
-	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if(args.length == 2) {
-				textPath = args[0];
-				outputPath = args[1];
-			} else {
-				System.err.println("Usage: WordCount <text path> <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing WordCount example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WordCount <text path> <result path>");
-		}
-		return true;
-	}
-	
-	private static DataSet<String> getTextDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+	private static DataSet<String> getTextDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if(params.has("input")) {
 			// read the text file from given input path
-			return env.readTextFile(textPath);
+			return env.readTextFile(params.get("input"));
 		} else {
 			// get default test text data
 			return WordCountData.getDefaultTextLineDataSet(env);

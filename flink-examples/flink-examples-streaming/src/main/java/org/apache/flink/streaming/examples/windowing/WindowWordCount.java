@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -30,7 +31,7 @@ import org.apache.flink.streaming.examples.wordcount.WordCount;
  * The input is a plain text file with lines separated by newline characters.
  * 
  * <p>
- * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt; --window &lt;n&gt; --slide &lt;n&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.examples.java.wordcount.util.WordCountData}.
  *
@@ -45,25 +46,30 @@ import org.apache.flink.streaming.examples.wordcount.WordCount;
  */
 public class WindowWordCount {
 
-	// window parameters with default values
-	private static int windowSize = 250;
-	private static int slideSize = 150;
-
 	// *************************************************************************
 	// PROGRAM
 	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
 
-		if (!parseParameters(args)) {
-			return;
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		if (params.getNumberOfParameters() < 4) {
+			System.out.println("Executing WindowWordCount example with built-in default data.");
+			System.out.println("  Provide parameters to read input data from a file.");
+			System.out.println("  Usage: WindowWordCount --input <path> --output <path> --window <n> --slide <n>");
 		}
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data
-		DataStream<String> text = getTextDataStream(env);
+		DataStream<String> text = getTextDataStream(env, params);
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
+		final int windowSize = params.getInt("window", 250);
+		final int slideSize = params.getInt("slide", 150);
 
 		DataStream<Tuple2<String, Integer>> counts =
 		// split up the lines in pairs (2-tuples) containing: (word,1)
@@ -75,8 +81,8 @@ public class WindowWordCount {
 				.sum(1);
 
 		// emit result
-		if (fileOutput) {
-			counts.writeAsText(outputPath);
+		if (params.has("output")) {
+			counts.writeAsText(params.get("output"));
 		} else {
 			counts.print();
 		}
@@ -90,43 +96,14 @@ public class WindowWordCount {
 	// UTIL METHODS
 	// *************************************************************************
 
-	private static boolean fileOutput = false;
-	private static String textPath;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-
-		if (args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if (args.length >= 2 && args.length <= 4) {
-				textPath = args[0];
-				outputPath = args[1];
-				if (args.length >= 3){
-					windowSize = Integer.parseInt(args[2]);
-
-					// if no slide size is specified use the
-					slideSize = args.length == 3 ? windowSize : Integer.parseInt(args[2]);
-				}
-			} else {
-				System.err.println("Usage: WindowWordCount <text path> <result path> [<window size>] [<slide size>]");
-				return false;
-			}
-		} else {
-			System.out.println("Executing WindowWordCount example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WindowWordCount <text path> <result path> [<window size>] [<slide size>]");
-		}
-		return true;
-	}
-
-	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
-		if (fileOutput) {
+	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env, ParameterTool params) {
+		if (params.has("input")) {
 			// read the text file from given input path
-			return env.readTextFile(textPath);
+			return env.readTextFile(params.get("input"));
 		} else {
 			// get default test text data
 			return env.fromElements(WordCountData.WORDS);
 		}
 	}
+
 }

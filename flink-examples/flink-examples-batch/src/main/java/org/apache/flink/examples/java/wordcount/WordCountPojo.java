@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
@@ -76,16 +77,18 @@ public class WordCountPojo {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		if (!parseParameters(args)) {
-			return;
-		}
-		
+
+		final ParameterTool params = ParameterTool.fromArgs(args);
+
 		// set up the execution environment
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
 		
 		// get input data
-		DataSet<String> text = getTextDataSet(env);
-		
+		DataSet<String> text = getTextDataSet(env, params);
+
 		DataSet<Word> counts = 
 			// split up the lines into Word objects (with frequency = 1)
 			text.flatMap(new Tokenizer())
@@ -98,8 +101,8 @@ public class WordCountPojo {
 				}
 			});
 		
-		if (fileOutput) {
-			counts.writeAsText(outputPath, WriteMode.OVERWRITE);
+		if (params.has("output")) {
+			counts.writeAsText(params.get("output"), WriteMode.OVERWRITE);
 			// execute program
 			env.execute("WordCount-Pojo Example");
 		} else {
@@ -137,34 +140,10 @@ public class WordCountPojo {
 	//     UTIL METHODS
 	// *************************************************************************
 	
-	private static boolean fileOutput = false;
-	private static String textPath;
-	private static String outputPath;
-	
-	private static boolean parseParameters(String[] args) {
-		
-		if (args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if (args.length == 2) {
-				textPath = args[0];
-				outputPath = args[1];
-			} else {
-				System.err.println("Usage: WordCount <text path> <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing WordCount example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WordCount <text path> <result path>");
-		}
-		return true;
-	}
-	
-	private static DataSet<String> getTextDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
+	private static DataSet<String> getTextDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if (params.has("input")) {
 			// read the text file from given input path
-			return env.readTextFile(textPath);
+			return env.readTextFile(params.get("input"));
 		} else {
 			// get default test text data
 			return WordCountData.getDefaultTextLineDataSet(env);

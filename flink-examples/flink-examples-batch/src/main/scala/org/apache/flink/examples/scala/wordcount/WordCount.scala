@@ -18,6 +18,7 @@
 
 package org.apache.flink.examples.scala.wordcount
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.wordcount.util.WordCountData
 
@@ -29,7 +30,7 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData
  *
  * Usage:
  * {{{
- *   WordCount <text path> <result path>>
+ *   WordCount --input <path> --output <path>
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
@@ -43,21 +44,30 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData
  *
  */
 object WordCount {
+
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    if (params.getNumberOfParameters < 2) {
+      System.out.println("Executing WordCount example with built-in default data.")
+      System.out.println("  Provide parameters to read input data from a file.")
+      System.out.println("  Usage: WordCount --input <path> --output <path>")
     }
 
+    // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val text = getTextDataSet(env)
+
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
+    val text = getTextDataSet(env, params)
 
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
       .groupBy(0)
       .sum(1)
 
-    if (fileOutput) {
-      counts.writeAsCsv(outputPath, "\n", " ")
+    if (params.has("output")) {
+      counts.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala WordCount Example")
     } else {
       counts.print()
@@ -65,37 +75,14 @@ object WordCount {
 
   }
 
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      fileOutput = true
-      if (args.length == 2) {
-        textPath = args(0)
-        outputPath = args(1)
-        true
-      } else {
-        System.err.println("Usage: WordCount <text path> <result path>")
-        false
-      }
+  private def getTextDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[String] = {
+    if (params.has("output")) {
+      env.readTextFile(params.get("output"))
     } else {
-      System.out.println("Executing WordCount example with built-in default data.")
-      System.out.println("  Provide parameters to read input data from a file.")
-      System.out.println("  Usage: WordCount <text path> <result path>")
-      true
-    }
-  }
-
-  private def getTextDataSet(env: ExecutionEnvironment): DataSet[String] = {
-    if (fileOutput) {
-      env.readTextFile(textPath)
-    }
-    else {
       env.fromCollection(WordCountData.WORDS)
     }
   }
 
-  private var fileOutput: Boolean = false
-  private var textPath: String = null
-  private var outputPath: String = null
 }
 
 

@@ -24,8 +24,8 @@ import java.util.Collection;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.ml.util.LinearRegressionData;
 import org.apache.flink.api.java.DataSet;
@@ -72,22 +72,31 @@ public class LinearRegression {
 
 	public static void main(String[] args) throws Exception{
 
-		if(!parseParameters(args)) {
-			return;
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		if (params.getNumberOfParameters() < 3) {
+			System.out.println("Executing Linear Regression example with default parameters and built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("  We provide a data generator to create synthetic input files for this program.");
+			System.out.println("  Usage: LinearRegression --input <path> --output <path> --iterations <n>");
 		}
 
 		// set up execution environment
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+		final int iterations = params.getInt("iterations", 10);
+
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
 		// get input x data from elements
-		DataSet<Data> data = getDataSet(env);
+		DataSet<Data> data = getDataSet(env, params);
 
 		// get the parameters from elements
 		DataSet<Params> parameters = getParamsDataSet(env);
 
 		// set number of bulk iterations for SGD linear Regression
-		IterativeDataSet<Params> loop = parameters.iterate(numIterations);
+		IterativeDataSet<Params> loop = parameters.iterate(iterations);
 
 		DataSet<Params> new_parameters = data
 				// compute a single step using every sample
@@ -101,8 +110,8 @@ public class LinearRegression {
 		DataSet<Params> result = loop.closeWith(new_parameters);
 
 		// emit result
-		if(fileOutput) {
-			result.writeAsText(outputPath);
+		if(params.has("output")) {
+			result.writeAsText(params.get("output"));
 			// execute program
 			env.execute("Linear Regression example");
 		} else {
@@ -181,26 +190,6 @@ public class LinearRegression {
 	//     USER FUNCTIONS
 	// *************************************************************************
 
-	/** Converts a {@code Tuple2<Double,Double>} into a Data. */
-	@ForwardedFields("0->x; 1->y")
-	public static final class TupleDataConverter implements MapFunction<Tuple2<Double, Double>, Data> {
-
-		@Override
-		public Data map(Tuple2<Double, Double> t) throws Exception {
-			return new Data(t.f0, t.f1);
-		}
-	}
-
-	/** Converts a {@code Tuple2<Double,Double>} into a Params. */
-	@ForwardedFields("0->theta0; 1->theta1")
-	public static final class TupleParamsConverter implements MapFunction<Tuple2<Double, Double>,Params> {
-
-		@Override
-		public Params map(Tuple2<Double, Double> t)throws Exception {
-			return new Params(t.f0,t.f1);
-		}
-	}
-
 	/**
 	 * Compute a single BGD type update for every parameters.
 	 */
@@ -265,42 +254,13 @@ public class LinearRegression {
 	//     UTIL METHODS
 	// *************************************************************************
 
-	private static boolean fileOutput = false;
-	private static String dataPath = null;
-	private static String outputPath = null;
-	private static int numIterations = 10;
-
-	private static boolean parseParameters(String[] programArguments) {
-
-		if(programArguments.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if(programArguments.length == 3) {
-				dataPath = programArguments[0];
-				outputPath = programArguments[1];
-				numIterations = Integer.parseInt(programArguments[2]);
-			} else {
-				System.err.println("Usage: LinearRegression <data path> <result path> <num iterations>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing Linear Regression example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: LinearRegression <data path> <result path> <num iterations>");
-		}
-		return true;
-	}
-
-	private static DataSet<Data> getDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+	private static DataSet<Data> getDataSet(ExecutionEnvironment env, ParameterTool params) {
+		if(params.has("input")) {
 			// read data from CSV file
-			return env.readCsvFile(dataPath)
+			return env.readCsvFile(params.get("input"))
 					.fieldDelimiter(" ")
 					.includeFields(true, true)
-					.types(Double.class, Double.class)
-					.map(new TupleDataConverter());
+					.pojoType(Data.class);
 		} else {
 			return LinearRegressionData.getDefaultDataDataSet(env);
 		}

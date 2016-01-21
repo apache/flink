@@ -40,6 +40,8 @@ public class PojoExampleITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		PojoExample.main(new String[]{textPath, resultPath});
+		PojoExample.main(new String[]{
+				"--input", textPath,
+				"--output", resultPath});
 	}
 }
