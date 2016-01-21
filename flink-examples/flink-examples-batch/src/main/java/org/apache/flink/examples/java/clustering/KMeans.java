@@ -86,8 +86,37 @@ public class KMeans {
 	// *************************************************************************
 	
 	public static void main(String[] args) throws Exception {
-		
-		if(!parseParameters(ParameterTool.fromArgs(args))) {
+
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		final RequiredParameters requiredParameters = new RequiredParameters();
+		boolean paramsOk = false;
+
+		requiredParameters.add(POINTS_PATH_OPTION);
+		requiredParameters.add(CENTERS_PATH_OPTION);
+		requiredParameters.add(OUTPUT_PATH_OPTION);
+		requiredParameters.add(NUM_ITERATIONS_OPTION);
+
+		try {
+			requiredParameters.applyTo(params);
+			pointsPath = params.get(POINTS_PATH_OPTION.getName());
+			centersPath = params.get(CENTERS_PATH_OPTION.getName());
+			outputPath = params.get(OUTPUT_PATH_OPTION.getName());
+			numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName());
+			fileOutput = true;
+			paramsOk = true;
+		} catch (RequiredParametersException e) {
+			if (params.getNumberOfParameters() == 0) {
+				System.out.println("Executing K-Means example with default parameters and built-in default data.");
+				System.out.println("  Provide parameters to read input data from files.");
+				System.out.println("  See the documentation for the correct format of input files.");
+				System.out.println("  We provide a data generator to create synthetic input files for this program.");
+				paramsOk = true;
+			}
+			System.out.println(requiredParameters.getHelp(e.getMissingArguments()));
+		}
+
+		if(!paramsOk) {
 			return;
 		}
 	
@@ -304,42 +333,6 @@ public class KMeans {
 		new Option("output").alt("O").help("The path where the output will be written");
 	private static final Option NUM_ITERATIONS_OPTION =
 		new Option("iterations").alt("I").help("The number of iteration performed by the K-Means algorithm");
-
-	private static boolean parseParameters(final ParameterTool params) throws RequiredParametersException {
-
-		final RequiredParameters requiredParameters = new RequiredParameters();
-		boolean parseStatus = false;
-
-		requiredParameters.add(POINTS_PATH_OPTION);
-		requiredParameters.add(CENTERS_PATH_OPTION);
-		requiredParameters.add(OUTPUT_PATH_OPTION);
-		requiredParameters.add(NUM_ITERATIONS_OPTION);
-
-		try {
-			requiredParameters.applyTo(params);
-			pointsPath = params.get(POINTS_PATH_OPTION.getName());
-			centersPath = params.get(CENTERS_PATH_OPTION.getName());
-			outputPath = params.get(OUTPUT_PATH_OPTION.getName());
-			numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName());
-			fileOutput = true;
-			parseStatus = true;
-		} catch (RequiredParametersException e) {
-			if (params.getNumberOfParameters() == 0) {
-				printRunWithDefaultParams();
-				parseStatus = true;
-			}
-			System.out.println(requiredParameters.getHelp(e.getMissingArguments()));
-		}
-
-		return parseStatus;
-	}
-
-	private static void printRunWithDefaultParams() {
-		System.out.println("Executing K-Means example with default parameters and built-in default data.");
-		System.out.println("  Provide parameters to read input data from files.");
-		System.out.println("  See the documentation for the correct format of input files.");
-		System.out.println("  We provide a data generator to create synthetic input files for this program.");
-	}
 
 	private static DataSet<Point> getPointDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
