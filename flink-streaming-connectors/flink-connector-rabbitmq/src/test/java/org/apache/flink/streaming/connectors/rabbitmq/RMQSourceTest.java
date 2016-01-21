@@ -23,6 +23,7 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.QueueingConsumer;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -101,6 +103,83 @@ public class RMQSourceTest {
 	public void afterTest() throws Exception {
 		source.cancel();
 		sourceThread.join();
+	}
+
+	/**
+	 * Make sure concurrent access to snapshotState() and notifyCheckpointComplete() don't cause
+	 * an issue.
+	 *
+	 * Without proper synchronization, the test will fail with a concurrent modification exception
+	 *
+	 */
+	@Test
+	public void testConcurrentAccess() throws Exception {
+		source.autoAck = false;
+		sourceThread.start();
+
+		final Tuple1<Throwable> error = new Tuple1<>(null);
+
+		Thread.sleep(5);
+
+		Thread snapshotThread = new Thread(new Runnable() {
+			public long id = 0;
+
+			@Override
+			public void run() {
+				while (!Thread.interrupted()) {
+					try {
+						source.snapshotState(id++, 0);
+					} catch (Exception e) {
+						error.f0 = e;
+						break; // stop thread
+					}
+				}
+			}
+		});
+
+		Thread notifyThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				while (!Thread.interrupted()) {
+					try {
+						// always remove all checkpoints
+						source.notifyCheckpointComplete(Long.MAX_VALUE);
+					} catch (Exception e) {
+						error.f0 = e;
+						break; // stop thread
+					}
+				}
+			}
+		});
+
+		snapshotThread.start();
+		notifyThread.start();
+
+		long deadline = System.currentTimeMillis() + 1000L;
+		while(System.currentTimeMillis() < deadline) {
+			if(!snapshotThread.isAlive()) {
+				notifyThread.interrupt();
+				break;
+			}
+			if(!notifyThread.isAlive()) {
+				snapshotThread.interrupt();
+				break;
+			}
+			Thread.sleep(10);
+		}
+		if(snapshotThread.isAlive()) {
+			snapshotThread.interrupt();
+			snapshotThread.join();
+		}
+		if(notifyThread.isAlive()) {
+			notifyThread.interrupt();
+			notifyThread.join();
+		}
+		if(error.f0 != null) {
+			error.f0.printStackTrace();
+			Assert.fail("Test failed with " + error.f0.getClass().getCanonicalName());
+		}
+
 	}
 
 	@Test

@@ -76,6 +76,7 @@ import org.slf4j.LoggerFactory;
  * @param <Type> The type of the messages created by the source.
  * @param <UId> The type of unique IDs which may be used to acknowledge elements.
  */
+@SuppressWarnings("SynchronizeOnNonFinalField")
 public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	extends RichSourceFunction<Type>
 	implements Checkpointed<SerializedCheckpointData[]>, CheckpointNotifier {
@@ -166,41 +167,45 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		LOG.debug("Snapshotting state. Messages: {}, checkpoint id: {}, timestamp: {}",
 					idsForCurrentCheckpoint, checkpointId, checkpointTimestamp);
 
-		pendingCheckpoints.addLast(new Tuple2<>(checkpointId, idsForCurrentCheckpoint));
+		synchronized (pendingCheckpoints) {
+			pendingCheckpoints.addLast(new Tuple2<>(checkpointId, idsForCurrentCheckpoint));
 
-		idsForCurrentCheckpoint = new ArrayList<>(64);
+			idsForCurrentCheckpoint = new ArrayList<>(64);
 
-		return SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer);
+			return SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer);
+		}
 	}
 
 	@Override
 	public void restoreState(SerializedCheckpointData[] state) throws Exception {
-		pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
-		// build a set which contains all processed ids. It may be used to check if we have
-		// already processed an incoming message.
-		for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
-			idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
+		synchronized (pendingCheckpoints) {
+			pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
+			// build a set which contains all processed ids. It may be used to check if we have
+			// already processed an incoming message.
+			for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+				idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
+			}
 		}
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		LOG.debug("Committing Messages externally for checkpoint {}", checkpointId);
+		synchronized (pendingCheckpoints) {
+			for (Iterator<Tuple2<Long, List<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext(); ) {
+				Tuple2<Long, List<UId>> checkpoint = iter.next();
+				long id = checkpoint.f0;
 
-		for (Iterator<Tuple2<Long, List<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext();) {
-			Tuple2<Long, List<UId>> checkpoint = iter.next();
-			long id = checkpoint.f0;
-
-			if (id <= checkpointId) {
-				LOG.trace("Committing Messages with following IDs {}", checkpoint.f1);
-				acknowledgeIDs(checkpointId, checkpoint.f1);
-				// remove deduplication data
-				idsProcessedButNotAcknowledged.removeAll(checkpoint.f1);
-				// remove checkpoint data
-				iter.remove();
-			}
-			else {
-				break;
+				if (id <= checkpointId) {
+					LOG.trace("Committing Messages with following IDs {}", checkpoint.f1);
+					acknowledgeIDs(checkpointId, checkpoint.f1);
+					// remove deduplication data
+					idsProcessedButNotAcknowledged.removeAll(checkpoint.f1);
+					// remove checkpoint data
+					iter.remove();
+				} else {
+					break;
+				}
 			}
 		}
 	}
