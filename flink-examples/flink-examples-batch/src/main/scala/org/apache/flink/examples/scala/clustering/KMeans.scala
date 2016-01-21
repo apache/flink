@@ -130,16 +130,13 @@ object KMeans {
       numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName)
       fileOutput = true
       parseStatus = true
-    }
-    catch {
+    } catch {
       case e: RequiredParametersException => {
         if (params.getNumberOfParameters == 0) {
           printRunWithDefaultParams()
           parseStatus = true
         }
-        else {
-          println(requiredParameters.getHelp(e.getMissingArguments))
-        }
+        println(requiredParameters.getHelp(e.getMissingArguments))
       }
     }
     parseStatus
@@ -150,7 +147,6 @@ object KMeans {
     println("  Provide parameters to read input data from files.")
     println("  See the documentation for the correct format of input files.")
     println("  We provide a data generator to create synthetic input files for this program.")
-    println("  Usage: KMeans --points <points path> --centroids <centers path> --output <result path> --iterations <num iterations>")
   }
 
   private def getPointDataSet(env: ExecutionEnvironment): DataSet[Point] = {
