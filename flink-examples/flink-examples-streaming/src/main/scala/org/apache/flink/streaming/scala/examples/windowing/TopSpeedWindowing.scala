@@ -21,6 +21,7 @@ package org.apache.flink.streaming.scala.examples.windowing
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction
 import org.apache.flink.streaming.api.scala._
@@ -55,15 +56,25 @@ object TopSpeedWindowing {
   val triggerMeters = 50d
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
-      return
-    }
+
+    val params = ParameterTool.fromArgs(args)
+    println("Usage: TopSpeedWindowing --input <path> --output <path>")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.setGlobalJobParameters(params)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
 
-    val cars = setCarsInput(env)
+    val cars =
+      if (params.has("input")) {
+        env.readTextFile(params.get("input"))
+          .map(parseMap(_))
+          .map(x => CarEvent(x._1, x._2, x._3, x._4))
+      } else {
+        println("Executing TopSpeedWindowing example with default inputs data set.")
+        println("Use --input to specify file input.")
+        env.fromCollection(genCarStream())
+      }
 
     val topSeed = cars
       .assignAscendingTimestamps( _.time )
@@ -78,10 +89,11 @@ object TopSpeedWindowing {
 //          (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
       .maxBy("speed")
 
-    if (fileOutput) {
-      topSeed.writeAsText(outputPath)
+    if (params.has("output")) {
+      topSeed.writeAsText(params.get("output"))
     } else {
-      topSeed.print
+      println("Printing result to stdout. Use --output to specify output path.")
+      topSeed.print()
     }
 
     env.execute("TopSpeedWindowing")
@@ -111,40 +123,6 @@ object TopSpeedWindowing {
   def parseMap(line : String): (Int, Int, Double, Long) = {
     val record = line.substring(1, line.length - 1).split(",")
     (record(0).toInt, record(1).toInt, record(2).toDouble, record(3).toLong)
-  }
-
-  // *************************************************************************
-  // UTIL METHODS
-  // *************************************************************************
-
-  var fileInput = false
-  var fileOutput = false
-  var inputPath : String = null
-  var outputPath : String = null
-
-  def parseParameters(args: Array[String]): Boolean = {
-    if (args.length > 0) {
-      if (args.length == 2) {
-        fileInput = true
-        fileOutput = true
-        inputPath = args(0)
-        outputPath = args(1)
-        true
-      } else {
-        System.err.println("Usage: TopSpeedWindowing <input path> <output path>")
-        false
-      }
-    } else {
-      true
-    }
-  }
-
-  private def setCarsInput(env: StreamExecutionEnvironment) : DataStream[CarEvent] = {
-    if (fileInput) {
-      env.readTextFile(inputPath).map(parseMap(_)).map(x => CarEvent(x._1, x._2, x._3, x._4))
-    } else {
-      env.fromCollection(genCarStream())
-    }
   }
 
 }

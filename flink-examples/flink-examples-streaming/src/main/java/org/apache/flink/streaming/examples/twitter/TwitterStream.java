@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.examples.twitter;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.json.JSONParseFlatMap;
@@ -35,7 +36,7 @@ import java.util.StringTokenizer;
  * The input is a JSON text file with lines separated by newline characters.
  * </p>
  * <p>
- * Usage: <code>TwitterStream &lt;text path&gt;</code><br>
+ * Usage: <code>TwitterStream [--output &lt;path&gt;] [--props &lt;path&gt;]</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link TwitterStreamData}.
  * </p>
@@ -54,15 +55,28 @@ public class TwitterStream {
 	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
-		if (!parseParameters(args)) {
-			return;
-		}
+
+		// Checking input parameters
+		final ParameterTool params = ParameterTool.fromArgs(args);
+		System.out.println("Usage: TwitterStream --output <path> --props <path>");
 
 		// set up the execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+		// make parameters available in the web interface
+		env.getConfig().setGlobalJobParameters(params);
+
 		// get input data
-		DataStream<String> streamSource = getTextDataStream(env);
+		DataStream<String> streamSource;
+		if (params.has("props")) {
+			// read the text file from given input path
+			streamSource = env.addSource(new TwitterSource(params.get("props")));
+		} else {
+			System.out.println("Executing TwitterStream example with default props.");
+			System.out.println("Use --props to specify the path to the authentication info.");
+			// get default test text data
+			streamSource = env.fromElements(TwitterStreamData.TEXTS);
+		}
 
 		DataStream<Tuple2<String, Integer>> tweets = streamSource
 				// selecting English tweets and splitting to (word, 1)
@@ -71,9 +85,10 @@ public class TwitterStream {
 				.keyBy(0).sum(1);
 
 		// emit result
-		if (fileOutput) {
-			tweets.writeAsText(outputPath);
+		if (params.has("output")) {
+			tweets.writeAsText(params.get("output"));
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			tweets.print();
 		}
 
@@ -121,44 +136,4 @@ public class TwitterStream {
 		}
 	}
 
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static boolean fileInput = false;
-	private static boolean fileOutput = false;
-	private static String propertiesPath;
-	private static String outputPath;
-
-	private static boolean parseParameters(String[] args) {
-		if (args.length > 0) {
-			// parse input arguments
-			fileOutput = true;
-			if (args.length == 2) {
-				fileInput = true;
-				propertiesPath = args[0];
-				outputPath = args[1];
-			} else if (args.length == 1) {
-				outputPath = args[0];
-			} else {
-				System.err.println("USAGE:\nTwitterStream [<pathToPropertiesFile>] <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing TwitterStream example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  USAGE: TwitterStream [<pathToPropertiesFile>] <result path>");
-		}
-		return true;
-	}
-
-	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
-		if (fileInput) {
-			// read the text file from given input path
-			return env.addSource(new TwitterSource(propertiesPath));
-		} else {
-			// get default test text data
-			return env.fromElements(TwitterStreamData.TEXTS);
-		}
-	}
 }

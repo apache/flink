@@ -36,7 +36,7 @@ public class TwitterStreamITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		TwitterStream.main(new String[]{resultPath});
+		TwitterStream.main(new String[]{"--output", resultPath});
 	}
 
 }

@@ -47,7 +47,10 @@ public class TransitiveClosureITCase extends JavaProgramTestBase {
 
     @Override
     protected void testProgram() throws Exception {
-        TransitiveClosureNaive.main(new String [] {edgesPath, resultPath, "5"});
+        TransitiveClosureNaive.main(new String [] {
+                "--edges", edgesPath,
+                "--output", resultPath,
+                "--iterations", "5"});
     }
 
     @Override

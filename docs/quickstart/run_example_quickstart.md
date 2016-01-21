@@ -100,10 +100,8 @@ The Flink web interface allows to submit Flink programs using a graphical user i
 		5. Enter the arguments and options in the lower box: <br>
 		    Leave the <i>Entry Class</i> and <i>Parallelism</i> form empty<br>
 		    Enter the following program arguments: <br>
-		    (KMeans expects the following args: <code>&lt;points path&gt; &lt;centers path&gt; &lt;result path&gt; &lt;num iterations&gt;</code>
-			{% highlight bash %}
-            /tmp/kmeans/points /tmp/kmeans/centers /tmp/kmeans/result 10
-			{% endhighlight %} <br>
+		    (KMeans expects the following args: <code>--points &lt;path&gt; --centroids &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code>
+			{% highlight bash %}--points /tmp/kmeans/points --centroids /tmp/kmeans/centers --output /tmp/kmeans/result --iterations 10{% endhighlight %}<br>
 		6. Press <b>Submit</b> to start the job
 	</div>
 </div>

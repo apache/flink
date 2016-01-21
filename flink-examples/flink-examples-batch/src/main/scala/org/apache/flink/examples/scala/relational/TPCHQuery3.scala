@@ -18,6 +18,7 @@
 
 package org.apache.flink.examples.scala.relational
 
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -61,7 +62,7 @@ import org.apache.flink.api.java.aggregation.Aggregations
  *
  * Usage: 
  * {{{
- * TPCHQuery3 <lineitem-csv path> <customer-csv path> <orders-csv path> <result path>
+ * TPCHQuery3 --lineitem <path> --customer <path> --orders <path> --output <path>
  * }}}
  *  
  * This example shows how to use:
@@ -72,23 +73,37 @@ import org.apache.flink.api.java.aggregation.Aggregations
 object TPCHQuery3 {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
+
+    val params: ParameterTool = ParameterTool.fromArgs(args)
+    if (!params.has("lineitem") && !params.has("customer") && !params.has("orders")) {
+      println("  This program expects data from the TPC-H benchmark as input data.")
+      println("  Due to legal restrictions, we can not ship generated data.")
+      println("  You can find the TPC-H data generator at http://www.tpc.org/tpch/.")
+      println("  Usage: TPCHQuery3 " +
+        "--lineitem <path> --customer <path> --orders <path> [--output <path>]")
       return
     }
+
+    // set up execution environment
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    // make parameters available in the web interface
+    env.getConfig.setGlobalJobParameters(params)
 
     // set filter date
     val dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd")
     val date = dateFormat.parse("1995-03-12")
     
-    // get execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
     // read and filter lineitems by shipDate
-    val lineitems = getLineitemDataSet(env).filter( l => dateFormat.parse(l.shipDate).after(date) )
+    val lineitems =
+      getLineitemDataSet(env, params.get("lineitem")).
+        filter( l => dateFormat.parse(l.shipDate).after(date) )
     // read and filter customers by market segment
-    val customers = getCustomerDataSet(env).filter( c => c.mktSegment.equals("AUTOMOBILE"))
+    val customers =
+      getCustomerDataSet(env, params.get("customer")).
+        filter( c => c.mktSegment.equals("AUTOMOBILE"))
     // read orders
-    val orders = getOrdersDataSet(env)
+    val orders = getOrdersDataSet(env, params.get("order"))
 
                       // filter orders by order date
     val items = orders.filter( o => dateFormat.parse(o.orderDate).before(date) )
@@ -106,11 +121,16 @@ object TPCHQuery3 {
     val result = items.groupBy("orderId", "orderDate", "shipPrio")
                       .aggregate(Aggregations.SUM, "revenue")
 
-    // emit result
-    result.writeAsCsv(outputPath, "\n", "|")
-    
-    // execute program
-    env.execute("Scala TPCH Query 3 Example")
+    if (params.has("output")) {
+      // emit result
+      result.writeAsCsv(params.get("output"), "\n", "|")
+      // execute program
+      env.execute("Scala TPCH Query 3 Example")
+    } else {
+      println("Printing result to stdout. Use --output to specify output path.")
+      result.print()
+    }
+
   }
   
   // *************************************************************************
@@ -126,47 +146,28 @@ object TPCHQuery3 {
   //     UTIL METHODS
   // *************************************************************************
   
-  private var lineitemPath: String = null
-  private var customerPath: String = null
-  private var ordersPath: String = null
-  private var outputPath: String = null
-
-  private def parseParameters(args: Array[String]): Boolean = {
-    if (args.length == 4) {
-      lineitemPath = args(0)
-      customerPath = args(1)
-      ordersPath = args(2)
-      outputPath = args(3)
-      true
-    } else {
-      System.err.println("This program expects data from the TPC-H benchmark as input data.\n" +
-          " Due to legal restrictions, we can not ship generated data.\n" +
-          " You can find the TPC-H data generator at http://www.tpc.org/tpch/.\n" +
-          " Usage: TPCHQuery3 <lineitem-csv path> <customer-csv path>" + 
-                             "<orders-csv path> <result path>")
-      false
-    }
-  }
-  
-  private def getLineitemDataSet(env: ExecutionEnvironment): DataSet[Lineitem] = {
+  private def getLineitemDataSet(env: ExecutionEnvironment, lineitemPath: String):
+                         DataSet[Lineitem] = {
     env.readCsvFile[Lineitem](
         lineitemPath,
         fieldDelimiter = "|",
         includedFields = Array(0, 5, 6, 10) )
   }
 
-  private def getCustomerDataSet(env: ExecutionEnvironment): DataSet[Customer] = {
+  private def getCustomerDataSet(env: ExecutionEnvironment, customerPath: String):
+                         DataSet[Customer] = {
     env.readCsvFile[Customer](
         customerPath,
         fieldDelimiter = "|",
         includedFields = Array(0, 6) )
   }
-  
-  private def getOrdersDataSet(env: ExecutionEnvironment): DataSet[Order] = {
+
+  private def getOrdersDataSet(env: ExecutionEnvironment, ordersPath: String):
+                       DataSet[Order] = {
     env.readCsvFile[Order](
         ordersPath,
         fieldDelimiter = "|",
         includedFields = Array(0, 1, 4, 7) )
   }
-  
+
 }

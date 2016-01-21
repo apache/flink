@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFir
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.relational.util.WebLogData;
 import org.apache.flink.util.Collector;
 
@@ -77,7 +78,7 @@ import org.apache.flink.util.Collector;
  * }</pre>
  * 
  * <p>
- * Usage: <code>WebLogAnalysis &lt;documents path&gt; &lt;ranks path&gt; &lt;visits path&gt; &lt;result path&gt;</code><br>
+ * Usage: <code>WebLogAnalysis --documents &lt;path&gt; --ranks &lt;path&gt; --visits &lt;path&gt; --result &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WebLogData}.
  * 
  * <p>
@@ -98,16 +99,17 @@ public class WebLogAnalysis {
 	
 	public static void main(String[] args) throws Exception {
 		
-		if(!parseParameters(args)) {
-			return;
-		}
+		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		System.out.println("Usage: WebLogAnalysis --documents <path> --ranks <path> --visits <path> --output <path>");
+
+		env.getConfig().setGlobalJobParameters(params);
 
 		// get input data
-		DataSet<Tuple2<String, String>> documents = getDocumentsDataSet(env);
-		DataSet<Tuple3<Integer, String, Integer>> ranks = getRanksDataSet(env);
-		DataSet<Tuple2<String, String>> visits = getVisitsDataSet(env);
+		DataSet<Tuple2<String, String>> documents = getDocumentsDataSet(env, params);
+		DataSet<Tuple3<Integer, String, Integer>> ranks = getRanksDataSet(env, params);
+		DataSet<Tuple2<String, String>> visits = getVisitsDataSet(env, params);
 		
 		// Retain documents with keywords
 		DataSet<Tuple1<String>> filterDocs = documents
@@ -136,11 +138,12 @@ public class WebLogAnalysis {
 								.with(new AntiJoinVisits());
 
 		// emit result
-		if(fileOutput) {
-			result.writeAsCsv(outputPath, "\n", "|");
+		if(params.has("output")) {
+			result.writeAsCsv(params.get("output"), "\n", "|");
 			// execute program
 			env.execute("WebLogAnalysis Example");
 		} else {
+			System.out.println("Printing result to stdout. Use --output to specify output path.");
 			result.print();
 		}
 	}
@@ -259,65 +262,42 @@ public class WebLogAnalysis {
 	//     UTIL METHODS
 	// *************************************************************************
 	
-	private static boolean fileOutput = false;
-	private static String documentsPath;
-	private static String ranksPath;
-	private static String visitsPath;
-	private static String outputPath;
-	
-	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
-			fileOutput = true;
-			if(args.length == 4) {
-				documentsPath = args[0];
-				ranksPath = args[1];
-				visitsPath = args[2];
-				outputPath = args[3];
-			} else {
-				System.err.println("Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
-				return false;
-			}
-		} else {
-			System.out.println("Executing WebLog Analysis example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: WebLogAnalysis <documents path> <ranks path> <visits path> <result path>");
-		}
-		return true;
-	}
-	
-	private static DataSet<Tuple2<String, String>> getDocumentsDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple2<String, String>> getDocumentsDataSet(ExecutionEnvironment env, ParameterTool params) {
 		// Create DataSet for documents relation (URL, Doc-Text)
-		if(fileOutput) {
-			return env.readCsvFile(documentsPath)
+		if(params.has("documents")) {
+			return env.readCsvFile(params.get("documents"))
 						.fieldDelimiter("|")
 						.types(String.class, String.class);
 		} else {
+			System.out.println("Executing WebLogAnalysis example with default documents data set.");
+			System.out.println("Use --documents to specify file input.");
 			return WebLogData.getDocumentDataSet(env);
 		}
 	}
 	
-	private static DataSet<Tuple3<Integer, String, Integer>> getRanksDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple3<Integer, String, Integer>> getRanksDataSet(ExecutionEnvironment env, ParameterTool params) {
 		// Create DataSet for ranks relation (Rank, URL, Avg-Visit-Duration)
-		if(fileOutput) {
-			return env.readCsvFile(ranksPath)
+		if(params.has("ranks")) {
+			return env.readCsvFile(params.get("ranks"))
 						.fieldDelimiter("|")
 						.types(Integer.class, String.class, Integer.class);
 		} else {
+			System.out.println("Executing WebLogAnalysis example with default ranks data set.");
+			System.out.println("Use --ranks to specify file input.");
 			return WebLogData.getRankDataSet(env);
 		}
 	}
 
-	private static DataSet<Tuple2<String, String>> getVisitsDataSet(ExecutionEnvironment env) {
+	private static DataSet<Tuple2<String, String>> getVisitsDataSet(ExecutionEnvironment env, ParameterTool params) {
 		// Create DataSet for visits relation (URL, Date)
-		if(fileOutput) {
-			return env.readCsvFile(visitsPath)
+		if(params.has("visits")) {
+			return env.readCsvFile(params.get("visits"))
 						.fieldDelimiter("|")
 						.includeFields("011000000")
 						.types(String.class, String.class);
 		} else {
+			System.out.println("Executing WebLogAnalysis example with default visits data set.");
+			System.out.println("Use --visits to specify file input.");
 			return WebLogData.getVisitDataSet(env);
 		}
 	}
