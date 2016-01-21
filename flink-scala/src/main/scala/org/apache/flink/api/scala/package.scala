@@ -74,8 +74,11 @@ package object scala {
 
   def getCallLocationName(depth: Int = 3) : String = {
     val st = Thread.currentThread().getStackTrace()
-    if (st.length < depth) "<unknown>"
-    else st(depth).toString
+    if (st.length < depth) {
+      "<unknown>"
+    } else {
+      st(depth).toString
+    }
   }
 
   def createTuple2TypeInformation[T1, T2](
