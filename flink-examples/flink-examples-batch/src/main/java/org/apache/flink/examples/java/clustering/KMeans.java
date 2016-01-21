@@ -299,13 +299,13 @@ public class KMeans {
 	private static int numIterations = 10;
 
 	private static final Option POINTS_PATH_OPTION =
-		new Option("pointsPath").alt("P").help("The path to the input points");
+		new Option("points").alt("P").help("The path to the input points");
 	private static final Option CENTERS_PATH_OPTION =
-		new Option("centersPath").alt("C").help("The path to the input centroids");
+		new Option("centroids").alt("C").help("The path to the input centroids");
 	private static final Option OUTPUT_PATH_OPTION =
-		new Option("outputPath").alt("O").help("The path where the output will be written");
+		new Option("output").alt("O").help("The path where the output will be written");
 	private static final Option NUM_ITERATIONS_OPTION =
-		new Option("numIterations").alt("N").help("The number of iteration performed by the K-Means algorithm");
+		new Option("iterations").alt("I").help("The number of iteration performed by the K-Means algorithm");
 
 	private static boolean parseParameters(final ParameterTool params) throws RequiredParametersException {
 

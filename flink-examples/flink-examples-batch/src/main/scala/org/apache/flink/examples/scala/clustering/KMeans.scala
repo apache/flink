@@ -106,13 +106,13 @@ object KMeans {
   }
 
   private val POINTS_PATH_OPTION: Option =
-    new Option("pointsPath").alt("P").help("The path to the input points")
+    new Option("points").alt("P").help("The path to the input points")
   private val CENTERS_PATH_OPTION: Option =
-    new Option("centersPath").alt("C").help("The path to the input centroids")
+    new Option("centroids").alt("C").help("The path to the input centroids")
   private val OUTPUT_PATH_OPTION: Option =
-    new Option("outputPath").alt("O").help("The path where the output will be written")
+    new Option("output").alt("O").help("The path where the output will be written")
   private val NUM_ITERATIONS_OPTION: Option =
-    new Option("numIterations").alt("N").help("The number of iteration performed by the K-Means algorithm")
+    new Option("iterations").alt("I").help("The number of iteration performed by the K-Means algorithm")
 
   @throws(classOf[RequiredParametersException])
   private def parseParameters(params: ParameterTool): Boolean = {
