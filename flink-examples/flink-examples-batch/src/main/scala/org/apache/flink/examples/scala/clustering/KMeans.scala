@@ -19,6 +19,7 @@ package org.apache.flink.examples.scala.clustering
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
+import org.apache.flink.api.java.utils.{Option, ParameterTool, RequiredParameters, RequiredParametersException}
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.examples.java.clustering.util.KMeansData
@@ -72,7 +73,7 @@ import scala.collection.JavaConverters._
 object KMeans {
 
   def main(args: Array[String]) {
-    if (!parseParameters(args)) {
+    if (!parseParameters(ParameterTool.fromArgs(args))) {
       return
     }
 
@@ -104,36 +105,52 @@ object KMeans {
 
   }
 
-  private def parseParameters(programArguments: Array[String]): Boolean = {
-    if (programArguments.length > 0) {
+  private val POINTS_PATH_OPTION: Option =
+    new Option("pointsPath").alt("P").help("The path to the input points")
+  private val CENTERS_PATH_OPTION: Option =
+    new Option("centersPath").alt("C").help("The path to the input centroids")
+  private val OUTPUT_PATH_OPTION: Option =
+    new Option("outputPath").alt("O").help("The path where the output will be written")
+  private val NUM_ITERATIONS_OPTION: Option =
+    new Option("numIterations").alt("N").help("The number of iteration performed by the K-Means algorithm")
+
+  @throws(classOf[RequiredParametersException])
+  private def parseParameters(params: ParameterTool): Boolean = {
+    val requiredParameters: RequiredParameters = new RequiredParameters
+    var parseStatus: Boolean = false
+    requiredParameters.add(POINTS_PATH_OPTION)
+    requiredParameters.add(CENTERS_PATH_OPTION)
+    requiredParameters.add(OUTPUT_PATH_OPTION)
+    requiredParameters.add(NUM_ITERATIONS_OPTION)
+    try {
+      requiredParameters.applyTo(params)
+      pointsPath = params.get(POINTS_PATH_OPTION.getName)
+      centersPath = params.get(CENTERS_PATH_OPTION.getName)
+      outputPath = params.get(OUTPUT_PATH_OPTION.getName)
+      numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName)
       fileOutput = true
-      if (programArguments.length == 4) {
-        pointsPath = programArguments(0)
-        centersPath = programArguments(1)
-        outputPath = programArguments(2)
-        numIterations = Integer.parseInt(programArguments(3))
-
-        true
-      }
-      else {
-        System.err.println("Usage: KMeans <points path> <centers path> <result path> <num " +
-          "iterations>")
-
-        false
+      parseStatus = true
+    }
+    catch {
+      case e: RequiredParametersException => {
+        if (params.getNumberOfParameters == 0) {
+          printRunWithDefaultParams()
+          parseStatus = true
+        }
+        else {
+          println(requiredParameters.getHelp(e.getMissingArguments))
+        }
       }
     }
-    else {
-      System.out.println("Executing K-Means example with default parameters and built-in default " +
-        "data.")
-      System.out.println("  Provide parameters to read input data from files.")
-      System.out.println("  See the documentation for the correct format of input files.")
-      System.out.println("  We provide a data generator to create synthetic input files for this " +
-        "program.")
-      System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num " +
-        "iterations>")
+    return parseStatus
+  }
 
-      true
-    }
+  private def printRunWithDefaultParams() {
+    println("Executing K-Means example with default parameters and built-in default data.")
+    println("  Provide parameters to read input data from files.")
+    println("  See the documentation for the correct format of input files.")
+    println("  We provide a data generator to create synthetic input files for this program.")
+    println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>")
   }
 
   private def getPointDataSet(env: ExecutionEnvironment): DataSet[Point] = {

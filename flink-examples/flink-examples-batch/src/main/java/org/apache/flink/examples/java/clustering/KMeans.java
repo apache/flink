@@ -20,6 +20,8 @@ package org.apache.flink.examples.java.clustering;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
+import java.util.function.Consumer;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -27,6 +29,10 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.Option;
+import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.api.java.utils.RequiredParameters;
+import org.apache.flink.api.java.utils.RequiredParametersException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.clustering.util.KMeansData;
 import org.apache.flink.api.java.DataSet;
@@ -83,7 +89,7 @@ public class KMeans {
 	
 	public static void main(String[] args) throws Exception {
 		
-		if(!parseParameters(args)) {
+		if(!parseParameters(ParameterTool.fromArgs(args))) {
 			return;
 		}
 	
@@ -291,31 +297,54 @@ public class KMeans {
 	private static String centersPath = null;
 	private static String outputPath = null;
 	private static int numIterations = 10;
-	
-	private static boolean parseParameters(String[] programArguments) {
-		
-		if(programArguments.length > 0) {
-			// parse input arguments
+
+	private static final Option POINTS_PATH_OPTION =
+		new Option("pointsPath").alt("P").help("The path to the input points");
+	private static final Option CENTERS_PATH_OPTION =
+		new Option("centersPath").alt("C").help("The path to the input centroids");
+	private static final Option OUTPUT_PATH_OPTION =
+		new Option("outputPath").alt("O").help("The path where the output will be written");
+	private static final Option NUM_ITERATIONS_OPTION =
+		new Option("numIterations").alt("N").help("The number of iteration performed by the K-Means algorithm");
+
+	private static boolean parseParameters(final ParameterTool params) throws RequiredParametersException {
+
+		final RequiredParameters requiredParameters = new RequiredParameters();
+		boolean parseStatus = false;
+
+		requiredParameters.add(POINTS_PATH_OPTION);
+		requiredParameters.add(CENTERS_PATH_OPTION);
+		requiredParameters.add(OUTPUT_PATH_OPTION);
+		requiredParameters.add(NUM_ITERATIONS_OPTION);
+
+		try {
+			requiredParameters.applyTo(params);
+			pointsPath = params.get(POINTS_PATH_OPTION.getName());
+			centersPath = params.get(CENTERS_PATH_OPTION.getName());
+			outputPath = params.get(OUTPUT_PATH_OPTION.getName());
+			numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName());
 			fileOutput = true;
-			if(programArguments.length == 4) {
-				pointsPath = programArguments[0];
-				centersPath = programArguments[1];
-				outputPath = programArguments[2];
-				numIterations = Integer.parseInt(programArguments[3]);
+			parseStatus = true;
+		} catch (RequiredParametersException e) {
+			if (params.getNumberOfParameters() == 0) {
+				printRunWithDefaultParams();
+				parseStatus = true;
 			} else {
-				System.err.println("Usage: KMeans <points path> <centers path> <result path> <num iterations>");
-				return false;
+				System.out.println(requiredParameters.getHelp(e.getMissingArguments()));
 			}
-		} else {
-			System.out.println("Executing K-Means example with default parameters and built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>");
 		}
-		return true;
+
+		return parseStatus;
 	}
-	
+
+	private static void printRunWithDefaultParams() {
+		System.out.println("Executing K-Means example with default parameters and built-in default data.");
+		System.out.println("  Provide parameters to read input data from files.");
+		System.out.println("  See the documentation for the correct format of input files.");
+		System.out.println("  We provide a data generator to create synthetic input files for this program.");
+		System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num iterations>");
+	}
+
 	private static DataSet<Point> getPointDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
 			// read points from CSV file
