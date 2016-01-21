@@ -104,14 +104,6 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>chill_${scala.binary.version}</artifactId>
-			<version>${chill.version}</version>
-			<!-- For execution, Chill is added to the classpath through flink-runtime. -->
-			<scope>test</scope>
-		</dependency>
 		
 	</dependencies>
 
