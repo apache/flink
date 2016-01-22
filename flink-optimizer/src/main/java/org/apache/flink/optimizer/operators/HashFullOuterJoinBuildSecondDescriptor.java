@@ -29,9 +29,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class HashFullOuterJoinBuildSecondDescriptor extends AbstractJoinDescriptor {
-	public HashFullOuterJoinBuildSecondDescriptor(FieldList keys1, FieldList keys2,
-		boolean repartitionAllowed) {
-		super(keys1, keys2, false, false, repartitionAllowed);
+	public HashFullOuterJoinBuildSecondDescriptor(FieldList keys1, FieldList keys2) {
+		super(keys1, keys2, false, false, true);
 	}
 
 	@Override

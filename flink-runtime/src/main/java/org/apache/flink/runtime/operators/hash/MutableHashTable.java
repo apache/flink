@@ -553,12 +553,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		
 		// While visit the unmatched build elements, the probe element is null, and the unmatchedBuildIterator
 		// would iterate all the unmatched build elements, so we return false during the second calling of this method.
-		if (!this.unmatchedBuildVisited) {
-			this.unmatchedBuildVisited = true;
-			return true;
-		} else {
-			return false;
-		}
+		this.unmatchedBuildVisited = true;
+		return true;
 	}
 	
 	protected boolean prepareNextPartition() throws IOException {
@@ -1719,11 +1715,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			while (true) {
 				BT result = nextInBucket(reuse);
 				if (result == null) {
-					while (!moveToNextBucket()) {
-						// return null while there is no more bucket.
-						if (scanCount >= totalBucketNumber) {
-							return null;
-						}
+					if (!moveToNextOnHeapBucket()) {
+						return null;
 					}
 				} else {
 					return result;
@@ -1736,18 +1729,33 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			while (true) {
 				BT result = nextInBucket();
 				if (result == null) {
-					while (!moveToNextBucket()) {
-						// return null while there is no more bucket.
-						if (scanCount >= totalBucketNumber) {
-							return null;
-						}
+					// return null while there is no more bucket.
+					if (!moveToNextOnHeapBucket()) {
+						return null;
 					}
 				} else {
 					return result;
 				}
 			}
 		}
-	
+
+		/**
+		 * Loop to make sure that it would move to next on heap bucket, return true while move to a on heap bucket,
+		 * return false if there is no more bucket.
+		 */
+		private boolean moveToNextOnHeapBucket() {
+			while (!moveToNextBucket()) {
+				if (scanCount >= totalBucketNumber) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/**
+		 * Move to next bucket, return true while move to a on heap bucket, return false while move to a spilled bucket
+		 * or there is no more bucket.
+		 */
 		private boolean moveToNextBucket() {
 			scanCount++;
 			if (scanCount > totalBucketNumber - 1) {

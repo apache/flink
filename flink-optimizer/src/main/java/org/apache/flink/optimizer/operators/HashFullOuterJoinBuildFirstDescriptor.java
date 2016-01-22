@@ -30,9 +30,8 @@ import java.util.List;
 
 public class HashFullOuterJoinBuildFirstDescriptor extends AbstractJoinDescriptor {
 
-	public HashFullOuterJoinBuildFirstDescriptor(FieldList keys1, FieldList keys2,
-		boolean repartitionAllowed) {
-		super(keys1, keys2, false, false, repartitionAllowed);
+	public HashFullOuterJoinBuildFirstDescriptor(FieldList keys1, FieldList keys2) {
+		super(keys1, keys2, false, false, true);
 	}
 
 	@Override
