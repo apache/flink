@@ -235,7 +235,6 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 
-	// TODO: design buffer join test
 	@Test
 	public void testBufferJoin() throws Exception {
 

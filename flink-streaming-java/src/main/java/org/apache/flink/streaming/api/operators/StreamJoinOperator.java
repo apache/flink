@@ -28,8 +28,6 @@ import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindow
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,7 +37,6 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 		implements TwoInputStreamOperator<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 8650694601687319011L;
-	private static final Logger LOG = LoggerFactory.getLogger(StreamJoinOperator.class);
 
 	private HeapWindowBuffer<IN1> stream1Buffer;
 	private HeapWindowBuffer<IN2> stream2Buffer;
@@ -156,8 +153,6 @@ public class StreamJoinOperator<K, IN1, IN2, OUT>
 	 * @throws Exception
 	 */
 	private void processWatermark(long watermark) throws Exception{
-		System.out.println("Watermark:" + String.valueOf(watermark));
-
 		if(setProcessingTime) {
 			return;
 		}
