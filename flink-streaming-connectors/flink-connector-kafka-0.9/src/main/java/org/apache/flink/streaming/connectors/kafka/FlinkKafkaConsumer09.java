@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -94,6 +95,9 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	private final Properties properties;
 	/** Ordered list of all partitions available in all subscribed partitions **/
 	private final List<KafkaTopicPartition> partitionInfos;
+
+	/** Unique ID identifying the consumer */
+	private final String consumerId;
 
 	// ------  Runtime State  -------
 
@@ -223,6 +227,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		if (LOG.isInfoEnabled()) {
 			logPartitionInfo(partitionInfos);
 		}
+
+		this.consumerId = UUID.randomUUID().toString();
 	}
 
 
@@ -283,7 +289,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				LOG.info("Consumer implementation does not support metrics");
 			} else {
 				for (Map.Entry<MetricName, ? extends Metric> metric : metrics.entrySet()) {
-					String name = "consumer-" + metric.getKey().name();
+					String name = consumerId + "-consumer-" + metric.getKey().name();
 					DefaultKafkaMetricAccumulator kafkaAccumulator = DefaultKafkaMetricAccumulator.createFor(metric.getValue());
 					// best effort: we only add the accumulator if available.
 					if (kafkaAccumulator != null) {

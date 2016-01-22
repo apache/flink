@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 
 /**
@@ -90,6 +91,11 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 	 * User-provided partitioner for assigning an object to a Kafka partition.
 	 */
 	protected final KafkaPartitioner<IN> partitioner;
+
+	/**
+	 * Unique ID identifying the producer
+	 */
+	private final String producerId;
 
 	/**
 	 * Flag indicating whether to accept failures (and log them), or to fail on failures
@@ -155,6 +161,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 		}
 
 		this.partitioner = customPartitioner;
+		this.producerId = UUID.randomUUID().toString();
 	}
 
 	// ---------------------------------- Properties --------------------------
@@ -197,7 +204,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 				LOG.info("Producer implementation does not support metrics");
 			} else {
 				for(Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-					String name = "producer-" + metric.getKey().name();
+					String name = producerId + "-producer-" + metric.getKey().name();
 					DefaultKafkaMetricAccumulator kafkaAccumulator = DefaultKafkaMetricAccumulator.createFor(metric.getValue());
 					// best effort: we only add the accumulator if available.
 					if(kafkaAccumulator != null) {
