@@ -81,6 +81,24 @@ under the License.
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Use com.fasterxml.jackson instead of jettison."/>
 		</module>
+		<!-- Prohibit T.getT() methods for standard boxed types -->
+		<module name="Regexp">
+			<property name="format" value="Boolean\.getBoolean"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use System.getProperties() to get system properties."/>
+		</module>
+
+		<module name="Regexp">
+			<property name="format" value="Integer\.getInteger"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use System.getProperties() to get system properties."/>
+		</module>
+
+		<module name="Regexp">
+			<property name="format" value="Long\.getLong"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use System.getProperties() to get system properties."/>
+		</module>
 
 		<module name="NeedBraces">
 			<property name="tokens" value="LITERAL_IF, LITERAL_ELSE"/>

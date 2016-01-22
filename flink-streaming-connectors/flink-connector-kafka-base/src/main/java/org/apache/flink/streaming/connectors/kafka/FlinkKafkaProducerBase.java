@@ -196,7 +196,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN>  {
 				ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks(), topicId);
 
 		// register Kafka metrics to Flink accumulators
-		if(!Boolean.getBoolean(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
+		if(!Boolean.valueOf(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
 			Map<MetricName, ? extends Metric> metrics = this.producer.metrics();
 
 			if(metrics == null) {
