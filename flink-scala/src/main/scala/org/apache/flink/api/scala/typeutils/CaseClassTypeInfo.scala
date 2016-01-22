@@ -205,7 +205,10 @@ abstract class CaseClassTypeInfo[T <: Product](
     val fieldComparators: ArrayBuffer[TypeComparator[_]] = new ArrayBuffer[TypeComparator[_]]()
     val logicalKeyFields: ArrayBuffer[Int] = new ArrayBuffer[Int]()
 
-    override def initializeTypeComparatorBuilder(size: Int): Unit = {}
+    override def initializeTypeComparatorBuilder(size: Int): Unit = {
+      fieldComparators.sizeHint(size)
+      logicalKeyFields.sizeHint(size)
+    }
 
     override def addComparatorField(fieldId: Int, comparator: TypeComparator[_]): Unit = {
       fieldComparators += comparator

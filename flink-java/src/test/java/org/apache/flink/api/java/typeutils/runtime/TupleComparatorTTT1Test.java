@@ -63,23 +63,7 @@ public class TupleComparatorTTT1Test extends TupleComparatorTestBase<Tuple3<Tupl
 								new DoubleComparator(ascending) },
 								new TypeSerializer[] {
 										StringSerializer.INSTANCE,
-										DoubleSerializer.INSTANCE }),
-						new TupleComparator<Tuple2<Long, Long>>(
-								new int[] { 0, 1 },
-								new TypeComparator[] {
-								new LongComparator(ascending),
-								new LongComparator(ascending) },
-								new TypeSerializer[] {
-										LongSerializer.INSTANCE,
-										LongSerializer.INSTANCE }),
-						new TupleComparator<Tuple2<Integer, Long>>(
-								new int[] {	0, 1 },
-								new TypeComparator[] {
-								new IntComparator(ascending),
-								new LongComparator(ascending) },
-								new TypeSerializer[] {
-										IntSerializer.INSTANCE,
-										LongSerializer.INSTANCE }) },
+										DoubleSerializer.INSTANCE }) },
 				new TypeSerializer[] {
 						new TupleSerializer<Tuple2<String, Double>>(
 								(Class<Tuple2<String, Double>>) (Class<?>) Tuple2.class,
