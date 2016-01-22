@@ -17,9 +17,10 @@
  */
 package org.apache.flink.api.table.typeinfo
 
-import org.apache.flink.api.table.Row
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.typeinfo.NullMaskUtils.{writeNullMask, readIntoNullMask, readIntoAndCopyNullMask}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for [[Row]].
@@ -27,11 +28,16 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
   extends TypeSerializer[Row] {
 
+  private val nullMask = new Array[Boolean](fieldSerializers.length)
+
   override def isImmutableType: Boolean = false
 
   override def getLength: Int = -1
 
-  override def duplicate = this
+  override def duplicate: RowSerializer = {
+    val duplicateFieldSerializers = fieldSerializers.map(_.duplicate())
+    new RowSerializer(duplicateFieldSerializers)
+  }
 
   override def createInstance: Row = {
     new Row(fieldSerializers.length)
@@ -40,15 +46,33 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
   override def copy(from: Row, reuse: Row): Row = {
     val len = fieldSerializers.length
 
-    if (from.productArity != len) {
-      throw new RuntimeException("Row arity of reuse and from do not match.")
+    // cannot reuse, do a non-reuse copy
+    if (reuse == null) {
+      return copy(from)
     }
+
+    if (from.productArity != len || reuse.productArity != len) {
+      throw new RuntimeException("Row arity of reuse or from is incompatible with this " +
+        "RowSerializer.")
+    }
+
     var i = 0
     while (i < len) {
-      val reuseField = reuse.productElement(i)
-      val fromField = from.productElement(i).asInstanceOf[AnyRef]
-      val copy = fieldSerializers(i).copy(fromField, reuseField)
-      reuse.setField(i, copy)
+      val fromField = from.productElement(i)
+      if (fromField != null) {
+        val reuseField = reuse.productElement(i)
+        if (reuseField != null) {
+          val copy = fieldSerializers(i).copy(fromField, reuseField)
+          reuse.setField(i, copy)
+        }
+        else {
+          val copy = fieldSerializers(i).copy(fromField)
+          reuse.setField(i, copy)
+        }
+      }
+      else {
+        reuse.setField(i, null)
+      }
       i += 1
     }
     reuse
@@ -58,14 +82,19 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     val len = fieldSerializers.length
 
     if (from.productArity != len) {
-      throw new RuntimeException("Row arity of reuse and from do not match.")
+      throw new RuntimeException("Row arity of from does not match serializers.")
     }
     val result = new Row(len)
     var i = 0
     while (i < len) {
       val fromField = from.productElement(i).asInstanceOf[AnyRef]
-      val copy = fieldSerializers(i).copy(fromField)
-      result.setField(i, copy)
+      if (fromField != null) {
+        val copy = fieldSerializers(i).copy(fromField)
+        result.setField(i, copy)
+      }
+      else {
+        result.setField(i, null)
+      }
       i += 1
     }
     result
@@ -73,10 +102,22 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
 
   override def serialize(value: Row, target: DataOutputView) {
     val len = fieldSerializers.length
+
+    if (value.productArity != len) {
+      throw new RuntimeException("Row arity of value does not match serializers.")
+    }
+
+    // write a null mask
+    writeNullMask(len, value, target)
+
+    // serialize non-null fields
     var i = 0
     while (i < len) {
-      val serializer = fieldSerializers(i)
-      serializer.serialize(value.productElement(i), target)
+      val o = value.productElement(i).asInstanceOf[AnyRef]
+      if (o != null) {
+        val serializer = fieldSerializers(i)
+        serializer.serialize(value.productElement(i), target)
+      }
       i += 1
     }
   }
@@ -85,13 +126,27 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     val len = fieldSerializers.length
 
     if (reuse.productArity != len) {
-      throw new RuntimeException("Row arity of reuse and fields do not match.")
+      throw new RuntimeException("Row arity of reuse does not match serializers.")
     }
 
+    // read null mask
+    readIntoNullMask(len, source, nullMask)
+
+    // read non-null fields
     var i = 0
     while (i < len) {
-      val field = reuse.productElement(i).asInstanceOf[AnyRef]
-      reuse.setField(i, fieldSerializers(i).deserialize(field, source))
+      if (nullMask(i)) {
+        reuse.setField(i, null)
+      }
+      else {
+        val reuseField = reuse.productElement(i).asInstanceOf[AnyRef]
+        if (reuseField != null) {
+          reuse.setField(i, fieldSerializers(i).deserialize(reuseField, source))
+        }
+        else {
+          reuse.setField(i, fieldSerializers(i).deserialize(source))
+        }
+      }
       i += 1
     }
     reuse
@@ -101,9 +156,19 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     val len = fieldSerializers.length
 
     val result = new Row(len)
+
+    // read null mask
+    readIntoNullMask(len, source, nullMask)
+
+    // read non-null fields
     var i = 0
     while (i < len) {
-      result.setField(i, fieldSerializers(i).deserialize(source))
+      if (nullMask(i)) {
+        result.setField(i, null)
+      }
+      else {
+        result.setField(i, fieldSerializers(i).deserialize(source))
+      }
       i += 1
     }
     result
@@ -111,14 +176,21 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
 
   override def copy(source: DataInputView, target: DataOutputView): Unit = {
     val len = fieldSerializers.length
+
+    // copy null mask
+    readIntoAndCopyNullMask(len, source, target, nullMask)
+
+    // read non-null fields
     var i = 0
     while (i < len) {
-      fieldSerializers(i).copy(source, target)
+      if (!nullMask(i)) {
+        fieldSerializers(i).copy(source, target)
+      }
       i += 1
     }
   }
 
-  override def equals(any: scala.Any): Boolean = {
+  override def equals(any: Any): Boolean = {
     any match {
       case otherRS: RowSerializer =>
         otherRS.canEqual(this) &&
@@ -127,7 +199,7 @@ class RowSerializer(val fieldSerializers: Array[TypeSerializer[Any]])
     }
   }
 
-  override def canEqual(obj: scala.Any): Boolean = {
+  override def canEqual(obj: AnyRef): Boolean = {
     obj.isInstanceOf[RowSerializer]
   }
 
