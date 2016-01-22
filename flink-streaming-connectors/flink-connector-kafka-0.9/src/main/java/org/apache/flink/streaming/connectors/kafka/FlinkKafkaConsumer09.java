@@ -282,7 +282,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		this.consumer.assign(this.subscribedPartitions);
 
 		// register Kafka metrics to Flink accumulators
-		if(!Boolean.getBoolean(properties.getProperty(KEY_DISABLE_METRICS, "false"))) {
+		if(!Boolean.valueOf(properties.getProperty(KEY_DISABLE_METRICS, "false"))) {
 			Map<MetricName, ? extends Metric> metrics = this.consumer.metrics();
 			if(metrics == null) {
 				// MapR's Kafka implementation returns null here.
