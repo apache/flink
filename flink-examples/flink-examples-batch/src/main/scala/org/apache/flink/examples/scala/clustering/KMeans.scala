@@ -19,7 +19,7 @@ package org.apache.flink.examples.scala.clustering
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
-import org.apache.flink.api.java.utils.{Option, ParameterTool, RequiredParameters, RequiredParametersException}
+import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.examples.java.clustering.util.KMeansData
@@ -58,7 +58,7 @@ import scala.collection.JavaConverters._
   *
   * Usage:
   * {{{
-  *   KMeans <points path> <centers path> <result path> <num iterations>
+  *   KMeans --points <path> --centroids <path> --output <path> --iterations <n>
   * }}}
   * If no parameters are provided, the program is run with default data from
   * [[org.apache.flink.examples.java.clustering.util.KMeansData]]
@@ -68,52 +68,58 @@ import scala.collection.JavaConverters._
   *
   * - Bulk iterations
   * - Broadcast variables in bulk iterations
-  * - Custom Java objects (PoJos)
+  * - Custom Scala objects
   */
 object KMeans {
 
   def main(args: Array[String]) {
 
-    // Checking input parameters
+    // checking input parameters
     val params: ParameterTool = ParameterTool.fromArgs(args)
-    val requiredParameters: RequiredParameters = new RequiredParameters
-    var paramsOk: Boolean = false
-
-    requiredParameters.add(POINTS_PATH_OPTION)
-    requiredParameters.add(CENTERS_PATH_OPTION)
-    requiredParameters.add(OUTPUT_PATH_OPTION)
-    requiredParameters.add(NUM_ITERATIONS_OPTION)
-
-    try {
-      requiredParameters.applyTo(params)
-      pointsPath = params.get(POINTS_PATH_OPTION.getName)
-      centersPath = params.get(CENTERS_PATH_OPTION.getName)
-      outputPath = params.get(OUTPUT_PATH_OPTION.getName)
-      numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName)
-      fileOutput = true
-      paramsOk = true
-    } catch {
-      case e: RequiredParametersException =>
-        if (params.getNumberOfParameters == 0) {
-          println("Executing K-Means example with default parameters and built-in default data.")
-          println("  Provide parameters to read input data from files.")
-          println("  See the documentation for the correct format of input files.")
-          println("  We provide a data generator to create synthetic input files for this program.")
-          paramsOk = true
-        }
-        println(requiredParameters.getHelp(e.getMissingArguments))
+    if (params.getNumberOfParameters < 4) {
+      println("Executing K-Means example with default parameters and built-in default data.")
+      println("  Provide parameters to read input data from files.")
+      println("  See the documentation for the correct format of input files.")
+      println("  We provide a data generator to create synthetic input files for this program.")
+      println("  Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>")
     }
 
-    if (!paramsOk) {
-      return
+    // set up execution environment
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+
+    // get input data:
+    // points
+    var points: DataSet[Point] = null
+    if (params.has("points")) {
+      points =
+        env.readCsvFile[(Double, Double)](
+          params.get("points"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1))
+          .map { x => new Point(x._1, x._2) }
+    } else {
+      env.fromCollection(KMeansData.POINTS map {
+        case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
+      })
     }
 
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    // centroids
+    var centroids: DataSet[KMeans.Centroid] = null
+    if (params.has("centroids")) {
+      centroids =
+        env.readCsvFile[(Int, Double, Double)](
+          params.get("centroids"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1, 2))
+          .map { x => new Centroid(x._1, x._2, x._3) }
+    } else {
+      centroids = env.fromCollection(KMeansData.CENTROIDS map {
+        case Array(id, x, y) =>
+          new Centroid(id.asInstanceOf[Int], x.asInstanceOf[Double], y.asInstanceOf[Double])
+      })
+    }
 
-    val points: DataSet[Point] = getPointDataSet(env)
-    val centroids: DataSet[Centroid] = getCentroidDataSet(env)
-
-    val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
+    val finalCentroids = centroids.iterate(params.getInt("iterations", 10)) { currentCentroids =>
       val newCentroids = points
         .map(new SelectNearestCenter).withBroadcastSet(currentCentroids, "centroids")
         .map { x => (x._1, x._2, 1L) }.withForwardedFields("_1; _2")
@@ -126,106 +132,19 @@ object KMeans {
     val clusteredPoints: DataSet[(Int, Point)] =
       points.map(new SelectNearestCenter).withBroadcastSet(finalCentroids, "centroids")
 
-    if (fileOutput) {
-      clusteredPoints.writeAsCsv(outputPath, "\n", " ")
+    if (params.has("output")) {
+      clusteredPoints.writeAsCsv(params.get("output"), "\n", " ")
       env.execute("Scala KMeans Example")
-    }
-    else {
+    } else {
       clusteredPoints.print()
     }
 
   }
 
-  private val POINTS_PATH_OPTION: Option =
-    new Option("points").alt("P").help("The path to the input points")
-  private val CENTERS_PATH_OPTION: Option =
-    new Option("centroids").alt("C").help("The path to the input centroids")
-  private val OUTPUT_PATH_OPTION: Option =
-    new Option("output").alt("O").help("The path where the output will be written")
-  private val NUM_ITERATIONS_OPTION: Option =
-    new Option("iterations").alt("I").help("The number of iteration performed by the K-Means algorithm")
-
-  @throws(classOf[RequiredParametersException])
-  private def parseParameters(params: ParameterTool): Boolean = {
-    val requiredParameters: RequiredParameters = new RequiredParameters
-    var parseStatus: Boolean = false
-    requiredParameters.add(POINTS_PATH_OPTION)
-    requiredParameters.add(CENTERS_PATH_OPTION)
-    requiredParameters.add(OUTPUT_PATH_OPTION)
-    requiredParameters.add(NUM_ITERATIONS_OPTION)
-    try {
-      requiredParameters.applyTo(params)
-      pointsPath = params.get(POINTS_PATH_OPTION.getName)
-      centersPath = params.get(CENTERS_PATH_OPTION.getName)
-      outputPath = params.get(OUTPUT_PATH_OPTION.getName)
-      numIterations = params.getInt(NUM_ITERATIONS_OPTION.getName)
-      fileOutput = true
-      parseStatus = true
-    } catch {
-      case e: RequiredParametersException => {
-        if (params.getNumberOfParameters == 0) {
-          printRunWithDefaultParams()
-          parseStatus = true
-        }
-        println(requiredParameters.getHelp(e.getMissingArguments))
-      }
-    }
-    parseStatus
-  }
-
-  private def printRunWithDefaultParams() {
-    println("Executing K-Means example with default parameters and built-in default data.")
-    println("  Provide parameters to read input data from files.")
-    println("  See the documentation for the correct format of input files.")
-    println("  We provide a data generator to create synthetic input files for this program.")
-  }
-
-  private def getPointDataSet(env: ExecutionEnvironment): DataSet[Point] = {
-    if (fileOutput) {
-      env.readCsvFile[(Double, Double)](
-        pointsPath,
-        fieldDelimiter = " ",
-        includedFields = Array(0, 1))
-        .map { x => new Point(x._1, x._2)}
-    }
-    else {
-      val points = KMeansData.POINTS map {
-        case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
-      }
-      env.fromCollection(points)
-    }
-  }
-
-  private def getCentroidDataSet(env: ExecutionEnvironment): DataSet[Centroid] = {
-    if (fileOutput) {
-      env.readCsvFile[(Int, Double, Double)](
-        centersPath,
-        fieldDelimiter = " ",
-        includedFields = Array(0, 1, 2))
-        .map { x => new Centroid(x._1, x._2, x._3)}
-    }
-    else {
-      val centroids = KMeansData.CENTROIDS map {
-        case Array(id, x, y) =>
-          new Centroid(id.asInstanceOf[Int], x.asInstanceOf[Double], y.asInstanceOf[Double])
-      }
-      env.fromCollection(centroids)
-    }
-  }
-
-  private var fileOutput: Boolean = false
-  private var pointsPath: String = null
-  private var centersPath: String = null
-  private var outputPath: String = null
-  private var numIterations: Int = 10
-
   /**
-   * A simple two-dimensional point.
-   */
-  class Point(var x: Double, var y: Double) extends Serializable {
-    def this() {
-      this(0, 0)
-    }
+    * A simple two-dimensional point.
+    */
+  class Point(var x: Double = 0, var y: Double = 0) extends Serializable {
 
     def add(other: Point): Point = {
       x += other.x
@@ -254,12 +173,9 @@ object KMeans {
   }
 
   /**
-   * A simple two-dimensional centroid, basically a point with an ID.
-   */
-  class Centroid(var id: Int, x: Double, y: Double) extends Point(x, y) {
-    def this() {
-      this(0, 0, 0)
-    }
+    * A simple two-dimensional centroid, basically a point with an ID.
+    */
+  class Centroid(var id: Int = 0, x: Double = 0, y: Double = 0) extends Point(x, y) {
 
     def this(id: Int, p: Point) {
       this(id, p.x, p.y)
@@ -294,6 +210,7 @@ object KMeans {
     }
 
   }
+
 }
 
 
