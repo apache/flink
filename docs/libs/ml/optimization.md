@@ -310,7 +310,7 @@ Where:
         <td>
           <p>
             The step size is constant throughout the learning task.
-          </p>
+          </p> 
         </td>
         <td class="text-center">$\eta_j = \eta_0$</td>
         <td class="text-center"><code>LearningRateMethod.Constant</code></td>
