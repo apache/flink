@@ -137,11 +137,6 @@ abstract class IterativeSolver() extends Solver {
     parameters.add(LearningRateMethodValue, learningRateMethod)
     this
   }
-
-  def setDecay(decay: Double): this.type = {
-    parameters.add(Decay, decay)
-    this
-  }
 }
 
 object IterativeSolver {
@@ -164,10 +159,6 @@ object IterativeSolver {
   case object LearningRateMethodValue extends Parameter[LearningRateMethodTrait] {
     val defaultValue = Some(LearningRateMethod.Default)
   }
-
-  case object Decay extends Parameter[Double] {
-    val defaultValue = Some(0.0)
-  }
 }
 
 object LearningRateMethod {
@@ -176,8 +167,7 @@ object LearningRateMethod {
     def calculateLearningRate(
       initialLearningRate: Double,
       iteration: Int,
-      regularizationConstant: Double,
-      decay: Double)
+      regularizationConstant: Double)
     : Double
   }
 
@@ -185,8 +175,7 @@ object LearningRateMethod {
     override def calculateLearningRate(
       initialLearningRate: Double,
       iteration: Int,
-      regularizationConstant: Double,
-      decay: Double)
+      regularizationConstant: Double)
     : Double = {
       initialLearningRate / Math.sqrt(iteration)
     }
@@ -196,43 +185,37 @@ object LearningRateMethod {
     override def calculateLearningRate(
       initialLearningRate: Double,
       iteration: Int,
-      regularizationConstant: Double,
-      decay: Double)
+      regularizationConstant: Double)
     : Double = {
       initialLearningRate
     }
   }
 
-  object Bottou extends LearningRateMethodTrait {
+  case class Bottou(optimalInit: Double) extends LearningRateMethodTrait {
     override def calculateLearningRate(
       initialLearningRate: Double,
       iteration: Int,
-      regularizationConstant: Double,
-      decay: Double)
+      regularizationConstant: Double)
     : Double = {
-      1 /
-        (regularizationConstant *
-          (1 / (initialLearningRate * regularizationConstant) + iteration - 1))
+      1 / (regularizationConstant * (optimalInit + iteration - 1))
     }
   }
 
-  object InvScaling extends LearningRateMethodTrait {
+  case class InvScaling(decay: Double) extends LearningRateMethodTrait {
     override def calculateLearningRate(
       initialLearningRate: Double,
       iteration: Int,
-      regularizationConstant: Double,
-      decay: Double)
+      regularizationConstant: Double)
     : Double = {
-      1 / Math.pow(iteration, decay)
+      initialLearningRate / Math.pow(iteration, decay)
     }
   }
 
-  object Xu extends LearningRateMethodTrait {
+  case class Xu(decay: Double) extends LearningRateMethodTrait {
     override def calculateLearningRate(
       initialLearningRate: Double,
       iteration: Int,
-      regularizationConstant: Double,
-      decay: Double)
+      regularizationConstant: Double)
     : Double = {
       initialLearningRate *
         Math.pow(1 + regularizationConstant * initialLearningRate * iteration, -decay)

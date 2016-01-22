@@ -67,7 +67,6 @@ abstract class GradientDescent extends IterativeSolver {
     val learningRate = parameters(LearningRate)
     val regularizationConstant = parameters(RegularizationConstant)
     val learningRateMethod = parameters(LearningRateMethodValue)
-    val decay = parameters(Decay)
     // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = createInitialWeightsDS(initialWeights, data)
 
@@ -82,8 +81,7 @@ abstract class GradientDescent extends IterativeSolver {
           regularizationConstant,
           learningRate,
           lossFunction,
-          learningRateMethod,
-          decay)
+          learningRateMethod)
       case Some(convergence) =>
         optimizeWithConvergenceCriterion(
           data,
@@ -93,9 +91,7 @@ abstract class GradientDescent extends IterativeSolver {
           learningRate,
           convergence,
           lossFunction,
-          learningRateMethod,
-          decay
-        )
+          learningRateMethod)
     }
   }
 
@@ -107,8 +103,7 @@ abstract class GradientDescent extends IterativeSolver {
       learningRate: Double,
       convergenceThreshold: Double,
       lossFunction: LossFunction,
-      learningRateMethod: LearningRateMethodTrait,
-      decay: Double)
+      learningRateMethod: LearningRateMethodTrait)
     : DataSet[WeightVector] = {
     // We have to calculate for each weight vector the sum of squared residuals,
     // and then sum them and apply regularization
@@ -132,8 +127,7 @@ abstract class GradientDescent extends IterativeSolver {
           lossFunction,
           regularizationConstant,
           learningRate,
-          learningRateMethod,
-          decay)
+          learningRateMethod)
 
         val currentLossSumDS = calculateLoss(dataPoints, currentWeightsDS, lossFunction)
 
@@ -163,8 +157,7 @@ abstract class GradientDescent extends IterativeSolver {
       regularizationConstant: Double,
       learningRate: Double,
       lossFunction: LossFunction,
-      optimizationMethod: LearningRateMethodTrait,
-      decay: Double)
+      optimizationMethod: LearningRateMethodTrait)
     : DataSet[WeightVector] = {
     initialWeightsDS.iterate(numberOfIterations) {
       weightVectorDS => {
@@ -173,8 +166,7 @@ abstract class GradientDescent extends IterativeSolver {
                 lossFunction,
                 regularizationConstant,
                 learningRate,
-                optimizationMethod,
-                decay)
+                optimizationMethod)
       }
     }
   }
@@ -191,8 +183,7 @@ abstract class GradientDescent extends IterativeSolver {
     lossFunction: LossFunction,
     regularizationConstant: Double,
     learningRate: Double,
-    learningRateMethod: LearningRateMethodTrait,
-    decay: Double)
+    learningRateMethod: LearningRateMethodTrait)
   : DataSet[WeightVector] = {
 
     data.mapWithBcVariable(currentWeights){
@@ -217,8 +208,7 @@ abstract class GradientDescent extends IterativeSolver {
         val effectiveLearningRate = learningRateMethod.calculateLearningRate(
           learningRate,
           iteration,
-          regularizationConstant,
-          decay)
+          regularizationConstant)
 
         val newWeights = takeStep(
           weightVector.weights,

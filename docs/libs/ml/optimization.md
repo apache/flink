@@ -191,10 +191,10 @@ The following list contains a mapping between the implementing classes and the r
         </td>
       </tr>
       <tr>
-        <td><strong>OptimizationMethod</strong></td>
+        <td><strong>LearningRateMethod</strong></td>
         <td>
           <p>
-            (Default value: <strong>"default"</strong>)
+            (Default value: <strong>LearningRateMethod.Default</strong>)
           </p>
         </td>
       </tr>
@@ -202,7 +202,6 @@ The following list contains a mapping between the implementing classes and the r
         <td><strong>Decay</strong></td>
         <td>
           <p>
-
             (Default value: <strong>0.0</strong>)
           </p>
         </td>
@@ -322,10 +321,13 @@ Where:
         <td><strong>Leon Bottou's Method</strong></td>
         <td>
           <p>
-            This is the <code>'optimal'</code> method of sklearn.  Chooses optimal initial $t_0 = \lambda \cdot eta_0$, based on Leon Bottou's <a href="http://leon.bottou.org/slides/largescale/lstut.pdf">Learning with Large Data Sets</a>
+            This is the <code>'optimal'</code> method of sklearn. 
+            The optimal initial value $t_0$ has to be provided.
+            Sklearn uses the following heuristic: $t_0 = \max(1.0, L^\prime(-\beta, 1.0) / (\alpha \cdot \beta)$
+            with $\beta = \sqrt{\frac{1}{\sqrt{\alpha}}}$ and $L^\prime(prediction, truth)$ being the derivative of the loss function. 
           </p>
         </td>
-        <td class="text-center">$\eta_j = 1 / (\lambda \cdot (\frac{1}{\lambda \cdot eta_0) } +j -1) $</td>
+        <td class="text-center">$\eta_j = 1 / (\lambda \cdot (t_0 + j -1)) $</td>
         <td class="text-center"><code>LearningRateMethod.Bottou</code></td>
       </tr>
       <tr>
@@ -335,7 +337,7 @@ Where:
             A very common method for determining the step size.
           </p>
         </td>
-        <td class="text-center">$\eta_j = \lambda / j^{\tau}$</td>
+        <td class="text-center">$\eta_j = \eta_0 / j^{\tau}$</td>
         <td class="text-center"><code>LearningRateMethod.InvScaling</code></td>
       </tr>
       <tr>
@@ -346,7 +348,7 @@ Where:
             Averaged Stochastic Gradient Descent</a>
           </p>
         </td>
-        <td class="text-center">$\eta_j = \lambda \cdot (1+ \lambda \cdot \eta_0 \cdot j)^{-\tau} $</td>
+        <td class="text-center">$\eta_j = \eta_0 \cdot (1+ \lambda \cdot \eta_0 \cdot j)^{-\tau} $</td>
         <td class="text-center"><code>LearningRateMethod.Xu</code></td>
       </tr>
     </tbody>
@@ -372,8 +374,7 @@ val sgd = GradientDescentL1()
   .setRegularizationConstant(0.2)
   .setIterations(100)
   .setLearningRate(0.01)
-  .setOptimizationMethod("xu")
-  .setDecay(-0.75)
+  .setLearningRateMethod(LearningRateMethod.Xu(-0.75))
 
 
 // Obtain data
