@@ -20,14 +20,22 @@ package org.apache.flink.api.common.distributions;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.Key;
 
 
 public class UniformDoubleDistribution implements DataDistribution {
 
 	private static final long serialVersionUID = 1L;
+
+	private int[] keyPositions;
+
+	private Class<? extends Key>[] keyTypes;
+
+	private Order[] keyOrders;
 	
 	private double min, max; 
 
@@ -60,5 +68,20 @@ public class UniformDoubleDistribution implements DataDistribution {
 	public void read(DataInputView in) throws IOException {
 		min = in.readDouble();
 		max = in.readDouble();
+	}
+
+	@Override
+	public int[] getBoundaryKeyPositions() {
+		return keyPositions;
+	}
+
+	@Override
+	public Class<? extends Key<?>>[] getBoundaryKeyTypes() {
+		return keyTypes;
+	}
+
+	@Override
+	public Order[] getBoundaryKeyOrders() {
+		return keyOrders;
 	}
 }

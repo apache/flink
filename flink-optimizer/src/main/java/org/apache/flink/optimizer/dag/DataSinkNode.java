@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Ordering;
@@ -141,6 +142,16 @@ public class DataSinkNode extends OptimizerNode {
 
 		{
 			final RequestedGlobalProperties partitioningProps = new RequestedGlobalProperties();
+			final Ordering partitioning = getOperator().getPartitionOrdering();
+			final DataDistribution dataDist = getOperator().getDataDistribution();
+			if (partitioning != null) {
+				if (dataDist != null) {
+					partitioningProps.setRangePartitioned(partitioning, dataDist);
+				} else {
+					partitioningProps.setRangePartitioned(partitioning);
+				}
+				iProps.addGlobalProperties(partitioningProps);
+			}
 			iProps.addGlobalProperties(partitioningProps);
 		}
 

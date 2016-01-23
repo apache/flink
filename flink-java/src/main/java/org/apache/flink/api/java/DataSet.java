@@ -22,6 +22,8 @@ import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.distributions.ManualDistribution;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
@@ -33,7 +35,9 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
@@ -1253,9 +1257,11 @@ public abstract class DataSet<T> {
 	 * @param fields The field indexes on which the DataSet is range-partitioned.
 	 * @return The partitioned DataSet.
 	 */
-	public PartitionOperator<T> partitionByRange(int... fields) {
+	public PartitionOperator<T> partitionByRange(DataDistribution datadistribution, int... fields) {
+		new ManualDistribution().setDistribution(datadistribution);
 		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, getType(), false), Utils.getCallLocationName());
 	}
+	
 
 	/**
 	 * Range-partitions a DataSet on the specified key fields.
@@ -1266,7 +1272,8 @@ public abstract class DataSet<T> {
 	 * @param fields The field expressions on which the DataSet is range-partitioned.
 	 * @return The partitioned DataSet.
 	 */
-	public PartitionOperator<T> partitionByRange(String... fields) {
+	public PartitionOperator<T> partitionByRange(DataDistribution dataDistribution, String... fields) {
+		new ManualDistribution().setDistribution(dataDistribution);
 		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 
@@ -1281,8 +1288,9 @@ public abstract class DataSet<T> {
 	 *
 	 * @see KeySelector
 	 */
-	public <K extends Comparable<K>> PartitionOperator<T> partitionByRange(KeySelector<T, K> keyExtractor) {
+	public <K extends Comparable<K>> PartitionOperator<T> partitionByRange(DataDistribution dataDistribution, KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		new ManualDistribution().setDistribution(dataDistribution);
 		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.SelectorFunctionKeys<>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
 	}
 

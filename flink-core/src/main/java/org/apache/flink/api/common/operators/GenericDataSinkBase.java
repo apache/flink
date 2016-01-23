@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.Comparator;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.distributions.ManualDistribution;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.io.RichOutputFormat;
@@ -51,6 +53,10 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	protected Operator<IN> input = null;
 
 	private Ordering localOrdering;
+	
+	private Ordering partitionOrdering;
+	
+	private static DataDistribution distribution;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -176,6 +182,31 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 		this.localOrdering = localOrder;
 	}
 
+	public Ordering getPartitionOrdering() {
+		return this.partitionOrdering;
+	}
+	
+	public void setGlobalOrder(Ordering globalOrder) {
+		this.localOrdering = globalOrder;
+		setRangePartitioned(globalOrder);
+	}
+	public void setGlobalOrder(Ordering globalOrder, DataDistribution distribution) {
+		this.localOrdering = globalOrder;
+		setRangePartitioned(globalOrder, distribution);
+	}
+	
+	public void setRangePartitioned(Ordering partitionOrdering) {
+		setRangePartitioned(partitionOrdering, null);
+	}
+	
+	public void setRangePartitioned(Ordering partitionOrdering, DataDistribution distribution) {
+		this.partitionOrdering = partitionOrdering;
+		this.distribution = distribution;
+	}
+
+	public DataDistribution getDataDistribution() {
+		return new ManualDistribution().getDistribution();
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
