@@ -43,15 +43,15 @@ import scala.collection.mutable.PriorityQueue
  * @param maxPerBox threshold for number of points in each box before slitting a box
  */
 class QuadTree(
-                minVec: Vector,
-                maxVec: Vector,
-                distMetric: DistanceMetric,
-                maxPerBox: Int) {
+  minVec: Vector,
+  maxVec: Vector,
+  distMetric: DistanceMetric,
+  maxPerBox: Int) {
 
   class Node(
-              center: Vector,
-              width: Vector,
-              var children: Seq[Node]) {
+    center: Vector,
+    width: Vector,
+    var children: Seq[Node]) {
 
     val nodeElements = new ListBuffer[Vector]
 
@@ -74,8 +74,8 @@ class QuadTree(
       * @return
       */
     def overlap(
-                 queryPoint: Vector,
-                 radius: Double): Boolean = {
+      queryPoint: Vector,
+      radius: Double): Boolean = {
       val count = (0 until queryPoint.size).filter { i =>
         (queryPoint(i) - radius < center(i) + width(i) / 2) &&
           (queryPoint(i) + radius > center(i) - width(i) / 2)
@@ -91,8 +91,8 @@ class QuadTree(
       * @return
       */
     def isNear(
-                queryPoint: Vector,
-                radius: Double): Boolean = {
+      queryPoint: Vector,
+      radius: Double): Boolean = {
       minDist(queryPoint) < radius
     }
 
@@ -157,11 +157,11 @@ class QuadTree(
      * @return
      */
     def partitionBox(
-                      center: Vector,
-                      width: Vector): Seq[Vector] = {
+      center: Vector,
+      width: Vector): Seq[Vector] = {
       def partitionHelper(
-                           box: Seq[Vector],
-                           dim: Int): Seq[Vector] = {
+        box: Seq[Vector],
+        dim: Int): Seq[Vector] = {
         if (dim >= width.size) {
           box
         } else {
@@ -210,8 +210,8 @@ class QuadTree(
   }
 
   private def insertRecur(
-                           queryPoint: Vector,
-                           node: Node) {
+    queryPoint: Vector,
+    node: Node) {
     if (node.children == null) {
       if (node.nodeElements.length < maxPerBox) {
         node.nodeElements += queryPoint
@@ -272,9 +272,9 @@ class QuadTree(
    *                  distance to node as defined by minDist
    */
   private def searchRecurSiblingQueue(
-                                       queryPoint: Vector,
-                                       node: Node,
-                                       nodeQueue: PriorityQueue[(Double, Node)]) {
+    queryPoint: Vector,
+    node: Node,
+    nodeQueue: PriorityQueue[(Double, Node)]) {
     if (node.children != null) {
       for (child <- node.children; if child.contains(queryPoint)) {
         if (child.children == null) {
@@ -296,9 +296,9 @@ class QuadTree(
    * @param nodeQueue PriorityQueue that stores all points in minimal bounding box of queryPoint
    */
   private def minNodes(
-                        queryPoint: Vector,
-                        node: Node,
-                        nodeQueue: PriorityQueue[(Double, Node)]) {
+    queryPoint: Vector,
+    node: Node,
+    nodeQueue: PriorityQueue[(Double, Node)]) {
     if (node.children == null) {
       nodeQueue += ((-node.minDist(queryPoint), node))
     } else {
@@ -321,18 +321,18 @@ class QuadTree(
     * @return all points within queryPoint with given radius
     */
   def searchNeighbors(
-                       queryPoint: Vector,
-                       radius: Double): ListBuffer[Vector] = {
+    queryPoint: Vector,
+    radius: Double): ListBuffer[Vector] = {
     val ret = new ListBuffer[Vector]
     searchRecur(queryPoint, radius, root, ret)
     ret
   }
 
   private def searchRecur(
-                           queryPoint: Vector,
-                           radius: Double,
-                           node: Node,
-                           ret: ListBuffer[Vector]) {
+    queryPoint: Vector,
+    radius: Double,
+    node: Node,
+    ret: ListBuffer[Vector]) {
     if (node.children == null) {
       ret ++= node.nodeElements
     } else {

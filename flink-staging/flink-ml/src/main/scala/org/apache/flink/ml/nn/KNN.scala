@@ -20,7 +20,8 @@ package org.apache.flink.ml.nn
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.utils._
+import org.apache.flink.api.scala.DataSetUtils._
+//import org.apache.flink.api.scala.utils._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.common._
 import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector}
@@ -28,6 +29,7 @@ import org.apache.flink.ml.metrics.distances.{SquaredEuclideanDistanceMetric,
 DistanceMetric, EuclideanDistanceMetric}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictDataSetOperation, Predictor}
 import org.apache.flink.util.Collector
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 
 import org.apache.flink.ml.nn.util.QuadTree
 
@@ -42,17 +44,17 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  *      val trainingDS: DataSet[Vector] = ...
-  *      val testingDS: DataSet[Vector] = ...
+  *       val trainingDS: DataSet[Vector] = ...
+  *       val testingDS: DataSet[Vector] = ...
   *
-  *      val knn = KNN()
-  *        .setK(10)
-  *        .setBlocks(5)
-  *        .setDistanceMetric(EuclideanDistanceMetric())
+  *       val knn = KNN()
+  *         .setK(10)
+  *         .setBlocks(5)
+  *         .setDistanceMetric(EuclideanDistanceMetric())
   *
-  *      knn.fit(trainingDS)
+  *       knn.fit(trainingDS)
   *
-  *      val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
+  *       val predictionDS: DataSet[(Vector, Array[Vector])] = knn.predict(testingDS)
   * }}}
   *
   * =Parameters=
@@ -112,6 +114,16 @@ class KNN extends Predictor[KNN] {
     this
   }
 
+  /**
+   * Parameter a user can specify if one of the training or test sets are small
+   * @param sizeHint
+   * @return
+   */
+  def setSizeHint(sizeHint: CrossHint): KNN = {
+    parameters.add(SizeHint, sizeHint)
+    this
+  }
+
 }
 
 object KNN {
@@ -132,6 +144,9 @@ object KNN {
     val defaultValue: Option[Boolean] = None
   }
 
+  case object SizeHint extends Parameter[CrossHint] {
+    val defaultValue: Option[CrossHint] = None
+  }
 
   def apply(): KNN = {
     new KNN()
@@ -142,9 +157,9 @@ object KNN {
     */
   implicit def fitKNN[T <: FlinkVector : TypeInformation] = new FitOperation[KNN, T] {
     override def fit(
-                      instance: KNN,
-                      fitParameters: ParameterMap,
-                      input: DataSet[T]): Unit = {
+      instance: KNN,
+      fitParameters: ParameterMap,
+      input: DataSet[T]): Unit = {
       val resultParameters = instance.parameters ++ fitParameters
 
       require(resultParameters.get(K).isDefined, "K is needed for calculation")
@@ -165,10 +180,10 @@ object KNN {
   implicit def predictValues[T <: FlinkVector : ClassTag : TypeInformation] = {
     new PredictDataSetOperation[KNN, T, (FlinkVector, Array[FlinkVector])] {
       override def predictDataSet(
-                                   instance: KNN,
-                                   predictParameters: ParameterMap,
-                                   input: DataSet[T]): DataSet[(FlinkVector,
-                                    Array[FlinkVector])] = {
+        instance: KNN,
+        predictParameters: ParameterMap,
+        input: DataSet[T]): DataSet[(FlinkVector,
+        Array[FlinkVector])] = {
         val resultParameters = instance.parameters ++ predictParameters
 
         instance.trainingSet match {
@@ -184,8 +199,18 @@ object KNN {
             // split data into multiple blocks
             val inputSplit = FlinkMLTools.block(inputWithId, blocks, Some(partitioner))
 
+            val sizeHint = resultParameters.get(SizeHint).get
+            val crossTuned = sizeHint match {
+              case Some(hint) if hint == CrossHint.FIRST_IS_SMALL =>
+                trainingSet.crossWithHuge(inputSplit)
+              case Some(hint) if hint == CrossHint.SECOND_IS_SMALL =>
+                trainingSet.crossWithTiny(inputSplit)
+              case _ => trainingSet.cross(inputSplit)
+            }
+
             // join input and training set
-            val crossed = trainingSet.cross(inputSplit).mapPartition {
+        //    val crossed = trainingSet.cross(inputSplit).mapPartition {
+            val crossed = crossTuned.mapPartition {
               (iter, out: Collector[(FlinkVector, FlinkVector, Long, Double)]) => {
                 for ((training, testing) <- iter) {
                   val queue = mutable.PriorityQueue[(FlinkVector, FlinkVector, Long, Double)]()(
@@ -236,13 +261,13 @@ object KNN {
   }
 
   def knnQueryWithQuadTree[T <: FlinkVector](
-                                              training: Vector[T],
-                                              testing: Vector[(Long, T)],
-                                              k: Int, metric: DistanceMetric,
-                                              queue: mutable.PriorityQueue[(FlinkVector,
-                                                FlinkVector, Long, Double)],
-                                              out: Collector[(FlinkVector,
-                                                FlinkVector, Long, Double)]) {
+    training: Vector[T],
+    testing: Vector[(Long, T)],
+    k: Int, metric: DistanceMetric,
+    queue: mutable.PriorityQueue[(FlinkVector,
+      FlinkVector, Long, Double)],
+    out: Collector[(FlinkVector,
+      FlinkVector, Long, Double)]) {
     /// find a bounding box
     val MinArr = Array.tabulate(training.head.size)(x => x)
     val MaxArr = Array.tabulate(training.head.size)(x => x)
@@ -291,12 +316,12 @@ object KNN {
   }
 
   def knnQueryBasic[T <: FlinkVector](
-                                       training: Vector[T],
-                                       testing: Vector[(Long, T)],
-                                       k: Int, metric: DistanceMetric,
-                                       queue: mutable.PriorityQueue[(FlinkVector,
-                                         FlinkVector, Long, Double)],
-                                       out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
+    training: Vector[T],
+    testing: Vector[(Long, T)],
+    k: Int, metric: DistanceMetric,
+    queue: mutable.PriorityQueue[(FlinkVector,
+      FlinkVector, Long, Double)],
+    out: Collector[(FlinkVector, FlinkVector, Long, Double)]) {
 
     for ((id, vector) <- testing) {
       for (b <- training) {
