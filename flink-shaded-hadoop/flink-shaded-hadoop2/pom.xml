@@ -68,10 +68,7 @@ under the License.
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
+
 				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
@@ -79,10 +76,6 @@ under the License.
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -185,20 +178,12 @@ under the License.
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -301,10 +286,6 @@ under the License.
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
 				</exclusion>
@@ -323,10 +304,6 @@ under the License.
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -429,10 +406,6 @@ under the License.
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
 				</exclusion>
@@ -451,10 +424,6 @@ under the License.
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -557,10 +526,6 @@ under the License.
 					<artifactId>jsp-2.1</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.eclipse.jdt</groupId>
 					<artifactId>core</artifactId>
 				</exclusion>
@@ -579,10 +544,6 @@ under the License.
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
