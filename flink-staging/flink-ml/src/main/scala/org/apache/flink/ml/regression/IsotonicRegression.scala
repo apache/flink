@@ -199,8 +199,7 @@ object IsotonicRegression {
                 self.model match {
                     case Some(model) => model
                     case None => throw new RuntimeException("The IsotonicRegression has not " +
-                        "been " +
-                        "fitted to the data. This is necessary to learn the model.")
+                        "been fitted to the data. This is necessary to learn the model.")
                 }
 
             override def predict(value: Double, model: IsotonicRegressionModel): Double = {
