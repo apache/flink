@@ -52,8 +52,6 @@ class IsotonicRegression extends Predictor[IsotonicRegression] {
 
 object IsotonicRegression {
 
-    println("v11")
-
     class AdjacentPoolViolatersMapper extends MapFunction[Array[(Double, Double, Double)], Array[
         (Double, Double, Double)]] {
 
