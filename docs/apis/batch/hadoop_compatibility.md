@@ -29,9 +29,9 @@ reusing code that was implemented for Hadoop MapReduce.
 
 You can:
 
-- use Hadoop's `Writable` [data types](programming_guide.html#data-types) in Flink programs.
-- use any Hadoop `InputFormat` as a [DataSource](programming_guide.html#data-sources).
-- use any Hadoop `OutputFormat` as a [DataSink](programming_guide.html#data-sinks).
+- use Hadoop's `Writable` [data types](index.html#data-types) in Flink programs.
+- use any Hadoop `InputFormat` as a [DataSource](index.html#data-sources).
+- use any Hadoop `OutputFormat` as a [DataSink](index.html#data-sinks).
 - use a Hadoop `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
 - use a Hadoop `Reducer` as [GroupReduceFunction](dataset_transformations.html#groupreduce-on-grouped-dataset).
 
@@ -70,7 +70,7 @@ and Reducers.
 Flink supports all Hadoop `Writable` and `WritableComparable` data types
 out-of-the-box. You do not need to include the Hadoop Compatibility dependency,
 if you only want to use your Hadoop data types. See the
-[Programming Guide](programming_guide.html#data-types) for more details.
+[Programming Guide](index.html#data-types) for more details.
 
 ### Using Hadoop InputFormats
 

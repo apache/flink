@@ -23,13 +23,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Programs written in the [Data Stream API]({{ site.baseurl }}/apis/streaming_guide.html) often hold state in various forms:
+Programs written in the [Data Stream API](index.html) often hold state in various forms:
 
 - Windows gather elements or aggregates until they are triggered
 - Transformation functions may use the key/value state interface to store values
 - Transformation functions may implement the `Checkpointed` interface to make their local variables fault tolerant
 
-See also [Working with State]({{ site.baseurl }}/apis/streaming_guide.html#working_with_state) in the streaming API guide.
+See also [Working with State](index.html#working-with-state) in the streaming API guide.
 
 When checkpointing is activated, such state is persisted upon checkpoints to guard against data loss and recover consistently.
 How the state is represented internally, and how and where it is persisted upon checkpoints depends on the

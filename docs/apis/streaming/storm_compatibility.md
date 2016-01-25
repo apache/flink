@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Flink streaming](streaming_guide.html) is compatible with Apache Storm interfaces and therefore allows
+[Flink streaming](index.html) is compatible with Apache Storm interfaces and therefore allows
 reusing code that was implemented for Storm.
 
 You can:
@@ -104,7 +104,7 @@ if(runLocal) { // submit to test cluster
 As an alternative, Spouts and Bolts can be embedded into regular streaming programs.
 The Storm compatibility layer offers a wrapper classes for each, namely `SpoutWrapper` and `BoltWrapper` (`org.apache.flink.storm.wrappers`).
 
-Per default, both wrappers convert Storm output tuples to Flink's [Tuple](programming_guide.html#tuples-and-case-classes) types (ie, `Tuple0` to `Tuple25` according to the number of fields of the Storm tuples).
+Per default, both wrappers convert Storm output tuples to Flink's [Tuple]({{site.baseurl}}/apis/batch/index.html#tuples-and-case-classes) types (ie, `Tuple0` to `Tuple25` according to the number of fields of the Storm tuples).
 For single field output tuples a conversion to the field's data type is also possible (eg, `String` instead of `Tuple1<String>`).
 
 Because Flink cannot infer the output field types of Storm operators, it is required to specify the output type manually.
@@ -134,7 +134,7 @@ DataStream<String> rawInput = env.addSource(
 
 If a Spout emits a finite number of tuples, `SpoutWrapper` can be configures to terminate automatically by setting `numberOfInvocations` parameter in its constructor.
 This allows the Flink program to shut down automatically after all data is processed.
-Per default the program will run until it is [canceled](cli.html) manually.
+Per default the program will run until it is [canceled]({{site.baseurl}}/apis/cli.html) manually.
 
 
 ## Embed Bolts
@@ -165,8 +165,8 @@ DataStream<Tuple2<String, Integer>> counts = text.transform(
 Bolts can accesses input tuple fields via name (additionally to access via index).
 To use this feature with embedded Bolts, you need to have either a
 
- 1. [POJO](programming_guide.html#pojos) type input stream or
- 2. [Tuple](programming_guide.html#tuples-and-case-classes) type input stream and spedify the input schema (ie, name-to-index-mapping)
+ 1. [POJO]({{site.baseurl}}/apis/batch/index.html#pojos) type input stream or
+ 2. [Tuple]({{site.baseurl}}/apis/batch/index.html#tuples-and-case-classes) type input stream and spedify the input schema (ie, name-to-index-mapping)
 
 For POJO input types, Flink accesses the fields via reflection.
 For this case, Flink expects either a corresponding public member variable or public getter method.

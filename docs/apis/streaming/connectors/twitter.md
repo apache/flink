@@ -36,7 +36,7 @@ Twitter Streaming API provides opportunity to connect to the stream of tweets ma
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here](cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
+Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 #### Authentication
 In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
