@@ -159,8 +159,6 @@ public class StreamTaskTestHarness<OUT> {
 		initializeInputs();
 		initializeOutput();
 
-		task.registerInputOutput();
-
 		taskThread = new TaskThread(task);
 		taskThread.start();
 	}
@@ -180,8 +178,6 @@ public class StreamTaskTestHarness<OUT> {
 		initializeInputs();
 		initializeOutput();
 
-		task.registerInputOutput();
-
 		taskThread = new TaskThread(task);
 		taskThread.start();
 	}
@@ -194,6 +190,23 @@ public class StreamTaskTestHarness<OUT> {
 		taskThread.join();
 		if (taskThread.getError() != null) {
 			throw new Exception("error in task", taskThread.getError());
+		}
+	}
+
+	public void waitForTaskRunning() throws Exception {
+		if (taskThread == null) {
+			throw new IllegalStateException("Task thread was not started.");
+		}
+		else {
+			if (taskThread.task instanceof StreamTask) {
+				StreamTask streamTask = (StreamTask) taskThread.task;
+				while (!streamTask.isRunning()) {
+					Thread.sleep(100);
+				}
+			}
+			else {
+				throw new IllegalStateException("Not a StreamTask");
+			}
 		}
 	}
 
@@ -315,7 +328,6 @@ public class StreamTaskTestHarness<OUT> {
 		private final AbstractInvokable task;
 		
 		private volatile Throwable error;
-
 
 		TaskThread(AbstractInvokable task) {
 			super("Task Thread");

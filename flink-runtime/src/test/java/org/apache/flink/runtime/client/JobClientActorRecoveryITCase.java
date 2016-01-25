@@ -143,11 +143,6 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 		private static Object waitLock = new Object();
 
 		@Override
-		public void registerInputOutput() throws Exception {
-			// Nothing to do
-		}
-
-		@Override
 		public void invoke() throws Exception {
 			if (BlockExecution > 0) {
 				BlockExecution--;

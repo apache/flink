@@ -179,9 +179,6 @@ public class TaskAsyncCallTest {
 		private volatile Exception error;
 		
 		@Override
-		public void registerInputOutput() {}
-
-		@Override
 		public void invoke() throws Exception {
 			awaitLatch.trigger();
 			
@@ -204,7 +201,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void triggerCheckpoint(long checkpointId, long timestamp) {
+		public boolean triggerCheckpoint(long checkpointId, long timestamp) {
 			lastCheckpointId++;
 			if (checkpointId == lastCheckpointId) {
 				if (lastCheckpointId == NUM_CALLS) {
@@ -217,6 +214,7 @@ public class TaskAsyncCallTest {
 					notifyAll();
 				}
 			}
+			return true;
 		}
 
 		@Override

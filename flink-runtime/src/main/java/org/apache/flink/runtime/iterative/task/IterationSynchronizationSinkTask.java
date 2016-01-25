@@ -68,16 +68,12 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public void registerInputOutput() {
-		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
-	}
-
-	@Override
 	public void invoke() throws Exception {
+		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
+
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// store all aggregators

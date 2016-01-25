@@ -49,7 +49,8 @@ public class StreamTaskTimerTest {
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
 		
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+				mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		
@@ -57,11 +58,13 @@ public class StreamTaskTimerTest {
 		streamConfig.setStreamOperator(mapOperator);
 
 		testHarness.invoke();
+		testHarness.waitForTaskRunning();
 
 		// first one spawns thread
 		mapTask.registerTimer(System.currentTimeMillis(), new Triggerable() {
 			@Override
-			public void trigger(long timestamp) {}
+			public void trigger(long timestamp) {
+			}
 		});
 
 		assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
@@ -91,6 +94,7 @@ public class StreamTaskTimerTest {
 			streamConfig.setStreamOperator(mapOperator);
 
 			testHarness.invoke();
+			testHarness.waitForTaskRunning();
 
 			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 

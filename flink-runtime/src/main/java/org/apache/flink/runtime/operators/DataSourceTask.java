@@ -77,7 +77,10 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	private volatile boolean taskCanceled = false;
 
 	@Override
-	public void registerInputOutput() {
+	public void invoke() throws Exception {
+		// --------------------------------------------------------------------
+		// Initialize
+		// --------------------------------------------------------------------
 		initInputFormat();
 
 		LOG.debug(getLogString("Start registering input and output"));
@@ -85,17 +88,15 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		try {
 			initOutputs(getUserCodeClassLoader());
 		} catch (Exception ex) {
-			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " + 
-				ex.getMessage(), ex);
+			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " +
+					ex.getMessage(), ex);
 		}
 
 		LOG.debug(getLogString("Finished registering input and output"));
-	}
 
-
-	@Override
-	public void invoke() throws Exception {
-		
+		// --------------------------------------------------------------------
+		// Invoke
+		// --------------------------------------------------------------------
 		LOG.debug(getLogString("Starting data source operator"));
 
 		if(RichInputFormat.class.isAssignableFrom(this.format.getClass())){

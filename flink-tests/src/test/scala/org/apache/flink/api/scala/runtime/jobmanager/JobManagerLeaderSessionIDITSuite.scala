@@ -90,9 +90,6 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
 }
 
 class BlockingUntilSignalNoOpInvokable extends AbstractInvokable {
-  override def registerInputOutput(): Unit = {
-
-  }
 
   override def invoke(): Unit = {
     BlockingUntilSignalNoOpInvokable.lock.synchronized{
