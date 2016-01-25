@@ -18,7 +18,10 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -35,6 +38,9 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 
 	private final long interval;
 
+	private final ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("first", true,
+		BasicTypeInfo.BOOLEAN_TYPE_INFO.createSerializer(new ExecutionConfig()));
+
 	private ContinuousEventTimeTrigger(long interval) {
 		this.interval = interval;
 	}
@@ -42,7 +48,7 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 
-		ValueState<Boolean> first = ctx.getKeyValueState("first", true);
+		ValueState<Boolean> first = ctx.getPartitionedState(stateDesc);
 
 		if (first.value()) {
 			long start = timestamp - (timestamp % interval);

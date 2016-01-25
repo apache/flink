@@ -36,7 +36,7 @@ import java.io.ObjectInputStream;
 
 public class FoldWindowFunction<K, W extends Window, T, R>
 		extends WrappingFunction<FoldFunction<T, R>>
-		implements WindowFunction<T, R, K, W>, OutputTypeConfigurable<R> {
+		implements WindowFunction<Iterable<T>, R, K, W>, OutputTypeConfigurable<R> {
 	private static final long serialVersionUID = 1L;
 
 	private byte[] serializedInitialValue;

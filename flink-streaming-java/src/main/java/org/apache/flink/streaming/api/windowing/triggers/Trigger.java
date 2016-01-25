@@ -17,7 +17,10 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
@@ -142,20 +145,62 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		 * Register an event-time callback. When the current watermark passes the specified
 		 * time {@link #onEventTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
-		 * @see org.apache.flink.streaming.api.watermark.Watermark
-		 *
 		 * @param time The watermark at which to invoke {@link #onEventTime(long, Window, TriggerContext)}
+		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 */
 		void registerEventTimeTimer(long time);
 
 		/**
-		 * Retrieves an {@link ValueState} object that can be used to interact with
+		 * Retrieves an {@link State} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
 		 * trigger invocation.
 		 *
-		 * @param name A unique key for the state.
-		 * @param defaultState The default value of the state.
+		 * @param stateDescriptor The StateDescriptor that contains the name and type of the
+		 *                        state that is being accessed.
+		 * @param <S>             The type of the state.
+		 * @return The partitioned state object.
+		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+		 *                                       function (function is not part os a KeyedStream).
 		 */
-		<S extends Serializable> ValueState<S> getKeyValueState(final String name, final S defaultState);
+		<S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor);
+
+		/**
+		 * Retrieves a {@link ValueState} object that can be used to interact with
+		 * fault-tolerant state that is scoped to the window and key of the current
+		 * trigger invocation.
+		 *
+		 * @param name The name of the key/value state.
+		 * @param stateType The class of the type that is stored in the state. Used to generate
+		 *                  serializers for managed memory and checkpointing.
+		 * @param defaultState The default state value, returned when the state is accessed and
+		 *                     no value has yet been set for the key. May be null.
+		 *
+		 * @param <S>          The type of the state.
+		 * @return The partitioned state object.
+		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+		 *                                       function (function is not part os a KeyedStream).
+		 */
+		@Deprecated
+		<S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
+
+
+		/**
+		 * Retrieves a {@link ValueState} object that can be used to interact with
+		 * fault-tolerant state that is scoped to the window and key of the current
+		 * trigger invocation.
+		 *
+		 * @param name The name of the key/value state.
+		 * @param stateType The type information for the type that is stored in the state.
+		 *                  Used to create serializers for managed memory and checkpoints.
+		 * @param defaultState The default state value, returned when the state is accessed and
+		 *                     no value has yet been set for the key. May be null.
+		 *
+		 * @param <S>          The type of the state.
+		 * @return The partitioned state object.
+		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+		 *                                       function (function is not part os a KeyedStream).
+		 */
+		@Deprecated
+		<S extends Serializable> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 	}
 }

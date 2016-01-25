@@ -19,15 +19,15 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -117,7 +117,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -175,7 +175,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -240,23 +240,12 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(100, MILLISECONDS))
-					.reduce(new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-						private boolean open = false;
-
-						@Override
-						public void open(Configuration parameters) {
-							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
-							open = true;
-						}
+					.reduce(new ReduceFunction<Tuple2<Long, IntType>>() {
 
 						@Override
 						public Tuple2<Long, IntType> reduce(
 								Tuple2<Long, IntType> a,
 								Tuple2<Long, IntType> b) {
-
-							// validate that the function has been opened properly
-							assertTrue(open);
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
@@ -299,23 +288,11 @@ public class WindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
-					.reduce(new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-						private boolean open = false;
-
-						@Override
-						public void open(Configuration parameters) {
-							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
-							open = true;
-						}
-
+					.reduce(new ReduceFunction<Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> reduce(
 								Tuple2<Long, IntType> a,
 								Tuple2<Long, IntType> b) {
-
-							// validate that the function has been opened properly
-							assertTrue(open);
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})

@@ -17,55 +17,15 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 public class ReduceWindowFunctionWithWindow<K, W extends Window, T> extends RichWindowFunction<T, Tuple2<W, T>, K, W> {
 	private static final long serialVersionUID = 1L;
 
-	private final ReduceFunction<T> reduceFunction;
-
-	public ReduceWindowFunctionWithWindow(ReduceFunction<T> reduceFunction) {
-		this.reduceFunction = reduceFunction;
-	}
-
 	@Override
-	public void setRuntimeContext(RuntimeContext ctx) {
-		super.setRuntimeContext(ctx);
-		FunctionUtils.setFunctionRuntimeContext(reduceFunction, ctx);
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		FunctionUtils.openFunction(reduceFunction, parameters);
-	}
-
-	@Override
-	public void close() throws Exception {
-		super.close();
-		FunctionUtils.closeFunction(reduceFunction);
-	}
-
-	@Override
-	public void apply(K k, W window, Iterable<T> values, Collector<Tuple2<W, T>> out) throws Exception {
-		T result = null;
-
-		for (T v: values) {
-			if (result == null) {
-				result = v;
-			} else {
-				result = reduceFunction.reduce(result, v);
-			}
-		}
-
-		if (result != null) {
-			out.collect(Tuple2.of(window, result));
-		}
+	public void apply(K k, W window, T input, Collector<Tuple2<W, T>> out) throws Exception {
+		out.collect(Tuple2.of(window, input));
 	}
 }

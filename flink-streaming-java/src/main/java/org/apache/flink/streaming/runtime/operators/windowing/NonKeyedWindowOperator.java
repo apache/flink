@@ -19,10 +19,14 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
@@ -69,7 +73,7 @@ import static java.util.Objects.requireNonNull;
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 public class NonKeyedWindowOperator<IN, OUT, W extends Window>
-		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<IN, OUT, W>>
+		extends AbstractUdfStreamOperator<OUT, AllWindowFunction<Iterable<IN>, OUT, W>>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
@@ -145,7 +149,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 	public NonKeyedWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
 			WindowBufferFactory<? super IN, ? extends WindowBuffer<IN>> windowBufferFactory,
-			AllWindowFunction<IN, OUT, W> windowFunction,
+			AllWindowFunction<Iterable<IN>, OUT, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger) {
 
 		super(windowFunction);
@@ -413,29 +417,72 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			}
 		}
 
-		@SuppressWarnings("unchecked")
-		public <S extends Serializable> ValueState<S> getKeyValueState(final String name, final S defaultState) {
-			return new ValueState<S>() {
+		@Override
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
+			Class<S> stateType,
+			S defaultState) {
+			requireNonNull(stateType, "The state type class must not be null");
+
+			TypeInformation<S> typeInfo;
+			try {
+				typeInfo = TypeExtractor.getForClass(stateType);
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Cannot analyze type '" + stateType.getName() +
+					"' from the class alone, due to generic type parameters. " +
+					"Please specify the TypeInformation directly.", e);
+			}
+
+			return getKeyValueState(name, typeInfo, defaultState);
+		}
+
+		@Override
+		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
+			TypeInformation<S> stateType,
+			S defaultState) {
+
+			requireNonNull(name, "The name of the state must not be null");
+			requireNonNull(stateType, "The state type information must not be null");
+
+			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, defaultState, stateType.createSerializer(getExecutionConfig()));
+			return getPartitionedState(stateDesc);
+		}
+
+		@Override
+		@SuppressWarnings("rawtypes, unchecked")
+		public <S extends State> S getPartitionedState(final StateDescriptor<S> stateDescriptor) {
+			if (!(stateDescriptor instanceof ValueStateDescriptor)) {
+				throw new UnsupportedOperationException("NonKeyedWindowOperator Triggers only " +
+					"support ValueState.");
+			}
+			@SuppressWarnings("unchecked")
+			final ValueStateDescriptor<?> valueStateDescriptor = (ValueStateDescriptor<?>) stateDescriptor;
+			ValueState valueState = new ValueState() {
 				@Override
-				public S value() throws IOException {
-					Serializable value = state.get(name);
+				public Object value() throws IOException {
+					Object value = state.get(stateDescriptor.getName());
 					if (value == null) {
-						state.put(name, defaultState);
-						value = defaultState;
+						value = valueStateDescriptor.getDefaultValue();
+						state.put(stateDescriptor.getName(), (Serializable) value);
 					}
-					return (S) value;
+					return value;
 				}
 
 				@Override
-				public void update(S value) throws IOException {
-					state.put(name, value);
+				public void update(Object value) throws IOException {
+					if (!(value instanceof Serializable)) {
+						throw new UnsupportedOperationException(
+							"Value state of NonKeyedWindowOperator must be serializable.");
+					}
+					state.put(stateDescriptor.getName(), (Serializable) value);
 				}
 
 				@Override
 				public void clear() {
-					state.remove(name);
+					state.remove(stateDescriptor.getName());
 				}
 			};
+			return (S) valueState;
 		}
 
 		@Override

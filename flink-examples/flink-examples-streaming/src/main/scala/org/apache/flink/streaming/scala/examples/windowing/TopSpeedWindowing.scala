@@ -72,7 +72,7 @@ object TopSpeedWindowing {
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
       .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {
         def getDelta(oldSp: CarEvent, newSp: CarEvent): Double = newSp.distance - oldSp.distance
-      }))
+      }, cars.getType().createSerializer(env.getConfig)))
 //      .window(Time.of(evictionSec * 1000, (car : CarEvent) => car.time))
 //      .every(Delta.of[CarEvent](triggerMeters,
 //          (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))

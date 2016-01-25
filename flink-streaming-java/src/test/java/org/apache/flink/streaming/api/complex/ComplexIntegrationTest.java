@@ -21,9 +21,13 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
@@ -212,9 +216,11 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		env.execute();
 	}
 
+	// Ignore because the count(10_000) window actually only emits one element during processing
+	// and all the rest in close()
 	@SuppressWarnings("unchecked")
-	@Test
 	@Ignore
+	@Test
 	public void complexIntegrationTest3() throws Exception {
 		//Heavy prime factorisation with maps and flatmaps
 
@@ -248,6 +254,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Long> sourceStream31 = env.generateSequence(1, 10000);
 		DataStream<Long> sourceStream32 = env.generateSequence(10001, 20000);
 
+
 		sourceStream31.filter(new PrimeFilterFunction())
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(100)))
@@ -258,9 +265,10 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 						.max(0))
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
-		sourceStream31.flatMap(new DivisorsFlatMapFunction())
-				.union(sourceStream32.flatMap(new DivisorsFlatMapFunction())).map(new MapFunction<Long, Tuple2<Long,
-				Integer>>() {
+		sourceStream31
+			.flatMap(new DivisorsFlatMapFunction())
+			.union(sourceStream32.flatMap(new DivisorsFlatMapFunction()))
+			.map(new MapFunction<Long, Tuple2<Long,Integer>>() {
 
 			@Override
 			public Tuple2<Long, Integer> map(Long value) throws Exception {
@@ -271,42 +279,49 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 				.window(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10_000)))
 				.sum(1)
-				.filter(new FilterFunction<Tuple2<Long, Integer>>() {
 
-					@Override
-					public boolean filter(Tuple2<Long, Integer> value) throws Exception {
-						return value.f0 < 100 || value.f0 > 19900;
-					}
-				})
-				.writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE);
+//				.filter(new FilterFunction<Tuple2<Long, Integer>>() {
+//
+//					@Override
+//					public boolean filter(Tuple2<Long, Integer> value) throws Exception {
+//						return value.f0 < 100 || value.f0 > 19900;
+//					}
+//				})
+			.print();
+//				.writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE);
 
 		env.execute();
 	}
 
 	@Test
 	@Ignore
+	@SuppressWarnings("unchecked, rawtypes")
 	public void complexIntegrationTest4() throws Exception {
 		//Testing mapping and delta-policy windowing with custom class
 
 		expected1 = "((100,100),0)\n" + "((120,122),5)\n" + "((121,125),6)\n" + "((138,144),9)\n" +
-				"((139,147),10)\n" + "((156,166),13)\n" + "((157,169),14)\n" + "((174,188),17)\n" + "((175,191),18)\n" +
-				"((192,210),21)\n" + "((193,213),22)\n" + "((210,232),25)\n" + "((211,235),26)\n" + "((228,254),29)\n" +
-				"((229,257),30)\n" + "((246,276),33)\n" + "((247,279),34)\n" + "((264,298),37)\n" + "((265,301),38)\n" +
-				"((282,320),41)\n" + "((283,323),42)\n" + "((300,342),45)\n" + "((301,345),46)\n" + "((318,364),49)\n" +
-				"((319,367),50)\n" + "((336,386),53)\n" + "((337,389),54)\n" + "((354,408),57)\n" + "((355,411),58)\n" +
-				"((372,430),61)\n" + "((373,433),62)\n" + "((390,452),65)\n" + "((391,455),66)\n" + "((408,474),69)\n" +
-				"((409,477),70)\n" + "((426,496),73)\n" + "((427,499),74)\n" + "((444,518),77)\n" + "((445,521),78)\n" +
-				"((462,540),81)\n" + "((463,543),82)\n" + "((480,562),85)\n" + "((481,565),86)\n" + "((498,584),89)\n" +
-				"((499,587),90)\n" + "((516,606),93)\n" + "((517,609),94)\n" + "((534,628),97)\n" + "((535,631),98)";
+			"((139,147),10)\n" + "((156,166),13)\n" + "((157,169),14)\n" + "((174,188),17)\n" + "((175,191),18)\n" +
+			"((192,210),21)\n" + "((193,213),22)\n" + "((210,232),25)\n" + "((211,235),26)\n" + "((228,254),29)\n" +
+			"((229,257),30)\n" + "((246,276),33)\n" + "((247,279),34)\n" + "((264,298),37)\n" + "((265,301),38)\n" +
+			"((282,320),41)\n" + "((283,323),42)\n" + "((300,342),45)\n" + "((301,345),46)\n" + "((318,364),49)\n" +
+			"((319,367),50)\n" + "((336,386),53)\n" + "((337,389),54)\n" + "((354,408),57)\n" + "((355,411),58)\n" +
+			"((372,430),61)\n" + "((373,433),62)\n" + "((390,452),65)\n" + "((391,455),66)\n" + "((408,474),69)\n" +
+			"((409,477),70)\n" + "((426,496),73)\n" + "((427,499),74)\n" + "((444,518),77)\n" + "((445,521),78)\n" +
+			"((462,540),81)\n" + "((463,543),82)\n" + "((480,562),85)\n" + "((481,565),86)\n" + "((498,584),89)\n" +
+			"((499,587),90)\n" + "((516,606),93)\n" + "((517,609),94)\n" + "((534,628),97)\n" + "((535,631),98)";
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
+
+		TupleSerializer<Tuple2<Rectangle, Integer>> deltaSerializer = new TupleSerializer<>((Class) Tuple2.class,
+			new TypeSerializer[] {new KryoSerializer<>(Rectangle.class, env.getConfig()),
+			IntSerializer.INSTANCE});
 
 		env.addSource(new RectangleSource())
 				.global()
 				.map(new RectangleMapFunction())
 				.windowAll(GlobalWindows.create())
-				.trigger(PurgingTrigger.of(DeltaTrigger.of(0.0, new MyDelta())))
+				.trigger(PurgingTrigger.of(DeltaTrigger.of(0.0, new MyDelta(), deltaSerializer)))
 				.apply(new MyWindowMapFunction())
 				.writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE);
 
@@ -674,7 +689,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-	private static class MyWindowMapFunction implements AllWindowFunction<Tuple2<Rectangle, Integer>, Tuple2<Rectangle, Integer>, GlobalWindow> {
+	private static class MyWindowMapFunction implements AllWindowFunction<Iterable<Tuple2<Rectangle, Integer>>, Tuple2<Rectangle, Integer>, GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

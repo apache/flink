@@ -21,8 +21,10 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -30,8 +32,9 @@ import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.windowing.FoldAllWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.ReduceAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceIterableAllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -126,6 +129,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the reduce function to the window. 
 	 */
 	public SingleOutputStreamOperator<T, ?> reduce(ReduceFunction<T> function) {
+		if (function instanceof RichFunction) {
+			throw new UnsupportedOperationException("ReduceFunction of reduce can not be a RichFunction. " +
+				"Please use apply(ReduceFunction, WindowFunction) instead.");
+		}
+
 		//clean the closure
 		function = input.getExecutionEnvironment().clean(function);
 
@@ -147,7 +155,7 @@ public class AllWindowedStream<T, W extends Window> {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					new HeapWindowBuffer.Factory<T>(),
-					new ReduceAllWindowFunction<W, T>(function),
+					new ReduceIterableAllWindowFunction<W, T>(function),
 					trigger,
 					evictor).enableSetProcessingTime(setProcessingTime);
 
@@ -155,7 +163,7 @@ public class AllWindowedStream<T, W extends Window> {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					new PreAggregatingHeapWindowBuffer.Factory<>(function),
-					new ReduceAllWindowFunction<W, T>(function),
+					new ReduceIterableAllWindowFunction<W, T>(function),
 					trigger).enableSetProcessingTime(setProcessingTime);
 		}
 
@@ -205,10 +213,11 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> apply(AllWindowFunction<T, R, W> function) {
-		TypeInformation<T> inType = input.getType();
+	public <R> SingleOutputStreamOperator<R, ?> apply(AllWindowFunction<Iterable<T>, R, W> function) {
+		@SuppressWarnings("unchecked, rawtypes")
+		TypeInformation<Iterable<T>> iterTypeInfo = new GenericTypeInfo<>((Class) Iterable.class);
 		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-				function, AllWindowFunction.class, true, true, inType, null, false);
+				function, AllWindowFunction.class, true, true, iterTypeInfo, null, false);
 
 		return apply(function, resultType);
 	}
@@ -224,7 +233,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> apply(AllWindowFunction<T, R, W> function, TypeInformation<R> resultType) {
+	public <R> SingleOutputStreamOperator<R, ?> apply(AllWindowFunction<Iterable<T>, R, W> function, TypeInformation<R> resultType) {
 		//clean the closure
 		function = input.getExecutionEnvironment().clean(function);
 
@@ -297,6 +306,10 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> apply(ReduceFunction<T> preAggregator, AllWindowFunction<T, R, W> function, TypeInformation<R> resultType) {
+		if (preAggregator instanceof RichFunction) {
+			throw new UnsupportedOperationException("Pre-aggregator of apply can not be a RichFunction.");
+		}
+
 		//clean the closures
 		function = input.getExecutionEnvironment().clean(function);
 		preAggregator = input.getExecutionEnvironment().clean(preAggregator);
@@ -314,16 +327,16 @@ public class AllWindowedStream<T, W extends Window> {
 			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
 					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 					new HeapWindowBuffer.Factory<T>(),
-					function,
+					new ReduceApplyAllWindowFunction<>(preAggregator, function),
 					trigger,
 					evictor).enableSetProcessingTime(setProcessingTime);
 
 		} else {
 			operator = new NonKeyedWindowOperator<>(windowAssigner,
-					windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
-					new PreAggregatingHeapWindowBuffer.Factory<>(preAggregator),
-					function,
-					trigger).enableSetProcessingTime(setProcessingTime);
+				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				new PreAggregatingHeapWindowBuffer.Factory<>(preAggregator),
+				new ReduceApplyAllWindowFunction<>(preAggregator, function),
+				trigger).enableSetProcessingTime(setProcessingTime);
 		}
 
 		return input.transform(opName, resultType, operator).setParallelism(1);
