@@ -82,7 +82,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	 * @param function The user-defined GroupReduce function.
 	 */
 	public GroupReduceOperator(Grouping<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
-		super(input != null ? input.getDataSet() : null, resultType);
+		super(input != null ? input.getInputDataSet() : null, resultType);
 		
 		this.function = function;
 		this.grouper = input;

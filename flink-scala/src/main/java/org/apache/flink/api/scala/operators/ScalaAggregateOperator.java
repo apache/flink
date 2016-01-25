@@ -95,15 +95,15 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 	 * @param field
 	 */
 	public ScalaAggregateOperator(Grouping<IN> input, Aggregations function, int field) {
-		super(Preconditions.checkNotNull(input).getDataSet(), input.getDataSet().getType());
+		super(Preconditions.checkNotNull(input).getInputDataSet(), input.getInputDataSet().getType());
 
 		Preconditions.checkNotNull(function);
 
-		if (!input.getDataSet().getType().isTupleType()) {
+		if (!input.getInputDataSet().getType().isTupleType()) {
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 
-		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getDataSet().getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getInputDataSet().getType();
 
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");

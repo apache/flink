@@ -57,12 +57,12 @@ public class SortedGrouping<T> extends Grouping<T> {
 	public SortedGrouping(DataSet<T> set, Keys<T> keys, int field, Order order) {
 		super(set, keys);
 
-		if (!Keys.ExpressionKeys.isSortKey(field, dataSet.getType())) {
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 
 		// use int-based expression key to properly resolve nested tuples for grouping
-		ExpressionKeys<T> ek = new ExpressionKeys<>(field, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
 
 		this.groupSortKeyPositions = ek.computeLogicalKeyPositions();
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
@@ -75,12 +75,12 @@ public class SortedGrouping<T> extends Grouping<T> {
 	public SortedGrouping(DataSet<T> set, Keys<T> keys, String field, Order order) {
 		super(set, keys);
 
-		if (!Keys.ExpressionKeys.isSortKey(field, dataSet.getType())) {
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 
 		// resolve String-field to int using the expression keys
-		ExpressionKeys<T> ek = new ExpressionKeys<>(field, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
 
 		this.groupSortKeyPositions = ek.computeLogicalKeyPositions();
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
@@ -168,8 +168,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
-				this.getDataSet().getType(), Utils.getCallLocationName(), true);
-		return new GroupReduceOperator<>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
+				inputDataSet.getType(), Utils.getCallLocationName(), true);
+		return new GroupReduceOperator<>(this, resultType, inputDataSet.clean(reducer), Utils.getCallLocationName());
 	}
 
 	/**
@@ -189,9 +189,9 @@ public class SortedGrouping<T> extends Grouping<T> {
 			throw new NullPointerException("GroupCombine function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner,
-				this.getDataSet().getType(), Utils.getCallLocationName(), true);
+				this.getInputDataSet().getType(), Utils.getCallLocationName(), true);
 
-		return new GroupCombineOperator<>(this, resultType, dataSet.clean(combiner), Utils.getCallLocationName());
+		return new GroupCombineOperator<>(this, resultType, inputDataSet.clean(combiner), Utils.getCallLocationName());
 	}
 
 	
@@ -228,11 +228,11 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (groupSortSelectorFunctionKey != null) {
 			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
 		}
-		if (!Keys.ExpressionKeys.isSortKey(field, dataSet.getType())) {
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 
-		ExpressionKeys<T> ek = new ExpressionKeys<>(field, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
 
 		addSortGroupInternal(ek, order);
 		return this;
@@ -254,11 +254,11 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (groupSortSelectorFunctionKey != null) {
 			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
 		}
-		if (!Keys.ExpressionKeys.isSortKey(field, dataSet.getType())) {
+		if (!Keys.ExpressionKeys.isSortKey(field, inputDataSet.getType())) {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 
-		ExpressionKeys<T> ek = new ExpressionKeys<>(field, dataSet.getType());
+		ExpressionKeys<T> ek = new ExpressionKeys<>(field, inputDataSet.getType());
 
 		addSortGroupInternal(ek, order);
 		return this;
@@ -278,5 +278,4 @@ public class SortedGrouping<T> extends Grouping<T> {
 			this.groupSortOrders[pos] = order; // use the same order
 		}
 	}
-
 }
