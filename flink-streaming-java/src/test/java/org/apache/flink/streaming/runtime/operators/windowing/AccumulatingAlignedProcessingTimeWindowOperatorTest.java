@@ -66,7 +66,7 @@ import static org.junit.Assert.*;
 public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	@SuppressWarnings("unchecked")
-	private final WindowFunction<String, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
+	private final WindowFunction<Iterable<String>, String, String, TimeWindow> mockFunction = mock(WindowFunction.class);
 
 	@SuppressWarnings("unchecked")
 	private final KeySelector<String, String> mockKeySelector = mock(KeySelector.class);
@@ -78,8 +78,8 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		}
 	};
 	
-	private final WindowFunction<Integer, Integer, Integer, TimeWindow> validatingIdentityFunction =
-			new WindowFunction<Integer, Integer, Integer, TimeWindow>()
+	private final WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> validatingIdentityFunction =
+			new WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow>()
 	{
 		@Override
 		public void apply(Integer key,
@@ -494,7 +494,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			final Object lock = new Object();
 			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
 
-			WindowFunction<Integer, Integer, Integer, TimeWindow> failingFunction = new FailingFunction(100);
+			WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> failingFunction = new FailingFunction(100);
 
 			// the operator has a window time that is so long that it will not fire in this test
 			final long hundredYears = 100L * 365 * 24 * 60 * 60 * 1000;
@@ -817,7 +817,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 	
-	private static class FailingFunction implements WindowFunction<Integer, Integer, Integer, TimeWindow> {
+	private static class FailingFunction implements WindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> {
 
 		private final int failAfterElements;
 		
@@ -845,7 +845,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private static class StatefulFunction extends RichWindowFunction<Integer, Integer, Integer, TimeWindow> {
+	private static class StatefulFunction extends RichWindowFunction<Iterable<Integer>, Integer, Integer, TimeWindow> {
 		
 		// we use a concurrent map here even though there is no concurrency, to
 		// get "volatile" style access to entries

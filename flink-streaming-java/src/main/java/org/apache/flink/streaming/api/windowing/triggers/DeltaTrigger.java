@@ -18,10 +18,10 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-
-import java.io.Serializable;
 
 /**
  * A {@link Trigger} that fires based on a {@link DeltaFunction} and a threshold.
@@ -33,20 +33,23 @@ import java.io.Serializable;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class DeltaTrigger<T extends Serializable, W extends Window> implements Trigger<T, W> {
+public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final DeltaFunction<T> deltaFunction;
 	private final double threshold;
+	private final ValueStateDescriptor<T> stateDesc;
 
-	private DeltaTrigger(double threshold, DeltaFunction<T> deltaFunction) {
+	private DeltaTrigger(double threshold, DeltaFunction<T> deltaFunction, TypeSerializer<T> stateSerializer) {
 		this.deltaFunction = deltaFunction;
 		this.threshold = threshold;
+		stateDesc = new ValueStateDescriptor<>("last-element", null, stateSerializer);
+
 	}
 
 	@Override
 	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
-		ValueState<T> lastElementState = ctx.getKeyValueState("last-element", null);
+		ValueState<T> lastElementState = ctx.getPartitionedState(stateDesc);
 		if (lastElementState.value() == null) {
 			lastElementState.update(element);
 			return TriggerResult.CONTINUE;
@@ -78,11 +81,12 @@ public class DeltaTrigger<T extends Serializable, W extends Window> implements T
 	 *
 	 * @param threshold The threshold at which to trigger.
 	 * @param deltaFunction The delta function to use
+	 * @param stateSerializer TypeSerializer for the data elements.
 	 *
 	 * @param <T> The type of elements on which this trigger can operate.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <T extends Serializable, W extends Window> DeltaTrigger<T, W> of(double threshold, DeltaFunction<T> deltaFunction) {
-		return new DeltaTrigger<>(threshold, deltaFunction);
+	public static <T, W extends Window> DeltaTrigger<T, W> of(double threshold, DeltaFunction<T> deltaFunction, TypeSerializer<T> stateSerializer) {
+		return new DeltaTrigger<>(threshold, deltaFunction, stateSerializer);
 	}
 }

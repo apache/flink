@@ -17,14 +17,38 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-public class ReduceAllWindowFunction<W extends Window, T> extends RichAllWindowFunction<T, T, W> {
+public class ReduceApplyAllWindowFunction<W extends Window, T, R>
+	extends WrappingFunction<AllWindowFunction<T, R, W>>
+	implements AllWindowFunction<Iterable<T>, R, W> {
+
 	private static final long serialVersionUID = 1L;
 
+	private final ReduceFunction<T> reduceFunction;
+	private final AllWindowFunction<T, R, W> windowFunction;
+
+	public ReduceApplyAllWindowFunction(ReduceFunction<T> reduceFunction,
+		AllWindowFunction<T, R, W> windowFunction) {
+		super(windowFunction);
+		this.reduceFunction = reduceFunction;
+		this.windowFunction = windowFunction;
+	}
+
 	@Override
-	public void apply(W window, T input, Collector<T> out) throws Exception {
-		out.collect(input);
+	public void apply(W window, Iterable<T> input, Collector<R> out) throws Exception {
+
+		T curr = null;
+		for (T val: input) {
+			if (curr == null) {
+				curr = val;
+			} else {
+				curr = reduceFunction.reduce(curr, val);
+			}
+		}
+		windowFunction.apply(window, curr, out);
 	}
 }

@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 
-public abstract class AggregationFunction<T> extends RichReduceFunction<T> {
+public abstract class AggregationFunction<T> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
 	public enum AggregationType {

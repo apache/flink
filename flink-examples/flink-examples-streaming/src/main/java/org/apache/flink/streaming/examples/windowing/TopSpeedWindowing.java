@@ -85,7 +85,7 @@ public class TopSpeedWindowing {
 									Tuple4<Integer, Integer, Double, Long> newDataPoint) {
 								return newDataPoint.f2 - oldDataPoint.f2;
 							}
-						}))
+						}, carData.getType().createSerializer(env.getConfig())))
 				.maxBy(1);
 
 		if (fileOutput) {

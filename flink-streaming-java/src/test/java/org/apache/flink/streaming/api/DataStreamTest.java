@@ -518,7 +518,7 @@ public class DataStreamTest extends StreamingMultipleProgramsTestBase {
 		DataStream<String> window = map
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(5)))
-				.apply(new AllWindowFunction<Tuple2<Integer, String>, String, GlobalWindow>() {
+				.apply(new AllWindowFunction<Iterable<Tuple2<Integer, String>>, String, GlobalWindow>() {
 					@Override
 					public void apply(GlobalWindow window,
 							Iterable<Tuple2<Integer, String>> values,

@@ -22,8 +22,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.windowing.ReduceAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ReduceIterableAllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
@@ -56,7 +55,7 @@ public class EvictingNonKeyedWindowOperatorTest {
 				GlobalWindows.create(),
 				new GlobalWindow.Serializer(),
 				new HeapWindowBuffer.Factory<Tuple2<String, Integer>>(),
-				new ReduceAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer(closeCalled)),
+				new ReduceIterableAllWindowFunction<GlobalWindow, Tuple2<String, Integer>>(new SumReducer()),
 				CountTrigger.of(WINDOW_SLIDE),
 				CountEvictor.of(WINDOW_SIZE));
 
@@ -96,10 +95,6 @@ public class EvictingNonKeyedWindowOperatorTest {
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new ResultSortComparator());
 
 		testHarness.close();
-
-		Assert.assertEquals("Close was not called.", 1, closeCalled.get());
-
-
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,32 +104,9 @@ public class EvictingNonKeyedWindowOperatorTest {
 	public static class SumReducer extends RichReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
-		private boolean openCalled = false;
-
-		private  AtomicInteger closeCalled;
-
-		public SumReducer(AtomicInteger closeCalled) {
-			this.closeCalled = closeCalled;
-		}
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			openCalled = true;
-		}
-
-		@Override
-		public void close() throws Exception {
-			super.close();
-			closeCalled.incrementAndGet();
-		}
-
 		@Override
 		public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
 				Tuple2<String, Integer> value2) throws Exception {
-			if (!openCalled) {
-				Assert.fail("Open was not called");
-			}
 			return new Tuple2<>(value2.f0, value1.f1 + value2.f1);
 		}
 	}

@@ -545,7 +545,7 @@ public class CoGroupedStreams<T1, T2> {
 
 	private static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
 			extends WrappingFunction<CoGroupFunction<T1, T2, T>>
-			implements WindowFunction<TaggedUnion<T1, T2>, T, KEY, W> {
+			implements WindowFunction<Iterable<TaggedUnion<T1, T2>>, T, KEY, W> {
 		
 		private static final long serialVersionUID = 1L;
 
