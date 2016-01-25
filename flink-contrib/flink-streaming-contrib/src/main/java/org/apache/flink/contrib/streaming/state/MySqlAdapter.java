@@ -195,7 +195,7 @@ public class MySqlAdapter implements DbAdapter {
 	 */
 	protected static void validateStateId(String name) {
 		if (!name.matches("[a-zA-Z0-9_]+")) {
-			throw new RuntimeException("State name contains invalid characters.");
+			throw new RuntimeException("State name contains invalid characters: " + name);
 		}
 	}
 

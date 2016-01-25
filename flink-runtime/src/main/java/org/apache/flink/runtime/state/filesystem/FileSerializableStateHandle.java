@@ -32,7 +32,7 @@ import java.io.Serializable;
  * 
  * @param <T> The type of state pointed to by the state handle.
  */
-public class FileSerializableStateHandle<T extends Serializable> extends AbstractFileState implements StateHandle<T> {
+public class FileSerializableStateHandle<T extends Serializable> extends AbstractFileStateHandle implements StateHandle<T> {
 
 	private static final long serialVersionUID = -657631394290213622L;
 	

@@ -20,14 +20,14 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
-		Checkpointed<Integer>, CheckpointNotifier, Runnable {
+		Checkpointed<Integer>, CheckpointListener, Runnable {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(FailingIdentityMapper.class);
 	

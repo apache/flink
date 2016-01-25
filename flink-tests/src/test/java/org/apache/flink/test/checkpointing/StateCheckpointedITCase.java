@@ -21,9 +21,9 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -47,7 +47,7 @@ import static org.junit.Assert.assertTrue;
  * A simple test that runs a streaming topology with checkpointing enabled.
  *
  * The test triggers a failure after a while and verifies that, after completion, the
- * state defined with either the {@link OperatorState} or the {@link Checkpointed}
+ * state defined with either the {@link ValueState} or the {@link Checkpointed}
  * interface reflects the "exactly once" semantics.
  * 
  * The test throttles the input until at least two checkpoints are completed, to make sure that
@@ -295,7 +295,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 	}
 	
 	private static class OnceFailingAggregator extends RichFlatMapFunction<PrefixCount, PrefixCount> 
-		implements Checkpointed<HashMap<String, PrefixCount>>, CheckpointNotifier {
+		implements Checkpointed<HashMap<String, PrefixCount>>, CheckpointListener {
 
 		static boolean wasCheckpointedBeforeFailure = false;
 		

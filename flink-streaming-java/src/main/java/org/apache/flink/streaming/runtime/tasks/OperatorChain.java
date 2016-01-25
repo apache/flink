@@ -268,7 +268,7 @@ public class OperatorChain<OUT> {
 		@Override
 		public void collect(StreamRecord<T> record) {
 			try {
-				operator.setKeyContextElement(record);
+				operator.setKeyContextElement1(record);
 				operator.processElement(record);
 			}
 			catch (Exception e) {
@@ -312,7 +312,7 @@ public class OperatorChain<OUT> {
 
 				StreamRecord<T> copy = new StreamRecord<>(serializer.copy(record.getValue()), record.getTimestamp());
 
-				operator.setKeyContextElement(copy);
+				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);
 			}
 			catch (Exception e) {

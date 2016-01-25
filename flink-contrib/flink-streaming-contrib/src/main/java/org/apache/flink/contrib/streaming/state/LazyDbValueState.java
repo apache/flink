@@ -19,6 +19,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -33,12 +34,15 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.ShardedConnection.ShardedStatement;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,9 +55,10 @@ import com.google.common.base.Optional;
  * cached on heap and are lazily retrieved on access.
  * 
  */
-public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, CheckpointNotifier {
+public class LazyDbValueState<K, N, V>
+	implements KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, DbStateBackend>, ValueState<V>, CheckpointListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LazyDbKvState.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LazyDbValueState.class);
 
 	// ------------------------------------------------------
 
@@ -62,10 +67,13 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	private final boolean compact;
 
 	private K currentKey;
+	private N currentNamespace;
 	private final V defaultValue;
 
 	private final TypeSerializer<K> keySerializer;
+	private final TypeSerializer<N> namespaceSerializer;
 	private final TypeSerializer<V> valueSerializer;
+	private final ValueStateDescriptor<V> stateDesc;
 
 	// ------------------------------------------------------
 
@@ -105,21 +113,31 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	// ------------------------------------------------------
 
 	/**
-	 * Constructor to initialize the {@link LazyDbKvState} the first time the
+	 * Constructor to initialize the {@link LazyDbValueState} the first time the
 	 * job starts.
 	 */
-	public LazyDbKvState(String kvStateId, boolean compact, ShardedConnection cons, DbBackendConfig conf,
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
-		this(kvStateId, compact, cons, conf, keySerializer, valueSerializer, defaultValue, 1, 0);
+	public LazyDbValueState(String kvStateId,
+		boolean compact,
+		ShardedConnection cons,
+		DbBackendConfig conf,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<N> namespaceSerializer,
+		ValueStateDescriptor<V> stateDesc) throws IOException {
+		this(kvStateId, compact, cons, conf, keySerializer, namespaceSerializer, stateDesc, 1, 0);
 	}
 
 	/**
-	 * Initialize the {@link LazyDbKvState} from a snapshot.
+	 * Initialize the {@link LazyDbValueState} from a snapshot.
 	 */
-	public LazyDbKvState(String kvStateId, boolean compact, ShardedConnection cons, final DbBackendConfig conf,
-			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue, long nextTs,
-			long lastCompactedTs)
-					throws IOException {
+	public LazyDbValueState(String kvStateId,
+		boolean compact,
+		ShardedConnection cons,
+		final DbBackendConfig conf,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<N> namespaceSerializer,
+		ValueStateDescriptor<V> stateDesc,
+		long nextTs,
+		long lastCompactedTs) throws IOException {
 
 		this.kvStateId = kvStateId;
 		this.compact = compact;
@@ -129,8 +147,10 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		}
 
 		this.keySerializer = keySerializer;
-		this.valueSerializer = valueSerializer;
-		this.defaultValue = defaultValue;
+		this.namespaceSerializer = namespaceSerializer;
+		this.valueSerializer = stateDesc.getSerializer();
+		this.defaultValue = stateDesc.getDefaultValue();
+		this.stateDesc = stateDesc;
 
 		this.maxInsertBatchSize = conf.getMaxKvInsertBatchSize();
 		this.conf = conf;
@@ -160,9 +180,14 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	}
 
 	@Override
+	public void setCurrentNamespace(N namespace) {
+		this.currentNamespace = namespace;
+	}
+
+	@Override
 	public void update(V value) throws IOException {
 		try {
-			cache.put(currentKey, Optional.fromNullable(value));
+			cache.put(Tuple2.of(currentKey, currentNamespace), Optional.fromNullable(value));
 		} catch (RuntimeException e) {
 			// We need to catch the RuntimeExceptions thrown in the StateCache
 			// methods here
@@ -176,7 +201,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			// We get the value from the cache (which will automatically load it
 			// from the database if necessary). If null, we return a copy of the
 			// default value
-			V val = cache.get(currentKey).orNull();
+			V val = cache.get(Tuple2.of(currentKey, currentNamespace)).orNull();
 			return val != null ? val : copyDefault();
 		} catch (RuntimeException e) {
 			// We need to catch the RuntimeExceptions thrown in the StateCache
@@ -186,7 +211,12 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	}
 
 	@Override
-	public DbKvStateSnapshot<K, V> snapshot(long checkpointId, long timestamp) throws IOException {
+	public void clear() {
+		cache.put(Tuple2.of(currentKey, currentNamespace), Optional.<V>fromNullable(null));
+	}
+
+	@Override
+	public DbKvStateSnapshot<K, N, V> snapshot(long checkpointId, long timestamp) throws IOException {
 
 		// Validate timing assumptions
 		if (timestamp <= nextTs) {
@@ -198,7 +228,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		if (!cache.modified.isEmpty()) {
 			// We insert the modified elements to the database with the current
 			// timestamp then clear the modified states
-			for (Entry<K, Optional<V>> state : cache.modified.entrySet()) {
+			for (Entry<Tuple2<K, N>, Optional<V>> state : cache.modified.entrySet()) {
 				batchInsert.add(state, timestamp);
 			}
 			batchInsert.flush(timestamp);
@@ -219,14 +249,13 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 		nextTs = timestamp + 1;
 		completedCheckpoints.put(checkpointId, timestamp);
-		return new DbKvStateSnapshot<K, V>(kvStateId, timestamp, lastCompactedTs);
+		return new DbKvStateSnapshot<K, N, V>(kvStateId, timestamp, lastCompactedTs, namespaceSerializer, stateDesc);
 	}
 
 	/**
 	 * Returns the number of elements currently stored in the task's cache. Note
 	 * that the number of elements in the database is not counted here.
 	 */
-	@Override
 	public int size() {
 		return cache.size();
 	}
@@ -299,7 +328,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * Return the Map of cached states.
 	 * 
 	 */
-	public Map<K, Optional<V>> getStateCache() {
+	public Map<Tuple2<K, N>, Optional<V>> getStateCache() {
 		return cache;
 	}
 
@@ -308,7 +337,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * database yet.
 	 * 
 	 */
-	public Map<K, Optional<V>> getModified() {
+	public Map<Tuple2<K, N>, Optional<V>> getModified() {
 		return cache.modified;
 	}
 
@@ -333,7 +362,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * checkpoint and recovery timestamp.
 	 *
 	 */
-	private static class DbKvStateSnapshot<K, V> implements KvStateSnapshot<K, V, DbStateBackend> {
+	private static class DbKvStateSnapshot<K, N, V> implements KvStateSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, DbStateBackend> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -341,16 +370,30 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		private final long checkpointTimestamp;
 		private final long lastCompactedTimestamp;
 
-		public DbKvStateSnapshot(String kvStateId, long checkpointTimestamp, long lastCompactedTs) {
+		/** Namespace Serializer */
+		private final TypeSerializer<N> namespaceSerializer;
+
+		/** StateDescriptor, for sanity checks */
+		private final ValueStateDescriptor<V> stateDesc;
+
+		public DbKvStateSnapshot(String kvStateId,
+			long checkpointTimestamp,
+			long lastCompactedTs,
+			TypeSerializer<N> namespaceSerializer,
+			ValueStateDescriptor<V> stateDesc) {
 			this.checkpointTimestamp = checkpointTimestamp;
 			this.kvStateId = kvStateId;
 			this.lastCompactedTimestamp = lastCompactedTs;
+			this.namespaceSerializer = namespaceSerializer;
+			this.stateDesc = stateDesc;
 		}
 
 		@Override
-		public LazyDbKvState<K, V> restoreState(final DbStateBackend stateBackend,
-				final TypeSerializer<K> keySerializer, final TypeSerializer<V> valueSerializer, final V defaultValue,
-				ClassLoader classLoader, final long recoveryTimestamp) throws IOException {
+		public KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, DbStateBackend> restoreState(
+			final DbStateBackend stateBackend,
+			TypeSerializer<K> keySerializer,
+			ClassLoader classLoader,
+			final long recoveryTimestamp) throws Exception {
 
 			// Validate timing assumptions
 			if (recoveryTimestamp <= checkpointTimestamp) {
@@ -379,9 +422,15 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			boolean cleanup = stateBackend.getEnvironment().getTaskInfo().getIndexOfThisSubtask() == 0;
 
 			// Restore the KvState
-			LazyDbKvState<K, V> restored = new LazyDbKvState<K, V>(kvStateId, cleanup,
-					stateBackend.getConnections(), stateBackend.getConfiguration(), keySerializer, valueSerializer,
-					defaultValue, recoveryTimestamp, lastCompactedTimestamp);
+			LazyDbValueState<K, N, V> restored = new LazyDbValueState<>(kvStateId,
+				cleanup,
+				stateBackend.getConnections(),
+				stateBackend.getConfiguration(),
+				keySerializer,
+				namespaceSerializer,
+				stateDesc,
+				recoveryTimestamp,
+				lastCompactedTimestamp);
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("KV state({},{}) restored.", kvStateId, recoveryTimestamp);
@@ -412,14 +461,14 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 	 * Keys not found in the cached will be retrieved from the underlying
 	 * database
 	 */
-	private final class StateCache extends LinkedHashMap<K, Optional<V>> {
+	private final class StateCache extends LinkedHashMap<Tuple2<K, N>, Optional<V>> {
 		private static final long serialVersionUID = 1L;
 
 		private final int cacheSize;
 		private final int evictionSize;
 
 		// We keep track the state modified since the last checkpoint
-		private final Map<K, Optional<V>> modified = new HashMap<>();
+		private final Map<Tuple2<K, N>, Optional<V>> modified = new HashMap<>();
 
 		public StateCache(int cacheSize, int evictionSize) {
 			super(cacheSize, 0.75f, true);
@@ -428,7 +477,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		}
 
 		@Override
-		public Optional<V> put(K key, Optional<V> value) {
+		public Optional<V> put(Tuple2<K, N> key, Optional<V> value) {
 			// Put kv pair in the cache and evict elements if the cache is full
 			Optional<V> old = super.put(key, value);
 			modified.put(key, value);
@@ -443,14 +492,14 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			Optional<V> value = super.get(key);
 			if (value == null) {
 				// If it doesn't try to load it from the database
-				value = Optional.fromNullable(getFromDatabaseOrNull((K) key));
-				put((K) key, value);
+				value = Optional.fromNullable(getFromDatabaseOrNull((Tuple2<K, N>) key));
+				put((Tuple2<K, N>) key, value);
 			}
 			return value;
 		}
 
 		@Override
-		protected boolean removeEldestEntry(Entry<K, Optional<V>> eldest) {
+		protected boolean removeEldestEntry(Entry<Tuple2<K, N>, Optional<V>> eldest) {
 			// We need to remove elements manually if the cache becomes full, so
 			// we always return false here.
 			return false;
@@ -463,15 +512,20 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		 * @return The value corresponding to the key and the last checkpointid
 		 *         from the database if exists or null.
 		 */
-		private V getFromDatabaseOrNull(final K key) {
+		private V getFromDatabaseOrNull(final Tuple2<K, N> key) {
 			try {
 				return retry(new Callable<V>() {
 					public V call() throws Exception {
-						byte[] serializedKey = InstantiationUtil.serializeToByteArray(keySerializer, key);
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
+						keySerializer.serialize(key.f0, out);
+						namespaceSerializer.serialize(key.f1, out);
+						out.close();
+
 						// We lookup using the adapter and serialize/deserialize
 						// with the TypeSerializers
 						byte[] serializedVal = dbAdapter.lookupKey(kvStateId,
-								selectStatements.getForKey(key), serializedKey, nextTs);
+								selectStatements.getForKey(key.f0), baos.toByteArray(), nextTs);
 
 						return serializedVal != null
 								? InstantiationUtil.deserializeFromByteArray(valueSerializer, serializedVal) : null;
@@ -497,10 +551,10 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 				try {
 					int numEvicted = 0;
 
-					Iterator<Entry<K, Optional<V>>> entryIterator = entrySet().iterator();
+					Iterator<Entry<Tuple2<K, N>, Optional<V>>> entryIterator = entrySet().iterator();
 					while (numEvicted++ < evictionSize && entryIterator.hasNext()) {
 
-						Entry<K, Optional<V>> next = entryIterator.next();
+						Entry<Tuple2<K, N>, Optional<V>> next = entryIterator.next();
 
 						// We only need to write to the database if modified
 						if (modified.remove(next.getKey()) != null) {
@@ -522,7 +576,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 		}
 
 		@Override
-		public void putAll(Map<? extends K, ? extends Optional<V>> m) {
+		public void putAll(Map<? extends Tuple2<K, N>, ? extends Optional<V>> m) {
 			throw new UnsupportedOperationException();
 		}
 
@@ -553,9 +607,10 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			}
 		}
 
-		public void add(Entry<K, Optional<V>> next, long timestamp) throws IOException {
+		public void add(Entry<Tuple2<K, N>, Optional<V>> next, long timestamp) throws IOException {
 
-			K key = next.getKey();
+			K key = next.getKey().f0;
+			N namespace = next.getKey().f1;
 			V value = next.getValue().orNull();
 
 			// Get the current partition if present or initialize empty list
@@ -564,9 +619,15 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 			List<Tuple2<byte[], byte[]>> insertPartition = inserts[shardIndex];
 
 			// Add the k-v pair to the partition
-			byte[] k = InstantiationUtil.serializeToByteArray(keySerializer, key);
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
+			keySerializer.serialize(key, out);
+			namespaceSerializer.serialize(namespace, out);
+			out.close();
+
+			byte[] kn = baos.toByteArray();
 			byte[] v = value != null ? InstantiationUtil.serializeToByteArray(valueSerializer, value) : null;
-			insertPartition.add(Tuple2.of(k, v));
+			insertPartition.add(Tuple2.of(kn, v));
 
 			// If partition is full write to the database and clear
 			if (insertPartition.size() == maxInsertBatchSize) {

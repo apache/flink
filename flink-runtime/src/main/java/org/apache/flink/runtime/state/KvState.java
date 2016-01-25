@@ -18,7 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 
 /**
  * Key/Value state implementation for user-defined state. The state is backed by a state
@@ -29,17 +30,26 @@ import org.apache.flink.api.common.state.OperatorState;
  * metadata of what is considered part of the checkpoint.
  * 
  * @param <K> The type of the key.
- * @param <V> The type of the value.
+ * @param <N> The type of the namespace.
+ * @param <S> The type of {@link State} this {@code KvState} holds.
+ * @param <SD> The type of the {@link StateDescriptor} for state {@code S}.
+ * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  */
-public interface KvState<K, V, Backend extends StateBackend<Backend>> extends OperatorState<V> {
+public interface KvState<K, N, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend> {
 
 	/**
-	 * Sets the current key, which will be used to retrieve values for the next calls to
-	 * {@link #value()} and {@link #update(Object)}.
-	 * 
+	 * Sets the current key, which will be used when using the state access methods.
+	 *
 	 * @param key The key.
 	 */
 	void setCurrentKey(K key);
+
+	/**
+	 * Sets the current namespace, which will be used when using the state access methods.
+	 *
+	 * @param namespace The namespace.
+	 */
+	void setCurrentNamespace(N namespace);
 
 	/**
 	 * Creates a snapshot of this state.
@@ -51,16 +61,7 @@ public interface KvState<K, V, Backend extends StateBackend<Backend>> extends Op
 	 * @throws Exception Exceptions during snapshotting the state should be forwarded, so the system
 	 *                   can react to failed snapshots.
 	 */
-	KvStateSnapshot<K, V, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
-
-	/**
-	 * Gets the number of key/value pairs currently stored in the state. Note that is a key
-	 * has been associated with "null", the key is removed from the state an will not
-	 * be counted here.
-	 *
-	 * @return The number of key/value pairs currently stored in the state.
-	 */
-	int size();
+	KvStateSnapshot<K, N, S, SD, Backend> snapshot(long checkpointId, long timestamp) throws Exception;
 
 	/**
 	 * Disposes the key/value state, releasing all occupied resources.

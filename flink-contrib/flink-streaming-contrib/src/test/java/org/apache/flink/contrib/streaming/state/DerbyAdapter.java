@@ -69,7 +69,6 @@ public class DerbyAdapter extends MySqlAdapter {
 	 */
 	@Override
 	public void createKVStateTable(String stateId, Connection con) throws SQLException {
-
 		validateStateId(stateId);
 		try (Statement smt = con.createStatement()) {
 			smt.executeUpdate(

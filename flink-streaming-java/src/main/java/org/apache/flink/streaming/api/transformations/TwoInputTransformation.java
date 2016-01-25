@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
@@ -40,6 +41,12 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	private final StreamTransformation<IN2> input2;
 
 	private final TwoInputStreamOperator<IN1, IN2, OUT> operator;
+
+	private KeySelector<IN1, ?> stateKeySelector1;
+
+	private KeySelector<IN2, ?> stateKeySelector2;
+
+	private TypeInformation<?> stateKeyType;
 
 	/**
 	 * Creates a new {@code TwoInputTransformation} from the given inputs and operator.
@@ -97,6 +104,46 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	 */
 	public TwoInputStreamOperator<IN1, IN2, OUT> getOperator() {
 		return operator;
+	}
+
+	/**
+	 * Sets the {@link KeySelector KeySelectors} that must be used for partitioning keyed state of
+	 * this transformation.
+	 *
+	 * @param stateKeySelector1 The {@code KeySelector} to set for the first input
+	 * @param stateKeySelector2 The {@code KeySelector} to set for the first input
+	 */
+	public void setStateKeySelectors(KeySelector<IN1, ?> stateKeySelector1, KeySelector<IN2, ?> stateKeySelector2) {
+		this.stateKeySelector1 = stateKeySelector1;
+		this.stateKeySelector2 = stateKeySelector2;
+	}
+
+	/**
+	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
+	 * Operation for the first input.
+	 *
+	 * @see #setStateKeySelectors
+	 */
+	public KeySelector<IN1, ?> getStateKeySelector1() {
+		return stateKeySelector1;
+	}
+
+	/**
+	 * Returns the {@code KeySelector} that must be used for partitioning keyed state in this
+	 * Operation for the second input.
+	 *
+	 * @see #setStateKeySelectors
+	 */
+	public KeySelector<IN2, ?> getStateKeySelector2() {
+		return stateKeySelector2;
+	}
+
+	public void setStateKeyType(TypeInformation<?> stateKeyType) {
+		this.stateKeyType = stateKeyType;
+	}
+
+	public TypeInformation<?> getStateKeyType() {
+		return stateKeyType;
 	}
 
 	@Override

@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
  * 
  * @param <T> The type of the state backend created.
  */
-public interface StateBackendFactory<T extends StateBackend<T>> {
+public interface StateBackendFactory<T extends AbstractStateBackend> {
 
 	/**
 	 * Creates the state backend, optionally using the given configuration.
@@ -36,5 +36,5 @@ public interface StateBackendFactory<T extends StateBackend<T>> {
 	 * 
 	 * @throws Exception Exceptions during instantiation can be forwarded.
 	 */
-	StateBackend<T> createFromConfig(Configuration config) throws Exception;
+	AbstractStateBackend createFromConfig(Configuration config) throws Exception;
 }

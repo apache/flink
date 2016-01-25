@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -41,7 +41,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		long currentTime = System.currentTimeMillis();
 
-		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
+		ValueState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
 		long nextFireTimestamp = fireState.value();
 
 		if (nextFireTimestamp == 0) {
@@ -70,7 +70,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 	@Override
 	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 
-		OperatorState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
+		ValueState<Long> fireState = ctx.getKeyValueState("fire-timestamp", 0L);
 		long nextFireTimestamp = fireState.value();
 
 		// only fire if an element didn't already fire

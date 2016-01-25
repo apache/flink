@@ -134,8 +134,10 @@ public interface StreamOperator<OUT> extends Serializable {
 	//  miscellaneous
 	// ------------------------------------------------------------------------
 	
-	void setKeyContextElement(StreamRecord<?> record) throws Exception;
-	
+	void setKeyContextElement1(StreamRecord<?> record) throws Exception;
+
+	void setKeyContextElement2(StreamRecord<?> record) throws Exception;
+
 	/**
 	 * An operator can return true here to disable copying of its input elements. This overrides
 	 * the object-reuse setting on the {@link org.apache.flink.api.common.ExecutionConfig}

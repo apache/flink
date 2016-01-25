@@ -18,15 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.StringValue;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -39,7 +31,15 @@ import static org.junit.Assert.*;
 /**
  * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
  */
-public class MemoryStateBackendTest {
+public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
+
+	@Override
+	protected MemoryStateBackend getStateBackend() throws Exception {
+		return new MemoryStateBackend();
+	}
+
+	@Override
+	protected void cleanup() throws Exception { }
 
 	@Test
 	public void testSerializableState() {
@@ -94,7 +94,7 @@ public class MemoryStateBackendTest {
 			state.put("hey there", 2);
 			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
 
-			StateBackend.CheckpointStateOutputStream os = backend.createCheckpointStateOutputStream(1, 2);
+			AbstractStateBackend.CheckpointStateOutputStream os = backend.createCheckpointStateOutputStream(1, 2);
 			ObjectOutputStream oos = new ObjectOutputStream(os);
 			oos.writeObject(state);
 			oos.flush();
@@ -122,7 +122,7 @@ public class MemoryStateBackendTest {
 			state.put("hey there", 2);
 			state.put("the crazy brown fox stumbles over a sentence that does not contain every letter", 77);
 
-			StateBackend.CheckpointStateOutputStream os = backend.createCheckpointStateOutputStream(1, 2);
+			AbstractStateBackend.CheckpointStateOutputStream os = backend.createCheckpointStateOutputStream(1, 2);
 			ObjectOutputStream oos = new ObjectOutputStream(os);
 
 			try {
@@ -134,166 +134,6 @@ public class MemoryStateBackendTest {
 			catch (IOException e) {
 				// oh boy! what an exception!
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testKeyValueState() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend();
-
-			KvState<Integer, String, MemoryStateBackend> kv =
-					backend.createKvState("s_0", "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
-
-			assertEquals(0, kv.size());
-
-			// some modifications to the state
-			kv.setCurrentKey(1);
-			assertNull(kv.value());
-			kv.update("1");
-			assertEquals(1, kv.size());
-			kv.setCurrentKey(2);
-			assertNull(kv.value());
-			kv.update("2");
-			assertEquals(2, kv.size());
-			kv.setCurrentKey(1);
-			assertEquals("1", kv.value());
-			assertEquals(2, kv.size());
-
-			// draw a snapshot
-			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot1 = 
-					kv.snapshot(682375462378L, System.currentTimeMillis());
-			
-			// make some more modifications
-			kv.setCurrentKey(1);
-			kv.update("u1");
-			kv.setCurrentKey(2);
-			kv.update("u2");
-			kv.setCurrentKey(3);
-			kv.update("u3");
-
-			// draw another snapshot
-			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot2 =
-					kv.snapshot(682375462379L, System.currentTimeMillis());
-
-			// validate the original state
-			assertEquals(3, kv.size());
-			kv.setCurrentKey(1);
-			assertEquals("u1", kv.value());
-			kv.setCurrentKey(2);
-			assertEquals("u2", kv.value());
-			kv.setCurrentKey(3);
-			assertEquals("u3", kv.value());
-
-			// restore the first snapshot and validate it
-			KvState<Integer, String, MemoryStateBackend> restored1 = snapshot1.restoreState(backend,
-							IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
-
-			assertEquals(2, restored1.size());
-			restored1.setCurrentKey(1);
-			assertEquals("1", restored1.value());
-			restored1.setCurrentKey(2);
-			assertEquals("2", restored1.value());
-
-			// restore the first snapshot and validate it
-			KvState<Integer, String, MemoryStateBackend> restored2 = snapshot2.restoreState(backend,
-					IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
-
-			assertEquals(3, restored2.size());
-			restored2.setCurrentKey(1);
-			assertEquals("u1", restored2.value());
-			restored2.setCurrentKey(2);
-			assertEquals("u2", restored2.value());
-			restored2.setCurrentKey(3);
-			assertEquals("u3", restored2.value());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testRestoreWithWrongSerializers() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend();
-			KvState<Integer, String, MemoryStateBackend> kv =
-					backend.createKvState("s_0", "s", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
-
-			kv.setCurrentKey(1);
-			kv.update("1");
-			kv.setCurrentKey(2);
-			kv.update("2");
-
-			KvStateSnapshot<Integer, String, MemoryStateBackend> snapshot =
-					kv.snapshot(682375462378L, System.currentTimeMillis());
-
-
-			@SuppressWarnings("unchecked")
-			TypeSerializer<Integer> fakeIntSerializer =
-					(TypeSerializer<Integer>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
-
-			@SuppressWarnings("unchecked")
-			TypeSerializer<String> fakeStringSerializer =
-					(TypeSerializer<String>) (TypeSerializer<?>) new ValueSerializer<StringValue>(StringValue.class);
-
-			try {
-				snapshot.restoreState(backend, fakeIntSerializer,
-						StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
-				fail("should recognize wrong serializers");
-			} catch (IllegalArgumentException e) {
-				// expected
-			} catch (Exception e) {
-				fail("wrong exception");
-			}
-
-			try {
-				snapshot.restoreState(backend, IntSerializer.INSTANCE,
-						fakeStringSerializer, null, getClass().getClassLoader(), 1);
-				fail("should recognize wrong serializers");
-			} catch (IllegalArgumentException e) {
-				// expected
-			} catch (Exception e) {
-				fail("wrong exception");
-			}
-
-			try {
-				snapshot.restoreState(backend, fakeIntSerializer,
-						fakeStringSerializer, null, getClass().getClassLoader(), 1);
-				fail("should recognize wrong serializers");
-			} catch (IllegalArgumentException e) {
-				// expected
-			} catch (Exception e) {
-				fail("wrong exception");
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testCopyDefaultValue() {
-		try {
-			MemoryStateBackend backend = new MemoryStateBackend();
-			KvState<Integer, IntValue, MemoryStateBackend> kv =
-					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
-
-			kv.setCurrentKey(1);
-			IntValue default1 = kv.value();
-
-			kv.setCurrentKey(2);
-			IntValue default2 = kv.value();
-
-			assertNotNull(default1);
-			assertNotNull(default2);
-			assertEquals(default1, default2);
-			assertFalse(default1 == default2);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

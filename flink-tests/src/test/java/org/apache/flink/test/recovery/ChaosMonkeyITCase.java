@@ -41,7 +41,7 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -378,7 +378,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 	}
 
 	public static class CheckpointedSequenceSource extends RichParallelSourceFunction<Long>
-			implements Checkpointed<Long>, CheckpointNotifier {
+			implements Checkpointed<Long>, CheckpointListener {
 
 		private static final long serialVersionUID = 0L;
 
@@ -448,7 +448,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 	}
 
 	public static class CountingSink extends RichSinkFunction<Long>
-			implements Checkpointed<CountingSink>, CheckpointNotifier {
+			implements Checkpointed<CountingSink>, CheckpointListener {
 
 		private static final Logger LOG = LoggerFactory.getLogger(CountingSink.class);
 

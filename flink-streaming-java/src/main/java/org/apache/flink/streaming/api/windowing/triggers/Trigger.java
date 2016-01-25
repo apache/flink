@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.Serializable;
@@ -149,13 +149,13 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		void registerEventTimeTimer(long time);
 
 		/**
-		 * Retrieves an {@link OperatorState} object that can be used to interact with
+		 * Retrieves an {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
 		 * trigger invocation.
 		 *
 		 * @param name A unique key for the state.
 		 * @param defaultState The default value of the state.
 		 */
-		<S extends Serializable> OperatorState<S> getKeyValueState(final String name, final S defaultState);
+		<S extends Serializable> ValueState<S> getKeyValueState(final String name, final S defaultState);
 	}
 }
