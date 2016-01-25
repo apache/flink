@@ -29,7 +29,7 @@ import java.io.Serializable;
 /**
  * A state handle that points to state in a file system, accessible as an input stream.
  */
-public class FileStreamStateHandle extends AbstractFileState implements StreamStateHandle {
+public class FileStreamStateHandle extends AbstractFileStateHandle implements StreamStateHandle {
 	
 	private static final long serialVersionUID = -6826990484549987311L;
 

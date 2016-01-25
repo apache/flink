@@ -19,21 +19,27 @@
 package org.apache.flink.streaming.runtime.state;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+
 import org.junit.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 
@@ -69,46 +75,47 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				}
 			})
 			.print();
-
-		boolean caughtSuccess = false;
+		
 		try {
 			see.execute();
-		} catch (JobExecutionException e) {
-			if (e.getCause() instanceof SuccessException) {
-				caughtSuccess = true;
-			} else {
+			fail();
+		}
+		catch (JobExecutionException e) {
+			Throwable t = e.getCause();
+			if (!(t != null && t.getCause() instanceof SuccessException)) {
 				throw e;
 			}
 		}
-
-		assertTrue(caughtSuccess);
 	}
 
 
-	public static class FailingStateBackend extends StateBackend<FailingStateBackend> {
+	public static class FailingStateBackend extends AbstractStateBackend {
+		
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void initializeForJob(Environment env) throws Exception {
+		public void initializeForJob(Environment env, String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
 			throw new SuccessException();
 		}
 
 		@Override
-		public void disposeAllStateForCurrentJob() throws Exception {
+		public void disposeAllStateForCurrentJob() throws Exception {}
 
+		@Override
+		public void close() throws Exception {}
+
+		@Override
+		protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<T> stateDesc) throws Exception {
+			return null;
 		}
 
 		@Override
-		public void close() throws Exception {
-
+		protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
+			return null;
 		}
 
 		@Override
-		public <K, V> KvState<K, V, FailingStateBackend> createKvState(String stateId,
-			String stateName,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<V> valueSerializer,
-			V defaultValue) throws Exception {
+		protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
 			return null;
 		}
 

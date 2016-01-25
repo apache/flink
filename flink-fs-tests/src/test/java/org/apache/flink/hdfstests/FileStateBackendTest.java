@@ -25,11 +25,14 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.hadoop.conf.Configuration;
@@ -55,7 +58,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class FileStateBackendTest {
+public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	
 	private static File TEMP_DIR;
 	
@@ -99,6 +102,20 @@ public class FileStateBackendTest {
 		catch (Exception ignored) {}
 	}
 
+	private URI stateBaseURI;
+
+	@Override
+	protected FsStateBackend getStateBackend() throws Exception {
+		stateBaseURI = new URI(HDFS_ROOT_URI + UUID.randomUUID().toString());
+		return new FsStateBackend(stateBaseURI);
+
+	}
+
+	@Override
+	protected void cleanup() throws Exception {
+		FileSystem.get(stateBaseURI).delete(new Path(stateBaseURI), true);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Tests
 	// ------------------------------------------------------------------------
@@ -128,7 +145,7 @@ public class FileStateBackendTest {
 				// supreme!
 			}
 
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
 			assertNotNull(backend.getCheckpointDirectory());
 
 			Path checkpointDir = backend.getCheckpointDirectory();
@@ -149,9 +166,8 @@ public class FileStateBackendTest {
 	@Test
 	public void testSerializableState() {
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(
-				new FsStateBackend(randomHdfsFileUri(), 40));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri(), 40));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -183,9 +199,8 @@ public class FileStateBackendTest {
 	@Test
 	public void testStateOutputStream() {
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(
-				new FsStateBackend(randomHdfsFileUri(), 15));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(randomHdfsFileUri(), 15));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "dummy", IntSerializer.INSTANCE);
 
 			Path checkpointDir = backend.getCheckpointDirectory();
 
@@ -219,14 +234,14 @@ public class FileStateBackendTest {
 
 			// use with try-with-resources
 			StreamStateHandle handle4;
-			try (StateBackend.CheckpointStateOutputStream stream4 =
+			try (AbstractStateBackend.CheckpointStateOutputStream stream4 =
 						 backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
 				handle4 = stream4.closeAndGetHandle();
 			}
 
 			// close before accessing handle
-			StateBackend.CheckpointStateOutputStream stream5 =
+			AbstractStateBackend.CheckpointStateOutputStream stream5 =
 					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
 			stream5.write(state4);
 			stream5.close();

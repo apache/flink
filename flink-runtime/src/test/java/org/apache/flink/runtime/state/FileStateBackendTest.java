@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.state;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,27 +37,22 @@ import java.net.URI;
 import java.util.Random;
 import java.util.UUID;
 
-import org.apache.commons.io.FileUtils;
+import static org.junit.Assert.*;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.FloatSerializer;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.filesystem.FileStreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.StringValue;
+public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
-import org.junit.Test;
+	private File stateDir;
 
-public class FileStateBackendTest {
+	@Override
+	protected FsStateBackend getStateBackend() throws Exception {
+		stateDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
+		return new FsStateBackend(localFileUri(stateDir));
+	}
+
+	@Override
+	protected void cleanup() throws Exception {
+		deleteDirectorySilently(stateDir);
+	}
 
 	@Test
 	public void testSetupAndSerialization() {
@@ -80,7 +79,7 @@ public class FileStateBackendTest {
 				// supreme!
 			}
 
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test-op", IntSerializer.INSTANCE);
 			assertNotNull(backend.getCheckpointDirectory());
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
@@ -105,9 +104,8 @@ public class FileStateBackendTest {
 	public void testSerializableState() {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(
-				new FsStateBackend(tempDir.toURI(), 40));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test-op", IntSerializer.INSTANCE);
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
@@ -118,13 +116,13 @@ public class FileStateBackendTest {
 			StateHandle<String> handle1 = backend.checkpointStateSerializable(state1, 439568923746L, System.currentTimeMillis());
 			StateHandle<String> handle2 = backend.checkpointStateSerializable(state2, 439568923746L, System.currentTimeMillis());
 			StateHandle<Integer> handle3 = backend.checkpointStateSerializable(state3, 439568923746L, System.currentTimeMillis());
-			
+
 			assertEquals(state1, handle1.getState(getClass().getClassLoader()));
 			handle1.discardState();
-			
+
 			assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 			handle2.discardState();
-			
+
 			assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 			handle3.discardState();
 
@@ -144,10 +142,9 @@ public class FileStateBackendTest {
 		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
 		try {
 			// the state backend has a very low in-mem state threshold (15 bytes)
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(
-				new FsStateBackend(tempDir.toURI(), 15));
-			
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(tempDir.toURI(), 15));
+
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test-op", IntSerializer.INSTANCE);
 
 			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
 
@@ -181,14 +178,14 @@ public class FileStateBackendTest {
 
 			// use with try-with-resources
 			FileStreamStateHandle handle4;
-			try (StateBackend.CheckpointStateOutputStream stream4 =
+			try (AbstractStateBackend.CheckpointStateOutputStream stream4 =
 					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
 				stream4.write(state4);
 				handle4 = (FileStreamStateHandle) stream4.closeAndGetHandle();
 			}
 
 			// close before accessing handle
-			StateBackend.CheckpointStateOutputStream stream5 =
+			AbstractStateBackend.CheckpointStateOutputStream stream5 =
 					backend.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
 			stream5.write(state4);
 			stream5.close();
@@ -223,197 +220,6 @@ public class FileStateBackendTest {
 		}
 	}
 
-	@Test
-	public void testKeyValueState() {
-		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
-
-			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
-
-			KvState<Integer, String, FsStateBackend> kv =
-					backend.createKvState("0", "a", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
-
-			assertEquals(0, kv.size());
-
-			// some modifications to the state
-			kv.setCurrentKey(1);
-			assertNull(kv.value());
-			kv.update("1");
-			assertEquals(1, kv.size());
-			kv.setCurrentKey(2);
-			assertNull(kv.value());
-			kv.update("2");
-			assertEquals(2, kv.size());
-			kv.setCurrentKey(1);
-			assertEquals("1", kv.value());
-			assertEquals(2, kv.size());
-
-			// draw a snapshot
-			KvStateSnapshot<Integer, String, FsStateBackend> snapshot1 =
-					kv.snapshot(682375462378L, System.currentTimeMillis());
-
-			// make some more modifications
-			kv.setCurrentKey(1);
-			kv.update("u1");
-			kv.setCurrentKey(2);
-			kv.update("u2");
-			kv.setCurrentKey(3);
-			kv.update("u3");
-
-			// draw another snapshot
-			KvStateSnapshot<Integer, String, FsStateBackend> snapshot2 =
-					kv.snapshot(682375462379L, System.currentTimeMillis());
-
-			// validate the original state
-			assertEquals(3, kv.size());
-			kv.setCurrentKey(1);
-			assertEquals("u1", kv.value());
-			kv.setCurrentKey(2);
-			assertEquals("u2", kv.value());
-			kv.setCurrentKey(3);
-			assertEquals("u3", kv.value());
-
-			// restore the first snapshot and validate it
-			KvState<Integer, String, FsStateBackend> restored1 = snapshot1.restoreState(backend,
-					IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
-
-			assertEquals(2, restored1.size());
-			restored1.setCurrentKey(1);
-			assertEquals("1", restored1.value());
-			restored1.setCurrentKey(2);
-			assertEquals("2", restored1.value());
-
-			// restore the first snapshot and validate it
-			KvState<Integer, String, FsStateBackend> restored2 = snapshot2.restoreState(backend,
-					IntSerializer.INSTANCE, StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
-
-			assertEquals(3, restored2.size());
-			restored2.setCurrentKey(1);
-			assertEquals("u1", restored2.value());
-			restored2.setCurrentKey(2);
-			assertEquals("u2", restored2.value());
-			restored2.setCurrentKey(3);
-			assertEquals("u3", restored2.value());
-
-			snapshot1.discardState();
-			assertFalse(isDirectoryEmpty(checkpointDir));
-
-			snapshot2.discardState();
-			assertTrue(isDirectoryEmpty(checkpointDir));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			deleteDirectorySilently(tempDir);
-		}
-	}
-
-	@Test
-	public void testRestoreWithWrongSerializers() {
-		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
-
-			File checkpointDir = new File(backend.getCheckpointDirectory().toUri().getPath());
-
-			KvState<Integer, String, FsStateBackend> kv =
-					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, StringSerializer.INSTANCE, null);
-
-			kv.setCurrentKey(1);
-			kv.update("1");
-			kv.setCurrentKey(2);
-			kv.update("2");
-
-			KvStateSnapshot<Integer, String, FsStateBackend> snapshot =
-					kv.snapshot(682375462378L, System.currentTimeMillis());
-
-
-			@SuppressWarnings("unchecked")
-			TypeSerializer<Integer> fakeIntSerializer =
-					(TypeSerializer<Integer>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
-
-			@SuppressWarnings("unchecked")
-			TypeSerializer<String> fakeStringSerializer =
-					(TypeSerializer<String>) (TypeSerializer<?>) new ValueSerializer<StringValue>(StringValue.class);
-
-			try {
-				snapshot.restoreState(backend, fakeIntSerializer,
-						StringSerializer.INSTANCE, null, getClass().getClassLoader(), 1);
-				fail("should recognize wrong serializers");
-			} catch (IllegalArgumentException e) {
-				// expected
-			} catch (Exception e) {
-				fail("wrong exception");
-			}
-
-			try {
-				snapshot.restoreState(backend, IntSerializer.INSTANCE,
-						fakeStringSerializer, null, getClass().getClassLoader(), 1);
-				fail("should recognize wrong serializers");
-			} catch (IllegalArgumentException e) {
-				// expected
-			} catch (Exception e) {
-				fail("wrong exception");
-			}
-
-			try {
-				snapshot.restoreState(backend, fakeIntSerializer,
-						fakeStringSerializer, null, getClass().getClassLoader(), 1);
-				fail("should recognize wrong serializers");
-			} catch (IllegalArgumentException e) {
-				// expected
-			} catch (Exception e) {
-				fail("wrong exception");
-			}
-
-			snapshot.discardState();
-
-			assertTrue(isDirectoryEmpty(checkpointDir));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			deleteDirectorySilently(tempDir);
-		}
-	}
-
-	@Test
-	public void testCopyDefaultValue() {
-		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-		try {
-			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(localFileUri(tempDir)));
-			backend.initializeForJob(new DummyEnvironment("test", 1, 0));
-
-			KvState<Integer, IntValue, FsStateBackend> kv =
-					backend.createKvState("a_0", "a", IntSerializer.INSTANCE, IntValueSerializer.INSTANCE, new IntValue(-1));
-
-			kv.setCurrentKey(1);
-			IntValue default1 = kv.value();
-
-			kv.setCurrentKey(2);
-			IntValue default2 = kv.value();
-
-			assertNotNull(default1);
-			assertNotNull(default2);
-			assertEquals(default1, default2);
-			assertFalse(default1 == default2);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			deleteDirectorySilently(tempDir);
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -437,6 +243,9 @@ public class FileStateBackendTest {
 	}
 
 	private static boolean isDirectoryEmpty(File directory) {
+		if (!directory.exists()) {
+			return true;
+		}
 		String[] nested = directory.list();
 		return nested == null || nested.length == 0;
 	}
@@ -447,15 +256,16 @@ public class FileStateBackendTest {
 
 	private static void validateBytesInStream(InputStream is, byte[] data) throws IOException {
 		byte[] holder = new byte[data.length];
-		int numBytesRead = is.read(holder);
-		
-		if (holder.length == 0) {
-			assertTrue("stream not empty", numBytesRead == 0 || numBytesRead == -1);
-		} else {
-			assertEquals("not enough data", holder.length, numBytesRead);
+
+		int pos = 0;
+		int read;
+		while (pos < holder.length && (read = is.read(holder, pos, holder.length - pos)) != -1) {
+			pos += read;
 		}
-		
+
+		assertEquals("not enough data", holder.length, pos);
 		assertEquals("too much data", -1, is.read());
 		assertArrayEquals("wrong data", data, holder);
 	}
+
 }

@@ -29,6 +29,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -190,14 +193,17 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		private static Map<Integer, Long> allCounts = new ConcurrentHashMap<Integer, Long>();
 
+		private ValueStateDescriptor<Long> bCountsId = new ValueStateDescriptor<>("b", 0L,
+				LongSerializer.INSTANCE);
+
 		private OperatorState<NonSerializableLong> aCounts;
-		private OperatorState<Long> bCounts;
+		private ValueState<Long> bCounts;
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
 			aCounts = getRuntimeContext().getKeyValueState(
 					"a", NonSerializableLong.class, NonSerializableLong.of(0L));
-			bCounts = getRuntimeContext().getKeyValueState("b", Long.class, 0L);
+			bCounts = getRuntimeContext().getPartitionedState(bCountsId);
 		}
 
 		@Override
@@ -223,6 +229,22 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		public static NonSerializableLong of(long value) {
 			return new NonSerializableLong(value);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+
+			NonSerializableLong that = (NonSerializableLong) o;
+
+			return value.equals(that.value);
+
+		}
+
+		@Override
+		public int hashCode() {
+			return value.hashCode();
 		}
 	}
 	

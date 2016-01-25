@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
@@ -32,10 +34,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * a file and this snapshot object contains a pointer to that file.
  *
  * @param <K> The type of the key
- * @param <V> The type of the value
+ * @param <N> The type of the namespace
+ * @param <S> The type of the {@link State}
+ * @param <SD> The type of the {@link StateDescriptor}
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public interface KvStateSnapshot<K, V, Backend extends StateBackend<Backend>> extends java.io.Serializable {
+public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend> extends java.io.Serializable {
 
 	/**
 	 * Loads the key/value state back from this snapshot.
@@ -43,21 +47,18 @@ public interface KvStateSnapshot<K, V, Backend extends StateBackend<Backend>> ex
 	 * @param stateBackend The state backend that created this snapshot and can restore the key/value state
 	 *                     from this snapshot.
 	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the values.
-	 * @param defaultValue The value that is returned when no other value has been associated with a key, yet.   
 	 * @param classLoader The class loader for user-defined types.
-	 * 
+	 * @param recoveryTimestamp The timestamp of the checkpoint we are recovering from.
+	 *
 	 * @return An instance of the key/value state loaded from this snapshot.
 	 * 
 	 * @throws Exception Exceptions can occur during the state loading and are forwarded. 
 	 */
-	KvState<K, V, Backend> restoreState(
-			Backend stateBackend,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<V> valueSerializer,
-			V defaultValue,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception;
+	KvState<K, N, S, SD, Backend> restoreState(
+		Backend stateBackend,
+		TypeSerializer<K> keySerializer,
+		ClassLoader classLoader,
+		long recoveryTimestamp) throws Exception;
 
 	/**
 	 * Discards the state snapshot, removing any resources occupied by it.

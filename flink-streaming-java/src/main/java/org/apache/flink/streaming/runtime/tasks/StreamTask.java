@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -34,14 +35,13 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.AsynchronousStateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -122,9 +122,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** The class loader used to load dynamic classes of a job */
 	private ClassLoader userClassLoader;
 	
-	/** The state backend that stores the state and checkpoints for this task */
-	private StateBackend<?> stateBackend;
-	
 	/** The executor service that schedules and calls the triggers of this task*/
 	private ScheduledExecutorService timerService;
 	
@@ -203,8 +200,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			LOG.debug("Invoking {}", getName());
 			
 			// first order of business is to give operators back their state
-			stateBackend = createStateBackend();
-			stateBackend.initializeForJob(getEnvironment());
 			restoreState();
 			
 			// we need to make sure that any triggers scheduled in open() cannot be
@@ -288,14 +283,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// if the operators were not disposed before, do a hard dispose
 			if (!disposed) {
 				disposeAllOperators();
-			}
-
-			try {
-				if (stateBackend != null) {
-					stateBackend.close();
-				}
-			} catch (Throwable t) {
-				LOG.error("Error while closing the state backend", t);
 			}
 		}
 	}
@@ -557,11 +544,6 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			if (isRunning) {
 				LOG.debug("Notification of complete checkpoint for task {}", getName());
 				
-				// We first notify the state backend if necessary
-				if (stateBackend instanceof CheckpointNotifier) {
-					((CheckpointNotifier) stateBackend).notifyCheckpointComplete(checkpointId);
-				}
-				
 				for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 					if (operator != null) {
 						operator.notifyOfCompletedCheckpoint(checkpointId);
@@ -578,23 +560,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	//  State backend
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Gets the state backend used by this task. The state backend defines how to maintain the
-	 * key/value state and how and where to store state snapshots.
-	 * 
-	 * @return The state backend used by this task.
-	 */
-	public StateBackend<?> getStateBackend() {
-		return stateBackend;
-	}
-	
-	private StateBackend<?> createStateBackend() throws Exception {
-		StateBackend<?> configuredBackend = configuration.getStateBackend(userClassLoader);
+	public AbstractStateBackend createStateBackend(String operatorIdentifier, TypeSerializer<?> keySerializer) throws Exception {
+		AbstractStateBackend stateBackend = configuration.getStateBackend(userClassLoader);
 
-		if (configuredBackend != null) {
+		if (stateBackend != null) {
 			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: " + configuredBackend);
-			return configuredBackend;
+			LOG.info("Using user-defined state backend: " + stateBackend);
 		} else {
 			// see if we have a backend specified in the configuration
 			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
@@ -609,13 +580,15 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			switch (backendName) {
 				case "jobmanager":
 					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
-					return MemoryStateBackend.defaultInstance();
+					stateBackend = MemoryStateBackend.create();
+					break;
 
 				case "filesystem":
 					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to filesystem (checkpoints to filesystem \""
+					LOG.info("State backend is set to heap memory (checkpoints to filesystem \""
 						+ backend.getBasePath() + "\")");
-					return backend;
+					stateBackend = backend;
+					break;
 
 				default:
 					try {
@@ -623,7 +596,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 						Class<? extends StateBackendFactory> clazz =
 							Class.forName(backendName, false, userClassLoader).asSubclass(StateBackendFactory.class);
 
-						return clazz.newInstance().createFromConfig(flinkConfig);
+						stateBackend = ((StateBackendFactory<?>) clazz.newInstance()).createFromConfig(flinkConfig);
 					} catch (ClassNotFoundException e) {
 						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
 					} catch (ClassCastException e) {
@@ -635,6 +608,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					}
 			}
 		}
+		stateBackend.initializeForJob(getEnvironment(), operatorIdentifier, keySerializer);
+		return stateBackend;
+
 	}
 
 	/**

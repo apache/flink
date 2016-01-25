@@ -23,7 +23,8 @@ import java.io.IOException;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -40,7 +41,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 	private static final String STATE_NAME = "_op_state";
 
 	// Grouped values
-	private transient OperatorState<OUT> values;
+	private transient ValueState<OUT> values;
 	
 	private transient OUT initialValue;
 	
@@ -66,7 +67,8 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 		initialValue = outTypeSerializer.deserialize(in);
-		values = createKeyValueState(STATE_NAME, outTypeSerializer, null);
+		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, null, outTypeSerializer);
+		values = getPartitionedState(stateId);
 	}
 
 	@Override

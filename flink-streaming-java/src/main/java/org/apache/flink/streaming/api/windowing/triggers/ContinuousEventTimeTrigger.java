@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -42,7 +42,7 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 	@Override
 	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
 
-		OperatorState<Boolean> first = ctx.getKeyValueState("first", true);
+		ValueState<Boolean> first = ctx.getKeyValueState("first", true);
 
 		if (first.value()) {
 			long start = timestamp - (timestamp % interval);

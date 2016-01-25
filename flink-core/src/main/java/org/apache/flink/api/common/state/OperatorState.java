@@ -35,6 +35,7 @@ import java.io.IOException;
  * @param <T> Type of the value in the operator state
  */
 @Public
+@Deprecated
 public interface OperatorState<T> {
 
 	/**

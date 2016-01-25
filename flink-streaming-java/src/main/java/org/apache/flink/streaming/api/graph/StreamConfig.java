@@ -31,7 +31,7 @@ import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -370,7 +370,7 @@ public class StreamConfig implements Serializable {
 	//  State backend
 	// ------------------------------------------------------------------------
 	
-	public void setStateBackend(StateBackend<?> backend) {
+	public void setStateBackend(AbstractStateBackend backend) {
 		try {
 			InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
 		} catch (Exception e) {
@@ -378,7 +378,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public StateBackend<?> getStateBackend(ClassLoader cl) {
+	public AbstractStateBackend getStateBackend(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
 		} catch (Exception e) {
@@ -386,17 +386,17 @@ public class StreamConfig implements Serializable {
 		}
 	}
 	
-	public void setStatePartitioner(KeySelector<?, ?> partitioner) {
+	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
 		try {
-			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER);
+			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER + input);
 		} catch (IOException e) {
 			throw new StreamTaskException("Could not serialize state partitioner.", e);
 		}
 	}
 	
-	public KeySelector<?, Serializable> getStatePartitioner(ClassLoader cl) {
+	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER, cl);
+			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate state partitioner.", e);
 		}
