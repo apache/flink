@@ -36,7 +36,7 @@ import java.io.IOException;
 
 public class FoldAllWindowFunction<W extends Window, T, R>
 		extends WrappingFunction<FoldFunction<T, R>>
-		implements AllWindowFunction<T, R, W>, OutputTypeConfigurable<R> {
+		implements AllWindowFunction<Iterable<T>, R, W>, OutputTypeConfigurable<R> {
 	private static final long serialVersionUID = 1L;
 
 	private byte[] serializedInitialValue;

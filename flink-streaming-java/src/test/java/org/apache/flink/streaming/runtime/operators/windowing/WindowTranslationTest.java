@@ -17,7 +17,10 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -35,8 +38,6 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.HeapWindowBuffer;
-import org.apache.flink.streaming.runtime.operators.windowing.buffers.PreAggregatingHeapWindowBuffer;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
@@ -50,6 +51,29 @@ import java.util.concurrent.TimeUnit;
  * the correct window operator.
  */
 public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
+
+	/**
+	 * .reduce() does not support RichReduceFunction, since the reduce function is used internally
+	 * in a {@code ReducingState}.
+	 */
+	@Test(expected = UnsupportedOperationException.class)
+	public void testReduceFailWithRichReducer() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
+		DataStream<Tuple2<String, Integer>> window1 = source
+			.keyBy(0)
+			.window(SlidingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
+			.reduce(new RichReduceFunction<Tuple2<String, Integer>>() {
+				@Override
+				public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
+					Tuple2<String, Integer> value2) throws Exception {
+					return null;
+				}
+			});
+	}
 
 	/**
 	 * These tests ensure that the fast aligned time windows operator is used if the
@@ -76,7 +100,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		DataStream<Tuple2<String, Integer>> window2 = source
 				.keyBy(0)
 				.window(SlidingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
-				.apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
+				.apply(new WindowFunction<Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -118,12 +142,12 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		Assert.assertFalse(winOperator1.isSetProcessingTime());
 		Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
 		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingTimeWindows);
-		Assert.assertTrue(winOperator1.getWindowBufferFactory() instanceof PreAggregatingHeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ReducingStateDescriptor);
 
 		DataStream<Tuple2<String, Integer>> window2 = source
 				.keyBy(0)
 				.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
-				.apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
+				.apply(new WindowFunction<Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -142,7 +166,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		Assert.assertFalse(winOperator2.isSetProcessingTime());
 		Assert.assertTrue(winOperator2.getTrigger() instanceof EventTimeTrigger);
 		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingTimeWindows);
-		Assert.assertTrue(winOperator2.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
 	}
 
 	@Test
@@ -168,13 +192,13 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		Assert.assertTrue(winOperator1.isSetProcessingTime());
 		Assert.assertTrue(winOperator1.getTrigger() instanceof CountTrigger);
 		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingTimeWindows);
-		Assert.assertTrue(winOperator1.getWindowBufferFactory() instanceof PreAggregatingHeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ReducingStateDescriptor);
 
 		DataStream<Tuple2<String, Integer>> window2 = source
 				.keyBy(0)
 				.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
 				.trigger(CountTrigger.of(100))
-				.apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
+				.apply(new WindowFunction<Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -193,7 +217,7 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		Assert.assertTrue(winOperator2.isSetProcessingTime());
 		Assert.assertTrue(winOperator2.getTrigger() instanceof CountTrigger);
 		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingTimeWindows);
-		Assert.assertTrue(winOperator2.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
 	}
 
 	@Test
@@ -220,14 +244,14 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		Assert.assertTrue(winOperator1.getTrigger() instanceof EventTimeTrigger);
 		Assert.assertTrue(winOperator1.getWindowAssigner() instanceof SlidingTimeWindows);
 		Assert.assertTrue(winOperator1.getEvictor() instanceof CountEvictor);
-		Assert.assertTrue(winOperator1.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator1.getStateDescriptor() instanceof ListStateDescriptor);
 
 		DataStream<Tuple2<String, Integer>> window2 = source
 				.keyBy(0)
 				.window(TumblingTimeWindows.of(Time.of(1, TimeUnit.SECONDS)))
 				.trigger(CountTrigger.of(100))
 				.evictor(TimeEvictor.of(Time.of(100, TimeUnit.MILLISECONDS)))
-				.apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
+				.apply(new WindowFunction<Iterable<Tuple2<String, Integer>>, Tuple2<String, Integer>, Tuple, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -247,14 +271,14 @@ public class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
 		Assert.assertTrue(winOperator2.getTrigger() instanceof CountTrigger);
 		Assert.assertTrue(winOperator2.getWindowAssigner() instanceof TumblingTimeWindows);
 		Assert.assertTrue(winOperator2.getEvictor() instanceof TimeEvictor);
-		Assert.assertTrue(winOperator2.getWindowBufferFactory() instanceof HeapWindowBuffer.Factory);
+		Assert.assertTrue(winOperator2.getStateDescriptor() instanceof ListStateDescriptor);
 	}
 
 	// ------------------------------------------------------------------------
 	//  UDFs
 	// ------------------------------------------------------------------------
 
-	public static class DummyReducer extends RichReduceFunction<Tuple2<String, Integer>> {
+	public static class DummyReducer implements ReduceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

@@ -18,15 +18,18 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -40,9 +43,17 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -55,12 +66,22 @@ import static org.junit.Assert.*;
  * of the emitted windows are deterministic.
  */
 @SuppressWarnings("serial")
+@RunWith(Parameterized.class)
 public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
 	private static ForkableFlinkMiniCluster cluster;
 
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	private StateBackendEnum stateBackendEnum;
+	private AbstractStateBackend stateBackend;
+
+	public EventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
+		this.stateBackendEnum = stateBackendEnum;
+	}
 
 	@BeforeClass
 	public static void startTestCluster() {
@@ -78,6 +99,19 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	public static void stopTestCluster() {
 		if (cluster != null) {
 			cluster.stop();
+		}
+	}
+
+	@Before
+	public void initStateBackend() throws IOException {
+		switch (stateBackendEnum) {
+			case MEM:
+				this.stateBackend = new MemoryStateBackend();
+				break;
+			case FILE:
+				String backups = tempFolder.newFolder().getAbsolutePath();
+				this.stateBackend = new FsStateBackend("file://" + backups);
+				break;
 		}
 	}
 
@@ -99,13 +133,14 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
+			env.setStateBackend(this.stateBackend);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -162,13 +197,14 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
+			env.setStateBackend(this.stateBackend);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -229,13 +265,14 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
+			env.setStateBackend(this.stateBackend);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
-					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
+					.apply(new RichWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple4<Long, Long, Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -292,6 +329,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
+			env.setStateBackend(this.stateBackend);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
@@ -299,23 +337,12 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS))
 					.apply(
-							new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-								private boolean open = false;
-
-								@Override
-								public void open(Configuration parameters) {
-									assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
-									open = true;
-								}
+							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
 								public Tuple2<Long, IntType> reduce(
 										Tuple2<Long, IntType> a,
 										Tuple2<Long, IntType> b) {
-
-									// validate that the function has been opened properly
-									assertTrue(open);
 									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
 								}
 							},
@@ -333,20 +360,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 						public void apply(
 								Tuple tuple,
 								TimeWindow window,
-								Iterable<Tuple2<Long, IntType>> values,
+								Tuple2<Long, IntType> input,
 								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							int sum = 0;
-							long key = -1;
-
-							for (Tuple2<Long, IntType> value : values) {
-								sum += value.f1.value;
-								key = value.f0;
-							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
+							out.collect(new Tuple4<>(input.f0, window.getStart(), window.getEnd(), input.f1));
 						}
 					})
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
@@ -377,6 +397,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.enableCheckpointing(100);
 			env.setNumberOfExecutionRetries(3);
 			env.getConfig().disableSysoutLogging();
+			env.setStateBackend(this.stateBackend);
 
 			env
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
@@ -384,15 +405,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					.keyBy(0)
 					.timeWindow(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
 					.apply(
-							new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-								private boolean open = false;
-
-								@Override
-								public void open(Configuration parameters) {
-									assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
-									open = true;
-								}
+							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
 								public Tuple2<Long, IntType> reduce(
@@ -400,7 +413,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 										Tuple2<Long, IntType> b) {
 
 									// validate that the function has been opened properly
-									assertTrue(open);
 									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
 								}
 							},
@@ -418,20 +430,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 						public void apply(
 								Tuple tuple,
 								TimeWindow window,
-								Iterable<Tuple2<Long, IntType>> values,
+								Tuple2<Long, IntType> input,
 								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							int sum = 0;
-							long key = -1;
-
-							for (Tuple2<Long, IntType> value : values) {
-								sum += value.f1.value;
-								key = value.f0;
-							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
+							out.collect(new Tuple4<>(input.f0, window.getStart(), window.getEnd(), input.f1));
 						}
 					})
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);
@@ -583,7 +588,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 					}
 				}
 			}
-			assertTrue("The source must see all expected windows.", seenAll);
+			assertTrue("The sink must see all expected windows.", seenAll);
 		}
 
 		@Override
@@ -721,6 +726,25 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		public void restoreState(HashMap<Long, Integer> state) {
 			this.windowCounts.putAll(state);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Parametrization for testing with different state backends
+	// ------------------------------------------------------------------------
+
+
+	@Parameterized.Parameters(name = "StateBackend = {0}")
+	@SuppressWarnings("unchecked,rawtypes")
+	public static Collection<Object[]> parameters(){
+		return Arrays.asList(new Object[][] {
+				{StateBackendEnum.MEM},
+				{StateBackendEnum.FILE},
+			}
+		);
+	}
+
+	private enum StateBackendEnum {
+		MEM, FILE, DB, ROCKSDB
 	}
 
 

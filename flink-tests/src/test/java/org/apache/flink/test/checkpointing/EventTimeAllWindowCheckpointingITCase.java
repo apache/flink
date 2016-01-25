@@ -18,13 +18,13 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -105,7 +105,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 							NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS))
-					.apply(new RichAllWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, TimeWindow>() {
+					.apply(new RichAllWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple4<Long, Long, Long, IntType>, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -167,7 +167,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.addSource(new FailingSource(NUM_KEYS, NUM_ELEMENTS_PER_KEY, NUM_ELEMENTS_PER_KEY / 3))
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS), Time.of(WINDOW_SLIDE, MILLISECONDS))
-					.apply(new RichAllWindowFunction<Tuple2<Long, IntType>, Tuple4<Long, Long, Long, IntType>, TimeWindow>() {
+					.apply(new RichAllWindowFunction<Iterable<Tuple2<Long, IntType>>, Tuple4<Long, Long, Long, IntType>, TimeWindow>() {
 
 						private boolean open = false;
 
@@ -231,23 +231,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.rebalance()
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS))
 					.apply(
-							new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-								private boolean open = false;
-
-								@Override
-								public void open(Configuration parameters) {
-									assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-									open = true;
-								}
+							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
 								public Tuple2<Long, IntType> reduce(
 										Tuple2<Long, IntType> a,
 										Tuple2<Long, IntType> b) {
 
-									// validate that the function has been opened properly
-									assertTrue(open);
 									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
 								}
 							},
@@ -264,20 +254,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 						@Override
 						public void apply(
 								TimeWindow window,
-								Iterable<Tuple2<Long, IntType>> values,
+								Tuple2<Long, IntType> input,
 								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							int sum = 0;
-							long key = -1;
-
-							for (Tuple2<Long, IntType> value : values) {
-								sum += value.f1.value;
-								key = value.f0;
-							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
+							out.collect(new Tuple4<>(input.f0, window.getStart(), window.getEnd(), input.f1));
 						}
 					})
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SIZE)).setParallelism(1);
@@ -317,23 +300,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 					.timeWindowAll(Time.of(WINDOW_SIZE, MILLISECONDS),
 							Time.of(WINDOW_SLIDE, MILLISECONDS))
 					.apply(
-							new RichReduceFunction<Tuple2<Long, IntType>>() {
-
-								private boolean open = false;
-
-								@Override
-								public void open(Configuration parameters) {
-									assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-									open = true;
-								}
+							new ReduceFunction<Tuple2<Long, IntType>>() {
 
 								@Override
 								public Tuple2<Long, IntType> reduce(
 										Tuple2<Long, IntType> a,
 										Tuple2<Long, IntType> b) {
 
-									// validate that the function has been opened properly
-									assertTrue(open);
 									return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
 								}
 							},
@@ -350,20 +323,13 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 						@Override
 						public void apply(
 								TimeWindow window,
-								Iterable<Tuple2<Long, IntType>> values,
+								Tuple2<Long, IntType> input,
 								Collector<Tuple4<Long, Long, Long, IntType>> out) {
 
 							// validate that the function has been opened properly
 							assertTrue(open);
 
-							int sum = 0;
-							long key = -1;
-
-							for (Tuple2<Long, IntType> value : values) {
-								sum += value.f1.value;
-								key = value.f0;
-							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
+							out.collect(new Tuple4<>(input.f0, window.getStart(), window.getEnd(), input.f1));
 						}
 					})
 					.addSink(new ValidatingSink(NUM_KEYS, NUM_ELEMENTS_PER_KEY / WINDOW_SLIDE)).setParallelism(1);

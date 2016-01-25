@@ -38,10 +38,10 @@ public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function
 	 *
 	 * @param key The key for which this window is evaluated.
 	 * @param window The window that is being evaluated.
-	 * @param values The elements in the window being evaluated.
+	 * @param input The elements in the window being evaluated.
 	 * @param out A collector for emitting elements.
 	 * 
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery. 
 	 */
-	void apply(KEY key, W window, Iterable<IN> values, Collector<OUT> out) throws Exception;
+	void apply(KEY key, W window, IN input, Collector<OUT> out) throws Exception;
 }

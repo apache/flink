@@ -176,8 +176,15 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param function The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def apply[R: TypeInformation: ClassTag](function: AllWindowFunction[T, R, W]): DataStream[R] = {
-    javaStream.apply(clean(function), implicitly[TypeInformation[R]])
+  def apply[R: TypeInformation: ClassTag](
+      function: AllWindowFunction[Iterable[T], R, W]): DataStream[R] = {
+    val cleanedFunction = clean(function)
+    val javaFunction = new AllWindowFunction[java.lang.Iterable[T], R, W] {
+      def apply(window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
+        cleanedFunction(window, elements.asScala, out)
+      }
+    }
+    javaStream.apply(javaFunction, implicitly[TypeInformation[R]])
   }
 
   /**
@@ -194,7 +201,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   def apply[R: TypeInformation: ClassTag](
       function: (W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
     val cleanedFunction = clean(function)
-    val applyFunction = new AllWindowFunction[T, R, W] {
+    val applyFunction = new AllWindowFunction[java.lang.Iterable[T], R, W] {
       def apply(window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
         cleanedFunction(window, elements.asScala, out)
       }
@@ -232,7 +239,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    */
   def apply[R: TypeInformation: ClassTag](
       preAggregator: (T, T) => T,
-      function: (W, Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+      function: (W, T, Collector[R]) => Unit): DataStream[R] = {
     if (function == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
@@ -247,8 +254,8 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
     val cleanApply = clean(function)
     val applyFunction = new AllWindowFunction[T, R, W] {
-      def apply(window: W, elements: java.lang.Iterable[T], out: Collector[R]): Unit = {
-        cleanApply(window, elements.asScala, out)
+      def apply(window: W, input: T, out: Collector[R]): Unit = {
+        cleanApply(window, input, out)
       }
     }
     javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]])

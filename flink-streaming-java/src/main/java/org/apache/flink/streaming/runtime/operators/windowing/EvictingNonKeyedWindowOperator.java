@@ -47,7 +47,7 @@ public class EvictingNonKeyedWindowOperator<IN, OUT, W extends Window> extends N
 	public EvictingNonKeyedWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 			TypeSerializer<W> windowSerializer,
 			WindowBufferFactory<? super IN, ? extends EvictingWindowBuffer<IN>> windowBufferFactory,
-			AllWindowFunction<IN, OUT, W> windowFunction,
+			AllWindowFunction<Iterable<IN>, OUT, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor) {
 		super(windowAssigner, windowSerializer, windowBufferFactory, windowFunction, trigger);

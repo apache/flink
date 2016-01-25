@@ -17,7 +17,10 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -100,6 +103,10 @@ public class SessionWindowing {
 
 		private final Long sessionTimeout;
 
+		private final ValueStateDescriptor<Long> stateDesc = new ValueStateDescriptor<>("last-seen", 1L,
+			BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new ExecutionConfig()));
+
+
 		public SessionTrigger(Long sessionTimeout) {
 			this.sessionTimeout = sessionTimeout;
 
@@ -108,7 +115,7 @@ public class SessionWindowing {
 		@Override
 		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) throws Exception {
 
-			ValueState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
+			ValueState<Long> lastSeenState = ctx.getPartitionedState(stateDesc);
 			Long lastSeen = lastSeenState.value();
 
 			Long timeSinceLastEvent = timestamp - lastSeen;
@@ -127,7 +134,7 @@ public class SessionWindowing {
 
 		@Override
 		public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
-			ValueState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
+			ValueState<Long> lastSeenState = ctx.getPartitionedState(stateDesc);
 			Long lastSeen = lastSeenState.value();
 
 			if (time - lastSeen >= sessionTimeout) {
