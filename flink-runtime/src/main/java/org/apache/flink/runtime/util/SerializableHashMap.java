@@ -76,14 +76,14 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 			try {
 				keyClass = (Class<K>) Class.forName(keyType);
 			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			}
 
 			K key = null;
 			try {
 				key = keyClass.newInstance();
 			} catch (Exception e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			}
 
 			key.read(in);
@@ -93,14 +93,14 @@ public class SerializableHashMap<K extends IOReadableWritable, V extends IOReada
 			try {
 				valueClass = (Class<V>) Class.forName(valueType);
 			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			}
 
 			V value;
 			try {
 				value = valueClass.newInstance();
 			} catch (Exception e) {
-				throw new IOException(StringUtils.stringifyException(e));
+				throw new IOException(e);
 			}
 			value.read(in);
 

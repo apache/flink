@@ -1137,7 +1137,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 								final int sourceParallelism,
 								final String topicName,
 								final int valuesCount, final int startFrom) throws Exception {
-		env.getCheckpointConfig().setCheckpointTimeout(5000); // set timeout for checkpoints to 5 seconds
 
 		final int finalCount = valuesCount * sourceParallelism;
 

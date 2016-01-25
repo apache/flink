@@ -53,6 +53,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
@@ -874,7 +875,11 @@ public class Task implements Runnable {
 					@Override
 					public void run() {
 						try {
-							statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							boolean success = statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							if (!success) {
+								DeclineCheckpoint decline = new DeclineCheckpoint(jobId, getExecutionId(), checkpointID, checkpointTimestamp);
+								jobManager.tell(decline);
+							}
 						}
 						catch (Throwable t) {
 							failExternally(new RuntimeException("Error while triggering checkpoint for " + taskName, t));

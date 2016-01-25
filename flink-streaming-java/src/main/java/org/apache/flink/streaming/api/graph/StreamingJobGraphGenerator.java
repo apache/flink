@@ -229,14 +229,14 @@ public class StreamingJobGraphGenerator {
 			return transitiveOutEdges;
 
 		} else {
-			return new ArrayList<StreamEdge>();
+			return new ArrayList<>();
 		}
 	}
 
 	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
 		String operatorName = streamGraph.getStreamNode(vertexID).getOperatorName();
 		if (chainedOutputs.size() > 1) {
-			List<String> outputChainedNames = new ArrayList<String>();
+			List<String> outputChainedNames = new ArrayList<>();
 			for (StreamEdge chainable : chainedOutputs) {
 				outputChainedNames.add(chainedNames.get(chainable.getTargetId()));
 			}
@@ -395,8 +395,7 @@ public class StreamingJobGraphGenerator {
 				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS ||
 					headOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS)
-				&& (edge.getPartitioner() instanceof ForwardPartitioner || downStreamVertex
-						.getParallelism() == 1)
+				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
 				&& (streamGraph.isChainingEnabled() ||
 					outOperator.getChainingStrategy() == ChainingStrategy.FORCE_ALWAYS);
@@ -404,7 +403,7 @@ public class StreamingJobGraphGenerator {
 
 	private void setSlotSharing() {
 
-		Map<Integer, SlotSharingGroup> slotSharingGroups = new HashMap<Integer, SlotSharingGroup>();
+		Map<Integer, SlotSharingGroup> slotSharingGroups = new HashMap<>();
 
 		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
@@ -446,15 +445,15 @@ public class StreamingJobGraphGenerator {
 
 			// collect the vertices that receive "trigger checkpoint" messages.
 			// currently, these are all the sources
-			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>();
+			List<JobVertexID> triggerVertices = new ArrayList<>();
 
 			// collect the vertices that need to acknowledge the checkpoint
 			// currently, these are all vertices
-			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(jobVertices.size());
+			List<JobVertexID> ackVertices = new ArrayList<>(jobVertices.size());
 
 			// collect the vertices that receive "commit checkpoint" messages
 			// currently, these are all vertices
-			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>();
+			List<JobVertexID> commitVertices = new ArrayList<>();
 			
 			for (JobVertex vertex : jobVertices.values()) {
 				if (vertex.isInputVertex()) {

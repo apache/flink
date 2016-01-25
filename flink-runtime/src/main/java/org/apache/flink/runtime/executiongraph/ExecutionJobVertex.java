@@ -362,9 +362,6 @@ public class ExecutionJobVertex implements Serializable {
 			if (slotSharingGroup != null) {
 				slotSharingGroup.clearTaskAssignment();
 			}
-			if (coLocationGroup != null) {
-				coLocationGroup.resetConstraints();
-			}
 			
 			// reset vertices one by one. if one reset fails, the "vertices in final state"
 			// fields will be consistent to handle triggered cancel calls

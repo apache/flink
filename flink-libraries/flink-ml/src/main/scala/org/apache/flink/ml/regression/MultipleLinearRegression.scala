@@ -23,8 +23,9 @@ import org.apache.flink.ml.math.{Breeze, Vector}
 import org.apache.flink.ml.common._
 
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.optimization.LearningRateMethod.LearningRateMethodTrait
 
-import org.apache.flink.ml.optimization.{LinearPrediction, SquaredLoss, GenericLossFunction, SimpleGradientDescent}
+import org.apache.flink.ml.optimization._
 import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
 
 
@@ -84,6 +85,10 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *  - [[org.apache.flink.ml.regression.MultipleLinearRegression.ConvergenceThreshold]]:
   *  Threshold for relative change of sum of squared residuals until convergence.
   *
+  *  - [[LearningRateMethodTrait]]:
+  *  The method used to calculate the effective learning rate for each iteration step. See
+  *  [[LearningRateMethod]] for all supported methods.
+  *
   */
 class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
   import org.apache.flink.ml._
@@ -104,6 +109,13 @@ class MultipleLinearRegression extends Predictor[MultipleLinearRegression] {
 
   def setConvergenceThreshold(convergenceThreshold: Double): MultipleLinearRegression = {
     parameters.add(ConvergenceThreshold, convergenceThreshold)
+    this
+  }
+
+  def setLearningRateMethod(
+      learningRateMethod: LearningRateMethodTrait)
+    : MultipleLinearRegression = {
+    parameters.add(LearningRateMethodValue, learningRateMethod)
     this
   }
 
@@ -146,6 +158,10 @@ object MultipleLinearRegression {
     val defaultValue = None
   }
 
+  case object LearningRateMethodValue extends Parameter[LearningRateMethodTrait] {
+    val defaultValue = None
+  }
+
   // ======================================== Factory methods ======================================
 
   def apply(): MultipleLinearRegression = {
@@ -170,6 +186,7 @@ object MultipleLinearRegression {
       val numberOfIterations = map(Iterations)
       val stepsize = map(Stepsize)
       val convergenceThreshold = map.get(ConvergenceThreshold)
+      val learningRateMethod = map.get(LearningRateMethodValue)
 
       val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
@@ -180,6 +197,11 @@ object MultipleLinearRegression {
 
       convergenceThreshold match {
         case Some(threshold) => optimizer.setConvergenceThreshold(threshold)
+        case None =>
+      }
+
+      learningRateMethod match {
+        case Some(method) => optimizer.setLearningRateMethod(method)
         case None =>
       }
 

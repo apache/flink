@@ -130,6 +130,16 @@ the algorithm's performance.
           </p>
         </td>
       </tr>
+      <tr>
+        <td><strong>LearningRateMethod</strong></td>
+        <td>
+            <p>
+                Learning rate method used to calculate the effective learning rate for each iteration.
+                See the list of supported <a href="optimization.html">learing rate methods</a>.
+                (Default value: <strong>LearningRateMethod.Default</strong>)
+            </p>
+        </td>
+      </tr>
     </tbody>
   </table>
 
