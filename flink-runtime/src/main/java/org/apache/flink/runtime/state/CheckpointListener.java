@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.api.checkpoint;
+package org.apache.flink.runtime.state;
 
 /**
  * This interface must be implemented by functions/operations that want to receive
  * a commit notification once a checkpoint has been completely acknowledged by all
  * participants.
  */
-public interface CheckpointNotifier {
+public interface CheckpointListener {
 
 	/**
 	 * This method is called as a notification once a distributed checkpoint has been completed.

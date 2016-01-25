@@ -48,7 +48,7 @@ public class FsCheckpointStateOutputStreamTest {
 
 	@Test
 	public void testEmptyState() throws Exception {
-		StateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
+		AbstractStateBackend.CheckpointStateOutputStream stream = new FsStateBackend.FsCheckpointStateOutputStream(
 			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
 		
 		StreamStateHandle handle = stream.closeAndGetHandle();
@@ -79,7 +79,7 @@ public class FsCheckpointStateOutputStreamTest {
 	}
 	
 	private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile) throws Exception {
-		StateBackend.CheckpointStateOutputStream stream = 
+		AbstractStateBackend.CheckpointStateOutputStream stream =
 			new FsStateBackend.FsCheckpointStateOutputStream(
 				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), bufferSize, threshold);
 		

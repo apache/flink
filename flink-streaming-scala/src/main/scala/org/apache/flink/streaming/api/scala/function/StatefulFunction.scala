@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.scala.function
 
 import org.apache.flink.api.common.functions.RichFunction
+import org.apache.flink.api.common.state.OperatorState
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.api.common.state.OperatorState
 
 /**
  * Trait implementing the functionality necessary to apply stateful functions in 

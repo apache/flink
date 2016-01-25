@@ -23,7 +23,8 @@ import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.runtime.state.AbstractStateBackend
+import org.apache.flink.streaming.api.{TimeCharacteristic, CheckpointingMode}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.SourceFunction
@@ -211,7 +212,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * program can be executed highly available and strongly consistent (assuming that Flink
    * is run in high-availability mode).
    */
-  def setStateBackend(backend: StateBackend[_]): StreamExecutionEnvironment = {
+  def setStateBackend(backend: AbstractStateBackend): StreamExecutionEnvironment = {
     javaEnv.setStateBackend(backend)
     this
   }
@@ -219,7 +220,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Returns the state backend that defines how to store and checkpoint state.
    */
-  def getStateBackend: StateBackend[_] = javaEnv.getStateBackend()
+  def getStateBackend: AbstractStateBackend = javaEnv.getStateBackend()
   
   /**
    * Sets the number of times that failed tasks are re-executed. A value of zero

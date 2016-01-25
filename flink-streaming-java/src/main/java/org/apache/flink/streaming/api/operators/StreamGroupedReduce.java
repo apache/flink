@@ -18,7 +18,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -30,7 +31,7 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 
 	private static final String STATE_NAME = "_op_state";
 	
-	private transient OperatorState<IN> values;
+	private transient ValueState<IN> values;
 	
 	private TypeSerializer<IN> serializer;
 
@@ -43,7 +44,8 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	@Override
 	public void open() throws Exception {
 		super.open();
-		values = createKeyValueState(STATE_NAME, serializer, null);
+		ValueStateDescriptor<IN> stateId = new ValueStateDescriptor<>(STATE_NAME, null, serializer);
+		values = getPartitionedState(stateId);
 	}
 
 	@Override

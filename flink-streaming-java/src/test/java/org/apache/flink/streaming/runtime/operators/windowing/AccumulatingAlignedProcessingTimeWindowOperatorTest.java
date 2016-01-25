@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
@@ -46,7 +46,6 @@ import org.junit.After;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.mockito.stubbing.OngoingStubbing;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -795,18 +794,27 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		when(task.getName()).thenReturn("Test task name");
 		when(task.getExecutionConfig()).thenReturn(new ExecutionConfig());
 
-		Environment env = mock(Environment.class);
+		final Environment env = mock(Environment.class);
 		when(env.getTaskInfo()).thenReturn(new TaskInfo("Test task name", 0, 1, 0));
 		when(env.getUserClassLoader()).thenReturn(AggregatingAlignedProcessingTimeWindowOperatorTest.class.getClassLoader());
 
 		when(task.getEnvironment()).thenReturn(env);
 
-		// ugly java generic hacks to get the state backend into the mock
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing =
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(task.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
-		
+		try {
+			doAnswer(new Answer<AbstractStateBackend>() {
+				@Override
+				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
+					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
+					MemoryStateBackend backend = MemoryStateBackend.create();
+					backend.initializeForJob(env, operatorIdentifier, keySerializer);
+					return backend;
+				}
+			}).when(task).createStateBackend(any(String.class), any(TypeSerializer.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return task;
 	}
 
@@ -841,7 +849,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 	
 	private static StreamConfig createTaskConfig(KeySelector<?, ?> partitioner, TypeSerializer<?> keySerializer) {
 		StreamConfig cfg = new StreamConfig(new Configuration());
-		cfg.setStatePartitioner(partitioner);
+		cfg.setStatePartitioner(0, partitioner);
 		cfg.setStateKeySerializer(keySerializer);
 		return cfg;
 	}

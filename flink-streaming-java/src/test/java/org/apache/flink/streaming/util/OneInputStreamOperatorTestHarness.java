@@ -30,16 +30,19 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.mockito.stubbing.OngoingStubbing;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +65,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	final ExecutionConfig executionConfig;
 	
 	final Object checkpointLock;
+
+	StreamTask<?, ?> mockTask;
+
+	AbstractStateBackend stateBackend;
 	
 	
 	public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator) {
@@ -71,26 +78,33 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 		this.executionConfig = new ExecutionConfig();
 		this.checkpointLock = new Object();
 
-		Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
-		StreamTask<?, ?> mockTask = mock(StreamTask.class);
+		final Environment env = new MockEnvironment("MockTwoInputTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
+		mockTask = mock(StreamTask.class);
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
-		
-		// ugly Java generic hacks
-		@SuppressWarnings("unchecked")
-		OngoingStubbing<StateBackend<?>> stubbing = 
-				(OngoingStubbing<StateBackend<?>>) (OngoingStubbing<?>) when(mockTask.getStateBackend());
-		stubbing.thenReturn(MemoryStateBackend.defaultInstance());
 
-		operator.setup(mockTask, config, new MockOutput());
+		try {
+			doAnswer(new Answer<AbstractStateBackend>() {
+				@Override
+				public AbstractStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+					final String operatorIdentifier = (String) invocationOnMock.getArguments()[0];
+					final TypeSerializer<?> keySerializer = (TypeSerializer<?>) invocationOnMock.getArguments()[1];
+					MemoryStateBackend backend = MemoryStateBackend.create();
+					backend.initializeForJob(env, operatorIdentifier, keySerializer);
+					return backend;
+				}
+			}).when(mockTask).createStateBackend(any(String.class), any(TypeSerializer.class));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public <K> void configureForKeyedStream(KeySelector<IN, K> keySelector, TypeInformation<K> keyType) {
 		ClosureCleaner.clean(keySelector, false);
-		config.setStatePartitioner(keySelector);
+		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 	}
 	
@@ -107,6 +121,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#open()}
 	 */
 	public void open() throws Exception {
+		operator.setup(mockTask, config, new MockOutput());
+
 		operator.open();
 	}
 
@@ -119,13 +135,13 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		operator.setKeyContextElement(element);
+		operator.setKeyContextElement1(element);
 		operator.processElement(element);
 	}
 
 	public void processElements(Collection<StreamRecord<IN>> elements) throws Exception {
 		for (StreamRecord<IN> element: elements) {
-			operator.setKeyContextElement(element);
+			operator.setKeyContextElement1(element);
 			operator.processElement(element);
 		}
 	}

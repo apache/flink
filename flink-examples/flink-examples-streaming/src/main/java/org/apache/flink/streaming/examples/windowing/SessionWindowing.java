@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -108,7 +108,7 @@ public class SessionWindowing {
 		@Override
 		public TriggerResult onElement(Tuple3<String, Long, Integer> element, long timestamp, GlobalWindow window, TriggerContext ctx) throws Exception {
 
-			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
+			ValueState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
 			Long lastSeen = lastSeenState.value();
 
 			Long timeSinceLastEvent = timestamp - lastSeen;
@@ -127,7 +127,7 @@ public class SessionWindowing {
 
 		@Override
 		public TriggerResult onEventTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
-			OperatorState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
+			ValueState<Long> lastSeenState = ctx.getKeyValueState("last-seen", 1L);
 			Long lastSeen = lastSeenState.value();
 
 			if (time - lastSeen >= sessionTimeout) {

@@ -19,7 +19,7 @@
 package org.apache.flink.test.classloading.jar;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -83,7 +83,7 @@ public class CheckpointedStreamingProgram {
 		}
 	}
 
-	public static class StatefulMapper implements MapFunction<String, String>, Checkpointed<StatefulMapper>, CheckpointNotifier {
+	public static class StatefulMapper implements MapFunction<String, String>, Checkpointed<StatefulMapper>, CheckpointListener {
 
 		private String someState;
 		private boolean atLeastOneSnapshotComplete = false;

@@ -44,7 +44,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.state.filesystem.AbstractFileState;
+import org.apache.flink.runtime.state.filesystem.AbstractFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved;
@@ -53,7 +53,7 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseS
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseSubmitTaskListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -365,7 +365,7 @@ public class SavepointITCase extends TestLogger {
 				for (StreamTaskState taskState : taskStateList.getState(
 						ClassLoader.getSystemClassLoader())) {
 
-					AbstractFileState fsState = (AbstractFileState) taskState.getFunctionState();
+					AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
 					checkpointFiles.add(new File(fsState.getFilePath().toUri()));
 				}
 			}
@@ -660,7 +660,7 @@ public class SavepointITCase extends TestLogger {
 				for (StreamTaskState taskState : taskStateList.getState(
 						ClassLoader.getSystemClassLoader())) {
 
-					AbstractFileState fsState = (AbstractFileState) taskState.getFunctionState();
+					AbstractFileStateHandle fsState = (AbstractFileStateHandle) taskState.getFunctionState();
 					checkpointFiles.add(new File(fsState.getFilePath().toUri()));
 				}
 			}
@@ -784,7 +784,7 @@ public class SavepointITCase extends TestLogger {
 	}
 
 	private static class InfiniteTestSource
-			implements SourceFunction<Integer>, CheckpointNotifier {
+			implements SourceFunction<Integer>, CheckpointListener {
 
 		private static final long serialVersionUID = 1L;
 		private volatile boolean running = true;

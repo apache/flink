@@ -19,12 +19,12 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -397,7 +397,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			}
 		}
 
-		protected void writeToState(StateBackend.CheckpointStateOutputView out) throws IOException {
+		protected void writeToState(AbstractStateBackend.CheckpointStateOutputView out) throws IOException {
 			windowSerializer.serialize(window, out);
 			out.writeLong(watermarkTimer);
 			out.writeLong(processingTimeTimer);
@@ -414,8 +414,8 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		}
 
 		@SuppressWarnings("unchecked")
-		public <S extends Serializable> OperatorState<S> getKeyValueState(final String name, final S defaultState) {
-			return new OperatorState<S>() {
+		public <S extends Serializable> ValueState<S> getKeyValueState(final String name, final S defaultState) {
+			return new ValueState<S>() {
 				@Override
 				public S value() throws IOException {
 					Serializable value = state.get(name);
@@ -429,6 +429,11 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 				@Override
 				public void update(S value) throws IOException {
 					state.put(name, value);
+				}
+
+				@Override
+				public void clear() {
+					state.remove(name);
 				}
 			};
 		}
@@ -523,7 +528,7 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
 		// we write the panes with the key/value maps into the stream
-		StateBackend.CheckpointStateOutputView out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		AbstractStateBackend.CheckpointStateOutputView out = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
 		int numWindows = windows.size();
 		out.writeInt(numWindows);

@@ -40,7 +40,7 @@ import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -505,7 +505,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 	 * are exhausted.
 	 */
 	public static class CountingSink implements SinkFunction<Long>, Checkpointed<CountingSink>,
-			CheckpointNotifier {
+		CheckpointListener {
 
 		private static final Logger LOG = LoggerFactory.getLogger(CountingSink.class);
 

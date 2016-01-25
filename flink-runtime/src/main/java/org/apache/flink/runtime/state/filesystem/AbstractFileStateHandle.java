@@ -28,7 +28,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Base class for state that is stored in a file.
  */
-public abstract class AbstractFileState implements java.io.Serializable {
+public abstract class AbstractFileStateHandle implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 350284443258002355L;
 	
@@ -43,7 +43,7 @@ public abstract class AbstractFileState implements java.io.Serializable {
 	 * 
 	 * @param filePath The path to the file that stores the state.
 	 */
-	protected AbstractFileState(Path filePath) {
+	protected AbstractFileStateHandle(Path filePath) {
 		this.filePath = requireNonNull(filePath);
 	}
 

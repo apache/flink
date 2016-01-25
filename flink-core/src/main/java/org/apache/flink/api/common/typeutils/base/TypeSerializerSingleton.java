@@ -33,7 +33,7 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 
 	@Override
 	public int hashCode() {
-		return TypeSerializerSingleton.class.hashCode();
+		return this.getClass().hashCode();
 	}
 	
 	@Override

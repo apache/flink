@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -55,8 +55,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Integration test for the {@link CheckpointNotifier} interface. The test ensures that
- * {@link CheckpointNotifier#notifyCheckpointComplete(long)} is called for completed
+ * Integration test for the {@link CheckpointListener} interface. The test ensures that
+ * {@link CheckpointListener#notifyCheckpointComplete(long)} is called for completed
  * checkpoints, that it is called at most once for any checkpoint id and that it is not
  * called for a deliberately failed checkpoint.
  *
@@ -66,7 +66,7 @@ import static org.junit.Assert.fail;
  *
  * <p>
  * Note that as a result of doing the checks on the task level there is no way to verify
- * that the {@link CheckpointNotifier#notifyCheckpointComplete(long)} is called for every
+ * that the {@link CheckpointListener#notifyCheckpointComplete(long)} is called for every
  * successfully completed checkpoint.
  */
 @SuppressWarnings("serial")
@@ -197,11 +197,11 @@ public class StreamCheckpointNotifierITCase {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Generates some Long values and as an implementation for the {@link CheckpointNotifier}
+	 * Generates some Long values and as an implementation for the {@link CheckpointListener}
 	 * interface it stores all the checkpoint ids it has seen in a static list.
 	 */
 	private static class GeneratingSourceFunction extends RichSourceFunction<Long>
-			implements ParallelSourceFunction<Long>, CheckpointNotifier, Checkpointed<Integer> {
+			implements ParallelSourceFunction<Long>, CheckpointListener, Checkpointed<Integer> {
 		
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 		
@@ -285,10 +285,10 @@ public class StreamCheckpointNotifierITCase {
 
 	/**
 	 * Identity transform on Long values wrapping the output in a tuple. As an implementation
-	 * for the {@link CheckpointNotifier} interface it stores all the checkpoint ids it has seen in a static list.
+	 * for the {@link CheckpointListener} interface it stores all the checkpoint ids it has seen in a static list.
 	 */
 	private static class IdentityMapFunction extends RichMapFunction<Long, Tuple1<Long>>
-			implements CheckpointNotifier {
+			implements CheckpointListener {
 
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
@@ -316,10 +316,10 @@ public class StreamCheckpointNotifierITCase {
 
 	/**
 	 * Filter on Long values supposedly letting all values through. As an implementation
-	 * for the {@link CheckpointNotifier} interface it stores all the checkpoint ids
+	 * for the {@link CheckpointListener} interface it stores all the checkpoint ids
 	 * it has seen in a static list.
 	 */
-	private static class LongRichFilterFunction extends RichFilterFunction<Long> implements CheckpointNotifier {
+	private static class LongRichFilterFunction extends RichFilterFunction<Long> implements CheckpointListener {
 
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 		
@@ -347,11 +347,11 @@ public class StreamCheckpointNotifierITCase {
 
 	/**
 	 * CoFlatMap on Long values as identity transform on the left input, while ignoring the right.
-	 * As an implementation for the {@link CheckpointNotifier} interface it stores all the checkpoint
+	 * As an implementation for the {@link CheckpointListener} interface it stores all the checkpoint
 	 * ids it has seen in a static list.
 	 */
 	private static class LeftIdentityCoRichFlatMapFunction extends RichCoFlatMapFunction<Long, Long, Long>
-			implements CheckpointNotifier {
+			implements CheckpointListener {
 
 		static final List<Long>[] completedCheckpoints = createCheckpointLists(PARALLELISM);
 
@@ -386,7 +386,7 @@ public class StreamCheckpointNotifierITCase {
 	 * Reducer that causes one failure between seeing 40% to 70% of the records.
 	 */
 	private static class OnceFailingReducer extends RichReduceFunction<Tuple1<Long>> 
-		implements Checkpointed<Long>, CheckpointNotifier
+		implements Checkpointed<Long>, CheckpointListener
 	{
 		static volatile boolean hasFailed = false;
 		static volatile long failureCheckpointID;
