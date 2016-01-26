@@ -64,7 +64,7 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
  * </ul>
  *
  * <p>
- * Usage: <code>KMeans --points --centroids --output --iterations</code><br>
+ * Usage: <code>KMeans --points &lt;path&gt; --centroids &lt;path&gt; --output &lt;path&gt; --iterations &lt;n&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link org.apache.flink.examples.java.clustering.util.KMeansData} and 10 iterations.
  *
  * <p>
@@ -72,7 +72,7 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
  * <ul>
  * <li>Bulk iterations
  * <li>Broadcast variables in bulk iterations
- * <li>Custom Java objects (PoJos)
+ * <li>Custom Java objects (POJOs)
  * </ul>
  */
 @SuppressWarnings("serial")
@@ -87,7 +87,7 @@ public class KMeans {
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
 			System.out.println("  We provide a data generator to create synthetic input files for this program.");
-			System.out.println("  Usage: KMeans --points --centroids --output --iterations");
+			System.out.println("  Usage: KMeans --points <path> --centroids <path> --output <path> --iterations <n>");
 		}
 
 		// set up execution environment
@@ -95,30 +95,9 @@ public class KMeans {
 		env.getConfig().setGlobalJobParameters(params); // make parameters available in the web interface
 
 		// get input data:
-		// points
-		DataSet<Point> points;
-		if(params.has("points")) {
-			// read points from CSV file
-			points = env.readCsvFile(params.get("points"))
-				.fieldDelimiter(" ")
-				.includeFields(true, true)
-				.types(Double.class, Double.class)
-				.map(new TuplePointConverter());
-		} else {
-			points = KMeansData.getDefaultPointDataSet(env);
-		}
-
-		// centroids
-		DataSet<Centroid> centroids;
-		if(params.has("centroids")) {
-			centroids = env.readCsvFile(params.get("centroids"))
-				.fieldDelimiter(" ")
-				.includeFields(true, true, true)
-				.types(Integer.class, Double.class, Double.class)
-				.map(new TupleCentroidConverter());
-		} else {
-			centroids = KMeansData.getDefaultCentroidDataSet(env);
-		}
+		// read the points and centroids from the provided paths or fall back to default data
+		DataSet<Point> points = getPointDataSet(params, env);
+		DataSet<Centroid> centroids = getCentroidDataSet(params, env);
 
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<Centroid> loop = centroids.iterate(params.getInt("iterations", 10));
@@ -148,6 +127,39 @@ public class KMeans {
 		} else {
 			clusteredPoints.print();
 		}
+	}
+
+	// *************************************************************************
+	//     DATA SOURCE READING (POINTS AND CENTROIDS)
+	// *************************************************************************
+
+	private static DataSet<Centroid> getCentroidDataSet(ParameterTool params, ExecutionEnvironment env) {
+		DataSet<Centroid> centroids;
+		if(params.has("centroids")) {
+			centroids = env.readCsvFile(params.get("centroids"))
+				.fieldDelimiter(" ")
+				.includeFields(true, true, true)
+				.types(Integer.class, Double.class, Double.class)
+				.map(new TupleCentroidConverter());
+		} else {
+			centroids = KMeansData.getDefaultCentroidDataSet(env);
+		}
+		return centroids;
+	}
+
+	private static DataSet<Point> getPointDataSet(ParameterTool params, ExecutionEnvironment env) {
+		DataSet<Point> points;
+		if(params.has("points")) {
+			// read points from CSV file
+			points = env.readCsvFile(params.get("points"))
+				.fieldDelimiter(" ")
+				.includeFields(true, true)
+				.types(Double.class, Double.class)
+				.map(new TuplePointConverter());
+		} else {
+			points = KMeansData.getDefaultPointDataSet(env);
+		}
+		return points;
 	}
 
 	// *************************************************************************
