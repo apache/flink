@@ -190,7 +190,7 @@ class JavaBatchTranslator extends PlanTranslator {
                   throw new ExpressionException(s"Expression $e is not a valid key expression.")
               }
 
-              val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType, false)
+              val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType)
               val grouping = new UnsortedGrouping(translatedGroupByInput, keys)
 
               new GroupReduceOperator(
@@ -221,7 +221,7 @@ class JavaBatchTranslator extends PlanTranslator {
           case e => throw new ExpressionException(s"Expression $e is not a valid key expression.")
         }
 
-        val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType, false)
+        val keys = new Keys.ExpressionKeys(keyIndices.toArray, inType)
 
         val grouping = new UnsortedGrouping(translatedInput, keys)
 
