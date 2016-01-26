@@ -35,7 +35,9 @@ package org.apache.flink.api.java.table.test;
  * limitations under the License.
  */
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.table.ExpressionException;
+import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
@@ -48,6 +50,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.NotImplementedError;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class AggregationsITCase extends MultipleProgramsTestBase {
@@ -57,7 +62,7 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testAggregationTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -66,10 +71,10 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 
 		Table result = table.select("f0.sum, f0.min, f0.max, f0.count, f0.avg");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "231,1,21,21,11";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "231,1,21,21,11";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -83,13 +88,13 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 				table.select("foo.avg");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testWorkingAggregationDataTypes() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -105,13 +110,13 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 				table.select("f0.avg, f1.avg, f2.avg, f3.avg, f4.avg, f5.avg, f6.count");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "1,1,1,1,1.5,1.5,2";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "1,1,1,1,1.5,1.5,2";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testAggregationWithArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -128,13 +133,13 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 				table.select("(f0 + 2).avg + 2, f1.count + 5");
 
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "5.5,7";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "5.5,7";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testAggregationWithTwoCount() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -150,11 +155,10 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 			table.select("f0.count, f1.count");
 
-
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "2,2";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "2,2";
+		compareResultAsText(results, expected);
 	}
 
 	// Calcite does not eagerly check type compatibility
@@ -172,11 +176,10 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 				table.select("f1.sum");
 
-
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = ExpressionException.class)
@@ -192,11 +195,10 @@ public class AggregationsITCase extends MultipleProgramsTestBase {
 		Table result =
 				table.select("f0.sum.sum");
 
-
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 }

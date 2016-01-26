@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.table.test;
 
+import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -28,6 +29,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.NotImplementedError;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class StringExpressionsITCase extends MultipleProgramsTestBase {
@@ -37,7 +41,7 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testSubstring() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -51,13 +55,13 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = in
 				.select("a.substring(0, b)");
 
-//		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = resultSet.collect();
-//		String expected = "AA\nB";
-//		compareResultAsText(results, expected);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "AA\nB";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testSubstringWithMaxEnd() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -71,10 +75,10 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = in
 				.select("a.substring(b)");
 
-//		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = resultSet.collect();
-//		String expected = "CD\nBCD";
-//		compareResultAsText(results, expected);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "CD\nBCD";
+		compareResultAsText(results, expected);
 	}
 
 	// Calcite does eagerly check expression types
@@ -93,10 +97,10 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = in
 				.select("a.substring(0, b)");
 
-//		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = resultSet.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	// Calcite does eagerly check expression types
@@ -115,9 +119,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = in
 				.select("a.substring(b, 15)");
 
-//		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = resultSet.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 }

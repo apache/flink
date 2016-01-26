@@ -18,11 +18,10 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.{ExpressionException, Row}
+import org.apache.flink.api.table.Row
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
@@ -42,12 +41,12 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
       .groupBy('_foo)
       .select('a.avg)
 
-//    val expected = ""
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testGroupedAggregate(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
@@ -58,12 +57,12 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
       .groupBy('b)
       .select('b, 'a.sum)
 
-//    val expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testGroupingKeyForwardIfNotUsed(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
@@ -74,12 +73,12 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
       .groupBy('b)
       .select('a.sum)
 
-//    val expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testGroupNoAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -90,8 +89,8 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
       .groupBy('b, 'd)
       .select('b)
 
-//    val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.{Row, ExpressionException}
+import org.apache.flink.api.table.Row
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -33,7 +33,7 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testJoin(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -41,12 +41,12 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).where('b === 'e).select('c, 'g)
 
-//    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
-//    val results = joinT.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testJoinWithFilter(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -54,12 +54,12 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
-//    val expected = "Hi,Hallo\n"
-//    val results = joinT.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "Hi,Hallo\n"
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testJoinWithMultipleKeys(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
@@ -67,10 +67,10 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
-//    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
-//      "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
-//    val results = joinT.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
+      "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -81,9 +81,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).where('foo === 'e).select('c, 'g)
 
-//    val expected = ""
-//    val results = joinT.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   // Calcite does not eagerly check the compatibility of compared types
@@ -96,9 +96,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).where('a === 'g).select('c, 'g)
 
-//    val expected = ""
-//    val results = joinT.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -109,12 +109,12 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).where('a === 'd).select('c, 'g)
 
-//    val expected = ""
-//    val results = joinT.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = joinT.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testJoinWithAggregation(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
@@ -122,9 +122,9 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinT = ds1.join(ds2).where('a === 'd).select('g.count)
 
-//    val expected = "6"
-//    val results = joinT.toDataSet[Row]collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "6"
+    val results = joinT.toDataSet[Row]collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 

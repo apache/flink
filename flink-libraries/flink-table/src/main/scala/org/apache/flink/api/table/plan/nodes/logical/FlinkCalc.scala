@@ -15,15 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.sql.calcite;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.flink.api.java.DataSet;
+package org.apache.flink.api.table.plan.nodes.logical
 
-public interface DataSetRelNode<T> extends RelNode {
-	
-	/**
-	 * Translate the FlinkRelNode into Flink operator.
-	 */
-	DataSet<T> translateToPlan();
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.Calc
+import org.apache.calcite.rex.RexProgram
+
+class FlinkCalc(
+                 cluster: RelOptCluster,
+                 traitSet: RelTraitSet,
+                 input: RelNode,
+                 program: RexProgram)
+  extends Calc(cluster, traitSet, input, program)
+  with FlinkRel {
+
+  override def copy(traitSet: RelTraitSet, child: RelNode, program: RexProgram): Calc = {
+    new FlinkCalc(cluster, traitSet, child, program)
+  }
 }

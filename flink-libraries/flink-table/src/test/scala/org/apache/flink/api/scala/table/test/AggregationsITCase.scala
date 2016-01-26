@@ -33,16 +33,16 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testAggregationTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = CollectionDataSets.get3TupleDataSet(env).toTable
       .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
 
-//    val results = t.toDataSet[Row].collect()
-//    val expected = "231,1,21,21,11"
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val results = t.toDataSet[Row].collect()
+    val expected = "231,1,21,21,11"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -52,12 +52,12 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = CollectionDataSets.get3TupleDataSet(env).toTable
       .select('foo.avg)
 
-//    val expected = ""
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testWorkingAggregationDataTypes(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -66,33 +66,33 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toTable
       .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
 
-//    val expected = "1,1,1,1,1.5,1.5,2"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "1,1,1,1,1.5,1.5,2"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testAggregationWithArithmetic(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
       .select(('_1 + 2).avg + 2, '_2.count + 5)
 
-//    val expected = "5.5,7"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "5.5,7"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testAggregationWithTwoCount(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements((1f, "Hello"), (2f, "Ciao")).toTable
       .select('_1.count, '_2.count)
 
-//    val expected = "2,2"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "2,2"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Ignore // Calcite does not eagerly check types
@@ -103,9 +103,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = env.fromElements(("Hello", 1)).toTable
       .select('_1.sum)
 
-//    val expected = ""
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -115,12 +115,12 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val t = env.fromElements(("Hello", 1)).toTable
       .select('_2.sum.sum)
 
-//    val expected = ""
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = ""
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testSQLStyleAggregations(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
@@ -136,10 +136,9 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
           |Count(a) as e1, a.count as e2
         """.stripMargin)
 
-//    val expected = "231,231,1,1,21,21,11,11,21,21"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "231,231,1,1,21,21,11,11,21,21"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
 
 }
