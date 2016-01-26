@@ -100,11 +100,9 @@ In addition to the projects listed in the figure above, Flink currently contains
 - `flink-dist`: The *distribution* project. It defines how to assemble the compiled code, scripts, and other resources
 into the final folder structure that is ready to use.
 
-- `flink-contrib`: A series of projects that are in an early version.
-
 - `flink-quickstart`: Scripts, maven archetypes, and example programs for the quickstarts and tutorials.
 
-- `flink-contrib`: Useful tools contributed by users. The code is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.
+- `flink-contrib`: A series of projects that are in an early version and useful tools contributed by users. The code for the latter is maintained mainly by external contributors. The requirements for code being accepted into `flink-contrib` are lower compared to the rest of the code.
 
 
 
