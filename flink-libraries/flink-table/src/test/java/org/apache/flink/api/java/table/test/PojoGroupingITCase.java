@@ -30,6 +30,7 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.NotImplementedError;
 
 @RunWith(Parameterized.class)
 public class PojoGroupingITCase extends MultipleProgramsTestBase {
@@ -38,7 +39,7 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testPojoGrouping() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -54,14 +55,14 @@ public class PojoGroupingITCase extends MultipleProgramsTestBase {
 			.select("groupMe, value, name")
 			.where("groupMe != 'B'");
 
-//		DataSet<MyPojo> myPojos = tableEnv.toDataSet(table, MyPojo.class);
-//
-//		DataSet<MyPojo> result = myPojos.groupBy("groupMe")
-//			.sortGroup("value", Order.DESCENDING)
-//			.first(1);
-//
-//		List<MyPojo> resultList = result.collect();
-//		compareResultAsText(resultList, "A,24.0,Y");
+		DataSet<MyPojo> myPojos = tableEnv.toDataSet(table, MyPojo.class);
+
+		DataSet<MyPojo> result = myPojos.groupBy("groupMe")
+			.sortGroup("value", Order.DESCENDING)
+			.first(1);
+
+		List<MyPojo> resultList = result.collect();
+		compareResultAsText(resultList, "A,24.0,Y");
 	}
 
 	public static class MyPojo implements Serializable {

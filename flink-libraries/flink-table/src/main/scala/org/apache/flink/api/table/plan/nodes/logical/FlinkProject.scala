@@ -15,15 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.sql.calcite;
 
-import org.apache.calcite.rel.RelNode;
-import org.apache.flink.api.java.DataSet;
+package org.apache.flink.api.table.plan.nodes.logical
 
-public interface DataSetRelNode<T> extends RelNode {
-	
-	/**
-	 * Translate the FlinkRelNode into Flink operator.
-	 */
-	DataSet<T> translateToPlan();
+import java.util
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Project
+import org.apache.calcite.rex.RexNode
+
+class FlinkProject(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    projects: java.util.List[RexNode],
+    rowType: RelDataType)
+  extends Project(cluster, traitSet, input, projects, rowType)
+  with FlinkRel {
+
+  override def copy(
+      traitSet: RelTraitSet,
+      input: RelNode,
+      projects: util.List[RexNode],
+      rowType: RelDataType): Project = {
+    new FlinkProject(cluster, traitSet, input, projects, rowType)
+  }
 }

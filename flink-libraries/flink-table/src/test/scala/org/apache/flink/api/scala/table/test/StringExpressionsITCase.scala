@@ -32,26 +32,26 @@ import scala.collection.JavaConverters._
 @RunWith(classOf[Parameterized])
 class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testSubstring(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
       .select('a.substring(0, 'b))
 
-//    val expected = "AA\nB"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "AA\nB"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test
+  @Test(expected = classOf[NotImplementedError])
   def testSubstringWithMaxEnd(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)
       .select('a.substring('b))
 
-//    val expected = "CD\nBCD"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "CD\nBCD"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   // Calcite does eagerly check expression types
@@ -63,9 +63,9 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
     val t = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
       .select('a.substring(0, 'b))
 
-//    val expected = "AAA\nBB"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "AAA\nBB"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   // Calcite does eagerly check expression types
@@ -77,9 +77,9 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
     val t = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
       .select('a.substring('b, 15))
 
-//    val expected = "AAA\nBB"
-//    val results = t.toDataSet[Row].collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "AAA\nBB"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
 

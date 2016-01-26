@@ -31,6 +31,7 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.NotImplementedError;
 
 import java.util.List;
 
@@ -42,7 +43,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testUnion() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -55,13 +56,13 @@ public class UnionITCase extends MultipleProgramsTestBase {
 
 		Table selected = in1.unionAll(in2).select("c");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testUnionWithFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -74,10 +75,10 @@ public class UnionITCase extends MultipleProgramsTestBase {
 
 		Table selected = in1.unionAll(in2).where("b < 2").select("c");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "Hi\n" + "Hallo\n";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "Hi\n" + "Hallo\n";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -93,10 +94,10 @@ public class UnionITCase extends MultipleProgramsTestBase {
 
 		Table selected = in1.unionAll(in2);
 
-//		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -112,13 +113,13 @@ public class UnionITCase extends MultipleProgramsTestBase {
 
 		Table selected = in1.unionAll(in2);
 
-//		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testUnionWithAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -131,10 +132,10 @@ public class UnionITCase extends MultipleProgramsTestBase {
 
 		Table selected = in1.unionAll(in2).select("c.count");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "18";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(selected, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "18";
+		compareResultAsText(results, expected);
 	}
 
 }
