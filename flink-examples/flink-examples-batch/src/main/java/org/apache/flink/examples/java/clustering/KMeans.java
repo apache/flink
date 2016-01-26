@@ -135,12 +135,10 @@ public class KMeans {
 
 	private static DataSet<Centroid> getCentroidDataSet(ParameterTool params, ExecutionEnvironment env) {
 		DataSet<Centroid> centroids;
-		if(params.has("centroids")) {
+		if (params.has("centroids")) {
 			centroids = env.readCsvFile(params.get("centroids"))
 				.fieldDelimiter(" ")
-				.includeFields(true, true, true)
-				.types(Integer.class, Double.class, Double.class)
-				.map(new TupleCentroidConverter());
+				.pojoType(Centroid.class, "id", "x", "y");
 		} else {
 			centroids = KMeansData.getDefaultCentroidDataSet(env);
 		}
@@ -149,13 +147,11 @@ public class KMeans {
 
 	private static DataSet<Point> getPointDataSet(ParameterTool params, ExecutionEnvironment env) {
 		DataSet<Point> points;
-		if(params.has("points")) {
+		if (params.has("points")) {
 			// read points from CSV file
 			points = env.readCsvFile(params.get("points"))
 				.fieldDelimiter(" ")
-				.includeFields(true, true)
-				.types(Double.class, Double.class)
-				.map(new TuplePointConverter());
+				.pojoType(Point.class, "x", "y");
 		} else {
 			points = KMeansData.getDefaultPointDataSet(env);
 		}
@@ -234,26 +230,6 @@ public class KMeans {
 	// *************************************************************************
 	//     USER FUNCTIONS
 	// *************************************************************************
-
-	/** Converts a {@code Tuple2<Double,Double>} into a Point. */
-	@ForwardedFields("0->x; 1->y")
-	public static final class TuplePointConverter implements MapFunction<Tuple2<Double, Double>, Point> {
-
-		@Override
-		public Point map(Tuple2<Double, Double> t) throws Exception {
-			return new Point(t.f0, t.f1);
-		}
-	}
-
-	/** Converts a {@code Tuple3<Integer, Double,Double>} into a Centroid. */
-	@ForwardedFields("0->id; 1->x; 2->y")
-	public static final class TupleCentroidConverter implements MapFunction<Tuple3<Integer, Double, Double>, Centroid> {
-
-		@Override
-		public Centroid map(Tuple3<Integer, Double, Double> t) throws Exception {
-			return new Centroid(t.f0, t.f1, t.f2);
-		}
-	}
 
 	/** Determines the closest cluster center for a data point. */
 	@ForwardedFields("*->1")
