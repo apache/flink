@@ -45,7 +45,7 @@ class BatchScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
        "org.apache.flink.api.java.DataSet.getType",
        "org.apache.flink.api.java.operators.Operator.getResultType",
        "org.apache.flink.api.java.operators.Operator.getName",
-       "org.apache.flink.api.java.operators.Grouping.getDataSet",
+       "org.apache.flink.api.java.operators.Grouping.getInputDataSet",
        "org.apache.flink.api.java.operators.Grouping.getKeys",
        "org.apache.flink.api.java.operators.SingleInputOperator.getInput",
        "org.apache.flink.api.java.operators.SingleInputOperator.getInputType",

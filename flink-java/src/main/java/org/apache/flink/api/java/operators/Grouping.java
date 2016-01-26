@@ -37,7 +37,7 @@ import org.apache.flink.api.java.DataSet;
  */
 public abstract class Grouping<T> {
 	
-	protected final DataSet<T> dataSet;
+	protected final DataSet<T> inputDataSet;
 	
 	protected final Keys<T> keys;
 	
@@ -53,13 +53,23 @@ public abstract class Grouping<T> {
 			throw new InvalidProgramException("The grouping keys must not be empty.");
 		}
 
-		this.dataSet = set;
+		this.inputDataSet = set;
 		this.keys = keys;
 	}
 	
-	
-	public DataSet<T> getDataSet() {
-		return this.dataSet;
+	/**
+	 * Returns the input DataSet of a grouping operation, that is the one before the grouping. This means that
+	 * if it is applied directly to the result of a grouping operation, it will cancel its effect. As an example, in the
+	 * following snippet:
+	 * <pre><code>
+	 * DataSet<X> notGrouped = input.groupBy().getDataSet();
+	 * DataSet<Y> allReduced = notGrouped.reduce()
+	 * </pre></code>
+	 * the <code>groupBy()</code> is as if it never happened, as the <code>notGrouped</code> DataSet corresponds
+	 * to the input of the <code>groupBy()</code> (because of the <code>getDataset()</code>).
+	 * */
+	public DataSet<T> getInputDataSet() {
+		return this.inputDataSet;
 	}
 	
 	public Keys<T> getKeys() {
