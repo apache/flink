@@ -18,14 +18,17 @@
 
 package org.apache.flink.api.java.table
 
-import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.plan.{RelTraitSet, RelOptUtil}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.tools.{RelBuilder, Frameworks}
+import org.apache.calcite.sql2rel.RelDecorrelator
+import org.apache.calcite.tools.Programs
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.plan.operators.DataSetTable
 import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.plan.nodes.dataset.DataSetRel
+import org.apache.flink.api.table.plan.rules.FlinkRuleSets
+import org.apache.flink.api.table.plan.schema.DataSetTable
 
 /**
  * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
@@ -41,37 +44,58 @@ class JavaBatchTranslator extends PlanTranslator {
 
     // create table representation from DataSet
     val dataSetTable = new DataSetTable[A](
-    repr.asInstanceOf[JavaDataSet[A]],
-    fieldNames
+      repr.asInstanceOf[JavaDataSet[A]],
+      fieldNames
     )
 
-    // register table in Cascading schema
-    val schema = Frameworks.createRootSchema(true)
-    val tableName = repr.hashCode().toString
-    schema.add(tableName, dataSetTable)
-
-    // initialize RelBuilder
-    val frameworkConfig = Frameworks
-      .newConfigBuilder
-      .defaultSchema(schema)
-      .build
-    val relBuilder = RelBuilder.create(frameworkConfig)
+    val tabName = TranslationContext.addDataSet(dataSetTable)
+    val relBuilder = TranslationContext.getRelBuilder
 
     // create table scan operator
-    relBuilder.scan(tableName)
+    relBuilder.scan(tabName)
     new Table(relBuilder.build(), relBuilder)
   }
 
   override def translate[A](lPlan: RelNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
 
+    // get the planner for the plan
+    val planner = lPlan.getCluster.getPlanner
+
+    // we do not have any special requirements for the output
+    val outputProps = RelTraitSet.createEmpty()
+
+    println("-----------")
+    println("Input Plan:")
+    println("-----------")
     println(RelOptUtil.toString(lPlan))
 
-    // TODO: optimize & translate:
-    // - optimize RelNode plan
-    // - translate to Flink RelNode plan
-    // - generate DataSet program
+    // decorrelate
+    val decorPlan = RelDecorrelator.decorrelateQuery(lPlan)
 
-    null
+    // optimize the logical Flink plan
+    val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
+    val optPlan = optProgram.run(planner, decorPlan, outputProps)
+
+    println("---------------")
+    println("Optimized Plan:")
+    println("---------------")
+    println(RelOptUtil.toString(optPlan))
+
+    // optimize the logical Flink plan
+    val dataSetProgram = Programs.ofRules(FlinkRuleSets.DATASET_TRANS_RULES)
+    val dataSetPlan = dataSetProgram.run(planner, optPlan, outputProps)
+
+    println("-------------")
+    println("DataSet Plan:")
+    println("-------------")
+    println(RelOptUtil.toString(dataSetPlan))
+
+    dataSetPlan match {
+      case node: DataSetRel =>
+        node.translateToPlan.asInstanceOf[JavaDataSet[A]]
+      case _ => ???
+    }
+
   }
 
 }

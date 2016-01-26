@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.table.test;
 
+import org.apache.flink.api.table.Row;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -30,6 +31,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.NotImplementedError;
+
+import java.util.List;
 
 
 @RunWith(Parameterized.class)
@@ -40,7 +44,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testJoin() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -53,13 +57,13 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		Table result = in1.join(in2).where("b === e").select("c, g");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testJoinWithFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -72,13 +76,13 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		Table result = in1.join(in2).where("b === e && b < 2").select("c, g");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "Hi,Hallo\n";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "Hi,Hallo\n";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testJoinWithMultipleKeys() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -91,11 +95,11 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		Table result = in1.join(in2).where("a === d && b === h").select("c, g");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
-//				"Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
+				"Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -111,10 +115,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 
 		Table result = in1.join(in2).where("foo === e").select("c, g");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	// Calcite does not eagerly check the compatibility of compared types
@@ -133,10 +137,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1
 				.join(in2).where("a === g").select("c, g");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -153,13 +157,13 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1
 				.join(in2).where("a === d").select("c, g");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testJoinWithAggregation() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -173,10 +177,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		Table result = in1
 				.join(in2).where("a === d").select("g.count");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "6";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "6";
+		compareResultAsText(results, expected);
 	}
 
 }

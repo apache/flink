@@ -270,7 +270,6 @@ class Table(
 
     relBuilder.join(JoinRelType.INNER, relBuilder.literal(true))
     val join = relBuilder.build()
-    val rowT = join.getRowType()
     new Table(join, relBuilder)
   }
 
