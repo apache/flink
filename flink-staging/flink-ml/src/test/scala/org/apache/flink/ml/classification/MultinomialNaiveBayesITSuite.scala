@@ -386,6 +386,118 @@ class MultinomialNaiveBayesITSuite extends FlatSpec with Matchers with FlinkTest
     assert(p3_0S.deep == p3_1S.deep)
   }
 
+  it should "train the classifier with r1 = 1" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val nnb = MultinomialNaiveBayes().setP2(1)
+
+    val trainingDS = env.fromCollection(Classification.bbcTrainData)
+    nnb.fit(trainingDS)
+
+    nnb.saveModelDataSet(outputFolder + "r1_1ModelWord.csv", outputFolder + "r1_1ModelClass.csv")
+
+    env.execute()
+  }
+
+  it should "use the r1 = 1 model to predict" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val nnb = MultinomialNaiveBayes().setP3(1)
+    nnb.setModelDataSet(env.readCsvFile[(String, String, Double)](outputFolder +
+      "/r1_1ModelWord.csv", "\n", "|"),
+      env.readCsvFile[(String, Double, Double)](outputFolder + "/r1_1ModelClass.csv", "\n", "|"))
+
+    val solution = nnb.predict(env.fromCollection(Classification.bbcTestData))
+    solution.writeAsCsv(outputFolder + "r1_1Solution.csv", "\n", "\t", WriteMode.OVERWRITE)
+
+    env.execute()
+  }
+
+  it should "train the classifier with s1 = 1" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val nnb = MultinomialNaiveBayes().setP2(1)
+
+    val trainingDS = env.fromCollection(Classification.bbcTrainData)
+    nnb.fit(trainingDS)
+
+    nnb.saveModelDataSet(outputFolder + "s1_1ModelWord.csv", outputFolder + "s1_1ModelClass.csv")
+
+    env.execute()
+  }
+
+  it should "use the s1 = 1 model to predict" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val nnb = MultinomialNaiveBayes().setP3(1)
+    nnb.setModelDataSet(env.readCsvFile[(String, String, Double)](outputFolder +
+      "/s1_1ModelWord.csv", "\n", "|"),
+      env.readCsvFile[(String, Double, Double)](outputFolder + "/s1_1ModelClass.csv", "\n", "|"))
+
+    val solution = nnb.predict(env.fromCollection(Classification.bbcTestData))
+    solution.writeAsCsv(outputFolder + "s1_1Solution.csv", "\n", "\t", WriteMode.OVERWRITE)
+
+    env.execute()
+  }
+
+  it should "train the classifier with sr1 = 1" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val nnb = MultinomialNaiveBayes().setP2(1)
+
+    val trainingDS = env.fromCollection(Classification.bbcTrainData)
+    nnb.fit(trainingDS)
+
+    nnb.saveModelDataSet(outputFolder + "sr1_1ModelWord.csv", outputFolder + "sr1_1ModelClass.csv")
+
+    env.execute()
+  }
+
+  it should "use the sr1 = 1 model to predict" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val nnb = MultinomialNaiveBayes().setP3(1)
+    nnb.setModelDataSet(env.readCsvFile[(String, String, Double)](outputFolder +
+      "/sr1_1ModelWord.csv", "\n", "|"),
+      env.readCsvFile[(String, Double, Double)](outputFolder + "/sr1_1ModelClass.csv", "\n", "|"))
+
+    val solution = nnb.predict(env.fromCollection(Classification.bbcTestData))
+    solution.writeAsCsv(outputFolder + "sr1_1Solution.csv", "\n", "\t", WriteMode.OVERWRITE)
+
+    env.execute()
+  }
+
+  it should "train the classifier with sr1 = 2" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val nnb = MultinomialNaiveBayes().setP2(1)
+
+    val trainingDS = env.fromCollection(Classification.bbcTrainData)
+    nnb.fit(trainingDS)
+
+    nnb.saveModelDataSet(outputFolder + "sr1_2ModelWord.csv", outputFolder + "sr1_2ModelClass.csv")
+
+    env.execute()
+  }
+
+  it should "use the sr1 = 2 model to predict" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val nnb = MultinomialNaiveBayes().setP3(1)
+    nnb.setModelDataSet(env.readCsvFile[(String, String, Double)](outputFolder +
+      "/sr1_2ModelWord.csv", "\n", "|"),
+      env.readCsvFile[(String, Double, Double)](outputFolder + "/sr1_2ModelClass.csv", "\n", "|"))
+
+    val solution = nnb.predict(env.fromCollection(Classification.bbcTestData))
+    solution.writeAsCsv(outputFolder + "sr1_2Solution.csv", "\n", "\t", WriteMode.OVERWRITE)
+
+    env.execute()
+  }
+
   it should "delete the tmp folder" in {
     FileUtils.deleteDirectory(new File(outputFolder));
   }

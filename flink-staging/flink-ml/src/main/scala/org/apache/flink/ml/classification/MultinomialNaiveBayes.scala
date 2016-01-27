@@ -678,33 +678,19 @@ object MultinomialNaiveBayes {
           // 1. Map: calculate the pwc value for every word (id -> class -> pwc)
           // 2. Sum: Sum these pwc values for each class and document
           sumPwcNotFoundWords = notFoundWords
-            .map(new RichMapFunction[(Int, String, String, Int), (Int, String, Double)] {
-
-            var broadcastMap: mutable.Map[String, Double] = mutable.Map[String, Double]()
-            //class -> log(P(w|c) not found word in class)
-
-            override def open(config: Configuration): Unit = {
-              val collection = getRuntimeContext
-                .getBroadcastVariable[(String, Double, Double)]("classRelatedModelData")
-                .asScala
-              for (record <- collection) {
-                broadcastMap.put(record._1, record._3)
-              }
-            }
-
-            override def map(value: (Int, String, String, Int)): (Int, String, Double) = {
-              if (sr1 == 1 && r1 == 0) {
-                //same as sr1 == 0, but there is no multiplication with the word counts
-                return (value._1, value._2, broadcastMap(value._2))
-              } else if (sr1 == 2 && r1 == 0) {
-                //same es sr1 == 0, but multiplication with log(wordcount + 1)
-                return (value._1, value._2, Math.log(value._4 + 1) * broadcastMap(value._2))
-              }
-              throw new RuntimeException("sumPwcNotFound could not be calculated because you" +
-                "choosed a not allowed parameter combination.")
-            }
-          }).withBroadcastSet(classRelatedModelData, "classRelatedModelData")
-            .groupBy(0, 1).sum(2)
+            .mapWithBcInitializer(classRelatedModelData)(mapInitializer){
+              (value, map) =>
+                if (sr1 == 1 && r1 == 0) {
+                    //same as sr1 == 0, but there is no multiplication with the word counts
+                    (value._1, value._2, map(value._2))
+                } else if (sr1 == 2 && r1 == 0) {
+                    //same es sr1 == 0, but multiplication with log(wordcount + 1)
+                    (value._1, value._2, Math.log(value._4 + 1) * map(value._2))
+                } else {
+                  throw new RuntimeException("sumPwcNotFound could not be calculated because you" +
+                    "choosed a not allowed parameter combination.")
+                }
+            }.groupBy(0, 1).sum(2)
         } else if ((sr1 == 0 && r1 == 1) || (sr1 == 2 && r1 == 1)) {
 
           //same as r1 = 0, but the word frequency is multiplied with
@@ -717,32 +703,18 @@ object MultinomialNaiveBayes {
           sumPwcNotFoundWords = notFoundWords
             .join(improvementData).where(2).equalTo(0) {
             (nf, imp) => (nf._1, nf._2, nf._4, imp._2)
-          }.map(new RichMapFunction[(Int, String, Int, Double), (Int, String, Double)] {
-
-            var broadcastMap: mutable.Map[String, Double] = mutable.Map[String, Double]()
-            //(class -> log(P(w|c) not found word in class)
-
-            override def open(config: Configuration): Unit = {
-              val collection = getRuntimeContext
-                .getBroadcastVariable[(String, Double, Double)]("classRelatedModelData")
-                .asScala
-              for (record <- collection) {
-                broadcastMap.put(record._1, record._3)
-              }
-            }
-
-            override def map(value: (Int, String, Int, Double)): (Int, String, Double) = {
+          }.mapWithBcInitializer(classRelatedModelData)(mapInitializer){
+            (value, map) =>
               if (sr1 == 0 && r1 == 1) {
-                return (value._1, value._2, value._3 * value._4 * broadcastMap(value._2))
+                (value._1, value._2, value._3 * value._4 * map(value._2))
               } else if (sr1 == 2 && r1 == 1) {
-                return (value._1, value._2, Math.log(value._3 + 1)
-                  * value._4 * broadcastMap(value._2))
-              }
+                (value._1, value._2, Math.log(value._3 + 1)
+                  * value._4 * map(value._2))
+              } else {
               throw new RuntimeException("sumPwcNotFound could not be calculated because you" +
                 "choosed a not allowed parameter combination.")
-            }
-          }).withBroadcastSet(classRelatedModelData, "classRelatedModelData")
-            .groupBy(0, 1).sum(2) //(id -> class -> sum(log(P(w|c))
+              }
+          }.groupBy(0, 1).sum(2) //(id -> class -> sum(log(P(w|c))
         }
       }
 
@@ -807,24 +779,9 @@ object MultinomialNaiveBayes {
         //calculate posterior values for each class
         // 1. Map: add sumPwc values with log(P(c)) (provided by broadcast)
         posterior = sumPwc
-          .map(new RichMapFunction[(Int, String, Double), (Int, String, Double)] {
-
-          var broadcastMap: mutable.Map[String, Double] =
-            mutable.Map[String, Double]() //class -> log(P(c))
-
-          override def open(config: Configuration): Unit = {
-            val collection = getRuntimeContext
-              .getBroadcastVariable[(String, Double, Double)]("classRelatedModelData")
-              .asScala
-            for (record <- collection) {
-              broadcastMap.put(record._1, record._2)
-            }
+          .mapWithBcInitializer(classRelatedModelData)(mapInitializer) {
+            (value, map) => (value._1, value._2, value._3 + map(value._2))
           }
-
-          override def map(value: (Int, String, Double)): (Int, String, Double) = {
-            (value._1, value._2, value._3 + broadcastMap(value._2))
-          }
-        }).withBroadcastSet(classRelatedModelData, "classRelatedModelData")
       } else if (s1 == 1) {
         posterior = sumPwc
       }
