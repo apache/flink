@@ -35,9 +35,9 @@ class RowComparator private (
     /** key positions describe which fields are keys in what order */
     val keyPositions: Array[Int],
     /** null-aware comparators for the key fields, in the same order as the key fields */
-    val comparators: Array[NullAwareComparator[_]],
+    val comparators: Array[NullAwareComparator[Any]],
     /** serializers to deserialize the first n fields for comparison */
-    val serializers: Array[TypeSerializer[_]],
+    val serializers: Array[TypeSerializer[Any]],
     /** auxiliary fields for normalized key support */
     private val auxiliaryFields: (Array[Int], Int, Int, Boolean))
   extends CompositeTypeComparator[Row] with Serializable {
@@ -64,8 +64,8 @@ class RowComparator private (
    */
   def this(
       keyPositions: Array[Int],
-      comparators: Array[NullAwareComparator[_]],
-      serializers: Array[TypeSerializer[_]]) = {
+      comparators: Array[NullAwareComparator[Any]],
+      serializers: Array[TypeSerializer[Any]]) = {
     this(
       keyPositions,
       comparators,
@@ -84,8 +84,8 @@ class RowComparator private (
    */
   def this(
       keyPositions: Array[Int],
-      comparators: Array[TypeComparator[_]],
-      serializers: Array[TypeSerializer[_]],
+      comparators: Array[TypeComparator[Any]],
+      serializers: Array[TypeSerializer[Any]],
       orders: Array[Boolean]) = {
     this(
       keyPositions,
@@ -112,8 +112,8 @@ class RowComparator private (
     var i = 0
     try {
       while (i < keyPositions.length) {
-        val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
-        val otherComparator = other.comparators(i).asInstanceOf[TypeComparator[Any]]
+        val comparator = comparators(i)
+        val otherComparator = other.comparators(i)
 
         val cmp = comparator.compareToReference(otherComparator)
         if (cmp != 0) {
@@ -139,7 +139,7 @@ class RowComparator private (
     // deserialize
     var i = 0
     while (i < len) {
-      val serializer = serializers(i).asInstanceOf[TypeSerializer[Any]]
+      val serializer = serializers(i)
 
       // deserialize field 1
       if (!nullMask1(i)) {
@@ -158,7 +158,7 @@ class RowComparator private (
     i = 0
     while (i < keyLen) {
       val keyPos = keyPositions(i)
-      val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
+      val comparator = comparators(i)
 
       val isNull1 = nullMask1(keyPos)
       val isNull2 = nullMask2(keyPos)
@@ -213,7 +213,7 @@ class RowComparator private (
 
   override def duplicate(): TypeComparator[Row] = {
     // copy comparator and serializer factories
-    val comparatorsCopy = comparators.map(_.duplicate().asInstanceOf[NullAwareComparator[_]])
+    val comparatorsCopy = comparators.map(_.duplicate().asInstanceOf[NullAwareComparator[Any]])
     val serializersCopy = serializers.map(_.duplicate())
 
     new RowComparator(
@@ -230,7 +230,7 @@ class RowComparator private (
       while(i < keyPositions.length) {
         code *= TupleComparatorBase.HASH_SALT(i & 0x1F)
         val element = value.productElement(keyPositions(i)) // element can be null
-        code += comparators(i).asInstanceOf[TypeComparator[Any]].hash(element)
+        code += comparators(i).hash(element)
         i += 1
       }
     } catch {
@@ -244,7 +244,7 @@ class RowComparator private (
     var i = 0
     try {
       while(i < keyPositions.length) {
-        val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
+        val comparator = comparators(i)
         val element = toCompare.productElement(keyPositions(i))
         comparator.setReference(element) // element can be null
         i += 1
@@ -259,7 +259,7 @@ class RowComparator private (
     var i = 0
     try {
       while(i < keyPositions.length) {
-        val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
+        val comparator = comparators(i)
         val element = candidate.productElement(keyPositions(i)) // element can be null
         // check if reference is not equal
         if (!comparator.equalToReference(element)) {
@@ -279,7 +279,7 @@ class RowComparator private (
     try {
       while(i < keyPositions.length) {
         val keyPos: Int = keyPositions(i)
-        val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
+        val comparator = comparators(i)
         val firstElement = first.productElement(keyPos) // element can be null
         val secondElement = second.productElement(keyPos) // element can be null
 
@@ -310,7 +310,7 @@ class RowComparator private (
       var len = normalizedKeyLengths(i)
       len = if (bytesLeft >= len) len else bytesLeft
 
-      val comparator = comparators(i).asInstanceOf[NullAwareComparator[Any]]
+      val comparator = comparators(i)
       val element = record.productElement(keyPositions(i)) // element can be null
       // write key
       comparator.putNormalizedKey(element, target, currentOffset, len)
@@ -334,13 +334,7 @@ class RowComparator private (
     var i = 0
     while (i < len) {
       val element = record.asInstanceOf[Row].productElement(keyPositions(i)) // element can be null
-      if (element == null) {
-        val defaultInstance = deserializedKeyFields1(keyPositions(i))
-        localIndex += comparators(i).extractKeysFromNull(defaultInstance, target, localIndex)
-      }
-      else {
-        localIndex += comparators(i).extractKeys(element, target, localIndex)
-      }
+      localIndex += comparators(i).extractKeys(element, target, localIndex)
       i += 1
     }
     localIndex - index
@@ -349,14 +343,14 @@ class RowComparator private (
 
 object RowComparator {
   private def makeNullAware(
-      comparators: Array[TypeComparator[_]],
+      comparators: Array[TypeComparator[Any]],
       orders: Array[Boolean])
-    : Array[NullAwareComparator[_]] =
+    : Array[NullAwareComparator[Any]] =
     comparators
       .zip(orders)
       .map { case (comp, order) =>
         new NullAwareComparator[Any](
-          comp.asInstanceOf[TypeComparator[Any]],
+          comp,
           order)
       }
 
@@ -365,7 +359,7 @@ object RowComparator {
    */
   private def createAuxiliaryFields(
       keyPositions: Array[Int],
-      comparators: Array[NullAwareComparator[_]])
+      comparators: Array[NullAwareComparator[Any]])
     : (Array[Int], Int, Int, Boolean) = {
 
     val normalizedKeyLengths = new Array[Int](keyPositions.length)

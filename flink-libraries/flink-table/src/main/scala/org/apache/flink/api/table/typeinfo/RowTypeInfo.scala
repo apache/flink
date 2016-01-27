@@ -96,8 +96,8 @@ class RowTypeInfo(
 
       new RowComparator(
         logicalKeyFields.toArray,
-        fieldComparators.toArray,
-        types.take(maxIndex + 1).map(_.createSerializer(config)),
+        fieldComparators.toArray.asInstanceOf[Array[TypeComparator[Any]]],
+        types.take(maxIndex + 1).map(_.createSerializer(config).asInstanceOf[TypeSerializer[Any]]),
         comparatorOrders
       )
     }

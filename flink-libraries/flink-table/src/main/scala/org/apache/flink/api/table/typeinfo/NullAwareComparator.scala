@@ -27,14 +27,15 @@ import scala.collection.mutable.ArrayBuffer
  * Null-aware comparator that wraps a comparator which does not support null references.
  *
  * NOTE: This class assumes to be used within a composite type comparator (such
- * as [[RowComparator]]) that handles serialized comparison and calls
- * [[NullAwareComparator#extractKeys()]] or [[NullAwareComparator#extractKeysFromNull()]]
- * respectively.
+ * as [[RowComparator]]) that handles serialized comparison.
  */
 class NullAwareComparator[T](
     val wrappedComparator: TypeComparator[T],
     val order: Boolean)
   extends TypeComparator[T] {
+
+  // number of flat fields
+  private val flatFields = wrappedComparator.getFlatComparators.length
 
   // stores the null for reference comparison
   private var nullReference = false
@@ -174,15 +175,20 @@ class NullAwareComparator[T](
     new NullAwareComparator[T](wrappedComparator.duplicate(), order)
   }
 
-  /**
-   * This method does not support records that are null. Use [[extractKeysFromNull()]] instead.
-   *
-   * @param record The record that contains the key(s)
-   * @param target The array to write the key(s) into.
-   * @param index The offset of the target array to start writing into.
-   **/
-  override def extractKeys(record: Any, target: Array[AnyRef], index: Int): Int =
-    wrappedComparator.extractKeys(record, target, index)
+  override def extractKeys(record: Any, target: Array[AnyRef], index: Int): Int = {
+    if (record == null) {
+      var i = 0
+      while (i < flatFields) {
+        target(index + i) = null
+        i += 1
+      }
+      flatFields
+    }
+    else {
+      wrappedComparator.extractKeys(record, target, index)
+    }
+  }
+
 
   override def getFlatComparators: Array[TypeComparator[_]] = {
     // determine the flat comparators and wrap them again in null-aware comparators
@@ -209,23 +215,4 @@ class NullAwareComparator[T](
   override def compareSerialized(firstSource: DataInputView, secondSource: DataInputView): Int =
     throw new UnsupportedOperationException("Comparator does not support null-aware serialized " +
       "comparision.")
-
-  /**
-   * This method is similar to [[extractKeys()]] but assumes the record to be null and extracts the
-   * corresponding number of null keys.
-   *
-   * @param defaultInstance A default instance to extract null key(s) from.
-   * @param target The array to write the key(s) into.
-   * @param index The offset of the target array to start writing into.
-   **/
-  def extractKeysFromNull(defaultInstance: Any, target: Array[AnyRef], index: Int): Int = {
-    val addedKeys = wrappedComparator.extractKeys(defaultInstance, target, index)
-    var i = 0
-    while (i < addedKeys) {
-      // target
-      target(index - i) = null
-      i += 1
-    }
-    addedKeys
-  }
 }
