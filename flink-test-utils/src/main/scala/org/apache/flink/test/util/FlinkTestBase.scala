@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util
 
-import org.apache.flink.runtime.StreamingMode
 import org.scalatest.{Suite, BeforeAndAfter}
 
 /** Mixin to start and stop a ForkableFlinkMiniCluster automatically for Scala based tests.
@@ -54,7 +53,13 @@ trait FlinkTestBase extends BeforeAndAfter {
   val parallelism = 4
 
   before {
-    val cl = TestBaseUtils.startCluster(1, parallelism, StreamingMode.BATCH_ONLY, false, true)
+    val cl = TestBaseUtils.startCluster(
+      1,
+      parallelism,
+      false,
+      false,
+      true)
+
     val clusterEnvironment = new TestEnvironment(cl, parallelism)
     clusterEnvironment.setAsContext()
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.accumulators;
 
+
 /**
  * An accumulator that sums up {@code double} values.
  */
@@ -27,8 +28,15 @@ public class DoubleCounter implements SimpleAccumulator<Double> {
 
 	private double localValue = 0;
 
+	/**
+	 * Consider using {@link #add(double)} instead for primitive double values
+	 */
 	@Override
 	public void add(Double value) {
+		localValue += value;
+	}
+
+	public void add(double value){
 		localValue += value;
 	}
 

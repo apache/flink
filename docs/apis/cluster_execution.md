@@ -1,5 +1,8 @@
 ---
 title:  "Cluster Execution"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -48,7 +51,7 @@ If you are developing your program as a Maven project, you have to add the
 ~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{ site.version }}</version>
 </dependency>
 ~~~
@@ -89,8 +92,8 @@ added modules. To run code depending on these modules you need to make them acce
 during runtime, for which we suggest two options:
 
 1. Either copy the required jar files to the `lib` folder onto all of your TaskManagers.
-Note that you have to restar your TaskManagers after this.
-2. Or package them with your usercode.
+Note that you have to restart your TaskManagers after this.
+2. Or package them with your code.
 
 The latter version is recommended as it respects the classloader management in Flink.
 
@@ -98,8 +101,9 @@ The latter version is recommended as it respects the classloader management in F
 
 To provide these dependencies not included by Flink we suggest two options with Maven.
 
-1. The maven assembly plugin builds a so called fat jar cointaining all your dependencies.
-Assembly configuration is straight-forward, but the resulting jar might become bulky. See 
+1. The maven assembly plugin builds a so-called uber-jar(executable jar)
+containing all your dependencies.
+Assembly configuration is straight-forward, but the resulting jar might become bulky. See
 [usage](http://maven.apache.org/plugins/maven-assembly-plugin/usage.html).
 2. The maven unpack plugin, for unpacking the relevant parts of the dependencies and
 then package it with your code.

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.translation.PlanProjectOperator;
@@ -71,7 +71,7 @@ public class SemanticPropertiesProjectionTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		tupleDs.project(1, 3, 2).project(0, 3).output(new DiscardingOutputFormat<Tuple>());
+		tupleDs.project(1, 3, 2, 0, 3).output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -97,7 +97,7 @@ public class SemanticPropertiesProjectionTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>> tupleDs = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
 
-		tupleDs.project(2, 3, 1).project(2).output(new DiscardingOutputFormat<Tuple>());
+		tupleDs.project(2, 3, 1, 2).output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -138,7 +138,7 @@ public class SemanticPropertiesProjectionTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> projectJoinOperator = ((JoinOperatorBase<?, ?, ?, ?>) sink.getInput());
+		InnerJoinOperatorBase<?, ?, ?, ?> projectJoinOperator = ((InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput());
 
 		DualInputSemanticProperties props = projectJoinOperator.getSemanticProperties();
 
@@ -166,7 +166,7 @@ public class SemanticPropertiesProjectionTest {
 		Plan plan = env.createProgramPlan();
 
 		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-		JoinOperatorBase<?, ?, ?, ?> projectJoinOperator = ((JoinOperatorBase<?, ?, ?, ?>) sink.getInput());
+		InnerJoinOperatorBase<?, ?, ?, ?> projectJoinOperator = ((InnerJoinOperatorBase<?, ?, ?, ?>) sink.getInput());
 
 		DualInputSemanticProperties props = projectJoinOperator.getSemanticProperties();
 

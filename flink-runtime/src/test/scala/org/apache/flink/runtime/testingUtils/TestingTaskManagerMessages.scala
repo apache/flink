@@ -20,6 +20,7 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.taskmanager.Task
 
@@ -41,8 +42,6 @@ object TestingTaskManagerMessages {
 
   case object RequestNumActiveConnections
   case class ResponseNumActiveConnections(number: Int)
-
-  case class CheckIfJobRemoved(jobID: JobID)
   
   case object RequestRunningTasks
   
@@ -51,7 +50,34 @@ object TestingTaskManagerMessages {
   case class NotifyWhenJobManagerTerminated(jobManager: ActorRef)
 
   case class JobManagerTerminated(jobManager: ActorRef)
-  
+
+  case class NotifyWhenRegisteredAtJobManager(jobManager: ActorRef)
+
+  /**
+   * Message to give a hint to the task manager that accumulator values were updated in the task.
+   * This message is forwarded to the job manager which knows that it needs to notify listeners
+   * of accumulator updates.
+   */
+  case class AccumulatorsChanged(jobID: JobID)
+
+  /**
+    * Registers a listener for all [[org.apache.flink.runtime.messages.TaskMessages.SubmitTask]]
+    * messages of the given job.
+    *
+    * If a task is submitted with the given job ID the task deployment
+    * descriptor is forwarded to the listener.
+    *
+    * @param jobId The job ID to listen for.
+    */
+  case class RegisterSubmitTaskListener(jobId: JobID)
+
+  /**
+    * A response to a listened job ID containing the submitted task deployment descriptor.
+    *
+    * @param tdd The submitted task deployment descriptor.
+    */
+  case class ResponseSubmitTaskListener(tdd: TaskDeploymentDescriptor)
+
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
@@ -63,5 +89,6 @@ object TestingTaskManagerMessages {
   def getRequestBroadcastVariablesWithReferencesMessage: AnyRef = {
     RequestBroadcastVariablesWithReferences
   }
+
 }
 

@@ -30,7 +30,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -51,21 +53,20 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	private final Class<T> clazz;
 
-	private TypeSerializer<Object>[] fieldSerializers;
+	private final TypeSerializer<Object>[] fieldSerializers;
 
-	// We need to handle these ourselves in writeObject()/readObject()
-	private transient Field[] fields;
+	private final int numFields;
 
-	private int numFields;
+	private final Map<Class<?>, Integer> registeredClasses;
+
+	private final TypeSerializer<?>[] registeredSerializers;
+
+	private final ExecutionConfig executionConfig;
 
 	private transient Map<Class<?>, TypeSerializer<?>> subclassSerializerCache;
 	private transient ClassLoader cl;
-
-	private Map<Class<?>, Integer> registeredClasses;
-
-	private TypeSerializer<?>[] registeredSerializers;
-
-	private final ExecutionConfig executionConfig;
+	// We need to handle these ourselves in writeObject()/readObject()
+	private transient Field[] fields;
 
 	@SuppressWarnings("unchecked")
 	public PojoSerializer(
@@ -73,11 +74,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			TypeSerializer<?>[] fieldSerializers,
 			Field[] fields,
 			ExecutionConfig executionConfig) {
-		this.clazz = clazz;
-		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
-		this.fields = fields;
+
+		this.clazz = Preconditions.checkNotNull(clazz);
+		this.fieldSerializers = (TypeSerializer<Object>[]) Preconditions.checkNotNull(fieldSerializers);
+		this.fields = Preconditions.checkNotNull(fields);
 		this.numFields = fieldSerializers.length;
-		this.executionConfig = executionConfig;
+		this.executionConfig = Preconditions.checkNotNull(executionConfig);
 
 		LinkedHashSet<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
 
@@ -563,23 +565,28 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		int hashCode = numFields * 47;
-		for (TypeSerializer<?> ser : this.fieldSerializers) {
-			hashCode = (hashCode << 7) | (hashCode >>> -7);
-			hashCode += ser.hashCode();
-		}
-		return hashCode;
+		return 31 * (31 * Arrays.hashCode(fieldSerializers) + Arrays.hashCode(registeredSerializers)) +
+			Objects.hash(clazz, numFields, registeredClasses);
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof PojoSerializer) {
-			PojoSerializer<?> otherTS = (PojoSerializer<?>) obj;
-			return (otherTS.clazz == this.clazz) &&
-					Arrays.deepEquals(this.fieldSerializers, otherTS.fieldSerializers);
-		}
-		else {
+		if (obj instanceof PojoSerializer) {
+			PojoSerializer<?> other = (PojoSerializer<?>) obj;
+
+			return other.canEqual(this) &&
+				clazz == other.clazz &&
+				Arrays.equals(fieldSerializers, other.fieldSerializers) &&
+				Arrays.equals(registeredSerializers, other.registeredSerializers) &&
+				numFields == other.numFields &&
+				registeredClasses.equals(other.registeredClasses);
+		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof PojoSerializer;
 	}
 }

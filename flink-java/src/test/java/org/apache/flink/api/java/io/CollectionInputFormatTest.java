@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class CollectionInputFormatTest {
 	
@@ -265,8 +266,8 @@ public class CollectionInputFormatTest {
 
 		private static final long serialVersionUID = 1L;
 		
-		private boolean failOnRead;
-		private boolean failOnWrite;
+		private final boolean failOnRead;
+		private final boolean failOnWrite;
 		
 		public TestSerializer(boolean failOnRead, boolean failOnWrite) {
 			this.failOnRead = failOnRead;
@@ -330,6 +331,27 @@ public class CollectionInputFormatTest {
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
 			target.writeInt(source.readInt());
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof TestSerializer) {
+				TestSerializer other = (TestSerializer) obj;
+
+				return other.canEqual(this) && failOnRead == other.failOnRead && failOnWrite == other.failOnWrite;
+			} else {
+				return false;
+			}
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof TestSerializer;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(failOnRead, failOnWrite);
 		}
 	}
 }

@@ -20,11 +20,11 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.api.common.functions.*;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.junit.Test;
 
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.api.common.Plan;
@@ -33,11 +33,6 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichJoinFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -52,6 +47,8 @@ import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
+
+import java.util.Iterator;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class IterationsCompilerTest extends CompilerTestBase {
@@ -157,8 +154,16 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			assertTrue(op.getDataSinks().iterator().next().getInput().getSource() instanceof WorksetIterationPlanNode);
 			
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
-			
-			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
+			BulkIterationPlanNode bipn = (BulkIterationPlanNode)wipn.getInput1().getSource();
+
+			// the hash partitioning has been pushed out of the delta iteration into the bulk iteration
+			assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
+
+			// the input of the root step function is the last operator of the step function
+			// since the work has been pushed out of the bulk iteration, it has to guarantee the hash partitioning
+			for (Channel c : bipn.getRootOfStepFunction().getInputs()) {
+				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
+			}
 
 			assertEquals(DataExchangeMode.BATCH, wipn.getInput1().getDataExchangeMode());
 			assertEquals(DataExchangeMode.BATCH, wipn.getInput2().getDataExchangeMode());
@@ -223,7 +228,10 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Long>> input1 = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
 			
 			DataSet<Tuple2<Long, Long>> input2 = env.readCsvFile("/some/file/path").types(Long.class, Long.class);
-			
+
+			// we do two join operations with input1 which is the partial solution
+			// it is cheaper to push the partitioning out so that the feedback channel and the
+			// initial input do the partitioning
 			doBulkIteration(input1, input2).output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
@@ -234,11 +242,56 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			BulkIterationPlanNode bipn = (BulkIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			
-			// check that work has not! been pushed out, as the end of the step function does not produce the necessary properties
+			// check that work has been pushed out
+			for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
+				assertEquals(ShipStrategyType.FORWARD, c.getShipStrategy());
+			}
+
+			// the end of the step function has to produce the necessary properties
+			for (Channel c : bipn.getRootOfStepFunction().getInputs()) {
+				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
+			}
+
+			assertEquals(ShipStrategyType.PARTITION_HASH, bipn.getInput().getShipStrategy());
+			
+			new JobGraphGenerator().compileJobGraph(op);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testIterationNotPushingWorkOut() throws Exception {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(8);
+
+			DataSet<Tuple2<Long, Long>> input1 = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
+
+			DataSet<Tuple2<Long, Long>> input2 = env.readCsvFile("/some/file/path").types(Long.class, Long.class);
+
+			// Use input1 as partial solution. Partial solution is used in a single join operation --> it is cheaper
+			// to do the hash partitioning between the partial solution node and the join node
+			// instead of pushing the partitioning out
+			doSimpleBulkIteration(input1, input2).output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
+
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+
+			assertEquals(1, op.getDataSinks().size());
+			assertTrue(op.getDataSinks().iterator().next().getInput().getSource() instanceof BulkIterationPlanNode);
+
+			BulkIterationPlanNode bipn = (BulkIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
+
+			// check that work has not been pushed out
 			for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
 				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
 			}
-			
+
+			assertEquals(ShipStrategyType.FORWARD, bipn.getInput().getShipStrategy());
+
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
@@ -322,6 +375,64 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
+
+	/**
+	 * Tests that interesting properties can be pushed out of the bulk iteration. This requires
+	 * that a NoOp node is appended to the step function which re-establishes the properties of
+	 * the initial input. If this does not work, then Flink won't find a plan, because the optimizer
+	 * will not consider plans where the partitioning is done after the partial solution node in
+	 * this case (because of pruning).
+	 * @throws Exception
+	 */
+	@Test
+	public void testBulkIterationWithPartialSolutionProperties() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple1<Long>> input1 = env.generateSequence(1, 10).map(new MapFunction<Long, Tuple1<Long>>() {
+			@Override
+			public Tuple1<Long> map(Long value) throws Exception {
+				return new Tuple1<>(value);
+			}
+		});
+
+		DataSet<Tuple1<Long>> input2 = env.generateSequence(1, 10).map(new MapFunction<Long, Tuple1<Long>>() {
+			@Override
+			public Tuple1<Long> map(Long value) throws Exception {
+				return new Tuple1<>(value);
+			}
+		});
+
+		DataSet<Tuple1<Long>> distinctInput = input1.distinct();
+
+		IterativeDataSet<Tuple1<Long>> iteration = distinctInput.iterate(10);
+
+		DataSet<Tuple1<Long>> iterationStep = iteration
+				.coGroup(input2)
+				.where(0)
+				.equalTo(0)
+				.with(new CoGroupFunction<Tuple1<Long>, Tuple1<Long>, Tuple1<Long>>() {
+					@Override
+					public void coGroup(
+							Iterable<Tuple1<Long>> first,
+							Iterable<Tuple1<Long>> second,
+							Collector<Tuple1<Long>> out) throws Exception {
+						Iterator<Tuple1<Long>> it = first.iterator();
+
+						if (it.hasNext()) {
+							out.collect(it.next());
+						}
+					}
+				});
+
+		DataSet<Tuple1<Long>> iterationResult = iteration.closeWith(iterationStep);
+
+		iterationResult.output(new DiscardingOutputFormat<Tuple1<Long>>());
+
+		Plan p = env.createProgramPlan();
+		OptimizedPlan op = compileNoStats(p);
+
+		new JobGraphGenerator().compileJobGraph(op);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -336,6 +447,19 @@ public class IterationsCompilerTest extends CompilerTestBase {
 				.join(iteration).where(0).equalTo(0)
 				.flatMap(new FlatMapJoin());
 		
+		// close the bulk iteration
+		return iteration.closeWith(changes);
+	}
+
+	public static DataSet<Tuple2<Long, Long>> doSimpleBulkIteration(DataSet<Tuple2<Long, Long>> vertices, DataSet<Tuple2<Long, Long>> edges) {
+
+		// open a bulk iteration
+		IterativeDataSet<Tuple2<Long, Long>> iteration = vertices.iterate(20);
+
+		DataSet<Tuple2<Long, Long>> changes = iteration
+				.join(edges).where(0).equalTo(0)
+				.flatMap(new FlatMapJoin());
+
 		// close the bulk iteration
 		return iteration.closeWith(changes);
 	}

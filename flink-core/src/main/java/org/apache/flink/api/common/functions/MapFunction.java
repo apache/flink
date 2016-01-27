@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -28,15 +30,16 @@ import java.io.Serializable;
  * using the {@link FlatMapFunction}.
  * <p>
  * The basic syntax for using a MapFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  * 
  * DataSet<Y> result = input.map(new MyMapFunction());
- * </blockquote></pre>
+ * }</pre>
  * 
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.
  */
+@Public
 public interface MapFunction<T, O> extends Function, Serializable {
 
 	/**

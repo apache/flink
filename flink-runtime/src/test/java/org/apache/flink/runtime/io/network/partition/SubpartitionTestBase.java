@@ -19,15 +19,21 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
  * Basic subpartition behaviour tests.
  */
-public abstract class SubpartitionTestBase {
+public abstract class SubpartitionTestBase extends TestLogger {
 
 	/**
 	 * Return the subpartition to be tested.
@@ -66,5 +72,42 @@ public abstract class SubpartitionTestBase {
 				subpartition.release();
 			}
 		}
+	}
+
+	@Test
+	public void testReleaseParent() throws Exception {
+		final ResultSubpartition partition = createSubpartition();
+		verifyViewReleasedAfterParentRelease(partition);
+	}
+
+	@Test
+	public void testReleaseParentAfterSpilled() throws Exception {
+		final ResultSubpartition partition = createSubpartition();
+		partition.releaseMemory();
+
+		verifyViewReleasedAfterParentRelease(partition);
+	}
+
+	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
+		// Add a buffer
+		Buffer buffer = TestBufferFactory.createBuffer();
+		partition.add(buffer);
+		partition.finish();
+
+		TestInfiniteBufferProvider buffers = new TestInfiniteBufferProvider();
+
+		// Create the view
+		ResultSubpartitionView view = partition.createReadView(buffers);
+
+		// The added buffer and end-of-partition event
+		assertNotNull(view.getNextBuffer());
+		assertNotNull(view.getNextBuffer());
+
+		// Release the parent
+		assertFalse(view.isReleased());
+		partition.release();
+
+		// Verify that parent release is reflected at partition view
+		assertTrue(view.isReleased());
 	}
 }

@@ -22,7 +22,6 @@ import java.io.File;
 import java.io.PrintStream;
 
 import org.apache.flink.client.CliFrontendTestUtils;
-import org.apache.flink.client.program.PackagedProgram;
 import org.junit.Assert;
 import org.junit.Test;
 

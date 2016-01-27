@@ -18,15 +18,32 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Set;
+
 /**
- * Type information for numeric primitive types (int, long, double, byte, ...).
+ * Type information for numeric integer primitive types: int, long, byte, short, character.
  */
 public class IntegerTypeInfo<T> extends NumericTypeInfo<T> {
 
+	private static final long serialVersionUID = -8068827354966766955L;
+
+	private static final Set<Class<?>> integerTypes = Sets.<Class<?>>newHashSet(
+			Integer.class,
+			Long.class,
+			Byte.class,
+			Short.class,
+			Character.class
+	);
+
 	protected IntegerTypeInfo(Class<T> clazz, Class<?>[] possibleCastTargetTypes, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
 		super(clazz, possibleCastTargetTypes, serializer, comparatorClass);
+
+		Preconditions.checkArgument(integerTypes.contains(clazz), "The given class " +
+		clazz.getSimpleName() + " is not a integer type.");
 	}
 }

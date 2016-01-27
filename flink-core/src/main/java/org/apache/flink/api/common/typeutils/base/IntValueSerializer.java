@@ -78,4 +78,9 @@ public final class IntValueSerializer extends TypeSerializerSingleton<IntValue> 
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeInt(source.readInt());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof IntValueSerializer;
+	}
 }

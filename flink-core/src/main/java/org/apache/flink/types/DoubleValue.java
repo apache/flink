@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -30,6 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValue>, CopyableValue<DoubleValue> {
 	private static final long serialVersionUID = 1L;
 
@@ -109,7 +111,7 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj.getClass() == DoubleValue.class) {
+		if (obj instanceof DoubleValue) {
 			final DoubleValue other = (DoubleValue) obj;
 			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
 		}
@@ -122,10 +124,15 @@ public class DoubleValue implements Key<DoubleValue>, ResettableValue<DoubleValu
 	public int getBinaryLength() {
 		return 8;
 	}
-	
+
 	@Override
 	public void copyTo(DoubleValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public DoubleValue copy() {
+		return new DoubleValue(this.value);
 	}
 
 	@Override

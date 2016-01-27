@@ -18,21 +18,26 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import Tasks._
+
 import akka.actor.ActorSystem
-import akka.actor.Status.{Success, Failure}
-import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.akka.ListeningBehaviour
+import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, SavepointCoordinator}
 import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph, ScheduleMode}
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
+import org.apache.flink.runtime.jobmanager.Tasks._
+import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
+import org.apache.flink.runtime.testutils.JobManagerActorTestUtils
 import org.junit.runner.RunWith
+import org.mockito.Mockito._
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -40,8 +45,13 @@ import scala.language.postfixOps
 import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
-class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
-WordSpecLike with Matchers with BeforeAndAfterAll {
+class JobManagerITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
   implicit val duration = 1 minute
   implicit val timeout = Timeout.durationToTimeout(duration)
 
@@ -61,35 +71,32 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Test Job", vertex)
 
       val cluster = TestingUtils.startTestingCluster(1)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
-        val response = (jm ? RequestTotalNumberOfSlots).mapTo[Int]
+        val response = jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration).mapTo[Int]
 
         val availableSlots = Await.result(response, duration)
 
         availableSlots should equal(1)
 
         within(2 second) {
-          jm ! SubmitJob(jobGraph, false)
-
-          val success = expectMsgType[Success]
-
-          jobGraph.getJobID should equal(success.status)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
         }
 
         within(2 second) {
-          val response = expectMsgType[Failure]
-          val exception = response.cause
+          val response = expectMsgType[JobResultFailure]
+          val exception = response.cause.deserializeError(getClass.getClassLoader())
           exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
-              new NoResourceAvailableException(1,1,0) should equal(e.getCause)
+              new NoResourceAvailableException(1,1,0) should equal(e.getCause())
             case e => fail(s"Received wrong exception of type $e.")
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       }
       finally {
@@ -106,25 +113,25 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Test Job", vertex)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
-        val response = (jm ? RequestTotalNumberOfSlots).mapTo[Int]
+        val response = jmGateway.ask(RequestTotalNumberOfSlots, timeout.duration).mapTo[Int]
 
         val availableSlots = Await.result(response, duration)
 
         availableSlots should equal(num_tasks)
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+          
           val result = expectMsgType[JobResultSuccess]
-
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -142,19 +149,19 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       jobGraph.setAllowQueuedScheduling(true)
 
       val cluster = TestingUtils.startTestingCluster(10)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -177,19 +184,19 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
           result.result.getJobId() should equal(jobGraph.getJobID)
         }
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -212,17 +219,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -249,16 +256,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
 
-          failure.cause match {
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -266,7 +274,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -293,17 +301,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -337,17 +345,17 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       jobGraph.setScheduleMode(ScheduleMode.ALL)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
 
-          jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+          jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
           expectMsg(true)
         }
       } finally {
@@ -371,21 +379,21 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          val failure = expectMsgType[Failure]
-
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -393,7 +401,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -419,20 +427,21 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -440,7 +449,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -463,15 +472,16 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -479,7 +489,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -502,18 +512,19 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
 
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -521,7 +532,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
 
         expectMsg(true)
       } finally {
@@ -549,18 +560,19 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! RequestTotalNumberOfSlots
+          jmGateway.tell(RequestTotalNumberOfSlots, self)
           expectMsg(num_tasks)
 
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
-          val failure = expectMsgType[Failure]
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          failure.cause match {
+          val failure = expectMsgType[JobResultFailure]
+          val exception = failure.cause.deserializeError(getClass.getClassLoader())
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
 
@@ -568,7 +580,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           }
         }
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally {
         cluster.stop()
@@ -591,22 +603,367 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition", source, sink)
 
       val cluster = TestingUtils.startTestingCluster(2*num_tasks)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(1 seconds)
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! SubmitJob(jobGraph, false)
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
 
-          expectMsg(Success(jobGraph.getJobID))
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }
 
         sink.finished should equal(true)
 
-        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        jmGateway.tell(NotifyWhenJobRemoved(jobGraph.getJobID), self)
         expectMsg(true)
       } finally{
         cluster.stop()
+      }
+    }
+
+    "remove execution graphs when the client ends the session explicitly" in {
+      val vertex = new JobVertex("Test Vertex")
+      vertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph1 = new JobGraph("Test Job", vertex)
+
+      val slowVertex = new WaitingOnFinalizeJobVertex("Long running Vertex", 2000)
+      slowVertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph2 = new JobGraph("Long running Job", slowVertex)
+
+      val cluster = TestingUtils.startTestingCluster(1)
+      val jm = cluster.getLeaderGateway(1 seconds)
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          /* jobgraph1 is removed after being terminated */
+          jobGraph1.setSessionTimeout(9999)
+          jm.tell(SubmitJob(jobGraph1, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph1.getJobID))
+          expectMsgType[JobResultSuccess]
+
+          // should not be archived yet
+          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), self)
+          var cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(!cachedGraph.isArchived)
+
+          jm.tell(RemoveCachedJob(jobGraph1.getJobID), self)
+
+          jm.tell(RequestExecutionGraph(jobGraph1.getJobID), self)
+          cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(cachedGraph.isArchived)
+
+          /* jobgraph2 is removed while running */
+          jobGraph2.setSessionTimeout(9999)
+          jm.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
+          expectMsg(JobSubmitSuccess(jobGraph2.getJobID))
+
+          // job still running
+          jm.tell(RemoveCachedJob(jobGraph2.getJobID), self)
+
+          expectMsgType[JobResultSuccess]
+
+          // should be archived!
+          jm.tell(RequestExecutionGraph(jobGraph2.getJobID), self)
+          cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+          assert(cachedGraph.isArchived)
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
+
+    "remove execution graphs when when the client's session times out" in {
+      val vertex = new JobVertex("Test Vertex")
+      vertex.setParallelism(1)
+      vertex.setInvokableClass(classOf[NoOpInvokable])
+
+      val jobGraph = new JobGraph("Test Job", vertex)
+
+      val cluster = TestingUtils.startTestingCluster(1)
+      val jm = cluster.getLeaderGateway(1 seconds)
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          // try multiple times in case of flaky environments
+          var testSucceeded = false
+          var numTries = 0
+          while(!testSucceeded && numTries < 10) {
+            try {
+              // should be removed immediately
+              jobGraph.setSessionTimeout(0)
+              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+              expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              val cachedGraph2 = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(cachedGraph2.isArchived)
+
+              // removed after 2 seconds
+              jobGraph.setSessionTimeout(2)
+
+              jm.tell(SubmitJob(jobGraph, ListeningBehaviour.EXECUTION_RESULT), self)
+              expectMsg(JobSubmitSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+
+              // should not be archived yet
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              val cachedGraph = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(!cachedGraph.isArchived)
+
+              // wait until graph is archived
+              Thread.sleep(3000)
+
+              jm.tell(RequestExecutionGraph(jobGraph.getJobID), self)
+              val graph = expectMsgType[ExecutionGraphFound].executionGraph
+              assert(graph.isArchived)
+
+              testSucceeded = true
+            } catch {
+              case e: Throwable =>
+                numTries += 1
+            }
+          }
+          if(!testSucceeded) {
+            fail("Test case failed after " + numTries + " probes.")
+          }
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // Savepoint messages
+    // ------------------------------------------------------------------------
+
+    "handle trigger savepoint response for non-existing job" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(0, 0)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobId = new JobID()
+
+          // Trigger savepoint for non-existing job
+          jobManager.tell(TriggerSavepoint(jobId), testActor)
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobId)
+          response.cause.getClass should equal(classOf[IllegalArgumentException])
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response for job with disabled checkpointing" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+
+          // Submit job w/o checkpointing configured
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Trigger savepoint for job with disabled checkpointing
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.cause.getClass should equal(classOf[IllegalStateException])
+          response.cause.getMessage should (include("disabled") or include("configured"))
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response after trigger savepoint failure" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            60000, 60000, 60000, 1))
+
+          // Submit job...
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Request the execution graph and set a checkpoint coordinator mock
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          val executionGraph = expectMsgType[ExecutionGraphFound](
+            deadline.timeLeft).executionGraph
+
+          // Mock the checkpoint coordinator
+          val savepointCoordinator = mock(classOf[SavepointCoordinator])
+          doThrow(new Exception("Expected Test Exception"))
+            .when(savepointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
+
+          // Update the savepoint coordinator field
+          val field = executionGraph.getClass.getDeclaredField("savepointCoordinator")
+          field.setAccessible(true)
+          field.set(executionGraph, savepointCoordinator)
+
+          // Trigger savepoint for job
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.cause.getCause.getClass should equal(classOf[Exception])
+          response.cause.getCause.getMessage should equal("Expected Test Exception")
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response after failed savepoint future" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            60000, 60000, 60000, 1))
+
+          // Submit job...
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Mock the checkpoint coordinator
+          val savepointCoordinator = mock(classOf[SavepointCoordinator])
+          val savepointPathPromise = scala.concurrent.promise[String]
+          doReturn(savepointPathPromise.future)
+            .when(savepointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
+
+          // Request the execution graph and set a checkpoint coordinator mock
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          val executionGraph = expectMsgType[ExecutionGraphFound](
+            deadline.timeLeft).executionGraph
+
+          // Update the savepoint coordinator field
+          val field = executionGraph.getClass.getDeclaredField("savepointCoordinator")
+          field.setAccessible(true)
+          field.set(executionGraph, savepointCoordinator)
+
+          // Trigger savepoint for job
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)
+
+          // Fail the promise
+          savepointPathPromise.failure(new Exception("Expected Test Exception"))
+
+          val response = expectMsgType[TriggerSavepointFailure](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.cause.getCause.getClass should equal(classOf[Exception])
+          response.cause.getCause.getMessage should equal("Expected Test Exception")
+        }
+      }
+      finally {
+        flinkCluster.stop()
+      }
+    }
+
+    "handle trigger savepoint response after succeeded savepoint future" in {
+      val deadline = TestingUtils.TESTING_DURATION.fromNow
+
+      val flinkCluster = TestingUtils.startTestingCluster(1, 1)
+
+      try {
+        within(deadline.timeLeft) {
+          val jobManager = flinkCluster
+            .getLeaderGateway(deadline.timeLeft)
+
+          val jobVertex = new JobVertex("Blocking vertex")
+          jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
+          val jobGraph = new JobGraph(jobVertex)
+          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            java.util.Collections.emptyList(),
+            60000, 60000, 60000, 1))
+
+          // Submit job...
+          jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID()))
+
+          // Mock the checkpoint coordinator
+          val savepointCoordinator = mock(classOf[SavepointCoordinator])
+          val savepointPathPromise = scala.concurrent.promise[String]
+          doReturn(savepointPathPromise.future)
+            .when(savepointCoordinator).triggerSavepoint(org.mockito.Matchers.anyLong())
+
+          // Request the execution graph and set a checkpoint coordinator mock
+          jobManager.tell(RequestExecutionGraph(jobGraph.getJobID), testActor)
+          val executionGraph = expectMsgType[ExecutionGraphFound](
+            deadline.timeLeft).executionGraph
+
+          // Update the savepoint coordinator field
+          val field = executionGraph.getClass.getDeclaredField("savepointCoordinator")
+          field.setAccessible(true)
+          field.set(executionGraph, savepointCoordinator)
+
+          // Trigger savepoint for job
+          jobManager.tell(TriggerSavepoint(jobGraph.getJobID()), testActor)
+
+          // Succeed the promise
+          savepointPathPromise.success("Expected test savepoint path")
+
+          val response = expectMsgType[TriggerSavepointSuccess](deadline.timeLeft)
+
+          // Verify the response
+          response.jobId should equal(jobGraph.getJobID())
+          response.savepointPath should equal("Expected test savepoint path")
+        }
+      }
+      finally {
+        flinkCluster.stop()
       }
     }
   }

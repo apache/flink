@@ -18,14 +18,13 @@
 package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
-import org.junit.Assert._
-
-import org.apache.flink.api.common.typeutils.{TypeSerializer, SerializerTestInstance}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.junit.{Assert, Test}
-
+import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.typeutils.EnumValueTypeInfo
+import org.junit.Assert._
+import org.junit.{Assert, Test}
 
 import scala.util.{Failure, Success}
 
@@ -68,6 +67,12 @@ class ScalaSpecialTypesSerializerTest {
   }
 
   @Test
+  def testEnumValue(): Unit = {
+    val testData = Array(WeekDay.Mon, WeekDay.Fri, WeekDay.Tue, WeekDay.Sun, WeekDay.Wed)
+    runTests(testData)
+  }
+
+  @Test
   def testTry(): Unit = {
     val testData = Array(Success("Hell"), Failure(new RuntimeException("test")))
     runTests(testData)
@@ -93,8 +98,11 @@ class ScalaSpecialTypesSerializerTest {
       val typeInfo = implicitly[TypeInformation[T]]
       val serializer = typeInfo.createSerializer(new ExecutionConfig)
       val typeClass = typeInfo.getTypeClass
-      val test =
-        new ScalaSpecialTypesSerializerTestInstance[T](serializer, typeClass, -1, instances)
+      val test = new ScalaSpecialTypesSerializerTestInstance[T](
+        serializer,
+        typeClass,
+        serializer.getLength,
+        instances)
       test.testAll()
     } catch {
       case e: Exception => {
@@ -157,5 +165,10 @@ class ScalaSpecialTypesSerializerTestInstance[T](
         super.deepEquals(message, should, is)
     }
   }
+}
+
+object WeekDay extends Enumeration {
+  type WeekDay = Value
+  val Mon, Tue, Wed, Thu, Fri, Sat, Sun = Value
 }
 

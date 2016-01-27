@@ -30,6 +30,7 @@ under the License.
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<flink.version>1.0-SNAPSHOT</flink.version>
 	</properties>
 
 	<repositories>
@@ -74,17 +75,17 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
-			<version>0.10-SNAPSHOT</version>
+			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core</artifactId>
-			<version>0.10-SNAPSHOT</version>
+			<artifactId>flink-streaming-java_2.10</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
-			<version>0.10-SNAPSHOT</version>
+			<artifactId>flink-clients_2.10</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -96,7 +97,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.3</version>
+				<version>2.4.1</version>
 				<executions>
 					<!-- Run shade goal on package phase -->
 					<execution>
@@ -110,19 +111,18 @@ under the License.
 									<!-- This list contains all dependencies of flink-dist
 									Everything else will be packaged into the fat-jar
 									-->
+									<exclude>org.apache.flink:flink-annotations</exclude>
 									<exclude>org.apache.flink:flink-shaded-*</exclude>
 									<exclude>org.apache.flink:flink-core</exclude>
 									<exclude>org.apache.flink:flink-java</exclude>
-									<exclude>org.apache.flink:flink-scala</exclude>
-									<exclude>org.apache.flink:flink-runtime</exclude>
-									<exclude>org.apache.flink:flink-optimizer</exclude>
-									<exclude>org.apache.flink:flink-clients</exclude>
-									<exclude>org.apache.flink:flink-spargel</exclude>
-									<exclude>org.apache.flink:flink-avro</exclude>
-									<exclude>org.apache.flink:flink-java-examples</exclude>
-									<exclude>org.apache.flink:flink-scala-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-examples</exclude>
-									<exclude>org.apache.flink:flink-streaming-core</exclude>
+									<exclude>org.apache.flink:flink-scala_2.10</exclude>
+									<exclude>org.apache.flink:flink-runtime_2.10</exclude>
+									<exclude>org.apache.flink:flink-optimizer_2.10</exclude>
+									<exclude>org.apache.flink:flink-clients_2.10</exclude>
+									<exclude>org.apache.flink:flink-avro_2.10</exclude>
+									<exclude>org.apache.flink:flink-examples-batch_2.10</exclude>
+									<exclude>org.apache.flink:flink-examples-streaming_2.10</exclude>
+									<exclude>org.apache.flink:flink-streaming-java_2.10</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -139,13 +139,6 @@ under the License.
 									<exclude>com.typesafe.akka:akka-slf4j_*</exclude>
 									<exclude>io.netty:netty-all</exclude>
 									<exclude>io.netty:netty</exclude>
-									<exclude>org.eclipse.jetty:jetty-server</exclude>
-									<exclude>org.eclipse.jetty:jetty-continuation</exclude>
-									<exclude>org.eclipse.jetty:jetty-http</exclude>
-									<exclude>org.eclipse.jetty:jetty-io</exclude>
-									<exclude>org.eclipse.jetty:jetty-util</exclude>
-									<exclude>org.eclipse.jetty:jetty-security</exclude>
-									<exclude>org.eclipse.jetty:jetty-servlet</exclude>
 									<exclude>commons-fileupload:commons-fileupload</exclude>
 									<exclude>org.apache.avro:avro</exclude>
 									<exclude>commons-collections:commons-collections</exclude>
@@ -175,18 +168,14 @@ under the License.
 									<exclude>org.apache.commons:commons-math</exclude>
 									<exclude>org.apache.sling:org.apache.sling.commons.json</exclude>
 									<exclude>commons-logging:commons-logging</exclude>
-									<exclude>org.apache.httpcomponents:httpclient</exclude>
-									<exclude>org.apache.httpcomponents:httpcore</exclude>
 									<exclude>commons-codec:commons-codec</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-core</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
 									<exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
-									<exclude>org.codehaus.jettison:jettison</exclude>
 									<exclude>stax:stax-api</exclude>
 									<exclude>com.typesafe:config</exclude>
 									<exclude>org.uncommons.maths:uncommons-maths</exclude>
 									<exclude>com.github.scopt:scopt_*</exclude>
-									<exclude>org.mortbay.jetty:servlet-api</exclude>
 									<exclude>commons-io:commons-io</exclude>
 									<exclude>commons-cli:commons-cli</exclude>
 								</excludes>
@@ -197,6 +186,16 @@ under the License.
 									<excludes>
 										<exclude>org/apache/flink/shaded/**</exclude>
 										<exclude>web-docs/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<!-- Do not copy the signatures in the META-INF folder.
+									Otherwise, this might cause SecurityExceptions when using the JAR. -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -231,8 +230,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>1.6</source> <!-- If you want to use Java 8, change this to "1.8" -->
-					<target>1.6</target> <!-- If you want to use Java 8, change this to "1.8" -->
+					<source>1.7</source> <!-- If you want to use Java 8, change this to "1.8" -->
+					<target>1.7</target> <!-- If you want to use Java 8, change this to "1.8" -->
 				</configuration>
 			</plugin>
 		</plugins>
@@ -313,19 +312,19 @@ under the License.
 				<dependency>
 					<groupId>org.apache.flink</groupId>
 					<artifactId>flink-java</artifactId>
-					<version>0.10-SNAPSHOT</version>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-core</artifactId>
-					<version>0.10-SNAPSHOT</version>
+					<artifactId>flink-streaming-java_2.10</artifactId>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-clients</artifactId>
-					<version>0.10-SNAPSHOT</version>
+					<artifactId>flink-clients_2.10</artifactId>
+					<version>${flink.version}</version>
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>

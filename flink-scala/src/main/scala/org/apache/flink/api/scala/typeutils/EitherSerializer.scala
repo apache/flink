@@ -86,11 +86,20 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   }
 
   override def equals(obj: Any): Boolean = {
-    if (obj != null && obj.isInstanceOf[EitherSerializer[_, _, _]]) {
-      val other = obj.asInstanceOf[EitherSerializer[_, _, _]]
-      other.leftSerializer.equals(leftSerializer) && other.rightSerializer.equals(rightSerializer)
-    } else {
-      false
+    obj match {
+      case eitherSerializer: EitherSerializer[_, _, _] =>
+        eitherSerializer.canEqual(this) &&
+        leftSerializer.equals(eitherSerializer.leftSerializer) &&
+        rightSerializer.equals(eitherSerializer.rightSerializer)
+      case _ => false
     }
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[EitherSerializer[_, _, _]]
+  }
+
+  override def hashCode(): Int = {
+    31 * leftSerializer.hashCode() + rightSerializer.hashCode()
   }
 }

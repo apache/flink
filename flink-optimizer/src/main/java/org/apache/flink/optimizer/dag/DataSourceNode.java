@@ -110,7 +110,7 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Data Source";
 	}
 

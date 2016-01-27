@@ -30,25 +30,23 @@ under the License.
   <link rel="stylesheet" type="text/css" href="css/graph.css" />
   <link rel="stylesheet" type="text/css" href="css/overlay.css" />
   <link rel="stylesheet" type="text/css" href="css/bootstrap.css" /> <!-- Changed Stuff -->
+
   <script type="text/javascript" src="js/jquery-2.1.0.js"></script>
   <script type="text/javascript" src="js/graphCreator.js"></script>
   <script type="text/javascript" src="js/d3.js" charset="utf-8"></script>
   <script type="text/javascript" src="js/dagre-d3.js"></script>
   <script type="text/javascript" src="js/bootstrap.min.js"></script>
   <script type="text/javascript" src="js/jquery.tools.min.js"></script>
-  
-  
   <script type="text/javascript" src="js/program.js"></script>
-  
 </head>
 
 <body>
     <div class="mainHeading" style="min-width: 1225px;">
       <h1 style="margin-top:0"><img src="img/flink-logo.png" width="100" height="100" alt="Flink Logo" />Flink Web Submission Client
-      <div style="position:absolute; top:40px; right:110px;">
-		  <button id="zoomIn" type="button" class="btn btn-default">Zoom In</button>
-		  <button id="zoomOut" type="button" class="btn btn-default">Zoom Out</button>
-		</div>
+        <div style="position:absolute; top:40px; right:110px;">
+          <button id="zoomIn" type="button" class="btn btn-default">Zoom In</button>
+          <button id="zoomOut" type="button" class="btn btn-default">Zoom Out</button>
+        </div>
       </h1>
     </div>
 
@@ -62,16 +60,17 @@ under the License.
 
     <!-- the footer containing the box with the run properties and the box with the upload field -->
     <div class="footer" style="min-width: 1225px;">
-    
+
       <div class="boxed" style="float: left; width: 700px; height: 200px; position: relative;">
         <h3>Select program...</h3>
         <div style="margin-top: 30px;">
-          <div>
-          	<div id="planDescription"></div>
-          </div>
           <div style="text-align: right;">
-            <span class="formLabel">Arguments:</span>
-            <input id="commandLineArgsField" type="text" name="commandLine" style="width: 580px;"/>
+            <span class="formLabel">Flink Options:</span>
+            <input id="commandLineOptionsField" type="text" name="commandLineOptions" style="width: 520px;"/>
+          </div>
+          <div style="text-align: right; margin-top: 5px;">
+            <span class="formLabel">Program Arguments:</span>
+            <input id="commandLineArgsField" type="text" name="commandLineArguments" style="width: 520px;"/>
           </div>
           <div class="spaced" style="margin-left: 20px;">
             <input type="checkbox" id="showPlanCheck" checked="checked"><span class="formLabel">Show optimizer plan</span>
@@ -83,7 +82,7 @@ under the License.
           <input id="run_button" type="button" value="Run Job" style="width: 75px; margin-left: 100px;"/>
         </div>
       </div>
-      
+
       <div class="boxed" style="float: left; width: 500px; height: 150px; position: relative;">
         <h3>Select a new program to upload...</h3>
         <form id="upload_form" action="jobs" enctype="multipart/form-data" method="POST">
@@ -98,13 +97,13 @@ under the License.
           <input id="upload_submit_button" type="button" value="Upload" style="width: 75px; margin-left: 100px;"/>
         </div>
       </div>
-      
+
     </div>
-    
+
     <!-- the overlay -->
     <div class="simple_overlay" id="propertyO">
-	  <div id="propertyCanvas" class="propertyCanvas">
-	  </div>
-	</div>
+      <div id="propertyCanvas" class="propertyCanvas">
+    </div>
+  </div>
 </body>
 </html>

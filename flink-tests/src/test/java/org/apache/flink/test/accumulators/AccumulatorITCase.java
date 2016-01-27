@@ -28,6 +28,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
@@ -74,7 +75,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		System.out.println("Accumulator results:");
 		JobExecutionResult res = this.result;
 		System.out.println(AccumulatorHelper.getResultsFormated(res.getAllAccumulatorResults()));
-		
+
 		Assert.assertEquals(Integer.valueOf(3), (Integer) res.getAccumulatorResult("num-lines"));
 
 		Assert.assertEquals(Double.valueOf(getParallelism()), (Double)res.getAccumulatorResult("open-close-counter"));
@@ -127,9 +128,8 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 			// Add built-in accumulator without convenience function
 			getRuntimeContext().addAccumulator("open-close-counter", this.openCloseCounter);
 
-			// Add custom counter. Didn't find a way to do this with
-			// getAccumulator()
-			this.distinctWords = new SetAccumulator<StringValue>();
+			// Add custom counter
+			this.distinctWords = new SetAccumulator<>();
 			this.getRuntimeContext().addAccumulator("distinct-words", distinctWords);
 
 			// Create counter and test increment
@@ -165,7 +165,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 			
 			for (String token : value.toLowerCase().split("\\W+")) {
 				distinctWords.add(new StringValue(token));
-				out.collect(new Tuple2<String, Integer>(token, 1));
+				out.collect(new Tuple2<>(token, 1));
 				++ wordsPerLine;
 			}
 			wordsPerLineDistribution.add(wordsPerLine);
@@ -180,7 +180,10 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 	}
 
 	
-	public static class CountWords extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
+	public static class CountWords
+		extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
+		implements GroupCombineFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>
+	{
 		
 		private IntCounter reduceCalls;
 		private IntCounter combineCalls;
@@ -211,7 +214,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 				key = e.f0;
 				sum += e.f1;
 			}
-			out.collect(new Tuple2<String, Integer>(key, sum));
+			out.collect(new Tuple2<>(key, sum));
 		}
 	}
 	
@@ -222,7 +225,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 
 		private static final long serialVersionUID = 1L;
 
-		private HashSet<T> set = new HashSet<T>();
+		private HashSet<T> set = new HashSet<>();
 
 		@Override
 		public void add(T value) {
@@ -247,7 +250,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 
 		@Override
 		public Accumulator<T, HashSet<T>> clone() {
-			SetAccumulator<T> result = new SetAccumulator<T>();
+			SetAccumulator<T> result = new SetAccumulator<>();
 			result.set.addAll(set);
 			return result;
 		}

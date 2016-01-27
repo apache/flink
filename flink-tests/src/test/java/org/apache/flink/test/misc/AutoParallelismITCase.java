@@ -54,9 +54,11 @@ public class AutoParallelismITCase {
 	@BeforeClass
 	public static void setupCluster() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TM);
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TM);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, SLOTS_PER_TM);
 		cluster = new ForkableFlinkMiniCluster(config, false);
+
+		cluster.start();
 	}
 
 	@AfterClass
@@ -76,7 +78,7 @@ public class AutoParallelismITCase {
 	public void testProgramWithAutoParallelism() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getJobManagerRPCPort());
+					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
 			env.getConfig().disableSysoutLogging();

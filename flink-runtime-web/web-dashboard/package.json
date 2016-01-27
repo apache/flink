@@ -1,0 +1,36 @@
+{
+  "name": "flink-dashboard",
+  "version": "1.0.0",
+  "description": "",
+  "repository": "",
+  "devDependencies": {
+    "browserify": "^9.0.3",
+    "coffeeify": "^1.0.0",
+    "gulp": "^3.8.11",
+    "gulp-browserify": "^0.5.1",
+    "gulp-coffee": "^2.3.1",
+    "gulp-coffeeify": "^0.1.8",
+    "gulp-concat": "^2.5.2",
+    "gulp-filter": "^2.0.2",
+    "gulp-jade": "^1.0.0",
+    "gulp-less": "^3.0.2",
+    "gulp-livereload": "^3.8.0",
+    "gulp-minify-css": "^1.0.0",
+    "gulp-ng-annotate": "^0.5.2",
+    "gulp-plumber": "^1.0.0",
+    "gulp-rename": "^1.2.0",
+    "gulp-serve": "^0.3.1",
+    "gulp-sourcemaps": "^1.5.1",
+    "gulp-stylus": "^2.0.1",
+    "gulp-uglify": "^1.1.0",
+    "gulp-util": "^3.0.4",
+    "jade": "^1.9.2",
+    "jadeify": "^4.1.0",
+    "main-bower-files": "^2.6.2",
+    "nib": "^1.1.0",
+    "path": "^0.11.14"
+  },
+  "dependencies": {
+    "hapi": "^8.4.0"
+  }
+}

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import static org.junit.Assert.assertEquals;
@@ -41,7 +40,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-import org.jets3t.service.io.GZipDeflatingInputStream;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -583,6 +582,39 @@ public class GenericCsvInputFormatTest {
 			assertEquals("", ((StringValue) values[1]).getValue());
 			assertEquals("", ((StringValue) values[2]).getValue());
 			
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void readWithParseQuotedStrings() {
+		try {
+			final String fileContent = "\"ab\\\"c\"|\"def\"\n\"ghijk\"|\"abc\"";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelimiter("|");
+			format.setFieldTypesGeneric(StringValue.class, StringValue.class);
+			format.enableQuotedStringParsing('"');
+
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = new Value[] { new StringValue(), new StringValue()};
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals("ab\\\"c", ((StringValue) values[0]).getValue());
+			assertEquals("def", ((StringValue) values[1]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals("ghijk", ((StringValue) values[0]).getValue());
+			assertEquals("abc", ((StringValue) values[1]).getValue());
+
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());

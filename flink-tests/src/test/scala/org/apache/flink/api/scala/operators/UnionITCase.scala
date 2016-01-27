@@ -18,40 +18,35 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.junit._
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import org.apache.flink.api.scala._
 
+import scala.collection.mutable.ArrayBuffer
+
 @RunWith(classOf[Parameterized])
 class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
-  private var resultPath: String = null
+  private var result: Seq[String] = null
   private var expected: String = null
-  private val _tempFolder = new TemporaryFolder()
 
-  private final val FULL_TUPLE_3_STRING: String = "1,1,Hi\n" + "2,2,Hello\n" + "3,2," +
-    "Hello world\n" + "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3," +
-    "Luke Skywalker\n" + "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4," +
-    "Comment#4\n" + "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5," +
-    "Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6," +
-    "Comment#12\n" + "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+  private final val FULL_TUPLE_3_STRING: String = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2," +
+    "Hello world)\n" + "(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3," +
+    "Luke Skywalker)\n" + "(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" +
+    "(10,4," +
+    "Comment#4)\n" + "(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" + "(14,5," +
+    "Comment#8)\n" + "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" + "(17,6,Comment#11)\n" +
+    "(18,6," +
+    "Comment#12)\n" + "(19,6,Comment#13)\n" + "(20,6,Comment#14)\n" + "(21,6,Comment#15)\n"
 
-  @Rule
-  def tempFolder = _tempFolder
-
-  @Before
-  def before(): Unit = {
-    resultPath = tempFolder.newFile().toURI.toString
-  }
 
   @After
   def after(): Unit = {
-    TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath)
+    import collection.JavaConverters._
+    TestBaseUtils.compareResultAsText(ArrayBuffer(result: _*).asJava, expected)
   }
 
   @Test
@@ -62,8 +57,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val unionDs = ds.union(CollectionDataSets.get3TupleDataSet(env))
-    unionDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
+    result = unionDs.collect().map(_.toString)
     expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
   }
 
@@ -79,8 +73,7 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
       .union(CollectionDataSets.get3TupleDataSet(env))
       .union(CollectionDataSets.get3TupleDataSet(env))
       .union(CollectionDataSets.get3TupleDataSet(env))
-    unionDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
+    result = unionDs.collect().map(_.toString)
     expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING +
       FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
   }
@@ -94,8 +87,21 @@ class UnionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode
     // Don't know how to make an empty result in an other way than filtering it
     val empty = CollectionDataSets.get3TupleDataSet(env).filter( t => false )
     val unionDs = CollectionDataSets.get3TupleDataSet(env).union(empty)
-    unionDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.execute()
+    result = unionDs.collect().map(_.toString())
     expected = FULL_TUPLE_3_STRING
+  }
+
+  @Test
+  def testUnionWithOptionType(): Unit = {
+    /*
+     * Union of a tuple with an Option field
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val data = Seq((Some(1), 1), (None, -1), (Some(42), 42))
+    val input1 = env.fromCollection(data)
+    val input2 = env.fromCollection(data)
+
+    result = input1.union(input2).collect().map(_.toString())
+    expected = data ++ data mkString("\n")
   }
 }

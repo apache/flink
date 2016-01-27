@@ -19,7 +19,7 @@
 
 package org.apache.flink.types;
 
-/**
+ /**
  * A type for (synthetic) operators that do not output data. For example, data sinks.
  */
 public class Nothing {

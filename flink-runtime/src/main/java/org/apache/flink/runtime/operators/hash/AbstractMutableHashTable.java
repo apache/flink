@@ -61,15 +61,13 @@ public abstract class AbstractMutableHashTable<T> {
 	
 	public abstract void abort();
 	
-	public abstract void buildTable(final MutableObjectIterator<T> input) throws IOException;
-	
 	public abstract List<MemorySegment> getFreeMemory();
 	
 	// ------------- Modifier -------------
 	
 	public abstract void insert(T record) throws IOException;
 	
-	public abstract void insertOrReplaceRecord(T record, T tempHolder) throws IOException;
+	public abstract void insertOrReplaceRecord(T record) throws IOException;
 	
 	// ------------- Accessors -------------
 	

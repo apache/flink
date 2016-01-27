@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
 import java.io.File;
@@ -30,6 +31,7 @@ import java.util.Random;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests how DELETE requests behave.
@@ -267,6 +269,8 @@ public class BlobServerDeleteTest {
 
 	@Test
 	public void testDeleteFails() {
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
 		BlobServer server = null;
 		BlobClient client = null;
 

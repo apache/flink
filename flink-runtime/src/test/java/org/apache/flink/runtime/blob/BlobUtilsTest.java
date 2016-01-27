@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.blob;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
 
 import com.google.common.io.Files;
 
+import org.apache.flink.util.OperatingSystem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,6 +41,8 @@ public class BlobUtilsTest {
 	public void before() {
 		// Prepare test directory
 		blobUtilsTestDirectory = Files.createTempDir();
+
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		assertTrue(blobUtilsTestDirectory.setExecutable(true, false));
 		assertTrue(blobUtilsTestDirectory.setReadable(true, false));

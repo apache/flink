@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.util;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 
 /**
  * Interface describing the methods that have to be implemented by local strategies for the CoGroup Pact.

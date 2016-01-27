@@ -20,14 +20,16 @@ package org.apache.flink.api.common.typeinfo;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
-public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
+public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -45,14 +47,12 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	// --------------------------------------------------------------------------------------------
 
 	private final Class<T> arrayClass;
-	private final Class<C> componentClass;
 	private final TypeInformation<C> componentInfo;
 
 	@SuppressWarnings("unchecked")
 	private BasicArrayTypeInfo(Class<T> arrayClass, BasicTypeInfo<C> componentInfo) {
-		this.arrayClass = arrayClass;
-		this.componentClass = (Class<C>) arrayClass.getComponentType();
-		this.componentInfo = componentInfo;
+		this.arrayClass = Preconditions.checkNotNull(arrayClass);
+		this.componentInfo = Preconditions.checkNotNull(componentInfo);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	}
 
 	public Class<C> getComponentTypeClass() {
-		return this.componentClass;
+		return this.componentInfo.getTypeClass();
 	}
 	
 	public TypeInformation<C> getComponentInfo() {
@@ -99,13 +99,39 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	@SuppressWarnings("unchecked")
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		// special case the string array
-		if (componentClass.equals(String.class)) {
+		if (componentInfo.getTypeClass().equals(String.class)) {
 			return (TypeSerializer<T>) StringArraySerializer.INSTANCE;
 		} else {
-			return (TypeSerializer<T>) new GenericArraySerializer<C>(this.componentClass, this.componentInfo.createSerializer(executionConfig));
+			return (TypeSerializer<T>) new GenericArraySerializer<C>(
+				this.componentInfo.getTypeClass(),
+				this.componentInfo.createSerializer(executionConfig));
 		}
 	}
-	
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof BasicArrayTypeInfo) {
+			BasicArrayTypeInfo<?, ?> other = (BasicArrayTypeInfo<?, ?>) obj;
+
+			return other.canEqual(this) &&
+				arrayClass == other.arrayClass &&
+				componentInfo.equals(other.componentInfo);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(arrayClass, componentInfo);
+	}
+
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof BasicArrayTypeInfo;
+	}
+
 	@Override
 	public String toString() {
 		return this.getClass().getSimpleName()+"<"+this.componentInfo+">";

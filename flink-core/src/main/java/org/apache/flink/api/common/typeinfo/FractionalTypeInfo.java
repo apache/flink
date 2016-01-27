@@ -18,15 +18,29 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Set;
+
 /**
- * Type information for numeric primitive types (int, long, double, byte, ...).
+ * Type information for numeric fractional primitive types (double, float).
  */
 public class FractionalTypeInfo<T> extends NumericTypeInfo<T> {
 
+	private static final long serialVersionUID = 554334260950199994L;
+
+	private static final Set<Class<?>> fractionalTypes = Sets.<Class<?>>newHashSet(
+			Double.class,
+			Float.class
+	);
+
 	protected FractionalTypeInfo(Class<T> clazz, Class<?>[] possibleCastTargetTypes, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
 		super(clazz, possibleCastTargetTypes, serializer, comparatorClass);
+
+		Preconditions.checkArgument(fractionalTypes.contains(clazz), "The given class " +
+			clazz.getSimpleName() + " is not a fractional type.");
 	}
 }

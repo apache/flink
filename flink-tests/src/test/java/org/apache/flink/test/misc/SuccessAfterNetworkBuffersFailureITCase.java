@@ -47,15 +47,17 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 		
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 80);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 840);
 			
 			cluster = new ForkableFlinkMiniCluster(config, false);
+
+			cluster.start();
 			
 			try {
-				runConnectedComponents(cluster.getJobManagerRPCPort());
+				runConnectedComponents(cluster.getLeaderRPCPort());
 			}
 			catch (Exception e) {
 				e.printStackTrace();
@@ -63,7 +65,7 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 			}
 	
 			try {
-				runKMeans(cluster.getJobManagerRPCPort());
+				runKMeans(cluster.getLeaderRPCPort());
 				fail("This program execution should have failed.");
 			}
 			catch (ProgramInvocationException e) {
@@ -71,7 +73,7 @@ public class SuccessAfterNetworkBuffersFailureITCase {
 			}
 	
 			try {
-				runConnectedComponents(cluster.getJobManagerRPCPort());
+				runConnectedComponents(cluster.getLeaderRPCPort());
 			}
 			catch (Exception e) {
 				e.printStackTrace();

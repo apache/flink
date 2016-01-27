@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
@@ -180,6 +180,19 @@ public class UnionInputGate implements InputGate {
 	public void registerListener(EventListener<InputGate> listener) {
 		// This method is called from the consuming task thread.
 		inputGateListener.registerListener(listener);
+	}
+
+	@Override
+	public int getPageSize() {
+		int pageSize = -1;
+		for (InputGate gate : inputGates) {
+			if (pageSize == -1) {
+				pageSize = gate.getPageSize();
+			} else if (gate.getPageSize() != pageSize) {
+				throw new IllegalStateException("Found input gates with different page sizes.");
+			}
+		}
+		return pageSize;
 	}
 
 	/**

@@ -26,7 +26,7 @@ import java.util.Map.Entry;
 import org.apache.flink.types.Key;
 
 /**
- * Class encapsulating a schema map (int column position -> column type) and a reference counter.
+ * Class encapsulating a schema map (int column position -&gt; column type) and a reference counter.
  */
 public class SparseKeySchema extends AbstractSchema<Class<? extends Key<?>>> {
 	

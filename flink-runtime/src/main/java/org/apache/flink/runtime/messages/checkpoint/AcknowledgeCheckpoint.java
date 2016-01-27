@@ -21,7 +21,7 @@ package org.apache.flink.runtime.messages.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 
 /**
  * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
@@ -36,18 +36,35 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 	
 	private final SerializedValue<StateHandle<?>> state;
 
+	/**
+	 * The state size. This is an optimization in order to not deserialize the
+	 * state handle at the checkpoint coordinator when gathering stats about
+	 * the checkpoints.
+	 */
+	private final long stateSize;
+
 	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
-		this(job, taskExecutionId, checkpointId, null);
+		this(job, taskExecutionId, checkpointId, null, 0);
 	}
 
-	public AcknowledgeCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId,
-									SerializedValue<StateHandle<?>> state) {
+	public AcknowledgeCheckpoint(
+			JobID job,
+			ExecutionAttemptID taskExecutionId,
+			long checkpointId,
+			SerializedValue<StateHandle<?>> state,
+			long stateSize) {
+
 		super(job, taskExecutionId, checkpointId);
 		this.state = state;
+		this.stateSize = stateSize;
 	}
 
 	public SerializedValue<StateHandle<?>> getState() {
 		return state;
+	}
+
+	public long getStateSize() {
+		return stateSize;
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -103,7 +103,7 @@ public class JoinTranslationTest extends CompilerTestBase {
 			DualInputPlanNode node = createPlanAndGetJoinNode(JoinHint.REPARTITION_SORT_MERGE);
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_HASH, node.getInput2().getShipStrategy());
-			assertEquals(DriverStrategy.MERGE, node.getDriverStrategy());
+			assertEquals(DriverStrategy.INNER_MERGE, node.getDriverStrategy());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

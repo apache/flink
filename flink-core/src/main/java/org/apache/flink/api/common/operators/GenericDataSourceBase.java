@@ -24,7 +24,9 @@ import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
@@ -200,14 +202,18 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 			visitor.postVisit(this);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
-	protected List<OUT> executeOnCollections(ExecutionConfig executionConfig) throws Exception {
+	protected List<OUT> executeOnCollections(RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		@SuppressWarnings("unchecked")
 		InputFormat<OUT, InputSplit> inputFormat = (InputFormat<OUT, InputSplit>) this.formatWrapper.getUserCodeObject();
 		inputFormat.configure(this.parameters);
-		
+
+		if(inputFormat instanceof RichInputFormat){
+			((RichInputFormat) inputFormat).setRuntimeContext(ctx);
+		}
+
 		List<OUT> result = new ArrayList<OUT>();
 		
 		// splits

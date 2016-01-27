@@ -27,7 +27,10 @@ import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 
-public class HadoopUtils {
+/**
+ * Utility class to work with next generation of Apache Hadoop MapReduce classes.
+ */
+public final class HadoopUtils {
 	
 	/**
 	 * Merge HadoopConfiguration into Configuration. This is necessary for the HDFS configuration.
@@ -36,7 +39,9 @@ public class HadoopUtils {
 		Configuration hadoopConf = org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration();
 		
 		for (Map.Entry<String, String> e : hadoopConf) {
-			configuration.set(e.getKey(), e.getValue());
+			if (configuration.get(e.getKey()) == null) {
+				configuration.set(e.getKey(), e.getValue());
+			}
 		}
 	}
 	
@@ -78,5 +83,12 @@ public class HadoopUtils {
 		} catch(Exception e) {
 			throw new Exception("Could not create instance of TaskAttemptContext.");
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private HadoopUtils() {
+		throw new RuntimeException();
 	}
 }

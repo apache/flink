@@ -18,8 +18,6 @@
 # ---------------------------------------------------------
 # Ensures that the documentation contains the Apache License
 # headers once, not repeatedly for each include.
-#
-# Written by Fabian Hueske
 # ---------------------------------------------------------
 
 module Jekyll

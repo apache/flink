@@ -46,7 +46,7 @@ public class FilterNode extends SingleInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Filter";
 	}
 

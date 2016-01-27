@@ -23,15 +23,13 @@ import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.StringUtils;
+
 import org.junit.Test;
 
 /**
@@ -121,9 +119,9 @@ public class StringValueSerializationTest {
 		}
 	}
 	
-	public static final void testSerialization(String[] values) throws IOException {
+	public static void testSerialization(String[] values) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
-		OutputViewDataOutputStreamWrapper serializer = new OutputViewDataOutputStreamWrapper(new DataOutputStream(baos));
+		DataOutputViewStreamWrapper serializer = new DataOutputViewStreamWrapper(baos);
 		
 		for (String value : values) {
 			StringValue sv = new StringValue(value);
@@ -134,7 +132,7 @@ public class StringValueSerializationTest {
 		baos.close();
 		
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		InputViewDataInputStreamWrapper deserializer = new InputViewDataInputStreamWrapper(new DataInputStream(bais));
+		DataInputViewStreamWrapper deserializer = new DataInputViewStreamWrapper(bais);
 		
 		int num = 0;
 		while (bais.available() > 0) {
@@ -148,9 +146,9 @@ public class StringValueSerializationTest {
 		assertEquals("Wrong number of deserialized values", values.length, num);
 	}
 
-	public static final void testCopy(String[] values) throws IOException {
+	public static void testCopy(String[] values) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
-		OutputViewDataOutputStreamWrapper serializer = new OutputViewDataOutputStreamWrapper(new DataOutputStream(baos));
+		DataOutputViewStreamWrapper serializer = new DataOutputViewStreamWrapper(baos);
 		
 		StringValue sValue = new StringValue();
 		
@@ -163,17 +161,17 @@ public class StringValueSerializationTest {
 		baos.close();
 		
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		InputViewDataInputStreamWrapper source = new InputViewDataInputStreamWrapper(new DataInputStream(bais));
+		DataInputViewStreamWrapper source = new DataInputViewStreamWrapper(bais);
 		
 		ByteArrayOutputStream targetOutput = new ByteArrayOutputStream(4096);
-		OutputViewDataOutputStreamWrapper target = new OutputViewDataOutputStreamWrapper(new DataOutputStream(targetOutput));
-		
-		for (int i = 0; i < values.length; i++) {
+		DataOutputViewStreamWrapper target = new DataOutputViewStreamWrapper(targetOutput);
+
+		for (String value : values) {
 			sValue.copy(source, target);
 		}
 		
 		ByteArrayInputStream validateInput = new ByteArrayInputStream(targetOutput.toByteArray());
-		InputViewDataInputStreamWrapper validate = new InputViewDataInputStreamWrapper(new DataInputStream(validateInput));
+		DataInputViewStreamWrapper validate = new DataInputViewStreamWrapper(validateInput);
 		
 		int num = 0;
 		while (validateInput.available() > 0) {

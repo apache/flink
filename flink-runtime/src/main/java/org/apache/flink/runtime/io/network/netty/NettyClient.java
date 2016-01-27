@@ -147,7 +147,7 @@ class NettyClient {
 		// multiple clients running on the same host.
 		String name = NettyConfig.CLIENT_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
 
-		EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(config.getServerNumThreads(), NettyServer.getNamedThreadFactory(name));
+		EpollEventLoopGroup epollGroup = new EpollEventLoopGroup(config.getClientNumThreads(), NettyServer.getNamedThreadFactory(name));
 		bootstrap.group(epollGroup).channel(EpollSocketChannel.class);
 	}
 

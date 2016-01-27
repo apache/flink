@@ -77,4 +77,9 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		StringValue.copyString(source, target);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof StringSerializer;
+	}
 }

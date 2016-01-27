@@ -19,9 +19,12 @@
 
 package org.apache.flink.api.common.operators;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Enumeration representing order. May represent no order, an ascending order or a descending order.
  */
+@Public
 public enum Order {
 	
 	/**

@@ -26,12 +26,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.util.SerializedValue;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
  * acknowledged by all tasks that need to acknowledge it. Once all tasks have
- * acknowledged it, it becomes a {@link SuccessfulCheckpoint}.
+ * acknowledged it, it becomes a {@link CompletedCheckpoint}.
  * 
  * <p>Note that the pending checkpoint, as well as the successful checkpoint keep the
  * state handles always as serialized values, never as actual values.</p>
@@ -109,15 +109,15 @@ public class PendingCheckpoint {
 		return collectedStates;
 	}
 	
-	public SuccessfulCheckpoint toCompletedCheckpoint() {
+	public CompletedCheckpoint toCompletedCheckpoint() {
 		synchronized (lock) {
 			if (discarded) {
 				throw new IllegalStateException("pending checkpoint is discarded");
 			}
 			if (notYetAcknowledgedTasks.isEmpty()) {
-				SuccessfulCheckpoint completed =  new SuccessfulCheckpoint(jobId, checkpointId,
-						checkpointTimestamp, new ArrayList<StateForTask>(collectedStates));
-				discard(null, false);
+				CompletedCheckpoint completed =  new CompletedCheckpoint(jobId, checkpointId,
+						checkpointTimestamp, System.currentTimeMillis(), new ArrayList<StateForTask>(collectedStates));
+				dispose(null, false);
 				
 				return completed;
 			}
@@ -127,7 +127,11 @@ public class PendingCheckpoint {
 		}
 	}
 	
-	public boolean acknowledgeTask(ExecutionAttemptID attemptID, SerializedValue<StateHandle<?>> state) {
+	public boolean acknowledgeTask(
+			ExecutionAttemptID attemptID,
+			SerializedValue<StateHandle<?>> state,
+			long stateSize) {
+
 		synchronized (lock) {
 			if (discarded) {
 				return false;
@@ -136,7 +140,12 @@ public class PendingCheckpoint {
 			ExecutionVertex vertex = notYetAcknowledgedTasks.remove(attemptID);
 			if (vertex != null) {
 				if (state != null) {
-					collectedStates.add(new StateForTask(state, vertex.getJobvertexId(), vertex.getParallelSubtaskIndex()));
+					collectedStates.add(new StateForTask(
+							state,
+							stateSize,
+							vertex.getJobvertexId(),
+							vertex.getParallelSubtaskIndex(),
+							System.currentTimeMillis() - checkpointTimestamp));
 				}
 				numAcknowledgedTasks++;
 				return true;
@@ -149,13 +158,16 @@ public class PendingCheckpoint {
 	
 	/**
 	 * Discards the pending checkpoint, releasing all held resources.
-	 * @throws Exception 
 	 */
-	public void discard(ClassLoader userClassLoader, boolean discardStateHandle) {
+	public void discard(ClassLoader userClassLoader) {
+		dispose(userClassLoader, true);
+	}
+
+	private void dispose(ClassLoader userClassLoader, boolean releaseState) {
 		synchronized (lock) {
 			discarded = true;
 			numAcknowledgedTasks = -1;
-			if (discardStateHandle) {
+			if (releaseState) {
 				for (StateForTask state : collectedStates) {
 					state.discard(userClassLoader);
 				}

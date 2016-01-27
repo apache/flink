@@ -24,7 +24,13 @@ import org.slf4j.LoggerFactory;
 
 import java.security.PrivilegedExceptionAction;
 
-public class SecurityUtils {
+/**
+ * A utility class that lets program code run in a security context provided by the
+ * Hadoop security user groups.
+ * 
+ * The secure context will for example pick up authentication information from Kerberos.
+ */
+public final class SecurityUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SecurityUtils.class);
 
@@ -44,17 +50,22 @@ public class SecurityUtils {
 			LOG.error("Security is enabled but no Kerberos credentials have been found. " +
 						"You may authenticate using the kinit command.");
 		}
-		T ret = ugi.doAs(new PrivilegedExceptionAction<T>() {
+		return ugi.doAs(new PrivilegedExceptionAction<T>() {
 			@Override
 			public T run() throws Exception {
 				return runner.run();
 			}
 		});
-		return ret;
 	}
 
-	public static interface FlinkSecuredRunner<T> {
-		public T run() throws Exception;
+	public interface FlinkSecuredRunner<T> {
+		T run() throws Exception;
 	}
 
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private SecurityUtils() {
+		throw new RuntimeException();
+	}
 }

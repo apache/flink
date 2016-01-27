@@ -21,9 +21,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 
 /**
- * Serializer for cases where not serializer is required but the system still expects one. This
- * happens for OptionTypeInfo when None ist used, or for Either when one of the sides is
- * Nothing.
+ * Serializer for cases where no serializer is required but the system still expects one. This
+ * happens for OptionTypeInfo when None is used, or for Either when one of the type parameters
+ * is Nothing.
  */
 class NothingSerializer extends TypeSerializer[Any] {
 
@@ -56,6 +56,17 @@ class NothingSerializer extends TypeSerializer[Any] {
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {
-    obj != null && obj.isInstanceOf[NothingSerializer]
+    obj match {
+      case nothingSerializer: NothingSerializer => nothingSerializer.canEqual(this)
+      case _ => false
+    }
+  }
+
+  override def canEqual(obj: scala.Any): Boolean = {
+    obj.isInstanceOf[NothingSerializer]
+  }
+
+  override def hashCode(): Int = {
+    classOf[NothingSerializer].hashCode()
   }
 }

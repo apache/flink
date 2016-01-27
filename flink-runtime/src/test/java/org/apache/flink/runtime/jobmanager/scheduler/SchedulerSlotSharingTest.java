@@ -32,11 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.runtime.instance.SimpleSlot;
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -45,21 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  * Tests for the scheduler when scheduling tasks in slot sharing groups.
  */
 public class SchedulerSlotSharingTest {
-	private static ActorSystem system;
 
-	@BeforeClass
-	public static void setup(){
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-		TestingUtils.setCallingThreadDispatcher(system);
-	}
-
-	@AfterClass
-	public static void teardown(){
-		TestingUtils.setGlobalExecutionContext();
-		JavaTestKit.shutdownActorSystem(system);
-	}
-
-	
 	@Test
 	public void scheduleSingleVertexType() {
 		try {
@@ -67,7 +49,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			scheduler.newInstanceAvailable(i1);
@@ -154,7 +136,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -274,7 +256,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -339,7 +321,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -450,7 +432,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
 			// schedule 1 tasks from the first vertex group and 2 from the second
@@ -502,7 +484,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(3));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -649,7 +631,7 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
@@ -699,7 +681,7 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
@@ -749,7 +731,7 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
@@ -795,7 +777,6 @@ public class SchedulerSlotSharingTest {
 	
 	@Test
 	public void testSequentialAllocateAndRelease() {
-		TestingUtils.setGlobalExecutionContext();
 		try {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
@@ -804,7 +785,7 @@ public class SchedulerSlotSharingTest {
 			
 			final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
 			
-			final Scheduler scheduler = new Scheduler();
+			final Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(4));
 			
 			// allocate something from group 1 and 2 interleaved with schedule for group 3
@@ -853,15 +834,13 @@ public class SchedulerSlotSharingTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}finally{
-			TestingUtils.setCallingThreadDispatcher(system);
 		}
 	}
 	
 	@Test
 	public void testConcurrentAllocateAndRelease() {
 		final ExecutorService executor = Executors.newFixedThreadPool(20);
-		TestingUtils.setGlobalExecutionContext();
+
 		try {
 			for (int run = 0; run < 50; run++) {
 				final JobVertexID jid1 = new JobVertexID();
@@ -871,7 +850,7 @@ public class SchedulerSlotSharingTest {
 				
 				final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
 				
-				final Scheduler scheduler = new Scheduler();
+				final Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 				scheduler.newInstanceAvailable(getRandomInstance(4));
 				
 				final AtomicInteger enumerator1 = new AtomicInteger();
@@ -1030,10 +1009,6 @@ public class SchedulerSlotSharingTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			executor.shutdownNow();
-			TestingUtils.setCallingThreadDispatcher(system);
-		}
 	}
 	
 	@Test
@@ -1046,7 +1021,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(4));
 			
 			// schedule one task for the first and second vertex

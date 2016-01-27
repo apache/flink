@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.network.util;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
@@ -59,7 +61,7 @@ public class TestBufferFactory {
 	public Buffer create() {
 		numberOfCreatedBuffers.incrementAndGet();
 
-		return new Buffer(new MemorySegment(new byte[bufferSize]), bufferRecycler);
+		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), bufferRecycler);
 	}
 
 	public Buffer createFrom(MemorySegment segment) {
@@ -85,7 +87,7 @@ public class TestBufferFactory {
 	public static Buffer createBuffer(int bufferSize) {
 		checkArgument(bufferSize > 0);
 
-		return new Buffer(new MemorySegment(new byte[bufferSize]), RECYCLER);
+		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), RECYCLER);
 	}
 
 	public static Buffer getMockBuffer() {

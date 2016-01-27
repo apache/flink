@@ -69,7 +69,7 @@ public class TaskManagerFailureRecoveryITCase {
 
 		try {
 			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
 			
@@ -79,11 +79,13 @@ public class TaskManagerFailureRecoveryITCase {
 
 			cluster = new ForkableFlinkMiniCluster(config, false);
 
+			cluster.start();
+
 			// for the result
 			List<Long> resultCollection = new ArrayList<Long>();
 
 			final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-					"localhost", cluster.getJobManagerRPCPort());
+					"localhost", cluster.getLeaderRPCPort());
 
 			env.setParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);

@@ -249,12 +249,14 @@ class TupleGenerator {
 		sb.append("\t\t * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes} \n");
 		sb.append("\t\t * \n");
 		sb.append("\t\t * @return The projected DataSet.\n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @see org.apache.flink.api.java.operators.ProjectOperator.Projection\n");
 		sb.append("\t\t */\n");
 		
 		// method signature
 		sb.append("\t\t@SuppressWarnings(\"unchecked\")\n");
 		sb.append("\t\tpublic <OUT extends Tuple> ProjectOperator<T, OUT> projectTupleX() {\n");
-		sb.append("\t\t\tProjectOperator<T, OUT> projOperator = null;\n\n");
+		sb.append("\t\t\tProjectOperator<T, OUT> projOperator;\n\n");
 		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 			sb.append("\t\t\tcase " + numFields +":" + " projOperator = (ProjectOperator<T, OUT>) projectTuple"+numFields+"(); break;\n");	
@@ -302,7 +304,7 @@ class TupleGenerator {
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(this.ds, this.fieldIndexes, tType, this);\n");
+			sb.append(">>(this.ds, this.fieldIndexes, tType);\n");
 
 			// method end
 			sb.append("\t\t}\n");
@@ -328,6 +330,8 @@ class TupleGenerator {
 		sb.append("\t\t * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes}\n");
 		sb.append("\t\t * \n");
 		sb.append("\t\t * @return The projected DataSet.\n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin\n");
 		sb.append("\t\t */\n");
 		
 		// method signature
@@ -398,12 +402,9 @@ class TupleGenerator {
 	private static void modifyTupleType(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
-		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\t");
+		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\tTuple0.class");
 		for (int i = FIRST; i <= LAST; i++) {
-			if (i > FIRST) {
-				sb.append(", ");
-			}
-			sb.append("Tuple" + i + ".class");
+			sb.append(", Tuple" + i + ".class");
 		}
 		sb.append("\n\t};");
 
@@ -456,7 +457,7 @@ class TupleGenerator {
 			// get TupleTypeInfo
 			sb.append("\t\tTupleTypeInfo<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> types = TupleTypeInfo.getBasicTupleTypeInfo(");
+			sb.append(">> types = TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(");
 			for (int i = 0; i < numFields; i++) {
 				if (i > 0) {
 					sb.append(", ");
@@ -468,19 +469,12 @@ class TupleGenerator {
 			// create csv input format
 			sb.append("\t\tCsvInputFormat<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">> inputFormat = new CsvInputFormat<Tuple" + numFields + "<");
+			sb.append(">> inputFormat = new TupleCsvInputFormat<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(path, types);\n");
+			sb.append(">>(path, types, this.includedMask);\n");
 
 			// configure input format
-			sb.append("\t\tconfigureInputFormat(inputFormat, ");
-			for (int i = 0; i < numFields; i++) {
-				if (i > 0) {
-					sb.append(", ");
-				}
-				sb.append("type" + i);
-			}
-			sb.append(");\n");
+			sb.append("\t\tconfigureInputFormat(inputFormat);\n");
 
 			// return
 			sb.append("\t\treturn new DataSource<Tuple" + numFields + "<");
@@ -565,6 +559,15 @@ class TupleGenerator {
 		}
 		w.println();
 
+		String paramList = "("; // This will be like "(T0 value0, T1 value1)"
+		for (int i = 0; i < numFields; i++) {
+			if (i > 0) {
+				paramList += ", ";
+			}
+			paramList += GEN_TYPE_PREFIX + i + " value" + i;
+		}
+		paramList += ")";
+
 		// constructors
 		w.println("\t/**");
 		w.println("\t * Creates a new tuple where all fields are null.");
@@ -578,14 +581,7 @@ class TupleGenerator {
 			w.println("\t * @param value" + i + " The value for field " + i);
 		}
 		w.println("\t */");
-		w.print("\tpublic " + className + "(");
-		for (int i = 0; i < numFields; i++) {
-			if (i > 0) {
-				w.print(", ");
-			}
-			w.print(GEN_TYPE_PREFIX + i + " value" + i);
-		}
-		w.println(") {");
+		w.println("\tpublic " + className + paramList + " {");
 		for (int i = 0; i < numFields; i++) {
 			w.println("\t\tthis.f" + i + " = value" + i + ';');
 		}
@@ -634,14 +630,7 @@ class TupleGenerator {
 			w.println("\t * @param value" + i + " The value for field " + i);
 		}
 		w.println("\t */");
-		w.print("\tpublic void setFields(");
-		for (int i = 0; i < numFields; i++) {
-			if (i > 0) {
-				w.print(", ");
-			}
-			w.print(GEN_TYPE_PREFIX + i + " value" + i);
-		}
-		w.println(") {");
+		w.println("\tpublic void setFields" + paramList + " {");
 		for (int i = 0; i < numFields; i++) {
 			w.println("\t\tthis.f" + i + " = value" + i + ';');
 		}
@@ -730,7 +719,9 @@ class TupleGenerator {
 		w.println("\t/**");
 		w.println("\t* Shallow tuple copy.");
 		w.println("\t* @return A new Tuple with the same fields as this.");
-		w.println("\t */");
+		w.println("\t*/");
+		w.println("\t@Override");
+		w.println("\t@SuppressWarnings(\"unchecked\")");
 		w.println("\tpublic " + className + tupleTypes + " copy(){ ");
 
 		w.print("\t\treturn new " + className + tupleTypes + "(this.f0");
@@ -742,6 +733,26 @@ class TupleGenerator {
 			w.print("\t\t\tthis." + field);
 			if (i < numFields - 1) {
 				w.println(",");
+			}
+		}
+		w.println(");");
+		w.println("\t}");
+
+		w.println();
+		w.println("\t/**");
+		w.println("\t * Creates a new tuple and assigns the given values to the tuple's fields.");
+		w.println("\t * This is more convenient than using the constructor, because the compiler can");
+		w.println("\t * infer the generic type arguments implicitly. For example:");
+		w.println("\t * {@code Tuple3.of(n, x, s)}");
+		w.println("\t * instead of");
+		w.println("\t * {@code new Tuple3<Integer, Double, String>(n, x, s)}");
+		w.println("\t */");
+		w.println("\tpublic static " + tupleTypes + " " + className + tupleTypes + " of" + paramList + " {");
+		w.print("\t\treturn new " + className + tupleTypes + "(");
+		for(int i = 0; i < numFields; i++) {
+			w.print("value" + i);
+			if(i < numFields - 1) {
+				w.print(", ");
 			}
 		}
 		w.println(");");
@@ -783,7 +794,7 @@ class TupleGenerator {
 		// package and imports
 		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
-		w.println("import java.util.LinkedList;");
+		w.println("import java.util.ArrayList;");
 		w.println("import java.util.List;");
 		w.println();
 		w.println("import " + PACKAGE + ".Tuple" + numFields + ";");
@@ -798,7 +809,7 @@ class TupleGenerator {
 		// Class-Attributes - a list of tuples
 		w.print("\tprivate List<Tuple" + numFields);
 		printGenericsString(w, numFields);
-		w.print("> tuples = new LinkedList<Tuple" + numFields );
+		w.print("> tuples = new ArrayList<Tuple" + numFields );
 		printGenericsString(w, numFields);
 		w.println(">();");
 		w.println();

@@ -267,7 +267,7 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 			buf.append("null");
 		} else {
 			buf.append(this.source.getOperator().getName());
-			buf.append('(').append(this.source.getName()).append(')');
+			buf.append('(').append(this.source.getOperatorName()).append(')');
 		}
 
 		buf.append(" -> ");
@@ -282,7 +282,7 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 			buf.append("null");
 		} else {
 			buf.append(this.target.getOperator().getName());
-			buf.append('(').append(this.target.getName()).append(')');
+			buf.append('(').append(this.target.getOperatorName()).append(')');
 		}
 
 		return buf.toString();

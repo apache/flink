@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import org.apache.flink.util.Collector
@@ -58,13 +59,6 @@ class GroupedDataSet[T: ClassTag](
    * This only works on Tuple DataSets.
    */
   def sortGroup(field: Int, order: Order): GroupedDataSet[T] = {
-    if (!set.getType.isTupleType) {
-      throw new InvalidProgramException("Specifying order keys via field positions is only valid " +
-        "for tuple data types.")
-    }
-    if (field >= set.getType.getArity) {
-      throw new IllegalArgumentException("Order key out of tuple bounds.")
-    }
     if (keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
       throw new InvalidProgramException("KeySelector grouping keys and field index group-sorting " +
         "keys cannot be used together.")
@@ -73,6 +67,9 @@ class GroupedDataSet[T: ClassTag](
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not " +
         "supported.")
     }
+    // test if field index is valid
+    new ExpressionKeys[T](field, set.getType())
+    // append sorting
     groupSortKeyPositions += Left(field)
     groupSortOrders += order
     this
@@ -93,6 +90,9 @@ class GroupedDataSet[T: ClassTag](
       throw new InvalidProgramException("KeySelector grouping keys and field expression " +
         "group-sorting keys cannot be used together.")
     }
+    // test if field index is valid
+    new ExpressionKeys[T](field, set.getType())
+    // append sorting
     groupSortKeyPositions += Right(field)
     groupSortOrders += order
     this
@@ -105,7 +105,7 @@ class GroupedDataSet[T: ClassTag](
    * This works on any data type.
    */
   def sortGroup[K: TypeInformation](fun: T => K, order: Order): GroupedDataSet[T] = {
-    if (groupSortOrders.length != 0) {
+    if (groupSortOrders.nonEmpty) {
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
         "supported.")
     }
@@ -138,7 +138,7 @@ class GroupedDataSet[T: ClassTag](
             .withPartitioner(partitioner)
         }
       case None =>
-        if (groupSortKeyPositions.length > 0) {
+        if (groupSortKeyPositions.nonEmpty) {
           val grouping = groupSortKeyPositions(0) match {
             case Left(pos) =>
               new SortedGrouping[T](

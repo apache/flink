@@ -37,8 +37,7 @@ import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
@@ -82,7 +81,7 @@ public class MassiveStringValueSorting {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
+				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
 				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
@@ -92,7 +91,7 @@ public class MassiveStringValueSorting {
 				MutableObjectIterator<StringValue> inputIterator = new StringValueReaderMutableObjectIterator(reader);
 				
 				sorter = new UnilateralSortMerger<StringValue>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeSerializerFactory<StringValue>(serializer, StringValue.class), comparator, 1.0, 4, 0.8f);
+						new RuntimeSerializerFactory<StringValue>(serializer, StringValue.class), comparator, 1.0, 4, 0.8f, true);
 
 				MutableObjectIterator<StringValue> sortedData = sorter.getIterator();
 				
@@ -129,9 +128,11 @@ public class MassiveStringValueSorting {
 		}
 		finally {
 			if (input != null) {
+				//noinspection ResultOfMethodCallIgnored
 				input.delete();
 			}
 			if (sorted != null) {
+				//noinspection ResultOfMethodCallIgnored
 				sorted.delete();
 			}
 		}
@@ -173,7 +174,7 @@ public class MassiveStringValueSorting {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
+				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
@@ -186,7 +187,7 @@ public class MassiveStringValueSorting {
 				MutableObjectIterator<Tuple2<StringValue, StringValue[]>> inputIterator = new StringValueTupleReaderMutableObjectIterator(reader);
 				
 				sorter = new UnilateralSortMerger<Tuple2<StringValue, StringValue[]>>(mm, ioMan, inputIterator, new DummyInvokable(),
-						new RuntimeSerializerFactory<Tuple2<StringValue, StringValue[]>>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f);
+						new RuntimeSerializerFactory<Tuple2<StringValue, StringValue[]>>(serializer, (Class<Tuple2<StringValue, StringValue[]>>) (Class<?>) Tuple2.class), comparator, 1.0, 4, 0.8f, false);
 
 				
 				
@@ -251,9 +252,11 @@ public class MassiveStringValueSorting {
 		}
 		finally {
 			if (input != null) {
+				//noinspection ResultOfMethodCallIgnored
 				input.delete();
 			}
 			if (sorted != null) {
+				//noinspection ResultOfMethodCallIgnored
 				sorted.delete();
 			}
 		}
@@ -348,7 +351,9 @@ public class MassiveStringValueSorting {
 				wrt.newLine();
 			}
 		} finally {
-			wrt.close();
+			if (wrt != null) {
+				wrt.close();
+			}
 		}
 		
 		return f;
@@ -388,7 +393,9 @@ public class MassiveStringValueSorting {
 				wrt.newLine();
 			}
 		} finally {
-			wrt.close();
+			if (wrt != null) {
+				wrt.close();
+			}
 		}
 		
 		return f;

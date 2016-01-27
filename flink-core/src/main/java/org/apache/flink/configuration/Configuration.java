@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -34,10 +35,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Lightweight configuration object which can store key/value pairs.
+ * Lightweight configuration object which stores key/value pairs.
  */
-@SuppressWarnings("EqualsBetweenInconvertibleTypes")
-public class Configuration extends ExecutionConfig.GlobalJobParameters implements IOReadableWritable, java.io.Serializable, Cloneable {
+@Public
+public class Configuration extends ExecutionConfig.GlobalJobParameters 
+		implements IOReadableWritable, java.io.Serializable, Cloneable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -54,11 +56,25 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters implement
 	
 
 	/** Stores the concrete key/value pairs of this configuration object. */
-	private final Map<String, Object> confData = new HashMap<String, Object>();
+	private final HashMap<String, Object> confData;
 	
 	// --------------------------------------------------------------------------------------------
-	
-	public Configuration() {}
+
+	/**
+	 * Creates a new empty configuration.
+	 */
+	public Configuration() {
+		this.confData = new HashMap<String, Object>();
+	}
+
+	/**
+	 * Creates a new configuration with the copy of the given configuration.
+	 * 
+	 * @param other The configuration to copy the entries from.
+	 */
+	public Configuration(Configuration other) {
+		this.confData = new HashMap<String, Object>(other.confData);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -362,6 +378,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters implement
 	 *        The default value which is returned in case there is no value associated with the given key.
 	 * @return the (default) value associated with the given key.
 	 */
+	@SuppressWarnings("EqualsBetweenInconvertibleTypes")
 	public byte[] getBytes(String key, byte[] defaultValue) {
 		
 		Object o = getRawValue(key);
@@ -472,7 +489,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters implement
 
 	// --------------------------------------------------------------------------------------------
 	
-	private <T> void setValueInternal(String key, T value) {
+	<T> void setValueInternal(String key, T value) {
 		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
 		}

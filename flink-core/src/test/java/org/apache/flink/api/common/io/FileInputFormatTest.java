@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.types.IntValue;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,8 +38,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 
+import static org.junit.Assert.*;
+
+/**
+ * Tests for the FileInputFormat
+ */
 public class FileInputFormatTest {
 
+	// ------------------------------------------------------------------------
+	//  Statistics
+	// ------------------------------------------------------------------------
+	
 	@Test
 	public void testGetStatisticsNonExistingFile() {
 		try {
@@ -189,6 +199,10 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Unsplittable input files
+	// ------------------------------------------------------------------------
 	
 	// ---- Tests for .deflate ---------
 	
@@ -234,6 +248,10 @@ public class FileInputFormatTest {
 			Assert.fail(ex.getMessage());
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Ignored Files
+	// ------------------------------------------------------------------------
 	
 	@Test
 	public void testIgnoredUnderscoreFiles() {
@@ -243,11 +261,13 @@ public class FileInputFormatTest {
 			// create some accepted, some ignored files
 			
 			File tempDir = new File(System.getProperty("java.io.tmpdir"));
-			File f = null;
+			File f;
 			do {
 				f = new File(tempDir, TestFileUtils.randomFileName(""));
-			} while (f.exists());
-			f.mkdirs();
+			}
+			while (f.exists());
+
+			assertTrue(f.mkdirs());
 			f.deleteOnExit();
 			
 			File child1 = new File(f, "dataFile1.txt");
@@ -301,11 +321,13 @@ public class FileInputFormatTest {
 
 			// create two accepted and two ignored files
 			File tempDir = new File(System.getProperty("java.io.tmpdir"));
-			File f = null;
+			File f;
 			do {
 				f = new File(tempDir, TestFileUtils.randomFileName(""));
-			} while (f.exists());
-			f.mkdirs();
+			}
+			while (f.exists());
+			
+			assertTrue(f.mkdirs());
 			f.deleteOnExit();
 
 			File child1 = new File(f, "dataFile1.txt");
@@ -342,7 +364,10 @@ public class FileInputFormatTest {
 		}
 	}
 
-
+	// ------------------------------------------------------------------------
+	//  Stream Decoration
+	// ------------------------------------------------------------------------
+	
 	@Test
 	public void testDecorateInputStream() throws IOException {
 		// create temporary file with 3 blocks

@@ -35,7 +35,7 @@ public interface BlockChannelWriter<T> extends BlockChannelWriterWithCallback<T>
 	 * writer is closed.
 	 * <p>
 	 * NOTE: If this method is invoked without any segment ever returning (for example, because the
-	 * {@link #writeBlock(T)} method has not been invoked accordingly), the method may block
+	 * {@link #writeBlock} method has not been invoked accordingly), the method may block
 	 * forever.
 	 * 
 	 * @return The next memory segment from the writers's return queue.

@@ -28,8 +28,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
@@ -44,11 +44,11 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Chained variant of the GroupCombineDriver
+ * Chained variant of the GroupReduceCombineDriver
  * 
  * Acts like a combiner with a custom output type OUT.
  *
- * Sorting and reducing of the elements is performed invididually for each partition without data exchange. This may
+ * Sorting and reducing of the elements is performed individually for each partition without data exchange. This may
  * lead to a partial group reduce.
  *  
  * @param <IN> The data type consumed
@@ -58,9 +58,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(GroupCombineChainedDriver.class);
 
-	/**
-	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
-	 */
+	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
 	// --------------------------------------------------------------------------------------------
@@ -71,15 +69,13 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private TypeSerializer<IN> serializer;
 
-	private TypeComparator<IN> sortingComparator;
-
 	private TypeComparator<IN> groupingComparator;
 
 	private AbstractInvokable parent;
 
 	private QuickSort sortAlgo = new QuickSort();
 
-	private MemoryManager memManager;
+	private List<MemorySegment> memory;
 
 	private volatile boolean running = true;
 
@@ -91,7 +87,7 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 		@SuppressWarnings("unchecked")
 		final GroupReduceFunction<IN, OUT> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GroupReduceFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, GroupReduceFunction.class);
 		this.reducer = combiner;
 		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
@@ -100,30 +96,30 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
-		RegularPactTask.openUserCode(this.reducer, stubConfig);
+		BatchTask.openUserCode(this.reducer, stubConfig);
 
-		// ----------------- Set up the asynchronous sorter -------------------------
-
-		this.memManager = this.parent.getEnvironment().getMemoryManager();
-		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
+		// ----------------- Set up the sorter -------------------------
 
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<IN> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
 		final TypeComparatorFactory<IN> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
 		final TypeComparatorFactory<IN> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader);
 		this.serializer = serializerFactory.getSerializer();
-		this.sortingComparator = sortingComparatorFactory.createComparator();
+		
+		TypeComparator<IN> sortingComparator = sortingComparatorFactory.createComparator();
 		this.groupingComparator = groupingComparatorFactory.createComparator();
 
-		final List<MemorySegment> memory = this.memManager.allocatePages(this.parent, numMemoryPages);
+		MemoryManager memManager = this.parent.getEnvironment().getMemoryManager();
+		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
+		this.memory = memManager.allocatePages(this.parent, numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
+		if (sortingComparator.supportsSerializationWithKeyNormalization() &&
 			this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, this.sortingComparator, memory);
+			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<IN>(this.serializer, this.sortingComparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -133,19 +129,30 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	@Override
 	public void closeTask() throws Exception {
-		this.memManager.release(this.sorter.dispose());
-
-		if (!this.running) {
-			return;
+		if (this.sorter != null) {
+			this.sorter.dispose();
 		}
+		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 
-		RegularPactTask.closeUserCode(this.reducer);
+		if (this.running) {
+			BatchTask.closeUserCode(this.reducer);
+		}
 	}
 
 	@Override
 	public void cancelTask() {
 		this.running = false;
-		this.memManager.release(this.sorter.dispose());
+
+		if (this.sorter != null) {
+			try {
+				this.sorter.dispose();
+			}
+			catch (Exception e) {
+				// may happen during concurrent modification
+			}
+		}
+		
+		this.parent.getEnvironment().getMemoryManager().release(this.memory);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -165,23 +172,16 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 			if (this.sorter.write(record)) {
 				return;
 			}
-		} catch (IOException e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
 
-		// do the actual sorting
-		try {
+			// do the actual sorting
 			sortAndReduce();
-		} catch (Exception e) {
-			throw new ExceptionInChainedStubException(this.taskName, e);
-		}
-		this.sorter.reset();
-
-		try {
+			this.sorter.reset();
+			
 			if (!this.sorter.write(record)) {
 				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
 			}
-		} catch (IOException e) {
+		}
+		catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
 	}
@@ -206,9 +206,9 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the reducer
-				final ReusingKeyGroupedIterator<IN> keyIter = new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
-
-
+				final ReusingKeyGroupedIterator<IN> keyIter = new ReusingKeyGroupedIterator<IN>(
+						sorter.getIterator(), this.serializer, this.groupingComparator);
+				
 				// cache references on the stack
 				final GroupReduceFunction<IN, OUT> stub = this.reducer;
 				final Collector<OUT> output = this.outputCollector;
@@ -222,7 +222,8 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the reducer
-				final NonReusingKeyGroupedIterator<IN> keyIter = new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
+				final NonReusingKeyGroupedIterator<IN> keyIter = new NonReusingKeyGroupedIterator<IN>(
+						sorter.getIterator(), this.groupingComparator);
 
 
 				// cache references on the stack

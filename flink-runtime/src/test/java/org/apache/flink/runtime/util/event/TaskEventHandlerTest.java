@@ -22,7 +22,7 @@ package org.apache.flink.runtime.util.event;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.event.task.StringTaskEvent;
 import org.apache.flink.runtime.io.network.api.TaskEventHandler;

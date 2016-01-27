@@ -18,9 +18,12 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * {@link OutputFormat}s may implement this interface to run a cleanup hook when the execution is not successful.
  */
+@Public
 public interface CleanupWhenUnsuccessful {
 	
 	/**

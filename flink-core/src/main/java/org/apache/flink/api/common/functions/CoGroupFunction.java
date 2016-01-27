@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
@@ -28,12 +29,12 @@ import org.apache.flink.util.Collector;
  * If a key is present in only one of the two inputs, it may be that one of the groups is empty.
  * <p>
  * The basic syntax for using CoGoup on two data sets is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> set1 = ...;
  * DataSet<Y> set2 = ...;
  * 
  * set1.coGroup(set2).where(<key-definition>).equalTo(<key-definition>).with(new MyCoGroupFunction());
- * </blockquote></pre>
+ * }</pre>
  * <p>
  * {@code set1} is here considered the first input, {@code set2} the second input.
  * <p>
@@ -44,6 +45,7 @@ import org.apache.flink.util.Collector;
  * @param <IN2> The data type of the second input data set.
  * @param <O> The data type of the returned elements.
  */
+@Public
 public interface CoGroupFunction<IN1, IN2, O> extends Function, Serializable {
 	
 	/**

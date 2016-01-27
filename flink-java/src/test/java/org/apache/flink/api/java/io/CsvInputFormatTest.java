@@ -22,8 +22,9 @@ package org.apache.flink.api.java.io;
 import com.google.common.base.Charsets;
 
 import org.apache.flink.api.common.io.ParseException;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
@@ -37,6 +38,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
@@ -70,7 +73,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
-			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
+			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
 			format.setLenient(true);
 		
 			final Configuration parameters = new Configuration();
@@ -118,7 +121,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
-			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
+			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
 			format.setCommentPrefix("#");
 		
 			final Configuration parameters = new Configuration();
@@ -162,7 +165,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
-			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
+			final CsvInputFormat<Tuple3<String, Integer, Double>> format = new TupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
 			format.setCommentPrefix("//");
 		
 			final Configuration parameters = new Configuration();
@@ -199,7 +202,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
-			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
+			final CsvInputFormat<Tuple3<String, String, String>> format = new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -242,7 +245,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
-			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
+			final CsvInputFormat<Tuple3<String, String, String>> format = new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -286,7 +289,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
-			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple3<String, String, String>> format = new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, typeInfo);
 			
 			format.setFieldDelimiter("|-");
 
@@ -330,7 +333,7 @@ public class CsvInputFormatTest {
 
 			final TupleTypeInfo<Tuple5<Integer, Integer, Integer, Integer, Integer>> typeInfo =
 				TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class, Integer.class, Integer.class);
-			final CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>> format = new CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>> format = new TupleCsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>>(PATH, typeInfo);
 
 			format.setFieldDelimiter("|");
 
@@ -377,7 +380,7 @@ public class CsvInputFormatTest {
 
 			final TupleTypeInfo<Tuple6<Short, Integer, Long, Float, Double, Byte>> typeInfo =
 				TupleTypeInfo.getBasicTupleTypeInfo(Short.class, Integer.class, Long.class, Float.class, Double.class, Byte.class);
-			final CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>> format = new CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>> format = new TupleCsvInputFormat<Tuple6<Short, Integer, Long, Float, Double, Byte>>(PATH, typeInfo);
 
 			format.setFieldDelimiter("|");
 
@@ -428,7 +431,7 @@ public class CsvInputFormatTest {
 
 			final TupleTypeInfo<Tuple5<Double, Double, Double, Double, Double>> typeInfo =
 					TupleTypeInfo.getBasicTupleTypeInfo(Double.class, Double.class, Double.class, Double.class, Double.class);
-			final CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>> format = new CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>> format = new TupleCsvInputFormat<Tuple5<Double, Double, Double, Double, Double>>(PATH, typeInfo);
 			
 			format.setFieldDelimiter("|");
 
@@ -469,7 +472,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple2<Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class);
-			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple2<Integer, Integer>> format = new TupleCsvInputFormat<Tuple2<Integer, Integer>>(PATH, typeInfo);
 			
 			format.setFieldDelimiter("|");
 
@@ -506,10 +509,9 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 
 			final TupleTypeInfo<Tuple3<Integer, Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class);
-			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new TupleCsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo, new boolean[]{true, false, false, true, false, false, false, true});
 			
 			format.setFieldDelimiter("|x|");
-			format.setFieldTypes(Integer.class, null, null, Integer.class, null, null, null, Integer.class);
 			
 			format.configure(new Configuration());
 			format.open(split);
@@ -544,12 +546,9 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 
 			final TupleTypeInfo<Tuple3<Integer, Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class);
-			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new TupleCsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo, new int[]{0, 3, 7});
 			
 			format.setFieldDelimiter("|");
-			
-			format.setFields(new int[] {0, 3, 7}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
-			
 			
 			format.configure(new Configuration());
 			format.open(split);
@@ -576,7 +575,7 @@ public class CsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testReadSparseWithMask() throws IOException {
 		try {
@@ -585,13 +584,9 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 
 			final TupleTypeInfo<Tuple3<Integer, Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class);
-			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo);
+			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new TupleCsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo, new boolean[]{true, false, false, true, false, false, false, true});
 			
 			format.setFieldDelimiter("&&");
-
-			format.setFields(new boolean[]{true, false, false, true, false, false, false, true}, new 
-				Class<?>[]{Integer.class,
-				Integer.class, Integer.class});
 			
 			format.configure(new Configuration());
 			format.open(split);
@@ -613,27 +608,6 @@ public class CsvInputFormatTest {
 			result = format.nextRecord(result);
 			assertNull(result);
 			assertTrue(format.reachedEnd());
-		}
-		catch (Exception ex) {
-			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
-		}
-	}
-	
-	@Test
-	public void testReadSparseWithShuffledPositions() throws IOException {
-		try {
-			final TupleTypeInfo<Tuple3<Integer, Integer, Integer>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class, Integer.class);
-			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH, typeInfo);
-			
-			format.setFieldDelimiter("|");
-			
-			try {
-				format.setFields(new int[] {8, 1, 3}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
-				fail("Input sequence should have been rejected.");
-			}
-			catch (IllegalArgumentException e) {
-				// that is what we want
-			}
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
@@ -679,13 +653,10 @@ public class CsvInputFormatTest {
 
 		final TupleTypeInfo<Tuple5<Integer, String, String, String, Double>> typeInfo =
 				TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, String.class, String.class, String.class, Double.class);
-		final CsvInputFormat<Tuple5<Integer, String, String, String, Double>> format = new CsvInputFormat<Tuple5<Integer, String, String, String, Double>>(PATH, typeInfo);
+		final CsvInputFormat<Tuple5<Integer, String, String, String, Double>> format = new TupleCsvInputFormat<Tuple5<Integer, String, String, String, Double>>(PATH, typeInfo);
 
 		format.setSkipFirstLineAsHeader(true);
 		format.setFieldDelimiter(',');
-
-		format.setFields(new boolean[] { true, true, true, true, true }, new Class<?>[] {
-				Integer.class, String.class, String.class, String.class, Double.class });
 
 		format.configure(new Configuration());
 		format.open(split);
@@ -761,7 +732,7 @@ public class CsvInputFormatTest {
 			wrt.close();
 
 			final TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
-			final CsvInputFormat<Tuple1<String>> inputFormat = new CsvInputFormat<Tuple1<String>>(new Path(tempFile.toURI().toString()), typeInfo);
+			final CsvInputFormat<Tuple1<String>> inputFormat = new TupleCsvInputFormat<Tuple1<String>>(new Path(tempFile.toURI().toString()), typeInfo);
 
 			Configuration parameters = new Configuration(); 
 			inputFormat.configure(parameters);
@@ -823,8 +794,8 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
-		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		CsvInputFormat<PojoItem> inputFormat = new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -846,8 +817,8 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PrivatePojoItem> typeInfo = (TypeInformation<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
-		CsvInputFormat<PrivatePojoItem> inputFormat = new CsvInputFormat<PrivatePojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
+		PojoTypeInfo<PrivatePojoItem> typeInfo = (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
+		CsvInputFormat<PrivatePojoItem> inputFormat = new PojoCsvInputFormat<PrivatePojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
 
 		inputFormat.configure(new Configuration());
 
@@ -882,10 +853,8 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
-		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
-		inputFormat.setFields(new boolean[]{true, true, true, true}, new Class<?>[]{Integer.class, Double.class, String.class, String.class});
-		inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field3", "field2", "field4"});
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		CsvInputFormat<PojoItem> inputFormat = new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo, new String[]{"field1", "field3", "field2", "field4"});
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -907,10 +876,8 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
-		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
-		inputFormat.setFields(new boolean[]{true, false, true, false, true, true}, new Class[]{Integer.class, String
-			.class, Double.class, String.class});
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		CsvInputFormat<PojoItem> inputFormat = new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo, new boolean[]{true, false, true, false, true, true});
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -932,10 +899,8 @@ public class CsvInputFormatTest {
 		wrt.close();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
-		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
-		inputFormat.setFields(new boolean[]{true, false, false, true}, new Class[]{Integer.class, String.class});
-		inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field4"});
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
+		CsvInputFormat<PojoItem> inputFormat = new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo, new String[]{"field1", "field4"}, new boolean[]{true, false, false, true});
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -956,25 +921,24 @@ public class CsvInputFormatTest {
 		tempFile.setWritable(true);
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<PojoItem> typeInfo = (TypeInformation<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
-		CsvInputFormat<PojoItem> inputFormat = new CsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
+		PojoTypeInfo<PojoItem> typeInfo = (PojoTypeInfo<PojoItem>) TypeExtractor.createTypeInfo(PojoItem.class);
 
 		try {
-			inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field2"});
+			new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo, new String[]{"field1", "field2"});
 			fail("The number of POJO fields cannot be same as that of selected CSV fields");
 		} catch (IllegalArgumentException e) {
 			// success
 		}
 
 		try {
-			inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field2", null, "field4"});
+			new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo, new String[]{"field1", "field2", null, "field4"});
 			fail("Fields mapping cannot contain null.");
 		} catch (NullPointerException e) {
 			// success
 		}
 
 		try {
-			inputFormat.setOrderOfPOJOFields(new String[]{"field1", "field2", "field3", "field5"});
+			new PojoCsvInputFormat<PojoItem>(new Path(tempFile.toURI().toString()), typeInfo, new String[]{"field1", "field2", "field3", "field5"});
 			fail("Invalid field name");
 		} catch (IllegalArgumentException e) {
 			// success
@@ -984,7 +948,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void testQuotedStringParsingWithIncludeFields() throws Exception {
 		final String fileContent = "\"20:41:52-1-3-2015\"|\"Re: Taskmanager memory error in Eclipse\"|" +
-				"\"Blahblah <blah@blahblah.org>\"|\"bla\"|\"blubb\"";
+				"\"Blahblah <blah@blahblah.org>\"|\"blaaa|\"blubb\"";
 
 		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
 		tempFile.deleteOnExit();
@@ -994,13 +958,12 @@ public class CsvInputFormatTest {
 		writer.write(fileContent);
 		writer.close();
 
-		TypeInformation<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
-		CsvInputFormat<Tuple2<String, String>> inputFormat = new CsvInputFormat<Tuple2<String, String>>(new Path(tempFile.toURI().toString()), typeInfo);
+		TupleTypeInfo<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
+		CsvInputFormat<Tuple2<String, String>> inputFormat = new TupleCsvInputFormat<Tuple2<String, String>>(new Path(tempFile.toURI().toString()), typeInfo, new boolean[]{true, false, true});
 
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter('|');
 		inputFormat.setDelimiter('\n');
-		inputFormat.setFields(new boolean[]{true, false, true}, new Class[]{String.class, String.class});
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -1011,6 +974,79 @@ public class CsvInputFormatTest {
 
 		assertEquals("20:41:52-1-3-2015", record.f0);
 		assertEquals("Blahblah <blah@blahblah.org>", record.f1);
+	}
+
+	@Test
+	public void testQuotedStringParsingWithEscapedQuotes() throws Exception {
+		final String fileContent = "\"\\\"Hello\\\" World\"|\"We are\\\" young\"";
+
+		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
+		tempFile.deleteOnExit();
+		tempFile.setWritable(true);
+
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
+		writer.write(fileContent);
+		writer.close();
+
+		TupleTypeInfo<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
+		CsvInputFormat<Tuple2<String, String>> inputFormat = new TupleCsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
+
+		inputFormat.enableQuotedStringParsing('"');
+		inputFormat.setFieldDelimiter('|');
+		inputFormat.setDelimiter('\n');
+
+		inputFormat.configure(new Configuration());
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+
+		inputFormat.open(splits[0]);
+
+		Tuple2<String, String> record = inputFormat.nextRecord(new Tuple2<String, String>());
+
+		assertEquals("\\\"Hello\\\" World", record.f0);
+		assertEquals("We are\\\" young", record.f1);
+	}
+
+	/**
+	 * Tests that the CSV input format can deal with POJOs which are subclasses.
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void testPojoSubclassType() throws Exception {
+		final String fileContent = "t1,foobar,tweet2\nt2,barfoo,tweet2";
+
+		final File tempFile = File.createTempFile("CsvReaderPOJOSubclass", "tmp");
+		tempFile.deleteOnExit();
+
+		OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
+		writer.write(fileContent);
+		writer.close();
+
+		@SuppressWarnings("unchecked")
+		PojoTypeInfo<TwitterPOJO> typeInfo = (PojoTypeInfo<TwitterPOJO>)TypeExtractor.createTypeInfo(TwitterPOJO.class);
+		CsvInputFormat<TwitterPOJO> inputFormat = new PojoCsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
+
+		inputFormat.configure(new Configuration());
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+
+		inputFormat.open(splits[0]);
+
+		List<TwitterPOJO> expected = new ArrayList<>();
+
+		for (String line: fileContent.split("\n")) {
+			String[] elements = line.split(",");
+			expected.add(new TwitterPOJO(elements[0], elements[1], elements[2]));
+		}
+
+		List<TwitterPOJO> actual = new ArrayList<>();
+
+		TwitterPOJO pojo;
+
+		while((pojo = inputFormat.nextRecord(new TwitterPOJO())) != null) {
+			actual.add(pojo);
+		}
+
+		assertEquals(expected, actual);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1060,6 +1096,54 @@ public class CsvInputFormatTest {
 
 		public void setField4(String field4) {
 			this.field4 = field4;
+		}
+	}
+
+	public static class POJO {
+		public String table;
+		public String time;
+
+		public POJO() {
+			this("", "");
+		}
+
+		public POJO(String table, String time) {
+			this.table = table;
+			this.time = time;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof POJO) {
+				POJO other = (POJO) obj;
+				return table.equals(other.table) && time.equals(other.time);
+			} else {
+				return false;
+			}
+		}
+	}
+
+	public static class TwitterPOJO extends POJO {
+		public String tweet;
+
+		public TwitterPOJO() {
+			this("", "", "");
+		}
+
+		public TwitterPOJO(String table, String time, String tweet) {
+			super(table, time);
+			this.tweet = tweet;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof TwitterPOJO) {
+				TwitterPOJO other = (TwitterPOJO) obj;
+
+				return super.equals(other) && tweet.equals(other.tweet);
+			} else {
+				return false;
+			}
 		}
 	}
 

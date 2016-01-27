@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
-public class StringUtilsTest {
+public class StringUtilsTest extends TestLogger {
 
 	@Test
 	public void testControlCharacters() {

@@ -22,13 +22,27 @@ import java.io.IOException;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.OutputCommitter;
 
+/**
+ * Wrapper for using HadoopOutputFormats (mapred-variant) with Flink.
+ *
+ * The IF is returning a {@code Tuple2<K,V>}.
+ *
+ * @param <K> Type of the key
+ * @param <V> Type of the value.
+ */
 public class HadoopOutputFormat<K,V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
 
 	private static final long serialVersionUID = 1L;
 
 	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, JobConf job) {
 		super(mapredOutputFormat, job);
+	}
+
+	public HadoopOutputFormat(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, Class<OutputCommitter> outputCommitterClass, JobConf job) {
+		this(mapredOutputFormat, job);
+		super.getJobConf().setOutputCommitter(outputCommitterClass);
 	}
 
 	@Override

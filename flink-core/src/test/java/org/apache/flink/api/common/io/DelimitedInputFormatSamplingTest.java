@@ -288,7 +288,7 @@ public class DelimitedInputFormatSamplingTest {
 		}
 		
 		public static void prepare() {
-			DelimitedInputFormat.loadGloablConfigParams();
+			DelimitedInputFormat.loadGlobalConfigParams();
 		}
 	}
 }

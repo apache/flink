@@ -29,7 +29,7 @@ import org.apache.flink.util.TraversableOnceException;
 /**
  * The key grouped iterator returns a key and all values that share the same key.
  */
-public final class NonReusingKeyGroupedIterator<E> {
+public final class NonReusingKeyGroupedIterator<E> implements KeyGroupedIterator<E> {
 	
 	private final MutableObjectIterator<E> iterator;
 	

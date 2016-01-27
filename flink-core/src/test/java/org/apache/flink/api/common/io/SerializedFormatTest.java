@@ -19,10 +19,13 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.runner.RunWith;
@@ -56,13 +59,19 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 		return inputFormat;
 	}
 
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	
 	@Override
-	protected BinaryOutputFormat<Record> createOutputFormat(String path, Configuration
-			configuration) throws IOException {
-		return FormatUtil.<Record, SerializedOutputFormat>openOutput
-				(SerializedOutputFormat.class, path, configuration);
+	protected BinaryOutputFormat<Record> createOutputFormat(String path, Configuration configuration)
+			throws IOException
+	{
+		final SerializedOutputFormat<Record> outputFormat = new SerializedOutputFormat<Record>();
+		outputFormat.setOutputFilePath(new Path(path));
+		outputFormat.setWriteMode(FileSystem.WriteMode.OVERWRITE);
+
+		configuration = configuration == null ? new Configuration() : configuration;
+		outputFormat.configure(configuration);
+		outputFormat.open(0, 1);
+		return outputFormat;
 	}
 
 	@Override

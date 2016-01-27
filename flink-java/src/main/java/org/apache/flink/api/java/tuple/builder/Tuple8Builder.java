@@ -25,14 +25,14 @@
 
 package org.apache.flink.api.java.tuple.builder;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple8;
 
 public class Tuple8Builder<T0, T1, T2, T3, T4, T5, T6, T7> {
 
-	private List<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tuples = new LinkedList<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>();
+	private List<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tuples = new ArrayList<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>();
 
 	public Tuple8Builder<T0, T1, T2, T3, T4, T5, T6, T7> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7){
 		tuples.add(new Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>(value0, value1, value2, value3, value4, value5, value6, value7));

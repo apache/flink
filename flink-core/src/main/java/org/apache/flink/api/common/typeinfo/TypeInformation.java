@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -67,6 +68,7 @@ import java.util.List;
  *
  * @param <T> The type represented by this type information.
  */
+@Public
 public abstract class TypeInformation<T> implements Serializable {
 	
 	private static final long serialVersionUID = -7742311969684489493L;
@@ -119,7 +121,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 */
 	public List<TypeInformation<?>> getGenericParameters() {
 		// Return an empty list as the default implementation
-		return new LinkedList<TypeInformation<?>>();
+		return new LinkedList<>();
 	}
 
 	/**
@@ -146,4 +148,21 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @return A serializer for this type.
 	 */
 	public abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
+
+	@Override
+	public abstract String toString();
+
+	@Override
+	public abstract boolean equals(Object obj);
+
+	@Override
+	public abstract int hashCode();
+
+	/**
+	 * Returns true if the given object can be equaled with this object. If not, it returns false.
+	 *
+	 * @param obj Object which wants to take part in the equality relation
+	 * @return true if obj can be equaled with this, otherwise false
+	 */
+	public abstract boolean canEqual(Object obj);
 }

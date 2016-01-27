@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableValue<BooleanValue>, CopyableValue<BooleanValue> {
 	
 	private static final long serialVersionUID = 1L;
@@ -48,7 +50,6 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 		this.value = value;
 	}
 
-	
 	public boolean get() {
 		return value;
 	}
@@ -89,11 +90,10 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == BooleanValue.class) {
+		if (obj instanceof BooleanValue) {
 			return ((BooleanValue) obj).value == this.value;
-		} else {
-			return false;
 		}
+		return false;
 	}
 
 	@Override
@@ -116,6 +116,11 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 	@Override
 	public void copyTo(BooleanValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public BooleanValue copy() {
+		return new BooleanValue(this.value);
 	}
 
 	@Override

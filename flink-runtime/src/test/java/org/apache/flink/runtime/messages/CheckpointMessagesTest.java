@@ -22,12 +22,12 @@ import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.messages.checkpoint.ConfirmCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.SerializedValue;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class CheckpointMessagesTest {
 	@Test
 	public void testTriggerAndConfirmCheckpoint() {
 		try {
-			ConfirmCheckpoint cc = new ConfirmCheckpoint(new JobID(), new ExecutionAttemptID(), 45287698767345L, 467L);
+			NotifyCheckpointComplete cc = new NotifyCheckpointComplete(new JobID(), new ExecutionAttemptID(), 45287698767345L, 467L);
 			testSerializabilityEqualsHashCode(cc);
 			
 			TriggerCheckpoint tc = new TriggerCheckpoint(new JobID(), new ExecutionAttemptID(), 347652734L, 7576752L);
@@ -59,7 +59,7 @@ public class CheckpointMessagesTest {
 
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
 											new JobID(), new ExecutionAttemptID(), 87658976143L, 
-											new SerializedValue<StateHandle<?>>(new MyHandle()));
+											new SerializedValue<StateHandle<?>>(new MyHandle()), 0);
 			
 			testSerializabilityEqualsHashCode(noState);
 			testSerializabilityEqualsHashCode(withState);
@@ -78,12 +78,12 @@ public class CheckpointMessagesTest {
 		assertNotNull(copy.toString());
 	}
 	
-	private static class MyHandle implements StateHandle<Serializable> {
+	public static class MyHandle implements StateHandle<Serializable> {
 
 		private static final long serialVersionUID = 8128146204128728332L;
 
 		@Override
-		public Serializable getState() {
+		public Serializable getState(ClassLoader userCodeClassLoader) {
 			return null;
 		}
 
@@ -99,6 +99,11 @@ public class CheckpointMessagesTest {
 
 		@Override
 		public void discardState() throws Exception {
+		}
+
+		@Override
+		public long getStateSize() {
+			return 0;
 		}
 	}
 }

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -17,7 +19,7 @@
 ################################################################################
 
 
-#!/bin/bash
+
 
 CONF=/usr/local/flink/conf
 EXEC=/usr/local/flink/bin

@@ -71,22 +71,26 @@ class DistinctOperatorTest {
     tupleDs.distinct()
   }
 
-  @Test(expected = classOf[InvalidProgramException])
-  def testDistinctByKeyIndices5(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val customDs = env.fromCollection(customTypeData)
-
-    // should not work: distinct on custom type
-    customDs.distinct()
-  }
-
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[IndexOutOfBoundsException])
   def testDistinctByKeyIndices6(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
     // should not work, negative field position key
     tupleDs.distinct(-1)
+  }
+
+  @Test
+  def testDistinctByKeyIndices7(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val longDs = env.fromCollection(emptyLongData)
+
+    // should work
+    try {
+      longDs.distinct()
+    } catch {
+      case e: Exception => Assert.fail()
+    }
   }
 
   @Test
@@ -137,6 +141,19 @@ class DistinctOperatorTest {
 
     // should work
     customDs.distinct("myInt")
+  }
+
+  @Test
+  def testDistinctByKeyFields6(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val longDs = env.fromCollection(emptyLongData)
+
+    // should work
+    try {
+      longDs.distinct("_")
+    } catch {
+      case e: Exception => Assert.fail()
+    }
   }
 
   @Test

@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.Collector;
 
 /**
- * Needed to wrap tuples to Tuple3<groupKey, sortKey, value> for combine method of group reduce with key selector sorting
+ * Needed to wrap tuples to {@code Tuple3<groupKey, sortKey, value>} for combine method of group reduce with key selector sorting
  */
 public class Tuple3WrappingCollector<IN, K1, K2> implements Collector<IN>, java.io.Serializable {
 

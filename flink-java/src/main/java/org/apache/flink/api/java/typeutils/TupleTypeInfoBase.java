@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.api.common.typeinfo.AtomicType;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
@@ -46,17 +46,20 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	
 	protected final TypeInformation<?>[] types;
 	
-	protected final Class<T> tupleType;
-
-	private int totalFields;
+	private final int totalFields;
 
 	public TupleTypeInfoBase(Class<T> tupleType, TypeInformation<?>... types) {
 		super(tupleType);
-		this.tupleType = tupleType;
-		this.types = types;
+
+		this.types = Preconditions.checkNotNull(types);
+
+		int fieldCounter = 0;
+
 		for(TypeInformation<?> type : types) {
-			totalFields += type.getTotalFields();
+			fieldCounter += type.getTotalFields();
 		}
+
+		totalFields = fieldCounter;
 	}
 
 	@Override
@@ -84,30 +87,6 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	}
 
 	@Override
-	public Class<T> getTypeClass() {
-		return tupleType;
-	}
-
-	/**
-	 * Recursively add all fields in this tuple type. We need this in particular to get all
-	 * the types.
-	 * @param startKeyId
-	 * @param keyFields
-	 */
-	public void addAllFields(int startKeyId, List<FlatFieldDescriptor> keyFields) {
-		for(int i = 0; i < this.getArity(); i++) {
-			TypeInformation<?> type = this.types[i];
-			if(type instanceof AtomicType) {
-				keyFields.add(new FlatFieldDescriptor(startKeyId, type));
-			} else if(type instanceof TupleTypeInfoBase<?>) {
-				TupleTypeInfoBase<?> ttb = (TupleTypeInfoBase<?>) type;
-				ttb.addAllFields(startKeyId, keyFields);
-			}
-			startKeyId += type.getTotalFields();
-		}
-	}
-
-	@Override
 	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression);
@@ -129,57 +108,54 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 				}
 				keyPosition++;
 			}
-			return;
-		}
-
-		String fieldStr = matcher.group(1);
-		Matcher fieldMatcher = PATTERN_FIELD.matcher(fieldStr);
-		if (!fieldMatcher.matches()) {
-			throw new RuntimeException("Invalid matcher pattern");
-		}
-		field = fieldMatcher.group(2);
-		int fieldPos = Integer.valueOf(field);
-
-		if (fieldPos >= this.getArity()) {
-			throw new InvalidFieldReferenceException("Tuple field expression \"" + fieldStr + "\" out of bounds of " + this.toString() + ".");
-		}
-		TypeInformation<?> fieldType = this.getTypeAt(fieldPos);
-		String tail = matcher.group(5);
-		if(tail == null) {
-			if(fieldType instanceof CompositeType) {
-				// forward offsets
-				for(int i=0; i<fieldPos; i++) {
-					offset += this.getTypeAt(i).getTotalFields();
-				}
-				// add all fields of composite type
-				((CompositeType<?>) fieldType).getFlatFields("*", offset, result);
-				return;
-			} else {
-				// we found the field to add
-				// compute flat field position by adding skipped fields
-				int flatFieldPos = offset;
-				for(int i=0; i<fieldPos; i++) {
-					flatFieldPos += this.getTypeAt(i).getTotalFields();
-				}
-				result.add(new FlatFieldDescriptor(flatFieldPos, fieldType));
-				// nothing left to do
-				return;
-			}
 		} else {
-			if(fieldType instanceof CompositeType<?>) {
-				// forward offset
-				for(int i=0; i<fieldPos; i++) {
-					offset += this.getTypeAt(i).getTotalFields();
+			String fieldStr = matcher.group(1);
+			Matcher fieldMatcher = PATTERN_FIELD.matcher(fieldStr);
+
+			if (!fieldMatcher.matches()) {
+				throw new RuntimeException("Invalid matcher pattern");
+			}
+
+			field = fieldMatcher.group(2);
+			int fieldPos = Integer.valueOf(field);
+
+			if (fieldPos >= this.getArity()) {
+				throw new InvalidFieldReferenceException("Tuple field expression \"" + fieldStr + "\" out of bounds of " + this.toString() + ".");
+			}
+			TypeInformation<?> fieldType = this.getTypeAt(fieldPos);
+			String tail = matcher.group(5);
+			if (tail == null) {
+				if (fieldType instanceof CompositeType) {
+					// forward offsets
+					for (int i = 0; i < fieldPos; i++) {
+						offset += this.getTypeAt(i).getTotalFields();
+					}
+					// add all fields of composite type
+					((CompositeType<?>) fieldType).getFlatFields("*", offset, result);
+				} else {
+					// we found the field to add
+					// compute flat field position by adding skipped fields
+					int flatFieldPos = offset;
+					for (int i = 0; i < fieldPos; i++) {
+						flatFieldPos += this.getTypeAt(i).getTotalFields();
+					}
+					result.add(new FlatFieldDescriptor(flatFieldPos, fieldType));
 				}
-				((CompositeType<?>) fieldType).getFlatFields(tail, offset, result);
-				// nothing left to do
-				return;
 			} else {
-				throw new InvalidFieldReferenceException("Nested field expression \""+tail+"\" not possible on atomic type "+fieldType+".");
+				if (fieldType instanceof CompositeType<?>) {
+					// forward offset
+					for (int i = 0; i < fieldPos; i++) {
+						offset += this.getTypeAt(i).getTotalFields();
+					}
+					((CompositeType<?>) fieldType).getFlatFields(tail, offset, result);
+				} else {
+					throw new InvalidFieldReferenceException("Nested field expression \"" + tail + "\" not possible on atomic type " + fieldType + ".");
+				}
 			}
 		}
 	}
 
+	@Override
 	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
@@ -216,6 +192,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		}
 	}
 	
+	@Override
 	public <X> TypeInformation<X> getTypeAt(int pos) {
 		if (pos < 0 || pos >= this.types.length) {
 			throw new IndexOutOfBoundsException();
@@ -231,30 +208,39 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		if (obj instanceof TupleTypeInfoBase) {
 			@SuppressWarnings("unchecked")
 			TupleTypeInfoBase<T> other = (TupleTypeInfoBase<T>) obj;
-			return ((this.tupleType == null && other.tupleType == null) || this.tupleType.equals(other.tupleType)) &&
-					Arrays.deepEquals(this.types, other.types);
-			
+
+			return other.canEqual(this) &&
+				super.equals(other) &&
+				Arrays.equals(types, other.types) &&
+				totalFields == other.totalFields;
 		} else {
 			return false;
 		}
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof TupleTypeInfoBase;
+	}
 	
 	@Override
 	public int hashCode() {
-		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
+		return 31 * (31 * super.hashCode() + Arrays.hashCode(types)) + totalFields;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder bld = new StringBuilder("Tuple");
-		bld.append(types.length).append('<');
-		bld.append(types[0]);
-		
-		for (int i = 1; i < types.length; i++) {
-			bld.append(", ").append(types[i]);
+		bld.append(types.length);
+		if (types.length > 0) {
+			bld.append('<').append(types[0]);
+
+			for (int i = 1; i < types.length; i++) {
+				bld.append(", ").append(types[i]);
+			}
+
+			bld.append('>');
 		}
-		
-		bld.append('>');
 		return bld.toString();
 	}
 

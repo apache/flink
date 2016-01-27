@@ -27,7 +27,9 @@ import scala.util.{Success, Try, Failure}
 /**
  * Serializer for [[scala.util.Try]].
  */
-class TrySerializer[A](val elemSerializer: TypeSerializer[A], executionConfig: ExecutionConfig)
+class TrySerializer[A](
+    private val elemSerializer: TypeSerializer[A],
+    private val executionConfig: ExecutionConfig)
   extends TypeSerializer[Try[A]] {
 
   override def duplicate: TrySerializer[A] = this
@@ -80,11 +82,18 @@ class TrySerializer[A](val elemSerializer: TypeSerializer[A], executionConfig: E
   override def deserialize(reuse: Try[A], source: DataInputView): Try[A] = deserialize(source)
 
   override def equals(obj: Any): Boolean = {
-    if (obj != null && obj.isInstanceOf[TrySerializer[_]]) {
-      val other = obj.asInstanceOf[TrySerializer[_]]
-      other.elemSerializer.equals(elemSerializer)
-    } else {
-      false
+    obj match {
+      case other: TrySerializer[_] =>
+        other.canEqual(this) && elemSerializer.equals(other.elemSerializer)
+      case _ => false
     }
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[TrySerializer[_]]
+  }
+
+  override def hashCode(): Int = {
+    31 * elemSerializer.hashCode() + executionConfig.hashCode()
   }
 }

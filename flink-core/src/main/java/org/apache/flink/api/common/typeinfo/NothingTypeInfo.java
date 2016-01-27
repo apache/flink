@@ -63,4 +63,30 @@ public class NothingTypeInfo extends TypeInformation<Nothing> {
 	public TypeSerializer<Nothing> createSerializer(ExecutionConfig executionConfig) {
 		throw new RuntimeException("The Nothing type cannot have a serializer.");
 	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof NothingTypeInfo) {
+			NothingTypeInfo nothingTypeInfo = (NothingTypeInfo) obj;
+
+			return nothingTypeInfo.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return NothingTypeInfo.class.hashCode();
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof NothingTypeInfo;
+	}
 }

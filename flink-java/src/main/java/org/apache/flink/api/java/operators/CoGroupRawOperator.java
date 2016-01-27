@@ -102,7 +102,7 @@ public class CoGroupRawOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2,
 			po.setSecondInput(input2);
 
 			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setParallelism(this.getParallelism());
 
 			return po;
 

@@ -19,23 +19,31 @@
 package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.StringUtils;
+
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.accumulators.SimpleAccumulator;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.configuration.Configuration;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import java.util.Random;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Collector;
 import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
-
-public class Utils {
+/**
+ * Utility class that contains helper methods to work with Java APIs.
+ */
+public final class Utils {
+	
+	public static final Random RNG = new Random();
 
 	public static String getCallLocationName() {
 		return getCallLocationName(4);
@@ -56,24 +64,32 @@ public class Utils {
 	/**
 	 * Returns all GenericTypeInfos contained in a composite type.
 	 *
-	 * @param typeInfo
-	 * @return
+	 * @param typeInfo {@link CompositeType}
 	 */
-	public static void getContainedGenericTypes(CompositeType typeInfo, List<GenericTypeInfo<?>> target) {
-		for(int i = 0; i < typeInfo.getArity(); i++) {
+	public static void getContainedGenericTypes(CompositeType<?> typeInfo, List<GenericTypeInfo<?>> target) {
+		for (int i = 0; i < typeInfo.getArity(); i++) {
 			TypeInformation<?> type = typeInfo.getTypeAt(i);
-			if(type instanceof CompositeType) {
-				getContainedGenericTypes((CompositeType) type, target);
-			} else if(type instanceof GenericTypeInfo) {
-				if(!target.contains(type)) {
+			if (type instanceof CompositeType) {
+				getContainedGenericTypes((CompositeType<?>) type, target);
+			} else if (type instanceof GenericTypeInfo) {
+				if (!target.contains(type)) {
 					target.add((GenericTypeInfo<?>) type);
 				}
 			}
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Utility sink function that counts elements and writes the count into an accumulator,
+	 * from which it can be retrieved by the client. This sink is used by the
+	 * {@link DataSet#count()} function.
+	 * 
+	 * @param <T> Type of elements to count.
+	 */
 	@SkipCodeAnalysis
-	public static class CountHelper<T> extends RichFlatMapFunction<T, Long> {
+	public static class CountHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -86,18 +102,31 @@ public class Utils {
 		}
 
 		@Override
-		public void flatMap(T value, Collector<Long> out) throws Exception {
+		public void configure(Configuration parameters) {}
+
+		@Override
+		public void open(int taskNumber, int numTasks) {}
+
+		@Override
+		public void writeRecord(T record) {
 			counter++;
 		}
 
 		@Override
-		public void close() throws Exception {
+		public void close() {
 			getRuntimeContext().getLongCounter(id).add(counter);
 		}
 	}
 
+	/**
+	 * Utility sink function that collects elements into an accumulator,
+	 * from which it they can be retrieved by the client. This sink is used by the
+	 * {@link DataSet#collect()} function.
+	 *
+	 * @param <T> Type of elements to count.
+	 */
 	@SkipCodeAnalysis
-	public static class CollectHelper<T> extends RichFlatMapFunction<T, T> {
+	public static class CollectHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -112,14 +141,112 @@ public class Utils {
 		}
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			this.accumulator = new SerializedListAccumulator<T>();
-			getRuntimeContext().addAccumulator(id, accumulator);
+		public void configure(Configuration parameters) {}
+
+		@Override
+		public void open(int taskNumber, int numTasks)  {
+			this.accumulator = new SerializedListAccumulator<>();
 		}
 
 		@Override
-		public void flatMap(T value, Collector<T> out) throws Exception {
-			accumulator.add(value, serializer);
+		public void writeRecord(T record) throws IOException {
+			accumulator.add(record, serializer);
+		}
+
+		@Override
+		public void close() {
+			// Important: should only be added in close method to minimize traffic of accumulators
+			getRuntimeContext().addAccumulator(id, accumulator);
+		}
+	}
+
+	public static class ChecksumHashCode implements SimpleAccumulator<ChecksumHashCode> {
+
+		private static final long serialVersionUID = 1L;
+
+		private long count;
+		private long checksum;
+
+		public ChecksumHashCode() {}
+
+		public ChecksumHashCode(long count, long checksum) {
+			this.count = count;
+			this.checksum = checksum;
+		}
+
+		public long getCount() {
+			return count;
+		}
+
+		public long getChecksum() {
+			return checksum;
+		}
+
+		@Override
+		public void add(ChecksumHashCode value) {
+			this.count += value.count;
+			this.checksum += value.checksum;
+		}
+
+		@Override
+		public ChecksumHashCode getLocalValue() {
+			return this;
+		}
+
+		@Override
+		public void resetLocal() {
+			this.count = 0;
+			this.checksum = 0;
+		}
+
+		@Override
+		public void merge(Accumulator<ChecksumHashCode, ChecksumHashCode> other) {
+			this.add(other.getLocalValue());
+		}
+
+		@Override
+		public ChecksumHashCode clone() {
+			return new ChecksumHashCode(count, checksum);
+		}
+
+		@Override
+		public String toString() {
+			return "ChecksumHashCode " + this.checksum + ", count " + this.count;
+		}
+	}
+
+	@SkipCodeAnalysis
+	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final String id;
+		private long counter;
+		private long checksum;
+
+		public ChecksumHashCodeHelper(String id) {
+			this.id = id;
+			this.counter = 0L;
+			this.checksum = 0L;
+		}
+
+		@Override
+		public void configure(Configuration parameters) {}
+
+		@Override
+		public void open(int taskNumber, int numTasks) {}
+
+		@Override
+		public void writeRecord(T record) throws IOException {
+			counter++;
+			// convert 32-bit integer to non-negative long
+			checksum += record.hashCode() & 0xffffffffL;
+		}
+
+		@Override
+		public void close() throws IOException {
+			ChecksumHashCode update = new ChecksumHashCode(counter, checksum);
+			getRuntimeContext().addAccumulator(id, update);
 		}
 	}
 
@@ -136,16 +263,16 @@ public class Utils {
 
 	private static <T> String getSerializerTree(TypeInformation<T> ti, int indent) {
 		String ret = "";
-		if(ti instanceof CompositeType) {
+		if (ti instanceof CompositeType) {
 			ret += StringUtils.repeat(' ', indent) + ti.getClass().getSimpleName()+"\n";
 			CompositeType<T> cti = (CompositeType<T>) ti;
 			String[] fieldNames = cti.getFieldNames();
-			for(int i = 0; i < cti.getArity(); i++) {
-				TypeInformation fieldType = cti.getTypeAt(i);
+			for (int i = 0; i < cti.getArity(); i++) {
+				TypeInformation<?> fieldType = cti.getTypeAt(i);
 				ret += StringUtils.repeat(' ', indent + 2) + fieldNames[i]+":"+getSerializerTree(fieldType, indent);
 			}
 		} else {
-			if(ti instanceof GenericTypeInfo) {
+			if (ti instanceof GenericTypeInfo) {
 				ret += StringUtils.repeat(' ', indent) + "GenericTypeInfo ("+ti.getTypeClass().getSimpleName()+")\n";
 				ret += getGenericTypeTree(ti.getTypeClass(), indent + 4);
 			} else {
@@ -155,17 +282,25 @@ public class Utils {
 		return ret;
 	}
 
-	private static String getGenericTypeTree(Class type, int indent) {
+	private static String getGenericTypeTree(Class<?> type, int indent) {
 		String ret = "";
-		for(Field field : type.getDeclaredFields()) {
-			if(Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
+		for (Field field : type.getDeclaredFields()) {
+			if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
 				continue;
 			}
-			ret += StringUtils.repeat(' ', indent) + field.getName() + ":" + field.getType().getName() + (field.getType().isEnum() ? " (is enum)" : "") + "\n";
-			if(!field.getType().isPrimitive()) {
+			ret += StringUtils.repeat(' ', indent) + field.getName() + ":" + field.getType().getName() + 
+				(field.getType().isEnum() ? " (is enum)" : "") + "\n";
+			if (!field.getType().isPrimitive()) {
 				ret += getGenericTypeTree(field.getType(), indent + 4);
 			}
 		}
 		return ret;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private Utils() {
+		throw new RuntimeException();
 	}
 }

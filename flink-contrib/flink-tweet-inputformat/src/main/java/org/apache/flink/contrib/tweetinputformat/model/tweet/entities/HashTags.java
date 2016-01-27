@@ -19,7 +19,7 @@ package org.apache.flink.contrib.tweetinputformat.model.tweet.entities;
 
 /**
  * Represents hashtags which have been parsed out of the
- * {@link package org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet} text.
+ * {@link org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet} text.
  */
 
 public class HashTags {

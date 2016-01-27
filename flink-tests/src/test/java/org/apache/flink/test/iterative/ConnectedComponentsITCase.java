@@ -21,13 +21,19 @@ package org.apache.flink.test.iterative;
 
 import java.io.BufferedReader;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
-import org.apache.flink.test.util.RecordAPITestBase;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
 
-public class ConnectedComponentsITCase extends RecordAPITestBase {
+public class ConnectedComponentsITCase extends JavaProgramTestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;
 	
@@ -40,28 +46,58 @@ public class ConnectedComponentsITCase extends RecordAPITestBase {
 	protected String edgesPath;
 	protected String resultPath;
 
-	public ConnectedComponentsITCase(){
-		setTaskManagerNumSlots(parallelism);
-	}
-	
-	
 	@Override
 	protected void preSubmit() throws Exception {
 		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
 		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
 		resultPath = getTempFilePath("results");
 	}
-	
+
 	@Override
-	protected Plan getTestJob() {
-		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-		return cc.getPlan(Integer.valueOf(parallelism).toString(),  verticesPath, edgesPath, resultPath, "100");
+	protected void testProgram() throws Exception {
+		// set up execution environment
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		// read vertex and edge data
+		DataSet<Tuple1<Long>> vertices = env.readCsvFile(verticesPath).types(Long.class);
+
+		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class)
+				.flatMap(new ConnectedComponents.UndirectEdge());
+
+		// assign the initial components (equal to the vertex id)
+		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
+
+		// open a delta iteration
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+				verticesWithInitialId.iterateDelta(verticesWithInitialId, 100, 0);
+
+		// apply the step logic: join with the edges, select the minimum neighbor, update if the component of the candidate is smaller
+		DataSet<Tuple2<Long, Long>> changes = iteration.getWorkset().join(edges).where(0).equalTo(0).with(new ConnectedComponents.NeighborWithComponentIDJoin())
+				.groupBy(0).aggregate(Aggregations.MIN, 1)
+				.join(iteration.getSolutionSet()).where(0).equalTo(0)
+				.with(new ConnectedComponents.ComponentIdFilter());
+
+		// close the delta iteration (delta and new workset are identical)
+		DataSet<Tuple2<Long, Long>> result = iteration.closeWith(changes, changes);
+
+		result.writeAsCsv(resultPath, "\n", " ");
+
+		// execute program
+		env.execute("Connected Components Example");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
 		for (BufferedReader reader : getResultReader(resultPath)) {
 			ConnectedComponentsData.checkOddEvenResult(reader);
+		}
+	}
+
+	public static final class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
+
+		@Override
+		public Tuple2<T, T> map(Tuple1<T> vertex) {
+			return new Tuple2<>(vertex.f0, vertex.f0);
 		}
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import java.io.IOException;
 import java.lang.reflect.Array;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -38,17 +39,12 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	private final TypeSerializer<C> componentSerializer;
 	
-	private final C[] EMPTY;
+	private transient C[] EMPTY;
 	
 	
 	public GenericArraySerializer(Class<C> componentClass, TypeSerializer<C> componentSerializer) {
-		if (componentClass == null || componentSerializer == null) {
-			throw new NullPointerException();
-		}
-		
-		this.componentClass = componentClass;
-		this.componentSerializer = componentSerializer;
-		this.EMPTY = create(0);
+		this.componentClass = Preconditions.checkNotNull(componentClass);
+		this.componentSerializer = Preconditions.checkNotNull(componentSerializer);
 	}
 
 	@Override
@@ -70,6 +66,10 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	@Override
 	public C[] createInstance() {
+		if (EMPTY == null) {
+			EMPTY = create(0);
+		}
+
 		return EMPTY;
 	}
 
@@ -158,20 +158,27 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	@Override
 	public int hashCode() {
-		return componentClass.hashCode() + componentSerializer.hashCode();
+		return 31 * componentClass.hashCode() + componentSerializer.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof GenericArraySerializer) {
-			GenericArraySerializer<?> other = (GenericArraySerializer<?>) obj;
-			return this.componentClass == other.componentClass &&
-					this.componentSerializer.equals(other.componentSerializer);
+		if (obj instanceof GenericArraySerializer) {
+			GenericArraySerializer<?> other = (GenericArraySerializer<?>)obj;
+
+			return other.canEqual(this) &&
+				componentClass == other.componentClass &&
+				componentSerializer.equals(other.componentSerializer);
 		} else {
 			return false;
 		}
 	}
-	
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof GenericArraySerializer;
+	}
+
 	@Override
 	public String toString() {
 		return "Serializer " + componentClass.getName() + "[]";

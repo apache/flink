@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -25,11 +27,11 @@ import java.io.Serializable;
  * The predicate decides whether to keep the element, or to discard it.
  * <p>
  * The basic syntax for using a FilterFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  * 
  * DataSet<X> result = input.filter(new MyFilterFunction());
- * </blockquote></pre>
+ * }</pre>
  * <p>
  * <strong>IMPORTANT:</strong> The system assumes that the function does not
  * modify the elements on which the predicate is applied. Violating this assumption
@@ -37,6 +39,7 @@ import java.io.Serializable;
  * 
  * @param <T> The type of the filtered elements.
  */
+@Public
 public interface FilterFunction<T> extends Function, Serializable {
 	
 	/**

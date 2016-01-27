@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
@@ -29,11 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -41,22 +39,6 @@ import org.junit.runners.Parameterized;
 public class FirstNITCase extends MultipleProgramsTestBase {
 	public FirstNITCase(TestExecutionMode mode){
 		super(mode);
-	}
-
-	private String resultPath;
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-	}
-
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
@@ -70,10 +52,11 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple1<Integer>> seven = ds.first(7).map(new OneMapper()).sum(0);
 
-		seven.writeAsText(resultPath);
-		env.execute();
+		List<Tuple1<Integer>> result = seven.collect();
 
-		expected = "(7)\n";
+		String expected = "(7)\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -88,10 +71,11 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).first(4)
 				.map(new OneMapper2()).groupBy(0).sum(1);
 
-		first.writeAsText(resultPath);
-		env.execute();
+		List<Tuple2<Long, Integer>> result = first.collect();
 
-		expected = "(1,1)\n(2,2)\n(3,3)\n(4,4)\n(5,4)\n(6,4)\n";
+		String expected = "(1,1)\n(2,2)\n(3,3)\n(4,4)\n(5,4)\n(6,4)\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	@Test
@@ -104,17 +88,18 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).sortGroup(0, Order.DESCENDING).first(3)
-															.project(1,0);
+				.project(1,0);
 
-		first.writeAsText(resultPath);
-		env.execute();
+		List<Tuple2<Long, Integer>> result = first.collect();
 
-		expected = "(1,1)\n"
+		String expected = "(1,1)\n"
 				+ "(2,3)\n(2,2)\n"
 				+ "(3,6)\n(3,5)\n(3,4)\n"
 				+ "(4,10)\n(4,9)\n(4,8)\n"
 				+ "(5,15)\n(5,14)\n(5,13)\n"
 				+ "(6,21)\n(6,20)\n(6,19)\n";
+
+		compareResultAsText(result, expected);
 	}
 
 	/**
@@ -137,13 +122,13 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 			}
 		}, Order.DESCENDING).first(1);
 
-		b.writeAsText(resultPath);
-		ee.execute();
+		List<String> result = b.collect();
 
-		expected = "a\nb";
+		String expected = "a\nb";
 
+		compareResultAsText(result, expected);
 	}
-	
+
 	public static class OneMapper implements MapFunction<Tuple3<Integer, Long, String>, Tuple1<Integer>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple1<Integer> one = new Tuple1<Integer>(1);
@@ -152,7 +137,7 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 			return one;
 		}
 	}
-	
+
 	public static class OneMapper2 implements MapFunction<Tuple3<Integer, Long, String>, Tuple2<Long, Integer>> {
 		private static final long serialVersionUID = 1L;
 		private final Tuple2<Long, Integer> one = new Tuple2<Long, Integer>(0l,1);
@@ -162,5 +147,5 @@ public class FirstNITCase extends MultipleProgramsTestBase {
 			return one;
 		}
 	}
-	
+
 }

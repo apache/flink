@@ -18,26 +18,32 @@
 
 package org.apache.flink.api.scala.runtime.jobmanager
 
-import akka.actor.Status.Success
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+
 import org.junit.runner.RunWith
+
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
 import org.apache.flink.runtime.jobgraph.{JobVertex, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
 @RunWith(classOf[JUnitRunner])
-class JobManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
-with WordSpecLike with Matchers with BeforeAndAfterAll {
+class JobManagerFailsITCase(_system: ActorSystem)
+  extends TestKit(_system)
+  with ImplicitSender
+  with WordSpecLike
+  with Matchers
+  with BeforeAndAfterAll
+  with ScalaTestingUtils {
 
   def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
@@ -52,28 +58,31 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = startDeathwatchCluster(num_slots, 1)
 
       val tm = cluster.getTaskManagers(0)
-      val jm = cluster.getJobManager
+      val jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
 
       // disable disconnect message to test death watch
       tm ! DisableDisconnect
 
-      try{
-        jm ! RequestNumberRegisteredTaskManager
-        expectMsg(1)
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          jmGateway.tell(RequestNumberRegisteredTaskManager, self)
+          expectMsg(1)
 
-        tm ! NotifyWhenJobManagerTerminated(jm)
+          tm ! NotifyWhenJobManagerTerminated(jmGateway.actor)
 
-        jm ! PoisonPill
+          jmGateway.tell(PoisonPill, self)
 
-        expectMsgClass(classOf[JobManagerTerminated])
+          expectMsgClass(classOf[JobManagerTerminated])
 
-        cluster.restartJobManager()
+          cluster.restartLeadingJobManager()
 
-        cluster.waitForTaskManagersToBeRegistered()
+          cluster.waitForTaskManagersToBeRegistered()
 
-        cluster.getJobManager ! RequestNumberRegisteredTaskManager
+          cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
+            .tell(RequestNumberRegisteredTaskManager, self)
 
-        expectMsg(1)
+          expectMsg(1)
+        }
       } finally {
         cluster.stop()
       }
@@ -94,29 +103,29 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       val cluster = startDeathwatchCluster(num_slots / 2, 2)
 
-      var jm = cluster.getJobManager
+      var jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
       val tm = cluster.getTaskManagers(0)
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph, false)
-          expectMsg(Success(jobGraph.getJobID))
+          jmGateway.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), self)
+          expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-          tm ! NotifyWhenJobManagerTerminated(jm)
+          tm.tell(NotifyWhenJobManagerTerminated(jmGateway.actor()), self)
 
-          jm ! PoisonPill
+          jmGateway.tell(PoisonPill, self)
 
           expectMsgClass(classOf[JobManagerTerminated])
 
-          cluster.restartJobManager()
-
-          jm = cluster.getJobManager
+          cluster.restartLeadingJobManager()
 
           cluster.waitForTaskManagersToBeRegistered()
 
-          jm ! SubmitJob(jobGraph2, false)
+          jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION)
 
-          val failure = expectMsgType[Success]
+          jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
+
+          expectMsg(JobSubmitSuccess(jobGraph2.getJobID()))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -131,8 +140,12 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
   def startDeathwatchCluster(numSlots: Int, numTaskmanagers: Int): ForkableFlinkMiniCluster = {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskmanagers)
+    config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskmanagers)
 
-    new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+    val cluster = new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+
+    cluster.start()
+
+    cluster
   }
 }

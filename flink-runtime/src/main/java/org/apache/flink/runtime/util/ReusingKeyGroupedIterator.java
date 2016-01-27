@@ -31,7 +31,7 @@ import org.apache.flink.util.TraversableOnceException;
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
  */
-public final class ReusingKeyGroupedIterator<E> {
+public final class ReusingKeyGroupedIterator<E> implements KeyGroupedIterator<E> {
 	
 	private final MutableObjectIterator<E> iterator;
 
@@ -78,6 +78,7 @@ public final class ReusingKeyGroupedIterator<E> {
 	 * 
 	 * @return true if the input iterator has an other group of key-value pairs that share the same key.
 	 */
+	@Override
 	public boolean nextKey() throws IOException
 	{
 		// first element (or empty)
@@ -139,6 +140,7 @@ public final class ReusingKeyGroupedIterator<E> {
 		return this.comparator;
 	}
 	
+	@Override
 	public E getCurrent() {
 		return this.current;
 	}
@@ -150,6 +152,7 @@ public final class ReusingKeyGroupedIterator<E> {
 	 * 
 	 * @return Iterator over all values that belong to the current key.
 	 */
+	@Override
 	public ValuesIterator getValues() {
 		return this.valuesIterator;
 	}

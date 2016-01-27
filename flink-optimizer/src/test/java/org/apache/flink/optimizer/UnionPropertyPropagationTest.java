@@ -27,7 +27,6 @@ import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -63,7 +62,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		redA.union(redB).groupBy("*").reduceGroup(new IdentityGroupReducer<Long>())
 			.output(new DiscardingOutputFormat<Long>());
 
-		JavaPlan plan = env.createProgramPlan();
+		Plan plan = env.createProgramPlan();
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
@@ -99,7 +98,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		final int NUM_INPUTS = 4;
 		
 		// construct the plan it will be multiple flat maps, all unioned
-		// and the "unioned" dataSet will be grouped
+		// and the "unioned" inputDataSet will be grouped
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		DataSet<String> source = env.readTextFile(IN_FILE);

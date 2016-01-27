@@ -21,30 +21,36 @@ package org.apache.flink.yarn
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
+import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
-import org.apache.flink.yarn.Messages.StopYarnSession
+import org.apache.flink.yarn.YarnMessages.StopYarnSession
 
-/**
- * An extension of the TaskManager that listens for additional YARN related
- * messages.
- */
-class YarnTaskManager(config: TaskManagerConfiguration,
-                      connectionInfo: InstanceConnectionInfo,
-                      jobManagerAkkaURL: String,
-                      memoryManager: DefaultMemoryManager,
-                      ioManager: IOManager,
-                      network: NetworkEnvironment,
-                      numberOfSlots: Int)
-  extends TaskManager(config, connectionInfo, jobManagerAkkaURL,
-                      memoryManager, ioManager, network, numberOfSlots) {
+/** An extension of the TaskManager that listens for additional YARN related
+  * messages.
+  */
+class YarnTaskManager(
+    config: TaskManagerConfiguration,
+    connectionInfo: InstanceConnectionInfo,
+    memoryManager: MemoryManager,
+    ioManager: IOManager,
+    network: NetworkEnvironment,
+    numberOfSlots: Int,
+    leaderRetrievalService: LeaderRetrievalService)
+  extends TaskManager(
+    config,
+    connectionInfo,
+    memoryManager,
+    ioManager,
+    network,
+    numberOfSlots,
+    leaderRetrievalService) {
 
-
-  override def receiveWithLogMessages: Receive = {
-    receiveYarnMessages orElse super.receiveWithLogMessages
+  override def handleMessage: Receive = {
+    handleYarnMessages orElse super.handleMessage
   }
 
-  def receiveYarnMessages: Receive = {
+  def handleYarnMessages: Receive = {
     case StopYarnSession(status, diagnostics) =>
       log.info(s"Stopping YARN TaskManager with final application status $status " +
         s"and diagnostics: $diagnostics")

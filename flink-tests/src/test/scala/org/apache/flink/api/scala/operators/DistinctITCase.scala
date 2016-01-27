@@ -174,6 +174,45 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
     env.execute()
     expected = "10000\n20000\n30000\n"
   }
+
+  @Test
+  def testCorrectnessOfDistinctOnAtomic(): Unit = {
+    /*
+     * check correctness of distinct on Integers
+     */
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.getIntDataSet(env)
+
+    val reduceDs = ds.distinct
+
+    reduceDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1\n2\n3\n4\n5"
+  }
+
+  @Test
+  def testCorrectnessOfDistinctOnAtomicWithSelectAllChar(): Unit = {
+    /*
+     * check correctness of distinct on Strings, using Keys.ExpressionKeys.SELECT_ALL_CHAR
+     */
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.getStringDataSet(env)
+    val reduceDs = ds.union(ds).distinct("_")
+
+    reduceDs.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "I am fine.\n" +
+      "Luke Skywalker\n" +
+      "LOL\n" +
+      "Hello world, how are you?\n" +
+      "Hi\n" +
+      "Hello world\n" +
+      "Hello\n" +
+      "Random comment\n"
+  }
+
 }
 
 

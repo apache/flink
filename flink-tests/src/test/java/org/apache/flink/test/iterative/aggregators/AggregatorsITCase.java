@@ -18,8 +18,14 @@
 
 package org.apache.flink.test.iterative.aggregators;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.util.Random;
 
+import org.apache.flink.api.common.functions.RichFilterFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Assert;
@@ -44,6 +50,8 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * Test the functionality of aggregators in bulk and delta iterative cases.
  */
@@ -53,6 +61,10 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	private static final int MAX_ITERATIONS = 20;
 	private static final int parallelism = 2;
 	private static final String NEGATIVE_ELEMENTS_AGGR = "count.negative.elements";
+
+	private static String testString = "Et tu, Brute?";
+	private static String testName = "testing_caesar";
+	private static String testPath;
 
 	public AggregatorsITCase(TestExecutionMode mode){
 		super(mode);
@@ -66,12 +78,43 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 	@Before
 	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
+		File tempFile = tempFolder.newFile();
+		testPath = tempFile.toString();
+		resultPath = tempFile.toURI().toString();
 	}
 
 	@After
 	public void after() throws Exception{
 		compareResultsByLinesInMemory(expected, resultPath);
+	}
+
+	@Test
+	public void testDistributedCacheWithIterations() throws Exception{
+		File tempFile = new File(testPath);
+		FileWriter writer = new FileWriter(tempFile);
+		writer.write(testString);
+		writer.close();
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.registerCachedFile(resultPath, testName);
+
+		IterativeDataSet<Long> solution = env.fromElements(1L).iterate(2);
+		solution.closeWith(env.generateSequence(1,2).filter(new RichFilterFunction<Long>() {
+			@Override
+			public void open(Configuration parameters) throws Exception{
+				File file = getRuntimeContext().getDistributedCache().getFile(testName);
+				BufferedReader reader = new BufferedReader(new FileReader(file));
+				String output = reader.readLine();
+				reader.close();
+				assertEquals(output, testString);
+			}
+			@Override
+			public boolean filter(Long value) throws Exception {
+				return false;
+			}
+		}).withBroadcastSet(solution, "SOLUTION")).output(new DiscardingOutputFormat<Long>());
+		env.execute();
+		expected = testString; // this will be a useless verification now.
 	}
 
 	@Test

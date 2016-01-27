@@ -20,17 +20,28 @@ package org.apache.flink.api.common.typeinfo;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.CharPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.CharPrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.PrimitiveArrayComparator;
+import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
 
 /**
@@ -39,19 +50,18 @@ import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySeria
  *
  * @param <T> The type represented by this type information, e.g., int[], double[], long[]
  */
-public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
-	
+public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
+
 	private static final long serialVersionUID = 1L;
 
-	public static final PrimitiveArrayTypeInfo<boolean[]> BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<boolean[]>(boolean[].class, BooleanPrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<byte[]> BYTE_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<byte[]>(byte[].class, BytePrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<short[]> SHORT_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<short[]>(short[].class, ShortPrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<int[]> INT_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<int[]>(int[].class, IntPrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<long[]> LONG_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<long[]>(long[].class, LongPrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<float[]> FLOAT_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<float[]>(float[].class, FloatPrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<double[]> DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<double[]>(double[].class, DoublePrimitiveArraySerializer.INSTANCE);
-	public static final PrimitiveArrayTypeInfo<char[]> CHAR_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<char[]>(char[].class, CharPrimitiveArraySerializer.INSTANCE);
-	
+	public static final PrimitiveArrayTypeInfo<boolean[]> BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<boolean[]>(boolean[].class, BooleanPrimitiveArraySerializer.INSTANCE, BooleanPrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<byte[]> BYTE_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<byte[]>(byte[].class, BytePrimitiveArraySerializer.INSTANCE, BytePrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<short[]> SHORT_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<short[]>(short[].class, ShortPrimitiveArraySerializer.INSTANCE, ShortPrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<int[]> INT_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<int[]>(int[].class, IntPrimitiveArraySerializer.INSTANCE, IntPrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<long[]> LONG_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<long[]>(long[].class, LongPrimitiveArraySerializer.INSTANCE, LongPrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<float[]> FLOAT_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<float[]>(float[].class, FloatPrimitiveArraySerializer.INSTANCE, FloatPrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<double[]> DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<double[]>(double[].class, DoublePrimitiveArraySerializer.INSTANCE, DoublePrimitiveArrayComparator.class);
+	public static final PrimitiveArrayTypeInfo<char[]> CHAR_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<char[]>(char[].class, CharPrimitiveArraySerializer.INSTANCE, CharPrimitiveArrayComparator.class);
 	// --------------------------------------------------------------------------------------------
 	
 	/** The class of the array (such as int[].class) */
@@ -60,20 +70,23 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	/** The serializer for the array */
 	private final TypeSerializer<T> serializer;
 
+	/** The class of the comparator for the array */
+	private final Class<? extends PrimitiveArrayComparator<T, ?>> comparatorClass;
+
 	/**
 	 * Creates a new type info for a 
 	 * @param arrayClass The class of the array (such as int[].class)
 	 * @param serializer The serializer for the array.
+	 * @param comparatorClass The class of the array comparator
 	 */
-	private PrimitiveArrayTypeInfo(Class<T> arrayClass, TypeSerializer<T> serializer) {
-		if (arrayClass == null || serializer == null) {
-			throw new NullPointerException();
-		}
-		if (!(arrayClass.isArray() && arrayClass.getComponentType().isPrimitive())) {
-			throw new IllegalArgumentException("Class must represent an array of primitives.");
-		}
-		this.arrayClass = arrayClass;
-		this.serializer = serializer;
+	private PrimitiveArrayTypeInfo(Class<T> arrayClass, TypeSerializer<T> serializer, Class<? extends PrimitiveArrayComparator<T, ?>> comparatorClass) {
+		this.arrayClass = Preconditions.checkNotNull(arrayClass);
+		this.serializer = Preconditions.checkNotNull(serializer);
+		this.comparatorClass = Preconditions.checkNotNull(comparatorClass);
+
+		Preconditions.checkArgument(
+			arrayClass.isArray() && arrayClass.getComponentType().isPrimitive(),
+			"Class must represent an array of primitives");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -105,12 +118,28 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 
 	@Override
 	public boolean isKeyType() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return this.serializer;
+	}
+
+	/**
+	 * Gets the class that represents the component type.
+	 * @return The class of the component type.
+	 */
+	public Class<?> getComponentClass() {
+		return this.arrayClass.getComponentType();
+	}
+
+	/**
+	 * Gets the type information of the component type.
+	 * @return The type information of the component type.
+	 */
+	public TypeInformation<?> getComponentType() {
+		return BasicTypeInfo.getInfoFor(getComponentClass());
 	}
 	
 	@Override
@@ -121,12 +150,28 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	@Override
 	public boolean equals(Object other) {
 		if (other instanceof PrimitiveArrayTypeInfo) {
-			PrimitiveArrayTypeInfo otherArray = (PrimitiveArrayTypeInfo) other;
-			return otherArray.arrayClass == arrayClass;
+			@SuppressWarnings("unchecked")
+			PrimitiveArrayTypeInfo<T> otherArray = (PrimitiveArrayTypeInfo<T>) other;
+
+			return otherArray.canEqual(this) &&
+				arrayClass == otherArray.arrayClass &&
+				serializer.equals(otherArray.serializer) &&
+				comparatorClass == otherArray.comparatorClass;
+		} else {
+			return false;
 		}
-		return false;
 	}
-	
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(arrayClass, serializer, comparatorClass);
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof PrimitiveArrayTypeInfo;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -160,5 +205,14 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 		TYPES.put(float[].class, FLOAT_PRIMITIVE_ARRAY_TYPE_INFO);
 		TYPES.put(double[].class, DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO);
 		TYPES.put(char[].class, CHAR_PRIMITIVE_ARRAY_TYPE_INFO);
+	}
+
+	@Override
+	public PrimitiveArrayComparator<T, ?> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
+		try {
+			return comparatorClass.getConstructor(boolean.class).newInstance(sortOrderAscending);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not initialize primitive " + comparatorClass.getName() + " array comparator.", e);
+		}
 	}
 }

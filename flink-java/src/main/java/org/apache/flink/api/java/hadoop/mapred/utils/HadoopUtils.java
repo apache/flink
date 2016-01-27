@@ -34,8 +34,10 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-public class HadoopUtils {
+/**
+ * Utility class to work with Apache Hadoop MapRed classes.
+ */
+public final class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
 
@@ -45,7 +47,9 @@ public class HadoopUtils {
 	public static void mergeHadoopConf(JobConf jobConf) {
 		org.apache.hadoop.conf.Configuration hadoopConf = getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {
-			jobConf.set(e.getKey(), e.getValue());
+			if (jobConf.get(e.getKey()) == null) {
+				jobConf.set(e.getKey(), e.getValue());
+			}
 		}
 	}
 	
@@ -150,5 +154,12 @@ public class HadoopUtils {
 			}
 		}
 		return retConf;
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private HadoopUtils() {
+		throw new RuntimeException();
 	}
 }

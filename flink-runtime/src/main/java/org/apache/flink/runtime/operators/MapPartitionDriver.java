@@ -41,16 +41,16 @@ import org.slf4j.LoggerFactory;
  * @param <IT> The mapper's input data type.
  * @param <OT> The mapper's output data type.
  */
-public class MapPartitionDriver<IT, OT> implements PactDriver<MapPartitionFunction<IT, OT>, OT> {
+public class MapPartitionDriver<IT, OT> implements Driver<MapPartitionFunction<IT, OT>, OT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
 
-	private PactTaskContext<MapPartitionFunction<IT, OT>, OT> taskContext;
+	private TaskContext<MapPartitionFunction<IT, OT>, OT> taskContext;
 
 	private boolean objectReuseEnabled = false;
 
 	@Override
-	public void setup(PactTaskContext<MapPartitionFunction<IT, OT>, OT> context) {
+	public void setup(TaskContext<MapPartitionFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 	}
 

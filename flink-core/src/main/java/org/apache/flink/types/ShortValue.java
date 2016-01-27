@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<ShortValue>, CopyableValue<ShortValue> {
 	private static final long serialVersionUID = 1L;
 	
@@ -154,10 +156,15 @@ public class ShortValue implements NormalizableKey<ShortValue>, ResettableValue<
 	public int getBinaryLength() {
 		return 2;
 	}
-	
+
 	@Override
 	public void copyTo(ShortValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public ShortValue copy() {
+		return new ShortValue(this.value);
 	}
 
 	@Override

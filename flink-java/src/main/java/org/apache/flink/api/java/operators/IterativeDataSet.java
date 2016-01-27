@@ -69,8 +69,9 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	 * set that will trigger to halt the loop as soon as the data set is empty. A typical way of using the termination
 	 * criterion is to have a filter that filters out all elements that are considered non-converged. As soon as no more
 	 * such elements exist, the iteration finishes.
-	 * 
+	 *
 	 * @param iterationResult The data set that will be fed back to the next iteration.
+	 * @param terminationCriterion The data set that being used to trigger halt on operation once it is empty.
 	 * @return The DataSet that represents the result of the iteration, after the computation has terminated.
 	 * 
 	 * @see DataSet#iterate(int)

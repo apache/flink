@@ -76,7 +76,7 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 												.flatMap(new UndirectEdge());
 				
 		// assign the initial components (equal to the vertex id)
-		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new DuplicateValue<Long>());
+		DataSet<Tuple2<Long, Long>> verticesWithInitialId = vertices.map(new ConnectedComponentsITCase.DuplicateValue<Long>());
 						
 		// open a delta iteration
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
@@ -98,11 +98,4 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 		env.execute("Connected Components Example");
 	}
 	
-	public static final class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
-		
-		@Override
-		public Tuple2<T, T> map(Tuple1<T> vertex) {
-			return new Tuple2<T, T>(vertex.f0, vertex.f0);
-		}
-	}
 }

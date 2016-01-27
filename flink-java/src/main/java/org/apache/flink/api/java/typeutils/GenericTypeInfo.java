@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,7 +35,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	private final Class<T> typeClass;
 
 	public GenericTypeInfo(Class<T> typeClass) {
-		this.typeClass = typeClass;
+		this.typeClass = Preconditions.checkNotNull(typeClass);
 	}
 
 	@Override
@@ -88,13 +89,21 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	@Override
 	public int hashCode() {
-		return typeClass.hashCode() ^ 0x165667b1;
+		return typeClass.hashCode();
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof GenericTypeInfo;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == GenericTypeInfo.class) {
-			return typeClass == ((GenericTypeInfo<?>) obj).typeClass;
+		if (obj instanceof GenericTypeInfo) {
+			@SuppressWarnings("unchecked")
+			GenericTypeInfo<T> genericTypeInfo = (GenericTypeInfo<T>) obj;
+
+			return typeClass == genericTypeInfo.typeClass;
 		} else {
 			return false;
 		}

@@ -25,24 +25,32 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.10-SNAPSHOT</version>
+		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-runtime</artifactId>
+	<artifactId>flink-runtime_2.10</artifactId>
 	<name>flink-runtime</name>
 
 	<packaging>jar</packaging>
 
-    <properties>
-        <metrics.version>3.1.0</metrics.version>
-    </properties>
+	<properties>
+		<metrics.version>3.1.0</metrics.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -63,38 +71,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-server</artifactId>
-			<!-- version is derived from base module -->
-		</dependency>
-
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-security</artifactId>
-			<!-- version is derived from base module -->
-		</dependency>
-
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-servlet</artifactId>
-			<!-- version is derived from base module -->
-		</dependency>
-
-		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.8.1</version>
-		</dependency>
-
-		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.0.27.Final</version>
+			<!-- Version is set in root POM -->
 		</dependency>
 
 		<!-- See: https://groups.google.com/forum/#!msg/netty/-aAPDBNUnDg/SkGOXL2Ma2QJ -->
@@ -102,12 +81,6 @@ under the License.
 			<groupId>org.javassist</groupId>
 			<artifactId>javassist</artifactId>
 			<!-- Version is set in root POM -->
-		</dependency>
-
-		<dependency>
-			<groupId>org.codehaus.jettison</groupId>
-			<artifactId>jettison</artifactId>
-			<version>1.1</version>
 		</dependency>
 
 		<dependency>
@@ -168,23 +141,52 @@ under the License.
 			</exclusions>
 		</dependency>
 
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-core</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-jvm</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-core</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-jvm</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
 
-        <dependency>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>metrics-json</artifactId>
-            <version>${metrics.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>io.dropwizard.metrics</groupId>
+			<artifactId>metrics-json</artifactId>
+			<version>${metrics.version}</version>
+		</dependency>
 
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+		</dependency>
+
+		<!--
+		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
+		is in the classpath. Because we do not want to have transitive Scala dependencies
+		in Flink's API modules (such as flink-java) due to Chill, Chill is added to flink-runtime
+		to ensure that Chill is always present in the classpath.
+		-->
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-curator-recipes</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -196,7 +198,7 @@ under the License.
 				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-					    scala classes can be resolved later in the (Java) compile phase -->
+						scala classes can be resolved later in the (Java) compile phase -->
 					<execution>
 						<id>scala-compile-first</id>
 						<phase>process-resources</phase>
@@ -206,7 +208,7 @@ under the License.
 					</execution>
 
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-					     scala classes can be resolved later in the (Java) test-compile phase -->
+						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>
@@ -315,11 +317,17 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
+					<reuseForks>false</reuseForks>
 					<!-- <workingDirectory>${project.build.testOutputDirectory}</workingDirectory> -->
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 						<exclude>**/TestInstanceListener.java</exclude>
 					</excludes>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -329,9 +337,15 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<configuration>
+					<reuseForks>false</reuseForks>
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 					</excludes>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.curator:curator-recipes</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-client</classpathDependencyExclude>
+						<classpathDependencyExclude>org.apache.curator:curator-framework</classpathDependencyExclude>
+					</classpathDependencyExcludes>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -381,6 +395,33 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.apache.flink:flink-shaded-curator-recipes</include>
+								</includes>
+							</artifactSet>
+							<relocations combine.children="append">
+								<relocation>
+									<pattern>org.apache.curator</pattern>
+									<shadedPattern>org.apache.flink.shaded.org.apache.curator</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

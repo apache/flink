@@ -46,7 +46,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
 		input
 				.map(new WildcardForwardedMapperWithForwardAnnotation<Tuple3<Long, String, Integer>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
@@ -74,7 +74,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
 		input
 				.map(new WildcardForwardedMapperWithSkipAnnotation<Tuple3<Long, String, Integer>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());
@@ -102,7 +102,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
 		input
 				.map(new WildcardForwardedMapper<Tuple3<Long, String, Integer>>())
 				.withForwardedFields("f0")
@@ -131,7 +131,7 @@ public class SemanticPropertiesPrecedenceTest {
 		env.getConfig().setCodeAnalysisMode(CodeAnalysisMode.OPTIMIZE);
 
 		@SuppressWarnings("unchecked")
-		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(Tuple3.of(3l, "test", 42));
 		input
 				.map(new WildcardForwardedMapper<Tuple3<Long, String, Integer>>())
 				.output(new DiscardingOutputFormat<Tuple3<Long, String, Integer>>());

@@ -20,14 +20,16 @@ package org.apache.flink.api.common.typeutils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 
 /**
- * Type Information for Tuple and Pojo types
+ * Base type information class for Tuple and Pojo types
  * 
  * The class is taking care of serialization and comparators for Tuples as well.
  */
@@ -35,10 +37,19 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected final Class<T> typeClass;
+	private final Class<T> typeClass;
 	
 	public CompositeType(Class<T> typeClass) {
-		this.typeClass = typeClass;
+		this.typeClass = Preconditions.checkNotNull(typeClass);
+	}
+
+	/**
+	 * Returns the type class of the composite type
+	 *
+	 * @return Type class of the composite type
+	 */
+	public Class<T> getTypeClass() {
+		return typeClass;
 	}
 	
 	/**
@@ -78,24 +89,8 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * @return The type of the field at the given position.
 	 */
 	public abstract <X> TypeInformation<X> getTypeAt(int pos);
-	
-	/**
-	 * Initializes the internal state inside a Composite type to create a new comparator 
-	 * (such as the lists / arrays for the fields and field comparators)
-	 * @param localKeyCount 
-	 */
-	protected abstract void initializeNewComparator(int localKeyCount);
-	
-	/**
-	 * Add a field for comparison in this type.
-	 */
-	protected abstract void addCompareField(int fieldId, TypeComparator<?> comparator);
-	
-	/**
-	 * Get the actual comparator we've initialized.
-	 */
-	protected abstract TypeComparator<T> getNewComparator(ExecutionConfig config);
-	
+
+	protected abstract TypeComparatorBuilder<T> createTypeComparatorBuilder();
 	
 	/**
 	 * Generic implementation of the comparator creation. Composite types are supplying the infrastructure
@@ -103,37 +98,73 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * @return The comparator
 	 */
 	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset, ExecutionConfig config) {
-		initializeNewComparator(logicalKeyFields.length);
-		
-		for(int logicalKeyFieldIndex = 0; logicalKeyFieldIndex < logicalKeyFields.length; logicalKeyFieldIndex++) {
+
+		TypeComparatorBuilder<T> builder = createTypeComparatorBuilder();
+
+		builder.initializeTypeComparatorBuilder(logicalKeyFields.length);
+
+		for (int logicalKeyFieldIndex = 0; logicalKeyFieldIndex < logicalKeyFields.length; logicalKeyFieldIndex++) {
 			int logicalKeyField = logicalKeyFields[logicalKeyFieldIndex];
 			int logicalField = logicalFieldOffset; // this is the global/logical field number
-			for(int localFieldId = 0; localFieldId < this.getArity(); localFieldId++) {
+			boolean comparatorAdded = false;
+
+			for (int localFieldId = 0; localFieldId < this.getArity() && logicalField <= logicalKeyField && !comparatorAdded; localFieldId++) {
 				TypeInformation<?> localFieldType = this.getTypeAt(localFieldId);
 				
-				if(localFieldType instanceof AtomicType && logicalField == logicalKeyField) {
+				if (localFieldType instanceof AtomicType && logicalField == logicalKeyField) {
 					// we found an atomic key --> create comparator
-					addCompareField(localFieldId, ((AtomicType<?>) localFieldType).createComparator(orders[logicalKeyFieldIndex], config) );
-				} else if(localFieldType instanceof CompositeType  && // must be a composite type
-						( logicalField <= logicalKeyField //check if keyField can be at or behind the current logicalField
-						&& logicalKeyField <= logicalField + (localFieldType.getTotalFields() - 1) ) // check if logical field + lookahead could contain our key
-						) {
-					// we found a compositeType that is containing the logicalKeyField we are looking for --> create comparator
-					addCompareField(localFieldId, ((CompositeType<?>) localFieldType).createComparator(new int[] {logicalKeyField}, new boolean[] {orders[logicalKeyFieldIndex]}, logicalField, config));
+					builder.addComparatorField(
+						localFieldId,
+						((AtomicType<?>) localFieldType).createComparator(
+							orders[logicalKeyFieldIndex],
+							config));
+
+					comparatorAdded = true;
 				}
-				
-				// maintain logicalField
-				if(localFieldType instanceof CompositeType) {
+				// must be composite type and check that the logicalKeyField is within the bounds
+				// of the composite type's logical fields
+				else if (localFieldType instanceof CompositeType &&
+					logicalField <= logicalKeyField &&
+					logicalKeyField <= logicalField + (localFieldType.getTotalFields() - 1)) {
+					// we found a compositeType that is containing the logicalKeyField we are looking for --> create comparator
+					builder.addComparatorField(
+						localFieldId,
+						((CompositeType<?>) localFieldType).createComparator(
+							new int[]{logicalKeyField},
+							new boolean[]{orders[logicalKeyFieldIndex]},
+							logicalField,
+							config)
+					);
+
+					comparatorAdded = true;
+				}
+
+				if (localFieldType instanceof CompositeType) {
 					// we need to subtract 1 because we are not accounting for the local field (not accessible for the user)
 					logicalField += localFieldType.getTotalFields() - 1;
 				}
+				
 				logicalField++;
 			}
+
+			if (!comparatorAdded) {
+				throw new IllegalArgumentException("Could not add a comparator for the logical" +
+					"key field index " + logicalKeyFieldIndex + ".");
+			}
 		}
-		return getNewComparator(config);
+
+		return builder.createTypeComparator(config);
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	protected interface TypeComparatorBuilder<T> {
+		void initializeTypeComparatorBuilder(int size);
+
+		void addComparatorField(int fieldId, TypeComparator<?> comparator);
+
+		TypeComparator<T> createTypeComparator(ExecutionConfig config);
+	}
 
 	public static class FlatFieldDescriptor {
 		private int keyPosition;
@@ -221,5 +252,32 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 		public InvalidFieldReferenceException(String s) {
 			super(s);
 		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof CompositeType) {
+			@SuppressWarnings("unchecked")
+			CompositeType<T> compositeType = (CompositeType<T>)obj;
+
+			return compositeType.canEqual(this) && typeClass == compositeType.typeClass;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(typeClass);
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof CompositeType;
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + "<" + typeClass.getSimpleName() + ">";
 	}
 }

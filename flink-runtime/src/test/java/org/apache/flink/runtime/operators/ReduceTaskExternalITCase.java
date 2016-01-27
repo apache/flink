@@ -22,13 +22,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
-import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
+import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
+import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -46,7 +47,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 	private final RecordComparator comparator = new RecordComparator(
 		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
 	
-	private final List<Record> outList = new ArrayList<Record>();
+	private final List<Record> outList = new ArrayList<>();
 	
 	
 	public ReduceTaskExternalITCase(ExecutionConfig config) {
@@ -68,7 +69,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
 			
-			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
+			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
@@ -100,7 +101,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		try {
 			addInputSorted(new UniformRecordGenerator(keyCnt, valCnt, false), this.comparator.duplicate());
 			
-			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
+			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
@@ -130,14 +131,14 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		
 		CombiningUnilateralSortMerger<Record> sorter = null;
 		try {
-			sorter = new CombiningUnilateralSortMerger<Record>(new MockCombiningReduceStub(), 
+			sorter = new CombiningUnilateralSortMerger<>(new MockCombiningReduceStub(),
 				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
 				getOwningNepheleTask(), RecordSerializerFactory.get(), this.comparator.duplicate(),
 					this.perSortFractionMem,
-					2, 0.8f);
+					2, 0.8f, true);
 			addInput(sorter.getIterator());
 			
-			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
+			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
@@ -176,14 +177,14 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		
 		CombiningUnilateralSortMerger<Record> sorter = null;
 		try {
-			sorter = new CombiningUnilateralSortMerger<Record>(new MockCombiningReduceStub(), 
+			sorter = new CombiningUnilateralSortMerger<>(new MockCombiningReduceStub(),
 				getMemoryManager(), getIOManager(), new UniformRecordGenerator(keyCnt, valCnt, false), 
 				getOwningNepheleTask(), RecordSerializerFactory.get(), this.comparator.duplicate(),
 					this.perSortFractionMem,
-					2, 0.8f);
+					2, 0.8f, false);
 			addInput(sorter.getIterator());
 			
-			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<Record, Record>();
+			GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
@@ -232,8 +233,9 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		}
 	}
 	
-	@Combinable
-	public static class MockCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+	public static class MockCombiningReduceStub implements
+		GroupReduceFunction<Record, Record>, GroupCombineFunction<Record, Record> {
+
 		private static final long serialVersionUID = 1L;
 
 		private final IntValue key = new IntValue();

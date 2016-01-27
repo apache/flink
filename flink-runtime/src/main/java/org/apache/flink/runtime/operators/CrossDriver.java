@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.resettable.BlockResettableMutableObjectIterator;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -41,12 +41,12 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @see org.apache.flink.api.common.functions.CrossFunction
  */
-public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2, OT>, OT> {
+public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>, OT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(CrossDriver.class);
 	
 	
-	private PactTaskContext<CrossFunction<T1, T2, OT>, OT> taskContext;
+	private TaskContext<CrossFunction<T1, T2, OT>, OT> taskContext;
 	
 	private MemoryManager memManager;
 	
@@ -70,7 +70,7 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 
 
 	@Override
-	public void setup(PactTaskContext<CrossFunction<T1, T2, OT>, OT> context) {
+	public void setup(TaskContext<CrossFunction<T1, T2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}

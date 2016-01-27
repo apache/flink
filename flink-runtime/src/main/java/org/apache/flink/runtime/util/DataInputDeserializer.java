@@ -109,7 +109,7 @@ public class DataInputDeserializer implements DataInputView {
 	@Override
 	public char readChar() throws IOException {
 		if (this.position < this.end - 1) {
-			return (char) (((this.buffer[this.position++] & 0xff) << 8) | ((this.buffer[this.position++] & 0xff) << 0));
+			return (char) (((this.buffer[this.position++] & 0xff) << 8) | (this.buffer[this.position++] & 0xff));
 		} else {
 			throw new EOFException();
 		}
@@ -205,7 +205,7 @@ public class DataInputDeserializer implements DataInputView {
 	@Override
 	public short readShort() throws IOException {
 		if (position >= 0 && position < this.end - 1) {
-			return (short) ((((this.buffer[position++]) & 0xff) << 8) | (((this.buffer[position++]) & 0xff) << 0));
+			return (short) ((((this.buffer[position++]) & 0xff) << 8) | ((this.buffer[position++]) & 0xff));
 		} else {
 			throw new EOFException();
 		}
@@ -271,7 +271,7 @@ public class DataInputDeserializer implements DataInputView {
 				if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 					throw new UTFDataFormatException("malformed input around byte " + (count - 1));
 				}
-				chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
+				chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
 				break;
 			default:
 				/* 10xx xxxx, 1111 xxxx */
@@ -294,7 +294,7 @@ public class DataInputDeserializer implements DataInputView {
 	@Override
 	public int readUnsignedShort() throws IOException {
 		if (this.position < this.end - 1) {
-			return ((this.buffer[this.position++] & 0xff) << 8) | ((this.buffer[this.position++] & 0xff) << 0);
+			return ((this.buffer[this.position++] & 0xff) << 8) | (this.buffer[this.position++] & 0xff);
 		} else {
 			throw new EOFException();
 		}

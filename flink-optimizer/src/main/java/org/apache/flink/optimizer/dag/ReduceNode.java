@@ -67,7 +67,7 @@ public class ReduceNode extends SingleInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Reduce";
 	}
 	

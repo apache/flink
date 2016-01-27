@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collection;
 
 public class FallbackLibraryCacheManager implements LibraryCacheManager {
@@ -43,12 +44,13 @@ public class FallbackLibraryCacheManager implements LibraryCacheManager {
 	}
 
 	@Override
-	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles) {
+	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) {
 		LOG.warn("FallbackLibraryCacheManager cannot download files associated with blob keys.");
 	}
 	
 	@Override
-	public void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles) {
+	public void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
+			Collection<URL> requiredClasspaths) {
 		LOG.warn("FallbackLibraryCacheManager cannot download files associated with blob keys.");
 	}
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -25,8 +24,8 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 /**
  * Plan candidate node for data flow sinks.
  */
-public class SinkPlanNode extends SingleInputPlanNode
-{
+public class SinkPlanNode extends SingleInputPlanNode {
+	
 	/**
 	 * Constructs a new sink candidate node that uses <i>NONE</i> as its local strategy. Note that
 	 * local sorting and range partitioning are handled by the incoming channel already.

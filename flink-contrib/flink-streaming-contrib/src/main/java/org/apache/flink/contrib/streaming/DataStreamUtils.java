@@ -27,9 +27,9 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.runtime.net.ConnectionUtils;
 
-public class DataStreamUtils {
+public final class DataStreamUtils {
 
 	/**
 	 * Returns an iterator to iterate over the elements of the DataStream.
@@ -46,7 +46,7 @@ public class DataStreamUtils {
 			String host = ((RemoteStreamEnvironment)env).getHost();
 			int port = ((RemoteStreamEnvironment)env).getPort();
 			try {
-				clientAddress = NetUtils.findConnectingAddress(new InetSocketAddress(host, port), 2000, 400);
+				clientAddress = ConnectionUtils.findConnectingAddress(new InetSocketAddress(host, port), 2000, 400);
 			} catch (IOException e) {
 				throw new RuntimeException("IOException while trying to connect to the master", e);
 			}
@@ -82,5 +82,12 @@ public class DataStreamUtils {
 				throw new RuntimeException("Exception in execute()", e);
 			}
 		}
+	}
+
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
+	private DataStreamUtils() {
+		throw new RuntimeException();
 	}
 }

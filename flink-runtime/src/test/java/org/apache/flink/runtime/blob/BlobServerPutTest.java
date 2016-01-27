@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -30,6 +31,7 @@ import java.net.InetSocketAddress;
 import java.util.Random;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests for successful and failing PUT operations against the BLOB server,
@@ -209,6 +211,8 @@ public class BlobServerPutTest {
 
 	@Test
 	public void testPutBufferFails() {
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
 		BlobServer server = null;
 		BlobClient client = null;
 
@@ -271,6 +275,8 @@ public class BlobServerPutTest {
 
 	@Test
 	public void testPutNamedBufferFails() {
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
+
 		BlobServer server = null;
 		BlobClient client = null;
 

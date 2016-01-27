@@ -18,35 +18,74 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.types.CopyableValue;
+import org.apache.flink.types.ResettableValue;
 
-public class MinAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
+
+public abstract class MinAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
 	private static final long serialVersionUID = 1L;
 
-	private T value;
-
-	@Override
-	public void initializeAggregate() {
-		value = null;
-	}
-
-	@Override
-	public void aggregate(T val) {
-		if (value != null) {
-			int cmp = value.compareTo(val);
-			value = (cmp < 0) ? value : val;
-		} else {
-			value = val;
-		}
-	}
-
-	@Override
-	public T getAggregate() {
-		return value;
-	}
-	
 	@Override
 	public String toString() {
 		return "MIN";
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static final class ImmutableMinAgg<U extends Comparable<U>> extends MinAggregationFunction<U> {
+		private static final long serialVersionUID = 1L;
+
+		private U value;
+
+		@Override
+		public void initializeAggregate() {
+			value = null;
+		}
+
+		@Override
+		public void aggregate(U val) {
+			if (value != null) {
+				int cmp = value.compareTo(val);
+				value = (cmp < 0) ? value : val;
+			} else {
+				value = val;
+			}
+		}
+
+		@Override
+		public U getAggregate() {
+			return value;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static final class MutableMinAgg<U extends Comparable<U> & ResettableValue<U> & CopyableValue<U>> extends MinAggregationFunction<U> {
+		private static final long serialVersionUID = 1L;
+
+		private U value;
+
+		@Override
+		public void initializeAggregate() {
+			value = null;
+		}
+
+		@Override
+		public void aggregate(U val) {
+			if (value != null) {
+				int cmp = value.compareTo(val);
+				if (cmp > 0) {
+					value.setValue(val);
+				}
+			} else {
+				value = val.copy();
+			}
+		}
+
+		@Override
+		public U getAggregate() {
+			return value;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -58,7 +97,11 @@ public class MinAggregationFunction<T extends Comparable<T>> extends Aggregation
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
 			if (Comparable.class.isAssignableFrom(type)) {
-				return (AggregationFunction<T>) new MinAggregationFunction();
+				if (ResettableValue.class.isAssignableFrom(type) & CopyableValue.class.isAssignableFrom(type)) {
+					return (AggregationFunction<T>) new MutableMinAgg();
+				} else {
+					return (AggregationFunction<T>) new ImmutableMinAgg();
+				}
 			} else {
 				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
 					" is not supported for minimum aggregation. " +

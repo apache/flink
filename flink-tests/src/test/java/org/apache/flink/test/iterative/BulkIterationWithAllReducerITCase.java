@@ -64,10 +64,8 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 		
 		@Override
 		public void open(Configuration parameters) {
-			Collection<Integer> bc = getRuntimeContext().getBroadcastVariable("bc");
-			synchronized (bc) {
-				this.bcValue = bc.isEmpty() ? null : bc.iterator().next();
-			}
+			List<Integer> bc = getRuntimeContext().getBroadcastVariable("bc");
+			this.bcValue = bc.isEmpty() ? null : bc.get(0);
 		}
 
 		@Override

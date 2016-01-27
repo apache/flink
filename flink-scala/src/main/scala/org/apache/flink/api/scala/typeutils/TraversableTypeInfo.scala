@@ -23,13 +23,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 
 import scala.collection.JavaConverters._
 
-import scala.collection.generic.CanBuildFrom
-
 /**
  * TypeInformation for Scala Collections.
  */
 abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
-    clazz: Class[T],
+    val clazz: Class[T],
     val elementTypeInfo: TypeInformation[E])
   extends TypeInformation[T] {
 
@@ -41,16 +39,24 @@ abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
   override def getTypeClass: Class[T] = clazz
   override def getGenericParameters = List[TypeInformation[_]](elementTypeInfo).asJava
 
-
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T]
 
   override def equals(other: Any): Boolean = {
-    if (other.isInstanceOf[TraversableTypeInfo[_, _]]) {
-      val otherTrav = other.asInstanceOf[TraversableTypeInfo[_, _]]
-      otherTrav.getTypeClass == getTypeClass && otherTrav.elementTypeInfo == elementTypeInfo
-    } else {
-      false
+    other match {
+      case traversable: TraversableTypeInfo[_, _] =>
+        traversable.canEqual(this) &&
+        clazz == traversable.clazz &&
+        elementTypeInfo.equals(traversable.elementTypeInfo)
+      case _ => false
     }
+  }
+
+  override def hashCode(): Int = {
+    31 * clazz.hashCode() + elementTypeInfo.hashCode()
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[TraversableTypeInfo[_, _]]
   }
 
   override def toString = s"$clazz[$elementTypeInfo]"

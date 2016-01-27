@@ -26,7 +26,12 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-
+/**
+ * The serialization delegate exposes an arbitrary element as a {@link IOReadableWritable} for
+ * serialization, with the help of a type serializer.
+ * 
+ * @param <T> The type to be represented as an IOReadableWritable.
+ */
 public class SerializationDelegate<T> implements IOReadableWritable {
 	
 	private T instance;

@@ -28,8 +28,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
+import org.apache.flink.runtime.memory.AbstractPagedInputView;
+import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
@@ -121,13 +121,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		this.lastEntryOffset = (this.recordsPerSegment - 1) * this.recordSize;
 		this.swapBuffer = new byte[this.recordSize];
 		
-		if (memory instanceof ArrayList<?>) {
-			this.freeMemory = (ArrayList<MemorySegment>) memory;
-		}
-		else {
-			this.freeMemory = new ArrayList<MemorySegment>(memory.size());
-			this.freeMemory.addAll(memory);
-		}
+		this.freeMemory = new ArrayList<MemorySegment>(memory);
 		
 		// create the buffer collections
 		this.sortBuffer = new ArrayList<MemorySegment>(16);
@@ -174,16 +168,10 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		return this.numRecords == 0;
 	}
 	
-	/**
-	 * Collects all memory segments from this sorter.
-	 * 
-	 * @return All memory segments from this sorter.
-	 */
 	@Override
-	public List<MemorySegment> dispose() {
-		this.freeMemory.addAll(this.sortBuffer);
+	public void dispose() {
+		this.freeMemory.clear();
 		this.sortBuffer.clear();
-		return this.freeMemory;
 	}
 	
 	@Override
@@ -195,23 +183,16 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	public long getOccupancy() {
 		return this.sortBufferBytes;
 	}
-	
-	@Override
-	public long getNumRecordBytes() {
-		return this.sortBufferBytes;
-	}
 
 	// -------------------------------------------------------------------------
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
-
-	/**
-	 * Gets the record at the given logical position.
-	 * 
-	 * @param reuse The reuse object to deserialize the record into.
-	 * @param logicalPosition The logical position of the record.
-	 * @throws IOException Thrown, if an exception occurred during deserialization.
-	 */
+	
+	@Override
+	public T getRecord(int logicalPosition) throws IOException {
+		return getRecord(serializer.createInstance(), logicalPosition);
+	}
+	
 	@Override
 	public T getRecord(T reuse, int logicalPosition) throws IOException {
 		final int buffer = logicalPosition / this.recordsPerSegment;
@@ -259,11 +240,11 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
 	
-	private final boolean memoryAvailable() {
+	private boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
 	}
 	
-	private final MemorySegment nextMemorySegment() {
+	private MemorySegment nextMemorySegment() {
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
 
@@ -282,7 +263,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortBuffer.get(bufferNumI);
 		final MemorySegment segJ = this.sortBuffer.get(bufferNumJ);
 		
-		int val = MemorySegment.compare(segI, segJ, segmentOffsetI, segmentOffsetJ, this.numKeyBytes);
+		int val = segI.compare(segJ, segmentOffsetI, segmentOffsetJ, this.numKeyBytes);
 		return this.useNormKeyUninverted ? val : -val;
 	}
 
@@ -297,7 +278,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortBuffer.get(bufferNumI);
 		final MemorySegment segJ = this.sortBuffer.get(bufferNumJ);
 		
-		MemorySegment.swapBytes(segI, segJ, this.swapBuffer, segmentOffsetI, segmentOffsetJ, this.recordSize);
+		segI.swapBytes(this.swapBuffer, segJ, segmentOffsetI, segmentOffsetJ, this.recordSize);
 	}
 
 	@Override
@@ -466,11 +447,13 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 				num -= recordsPerSegment;
 			} else {
 				// partially filled segment
-				for (; num > 0; num--) {
+				for (; num > 0 && offset <= this.lastEntryOffset; num--, offset += this.recordSize) {
 					record = comparator.readWithKeyDenormalization(record, inView);
 					serializer.serialize(record, output);
 				}
 			}
+
+			offset = 0;
 		}
 	}
 	

@@ -43,11 +43,18 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public Date copy(Date from) {
+		if(from == null) {
+			return null;
+		}
 		return new Date(from.getTime());
 	}
+
 	
 	@Override
 	public Date copy(Date from, Date reuse) {
+		if(from == null) {
+			return null;
+		}
 		reuse.setTime(from.getTime());
 		return reuse;
 	}
@@ -59,22 +66,40 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 
 	@Override
 	public void serialize(Date record, DataOutputView target) throws IOException {
-		target.writeLong(record.getTime());
+		if(record == null) {
+			target.writeLong(-1L);
+		} else {
+			target.writeLong(record.getTime());
+		}
 	}
 
 	@Override
 	public Date deserialize(DataInputView source) throws IOException {
-		return new Date(source.readLong());
+		long v = source.readLong();
+		if(v == -1L) {
+			return null;
+		} else {
+			return new Date(v);
+		}
 	}
 	
 	@Override
 	public Date deserialize(Date reuse, DataInputView source) throws IOException {
-		reuse.setTime(source.readLong());
+		long v = source.readLong();
+		if(v == -1L) {
+			return null;
+		}
+		reuse.setTime(v);
 		return reuse;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeLong(source.readLong());
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof DateSerializer;
 	}
 }

@@ -38,7 +38,7 @@ public interface Visitable<T extends Visitable<T>> {
 	 * and then invokes the post-visit method.
 	 * <p>
 	 * A typical code example is the following:
-	 * <code>
+	 * <pre>{@code
 	 * public void accept(Visitor<Operator> visitor) {
 	 *     boolean descend = visitor.preVisit(this);	
 	 *     if (descend) {
@@ -48,7 +48,7 @@ public interface Visitable<T extends Visitable<T>> {
 	 *         visitor.postVisit(this);
 	 *     }
 	 * }
-	 * </code>
+	 * }</pre>
 	 * 
 	 * @param visitor The visitor to be called with this object as the parameter.
 	 * 

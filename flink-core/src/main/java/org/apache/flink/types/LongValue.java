@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public class LongValue implements NormalizableKey<LongValue>, ResettableValue<LongValue>, CopyableValue<LongValue> {
 	private static final long serialVersionUID = 1L;
 
@@ -116,8 +118,8 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	 */
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj != null & obj instanceof LongValue) {
-			return this.value == ((LongValue) obj).value;
+		if (obj instanceof LongValue) {
+			return ((LongValue) obj).value == this.value;
 		}
 		return false;
 	}
@@ -160,10 +162,15 @@ public class LongValue implements NormalizableKey<LongValue>, ResettableValue<Lo
 	public int getBinaryLength() {
 		return 8;
 	}
-	
+
 	@Override
 	public void copyTo(LongValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public LongValue copy() {
+		return new LongValue(this.value);
 	}
 
 	@Override

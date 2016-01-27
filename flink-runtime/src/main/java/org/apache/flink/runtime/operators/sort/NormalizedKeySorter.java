@@ -29,7 +29,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
+import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,14 +133,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 			throw new IllegalArgumentException("Normalized-Key sorter requires at least " + MIN_REQUIRED_BUFFERS + " memory buffers.");
 		}
 		this.segmentSize = memory.get(0).size();
-		
-		if (memory instanceof ArrayList<?>) {
-			this.freeMemory = (ArrayList<MemorySegment>) memory;
-		}
-		else {
-			this.freeMemory = new ArrayList<MemorySegment>(memory.size());
-			this.freeMemory.addAll(memory);
-		}
+		this.freeMemory = new ArrayList<MemorySegment>(memory);
 		
 		// create the buffer collections
 		this.sortIndex = new ArrayList<MemorySegment>(16);
@@ -220,20 +213,11 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		return this.numRecords == 0;
 	}
 	
-	/**
-	 * Collects all memory segments from this sorter.
-	 * 
-	 * @return All memory segments from this sorter.
-	 */
 	@Override
-	public List<MemorySegment> dispose() {
-		this.freeMemory.addAll(this.sortIndex);
-		this.freeMemory.addAll(this.recordBufferSegments);
-		
+	public void dispose() {
+		this.freeMemory.clear();
 		this.recordBufferSegments.clear();
 		this.sortIndex.clear();
-		
-		return this.freeMemory;
 	}
 	
 	@Override
@@ -245,23 +229,16 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	public long getOccupancy() {
 		return this.currentDataBufferOffset + this.sortIndexBytes;
 	}
-	
-	@Override
-	public long getNumRecordBytes() {
-		return this.currentDataBufferOffset;
-	}
 
 	// -------------------------------------------------------------------------
 	// Retrieving and Writing
 	// -------------------------------------------------------------------------
 
-	/**
-	 * Gets the record at the given logical position.
-	 * 
-	 * @param reuse The target object to deserialize the record into.
-	 * @param logicalPosition The logical position of the record.
-	 * @throws IOException Thrown, if an exception occurred during deserialization.
-	 */
+	@Override
+	public T getRecord(int logicalPosition) throws IOException {
+		return getRecordFromBuffer(readPointer(logicalPosition));
+	}
+	
 	@Override
 	public T getRecord(T reuse, int logicalPosition) throws IOException {
 		return getRecordFromBuffer(reuse, readPointer(logicalPosition));
@@ -322,7 +299,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
 	
-	private final long readPointer(int logicalPosition) {
+	private long readPointer(int logicalPosition) {
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -333,17 +310,17 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		return (this.sortIndex.get(bufferNum).getLong(segmentOffset * this.indexEntrySize)) & POINTER_MASK;
 	}
 	
-	private final T getRecordFromBuffer(T reuse, long pointer) throws IOException {
+	private T getRecordFromBuffer(T reuse, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(reuse, this.recordBuffer);
 	}
 
-	private final T getRecordFromBuffer(long pointer) throws IOException {
+	private T getRecordFromBuffer(long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(this.recordBuffer);
 	}
 	
-	private final int compareRecords(long pointer1, long pointer2) {
+	private int compareRecords(long pointer1, long pointer2) {
 		this.recordBuffer.setReadPosition(pointer1);
 		this.recordBufferForComparison.setReadPosition(pointer2);
 		
@@ -354,11 +331,11 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		}
 	}
 	
-	private final boolean memoryAvailable() {
+	private boolean memoryAvailable() {
 		return !this.freeMemory.isEmpty();
 	}
 	
-	private final MemorySegment nextMemorySegment() {
+	private MemorySegment nextMemorySegment() {
 		return this.freeMemory.remove(this.freeMemory.size() - 1);
 	}
 
@@ -377,7 +354,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = this.sortIndex.get(bufferNumJ);
 		
-		int val = MemorySegment.compare(segI, segJ, segmentOffsetI + OFFSET_LEN, segmentOffsetJ + OFFSET_LEN, this.numKeyBytes);
+		int val = segI.compare(segJ, segmentOffsetI + OFFSET_LEN, segmentOffsetJ + OFFSET_LEN, this.numKeyBytes);
 		
 		if (val != 0 || this.normalizedKeyFullyDetermines) {
 			return this.useNormKeyUninverted ? val : -val;
@@ -400,7 +377,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = this.sortIndex.get(bufferNumJ);
 		
-		MemorySegment.swapBytes(segI, segJ, this.swapBuffer, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);
+		segI.swapBytes(this.swapBuffer, segJ, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);
 	}
 
 	@Override

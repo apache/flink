@@ -25,10 +25,11 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.test.recordJobs.kmeans.udfs.PointInFormat;
-import org.apache.flink.test.recordJobs.kmeans.udfs.PointOutFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.test.util.CoordVector;
+import org.apache.flink.test.util.PointFormatter;
+import org.apache.flink.test.util.PointInFormat;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 public class IterationWithUnionITCase extends JavaProgramTestBase {
@@ -54,32 +55,32 @@ public class IterationWithUnionITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
-		DataSet<Record> initialInput = env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
+		DataSet<Tuple2<Integer, CoordVector>> initialInput = env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
 		
-		IterativeDataSet<Record> iteration = initialInput.iterate(2);
+		IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2);
 		
-		DataSet<Record> result = iteration.union(iteration).map(new IdentityMapper());
+		DataSet<Tuple2<Integer, CoordVector>> result = iteration.union(iteration).map(new IdentityMapper());
 		
-		iteration.closeWith(result).write(new PointOutFormat(), this.resultPath);
+		iteration.closeWith(result).writeAsFormattedText(this.resultPath, new PointFormatter());
 		
 		env.execute();
 	}
 	
-	static final class IdentityMapper implements MapFunction<Record, Record>, Serializable {
+	static final class IdentityMapper implements MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>, Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Record map(Record rec) {
+		public Tuple2<Integer, CoordVector> map(Tuple2<Integer, CoordVector> rec) {
 			return rec;
 		}
 	}
 
-	static class DummyReducer implements GroupReduceFunction<Record, Record>, Serializable {
+	static class DummyReducer implements GroupReduceFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>, Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterable<Record> it, Collector<Record> out) {
-			for (Record r : it) {
+		public void reduce(Iterable<Tuple2<Integer, CoordVector>> it, Collector<Tuple2<Integer, CoordVector>> out) {
+			for (Tuple2<Integer, CoordVector> r : it) {
 				out.collect(r);
 			}
 		}

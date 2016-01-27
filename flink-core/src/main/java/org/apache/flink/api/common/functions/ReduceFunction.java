@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -32,16 +34,17 @@ import java.io.Serializable;
  * execution strategies.
  * <p>
  * The basic syntax for using a grouped ReduceFunction is as follows:
- * <pre><blockquote>
+ * <pre>{@code
  * DataSet<X> input = ...;
  * 
  * DataSet<X> result = input.groupBy(<key-definition>).reduce(new MyReduceFunction());
- * </blockquote></pre>
+ * }</pre>
  * <p>
  * Like all functions, the ReduceFunction needs to be serializable, as defined in {@link java.io.Serializable}.
  * 
  * @param <T> Type of the elements that this function processes.
  */
+@Public
 public interface ReduceFunction<T> extends Function, Serializable {
 
 	/**

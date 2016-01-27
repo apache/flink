@@ -28,7 +28,7 @@ import scala.util.Try
 /**
  * TypeInformation for [[scala.util.Try]].
  */
-class TryTypeInfo[A, T <: Try[A]](elemTypeInfo: TypeInformation[A])
+class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A])
   extends TypeInformation[T] {
 
   override def isBasicType: Boolean = false
@@ -47,6 +47,23 @@ class TryTypeInfo[A, T <: Try[A]](elemTypeInfo: TypeInformation[A])
       new TrySerializer(elemTypeInfo.createSerializer(executionConfig), executionConfig)
         .asInstanceOf[TypeSerializer[T]]
     }
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case tryTypeInfo: TryTypeInfo[_, _] =>
+        tryTypeInfo.canEqual(this) &&
+        elemTypeInfo.equals(tryTypeInfo.elemTypeInfo)
+      case _ => false
+    }
+  }
+
+  override def canEqual(obj: Any): Boolean = {
+    obj.isInstanceOf[TryTypeInfo[_, _]]
+  }
+
+  override def hashCode(): Int = {
+    elemTypeInfo.hashCode()
   }
 
   override def toString = s"Try[$elemTypeInfo]"

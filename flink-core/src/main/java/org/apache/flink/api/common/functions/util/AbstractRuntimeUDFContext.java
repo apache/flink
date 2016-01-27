@@ -20,11 +20,12 @@ package org.apache.flink.api.common.functions.util;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -33,6 +34,8 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
 
 /**
@@ -40,42 +43,26 @@ import org.apache.flink.core.fs.Path;
  */
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
-	private final String name;
-
-	private final int numParallelSubtasks;
-
-	private final int subtaskIndex;
+	private final TaskInfo taskInfo;
 
 	private final ClassLoader userCodeClassLoader;
 
 	private final ExecutionConfig executionConfig;
 
-	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-	
+	private final Map<String, Accumulator<?, ?>> accumulators;
+
 	private final DistributedCache distributedCache;
-	
-	
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
-										ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig)
-	{
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
-				Collections.<String, Future<Path>>emptyMap());
-	}
-	
-	public AbstractRuntimeUDFContext(String name,
-										int numParallelSubtasks, int subtaskIndex,
+
+	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
-										Map<String, Future<Path>> cpTasks)
-	{
-		this.name = name;
-		this.numParallelSubtasks = numParallelSubtasks;
-		this.subtaskIndex = subtaskIndex;
+										Map<String, Accumulator<?,?>> accumulators,
+										Map<String, Future<Path>> cpTasks) {
+		this.taskInfo = Preconditions.checkNotNull(taskInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
-		this.distributedCache = new DistributedCache(cpTasks);
+		this.distributedCache = new DistributedCache(Preconditions.checkNotNull(cpTasks));
+		this.accumulators = Preconditions.checkNotNull(accumulators);
 	}
 
 	@Override
@@ -85,17 +72,27 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	public String getTaskName() {
-		return this.name;
+		return taskInfo.getTaskName();
 	}
 
 	@Override
 	public int getNumberOfParallelSubtasks() {
-		return this.numParallelSubtasks;
+		return taskInfo.getNumberOfParallelSubtasks();
 	}
 
 	@Override
 	public int getIndexOfThisSubtask() {
-		return this.subtaskIndex;
+		return taskInfo.getIndexOfThisSubtask();
+	}
+
+	@Override
+	public int getAttemptNumber() {
+		return taskInfo.getAttemptNumber();
+	}
+
+	@Override
+	public String getTaskNameWithSubtasks() {
+		return taskInfo.getTaskNameWithSubtasks();
 	}
 
 	@Override
@@ -134,8 +131,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	public HashMap<String, Accumulator<?, ?>> getAllAccumulators() {
-		return this.accumulators;
+	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
+		return Collections.unmodifiableMap(this.accumulators);
 	}
 	
 	@Override
@@ -170,4 +167,17 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		}
 		return (Accumulator<V, A>) accumulator;
 	}
+
+	@Override
+	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
+		throw new UnsupportedOperationException(
+				"This state is only accessible by functions executed on a KeyedStream");
+	}
+
+	@Override
+	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
+		throw new UnsupportedOperationException(
+				"This state is only accessible by functions executed on a KeyedStream");
+	}
+
 }

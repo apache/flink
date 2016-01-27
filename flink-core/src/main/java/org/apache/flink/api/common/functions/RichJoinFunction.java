@@ -18,9 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.annotation.Public;
 
 /**
  * Rich variant of the {@link JoinFunction}. As a {@link RichFunction}, it gives access to the
@@ -32,6 +30,7 @@ import org.apache.flink.api.common.functions.RichFunction;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
+@Public
 public abstract class RichJoinFunction<IN1,IN2,OUT> extends AbstractRichFunction implements JoinFunction<IN1,IN2,OUT> {
 
 	private static final long serialVersionUID = 1L;

@@ -19,7 +19,7 @@ package org.apache.flink.contrib.tweetinputformat.model.tweet.entities;
 
 /**
  * An array of financial symbols starting with the dollar sign extracted from the
- * {@link package org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet} text.
+ * {@link org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet} text.
  */
 
 public class Symbol {

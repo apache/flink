@@ -52,6 +52,7 @@ import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
 import org.apache.flink.optimizer.plan.PlanNode.FeedbackPropertiesMeetRequirementsReport;
 import org.apache.flink.optimizer.util.NoOpBinaryUdfOp;
+import org.apache.flink.optimizer.util.NoOpUnaryUdfOp;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -222,7 +223,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Workset Iteration";
 	}
 
@@ -307,7 +308,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.nextWorkset.accept(InterestingPropertiesClearer.INSTANCE);
 		this.solutionSetDelta.accept(InterestingPropertiesClearer.INSTANCE);
 	}
-	
+
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void instantiate(OperatorDescriptorDual operator, Channel solutionSetIn, Channel worksetIn,
 			List<Set<? extends NamedChannel>> broadcastPlanChannels, List<PlanNode> target, CostEstimator estimator,
@@ -367,9 +369,14 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					globPropsReqWorkset.parameterizeChannel(toNoOp, false,
 															nextWorksetRootConnection.getDataExchangeMode(), false);
 					locPropsReqWorkset.parameterizeChannel(toNoOp);
-					
-					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode("Rebuild Workset Properties",
-																							FieldList.EMPTY_LIST);
+
+					NoOpUnaryUdfOp noOpUnaryUdfOp = new NoOpUnaryUdfOp<>();
+					noOpUnaryUdfOp.setInput(candidate.getProgramOperator());
+
+					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode(
+						"Rebuild Workset Properties",
+						noOpUnaryUdfOp,
+						true);
 					
 					rebuildWorksetPropertiesNode.setParallelism(candidate.getParallelism());
 					
@@ -454,7 +461,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					}
 					
 					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(this,
-							"WorksetIteration ("+this.getOperator().getName()+")", solutionSetIn,
+							this.getOperator().getName(), solutionSetIn,
 							worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
 					wsNode.setImmediateSolutionSetUpdate(immediateDeltaUpdate);
 					wsNode.initProperties(gp, lp);
@@ -572,7 +579,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 		
 		@Override
-		public String getName() {
+		public String getOperatorName() {
 			return "Internal Utility Node";
 		}
 

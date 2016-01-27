@@ -27,33 +27,14 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import akka.actor.ActorSystem;
-import akka.testkit.JavaTestKit;
-
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ScheduleWithCoLocationHintTest {
-
-	private static ActorSystem system;
-
-	@BeforeClass
-	public static void setup(){
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
-		TestingUtils.setCallingThreadDispatcher(system);
-	}
-
-	@AfterClass
-	public static void teardown(){
-		TestingUtils.setGlobalExecutionContext();
-		JavaTestKit.shutdownActorSystem(system);
-	}
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() {
@@ -61,7 +42,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
@@ -187,7 +168,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid3 = new JobVertexID();
 			JobVertexID jid4 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
@@ -231,7 +212,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid2 = new JobVertexID();
 			JobVertexID jid3 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
@@ -276,7 +257,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid3 = new JobVertexID();
 			JobVertexID jid4 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			scheduler.newInstanceAvailable(getRandomInstance(1));
 			scheduler.newInstanceAvailable(getRandomInstance(1));
 			scheduler.newInstanceAvailable(getRandomInstance(1));
@@ -338,7 +319,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid2 = new JobVertexID();
 			JobVertexID jid3 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
@@ -407,7 +388,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
@@ -461,7 +442,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid2 = new JobVertexID();
 			JobVertexID jidx = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
@@ -519,7 +500,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);
@@ -581,7 +562,7 @@ public class ScheduleWithCoLocationHintTest {
 			JobVertexID jid1 = new JobVertexID();
 			JobVertexID jid2 = new JobVertexID();
 			
-			Scheduler scheduler = new Scheduler();
+			Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
 			
 			Instance i1 = getRandomInstance(1);
 			Instance i2 = getRandomInstance(1);

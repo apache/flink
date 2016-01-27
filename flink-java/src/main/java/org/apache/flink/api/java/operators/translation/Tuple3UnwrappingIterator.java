@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.util.TraversableOnceException;
 
 /**
- * An iterator that reads 3-tuples (groupKey, sortKey, value) and returns only the values (thrid field).
+ * An iterator that reads 3-tuples (groupKey, sortKey, value) and returns only the values (third field).
  * The iterator also tracks the groupKeys, as the triples flow though it.
  */
 public class Tuple3UnwrappingIterator<T, K1, K2> implements Iterator<T>, Iterable<T>, java.io.Serializable {

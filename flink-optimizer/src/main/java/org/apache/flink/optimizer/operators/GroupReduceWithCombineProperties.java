@@ -121,6 +121,9 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 			Channel toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
 									in.getShipStrategySortOrder(), in.getDataExchangeMode());
+			if (in.getShipStrategy() == ShipStrategyType.PARTITION_RANGE) {
+				toReducer.setDataDistribution(in.getDataDistribution());
+			}
 			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
 										in.getLocalStrategySortOrder());
 

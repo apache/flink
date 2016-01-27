@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -42,11 +41,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends MultipleProgramsTestBase {
@@ -82,8 +78,8 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testCoGroupOnTwoCustomTypeInputsWithKeyExtractors() throws Exception {
 		/*
-				 * CoGroup on two custom type inputs with key extractors
-				 */
+		 * CoGroup on two custom type inputs with key extractors
+		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -521,55 +517,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 	}
 
 
-	// --------------------------------------------------------------------------------------------
-	//  Utilities
-	// --------------------------------------------------------------------------------------------
 
-	private <T> void compareResultAsTuples(List<T> result, String expected) {
-		compareResult(result, expected, true);
-	}
-
-	private <T> void compareResultAsText(List<T> result, String expected) {
-		compareResult(result, expected, false);
-	}
-	
-	private <T> void compareResult(List<T> result, String expected, boolean asTuples) {
-		String[] extectedStrings = expected.split("\n");
-		String[] resultStrings = new String[result.size()];
-		
-		for (int i = 0; i < resultStrings.length; i++) {
-			T val = result.get(i);
-			
-			if (asTuples) {
-				if (val instanceof Tuple) {
-					Tuple t = (Tuple) val;
-					Object first = t.getField(0);
-					StringBuilder bld = new StringBuilder(first == null ? "null" : first.toString());
-					for (int pos = 1; pos < t.getArity(); pos++) {
-						Object next = t.getField(pos);
-						bld.append(',').append(next == null ? "null" : next.toString());
-					}
-					resultStrings[i] = bld.toString();
-				}
-				else {
-					throw new IllegalArgumentException(val + " is no tuple");
-				}
-			}
-			else {
-				resultStrings[i] = (val == null) ? "null" : val.toString();
-			}
-		}
-		
-		assertEquals("Wrong number of elements result", extectedStrings.length, resultStrings.length);
-
-		Arrays.sort(extectedStrings);
-		Arrays.sort(resultStrings);
-		
-		for (int i = 0; i < extectedStrings.length; i++) {
-			assertEquals(extectedStrings[i], resultStrings[i]);
-		}
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  UDF classes
 	// --------------------------------------------------------------------------------------------

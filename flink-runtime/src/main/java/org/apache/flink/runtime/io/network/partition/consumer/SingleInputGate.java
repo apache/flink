@@ -23,8 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
-import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -66,17 +65,17 @@ import static com.google.common.base.Preconditions.checkState;
  * <p> As an example, consider a map-reduce program, where the map operator produces data and the
  * reduce operator consumes the produced data.
  *
- * <pre>
+ * <pre>{@code
  * +-----+              +---------------------+              +--------+
  * | Map | = produce => | Intermediate Result | <= consume = | Reduce |
  * +-----+              +---------------------+              +--------+
- * </pre>
+ * }</pre>
  *
  * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
  *
- * <pre>
+ * <pre>{@code
  *                            Intermediate result
  *               +-----------------------------------------+
  *               |                      +----------------+ |              +-----------------------+
@@ -91,7 +90,7 @@ import static com.google.common.base.Preconditions.checkState;
  * +-------+     | +-------------+  +=> | Subpartition 2 | | <==+======== | Input Gate | Reduce 2 |
  *               |                      +----------------+ |              +-----------------------+
  *               +-----------------------------------------+
- * </pre>
+ * }</pre>
  *
  * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
@@ -158,7 +157,7 @@ public class SingleInputGate implements InputGate {
 	private volatile boolean isReleased;
 
 	/** Registered listener to forward buffer notifications to. */
-	private final List<EventListener<InputGate>> registeredListeners = new CopyOnWriteArrayList<EventListener<InputGate>>();
+	private volatile EventListener<InputGate> registeredListener;
 
 	private final List<TaskEvent> pendingEvents = new ArrayList<TaskEvent>();
 
@@ -209,6 +208,16 @@ public class SingleInputGate implements InputGate {
 
 	BufferProvider getBufferProvider() {
 		return bufferPool;
+	}
+
+	@Override
+	public int getPageSize() {
+		if (bufferPool != null) {
+			return bufferPool.getMemorySegmentSize();
+		}
+		else {
+			throw new IllegalStateException("Input gate has not been initialized with buffers.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -271,7 +280,9 @@ public class SingleInputGate implements InputGate {
 
 				inputChannels.put(partitionId, newChannel);
 
-				newChannel.requestSubpartition(consumedSubpartitionIndex);
+				if (requestedPartitionsFlag) {
+					newChannel.requestSubpartition(consumedSubpartitionIndex);
+				}
 
 				for (TaskEvent event : pendingEvents) {
 					newChannel.sendTaskEvent(event);
@@ -371,8 +382,8 @@ public class SingleInputGate implements InputGate {
 					"channels.");
 		}
 
-		if (!requestedPartitionsFlag) {
-			synchronized (requestLock) {
+		synchronized (requestLock) {
+			if (!requestedPartitionsFlag) {
 				for (InputChannel inputChannel : inputChannels.values()) {
 					inputChannel.requestSubpartition(consumedSubpartitionIndex);
 				}
@@ -408,7 +419,7 @@ public class SingleInputGate implements InputGate {
 
 		// Sanity check that notifications only happen when data is available
 		if (buffer == null) {
-			throw new IllegalStateException("Bug in input gate/channel logic: input gate got" +
+			throw new IllegalStateException("Bug in input gate/channel logic: input gate got " +
 					"notified by channel about available data, but none was available.");
 		}
 
@@ -453,14 +464,19 @@ public class SingleInputGate implements InputGate {
 
 	@Override
 	public void registerListener(EventListener<InputGate> listener) {
-		registeredListeners.add(checkNotNull(listener));
+		if (registeredListener == null) {
+			registeredListener = listener;
+		}
+		else {
+			throw new IllegalStateException("Multiple listeners");
+		}
 	}
 
 	public void onAvailableBuffer(InputChannel channel) {
 		inputChannelsWithData.add(channel);
-
-		for (EventListener<InputGate> registeredListener : registeredListeners) {
-			registeredListener.onEvent(this);
+		EventListener<InputGate> listener = registeredListener;
+		if (listener != null) {
+			listener.onEvent(this);
 		}
 	}
 

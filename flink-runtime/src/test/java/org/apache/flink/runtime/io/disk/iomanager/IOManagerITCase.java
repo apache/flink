@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Assert;
 import org.junit.After;
 import org.junit.Before;
@@ -34,8 +35,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManagerTest;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 
 /**
  * Integration test case for the I/O manager.
@@ -54,11 +54,11 @@ public class IOManagerITCase {
 
 	private IOManager ioManager;
 
-	private DefaultMemoryManager memoryManager;
+	private MemoryManager memoryManager;
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
 	}
 
@@ -82,7 +82,7 @@ public class IOManagerITCase {
 	@SuppressWarnings("unchecked")
 	public void parallelChannelsTest() throws Exception {
 		final Random rnd = new Random(SEED);
-		final AbstractInvokable memOwner = new MemoryManagerTest.DummyInvokable();
+		final AbstractInvokable memOwner = new DummyInvokable();
 		
 		FileIOChannel.ID[] ids = new FileIOChannel.ID[NUM_CHANNELS];
 		BlockChannelWriter<MemorySegment>[] writers = new BlockChannelWriter[NUM_CHANNELS];
@@ -209,7 +209,7 @@ public class IOManagerITCase {
 		}
 	}
 	
-	private static final int skewedSample(Random rnd, int max) {
+	private static int skewedSample(Random rnd, int max) {
 		double uniform = rnd.nextDouble();
 		double var = Math.pow(uniform, 8.0);
 		double pareto = 0.2 / var;

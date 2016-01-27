@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
@@ -254,7 +254,8 @@ public class LargeRecordHandler<T> {
 		InputViewIterator<Tuple> keyIterator = new InputViewIterator<Tuple>(keysReader, keySerializer);
 		
 		keySorter = new UnilateralSortMerger<Tuple>(memManager, memory, ioManager, 
-				keyIterator, memoryOwner, keySerializerFactory, keyComparator, 1, maxFilehandles, 1.0f, false);
+				keyIterator, memoryOwner, keySerializerFactory, keyComparator, 1, maxFilehandles, 1.0f, false,
+				this.executionConfig.isObjectReuseEnabled());
 
 		// wait for the sorter to sort the keys
 		MutableObjectIterator<Tuple> result;

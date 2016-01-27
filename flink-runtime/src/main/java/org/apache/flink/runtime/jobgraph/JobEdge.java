@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 /**
  * This class represent edges (communication channels) in a job graph.
  * The edges always go from an intermediate result partition to a job vertex.
- * An edge is parameterized with its {@link DistributionPattern}.
+ * An edge is parametrized with its {@link DistributionPattern}.
  */
 public class JobEdge implements java.io.Serializable {
 
@@ -39,7 +39,18 @@ public class JobEdge implements java.io.Serializable {
 	
 	/** The id of the source intermediate data set */
 	private IntermediateDataSetID sourceId;
+	
+	/** Optional name for the data shipping strategy (forward, partition hash, rebalance, ...),
+	 * to be displayed in the JSON plan */
+	private String shipStrategyName;
 
+	/** Optional name for the pre-processing operation (sort, combining sort, ...),
+	 * to be displayed in the JSON plan */
+	private String preProcessingOperationName;
+
+	/** Optional description of the caching inside an operator, to be displayed in the JSON plan */
+	private String operatorLevelCachingDescription;
+	
 	/**
 	 * Constructs a new job edge, that connects an intermediate result to a consumer task.
 	 * 
@@ -115,7 +126,7 @@ public class JobEdge implements java.io.Serializable {
 	public boolean isIdReference() {
 		return this.source == null;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	public void connecDataSet(IntermediateDataSet dataSet) {
@@ -133,9 +144,66 @@ public class JobEdge implements java.io.Serializable {
 	}
 	
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets the name of the ship strategy for the represented input, like "forward", "partition hash",
+	 * "rebalance", "broadcast", ...
+	 *
+	 * @return The name of the ship strategy for the represented input, or null, if none was set.
+	 */
+	public String getShipStrategyName() {
+		return shipStrategyName;
+	}
+
+	/**
+	 * Sets the name of the ship strategy for the represented input.
+	 *
+	 * @param shipStrategyName The name of the ship strategy. 
+	 */
+	public void setShipStrategyName(String shipStrategyName) {
+		this.shipStrategyName = shipStrategyName;
+	}
+
+	/**
+	 * Gets the name of the pro-processing operation for this input.
+	 *
+	 * @return The name of the pro-processing operation, or null, if none was set.
+	 */
+	public String getPreProcessingOperationName() {
+		return preProcessingOperationName;
+	}
+
+	/**
+	 * Sets the name of the pre-processing operation for this input.
+	 *
+	 * @param preProcessingOperationName The name of the pre-processing operation.
+	 */
+	public void setPreProcessingOperationName(String preProcessingOperationName) {
+		this.preProcessingOperationName = preProcessingOperationName;
+	}
+
+	/**
+	 * Gets the operator-level caching description for this input.
+	 *
+	 * @return The description of operator-level caching, or null, is none was set.
+	 */
+	public String getOperatorLevelCachingDescription() {
+		return operatorLevelCachingDescription;
+	}
+
+	/**
+	 * Sets the operator-level caching description for this input.
+	 *
+	 * @param operatorLevelCachingDescription The description of operator-level caching.
+	 */
+	public void setOperatorLevelCachingDescription(String operatorLevelCachingDescription) {
+		this.operatorLevelCachingDescription = operatorLevelCachingDescription;
+	}
+
+	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return String.format("%s --> %s []", sourceId, target, distributionPattern.name());
+		return String.format("%s --> %s [%s]", sourceId, target, distributionPattern.name());
 	}
 }

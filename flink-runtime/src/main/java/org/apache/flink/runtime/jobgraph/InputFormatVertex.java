@@ -71,13 +71,19 @@ public class InputFormatVertex extends JobVertex {
 		catch (Throwable t) {
 			throw new Exception("Instantiating the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
 		}
-		
+
+		Thread thread = Thread.currentThread();
+		ClassLoader original = thread.getContextClassLoader();
 		// configure
 		try {
+			thread.setContextClassLoader(loader);
 			inputFormat.configure(cfg.getStubParameters());
 		}
 		catch (Throwable t) {
 			throw new Exception("Configuring the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		finally {
+			thread.setContextClassLoader(original);
 		}
 		
 		setInputSplitSource(inputFormat);

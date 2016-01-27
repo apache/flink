@@ -20,7 +20,6 @@ package org.apache.flink.runtime.iterative.io;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.util.Collector;
 
@@ -38,23 +37,20 @@ public class SolutionSetFastUpdateOutputCollector<T> implements Collector<T> {
 	private final Collector<T> delegate;
 
 	private final CompactingHashTable<T> solutionSet;
-	
-	private final T tmpHolder;
 
-	public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer) {
-		this(solutionSet, serializer, null);
+	public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet) {
+		this(solutionSet, null);
 	}
 
-	public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet, TypeSerializer<T> serializer, Collector<T> delegate) {
+	public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet, Collector<T> delegate) {
 		this.solutionSet = solutionSet;
 		this.delegate = delegate;
-		this.tmpHolder = serializer.createInstance();
 	}
 
 	@Override
 	public void collect(T record) {
 		try {
-			solutionSet.insertOrReplaceRecord(record, tmpHolder);
+			solutionSet.insertOrReplaceRecord(record);
 			if (delegate != null) {
 				delegate.collect(record);
 			}

@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,7 +32,7 @@ import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -49,7 +51,7 @@ public class BufferFileWriterReaderTest {
 
 	private BufferFileReader reader;
 
-	private LinkedBlockingQueue<Buffer> returnedBuffers = new LinkedBlockingQueue<Buffer>();
+	private LinkedBlockingQueue<Buffer> returnedBuffers = new LinkedBlockingQueue<>();
 
 	@Before
 	public void setUpWriterAndReader() {
@@ -57,7 +59,7 @@ public class BufferFileWriterReaderTest {
 
 		try {
 			writer = ioManager.createBufferFileWriter(channel);
-			reader = ioManager.createBufferFileReader(channel, new QueuingCallback<Buffer>(returnedBuffers));
+			reader = ioManager.createBufferFileReader(channel, new QueuingCallback<>(returnedBuffers));
 		}
 		catch (IOException e) {
 			if (writer != null) {
@@ -134,8 +136,6 @@ public class BufferFileWriterReaderTest {
 		int numBuffers = 1024;
 		int currentNumber = 0;
 
-		final int minBufferSize = BUFFER_SIZE / 4;
-
 		// Write buffers filled with ascending numbers...
 		for (int i = 0; i < numBuffers; i++) {
 			final Buffer buffer = createBuffer();
@@ -194,7 +194,7 @@ public class BufferFileWriterReaderTest {
 	}
 
 	private Buffer createBuffer() {
-		return new Buffer(new MemorySegment(new byte[BUFFER_SIZE]), BUFFER_RECYCLER);
+		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
 	}
 
 	public static int fillBufferWithAscendingNumbers(Buffer buffer, int currentNumber) {

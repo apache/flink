@@ -101,4 +101,9 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 		target.writeInt(len);
 		target.write(source, len);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof BooleanPrimitiveArraySerializer;
+	}
 }

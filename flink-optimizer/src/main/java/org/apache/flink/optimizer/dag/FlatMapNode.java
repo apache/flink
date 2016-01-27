@@ -45,7 +45,7 @@ public class FlatMapNode extends SingleInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "FlatMap";
 	}
 

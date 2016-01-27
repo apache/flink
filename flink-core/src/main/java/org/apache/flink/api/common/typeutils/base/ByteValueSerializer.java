@@ -78,4 +78,9 @@ public final class ByteValueSerializer extends TypeSerializerSingleton<ByteValue
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		target.writeByte(source.readByte());
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof ByteValueSerializer;
+	}
 }

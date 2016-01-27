@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.memory;
-
 
 /**
  * Interface describing entities that can provide memory segments.

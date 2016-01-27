@@ -66,7 +66,7 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where(0, 1).equalTo(2)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[IndexOutOfBoundsException])
   def testCoGroupKeyFields4(): Unit =  {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -76,7 +76,7 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where(5).equalTo(0)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[IndexOutOfBoundsException])
   def testCoGroupKeyFields5(): Unit =  {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -86,14 +86,14 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where(-1).equalTo(-1)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[InvalidProgramException])
   def testCoGroupKeyFields6(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(customTypeData)
 
     // Should not work, field position key on custom data type
-    ds1.coGroup(ds2).where(5).equalTo(0)
+    ds1.coGroup(ds2).where(4).equalTo(0)
   }
 
   @Test

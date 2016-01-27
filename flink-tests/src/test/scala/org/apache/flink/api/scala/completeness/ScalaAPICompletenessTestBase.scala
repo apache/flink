@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.completeness
 
 import java.lang.reflect.Method
 
+import org.apache.flink.util.TestLogger
 import org.junit.Assert._
 import org.junit.Test
 
@@ -32,7 +33,7 @@ import scala.language.existentials
  *
  * Note: This is inspired by the JavaAPICompletenessChecker from Spark.
  */
-abstract class ScalaAPICompletenessTestBase {
+abstract class ScalaAPICompletenessTestBase extends TestLogger {
 
   /**
    * Determines whether a method is excluded by name.

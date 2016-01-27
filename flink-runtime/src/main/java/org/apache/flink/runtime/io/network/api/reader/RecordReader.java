@@ -80,4 +80,5 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractRecordRe
 			throw new RuntimeException("Cannot instantiate class " + recordType.getName(), e);
 		}
 	}
+
 }

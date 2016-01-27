@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +41,7 @@ public class ChainedAllReduceDriver<IT> extends ChainedDriver<IT, IT> {
 	@Override
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
-		final ReduceFunction<IT> red = RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, ReduceFunction.class);
+		final ReduceFunction<IT> red = BatchTask.instantiateUserCode(this.config, userCodeClassLoader, ReduceFunction.class);
 		this.reducer = red;
 		FunctionUtils.setFunctionRuntimeContext(red, getUdfRuntimeContext());
 
@@ -56,12 +56,12 @@ public class ChainedAllReduceDriver<IT> extends ChainedDriver<IT, IT> {
 	@Override
 	public void openTask() throws Exception {
 		Configuration stubConfig = this.config.getStubParameters();
-		RegularPactTask.openUserCode(this.reducer, stubConfig);
+		BatchTask.openUserCode(this.reducer, stubConfig);
 	}
 
 	@Override
 	public void closeTask() throws Exception {
-		RegularPactTask.closeUserCode(this.reducer);
+		BatchTask.closeUserCode(this.reducer);
 	}
 
 	@Override

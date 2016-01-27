@@ -21,6 +21,7 @@ package org.apache.flink.types;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -30,6 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * 
  * @see org.apache.flink.types.Key
  */
+@Public
 public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
 	private static final long serialVersionUID = 1L;
 
@@ -108,7 +110,7 @@ public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>,
 
 	@Override
 	public boolean equals(final Object obj) {
-		if (obj.getClass() == FloatValue.class) {
+		if (obj instanceof FloatValue) {
 			final FloatValue other = (FloatValue) obj;
 			return Float.floatToIntBits(this.value) == Float.floatToIntBits(other.value);
 		}
@@ -121,10 +123,15 @@ public class FloatValue implements Key<FloatValue>, ResettableValue<FloatValue>,
 	public int getBinaryLength() {
 		return 4;
 	}
-	
+
 	@Override
 	public void copyTo(FloatValue target) {
 		target.value = this.value;
+	}
+
+	@Override
+	public FloatValue copy() {
+		return new FloatValue(this.value);
 	}
 
 	@Override

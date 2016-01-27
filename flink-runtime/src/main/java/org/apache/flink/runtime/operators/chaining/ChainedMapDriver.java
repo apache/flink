@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.BatchTask;
 
 public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
@@ -36,7 +36,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
 		final MapFunction<IT, OT> mapper =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunction.class);
 		this.mapper = mapper;
 		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}
@@ -44,12 +44,12 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void openTask() throws Exception {
 		Configuration stubConfig = this.config.getStubParameters();
-		RegularPactTask.openUserCode(this.mapper, stubConfig);
+		BatchTask.openUserCode(this.mapper, stubConfig);
 	}
 
 	@Override
 	public void closeTask() throws Exception {
-		RegularPactTask.closeUserCode(this.mapper);
+		BatchTask.closeUserCode(this.mapper);
 	}
 
 	@Override

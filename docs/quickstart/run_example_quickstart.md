@@ -1,5 +1,9 @@
 ---
 title: "Quick Start: Run K-Means Example"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 2
+top-nav-title: Run Example
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,7 +27,8 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-This guide walks you through the steps of executing an example program ([K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering)) on Flink. On the way, you will see the a visualization of the program, the optimized execution plan, and track the progress of its execution.
+This guide walks you through the steps of executing an example program ([K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering)) on Flink. 
+On the way, you will see the a visualization of the program, the optimized execution plan, and track the progress of its execution.
 
 ## Setup Flink
 Follow the [instructions](setup_quickstart.html) to setup Flink and enter the root directory of your Flink setup.
@@ -36,7 +41,7 @@ Flink contains a data generator for K-Means.
 mkdir kmeans
 cd kmeans
 # Run data generator
-java -cp ../examples/flink-java-examples-{{ site.version }}-KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
+java -cp ../examples/batch/KMeans.jar:../lib/flink-dist-{{ site.version }}.jar \
   org.apache.flink.examples.java.clustering.util.KMeansDataGenerator \
   -points 500 -k 10 -stddev 0.08 -output `pwd`
 ~~~
@@ -53,7 +58,7 @@ The `kmeans/` directory should now contain two files: `centers` and `points`. Th
 
 
 ## Inspect the Input Data
-Use the `plotPoints.py` tool to review the generated data points. [Download Python Script](quickstart/plotPoints.py)
+Use the `plotPoints.py` tool to review the generated data points. [Download Python Script](plotPoints.py)
 
 ~~~ bash
 python plotPoints.py points ./points input
@@ -78,56 +83,41 @@ Start Flink and the web job submission client on your local machine.
 cd ..
 # start Flink
 ./bin/start-local.sh
-# Start the web client
-./bin/start-webclient.sh
 ~~~
 
 ## Inspect and Run the K-Means Example Program
-The Flink web client allows to submit Flink programs using a graphical user interface.
+The Flink web interface allows to submit Flink programs using a graphical user interface.
 
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/run-webclient.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/run-webclient.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_submit.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_submit.png" /></a>
 	</div>
 	<div class="col-md-6">
-		1. Open web client on  <a href="http://localhost:8080/launch.html">localhost:8080</a> <br>
-		2. Upload the K-Mean job JAR file. 
+		1. Open web interface on <a href="http://localhost:8081">localhost:8081</a> <br>
+		2. Select the "Submit new Job" page in the menu <br>
+		3. Upload the <code>KMeans.jar</code> from <code>examples/batch</code> by clicking the "Add New" button, and then the "Upload" button. <br>
+		4. Select the <code>KMeans.jar</code> form the list of jobs <br>
+		5. Enter the arguments and options in the lower box: <br>
+		    Leave the <i>Entry Class</i> and <i>Parallelism</i> form empty<br>
+		    Enter the following program arguments: <br>
+		    (KMeans expects the following args: <code>&lt;points path&gt; &lt;centers path&gt; &lt;result path&gt; &lt;num iterations&gt;</code>
 			{% highlight bash %}
-			./examples/flink-java-examples-*-KMeans.jar
-			{% endhighlight %} </br>
-		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
-		4. Enter the arguments in the lower left box:
-			{% highlight bash %}
-			file://<pathToFlink>/kmeans/points file://<pathToFlink>/kmeans/centers file://<pathToFlink>/kmeans/result 10
-			{% endhighlight %}
-			For example:
-			{% highlight bash %}
-			file:///tmp/flink/kmeans/points file:///tmp/flink/kmeans/centers file:///tmp/flink/kmeans/result 10
-			{% endhighlight %}
+            /tmp/kmeans/points /tmp/kmeans/centers /tmp/kmeans/result 10
+			{% endhighlight %} <br>
+		6. Press <b>Submit</b> to start the job
 	</div>
 </div>
 <hr>
 <div class="row" style="padding-top:15px">
 	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/compiler-webclient-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/compiler-webclient-new.png" /></a>
+		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_execute.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager_kmeans_execute.png" /></a>
 	</div>
 
 	<div class="col-md-6">
-		1. Press the <b>RunJob</b> to see the optimizer plan. <br>
-		2. Inspect the operators and see the properties (input sizes, cost estimation) determined by the optimizer.
+		Watch the job executing.
 	</div>
 </div>
-<hr>
-<div class="row" style="padding-top:15px">
-	<div class="col-md-6">
-		<a data-lightbox="compiler" href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-running-new.png" data-lightbox="example-1"><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-running-new.png" /></a>
-	</div>
-	<div class="col-md-6">
-		1. Press the <b>Continue</b> button to start executing the job. <br>
-		2. <a href="http://localhost:8080/launch.html">Open Flink's monitoring interface</a> to see the job's progress. (Due to the small input data, the job will finish really quick!)<br>
-		3. Once the job has finished, you can analyze the runtime of the individual operators.
-	</div>
-</div>
+
 
 ## Shutdown Flink
 Stop Flink when you are done.
@@ -135,12 +125,10 @@ Stop Flink when you are done.
 ~~~ bash
 # stop Flink
 ./bin/stop-local.sh
-# Stop the Flink web client
-./bin/stop-webclient.sh
 ~~~
 
 ## Analyze the Result
-Use the [Python Script](quickstart/plotPoints.py) again to visualize the result.
+Use the [Python Script](plotPoints.py) again to visualize the result.
 
 ~~~bash
 cd kmeans
@@ -153,3 +141,4 @@ The following three pictures show the results for the sample input above. Play a
 |relative stddev = 0.03|relative stddev = 0.08|relative stddev = 0.15|
 |:--------------------:|:--------------------:|:--------------------:|
 |<img src="{{ site.baseurl }}/page/img/quickstart-example/result003.png" alt="example1" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/result008.png" alt="example2" style="width: 275px;"/>|<img src="{{ site.baseurl }}/page/img/quickstart-example/result015.png" alt="example3" style="width: 275px;"/>|
+

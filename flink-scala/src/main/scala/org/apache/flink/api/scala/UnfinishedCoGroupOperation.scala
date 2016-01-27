@@ -18,12 +18,10 @@
 
 package org.apache.flink.api.scala
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.CoGroupFunction
-import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
-import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.util.Collector
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -63,31 +61,12 @@ class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
     // Maybe because ObjectArrayTypeInfo does not accept the Scala Array as an array class.
     val leftArrayType =
       ObjectArrayTypeInfo.getInfoFor(new Array[L](0).getClass, leftInput.getType)
+        .asInstanceOf[TypeInformation[Array[L]]]
     val rightArrayType =
       ObjectArrayTypeInfo.getInfoFor(new Array[R](0).getClass, rightInput.getType)
+        .asInstanceOf[TypeInformation[Array[R]]]
 
-    val returnType = new CaseClassTypeInfo[(Array[L], Array[R])](
-      classOf[(Array[L], Array[R])],
-      Array(leftArrayType, rightArrayType),
-      Seq(leftArrayType, rightArrayType),
-      Array("_1", "_2")) {
-
-      override def createSerializer(
-          executionConfig: ExecutionConfig): TypeSerializer[(Array[L], Array[R])] = {
-        val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
-        for (i <- 0 until getArity) {
-          fieldSerializers(i) = types(i).createSerializer(executionConfig)
-        }
-
-        new CaseClassSerializer[(Array[L], Array[R])](
-          classOf[(Array[L], Array[R])],
-          fieldSerializers) {
-          override def createInstance(fields: Array[AnyRef]) = {
-            (fields(0).asInstanceOf[Array[L]], fields(1).asInstanceOf[Array[R]])
-          }
-        }
-      }
-    }
+    val returnType = createTuple2TypeInformation[Array[L], Array[R]](leftArrayType, rightArrayType)
     val coGroupOperator = new CoGroupOperator[L, R, (Array[L], Array[R])](
       leftInput.javaSet, rightInput.javaSet, leftKey, rightKey, coGrouper, returnType,
       null, // partitioner

@@ -50,7 +50,7 @@ import org.apache.flink.util.Visitor;
  */
 public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRichFunction> implements IterationOperator {
 	
-	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
+	private static final String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
 	public static final String TERMINATION_CRITERION_AGGREGATOR_NAME = "terminationCriterion.aggregator";
 	

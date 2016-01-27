@@ -22,10 +22,6 @@ package org.apache.flink.types.parser;
 import org.apache.flink.types.parser.ByteParser;
 import org.apache.flink.types.parser.FieldParser;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 
 public class ByteParserTest extends ParserTestBase<Byte> {
 

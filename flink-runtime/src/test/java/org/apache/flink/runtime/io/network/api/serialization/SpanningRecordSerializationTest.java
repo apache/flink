@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
 import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.runtime.io.network.api.serialization.types.Util;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -125,7 +127,7 @@ public class SpanningRecordSerializationTest {
 	{
 		final int SERIALIZATION_OVERHEAD = 4; // length encoding
 
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), mock(BufferRecycler.class));
+		final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(segmentSize), mock(BufferRecycler.class));
 
 		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<SerializationTestType>();
 

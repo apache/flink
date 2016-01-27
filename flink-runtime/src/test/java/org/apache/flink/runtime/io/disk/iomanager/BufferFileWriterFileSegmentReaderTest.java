@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
@@ -33,7 +34,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -52,7 +53,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 	private AsynchronousBufferFileSegmentReader reader;
 
-	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<FileSegment>();
+	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
 
 	@Before
 	public void setUpWriterAndReader() {
@@ -60,7 +61,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 		try {
 			writer = ioManager.createBufferFileWriter(channel);
-			reader = (AsynchronousBufferFileSegmentReader) ioManager.createBufferFileSegmentReader(channel, new QueuingCallback<FileSegment>(returnedFileSegments));
+			reader = (AsynchronousBufferFileSegmentReader) ioManager.createBufferFileSegmentReader(channel, new QueuingCallback<>(returnedFileSegments));
 		}
 		catch (IOException e) {
 			if (writer != null) {
@@ -146,7 +147,9 @@ public class BufferFileWriterFileSegmentReaderTest {
 
 			fileSegment.getFileChannel().read(buffer, fileSegment.getPosition());
 
-			currentNumber = verifyBufferFilledWithAscendingNumbers(new Buffer(new MemorySegment(buffer.array()), BUFFER_RECYCLER), currentNumber, fileSegment.getLength());
+			currentNumber = verifyBufferFilledWithAscendingNumbers(
+					new Buffer(MemorySegmentFactory.wrap(buffer.array()), BUFFER_RECYCLER), 
+					currentNumber, fileSegment.getLength());
 		}
 
 		reader.close();
@@ -169,7 +172,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 	}
 
 	private Buffer createBuffer() {
-		return new Buffer(new MemorySegment(new byte[BUFFER_SIZE]), BUFFER_RECYCLER);
+		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), BUFFER_RECYCLER);
 	}
 
 	public static int fillBufferWithAscendingNumbers(Buffer buffer, int currentNumber) {

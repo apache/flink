@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 
-public class NumberSequenceIteratorTest {
+public class NumberSequenceIteratorTest extends TestLogger {
 
 	@Test
 	public void testSplitRegular() {

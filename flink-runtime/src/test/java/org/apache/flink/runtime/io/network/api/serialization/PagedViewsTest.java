@@ -16,20 +16,23 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
 import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.runtime.io.network.api.serialization.types.Util;
-import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
-import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
+import org.apache.flink.runtime.memory.AbstractPagedInputView;
+import org.apache.flink.runtime.memory.AbstractPagedOutputView;
+
 import org.junit.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -375,7 +378,7 @@ public class PagedViewsTest {
 		private final int segmentSize;
 
 		private TestOutputView(int segmentSize) {
-			super(new MemorySegment(new byte[segmentSize]), segmentSize, 0);
+			super(MemorySegmentFactory.allocateUnpooledSegment(segmentSize), segmentSize, 0);
 
 			this.segmentSize = segmentSize;
 		}
@@ -383,7 +386,7 @@ public class PagedViewsTest {
 		@Override
 		protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
 			segments.add(new SegmentWithPosition(current, positionInCurrent));
-			return new MemorySegment(new byte[segmentSize]);
+			return MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
 		}
 
 		public void close() {

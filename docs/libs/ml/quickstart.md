@@ -1,7 +1,10 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Quickstart Guide
-title: <a href="../ml">FlinkML</a> - Quickstart Guide
+title: FlinkML - Quickstart Guide
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Quickstart Guide
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -59,7 +62,7 @@ Next, you have to add the FlinkML dependency to the `pom.xml` of your project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-ml</artifactId>
+  <artifactId>flink-ml{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

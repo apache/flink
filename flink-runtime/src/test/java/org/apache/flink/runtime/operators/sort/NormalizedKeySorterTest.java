@@ -21,30 +21,26 @@ package org.apache.flink.runtime.operators.sort;
 
 import java.util.List;
 import java.util.Random;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 
-import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Value;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
-import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
-import org.apache.flink.types.Record;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
+import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- */
-public class NormalizedKeySorterTest
-{
+
+public class NormalizedKeySorterTest {
+	
 	private static final long SEED = 649180756312423613L;
 	
 	private static final long SEED2 = 97652436586326573L;
@@ -57,12 +53,12 @@ public class NormalizedKeySorterTest
 	
 	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
 
-	private DefaultMemoryManager memoryManager;
+	private MemoryManager memoryManager;
 
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
+		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
 	}
 
 	@After
@@ -77,25 +73,22 @@ public class NormalizedKeySorterTest
 		}
 	}
 
-	private NormalizedKeySorter<Record> newSortBuffer(List<MemorySegment> memory) throws Exception
+	private NormalizedKeySorter<Tuple2<Integer, String>> newSortBuffer(List<MemorySegment> memory) throws Exception
 	{
-		@SuppressWarnings("unchecked")
-		RecordComparator accessors = new RecordComparator(new int[] {0}, new Class[]{Key.class});
-		return new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
+		return new NormalizedKeySorter<>(TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
 	}
 
 	@Test
-	public void testWriteAndRead() throws Exception
-	{
+	public void testWriteAndRead() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -105,39 +98,39 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		Record readTarget = new Record();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
 		int i = 0;
 		while (i < num) {
 			generator.next(record);
 			readTarget = sorter.getRecord(readTarget, i++);
 			
-			Key rk = readTarget.getField(0, Key.class);
-			Key gk = record.getField(0, Key.class);
+			int rk = readTarget.f0;
+			int gk = record.f0;
 			
-			Value rv = readTarget.getField(1, Value.class);
-			Value gv = record.getField(1, Value.class);
+			String rv = readTarget.f1;
+			String gv = record.f1;
 			
 			Assert.assertEquals("The re-read key is wrong", gk, rk);
 			Assert.assertEquals("The re-read value is wrong", gv, rv);
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testWriteAndIterator() throws Exception
-	{
+	public void testWriteAndIterator() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
 			generator.next(record);
 		}
@@ -145,37 +138,37 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		MutableObjectIterator<Record> iter = sorter.getIterator();
-		Record readTarget = new Record();
+		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
 		while ((readTarget = iter.next(readTarget)) != null) {
 			generator.next(record);
 			
-			Key rk = readTarget.getField(0, Key.class);
-			Key gk = record.getField(0, Key.class);
+			int rk = readTarget.f0;
+			int gk = record.f0;
 			
-			Value rv = readTarget.getField(1, Value.class);
-			Value gv = record.getField(1, Value.class);
+			String rv = readTarget.f1;
+			String gv = record.f1;
 			
 			Assert.assertEquals("The re-read key is wrong", gk, rk);
 			Assert.assertEquals("The re-read value is wrong", gv, rv);
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testReset() throws Exception
-	{
+	public void testReset() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		
 		// write the buffer full with the first set of records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -186,7 +179,7 @@ public class NormalizedKeySorterTest
 		sorter.reset();
 		
 		// write a second sequence of records. since the values are of fixed length, we must be able to write an equal number
-		generator = new TestData.Generator(SEED2, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
+		generator = new TestData.TupleGenerator(SEED2, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		
 		// write the buffer full with the first set of records
 		int num2 = -1;
@@ -200,25 +193,26 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		Record readTarget = new Record();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
 		int i = 0;
 		while (i < num) {
 			generator.next(record);
 			readTarget = sorter.getRecord(readTarget, i++);
 			
-			Key rk = readTarget.getField(0, Key.class);
-			Key gk = record.getField(0, Key.class);
+			int rk = readTarget.f0;
+			int gk = record.f0;
 			
-			Value rv = readTarget.getField(1, Value.class);
-			Value gv = record.getField(1, Value.class);
+			String rv = readTarget.f1;
+			String gv = record.f1;
 			
 			Assert.assertEquals("The re-read key is wrong", gk, rk);
 			Assert.assertEquals("The re-read value is wrong", gv, rv);
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	/**
@@ -227,17 +221,16 @@ public class NormalizedKeySorterTest
 	 * and compares for equality.
 	 */
 	@Test
-	public void testSwap() throws Exception
-	{
+	public void testSwap() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -253,25 +246,26 @@ public class NormalizedKeySorterTest
 		
 		// re-read the records
 		generator.reset();
-		Record readTarget = new Record();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
 		int i = num - 1;
 		while (i >= 0) {
 			generator.next(record);
 			readTarget = sorter.getRecord(readTarget, i--);
 			
-			Key rk = readTarget.getField(0, Key.class);
-			Key gk = record.getField(0, Key.class);
+			int rk = readTarget.f0;
+			int gk = record.f0;
 			
-			Value rv = readTarget.getField(1, Value.class);
-			Value gv = record.getField(1, Value.class);
+			String rv = readTarget.f1;
+			String gv = record.f1;
 			
 			Assert.assertEquals("The re-read key is wrong", gk, rk);
 			Assert.assertEquals("The re-read value is wrong", gv, rv);
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	/**
@@ -280,17 +274,16 @@ public class NormalizedKeySorterTest
 	 * ones.
 	 */
 	@Test
-	public void testCompare() throws Exception
-	{
+	public void testCompare() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = -1;
 		do {
 			generator.next(record);
@@ -315,23 +308,23 @@ public class NormalizedKeySorterTest
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testSort() throws Exception
-	{
+	public void testSort() throws Exception {
 		final int NUM_RECORDS = 559273;
 		
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
-		NormalizedKeySorter<Record> sorter = newSortBuffer(memory);
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		int num = 0;
 		do {
 			generator.next(record);
@@ -342,47 +335,42 @@ public class NormalizedKeySorterTest
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		MutableObjectIterator<Record> iter = sorter.getIterator();
-		Record readTarget = new Record();
-		
-		Key current = new Key();
-		Key last = new Key();
-		
+		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
+
 		iter.next(readTarget);
-		readTarget.getFieldInto(0, last);
+		int last = readTarget.f0;
 		
 		while ((readTarget = iter.next(readTarget)) != null) {
-			readTarget.getFieldInto(0, current);
+			int current = readTarget.f0;
 			
-			final int cmp = last.compareTo(current);
+			final int cmp = last - current;
 			if (cmp > 0) {
 				Assert.fail("Next key is not larger or equal to previous key.");
 			}
 			
-			Key tmp = current;
-			current = last;
-			last = tmp;
+			last = current;
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testSortShortStringKeys() throws Exception
-	{
+	public void testSortShortStringKeys() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
 		@SuppressWarnings("unchecked")
-		RecordComparator accessors = new RecordComparator(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<Record> sorter = new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
+		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = new NormalizedKeySorter<>(TestData.getIntStringTupleSerializer(), accessors, memory);
 		
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
 			generator.next(record);
 		}
@@ -391,47 +379,42 @@ public class NormalizedKeySorterTest
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		MutableObjectIterator<Record> iter = sorter.getIterator();
-		Record readTarget = new Record();
-		
-		Value current = new Value();
-		Value last = new Value();
-		
+		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
+	
 		iter.next(readTarget);
-		readTarget.getFieldInto(1, last);
+		String last = readTarget.f1;
 		
 		while ((readTarget = iter.next(readTarget)) != null) {
-			readTarget.getFieldInto(1, current);
+			String current = readTarget.f1;
 			
 			final int cmp = last.compareTo(current);
 			if (cmp > 0) {
 				Assert.fail("Next value is not larger or equal to previous value.");
 			}
 			
-			Value tmp = current;
-			current = last;
-			last = tmp;
+			last = current;
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 	
 	@Test
-	public void testSortLongStringKeys() throws Exception
-	{
+	public void testSortLongStringKeys() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
 		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
 		
 		@SuppressWarnings("unchecked")
-		RecordComparator accessors = new RecordComparator(new int[] {1}, new Class[]{Value.class});
-		NormalizedKeySorter<Record> sorter = new NormalizedKeySorter<Record>(RecordSerializer.get(), accessors, memory);
+		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
+		NormalizedKeySorter<Tuple2<Integer, String>> sorter = new NormalizedKeySorter<>(TestData.getIntStringTupleSerializer(), accessors, memory);
 		
-		TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
 		
 		// write the records
-		Record record = new Record();
+		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
 			generator.next(record);
 		}
@@ -440,29 +423,25 @@ public class NormalizedKeySorterTest
 		QuickSort qs = new QuickSort();
 		qs.sort(sorter);
 		
-		MutableObjectIterator<Record> iter = sorter.getIterator();
-		Record readTarget = new Record();
-		
-		Value current = new Value();
-		Value last = new Value();
+		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
 		
 		iter.next(readTarget);
-		readTarget.getFieldInto(1, last);
+		String last = readTarget.f1;
 		
 		while ((readTarget = iter.next(readTarget)) != null) {
-			readTarget.getFieldInto(1, current);
+			String current = readTarget.f1;
 			
 			final int cmp = last.compareTo(current);
 			if (cmp > 0) {
 				Assert.fail("Next value is not larger or equal to previous value.");
 			}
 			
-			Value tmp = current;
-			current = last;
-			last = tmp;
+			last = current;
 		}
 		
 		// release the memory occupied by the buffers
-		this.memoryManager.release(sorter.dispose());
+		sorter.dispose();
+		this.memoryManager.release(memory);
 	}
 }

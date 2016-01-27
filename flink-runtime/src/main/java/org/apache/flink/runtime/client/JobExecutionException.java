@@ -22,14 +22,14 @@ import org.apache.flink.api.common.JobID;
 
 /**
  * This exception is the base exception for all exceptions that denote any failure during
- * teh execution of a job. The JobExecutionException and its subclasses are thrown by
+ * the execution of a job. The JobExecutionException and its subclasses are thrown by
  * the {@link JobClient}.
  */
 public class JobExecutionException extends Exception {
 
 	private static final long serialVersionUID = 2818087325120827525L;
 
-	private JobID jobID;
+	private final JobID jobID;
 
 	/**
 	 * Constructs a new job execution exception.
@@ -37,21 +37,18 @@ public class JobExecutionException extends Exception {
 	 * @param msg The cause for the execution exception.
 	 * @param cause The cause of the exception
 	 */
-	public JobExecutionException(final JobID jobID, final String msg, final Throwable cause) {
+	public JobExecutionException(JobID jobID, String msg, Throwable cause) {
 		super(msg, cause);
-
 		this.jobID = jobID;
 	}
 
-	public JobExecutionException(final JobID jobID, final String msg) {
+	public JobExecutionException(JobID jobID, String msg) {
 		super(msg);
-
 		this.jobID = jobID;
 	}
 
-	public JobExecutionException(final JobID jobID, final Throwable cause) {
+	public JobExecutionException(JobID jobID, Throwable cause) {
 		super(cause);
-
 		this.jobID = jobID;
 	}
 

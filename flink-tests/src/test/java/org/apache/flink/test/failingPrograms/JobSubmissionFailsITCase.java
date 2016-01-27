@@ -23,7 +23,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.Tasks;
@@ -48,7 +47,7 @@ public class JobSubmissionFailsITCase {
 	
 	private static final int NUM_SLOTS = 20;
 	
-	private static ForkableFlinkMiniCluster cluser;
+	private static ForkableFlinkMiniCluster cluster;
 	private static JobGraph workingJobGraph;
 
 	@BeforeClass
@@ -56,10 +55,12 @@ public class JobSubmissionFailsITCase {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
-			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS / 2);
 			
-			cluser = new ForkableFlinkMiniCluster(config);
+			cluster = new ForkableFlinkMiniCluster(config);
+
+			cluster.start();
 			
 			final JobVertex jobVertex = new JobVertex("Working job vertex.");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
@@ -74,7 +75,7 @@ public class JobSubmissionFailsITCase {
 	@AfterClass
 	public static void teardown() {
 		try {
-			cluser.shutdown();
+			cluster.shutdown();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -100,13 +101,11 @@ public class JobSubmissionFailsITCase {
 	
 	private JobExecutionResult submitJob(JobGraph jobGraph) throws Exception {
 		if (detached) {
-			cluser.submitJobDetached(jobGraph);
+			cluster.submitJobDetached(jobGraph);
 			return null;
 		}
 		else {
-			SerializedJobExecutionResult result = cluser.submitJobAndWait(
-												jobGraph, false, TestingUtils.TESTING_DURATION());
-			return result.toJobExecutionResult(getClass().getClassLoader());
+			return cluster.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 		}
 	}
 
@@ -130,7 +129,7 @@ public class JobSubmissionFailsITCase {
 				fail("Caught wrong exception of type " + t.getClass() + ".");
 			}
 
-			cluser.submitJobAndWait(workingJobGraph, false);
+			cluster.submitJobAndWait(workingJobGraph, false);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -155,7 +154,7 @@ public class JobSubmissionFailsITCase {
 				fail("Caught wrong exception of type " + t.getClass() + ".");
 			}
 	
-			cluser.submitJobAndWait(workingJobGraph, false);
+			cluster.submitJobAndWait(workingJobGraph, false);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -178,7 +177,7 @@ public class JobSubmissionFailsITCase {
 				fail("Caught wrong exception of type " + t.getClass() + ".");
 			}
 
-			cluser.submitJobAndWait(workingJobGraph, false);
+			cluster.submitJobAndWait(workingJobGraph, false);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -50,7 +50,6 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	private String resultPath;
-	private String expected;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -62,7 +61,6 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testIntSortingParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Integer> ds = CollectionDataSets.getIntegerDataSet(env);
@@ -70,14 +68,13 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		env.execute();
 
-		expected = "5\n5\n5\n5\n5\n4\n4\n4\n4\n3\n3\n3\n2\n2\n1\n";
+		String expected = "5\n5\n5\n5\n5\n4\n4\n4\n4\n3\n3\n3\n2\n2\n1\n";
 		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
 
 	}
 
 	@Test
 	public void testStringSortingParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
@@ -85,7 +82,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		env.execute();
 
-		expected = "Hello\n" +
+		String expected = "Hello\n" +
 				"Hello world\n" +
 				"Hello world, how are you?\n" +
 				"Hi\n" +
@@ -99,7 +96,6 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testTupleSortingSingleAscParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
@@ -107,7 +103,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		env.execute();
 
-		expected = "1,1,Hi\n" +
+		String expected = "1,1,Hi\n" +
 				"2,2,Hello\n" +
 				"3,2,Hello world\n" +
 				"4,3,Hello world, how are you?\n" +
@@ -130,12 +126,10 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 				"21,6,Comment#15\n";
 
 		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
-
 	}
 
 	@Test
 	public void testTupleSortingSingleDescParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
@@ -143,7 +137,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		env.execute();
 
-		expected = "21,6,Comment#15\n" +
+		String expected = "21,6,Comment#15\n" +
 				"20,6,Comment#14\n" +
 				"19,6,Comment#13\n" +
 				"18,6,Comment#12\n" +
@@ -164,21 +158,22 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 				"3,2,Hello world\n" +
 				"2,2,Hello\n" +
 				"1,1,Hi\n";
-		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
 
+		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
 	}
 
 	@Test
 	public void testTupleSortingDualParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds.writeAsCsv(resultPath).sortLocalOutput(1, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING).setParallelism(1);
+		ds.writeAsCsv(resultPath)
+			.sortLocalOutput(1, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
-		expected = "16,6,Comment#10\n" +
+		String expected = "16,6,Comment#10\n" +
 				"17,6,Comment#11\n" +
 				"18,6,Comment#12\n" +
 				"19,6,Comment#13\n" +
@@ -199,25 +194,24 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 				"2,2,Hello\n" +
 				"3,2,Hello world\n" +
 				"1,1,Hi\n";
-		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
 
+		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
 	}
 
 	@Test
 	public void testTupleSortingNestedParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
 				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput("f0.f1", Order.ASCENDING)
-				.sortLocalOutput("f1", Order.DESCENDING)
-				.setParallelism(1);
+			.sortLocalOutput("f0.f1", Order.ASCENDING)
+			.sortLocalOutput("f1", Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
-		expected =
+		String expected =
 				"((2,1),a,3)\n" +
 				"((2,2),b,4)\n" +
 				"((1,2),a,1)\n" +
@@ -231,19 +225,18 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testTupleSortingNestedParallelism1_2() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
 				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput(1, Order.ASCENDING)
-				.sortLocalOutput(2, Order.DESCENDING)
-				.setParallelism(1);
+			.sortLocalOutput(1, Order.ASCENDING)
+			.sortLocalOutput(2, Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
-		expected =
+		String expected =
 				"((2,1),a,3)\n" +
 				"((1,3),a,2)\n" +
 				"((1,2),a,1)\n" +
@@ -257,7 +250,6 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testPojoSortingSingleParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
@@ -265,7 +257,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		env.execute();
 
-		expected = "1 First (10,100,1000,One) 10100\n" +
+		String expected = "1 First (10,100,1000,One) 10100\n" +
 				"2 First_ (10,105,1000,One) 10200\n" +
 				"3 First (11,102,3000,One) 10200\n" +
 				"4 First_ (11,106,1000,One) 10300\n" +
@@ -275,23 +267,21 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 				"8 Third_ (30,300,1000,Three) 10100\n";
 
 		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
-
 	}
 
 	@Test
 	public void testPojoSortingDualParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput("str", Order.ASCENDING)
-				.sortLocalOutput("number", Order.DESCENDING)
-				.setParallelism(1);
+			.sortLocalOutput("str", Order.ASCENDING)
+			.sortLocalOutput("number", Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
-		expected =
+		String expected =
 				"5 First (11,102,2000,One) 10100\n" +
 				"3 First (11,102,3000,One) 10200\n" +
 				"1 First (10,100,1000,One) 10100\n" +
@@ -307,19 +297,18 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testPojoSortingNestedParallelism1() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
 		ds.writeAsText(resultPath)
-				.sortLocalOutput("nestedTupleWithCustom.f0", Order.ASCENDING)
-				.sortLocalOutput("nestedTupleWithCustom.f1.myInt", Order.DESCENDING)
-				.sortLocalOutput("nestedPojo.longNumber", Order.ASCENDING)
-				.setParallelism(1);
+			.sortLocalOutput("nestedTupleWithCustom.f0", Order.ASCENDING)
+			.sortLocalOutput("nestedTupleWithCustom.f1.myInt", Order.DESCENDING)
+			.sortLocalOutput("nestedPojo.longNumber", Order.ASCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
-		expected =
+		String expected =
 				"2 First_ (10,105,1000,One) 10200\n" +
 				"1 First (10,100,1000,One) 10100\n" +
 				"4 First_ (11,106,1000,One) 10300\n" +
@@ -334,21 +323,20 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testSortingParallelism4() throws Exception {
-
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Long> ds = env.generateSequence(0, 1000);
 		// randomize
 		ds.map(new MapFunction<Long, Long>() {
 
-			Random rand = new Random(1234l);
+			Random rand = new Random(1234L);
 			@Override
 			public Long map(Long value) throws Exception {
 				return rand.nextLong();
 			}
 		}).writeAsText(resultPath)
-				.sortLocalOutput("*", Order.ASCENDING)
-				.setParallelism(4);
+			.sortLocalOutput("*", Order.ASCENDING)
+			.setParallelism(4);
 
 		env.execute();
 

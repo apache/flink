@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.messages.accumulators
 
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.accumulators.{StringifiedAccumulatorResult, AccumulatorEvent}
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.util.SerializedValue
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
+import org.apache.flink.util.SerializedValue
 
 /**
  * Base trait of all accumulator messages
@@ -36,18 +35,6 @@ sealed trait AccumulatorMessage {
  * Base trait of responses to [[RequestAccumulatorResults]]
  */
 sealed trait AccumulatorResultsResponse extends AccumulatorMessage
-
-/**
- * Reports the accumulator results of the individual tasks to the job manager.
- *
- * @param jobID The ID of the job the accumulator belongs to
- * @param executionId The ID of the task execution that the accumulator belongs to.
- * @param accumulatorEvent The serialized accumulators
- */
-case class ReportAccumulatorResult(jobID: JobID,
-                                   executionId: ExecutionAttemptID,
-                                   accumulatorEvent: AccumulatorEvent)
-  extends AccumulatorMessage
 
 /**
  * Requests the accumulator results of the job identified by [[jobID]] from the job manager.

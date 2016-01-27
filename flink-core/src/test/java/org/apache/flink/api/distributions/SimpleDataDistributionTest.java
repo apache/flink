@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.distributions;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-
-import org.junit.Assert;
-
 import org.apache.flink.api.common.distributions.SimpleDistribution;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Key;
 import org.apache.flink.types.StringValue;
+
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 public class SimpleDataDistributionTest {
 
@@ -43,7 +40,7 @@ public class SimpleDataDistributionTest {
 
 		// check correct data distribution
 		try {
-			SimpleDistribution dd = new SimpleDistribution(new Key[] {new IntValue(1), new IntValue(2), new IntValue(3)});
+			SimpleDistribution dd = new SimpleDistribution(new Key<?>[] {new IntValue(1), new IntValue(2), new IntValue(3)});
 			Assert.assertEquals(1, dd.getNumberOfFields());
 		}
 		catch (Throwable t) {
@@ -52,7 +49,7 @@ public class SimpleDataDistributionTest {
 		
 		// check incorrect key types
 		try {
-			new SimpleDistribution(new Key[] {new IntValue(1), new StringValue("ABC"), new IntValue(3)});
+			new SimpleDistribution(new Key<?>[] {new IntValue(1), new StringValue("ABC"), new IntValue(3)});
 			Assert.fail("Data distribution accepts inconsistent key types");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -60,7 +57,7 @@ public class SimpleDataDistributionTest {
 		
 		// check inconsistent number of keys
 		try {
-			new SimpleDistribution(new Key[][] {{new IntValue(1)}, {new IntValue(2), new IntValue(2)}, {new IntValue(3)}});
+			new SimpleDistribution(new Key<?>[][] {{new IntValue(1)}, {new IntValue(2), new IntValue(2)}, {new IntValue(3)}});
 			Assert.fail("Data distribution accepts inconsistent many keys");
 		} catch(IllegalArgumentException iae) {
 			// do nothing
@@ -72,7 +69,7 @@ public class SimpleDataDistributionTest {
 		
 		// check correct data distribution
 		SimpleDistribution dd = new SimpleDistribution(
-				new Key[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
+				new Key<?>[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(2), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(3), new StringValue("A"), new IntValue(1)}});
 		Assert.assertEquals(3, dd.getNumberOfFields());
@@ -80,7 +77,7 @@ public class SimpleDataDistributionTest {
 		// check inconsistent key types
 		try {
 			new SimpleDistribution( 
-					new Key[][] {{new IntValue(1), new StringValue("A"), new DoubleValue(1.3d)}, 
+					new Key<?>[][] {{new IntValue(1), new StringValue("A"), new DoubleValue(1.3d)}, 
 								{new IntValue(2), new StringValue("B"), new IntValue(1)}});
 			Assert.fail("Data distribution accepts incorrect key types");
 		} catch(IllegalArgumentException iae) {
@@ -89,8 +86,8 @@ public class SimpleDataDistributionTest {
 		
 		// check inconsistent number of keys
 		try {
-			dd = new SimpleDistribution(
-					new Key[][] {{new IntValue(1), new IntValue(2)}, 
+			new SimpleDistribution(
+					new Key<?>[][] {{new IntValue(1), new IntValue(2)}, 
 								{new IntValue(2), new IntValue(2)}, 
 								{new IntValue(3)}});
 			Assert.fail("Data distribution accepts bucket boundaries with inconsistent many keys");
@@ -104,7 +101,7 @@ public class SimpleDataDistributionTest {
 	public void testWriteRead() {
 		
 		SimpleDistribution ddWrite = new SimpleDistribution(
-				new Key[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
+				new Key<?>[][] {{new IntValue(1), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(2), new StringValue("A"), new IntValue(1)}, 
 							{new IntValue(2), new StringValue("B"), new IntValue(4)},
 							{new IntValue(2), new StringValue("B"), new IntValue(3)},
@@ -112,9 +109,9 @@ public class SimpleDataDistributionTest {
 		Assert.assertEquals(3, ddWrite.getNumberOfFields());
 		
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		final DataOutputStream dos = new DataOutputStream(baos);
+		
 		try {
-			ddWrite.write(new OutputViewDataOutputStreamWrapper(dos));
+			ddWrite.write(new DataOutputViewStreamWrapper(baos));
 		} catch (IOException e) {
 			Assert.fail("Error serializing the DataDistribution: " + e.getMessage());
 		}
@@ -122,12 +119,11 @@ public class SimpleDataDistributionTest {
 		byte[] seralizedDD = baos.toByteArray();
 		
 		final ByteArrayInputStream bais = new ByteArrayInputStream(seralizedDD);
-		final DataInputStream in = new DataInputStream(bais);
 		
 		SimpleDistribution ddRead = new SimpleDistribution();
 		
 		try {
-			ddRead.read(new InputViewDataInputStreamWrapper(in));
+			ddRead.read(new DataInputViewStreamWrapper(bais));
 		} catch (Exception ex) {
 			Assert.fail("The deserialization of the encoded data distribution caused an error");
 		}
@@ -149,7 +145,7 @@ public class SimpleDataDistributionTest {
 	public void testGetBucketBoundary() {
 		
 		SimpleDistribution dd = new SimpleDistribution(
-				new Key[][] {{new IntValue(1), new StringValue("A")}, 
+				new Key<?>[][] {{new IntValue(1), new StringValue("A")}, 
 							{new IntValue(2), new StringValue("B")}, 
 							{new IntValue(3), new StringValue("C")},
 							{new IntValue(4), new StringValue("D")},
@@ -202,32 +198,31 @@ public class SimpleDataDistributionTest {
 		Assert.assertTrue(((StringValue) boundRec[1]).getValue().equals("D"));
 		
 		try {
-			boundRec = dd.getBucketBoundary(0, 7);
+			dd.getBucketBoundary(0, 7);
 			Assert.fail();
 		} catch(IllegalArgumentException iae) {
 			// nothing to do
 		}
 		
 		try {
-			boundRec = dd.getBucketBoundary(3, 4);
+			dd.getBucketBoundary(3, 4);
 			Assert.fail();
 		} catch(IllegalArgumentException iae) {
 			// nothing to do
 		}
 		
 		try {
-			boundRec = dd.getBucketBoundary(-1, 4);
+			dd.getBucketBoundary(-1, 4);
 			Assert.fail();
 		} catch(IllegalArgumentException iae) {
 			// nothing to do
 		}
 		
 		try {
-			boundRec = dd.getBucketBoundary(0, 0);
+			dd.getBucketBoundary(0, 0);
 			Assert.fail();
 		} catch(IllegalArgumentException iae) {
 			// nothing to do
 		}
 	}
-
 }

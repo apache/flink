@@ -15,13 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Public;
+
 /**
- * The result of a job submission.
- * Contains the JobID
+ * The result of submitting a job to a JobManager.
  */
+@Public
 public class JobSubmissionResult {
+	
 	private JobID jobID;
 
 	public JobSubmissionResult(JobID jobID) {

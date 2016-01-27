@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -28,9 +29,9 @@ import com.google.common.io.Files;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.StreamingMode;
-import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.util.OperatingSystem;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,6 +50,8 @@ public class JobManagerStartupTest {
 	public void before() {
 		// Prepare test directory
 		blobStorageDirectory = Files.createTempDir();
+
+		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		assertTrue(blobStorageDirectory.setExecutable(true, false));
 		assertTrue(blobStorageDirectory.setReadable(true, false));
@@ -81,8 +84,7 @@ public class JobManagerStartupTest {
 		}
 		
 		try {
-			JobManager.runJobManager(new Configuration(), JobManagerMode.CLUSTER,
-									StreamingMode.BATCH_ONLY, "localhost", portNum);
+			JobManager.runJobManager(new Configuration(), JobManagerMode.CLUSTER, "localhost", portNum);
 			fail("this should throw an exception");
 		}
 		catch (Exception e) {
@@ -121,8 +123,7 @@ public class JobManagerStartupTest {
 		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, nonExistDirectory);
 
 		try {
-			JobManager.runJobManager(failConfig, JobManagerMode.CLUSTER,
-										StreamingMode.BATCH_ONLY, "localhost", portNum);
+			JobManager.runJobManager(failConfig, JobManagerMode.CLUSTER, "localhost", portNum);
 			fail("this should fail with an exception");
 		}
 		catch (Exception e) {

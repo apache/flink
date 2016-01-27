@@ -22,22 +22,17 @@ import java.lang.reflect.Field;
 import java.nio.ByteOrder;
 
 /**
- * Utility class for native (unsafe) memory accesses.
+ * Utility class for memory operations.
  */
 public class MemoryUtils {
 	
-	/**
-	 * The "unsafe", which can be used to perform native memory accesses.
-	 */
+	/** The "unsafe", which can be used to perform native memory accesses. */
 	@SuppressWarnings("restriction")
 	public static final sun.misc.Unsafe UNSAFE = getUnsafe();
 	
-	/**
-	 * The native byte order of the platform on which the system currently runs.
-	 */
-	public static final ByteOrder NATIVE_BYTE_ORDER = getByteOrder();
-	
-	
+	/** The native byte order of the platform on which the system currently runs. */
+	public static final ByteOrder NATIVE_BYTE_ORDER = ByteOrder.nativeOrder();
+
 	@SuppressWarnings("restriction")
 	private static sun.misc.Unsafe getUnsafe() {
 		try {
@@ -45,34 +40,18 @@ public class MemoryUtils {
 			unsafeField.setAccessible(true);
 			return (sun.misc.Unsafe) unsafeField.get(null);
 		} catch (SecurityException e) {
-			throw new RuntimeException("Could not access the unsafe handle.", e);
+			throw new RuntimeException("Could not access the sun.misc.Unsafe handle, permission denied by security manager.", e);
 		} catch (NoSuchFieldException e) {
-			throw new RuntimeException("The static unsafe handle field was not be found.");
+			throw new RuntimeException("The static handle field in sun.misc.Unsafe was not found.");
 		} catch (IllegalArgumentException e) {
-			throw new RuntimeException("Bug: Illegal argument reflection access for static field.");
+			throw new RuntimeException("Bug: Illegal argument reflection access for static field.", e);
 		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Access to the unsafe handle is forbidden by the runtime.", e);
+			throw new RuntimeException("Access to sun.misc.Unsafe is forbidden by the runtime.", e);
+		} catch (Throwable t) {
+			throw new RuntimeException("Unclassified error while trying to access the sun.misc.Unsafe handle.", t);
 		}
 	}
-	
-	@SuppressWarnings("restriction")
-	private static ByteOrder getByteOrder() {
-		final byte[] bytes = new byte[8];
-		final long value = 0x12345678900abdefL;
-		UNSAFE.putLong(bytes, (long) UNSAFE.arrayBaseOffset(byte[].class), value);
-		
-		final int lower = bytes[0] & 0xff;
-		final int higher = bytes[7] & 0xff;
-		
-		if (lower == 0x12 && higher == 0xef) {
-			return ByteOrder.BIG_ENDIAN;
-		} else if (lower == 0xef && higher == 0x12) {
-			return ByteOrder.LITTLE_ENDIAN;
-		} else {
-			throw new RuntimeException("Unrecognized byte order.");
-		}
-	}
-	
-	
+
+	/** Should not be instantiated */
 	private MemoryUtils() {}
 }

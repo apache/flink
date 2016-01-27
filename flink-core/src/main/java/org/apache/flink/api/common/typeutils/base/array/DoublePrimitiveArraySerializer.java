@@ -100,4 +100,9 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 		target.writeInt(len);
 		target.write(source, len * 8);
 	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof DoublePrimitiveArraySerializer;
+	}
 }

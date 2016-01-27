@@ -104,7 +104,7 @@ public class CrossNode extends TwoInputNode {
 	}
 
 	@Override
-	public String getName() {
+	public String getOperatorName() {
 		return "Cross";
 	}
 	

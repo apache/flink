@@ -18,6 +18,10 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
+
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -25,11 +29,12 @@ import java.util.concurrent.TimeUnit;
  * The result of a job execution. Gives access to the execution time of the job,
  * and to all accumulators created by this job.
  */
+@Public
 public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
 
-	private Map<String, Object> accumulatorResults;
+	private Map<String, Object> accumulatorResults = Collections.emptyMap();
 
 	/**
 	 * Creates a new JobExecutionResult.
@@ -41,7 +46,10 @@ public class JobExecutionResult extends JobSubmissionResult {
 	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, Object> accumulators) {
 		super(jobID);
 		this.netRuntime = netRuntime;
-		this.accumulatorResults = accumulators;
+
+		if (accumulators != null) {
+			this.accumulatorResults = accumulators;
+		}
 	}
 
 	/**
@@ -95,6 +103,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @return Result of the counter, or null if the counter does not exist
 	 * @throws java.lang.ClassCastException Thrown, if the accumulator was not aggregating a {@link java.lang.Integer}
 	 */
+	@Deprecated
+	@Experimental
 	public Integer getIntCounterResult(String accumulatorName) {
 		Object result = this.accumulatorResults.get(accumulatorName);
 		if (result == null) {
@@ -105,5 +115,14 @@ public class JobExecutionResult extends JobSubmissionResult {
 							+ "' should be Integer but has type " + result.getClass());
 		}
 		return (Integer) result;
+	}
+
+	/**
+	 * Returns a dummy object for wrapping a JobSubmissionResult
+	 * @param result The SubmissionResult
+	 * @return a JobExecutionResult
+	 */
+	public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
+		return new JobExecutionResult(result.getJobID(), -1, null);
 	}
 }

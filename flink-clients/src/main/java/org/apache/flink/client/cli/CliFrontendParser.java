@@ -43,13 +43,25 @@ public class CliFrontendParser {
 
 	static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
 
-	static final Option CLASS_OPTION = new Option("c", "class", true,
+	public static final Option CLASS_OPTION = new Option("c", "class", true,
 			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
 					"JAR file does not specify the class in its manifest.");
+
+	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
+			"classloader  on all nodes in the cluster. The paths must specify a protocol (e.g. file://) and be " +
+					"accessible on all nodes (e.g. by means of a NFS share). You can use this option multiple " +
+					"times for specifying more than one URL. The protocol must be supported by the " +
+					"{@link java.net.URLClassLoader}.");
 
 	static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 					"specified in the configuration.");
+
+	static final Option LOGGING_OPTION = new Option("q", "sysoutLogging", false, "If present, " +
+			"supress logging output to standard out.");
+
+	static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
+			"the job in detached mode");
 
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
@@ -58,6 +70,12 @@ public class CliFrontendParser {
 			"Address of the JobManager (master) to which to connect. Specify '" + CliFrontend.YARN_DEPLOY_JOBMANAGER
 					+ "' as the JobManager to deploy a YARN cluster for the job. Use this flag to connect to a " +
 					"different JobManager than the one specified in the configuration.");
+
+	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
+			"Path to a savepoint to reset the job back to (for example file:///flink/savepoint-1537).");
+
+	static final Option SAVEPOINT_DISPOSE_OPTION = new Option("d", "dispose", true,
+			"Disposes an existing savepoint.");
 
 	// list specific options
 	static final Option RUNNING_OPTION = new Option("r", "running", false,
@@ -75,11 +93,17 @@ public class CliFrontendParser {
 		CLASS_OPTION.setRequired(false);
 		CLASS_OPTION.setArgName("classname");
 
+		CLASSPATH_OPTION.setRequired(false);
+		CLASSPATH_OPTION.setArgName("url");
+
 		ADDRESS_OPTION.setRequired(false);
 		ADDRESS_OPTION.setArgName("host:port");
 
 		PARALLELISM_OPTION.setRequired(false);
 		PARALLELISM_OPTION.setArgName("parallelism");
+
+		LOGGING_OPTION.setRequired(false);
+		DETACHED_OPTION.setRequired(false);
 
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
@@ -87,13 +111,19 @@ public class CliFrontendParser {
 
 		RUNNING_OPTION.setRequired(false);
 		SCHEDULED_OPTION.setRequired(false);
+
+		SAVEPOINT_PATH_OPTION.setRequired(false);
+		SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
+
+		SAVEPOINT_DISPOSE_OPTION.setRequired(false);
+		SAVEPOINT_DISPOSE_OPTION.setArgName("savepointPath");
 	}
 
 	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
 	private static final Options INFO_OPTIONS = getInfoOptions(buildGeneralOptions(new Options()));
 	private static final Options LIST_OPTIONS = getListOptions(buildGeneralOptions(new Options()));
 	private static final Options CANCEL_OPTIONS = getCancelOptions(buildGeneralOptions(new Options()));
-
+	private static final Options SAVEPOINT_OPTIONS = getSavepointOptions(buildGeneralOptions(new Options()));
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -105,8 +135,12 @@ public class CliFrontendParser {
 	public static Options getProgramSpecificOptions(Options options) {
 		options.addOption(JAR_OPTION);
 		options.addOption(CLASS_OPTION);
+		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(ARGS_OPTION);
+		options.addOption(LOGGING_OPTION);
+		options.addOption(DETACHED_OPTION);
+		options.addOption(SAVEPOINT_PATH_OPTION);
 
 		// also add the YARN options so that the parser can parse them
 		yarnSessionCLi.getYARNSessionCLIOptions(options);
@@ -115,7 +149,11 @@ public class CliFrontendParser {
 
 	private static Options getProgramSpecificOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(CLASS_OPTION);
+		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
+		options.addOption(LOGGING_OPTION);
+		options.addOption(DETACHED_OPTION);
+		options.addOption(SAVEPOINT_PATH_OPTION);
 		return options;
 	}
 
@@ -141,7 +179,8 @@ public class CliFrontendParser {
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
-		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
+		options.addOption(CLASS_OPTION);
+		options.addOption(PARALLELISM_OPTION);
 		options = getJobManagerAddressOption(options);
 		return options;
 	}
@@ -155,6 +194,12 @@ public class CliFrontendParser {
 
 	private static Options getCancelOptions(Options options) {
 		options = getJobManagerAddressOption(options);
+		return options;
+	}
+
+	private static Options getSavepointOptions(Options options) {
+		options = getJobManagerAddressOption(options);
+		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		return options;
 	}
 
@@ -174,6 +219,7 @@ public class CliFrontendParser {
 		printHelpForInfo();
 		printHelpForList();
 		printHelpForCancel();
+		printHelpForSavepoint();
 
 		System.out.println();
 	}
@@ -230,6 +276,18 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
+	public static void printHelpForSavepoint() {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"savepoint\" triggers savepoints for a running job or disposes existing ones.");
+		System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID>");
+		formatter.setSyntaxPrefix("  \"savepoint\" action options:");
+		formatter.printHelp(" ", getSavepointOptions(new Options()));
+		System.out.println();
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Line Parsing
 	// --------------------------------------------------------------------------------------------
@@ -267,10 +325,21 @@ public class CliFrontendParser {
 		}
 	}
 
+	public static SavepointOptions parseSavepointCommand(String[] args) throws CliArgsException {
+		try {
+			PosixParser parser = new PosixParser();
+			CommandLine line = parser.parse(SAVEPOINT_OPTIONS, args, false);
+			return new SavepointOptions(line);
+		}
+		catch (ParseException e) {
+			throw new CliArgsException(e.getMessage());
+		}
+	}
+
 	public static InfoOptions parseInfoCommand(String[] args) throws CliArgsException {
 		try {
 			PosixParser parser = new PosixParser();
-			CommandLine line = parser.parse(INFO_OPTIONS, args, false);
+			CommandLine line = parser.parse(INFO_OPTIONS, args, true);
 			return new InfoOptions(line);
 		}
 		catch (ParseException e) {

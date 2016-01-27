@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Random;
 
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.junit.Test;

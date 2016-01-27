@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,7 +37,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	private final Class<T> enumClass;
 
 	public EnumSerializer(Class<T> enumClass) {
-		this.enumClass = enumClass;
+		this.enumClass = Preconditions.checkNotNull(enumClass);
 		this.values = createValues(enumClass);
 	}
 
@@ -94,10 +95,21 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	public boolean equals(Object obj) {
 		if(obj instanceof EnumSerializer) {
 			EnumSerializer<?> other = (EnumSerializer<?>) obj;
-			return other.enumClass == this.enumClass;
+
+			return other.canEqual(this) && other.enumClass == this.enumClass;
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof EnumSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return enumClass.hashCode();
 	}
 
 	// --------------------------------------------------------------------------------------------

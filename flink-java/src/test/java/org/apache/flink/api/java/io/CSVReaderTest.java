@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -28,10 +29,21 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.BooleanValue;
+import org.apache.flink.types.ByteValue;
+import org.apache.flink.types.CharValue;
+import org.apache.flink.types.DoubleValue;
+import org.apache.flink.types.FloatValue;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.types.Value;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -190,7 +202,7 @@ public class CSVReaderTest {
 		}
 		
 		CsvInputFormat<?> inputFormat = (CsvInputFormat<?>) items.getInputFormat();
-		Assert.assertArrayEquals(new Class<?>[] {Integer.class, String.class, Double.class, String.class}, inputFormat.getFieldTypes());
+		Assert.assertArrayEquals(new Class<?>[]{Integer.class, String.class, Double.class, String.class}, inputFormat.getFieldTypes());
 	}
 	
 	@Test
@@ -211,7 +223,7 @@ public class CSVReaderTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(3));
 		
 		CsvInputFormat<?> inputFormat = (CsvInputFormat<?>) sitems.getInputFormat();
-		Assert.assertArrayEquals(new Class<?>[] {Integer.class, String.class, Double.class, String.class}, inputFormat.getFieldTypes());
+		Assert.assertArrayEquals(new Class<?>[]{Integer.class, String.class, Double.class, String.class}, inputFormat.getFieldTypes());
 	}
 	
 	@Test
@@ -250,6 +262,31 @@ public class CSVReaderTest {
 			// okay.
 		}
 	}
+
+	@Test
+	public void testWithValueType() throws Exception {
+		CsvReader reader = getCsvReader();
+		DataSource<Tuple8<StringValue, BooleanValue, ByteValue, ShortValue, IntValue, LongValue, FloatValue, DoubleValue>> items =
+				reader.types(StringValue.class, BooleanValue.class, ByteValue.class, ShortValue.class, IntValue.class, LongValue.class, FloatValue.class, DoubleValue.class);
+		TypeInformation<?> info = items.getType();
+
+		Assert.assertEquals(true, info.isTupleType());
+		Assert.assertEquals(Tuple8.class, info.getTypeClass());
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testWithInvalidValueType1() throws Exception {
+		CsvReader reader = getCsvReader();
+		// CsvReader doesn't support CharValue
+		reader.types(CharValue.class);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testWithInvalidValueType2() throws Exception {
+		CsvReader reader = getCsvReader();
+		// CsvReader doesn't support custom Value type
+		reader.types(ValueItem.class);
+	}
 	
 	private static CsvReader getCsvReader() {
 		return new CsvReader("/some/none/existing/path", ExecutionEnvironment.createLocalEnvironment(1));
@@ -273,5 +310,27 @@ public class CSVReaderTest {
 	
 	public static class FinalItem extends PartialItem<String, StringValue, LongValue> {
 		private static final long serialVersionUID = 1L;
+	}
+
+	public static class ValueItem implements Value {
+		private int v1;
+
+		public int getV1() {
+			return v1;
+		}
+
+		public void setV1(int v1) {
+			this.v1 = v1;
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+			out.writeInt(v1);
+		}
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+			v1 = in.readInt();
+		}
 	}
 }

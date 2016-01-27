@@ -18,9 +18,12 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * An exception specifying that a required field was not set in a record, i.e. was <code>null</code>.
  */
+@Public
 public class NullFieldException extends RuntimeException
 {
 	/**
@@ -57,6 +60,18 @@ public class NullFieldException extends RuntimeException
 	 */
 	public NullFieldException(int fieldIdx) {
 		super("Field " + fieldIdx + " is null, but expected to hold a value.");
+		this.fieldPos = fieldIdx;
+	}
+
+	/**
+	 * Constructs an {@code NullFieldException} with a default message, referring to
+	 * given field number as the null field and a cause (Throwable)
+	 *
+	 * @param fieldIdx The index of the field that was null, but expected to hold a value.
+	 * @param cause Pass the root cause of the error
+	 */
+	public NullFieldException(int fieldIdx, Throwable cause) {
+		super("Field " + fieldIdx + " is null, but expected to hold a value.", cause);
 		this.fieldPos = fieldIdx;
 	}
 	
