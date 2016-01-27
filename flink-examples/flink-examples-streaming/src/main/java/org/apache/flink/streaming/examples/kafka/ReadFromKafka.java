@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.examples;
+package org.apache.flink.streaming.examples.kafka;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
 
@@ -39,12 +39,11 @@ public class ReadFromKafka {
 		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(4);
 		env.enableCheckpointing(5000);
-		env.setParallelism(2);
 
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
 		DataStream<String> messageStream = env
-				.addSource(new FlinkKafkaConsumer09<>(
+				.addSource(new FlinkKafkaConsumer08<>(
 						parameterTool.getRequired("topic"),
 						new SimpleStringSchema(),
 						parameterTool.getProperties()));

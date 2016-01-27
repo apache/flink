@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.examples;
+package org.apache.flink.streaming.examples.kafka;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer09;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
 
@@ -39,7 +39,6 @@ public class WriteIntoKafka {
 				StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(4);
-		env.setParallelism(2);
 
 		ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
@@ -63,7 +62,7 @@ public class WriteIntoKafka {
 		});
 
 		// write data into Kafka
-		messageStream.addSink(new FlinkKafkaProducer09<>(parameterTool.getRequired("topic"), new SimpleStringSchema(), parameterTool.getProperties()));
+		messageStream.addSink(new FlinkKafkaProducer08<>(parameterTool.getRequired("topic"), new SimpleStringSchema(), parameterTool.getProperties()));
 
 		env.execute("Write into Kafka example");
 	}
