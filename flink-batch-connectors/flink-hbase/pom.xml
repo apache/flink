@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-hbase</artifactId>
+	<artifactId>flink-hbase_2.10</artifactId>
 	<name>flink-hbase</name>
 	<packaging>jar</packaging>
 
@@ -59,13 +59,13 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<exclusions>
@@ -78,13 +78,13 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-compatibility</artifactId>
+			<artifactId>flink-hadoop-compatibility_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-include-yarn</artifactId>
+					<artifactId>flink-shaded-include-yarn_2.10</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

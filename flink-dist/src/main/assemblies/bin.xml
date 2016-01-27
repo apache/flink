@@ -39,7 +39,7 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.apache.flink:flink-python</include>
+				<include>org.apache.flink:flink-python_2.10</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
 			</includes>
@@ -49,7 +49,7 @@ under the License.
 	<files>
 		<!-- copy fat jar -->
 		<file>
-			<source>target/flink-dist-${project.version}.jar</source>
+			<source>target/flink-dist_2.10-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>

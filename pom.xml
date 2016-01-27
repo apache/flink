@@ -407,7 +407,7 @@ under the License.
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop1</shading-artifact.name>
+				<shading-artifact.name>flink-shaded-hadoop1_2.10</shading-artifact.name>
 				<shading-artifact-module.name>flink-shaded-hadoop1</shading-artifact-module.name>
 			</properties>
 		</profile>
