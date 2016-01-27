@@ -60,8 +60,7 @@ public class EnvironmentInformation {
 	public static RevisionInformation getRevisionInformation() {
 		String revision = UNKNOWN;
 		String commitDate = UNKNOWN;
-		try {
-			InputStream propFile = EnvironmentInformation.class.getClassLoader().getResourceAsStream(".version.properties");
+		try (InputStream propFile = EnvironmentInformation.class.getClassLoader().getResourceAsStream(".version.properties")) {
 			if (propFile != null) {
 				Properties properties = new Properties();
 				properties.load(propFile);
@@ -70,8 +69,7 @@ public class EnvironmentInformation {
 				revision = propRevision != null ? propRevision : UNKNOWN;
 				commitDate = propCommitDate != null ? propCommitDate : UNKNOWN;
 			}
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Cannot determine code revision: Unable to read version property file.", t);
 			} else {

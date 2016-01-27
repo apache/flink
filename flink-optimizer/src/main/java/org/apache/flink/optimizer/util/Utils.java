@@ -104,10 +104,10 @@ public final class Utils {
 			throw new RuntimeException("Unrecognized type: " + typeInfo);
 		}
 
-		return new RuntimeComparatorFactory<T>(comparator);
+		return new RuntimeComparatorFactory<>(comparator);
 	}
 
-	private static final boolean[] getSortOrders(FieldList keys, boolean[] orders) {
+	private static boolean[] getSortOrders(FieldList keys, boolean[] orders) {
 		if (orders == null) {
 			orders = new boolean[keys.size()];
 			Arrays.fill(orders, true);
