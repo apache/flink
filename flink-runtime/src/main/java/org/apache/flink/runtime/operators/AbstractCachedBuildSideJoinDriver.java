@@ -95,6 +95,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getOwningNepheleTask(),
 						availableMemory,
 						false,
+						false,
 						hashJoinUseBitMaps);
 
 
@@ -109,6 +110,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getIOManager(),
 						this.taskContext.getOwningNepheleTask(),
 						availableMemory,
+						false,
 						false,
 						hashJoinUseBitMaps);
 
@@ -128,6 +130,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getOwningNepheleTask(),
 						availableMemory,
 						false,
+						false,
 						hashJoinUseBitMaps);
 
 
@@ -142,6 +145,7 @@ public abstract class AbstractCachedBuildSideJoinDriver<IT1, IT2, OT> extends Jo
 						this.taskContext.getIOManager(),
 						this.taskContext.getOwningNepheleTask(),
 						availableMemory,
+						false,
 						false,
 						hashJoinUseBitMaps);
 

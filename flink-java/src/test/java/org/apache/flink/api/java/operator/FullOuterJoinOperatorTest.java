@@ -181,7 +181,7 @@ public class FullOuterJoinOperatorTest {
 		this.testFullOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testFullOuterStrategy3() {
 		this.testFullOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
 	}
@@ -191,7 +191,7 @@ public class FullOuterJoinOperatorTest {
 		this.testFullOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testFullOuterStrategy5() {
 		this.testFullOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
 	}

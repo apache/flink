@@ -192,7 +192,7 @@ public class LeftOuterJoinOperatorTest {
 		this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testLeftOuterStrategy5() {
 		this.testLeftOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
 	}

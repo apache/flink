@@ -24,6 +24,10 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashJoinIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashJoinIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashJoinIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashJoinIterator;
 import org.apache.flink.runtime.operators.sort.NonReusingMergeOuterJoinIterator;
 import org.apache.flink.runtime.operators.sort.ReusingMergeOuterJoinIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
@@ -66,6 +70,28 @@ public class FullOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						numPages,
 						super.taskContext.getOwningNepheleTask()
 				);
+		case FULL_OUTER_HYBRIDHASH_BUILD_FIRST:
+			return new ReusingBuildFirstHashJoinIterator<>(in1, in2,
+					serializer1, comparator1,
+					serializer2, comparator2,
+					pairComparatorFactory.createComparator21(comparator1, comparator2),
+					memoryManager, ioManager,
+					this.taskContext.getOwningNepheleTask(),
+					driverMemFraction,
+					true,
+					true,
+					false);
+		case FULL_OUTER_HYBRIDHASH_BUILD_SECOND:
+			return new ReusingBuildSecondHashJoinIterator<>(in1, in2,
+					serializer1, comparator1,
+					serializer2, comparator2,
+					pairComparatorFactory.createComparator12(comparator1, comparator2),
+					memoryManager, ioManager,
+					this.taskContext.getOwningNepheleTask(),
+					driverMemFraction,
+					true,
+					true,
+					false);
 			default:
 				throw new Exception("Unsupported driver strategy for full outer join driver: " + driverStrategy.name());
 		}
@@ -102,6 +128,28 @@ public class FullOuterJoinDriver<IT1, IT2, OT> extends AbstractOuterJoinDriver<I
 						numPages,
 						super.taskContext.getOwningNepheleTask()
 				);
+			case FULL_OUTER_HYBRIDHASH_BUILD_FIRST:
+				return new NonReusingBuildFirstHashJoinIterator<>(in1, in2,
+					serializer1, comparator1,
+					serializer2, comparator2,
+					pairComparatorFactory.createComparator21(comparator1, comparator2),
+					memoryManager, ioManager,
+					this.taskContext.getOwningNepheleTask(),
+					driverMemFraction,
+					true,
+					true,
+					false);
+			case FULL_OUTER_HYBRIDHASH_BUILD_SECOND:
+				return new NonReusingBuildSecondHashJoinIterator<>(in1, in2,
+					serializer1, comparator1,
+					serializer2, comparator2,
+					pairComparatorFactory.createComparator12(comparator1, comparator2),
+					memoryManager, ioManager,
+					this.taskContext.getOwningNepheleTask(),
+					driverMemFraction,
+					true,
+					true,
+					false);
 			default:
 				throw new Exception("Unsupported driver strategy for full outer join driver: " + driverStrategy.name());
 		}

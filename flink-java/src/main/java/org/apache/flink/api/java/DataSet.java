@@ -841,6 +841,7 @@ public abstract class DataSet<T> {
 		switch(strategy) {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
 			case REPARTITION_HASH_SECOND:
 			case BROADCAST_HASH_SECOND:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.LEFT_OUTER);
@@ -891,6 +892,7 @@ public abstract class DataSet<T> {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
 			case REPARTITION_HASH_FIRST:
+			case REPARTITION_HASH_SECOND:
 			case BROADCAST_HASH_FIRST:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.RIGHT_OUTER);
 			default:
@@ -938,6 +940,8 @@ public abstract class DataSet<T> {
 		switch(strategy) {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
+			case REPARTITION_HASH_SECOND:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.FULL_OUTER);
 			default:
 			throw new InvalidProgramException("Invalid JoinHint for FullOuterJoin: "+strategy);

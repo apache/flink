@@ -181,7 +181,7 @@ public class RightOuterJoinOperatorTest {
 		this.testRightOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testRightOuterStrategy3() {
 		this.testRightOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
 	}
