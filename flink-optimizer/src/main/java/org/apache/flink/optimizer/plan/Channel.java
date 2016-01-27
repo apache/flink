@@ -428,6 +428,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 					break;
 				case PARTITION_RANGE:
 					this.globalProps.setRangePartitioned(Utils.createOrdering(this.shipKeys, this.shipSortOrder));
+					this.globalProps.setDataDistribution(this.dataDistribution);
 					break;
 				case FORWARD:
 					break;

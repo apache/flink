@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -54,6 +55,8 @@ public class GlobalProperties implements Cloneable {
 	private Set<FieldSet> uniqueFieldCombinations;
 	
 	private Partitioner<?> customPartitioner;
+	
+	private DataDistribution distribution;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -90,6 +93,10 @@ public class GlobalProperties implements Cloneable {
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = ordering.getInvolvedIndexes();
+	}
+	
+	public void setDataDistribution(DataDistribution distribution) {
+		this.distribution = distribution;
 	}
 	
 	public void setAnyPartitioning(FieldList partitionedFields) {
@@ -166,6 +173,8 @@ public class GlobalProperties implements Cloneable {
 	public Partitioner<?> getCustomPartitioner() {
 		return this.customPartitioner;
 	}
+	
+	public DataDistribution getDataDistribution() {return this.distribution;}
 	
 	// --------------------------------------------------------------------------------------------
 	

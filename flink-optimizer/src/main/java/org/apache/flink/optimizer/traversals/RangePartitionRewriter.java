@@ -113,10 +113,12 @@ public class RangePartitionRewriter implements Visitor<PlanNode> {
 					throw new InvalidProgramException("Range Partitioning not supported within iterations.");
 				}
 
-				PlanNode channelSource = channel.getSource();
-				List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
-				channelSource.getOutgoingChannels().remove(channel);
-				channelSource.getOutgoingChannels().addAll(newSourceOutputChannels);
+				if (channel.getDataDistribution() == null) {
+					PlanNode channelSource = channel.getSource();
+					List<Channel> newSourceOutputChannels = rewriteRangePartitionChannel(channel);
+					channelSource.getOutgoingChannels().remove(channel);
+					channelSource.getOutgoingChannels().addAll(newSourceOutputChannels);
+				}
 			}
 		}
 	}
