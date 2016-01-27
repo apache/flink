@@ -80,9 +80,9 @@ The Scala shell can connect Flink cluster on YARN. To connect deployed Flink clu
 bin/start-scala-shell.sh yarn
 ~~~
 
-The shell reads the connection information of the deployed Flink cluster from a `.yarn-properties` file in temporary directory. If there is no deployed Flink cluster on YARN, the shell prints error message.
+The shell reads the connection information of the deployed Flink cluster from the `.yarn-properties` file, which is created in the configured `yarn.properties-file.location` directory or the temporary directory. If there is no deployed Flink cluster on YARN, the shell prints an error message.
 
-The shell can deploy Flink cluster to YARN for the shell only. If you add an parameter `-n <arg>` which means a number of containers, the shell deploy a new Flink cluster on YARN and connect the cluster. You can also specify options for YARN cluster such as memory for JobManager, name of YARN application, etc.. 
+The shell can deploy a Flink cluster to YARN, which is used exclusively by the shell. The number of YARN containers can be controlled by the parameter `-n <arg>`. The shell deploys a new Flink cluster on YARN and connects the cluster. You can also specify options for YARN cluster such as memory for JobManager, name of YARN application, etc.. 
 
 ## Adding external dependencies
 

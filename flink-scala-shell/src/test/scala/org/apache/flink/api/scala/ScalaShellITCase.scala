@@ -21,6 +21,7 @@ package org.apache.flink.api.scala
 import java.io._
 import java.util.concurrent.TimeUnit
 
+import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.test.util.{ForkableFlinkMiniCluster, TestBaseUtils}
 import org.apache.flink.util.TestLogger
 import org.junit.{AfterClass, BeforeClass, Test, Assert}
@@ -297,11 +298,13 @@ object ScalaShellITCase {
     val repl = externalJars match {
       case Some(ej) => new FlinkILoop(
         host, port,
+        GlobalConfiguration.getConfiguration,
         Option(Array(ej)),
         in, new PrintWriter(out))
 
       case None => new FlinkILoop(
         host, port,
+        GlobalConfiguration.getConfiguration,
         in, new PrintWriter(out))
     }
 

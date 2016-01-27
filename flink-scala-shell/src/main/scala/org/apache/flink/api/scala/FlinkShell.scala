@@ -64,62 +64,62 @@ object FlinkShell {
 
       cmd("local") action {
         (_, c) => c.copy(executionMode = ExecutionMode.LOCAL)
-      } text("starts Flink scala shell with a local Flink cluster\n") children(
+      } text("Starts Flink scala shell with a local Flink cluster") children(
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
             c.copy(externalJars = Option(xArray))
-          } text("specifies additional jars to be used in Flink\n")
+          } text("Specifies additional jars to be used in Flink")
         )
 
       cmd("remote") action { (_, c) =>
         c.copy(executionMode = ExecutionMode.REMOTE)
-      } text("starts Flink scala shell connecting to a remote cluster\n") children(
+      } text("Starts Flink scala shell connecting to a remote cluster") children(
         arg[String]("<host>") action { (h, c) =>
           c.copy(host = Some(h)) }
-          text("remote host name as string"),
+          text("Remote host name as string"),
         arg[Int]("<port>") action { (p, c) =>
           c.copy(port = Some(p)) }
-          text("remote port as integer\n"),
+          text("Remote port as integer\n"),
         opt[(String)]("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
             c.copy(externalJars = Option(xArray))
-        } text ("specifies additional jars to be used in Flink")
+        } text ("Specifies additional jars to be used in Flink")
       )
 
       cmd("yarn") action {
         (_, c) => c.copy(executionMode = ExecutionMode.YARN, yarnConfig = None)
-      } text ("starts Flink scala shell connecting to a yarn cluster\n") children(
+      } text ("Starts Flink scala shell connecting to a yarn cluster") children(
         opt[Int]("container") abbr ("n") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(containers = Some(x))))
-        } text ("Number of YARN container to allocate (= Number of Task Managers)"),
+        } text ("Number of YARN container to allocate (= Number of TaskManagers)"),
         opt[Int]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(jobManagerMemory = Some(x))))
-        } text ("Memory for JobManager Container [in MB]"),
+        } text ("Memory for JobManager container [in MB]"),
         opt[String]("name") abbr ("nm") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(name = Some(x))))
         } text ("Set a custom name for the application on YARN"),
         opt[String]("queue") abbr ("qu") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(queue = Some(x))))
-        } text ("Specify YARN queue"),
+        } text ("Specifies YARN queue"),
         opt[Int]("slots") abbr ("s") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(slots = Some(x))))
         } text ("Number of slots per TaskManager"),
         opt[Int]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(taskManagerMemory = Some(x))))
-        } text ("Memory per TaskManager Container [in MB]"),
+        } text ("Memory per TaskManager container [in MB]"),
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
             c.copy(externalJars = Option(xArray))
-        } text("specifies additional jars to be used in Flink\n")
+        } text("Specifies additional jars to be used in Flink")
       )
 
-      help("help") abbr ("h") text ("prints this usage text\n")
+      help("help") abbr ("h") text ("Prints this usage text")
     }
 
     // parse arguments
@@ -169,13 +169,19 @@ object FlinkShell {
 
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(config)
+      val conf = cluster match {
+        case Some(Left(miniCluster)) => miniCluster.userConfiguration
+        case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
+        case None => GlobalConfiguration.getConfiguration
+      }
+
       println(s"\nConnecting to Flink cluster (host: $host, port: $port).\n")
-      val repl: Option[FlinkILoop] = bufferedReader match {
+      val repl = bufferedReader match {
         case Some(reader) =>
           val out = new StringWriter()
-          Some(new FlinkILoop(host, port, config.externalJars, reader, new JPrintWriter(out)))
+          new FlinkILoop(host, port, conf, config.externalJars, reader, new JPrintWriter(out))
         case None =>
-          Some(new FlinkILoop(host, port, config.externalJars))
+          new FlinkILoop(host, port, conf, config.externalJars)
       }
 
       (repl, cluster)
@@ -190,9 +196,9 @@ object FlinkShell {
     settings.Yreplsync.value = true
 
     try {
-      repl.foreach(_.process(settings))
+      repl.process(settings)
     } finally {
-      repl.foreach(_.closeInterpreter())
+      repl.closeInterpreter()
       cluster match {
         case Some(Left(miniCluster)) => miniCluster.stop()
         case Some(Right(yarnCluster)) => yarnCluster.shutdown(false)
@@ -247,12 +253,8 @@ object FlinkShell {
   def fetchDeployedYarnClusterInfo() = {
     // load configuration
     val globalConfig = GlobalConfiguration.getConfiguration
-    val defaultPropertiesLocation = System.getProperty("java.io.tmpdir")
-    val currentUser = System.getProperty("user.name")
-    val propertiesLocation = globalConfig.getString(
-      ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesLocation)
-    val propertiesName = CliFrontend.YARN_PROPERTIES_FILE + currentUser
-    val propertiesFile = new File(propertiesLocation, propertiesName)
+    val propertiesLocation = FlinkYarnSessionCli.getYarnPropertiesLocation(globalConfig)
+    val propertiesFile = new File(propertiesLocation)
 
     // read properties
     val properties = if (propertiesFile.exists()) {
@@ -266,20 +268,15 @@ object FlinkShell {
         inputStream.close()
       }
 
-      Some(properties)
+      properties
     } else {
-      None
+      throw new IllegalArgumentException("Scala Shell cannot fetch YARN properties.")
     }
 
-    properties match {
-      case Some(props) =>
-        val addressInStr = props.getProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY)
-        val address = ClientUtils.parseHostPortAddress(addressInStr)
+    val addressInStr = properties.getProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY)
+    val address = ClientUtils.parseHostPortAddress(addressInStr)
 
-        (address.getHostString, address.getPort, None)
-      case None =>
-        throw new IllegalArgumentException("Scala Shell cannot fetch YARN properties.")
-    }
+    (address.getHostString, address.getPort, None)
   }
 
   def ensureYarnConfig(config: Config) = config.yarnConfig match {
