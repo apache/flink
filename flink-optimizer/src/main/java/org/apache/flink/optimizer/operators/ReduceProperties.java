@@ -22,6 +22,9 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.ReduceNode;
@@ -32,6 +35,7 @@ import org.apache.flink.optimizer.dataproperties.PartitioningProperty;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedLocalProperties;
 import org.apache.flink.optimizer.plan.Channel;
+import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -66,28 +70,60 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 		}
 		else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
+			boolean reducerOperator = node.getOperator() instanceof ReduceOperatorBase;
+			boolean injectCombiner = false;
+			if(reducerOperator && node.getOperator().getInput() instanceof PartitionOperatorBase) {
+				// We are sure that we got a partitionoperator as an input to the reducer operator.
+				injectCombiner = true;
+			}
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
-			
+
 			// create an input node for combine with same parallelism as input node
 			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setParallelism(in.getSource().getParallelism());
+			if(injectCombiner) {
+				toCombiner.getSource().getInputs().iterator().hasNext();
+				Channel source = toCombiner.getSource().getInputs().iterator().next();
+				// Create the combiner node with the Parition node's source as the input
+				SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
+					"Combine ("+node.getOperator().getName()+")", source,
+					DriverStrategy.SORTED_PARTIAL_REDUCE, this.keyList);
+				addCombinerNodeData(in, toCombiner, combiner);
 
-			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
-								"Combine ("+node.getOperator().getName()+")", toCombiner,
-								DriverStrategy.SORTED_PARTIAL_REDUCE, this.keyList);
+				Channel combinerChannel = new Channel(combiner);
+				combinerChannel.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 
-			combiner.setCosts(new Costs(0, 0));
-			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
-			
-			Channel toReducer = new Channel(combiner);
-			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
-										in.getShipStrategySortOrder(), in.getDataExchangeMode());
-			toReducer.setLocalStrategy(LocalStrategy.SORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-
-			return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", toReducer,
-											DriverStrategy.SORTED_REDUCE, this.keyList);
+				// Create the partition single input plan node from the existing partition node
+				PlanNode partitionplanNode = in.getSource().getPlanNode();
+				SingleInputPlanNode partition = new SingleInputPlanNode(combinerNode, partitionplanNode.getNodeName(), combinerChannel, partitionplanNode.getDriverStrategy());
+				partition.setCosts(partitionplanNode.getNodeCosts());
+				partition.initProperties(partitionplanNode.getGlobalProperties(), partitionplanNode.getLocalProperties());
+				// Create a reducer such that the input of the reducer is the partition node
+				return createReducerPlanNode(in, node, partition);
+			} else {
+				SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
+					"Combine ("+node.getOperator().getName()+")", toCombiner,
+					DriverStrategy.SORTED_PARTIAL_REDUCE, this.keyList);
+				addCombinerNodeData(in, toCombiner, combiner);
+				return createReducerPlanNode(in, node, combiner);
+			}
 		}
+	}
+
+	private SingleInputPlanNode createReducerPlanNode(Channel in, SingleInputNode node, SingleInputPlanNode planNode) {
+		Channel toReducer = new Channel(planNode);
+		toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
+			in.getShipStrategySortOrder(), in.getDataExchangeMode());
+		toReducer.setLocalStrategy(LocalStrategy.SORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
+
+		return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", toReducer,
+			DriverStrategy.SORTED_REDUCE, this.keyList);
+	}
+
+	private void addCombinerNodeData(Channel in, Channel toCombiner, SingleInputPlanNode combiner) {
+		combiner.setCosts(new Costs(0, 0));
+		combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 	}
 
 	@Override
