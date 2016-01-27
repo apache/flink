@@ -23,6 +23,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
+
 
 import org.junit.Assert;
 
@@ -172,6 +174,7 @@ public class JDBCInputFormatTest {
 				.setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
 				.setDBUrl("jdbc:derby:memory:ebookshop")
 				.setQuery("select * from books")
+				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
 		Tuple5 tuple = new Tuple5();

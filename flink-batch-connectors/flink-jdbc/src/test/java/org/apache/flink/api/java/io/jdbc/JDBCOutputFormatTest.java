@@ -23,6 +23,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
 
 import org.junit.Assert;
 
@@ -199,6 +200,7 @@ public class JDBCOutputFormatTest {
 				.setDrivername(driverPath)
 				.setDBUrl(dbUrl)
 				.setQuery("select * from " + sourceTable)
+				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
 
@@ -215,6 +217,7 @@ public class JDBCOutputFormatTest {
 				.setDrivername(driverPath)
 				.setDBUrl(dbUrl)
 				.setQuery("select * from " + targetTable)
+				.setResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)
 				.finish();
 		jdbcInputFormat.open(null);
 

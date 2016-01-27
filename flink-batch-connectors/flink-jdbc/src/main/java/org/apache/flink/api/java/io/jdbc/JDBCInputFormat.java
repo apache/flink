@@ -58,6 +58,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	private String drivername;
 	private String dbURL;
 	private String query;
+	private int resultSetType;
+	private int resultSetConcurrency;
 
 	private transient Connection dbConn;
 	private transient Statement statement;
@@ -82,7 +84,7 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 	public void open(InputSplit ignored) throws IOException {
 		try {
 			establishConnection();
-			statement = dbConn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+			statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
 			resultSet = statement.executeQuery(query);
 		} catch (SQLException se) {
 			close();
@@ -308,6 +310,8 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 
 		public JDBCInputFormatBuilder() {
 			this.format = new JDBCInputFormat();
+			this.format.resultSetType = ResultSet.TYPE_FORWARD_ONLY;
+			this.format.resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
 		}
 
 		public JDBCInputFormatBuilder setUsername(String username) {
@@ -332,6 +336,16 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 
 		public JDBCInputFormatBuilder setQuery(String query) {
 			format.query = query;
+			return this;
+		}
+
+		public JDBCInputFormatBuilder setResultSetType(int resultSetType) {
+			format.resultSetType = resultSetType;
+			return this;
+		}
+
+		public JDBCInputFormatBuilder setResultSetConcurrency(int resultSetConcurrency) {
+			format.resultSetConcurrency = resultSetConcurrency;
 			return this;
 		}
 
