@@ -51,16 +51,15 @@ public class StreamConfig implements Serializable {
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
-	private static final String SERIALIZEDUDF = "serializedUDF";
+	private static final String SERIALIZED_UDF = "serializedUDF";
 	private static final String USER_FUNCTION = "userFunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
-	private static final String ITERATON_WAIT = "iterationWait";
+	private static final String ITERATION_WAIT = "iterationWait";
 	private static final String NONCHAINED_OUTPUTS = "nonChainedOutputs";
 	private static final String EDGES_IN_ORDER = "edgesInOrder";
-	private static final String OUT_STREAM_EDGES = "outStreamEdges";
 	private static final String IN_STREAM_EDGES = "inStreamEdges";
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
@@ -162,7 +161,7 @@ public class StreamConfig implements Serializable {
 			config.setClass(USER_FUNCTION, operator.getClass());
 
 			try {
-				InstantiationUtil.writeObjectToConfig(operator, this.config, SERIALIZEDUDF);
+				InstantiationUtil.writeObjectToConfig(operator, this.config, SERIALIZED_UDF);
 			} catch (IOException e) {
 				throw new StreamTaskException("Cannot serialize operator object "
 						+ operator.getClass() + ".", e);
@@ -172,7 +171,7 @@ public class StreamConfig implements Serializable {
 	
 	public <T> T getStreamOperator(ClassLoader cl) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
+			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZED_UDF, cl);
 		}
 		catch (ClassNotFoundException e) {
 			String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
@@ -216,11 +215,11 @@ public class StreamConfig implements Serializable {
 	}
 
 	public void setIterationWaitTime(long time) {
-		config.setLong(ITERATON_WAIT, time);
+		config.setLong(ITERATION_WAIT, time);
 	}
 
 	public long getIterationWaitTime() {
-		return config.getLong(ITERATON_WAIT, 0);
+		return config.getLong(ITERATION_WAIT, 0);
 	}
 
 	public void setNumberOfInputs(int numberOfInputs) {
@@ -270,23 +269,6 @@ public class StreamConfig implements Serializable {
 			return chainedOutputs == null ? new ArrayList<StreamEdge>() : chainedOutputs;
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate chained outputs.", e);
-		}
-	}
-
-	public void setOutEdges(List<StreamEdge> outEdges) {
-		try {
-			InstantiationUtil.writeObjectToConfig(outEdges, this.config, OUT_STREAM_EDGES);
-		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize outward edges.", e);
-		}
-	}
-	
-	public List<StreamEdge> getOutEdges(ClassLoader cl) {
-		try {
-			List<StreamEdge> outEdges = InstantiationUtil.readObjectFromConfig(this.config, OUT_STREAM_EDGES, cl);
-			return outEdges == null ? new ArrayList<StreamEdge>() : outEdges;
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate outputs.", e);
 		}
 	}
 

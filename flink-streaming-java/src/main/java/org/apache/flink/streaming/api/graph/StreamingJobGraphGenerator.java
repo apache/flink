@@ -183,7 +183,6 @@ public class StreamingJobGraphGenerator {
 
 				config.setChainStart();
 				config.setOutEdgesInOrder(transitiveOutEdges);
-				config.setOutEdges(streamGraph.getStreamNode(current).getOutEdges());
 
 				for (StreamEdge edge : transitiveOutEdges) {
 					connect(startNode, edge);
