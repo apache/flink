@@ -57,6 +57,11 @@ The plain layout with a sub navigation.
     <!-- Top anchor -->
     <a href="#top"></a>
 
+    <!-- Artifact name change warning. Remove for the 1.0 release. -->
+    <div class="panel panel-default">
+      <div class="panel-body"><strong>Important</strong>: Maven artifacts which depend on Scala are now suffixed with the Scala major version, e.g. "2.10" or "2.11". Please consult the <a href="https://cwiki.apache.org/confluence/display/FLINK/Maven+artifact+names+suffixed+with+Scala+version">migration guide on the project Wiki</a>.</div>
+    </div>
+
     <!-- Breadcrumbs above the main heading -->
     <ol class="breadcrumb">
       {% for group_page in group %}
@@ -95,9 +100,14 @@ The plain layout with a sub navigation.
 {% else %}
 {% comment %}
 The plain layout without a sub navigation (only text).
-{% endcomment %}
+{% endcomment %}  
   <div class="col-md-8 col-md-offset-2 text">
-    <h1>{{ page.title }}{% if page.is_beta %} <span class="badge">Beta</span>{% endif %}</h1>
+    <!-- Artifact name change warning. Remove for the 1.0 release. -->
+    <div class="panel panel-default">
+      <div class="panel-body"><strong>Important</strong>: Maven artifacts which depend on Scala are now suffixed with the Scala major version, e.g. "2.10" or "2.11". Please consult the <a href="https://cwiki.apache.org/confluence/display/FLINK/Maven+artifact+names+suffixed+with+Scala+version">migration guide on the project Wiki</a>.</div>
+    </div>
+
+    <h1>{{ page.title }}{% if page.is_beta %} <span class="beta">Beta</span>{% endif %}</h1>
 {{ content }}
   </div>
 {% endif %}
