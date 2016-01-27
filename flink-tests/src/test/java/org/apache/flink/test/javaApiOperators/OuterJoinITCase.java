@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
@@ -30,6 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
@@ -57,12 +59,22 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testLeftOuterJoin2() throws Exception {
-		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_SECOND);
+		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_FIRST);
 	}
 
 	@Test
 	public void testLeftOuterJoin3() throws Exception {
+		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_SECOND);
+	}
+
+	@Test
+	public void testLeftOuterJoin4() throws Exception {
 		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
+	}
+
+	@Test (expected = InvalidProgramException.class)
+	public void testLeftOuterJoin5() throws Exception {
+		testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
 	}
 
 	private void testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
@@ -102,7 +114,17 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testRightOuterJoin3() throws Exception {
+		testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_SECOND);
+	}
+
+	@Test
+	public void testRightOuterJoin4() throws Exception {
 		testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+	}
+
+	@Test (expected = InvalidProgramException.class)
+	public void testRightOuterJoin5() throws Exception {
+		testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
 	}
 
 	private void testRightOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
@@ -133,6 +155,26 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testFullOuterJoin1() throws Exception {
 		testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_SORT_MERGE);
+	}
+
+	@Test
+	public void testFullOuterJoin2() throws Exception {
+		testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_FIRST);
+	}
+
+	@Test
+	public void testFullOuterJoin3() throws Exception {
+		testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_SECOND);
+	}
+
+	@Test (expected = InvalidProgramException.class)
+	public void testFullOuterJoin4() throws Exception {
+		testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+	}
+
+	@Test (expected = InvalidProgramException.class)
+	public void testFullOuterJoin5() throws Exception {
+		testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
 	}
 
 	private void testFullOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {

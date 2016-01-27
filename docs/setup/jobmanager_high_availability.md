@@ -1,5 +1,8 @@
 ---
 title: "JobManager High Availability (HA)"
+top-nav-group: deployment
+top-nav-title: High Availability
+top-nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -54,6 +57,8 @@ jobManagerAddress1:webUIPort1
 [...]
 jobManagerAddressX:webUIPortX
   </pre>
+
+By default, the job manager will pick a *random port* for inter process communication. You can change this via the **`recovery.jobmanager.port`** key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
 #### Config File (flink-conf.yaml)
 

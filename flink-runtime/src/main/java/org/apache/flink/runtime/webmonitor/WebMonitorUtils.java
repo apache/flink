@@ -20,6 +20,10 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -30,10 +34,6 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +41,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -142,17 +143,25 @@ public final class WebMonitorUtils {
 		}
 	}
 
-	public static Map<String, String> fromKeyValueJsonArray(JSONArray parsed) throws JSONException {
-		Map<String, String> hashMap = new HashMap<>();
-
-		for (int i = 0; i < parsed.length(); i++) {
-			JSONObject jsonObject = parsed.getJSONObject(i);
-			String key = jsonObject.getString("key");
-			String value = jsonObject.getString("value");
-			hashMap.put(key, value);
+	public static Map<String, String> fromKeyValueJsonArray(String jsonString) {
+		try {
+			Map<String, String> map = new HashMap<>();
+			ObjectMapper m = new ObjectMapper();
+			ArrayNode array = (ArrayNode) m.readTree(jsonString);
+			
+			Iterator<JsonNode> elements = array.elements();
+			while (elements.hasNext()) {
+				JsonNode node = elements.next();
+				String key = node.get("key").asText();
+				String value = node.get("value").asText();
+				map.put(key, value);
+			}
+			
+			return map;
 		}
-
-		return hashMap;
+		catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
 	}
 
 	public static JobDetails createDetailsForJob(ExecutionGraph job) {

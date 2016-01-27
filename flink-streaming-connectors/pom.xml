@@ -30,14 +30,16 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-streaming-connectors-parent</artifactId>
+	<artifactId>flink-streaming-connectors</artifactId>
 	<name>flink-streaming-connectors</name>
 
 	<packaging>pom</packaging>
 
 	<modules>
 		<module>flink-connector-flume</module>
-		<module>flink-connector-kafka</module>
+		<module>flink-connector-kafka-base</module>
+		<module>flink-connector-kafka-0.8</module>
+		<module>flink-connector-kafka-0.9</module>
 		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>

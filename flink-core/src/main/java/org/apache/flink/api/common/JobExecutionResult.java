@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +29,7 @@ import java.util.concurrent.TimeUnit;
  * The result of a job execution. Gives access to the execution time of the job,
  * and to all accumulators created by this job.
  */
+@Public
 public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
@@ -99,6 +103,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @return Result of the counter, or null if the counter does not exist
 	 * @throws java.lang.ClassCastException Thrown, if the accumulator was not aggregating a {@link java.lang.Integer}
 	 */
+	@Deprecated
+	@Experimental
 	public Integer getIntCounterResult(String accumulatorName) {
 		Object result = this.accumulatorResults.get(accumulatorName);
 		if (result == null) {

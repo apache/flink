@@ -238,6 +238,5 @@ class StringTupleReader(val reader: BufferedReader) extends MutableObjectIterato
 
 class DummyInvokable extends AbstractInvokable {
 
-  override def registerInputOutput() = {}
   override def invoke() = {}
 }

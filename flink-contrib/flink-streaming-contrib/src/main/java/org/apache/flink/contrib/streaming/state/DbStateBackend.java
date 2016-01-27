@@ -147,16 +147,20 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 					// We create a unique long id for each handle, but we also
 					// store the checkpoint id and timestamp for bookkeeping
 					long handleId = rnd.nextLong();
-					String jobIdShort = env.getJobID().toShortString();
+
+					// We use the ApplicationID here, because it is restored when
+					// the job is started from a savepoint (whereas the job ID
+					// changes with each submission).
+					String appIdShort = env.getApplicationID().toShortString();
 
 					byte[] serializedState = InstantiationUtil.serializeObject(state);
-					dbAdapter.setCheckpointInsertParams(jobIdShort, insertStatement,
+					dbAdapter.setCheckpointInsertParams(appIdShort, insertStatement,
 							checkpointID, timestamp, handleId,
 							serializedState);
 
 					insertStatement.executeUpdate();
 
-					return new DbStateHandle<S>(jobIdShort, checkpointID, timestamp, handleId,
+					return new DbStateHandle<S>(appIdShort, checkpointID, timestamp, handleId,
 							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -181,7 +185,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	public <K, V> LazyDbKvState<K, V> createKvState(String stateId, String stateName,
 			TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws IOException {
 		return new LazyDbKvState<K, V>(
-				stateId + "_" + env.getJobID().toShortString(),
+				stateId + "_" + env.getApplicationID().toShortString(),
 				env.getTaskInfo().getIndexOfThisSubtask() == 0,
 				getConnections(),
 				getConfiguration(),
@@ -211,8 +215,8 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(env.getJobID().toShortString(), getConnections().getFirst());
-					return dbAdapter.prepareCheckpointInsert(env.getJobID().toShortString(),
+					dbAdapter.createCheckpointsTable(env.getApplicationID().toShortString(), getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(env.getApplicationID().toShortString(),
 							getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -241,7 +245,7 @@ public class DbStateBackend extends StateBackend<DbStateBackend> {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(env.getJobID().toShortString(), connections.getFirst());
+			dbAdapter.disposeAllStateForJob(env.getApplicationID().toShortString(), connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}

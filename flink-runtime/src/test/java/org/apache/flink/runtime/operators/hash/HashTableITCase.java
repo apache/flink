@@ -172,7 +172,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -222,7 +222,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -279,7 +279,7 @@ public class HashTableITCase {
 			
 			int key = 0;
 			
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				key = record.getField(0, IntValue.class).getValue();
@@ -392,7 +392,7 @@ public class HashTableITCase {
 			final Record probeRec = join.getCurrentProbeRecord();
 			int key = probeRec.getField(0, IntValue.class).getValue();
 			
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
@@ -505,7 +505,7 @@ public class HashTableITCase {
 			final Record probeRec = join.getCurrentProbeRecord();
 			int key = probeRec.getField(0, IntValue.class).getValue();
 			
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getField(0, IntValue.class).getValue()); 
@@ -608,7 +608,7 @@ public class HashTableITCase {
 
 		try {
 			while (join.nextRecord()) {	
-				HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+				MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 				if (buildSide.next(recordReuse) == null) {
 					fail("No build side values found for a probe key.");
 				}
@@ -666,7 +666,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -715,7 +715,7 @@ public class HashTableITCase {
 		* NUM_PROBE_VALS;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<Record, Record> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -770,7 +770,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -819,7 +819,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -879,7 +879,7 @@ public class HashTableITCase {
 			
 			int key = 0;
 			
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				key = record.getKey();
@@ -995,7 +995,7 @@ public class HashTableITCase {
 			final IntPair probeRec = join.getCurrentProbeRecord();
 			int key = probeRec.getKey();
 			
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getKey()); 
@@ -1107,7 +1107,7 @@ public class HashTableITCase {
 			final IntPair probeRec = join.getCurrentProbeRecord();
 			int key = probeRec.getKey();
 			
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			if ((record = buildSide.next(recordReuse)) != null) {
 				numBuildValues = 1;
 				Assert.assertEquals("Probe-side key was different than build-side key.", key, record.getKey()); 
@@ -1210,7 +1210,7 @@ public class HashTableITCase {
 		try {
 			while (join.nextRecord())
 			{	
-				HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+				MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 				if (buildSide.next(recordReuse) == null) {
 					fail("No build side values found for a probe key.");
 				}
@@ -1267,7 +1267,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -1316,7 +1316,7 @@ public class HashTableITCase {
 		* NUM_PROBE_VALS;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -1363,7 +1363,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -1386,7 +1386,7 @@ public class HashTableITCase {
 		numRecordsInJoinResult = 0;
 		
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -1439,7 +1439,7 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -1462,7 +1462,7 @@ public class HashTableITCase {
 		numRecordsInJoinResult = 0;
 
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
@@ -1524,13 +1524,113 @@ public class HashTableITCase {
 		int numRecordsInJoinResult = 0;
 
 		while (join.nextRecord()) {
-			HashBucketIterator<IntPair, IntPair> buildSide = join.getBuildSideIterator();
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
 			while (buildSide.next(recordReuse) != null) {
 				numRecordsInJoinResult++;
 			}
 		}
 		Assert.assertEquals("Wrong number of records in join result.", NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY, numRecordsInJoinResult);
 
+		join.close();
+		this.memManager.release(join.getFreedMemory());
+	}
+
+	@Test
+	public void testHashWithBuildSideOuterJoin1() throws Exception {
+		final int NUM_KEYS = 20000;
+		final int BUILD_VALS_PER_KEY = 1;
+		final int PROBE_VALS_PER_KEY = 1;
+
+		// create a build input that gives 40000 pairs with 1 values sharing the same key
+		MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(2 * NUM_KEYS, BUILD_VALS_PER_KEY, false);
+
+		// create a probe input that gives 20000 pairs with 1 values sharing a key
+		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+
+		// allocate the memory for the HashTable
+		List<MemorySegment> memSegments;
+		try {
+			// 33 is minimum number of pages required to perform hash join this inputs
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 33);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+
+		// ----------------------------------------------------------------------------------------
+
+		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
+			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
+			memSegments, ioManager);
+		join.open(buildInput, probeInput, true);
+
+		final IntPair recordReuse = new IntPair();
+		int numRecordsInJoinResult = 0;
+
+		while (join.nextRecord()) {
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
+			while (buildSide.next(recordReuse) != null) {
+				numRecordsInJoinResult++;
+			}
+		}
+		Assert.assertEquals("Wrong number of records in join result.", 2 * NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY, numRecordsInJoinResult);
+
+		join.close();
+		this.memManager.release(join.getFreedMemory());
+	}
+	
+	@Test
+	public void testHashWithBuildSideOuterJoin2() throws Exception {
+		final int NUM_KEYS = 40000;
+		final int BUILD_VALS_PER_KEY = 2;
+		final int PROBE_VALS_PER_KEY = 1;
+		
+		// The keys of probe and build sides are overlapped, so there would be none unmatched build elements
+		// after probe phase, make sure build side outer join works well in this case.
+		
+		// create a build input that gives 80000 pairs with 2 values sharing the same key
+		MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_KEYS, BUILD_VALS_PER_KEY, false);
+		
+		// create a probe input that gives 40000 pairs with 1 values sharing a key
+		MutableObjectIterator<IntPair> probeInput = new UniformIntPairGenerator(NUM_KEYS, PROBE_VALS_PER_KEY, true);
+		
+		// allocate the memory for the HashTable
+		List<MemorySegment> memSegments;
+		try {
+			// 33 is minimum number of pages required to perform hash join this inputs
+			memSegments = this.memManager.allocatePages(MEM_OWNER, 33);
+		}
+		catch (MemoryAllocationException maex) {
+			fail("Memory for the Join could not be provided.");
+			return;
+		}
+		
+		// ----------------------------------------------------------------------------------------
+		
+		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
+			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
+			memSegments, ioManager);
+		join.open(buildInput, probeInput, true);
+		
+		final IntPair recordReuse = new IntPair();
+		int numRecordsInJoinResult = 0;
+		
+		while (join.nextRecord()) {
+			MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
+			IntPair next = buildSide.next(recordReuse);
+			if (next == null && join.getCurrentProbeRecord() == null) {
+				fail("Should not return join result that both probe and build element are null.");
+			}
+			while (next != null) {
+				numRecordsInJoinResult++;
+				next = buildSide.next(recordReuse);
+			}
+		}
+		Assert.assertEquals("Wrong number of records in join result.", NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY, numRecordsInJoinResult);
+		
 		join.close();
 		this.memManager.release(join.getFreedMemory());
 	}

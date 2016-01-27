@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -37,6 +39,7 @@ import java.io.Serializable;
  * 
  * @param <T> The type of the filtered elements.
  */
+@Public
 public interface FilterFunction<T> extends Function, Serializable {
 	
 	/**

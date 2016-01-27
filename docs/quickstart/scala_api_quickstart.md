@@ -1,5 +1,9 @@
 ---
 title: "Quickstart: Scala API"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 4
+top-nav-title: Scala API
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

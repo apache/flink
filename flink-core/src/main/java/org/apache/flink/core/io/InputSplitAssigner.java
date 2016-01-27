@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.io;
 
+
 /**
  * An input split assigner distributes the {@link InputSplit}s among the instances on which a
  * data source exists.

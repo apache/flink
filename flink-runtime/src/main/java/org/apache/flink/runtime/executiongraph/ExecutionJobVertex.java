@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.LongCounter;
@@ -127,7 +128,11 @@ public class ExecutionJobVertex implements Serializable {
 			final IntermediateDataSet result = jobVertex.getProducedDataSets().get(i);
 
 			this.producedDataSets[i] = new IntermediateResult(
-					result.getId(), this, numTaskVertices, result.getResultType());
+					result.getId(),
+					this,
+					numTaskVertices,
+					result.getResultType(),
+					result.getEagerlyDeployConsumers());
 		}
 
 		// create all task vertices
@@ -182,7 +187,11 @@ public class ExecutionJobVertex implements Serializable {
 	public int getParallelism() {
 		return parallelism;
 	}
-	
+
+	public ApplicationID getApplicationID() {
+		return graph.getApplicationID();
+	}
+
 	public JobID getJobId() {
 		return graph.getJobID();
 	}
@@ -352,9 +361,6 @@ public class ExecutionJobVertex implements Serializable {
 			// check and reset the sharing groups with scheduler hints
 			if (slotSharingGroup != null) {
 				slotSharingGroup.clearTaskAssignment();
-			}
-			if (coLocationGroup != null) {
-				coLocationGroup.resetConstraints();
 			}
 			
 			// reset vertices one by one. if one reset fails, the "vertices in final state"

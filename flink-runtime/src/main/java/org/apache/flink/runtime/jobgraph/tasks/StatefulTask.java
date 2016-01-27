@@ -43,8 +43,10 @@ public interface StatefulTask<T extends StateHandle<?>> {
 	 *
 	 * @param checkpointId The ID of the checkpoint, incrementing.
 	 * @param timestamp The timestamp when the checkpoint was triggered at the JobManager.
+	 *
+	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
-	void triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
+	boolean triggerCheckpoint(long checkpointId, long timestamp) throws Exception;
 
 
 	/**

@@ -20,9 +20,12 @@ package org.apache.flink.streaming.api.functions.sink;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;
@@ -37,7 +40,8 @@ import org.slf4j.LoggerFactory;
  * @param <IN>
  *            Input type
  */
-public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
+public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> implements
+	InputTypeConfigurable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -60,6 +64,14 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
 		indexInSubtaskGroup = context.getIndexOfThisSubtask();
 		currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
 		format.open(indexInSubtaskGroup, currentNumberOfSubtasks);
+	}
+
+	@Override
+	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+		if (format instanceof InputTypeConfigurable) {
+			InputTypeConfigurable itc = (InputTypeConfigurable) format;
+			itc.setInputType(type, executionConfig);
+		}
 	}
 
 	@Override

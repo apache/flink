@@ -82,10 +82,10 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 
 	public JobClientActor(
 			LeaderRetrievalService leaderRetrievalService,
-			FiniteDuration submissionTimeout,
+			FiniteDuration timeout,
 			boolean sysoutUpdates) {
 		this.leaderRetrievalService = Preconditions.checkNotNull(leaderRetrievalService);
-		this.timeout = Preconditions.checkNotNull(submissionTimeout);
+		this.timeout = Preconditions.checkNotNull(timeout);
 		this.sysoutUpdates = sysoutUpdates;
 	}
 
@@ -315,6 +315,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 	}
 
 	private void disconnectFromJobManager() {
+		LOG.info("Disconnect from JobManager {}.", jobManager);
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 			jobManager = ActorRef.noSender();
@@ -322,6 +323,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 	}
 
 	private void connectToJobManager(ActorRef jobManager) {
+		LOG.info("Connect to JobManager {}.", jobManager);
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 		}
@@ -401,6 +403,7 @@ public class JobClientActor extends FlinkUntypedActor implements LeaderRetrieval
 	}
 
 	private void terminate() {
+		LOG.info("Terminate JobClientActor.");
 		terminated = true;
 		disconnectFromJobManager();
 		getSelf().tell(decorateMessage(PoisonPill.getInstance()), ActorRef.noSender());

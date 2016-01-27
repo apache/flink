@@ -29,7 +29,7 @@ computations over data streams. Flink also builds batch processing on top of the
 native iteration support, managed memory, and program optimization.
 
 If you want to write your first program, look at one of the available quickstarts, and refer to the
-[DataSet API guide](apis/programming_guide.html) or the [DataStream API guide](apis/streaming_guide.html).
+[DataSet API guide](apis/batch/index.html) or the [DataStream API guide](apis/streaming/index.html).
 
 ## Stack
 
@@ -42,8 +42,8 @@ This is an overview of Flink's stack. Click on any component to go to the respec
   <area shape="rect" coords="268,0,343,200" alt="Flink ML" href="libs/ml/">
   <area shape="rect" coords="348,0,423,200" alt="Table" href="libs/table.html">
 
-  <area shape="rect" coords="188,205,538,260" alt="DataSet API (Java/Scala)" href="apis/programming_guide.html">
-  <area shape="rect" coords="543,205,893,260" alt="DataStream API (Java/Scala)" href="apis/streaming_guide.html">
+  <area shape="rect" coords="188,205,538,260" alt="DataSet API (Java/Scala)" href="apis/batch/index.html">
+  <area shape="rect" coords="543,205,893,260" alt="DataStream API (Java/Scala)" href="apis/streaming/index.html">
 
   <!-- <area shape="rect" coords="188,275,538,330" alt="Optimizer" href="optimizer.html"> -->
   <!-- <area shape="rect" coords="543,275,893,330" alt="Stream Builder" href="streambuilder.html"> -->
@@ -54,5 +54,4 @@ This is an overview of Flink's stack. Click on any component to go to the respec
   <area shape="rect" coords="333,405,473,455" alt="Remote" href="apis/cluster_execution.html">
   <area shape="rect" coords="478,405,638,455" alt="Embedded" href="apis/local_execution.html">
   <area shape="rect" coords="643,405,765,455" alt="YARN" href="setup/yarn_setup.html">
-  <area shape="rect" coords="770,405,893,455" alt="Tez" href="setup/flink_on_tez.html">
 </map>

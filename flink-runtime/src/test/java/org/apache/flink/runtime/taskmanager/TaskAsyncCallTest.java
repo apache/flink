@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -147,7 +148,7 @@ public class TaskAsyncCallTest {
 		when(networkEnvironment.getDefaultIOMode()).thenReturn(IOManager.IOMode.SYNC);
 
 		TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				new JobID(), new JobVertexID(), new ExecutionAttemptID(),
+				new ApplicationID(), new JobID(), new JobVertexID(), new ExecutionAttemptID(),
 				"Test Task", 0, 1, 0,
 				new Configuration(), new Configuration(),
 				CheckpointsInOrderInvokable.class.getName(),
@@ -178,9 +179,6 @@ public class TaskAsyncCallTest {
 		private volatile Exception error;
 		
 		@Override
-		public void registerInputOutput() {}
-
-		@Override
 		public void invoke() throws Exception {
 			awaitLatch.trigger();
 			
@@ -203,7 +201,7 @@ public class TaskAsyncCallTest {
 		}
 
 		@Override
-		public void triggerCheckpoint(long checkpointId, long timestamp) {
+		public boolean triggerCheckpoint(long checkpointId, long timestamp) {
 			lastCheckpointId++;
 			if (checkpointId == lastCheckpointId) {
 				if (lastCheckpointId == NUM_CALLS) {
@@ -216,6 +214,7 @@ public class TaskAsyncCallTest {
 					notifyAll();
 				}
 			}
+			return true;
 		}
 
 		@Override

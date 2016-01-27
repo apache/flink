@@ -31,6 +31,11 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
+	<artifactId>flink-contrib</artifactId>
+	<name>flink-contrib</name>
+
+	<packaging>pom</packaging>
+
 	<modules>
 		<module>flink-storm</module>
 		<module>flink-storm-examples</module>
@@ -39,10 +44,4 @@ under the License.
 		<module>flink-operator-stats</module>
 		<module>flink-connector-wikiedits</module>
 	</modules>
-
-	<artifactId>flink-contrib-parent</artifactId>
-	<name>flink-contrib</name>
-
-	<packaging>pom</packaging>
-
 </project>

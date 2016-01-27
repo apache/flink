@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import org.apache.flink.annotation.Public;
+
 import java.util.ArrayList;
 
 /**
@@ -25,6 +27,7 @@ import java.util.ArrayList;
  *
  * @param <T> The type of the accumulated objects
  */
+@Public
 public class ListAccumulator<T> implements Accumulator<T, ArrayList<T>> {
 
 	private static final long serialVersionUID = 1L;

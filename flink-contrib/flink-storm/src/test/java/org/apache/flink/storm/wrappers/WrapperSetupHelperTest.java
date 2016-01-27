@@ -178,31 +178,19 @@ public class WrapperSetupHelperTest extends AbstractTest {
 		builder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
 		builder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
 				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
+				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
+				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		int counter = 0;
-		while (true) {
-			LocalCluster cluster = new LocalCluster();
-			Config c = new Config();
-			c.setNumAckers(0);
-			cluster.submitTopology("test", c, builder.createTopology());
-			Utils.sleep(++counter * 10000);
-			cluster.shutdown();
+		LocalCluster cluster = new LocalCluster();
+		Config c = new Config();
+		c.setNumAckers(0);
+		cluster.submitTopology("test", c, builder.createTopology());
 
-			if (TestSink.result.size() == 5) {
-				break;
-			}
+		while (TestSink.result.size() != 8) {
+			Utils.sleep(100);
 		}
-
-		TopologyBuilder stormBuilder = new TopologyBuilder();
-
-		stormBuilder.setSpout("spout1", (IRichSpout) operators.get("spout1"), dops.get("spout1"));
-		stormBuilder.setSpout("spout2", (IRichSpout) operators.get("spout2"), dops.get("spout2"));
-		stormBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
-		stormBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
-		stormBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
-				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
-				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
+		cluster.shutdown();
 
 		final FlinkTopology flinkBuilder = FlinkTopology.createTopology(builder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();

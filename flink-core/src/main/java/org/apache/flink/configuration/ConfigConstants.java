@@ -18,10 +18,13 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * This class contains all constants for the configuration. That includes the configuration keys and
  * the default values.
  */
+@Public
 public final class ConfigConstants {
 
 	// ------------------------------------------------------------------------
@@ -39,13 +42,13 @@ public final class ConfigConstants {
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
 	 */
-	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
+	public static final String EXECUTION_RETRIES_KEY = "execution-retries.default";
 
 	/**
 	 * Config parameter for the delay between execution retries. The value must be specified in the
 	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
 	 */
-	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
+	public static final String EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
 	
@@ -354,33 +357,6 @@ public final class ConfigConstants {
 
 	/** Config parameter defining the number of checkpoints to remember for recent history. */
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
-
-	// ------------------------------ Web Client ------------------------------
-
-	/**
-	 * The config parameter defining port for the pact web-frontend server.
-	 */
-	public static final String WEB_FRONTEND_PORT_KEY = "webclient.port";
-
-	/**
-	 * The config parameter defining the temporary data directory for the web client.
-	 */
-	public static final String WEB_TMP_DIR_KEY = "webclient.tempdir";
-
-	/**
-	 * The config parameter defining the directory that programs are uploaded to.
-	 */
-	public static final String WEB_JOB_UPLOAD_DIR_KEY = "webclient.uploaddir";
-
-	/**
-	 * The config parameter defining the directory that JSON plan dumps are written to.
-	 */
-	public static final String WEB_PLAN_DUMP_DIR_KEY = "webclient.plandump";
-
-	/**
-	 * The config parameter defining the port to the htaccess file protecting the web client.
-	 */
-	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
 	
 
 	// ------------------------------ AKKA ------------------------------------
@@ -441,7 +417,7 @@ public final class ConfigConstants {
 	public static final String AKKA_LOG_LIFECYCLE_EVENTS = "akka.log.lifecycle.events";
 
 	/**
-	 * Timeout for all blocking calls
+	 * Timeout for all blocking calls on the cluster side
 	 */
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
@@ -449,6 +425,11 @@ public final class ConfigConstants {
 	 * Timeout for all blocking calls that look up remote actors
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
+
+	/**
+	 * Timeout for all blocking calls on the client side
+	 */
+	public static final String AKKA_CLIENT_TIMEOUT = "akka.client.timeout";
 
 	/**
 	 * Exit JVM on fatal Akka errors
@@ -475,6 +456,9 @@ public final class ConfigConstants {
 
 	/** Defines recovery mode used for the cluster execution ("standalone", "zookeeper") */
 	public static final String RECOVERY_MODE = "recovery.mode";
+
+	/** Ports used by the job manager if not in standalone recovery mode */
+	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
 
 	// --------------------------- ZooKeeper ----------------------------------
 
@@ -708,35 +692,6 @@ public final class ConfigConstants {
 
 	/** Default number of checkpoints to remember for recent history. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
-	
-	// ------------------------------ Web Client ------------------------------
-	
-	/**
-	 * The default port to launch the web frontend server on.
-	 */
-	public static final int DEFAULT_WEBCLIENT_PORT = 8080;
-
-	/**
-	 * The default directory to store temporary objects (e.g. during file uploads).
-	 */
-	public static final String DEFAULT_WEB_TMP_DIR = 
-			System.getProperty("java.io.tmpdir") == null ? "/tmp" : System.getProperty("java.io.tmpdir");
-
-	/**
-	 * The default directory for temporary plan dumps from the web frontend.
-	 */
-	public static final String DEFAULT_WEB_PLAN_DUMP_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-plans/";
-
-	/**
-	 * The default directory to store uploaded jobs in.
-	 */
-	public static final String DEFAULT_WEB_JOB_STORAGE_DIR = DEFAULT_WEB_TMP_DIR + "/webclient-jobs/";
-	
-
-	/**
-	 * The default path to the file containing the list of access privileged users and passwords.
-	 */
-	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
 
 	// ------------------------------ Akka Values ------------------------------
 
@@ -754,9 +709,11 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
-	public static String DEFAULT_AKKA_ASK_TIMEOUT = "100 s";
+	public static String DEFAULT_AKKA_ASK_TIMEOUT = "10 s";
 
 	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
+
+	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
 	
 	// ----------------------------- Streaming Values --------------------------
 	
@@ -780,6 +737,12 @@ public final class ConfigConstants {
   	// --------------------------- Recovery ---------------------------------
 
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
+
+	/**
+	 * Default port used by the job manager if not in standalone recovery mode. If <code>0</code>
+	 * the OS picks a random port port.
+	 */
+	public static final String DEFAULT_RECOVERY_JOB_MANAGER_PORT = "0";
 
 	// --------------------------- ZooKeeper ----------------------------------
 

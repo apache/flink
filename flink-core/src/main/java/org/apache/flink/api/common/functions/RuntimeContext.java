@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -40,6 +42,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * A function can, during runtime, obtain the RuntimeContext via a call to
  * {@link AbstractRichFunction#getRuntimeContext()}.
  */
+@Public
 public interface RuntimeContext {
 
 	/**
@@ -116,21 +119,25 @@ public interface RuntimeContext {
 	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
 	 */
 	@Deprecated
+	@Experimental
 	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.
 	 */
+	@Experimental
 	IntCounter getIntCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for longs.
 	 */
+	@Experimental
 	LongCounter getLongCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for doubles.
 	 */
+	@Experimental
 	DoubleCounter getDoubleCounter(String name);
 
 	/**

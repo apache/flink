@@ -36,10 +36,11 @@ class HadoopInputFormat[K, V](
       fetchNext()
     }
     if (!hasNext) {
-      return null
+      null
+    } else {
+      fetched = false
+      (key, value)
     }
-    fetched = false
-    (key, value)
   }
 
 }

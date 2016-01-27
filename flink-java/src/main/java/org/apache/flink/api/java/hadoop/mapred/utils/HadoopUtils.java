@@ -47,7 +47,9 @@ public final class HadoopUtils {
 	public static void mergeHadoopConf(JobConf jobConf) {
 		org.apache.hadoop.conf.Configuration hadoopConf = getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {
-			jobConf.set(e.getKey(), e.getValue());
+			if (jobConf.get(e.getKey()) == null) {
+				jobConf.set(e.getKey(), e.getValue());
+			}
 		}
 	}
 	

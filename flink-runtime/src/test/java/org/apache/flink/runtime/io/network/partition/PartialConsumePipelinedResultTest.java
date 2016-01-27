@@ -108,11 +108,6 @@ public class PartialConsumePipelinedResultTest {
 	public static class SlowBufferSender extends AbstractInvokable {
 
 		@Override
-		public void registerInputOutput() {
-			// Nothing to do
-		}
-
-		@Override
 		public void invoke() throws Exception {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
@@ -129,11 +124,6 @@ public class PartialConsumePipelinedResultTest {
 	 * Reads a single buffer and recycles it.
 	 */
 	public static class SingleBufferReceiver extends AbstractInvokable {
-
-		@Override
-		public void registerInputOutput() {
-			// Nothing to do
-		}
 
 		@Override
 		public void invoke() throws Exception {

@@ -326,7 +326,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	private static class FlinkUserCodeClassLoader extends URLClassLoader {
 
 		public FlinkUserCodeClassLoader(URL[] urls) {
-			super(urls);
+			super(urls, FlinkUserCodeClassLoader.class.getClassLoader());
 		}
 	}
 }

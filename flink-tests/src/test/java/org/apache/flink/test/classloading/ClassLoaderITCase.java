@@ -54,7 +54,7 @@ public class ClassLoaderITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-			config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "0 s");
+			config.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, "0 s");
 
 			// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");

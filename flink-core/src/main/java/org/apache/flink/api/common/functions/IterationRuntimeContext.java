@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.types.Value;
 
-/**
- * 
- */
+@Public
 public interface IterationRuntimeContext extends RuntimeContext {
 	
 	/**
@@ -32,7 +32,8 @@ public interface IterationRuntimeContext extends RuntimeContext {
 	 * @return The number of the current superstep.
 	 */
 	int getSuperstepNumber();
-	
+
+	@Experimental
 	<T extends Aggregator<?>> T getIterationAggregator(String name);
 	
 	<T extends Value> T getPreviousIterationAggregate(String name);

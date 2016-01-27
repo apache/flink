@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-shaded-hadoop1</artifactId>
+	<artifactId>flink-shaded-hadoop1_2.10</artifactId>
 	<name>flink-shaded-hadoop1</name>
 
 	<packaging>jar</packaging>

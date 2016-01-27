@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.AbstractID;
 import javax.xml.bind.DatatypeConverter;
 import java.nio.ByteBuffer;
@@ -30,6 +31,7 @@ import java.nio.ByteBuffer;
  * incrementally in different parts. Newer fragments of a graph can be attached to existing
  * graphs, thereby extending the current data flow graphs.</p>
  */
+@Public
 public final class JobID extends AbstractID {
 
 	private static final long serialVersionUID = 1L;

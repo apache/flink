@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
@@ -110,6 +112,9 @@ public class Task implements Runnable {
 	// ------------------------------------------------------------------------
 	//  Constant fields that are part of the initial Task construction
 	// ------------------------------------------------------------------------
+
+	/** The application that the task belongs to */
+	private final ApplicationID appId;
 
 	/** The job that the task belongs to */
 	private final JobID jobId;
@@ -231,6 +236,7 @@ public class Task implements Runnable {
 				TaskManagerRuntimeInfo taskManagerConfig)
 	{
 		this.taskInfo = checkNotNull(tdd.getTaskInfo());
+		this.appId = checkNotNull(tdd.getApplicationID());
 		this.jobId = checkNotNull(tdd.getJobID());
 		this.vertexId = checkNotNull(tdd.getVertexID());
 		this.executionId  = checkNotNull(tdd.getExecutionId());
@@ -279,6 +285,7 @@ public class Task implements Runnable {
 					jobId,
 					partitionId,
 					desc.getPartitionType(),
+					desc.getEagerlyDeployConsumers(),
 					desc.getNumberOfSubpartitions(),
 					networkEnvironment.getPartitionManager(),
 					networkEnvironment.getPartitionConsumableNotifier(),
@@ -489,7 +496,7 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
-			Environment env = new RuntimeEnvironment(jobId, vertexId, executionId, taskInfo,
+			Environment env = new RuntimeEnvironment(appId, jobId, vertexId, executionId, taskInfo,
 					jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
@@ -498,18 +505,12 @@ public class Task implements Runnable {
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
-			try {
-				invokable.registerInputOutput();
-			}
-			catch (Exception e) {
-				throw new Exception("Call to registerInputOutput() of invokable failed", e);
-			}
 
 			// the very last thing before the actual execution starts running is to inject
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
 
-			// get our private reference onto the stack (be safe against concurrent changes) 
+			// get our private reference onto the stack (be safe against concurrent changes)
 			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
 			long recoveryTs = this.recoveryTs;
 
@@ -868,10 +869,18 @@ public class Task implements Runnable {
 					@Override
 					public void run() {
 						try {
-							statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							boolean success = statefulTask.triggerCheckpoint(checkpointID, checkpointTimestamp);
+							if (!success) {
+								DeclineCheckpoint decline = new DeclineCheckpoint(jobId, getExecutionId(), checkpointID, checkpointTimestamp);
+								jobManager.tell(decline);
+							}
 						}
 						catch (Throwable t) {
-							failExternally(new RuntimeException("Error while triggering checkpoint for " + taskName, t));
+							if (getExecutionState() == ExecutionState.RUNNING) {
+								failExternally(new RuntimeException(
+									"Error while triggering checkpoint for " + taskName,
+									t));
+							}
 						}
 					}
 				};
@@ -904,8 +913,12 @@ public class Task implements Runnable {
 							statefulTask.notifyCheckpointComplete(checkpointID);
 						}
 						catch (Throwable t) {
-							// fail task if checkpoint confirmation failed.
-							failExternally(new RuntimeException("Error while confirming checkpoint", t));
+							if (getExecutionState() == ExecutionState.RUNNING) {
+								// fail task if checkpoint confirmation failed.
+								failExternally(new RuntimeException(
+									"Error while confirming checkpoint",
+									t));
+							}
 						}
 					}
 				};

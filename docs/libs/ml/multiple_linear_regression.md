@@ -1,7 +1,11 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Multiple linear regression
-title: <a href="../ml">FlinkML</a> - Multiple linear regression
+title: FlinkML - Multiple linear regression
+
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Multiple Linear Regression
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -124,6 +128,16 @@ the algorithm's performance.
             Threshold for relative change of the sum of squared residuals until the iteration is stopped.
             (Default value: <strong>None</strong>)
           </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>LearningRateMethod</strong></td>
+        <td>
+            <p>
+                Learning rate method used to calculate the effective learning rate for each iteration.
+                See the list of supported <a href="optimization.html">learing rate methods</a>.
+                (Default value: <strong>LearningRateMethod.Default</strong>)
+            </p>
         </td>
       </tr>
     </tbody>

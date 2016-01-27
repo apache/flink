@@ -35,7 +35,6 @@ import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
@@ -52,7 +51,7 @@ import static org.junit.Assert.assertTrue;
  * specific tests, for example in {@link org.apache.flink.streaming.api.IterateTest} for
  * iterations.
  */
-public class StreamGraphGeneratorTest extends StreamingMultipleProgramsTestBase {
+public class StreamGraphGeneratorTest {
 
 	/**
 	 * This tests whether virtual Transformations behave correctly.
@@ -283,14 +282,12 @@ public class StreamGraphGeneratorTest extends StreamingMultipleProgramsTestBase 
 		}
 
 		@Override
-		public void processElement(StreamRecord<Integer> element) throws Exception {
+		public void processElement(StreamRecord<Integer> element) {
 			output.collect(element);
 		}
 
 		@Override
-		public void processWatermark(Watermark mark) throws Exception {
-
-		}
+		public void processWatermark(Watermark mark) {}
 
 		@Override
 		public void setOutputType(TypeInformation<Integer> outTypeInfo, ExecutionConfig executionConfig) {

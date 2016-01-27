@@ -1,5 +1,9 @@
 ---
 title: "Quickstart: Java API"
+# Top navigation
+top-nav-group: quickstart
+top-nav-pos: 3
+top-nav-title: Java API
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -145,7 +149,7 @@ public class LineSplitter implements FlatMapFunction<String, Tuple2<String, Inte
 }
 ~~~
 
-{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
+{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
 For a complete overview over our API, have a look at the [Programming Guide]({{ site.baseurl }}/apis/programming_guide.html) and [further example programs](examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
 

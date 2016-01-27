@@ -24,8 +24,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.SingleInputOperator;
@@ -125,7 +125,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForBroadcastHash() {
-		testQueryGeneric(1024l*1024*1024*1024, 1024l*1024*1024*1024, 0.01f, 0.05f, true, false, true, false, false);
+		testQueryGeneric(1024L*1024*1024*1024, 1024L*1024*1024*1024, 0.01f, 0.05f, true, false, true, false, false);
 	}
 	
 	/**
@@ -133,7 +133,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testQueryWithStatsForRepartitionAny() {
-		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.1f, 0.5f, false, true, true, true, true);
+		testQueryGeneric(100L*1024*1024*1024*1024, 100L*1024*1024*1024*1024, 0.1f, 0.5f, false, true, true, true, true);
 	}
 	
 	/**
@@ -149,7 +149,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 		DualInputOperator<?,?,?,?> match = cr.getNode(JOIN_NAME);
 		match.getCompilerHints().setFilterFactor(100f);
 		
-		testQueryGeneric(100l*1024*1024*1024*1024, 100l*1024*1024*1024*1024, 0.01f, 100f, false, true, false, false, true);
+		testQueryGeneric(100L*1024*1024*1024*1024, 100L*1024*1024*1024*1024, 0.01f, 100f, false, true, false, false, true);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -413,10 +413,17 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 	}
 
 	@ForwardedFields("f0; f1")
-	@Combinable
-	public static class AggLiO extends RichGroupReduceFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>> {
+	public static class AggLiO implements
+		GroupReduceFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>>,
+		GroupCombineFunction<Tuple3<Long, Integer, Double>, Tuple3<Long, Integer, Double>>
+	{
 		@Override
 		public void reduce(Iterable<Tuple3<Long, Integer, Double>> values, Collector<Tuple3<Long, Integer, Double>> out) throws Exception {
+			// not going to be executed
+		}
+
+		@Override
+		public void combine(Iterable<Tuple3<Long, Integer, Double>> values, Collector<Tuple3<Long, Integer, Double>> out) throws Exception {
 			// not going to be executed
 		}
 	}

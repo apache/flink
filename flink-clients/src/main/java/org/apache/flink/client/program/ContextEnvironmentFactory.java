@@ -46,10 +46,11 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private ExecutionEnvironment lastEnvCreated;
 
+	private String savepointPath;
 
 	public ContextEnvironmentFactory(Client client, List<URL> jarFilesToAttach,
 			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
-			boolean wait)
+			boolean wait, String savepointPath)
 	{
 		this.client = client;
 		this.jarFilesToAttach = jarFilesToAttach;
@@ -57,6 +58,7 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.defaultParallelism = defaultParallelism;
 		this.wait = wait;
+		this.savepointPath = savepointPath;
 	}
 
 	@Override
@@ -66,8 +68,8 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		}
 
 		lastEnvCreated = wait ?
-				new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader) :
-				new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader);
+				new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath) :
+				new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointPath);
 		if (defaultParallelism > 0) {
 			lastEnvCreated.setParallelism(defaultParallelism);
 		}

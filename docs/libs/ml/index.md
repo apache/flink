@@ -1,5 +1,15 @@
 ---
 title: "FlinkML - Machine Learning for Flink"
+# Top navigation
+top-nav-group: libs
+top-nav-pos: 2
+top-nav-title: Machine Learning
+# Sub navigation
+sub-nav-group: batch
+sub-nav-id: flinkml
+sub-nav-pos: 2
+sub-nav-parent: libs
+sub-nav-title: Machine Learning
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -58,18 +68,18 @@ FlinkML currently supports the following algorithms:
 You can check out our [quickstart guide](quickstart.html) for a comprehensive getting started
 example.
 
-If you want to jump right in, you have to [set up a Flink program](http://ci.apache.org/projects/flink/flink-docs-master/apis/programming_guide.html#linking-with-flink).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/apis/batch/index.html#linking-with-flink).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-ml</artifactId>
+  <artifactId>flink-ml{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
 
-Note that FlinkML is currently not part of the binary distribution. 
+Note that FlinkML is currently not part of the binary distribution.
 See linking with it for cluster execution [here]({{site.baseurl}}/apis/cluster_execution.html#linking-with-modules-not-contained-in-the-binary-distribution).
 
 Now you can start solving your analysis task.

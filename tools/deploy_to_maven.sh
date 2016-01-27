@@ -70,7 +70,7 @@ function deploy_to_s3() {
 pwd
 
 
-# Check if push/commit is eligible for pushing
+# Check if push/commit is eligible for deploying
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST ; repo slug : $TRAVIS_REPO_SLUG "
 if [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $TRAVIS_REPO_SLUG == "apache/flink" ]] ; then
 

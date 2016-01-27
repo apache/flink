@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -33,10 +34,14 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.Savepoint;
+import org.apache.flink.runtime.checkpoint.SavepointCoordinator;
+import org.apache.flink.runtime.checkpoint.StateStore;
 import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.UnrecoverableException;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -46,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -71,6 +77,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -122,7 +130,12 @@ public class ExecutionGraph implements Serializable {
 	/** The lock used to secure all access to mutable fields, especially the tracking of progress
 	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
-	
+
+	/** The ID of the application this graph has been built for. This is
+	 * generated when the graph is created and reset if necessary (currently
+	 * only after {@link #restoreSavepoint(String)}). */
+	private ApplicationID appId = new ApplicationID();
+
 	/** The ID of the job this graph has been built for. */
 	private final JobID jobID;
 
@@ -137,7 +150,7 @@ public class ExecutionGraph implements Serializable {
 
 	/** All vertices, in the order in which they were created **/
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
-
+	
 	/** All intermediate results that are part of this graph */
 	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 
@@ -213,6 +226,9 @@ public class ExecutionGraph implements Serializable {
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
+
+	/** The coordinator for savepoints, if snapshot checkpoints are enabled */
+	private transient SavepointCoordinator savepointCoordinator;
 
 	/** Checkpoint stats tracker seperate from the coordinator in order to be
 	 * available after archiving. */
@@ -356,7 +372,8 @@ public class ExecutionGraph implements Serializable {
 			UUID leaderSessionID,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			RecoveryMode recoveryMode) throws Exception {
+			RecoveryMode recoveryMode,
+			StateStore<Savepoint> savepointStore) throws Exception {
 
 		// simple sanity checks
 		if (interval < 10 || checkpointTimeout < 10) {
@@ -377,7 +394,6 @@ public class ExecutionGraph implements Serializable {
 				ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_DISABLE,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE);
 
-		CheckpointStatsTracker statsTracker;
 		if (isStatsDisabled) {
 			checkpointStatsTracker = new DisabledCheckpointStatsTracker();
 		}
@@ -409,6 +425,25 @@ public class ExecutionGraph implements Serializable {
 		// job status changes (running -> on, all other states -> off)
 		registerJobStatusListener(
 				checkpointCoordinator.createActivatorDeactivator(actorSystem, leaderSessionID));
+
+		// Savepoint Coordinator
+		savepointCoordinator = new SavepointCoordinator(
+				appId,
+				jobID,
+				interval,
+				checkpointTimeout,
+				tasksToTrigger,
+				tasksToWaitFor,
+				tasksToCommitTo,
+				userClassLoader,
+				// Important: this counter needs to be shared with the periodic
+				// checkpoint coordinator.
+				checkpointIDCounter,
+				savepointStore,
+				checkpointStatsTracker);
+
+		registerJobStatusListener(savepointCoordinator
+				.createActivatorDeactivator(actorSystem, leaderSessionID));
 	}
 
 	/**
@@ -427,10 +462,19 @@ public class ExecutionGraph implements Serializable {
 			checkpointCoordinator = null;
 			checkpointStatsTracker = null;
 		}
+
+		if (savepointCoordinator != null) {
+			savepointCoordinator.shutdown();
+			savepointCoordinator = null;
+		}
 	}
 
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
+	}
+
+	public SavepointCoordinator getSavepointCoordinator() {
+		return savepointCoordinator;
 	}
 
 	public CheckpointStatsTracker getCheckpointStatsTracker() {
@@ -489,6 +533,10 @@ public class ExecutionGraph implements Serializable {
 
 	public Scheduler getScheduler() {
 		return scheduler;
+	}
+
+	public ApplicationID getApplicationID() {
+		return appId;
 	}
 
 	public JobID getJobID() {
@@ -674,7 +722,7 @@ public class ExecutionGraph implements Serializable {
 							res.getId(), res, previousDataSet));
 				}
 			}
-
+			
 			this.verticesInCreationOrder.add(ejv);
 		}
 	}
@@ -804,7 +852,16 @@ public class ExecutionGraph implements Serializable {
 
 				this.currentExecutions.clear();
 
+				Collection<CoLocationGroup> colGroups = new HashSet<>();
+				
 				for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
+					
+					CoLocationGroup cgroup = jv.getCoLocationGroup();
+					if(cgroup != null && !colGroups.contains(cgroup)){
+						cgroup.resetConstraints();
+						colGroups.add(cgroup);
+					}
+					
 					jv.resetForNewExecution();
 				}
 
@@ -838,6 +895,39 @@ public class ExecutionGraph implements Serializable {
 		synchronized (progressLock) {
 			if (checkpointCoordinator != null) {
 				checkpointCoordinator.restoreLatestCheckpointedState(getAllVertices(), false, false);
+			}
+		}
+	}
+
+	/**
+	 * Restores the execution state back to a savepoint.
+	 *
+	 * <p>The execution vertices need to be in state {@link ExecutionState#CREATED} when calling
+	 * this method. The operation might block. Make sure that calls don't block the job manager
+	 * actor.
+	 *
+	 * <p><strong>Note</strong>: a call to this method changes the {@link #appId} of the execution
+	 * graph if the operation is successful.
+	 *
+	 * @param savepointPath The path of the savepoint to rollback to.
+	 * @throws IllegalStateException If checkpointing is disabled
+	 * @throws IllegalStateException If checkpoint coordinator is shut down
+	 * @throws Exception If failure during rollback
+	 */
+	public void restoreSavepoint(String savepointPath) throws Exception {
+		synchronized (progressLock) {
+			if (savepointCoordinator != null) {
+				LOG.info("Restoring savepoint: " + savepointPath + ".");
+
+				ApplicationID oldAppId = appId;
+				this.appId = savepointCoordinator.restoreSavepoint(
+						getAllVertices(), savepointPath);
+
+				LOG.info("Set application ID to {} (from: {}).", appId, oldAppId);
+			}
+			else {
+				// Sanity check
+				throw new IllegalStateException("Checkpointing disabled.");
 			}
 		}
 	}
@@ -937,7 +1027,11 @@ public class ExecutionGraph implements Serializable {
 						}
 					}
 					else if (current == JobStatus.FAILING) {
-						if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
+						boolean isRecoverable = !(failureCause instanceof UnrecoverableException);
+
+						if (isRecoverable && numberOfRetriesLeft > 0 &&
+								transitionState(current, JobStatus.RESTARTING)) {
+
 							numberOfRetriesLeft--;
 							
 							if (delayBeforeRetrying > 0) {
@@ -966,7 +1060,9 @@ public class ExecutionGraph implements Serializable {
 							}
 							break;
 						}
-						else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
+						else if ((!isRecoverable || numberOfRetriesLeft <= 0) &&
+								transitionState(current, JobStatus.FAILED, failureCause)) {
+
 							postRunCleanup();
 							break;
 						}
@@ -993,6 +1089,17 @@ public class ExecutionGraph implements Serializable {
 
 			// We don't clean the checkpoint stats tracker, because we want
 			// it to be available after the job has terminated.
+		}
+		catch (Exception e) {
+			LOG.error("Error while cleaning up after execution", e);
+		}
+
+		try {
+			CheckpointCoordinator coord = this.savepointCoordinator;
+			this.savepointCoordinator = null;
+			if (coord != null) {
+				coord.shutdown();
+			}
 		}
 		catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);

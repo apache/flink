@@ -27,18 +27,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the abstract base class for every task that can be executed by a TaskManager.
- * Concrete tasks like the stream vertices of the batch tasks
- * (see {@link BatchTask}) inherit from this class.
+ * This is the abstract base class for every task that can be executed by a
+ * TaskManager. Concrete tasks like the vertices of batch jobs (see
+ * {@link BatchTask} inherit from this class.
  *
- * The TaskManager invokes the methods {@link #registerInputOutput()} and {@link #invoke()} in
- * this order when executing a task. The first method is responsible for setting up input and
- * output stream readers and writers, the second method contains the task's core operation.
+ * <p>The TaskManager invokes the {@link #invoke()} method when executing a
+ * task. All operations of the task happen in this method (setting up input
+ * output stream readers and writers as well as the task's core operation).
  */
 public abstract class AbstractInvokable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractInvokable.class);
-
 
 	/** The environment assigned to this invokable. */
 	private Environment environment;
@@ -46,15 +45,15 @@ public abstract class AbstractInvokable {
 	/** The execution config, cached from the deserialization from the JobConfiguration */
 	private ExecutionConfig executionConfig;
 
-
 	/**
-	 * Must be overwritten by the concrete task to instantiate the required record reader and record writer.
-	 */
-	public abstract void registerInputOutput() throws Exception;
-
-	/**
-	 * Must be overwritten by the concrete task. This method is called by the task manager
-	 * when the actual execution of the task starts.
+	 * Starts the execution.
+	 *
+	 * <p>Must be overwritten by the concrete task implementation. This method
+	 * is called by the task manager when the actual execution of the task
+	 * starts.
+	 *
+	 * <p>All resources should be cleaned up when the method returns. Make sure
+	 * to guard the code with <code>try-finally</code> blocks where necessary.
 	 * 
 	 * @throws Exception
 	 *         Tasks may forward their exceptions for the TaskManager to handle through failure/recovery.
@@ -88,7 +87,6 @@ public abstract class AbstractInvokable {
 	public ClassLoader getUserCodeClassLoader() {
 		return getEnvironment().getUserClassLoader();
 	}
-
 
 	/**
 	 * Returns the current number of subtasks the respective task is split into.

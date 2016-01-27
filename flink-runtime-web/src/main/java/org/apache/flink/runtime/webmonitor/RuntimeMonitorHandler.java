@@ -36,6 +36,8 @@ import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -57,6 +59,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 @ChannelHandler.Sharable
 public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RuntimeMonitorHandler.class);
 
 	private static final Charset ENCODING = Charset.forName("UTF-8");
 
@@ -143,12 +147,14 @@ public class RuntimeMonitorHandler extends SimpleChannelInboundHandler<Routed> {
 					: Unpooled.wrappedBuffer(e.getMessage().getBytes(ENCODING));
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND, message);
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+			LOG.warn("Error while handling request", e);
 		}
 		catch (Exception e) {
 			byte[] bytes = ExceptionUtils.stringifyException(e).getBytes(ENCODING);
 			response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
 					HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(bytes));
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
+			LOG.warn("Error while handling request", e);
 		}
 
 		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, "utf-8");

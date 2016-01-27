@@ -74,14 +74,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-    <!-- See main pom.xml for explanation of profiles -->
-    <profiles>
-        <profile>
-            <id>include-tez</id>
-            <modules>
-                <module>flink-tez-quickstart</module>
-            </modules>
-        </profile>
-    </profiles>
 </project>

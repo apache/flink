@@ -57,7 +57,7 @@ public class LazyDbKvState<K, V> implements KvState<K, V, DbStateBackend>, Check
 
 	// ------------------------------------------------------
 
-	// Unique id for this state (jobID_operatorID_stateName)
+	// Unique id for this state (appID_operatorID_stateName)
 	private final String kvStateId;
 	private final boolean compact;
 

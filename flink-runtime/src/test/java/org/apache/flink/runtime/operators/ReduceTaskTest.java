@@ -23,11 +23,12 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
@@ -289,9 +290,10 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 			out.collect(element);
 		}
 	}
-	
-	@Combinable
-	public static class MockCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+
+	public static class MockCombiningReduceStub
+		implements GroupReduceFunction<Record, Record>, GroupCombineFunction<Record, Record> {
+
 		private static final long serialVersionUID = 1L;
 		
 		private final IntValue key = new IntValue();

@@ -16,6 +16,8 @@
  */
 package org.apache.flink.storm.split;
 
+import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class BoltSplitITCase {
@@ -23,6 +25,7 @@ public class BoltSplitITCase {
 	@Test
 	public void testTopology() throws Exception {
 		SplitStreamBoltLocal.main(new String[] { "0", "/dev/null" });
+		Assert.assertFalse(VerifyAndEnrichBolt.errorOccured);
 	}
 
 }

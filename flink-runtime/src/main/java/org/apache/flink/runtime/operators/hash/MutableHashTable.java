@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.runtime.operators.util.BitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * <pre>
  * +----------------------------- Bucket x ----------------------------
  * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
- * | next-bucket-in-chain-pointer (8 bytes) | reserved (4 bytes) |
+ * | next-bucket-in-chain-pointer (8 bytes) | probedFlags (2 bytes) | reserved (2 bytes) |
  * |
  * |hashCode 1 (4 bytes) | hashCode 2 (4 bytes) | hashCode 3 (4 bytes) |
  * | ... hashCode n-1 (4 bytes) | hashCode n (4 bytes)
@@ -67,7 +68,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * |
  * +---------------------------- Bucket x + 1--------------------------
  * |Partition (1 byte) | Status (1 byte) | element count (2 bytes) |
- * | next-bucket-in-chain-pointer (8 bytes) | reserved (4 bytes) |
+ * | next-bucket-in-chain-pointer (8 bytes) | probedFlags (2 bytes) | reserved (2 bytes) |
  * |
  * |hashCode 1 (4 bytes) | hashCode 2 (4 bytes) | hashCode 3 (4 bytes) |
  * | ... hashCode n-1 (4 bytes) | hashCode n (4 bytes)
@@ -163,7 +164,12 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * Offset of the field in the bucket header that holds the forward pointer to its
 	 * first overflow bucket.
 	 */
-	private static final int HEADER_FORWARD_OFFSET = 4;	
+	private static final int HEADER_FORWARD_OFFSET = 4;
+	
+	/**
+	 * Offset of the field in the bucket header that holds the probed bit set.
+	 */
+	static final int HEADER_PROBED_FLAGS_OFFSET = 12;
 	
 	/**
 	 * Constant for the forward pointer, indicating that the pointer is not set. 
@@ -301,7 +307,8 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	protected MemorySegment[] buckets;
 
 	/** The bloom filter utility used to transform hash buckets of spilled partitions into a
-	 * probabilistic filter */
+	 * probabilistic filter
+	 */
 	private BloomFilter bloomFilter;
 	
 	/**
@@ -333,11 +340,24 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * If true, build side partitions are kept for multiple probe steps.
 	 */
 	protected boolean keepBuildSidePartitions;
+
+	/**
+	 * BitSet which used to mark whether the element(int build side) has successfully matched during
+	 * probe phase. As there are 9 elements in each bucket, we assign 2 bytes to BitSet.
+	 */
+	private final BitSet probedSet = new BitSet(2);
 	
 	protected boolean furtherPartitioning;
 	
 	private boolean running = true;
 	
+	private boolean buildSideOuterJoin = false;
+	
+	private MutableObjectIterator<BT> unmatchedBuildIterator;
+	
+	private boolean probeMatchedPhase = true;
+	
+	private boolean unmatchedBuildVisited = false;
 	
 	// ------------------------------------------------------------------------
 	//                         Construction and Teardown
@@ -422,13 +442,32 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	
 	/**
 	 * Opens the hash join. This method reads the build-side input and constructs the initial
-	 * hash table, gradually spilling partitions that do not fit into memory. 
-	 * 
+	 * hash table, gradually spilling partitions that do not fit into memory.
+	 *
+	 * @param buildSide Build side input.
+	 * @param probeSide Probe side input.
 	 * @throws IOException Thrown, if an I/O problem occurs while spilling a partition.
 	 */
 	public void open(final MutableObjectIterator<BT> buildSide, final MutableObjectIterator<PT> probeSide)
-	throws IOException
-	{
+		throws IOException {
+
+		open(buildSide, probeSide, false);
+	}
+	
+	/**
+	 * Opens the hash join. This method reads the build-side input and constructs the initial
+	 * hash table, gradually spilling partitions that do not fit into memory.
+	 *
+	 * @param buildSide      Build side input.
+	 * @param probeSide      Probe side input.
+	 * @param buildOuterJoin Whether outer join on build side.
+	 * @throws IOException Thrown, if an I/O problem occurs while spilling a partition.
+	 */
+	public void open(final MutableObjectIterator<BT> buildSide,	final MutableObjectIterator<PT> probeSide,
+		boolean buildOuterJoin) throws IOException {
+
+		this.buildSideOuterJoin = buildOuterJoin;
+
 		// sanity checks
 		if (!this.closed.compareAndSet(true, false)) {
 			throw new IllegalStateException("Hash Join cannot be opened, because it is currently not closed.");
@@ -446,12 +485,16 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.probeIterator = new ProbeIterator<PT>(probeSide, this.probeSideSerializer.createInstance());
 		
 		// the bucket iterator can remain constant over the time
-		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator);
+		this.bucketIterator = new HashBucketIterator<BT, PT>(this.buildSideSerializer, this.recordComparator, probedSet, buildOuterJoin);
 	}
 	
 	protected boolean processProbeIter() throws IOException{
 		final ProbeIterator<PT> probeIter = this.probeIterator;
 		final TypeComparator<PT> probeAccessors = this.probeSideComparator;
+
+		if (!this.probeMatchedPhase) {
+			return false;
+		}
 		
 		PT next;
 		while ((next = probeIter.next()) != null) {
@@ -486,11 +529,39 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			}
 		}
 		// -------------- partition done ---------------
-		
+
 		return false;
 	}
 	
+	protected boolean processUnmatchedBuildIter() throws IOException  {
+		if (this.unmatchedBuildVisited) {
+			return false;
+		}
+		
+		this.probeMatchedPhase = false;
+		UnmatchedBuildIterator<BT, PT> unmatchedBuildIter = new UnmatchedBuildIterator<>(this.buildSideSerializer, this.numBuckets,
+			this.bucketsPerSegmentBits, this.bucketsPerSegmentMask, this.buckets, this.partitionsBeingBuilt, probedSet);
+		this.unmatchedBuildIterator = unmatchedBuildIter;
+		
+		// There maybe none unmatched build element, so we add a verification here to make sure we do not return (null, null) to user.
+		if (unmatchedBuildIter.next() == null) {
+			this.unmatchedBuildVisited = true;
+			return false;
+		}
+		
+		unmatchedBuildIter.back();
+		
+		// While visit the unmatched build elements, the probe element is null, and the unmatchedBuildIterator
+		// would iterate all the unmatched build elements, so we return false during the second calling of this method.
+		this.unmatchedBuildVisited = true;
+		return true;
+	}
+	
 	protected boolean prepareNextPartition() throws IOException {
+		
+		this.probeMatchedPhase = true;
+		this.unmatchedBuildVisited = false;
+		
 		// finalize and cleanup the partitions of the current table
 		int buffersAvailable = 0;
 		for (int i = 0; i < this.partitionsBeingBuilt.size(); i++) {
@@ -551,9 +622,11 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	}
 	
 	public boolean nextRecord() throws IOException {
-
-		final boolean probeProcessing = processProbeIter();
-		return probeProcessing || prepareNextPartition();
+		if (buildSideOuterJoin) {
+			return processProbeIter() || processUnmatchedBuildIter() || prepareNextPartition();
+		} else {
+			return processProbeIter() || prepareNextPartition();
+		}
 	}
 	
 	public HashBucketIterator<BT, PT> getMatchesFor(PT record) throws IOException {
@@ -582,11 +655,19 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	}
 	
 	public PT getCurrentProbeRecord() {
-		return this.probeIterator.getCurrent();
+		if (this.probeMatchedPhase) {
+			return this.probeIterator.getCurrent();
+		} else {
+			return null;
+		}
 	}
 	
-	public HashBucketIterator<BT, PT> getBuildSideIterator() {
-		return this.bucketIterator;
+	public MutableObjectIterator<BT> getBuildSideIterator() {
+		if (this.probeMatchedPhase) {
+			return this.bucketIterator;
+		} else {
+			return this.unmatchedBuildIterator;
+		}
 	}
 	
 	/**
@@ -976,7 +1057,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			overflowSeg.putLong(overflowBucketOffset + BUCKET_POINTER_START_OFFSET, pointer); // pointer
 			
 			// set the count to one
-			overflowSeg.putShort(overflowBucketOffset + HEADER_COUNT_OFFSET, (short) 1); 
+			overflowSeg.putShort(overflowBucketOffset + HEADER_COUNT_OFFSET, (short) 1);
+
+			// initiate the probed bitset to 0.
+			overflowSeg.putShort(overflowBucketOffset + HEADER_PROBED_FLAGS_OFFSET, (short) 0);
 		}
 	}
 	
@@ -1049,6 +1133,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				seg.put(bucketOffset + HEADER_STATUS_OFFSET, BUCKET_STATUS_IN_MEMORY);
 				seg.putShort(bucketOffset + HEADER_COUNT_OFFSET, (short) 0);
 				seg.putLong(bucketOffset + HEADER_FORWARD_OFFSET, BUCKET_FORWARD_POINTER_NOT_SET);
+				seg.putShort(bucketOffset + HEADER_PROBED_FLAGS_OFFSET, (short) 0);
 			}
 			
 			table[i] = seg;
@@ -1417,13 +1502,18 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		private MemorySegment originalBucket;
 		
 		private long lastPointer;
+	
+		private BitSet probedSet;
 		
-		
-		HashBucketIterator(TypeSerializer<BT> accessor, TypePairComparator<PT, BT> comparator) {
+		private boolean isBuildOuterJoin = false;
+	
+		HashBucketIterator(TypeSerializer<BT> accessor, TypePairComparator<PT, BT> comparator, 
+			BitSet probedSet, boolean isBuildOuterJoin) {
 			this.accessor = accessor;
 			this.comparator = comparator;
+			this.probedSet = probedSet;
+			this.isBuildOuterJoin = isBuildOuterJoin;
 		}
-		
 		
 		void set(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
 				int searchHashCode, int bucketInSegmentOffset)
@@ -1435,26 +1525,24 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			this.searchHashCode = searchHashCode;
 			this.bucketInSegmentOffset = bucketInSegmentOffset;
 			this.originalBucketInSegmentOffset = bucketInSegmentOffset;
-			
 			this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
 			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 			this.numInSegment = 0;
 		}
 		
-
 		public BT next(BT reuse) {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (true) {
-				
+				probedSet.setMemorySegment(bucket, this.bucketInSegmentOffset + HEADER_PROBED_FLAGS_OFFSET);
 				while (this.numInSegment < this.countInSegment) {
 					
 					final int thisCode = this.bucket.getInt(this.posInSegment);
 					this.posInSegment += HASH_CODE_LEN;
-						
+					
 					// check if the hash code matches
 					if (thisCode == this.searchHashCode) {
 						// get the pointer to the pair
-						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset + 
+						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset +
 													BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
 						this.numInSegment++;
 						
@@ -1463,16 +1551,17 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 							this.partition.setReadPosition(pointer);
 							reuse = this.accessor.deserialize(reuse, this.partition);
 							if (this.comparator.equalToReference(reuse)) {
+								if (isBuildOuterJoin) {
+									probedSet.set(numInSegment - 1);
+								}
 								this.lastPointer = pointer;
 								return reuse;
 							}
-						}
-						catch (IOException ioex) {
+						} catch (IOException ioex) {
 							throw new RuntimeException("Error deserializing key or value from the hashtable: " +
 									ioex.getMessage(), ioex);
 						}
-					}
-					else {
+					} else {
 						this.numInSegment++;
 					}
 				}
@@ -1495,7 +1584,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		public BT next() {
 			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
 			while (true) {
-
+				probedSet.setMemorySegment(bucket, this.bucketInSegmentOffset + HEADER_PROBED_FLAGS_OFFSET);
 				while (this.numInSegment < this.countInSegment) {
 
 					final int thisCode = this.bucket.getInt(this.posInSegment);
@@ -1505,7 +1594,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 					if (thisCode == this.searchHashCode) {
 						// get the pointer to the pair
 						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset +
-								BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
+							BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
 						this.numInSegment++;
 
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
@@ -1513,16 +1602,17 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 							this.partition.setReadPosition(pointer);
 							BT result = this.accessor.deserialize(this.partition);
 							if (this.comparator.equalToReference(result)) {
+								if (isBuildOuterJoin) {
+									probedSet.set(numInSegment - 1);
+								}
 								this.lastPointer = pointer;
 								return result;
 							}
-						}
-						catch (IOException ioex) {
+						} catch (IOException ioex) {
 							throw new RuntimeException("Error deserializing key or value from the hashtable: " +
-									ioex.getMessage(), ioex);
+								ioex.getMessage(), ioex);
 						}
-					}
-					else {
+					} else {
 						this.numInSegment++;
 					}
 				}
@@ -1558,7 +1648,227 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		}
 
 	} // end HashBucketIterator
+	
+	/**
+	 * Iterate all the elements in memory which has not been probed during probe phase.
+	 */
+	public static class UnmatchedBuildIterator<BT, PT> implements MutableObjectIterator<BT> {
+	
+		private final TypeSerializer<BT> accessor;
+	
+		private final long totalBucketNumber;
+		
+		private final int bucketsPerSegmentBits;
+		
+		private final int bucketsPerSegmentMask;
+		
+		private final MemorySegment[] buckets;
+		
+		private final ArrayList<HashPartition<BT, PT>> partitionsBeingBuilt;
+		
+		private final BitSet probedSet;
+		
+		private MemorySegment bucketSegment;
+		
+		private MemorySegment[] overflowSegments;
+		
+		private HashPartition<BT, PT> partition;
+		
+		private int scanCount;
+		
+		private int bucketInSegmentOffset;
+		
+		private int countInSegment;
+		
+		private int numInSegment;
+		
+		UnmatchedBuildIterator(
+			TypeSerializer<BT> accessor,
+			long totalBucketNumber,
+			int bucketsPerSegmentBits,
+			int bucketsPerSegmentMask,
+			MemorySegment[] buckets,
+			ArrayList<HashPartition<BT, PT>> partitionsBeingBuilt,
+			BitSet probedSet) {
+			
+			this.accessor = accessor;
+			this.totalBucketNumber = totalBucketNumber;
+			this.bucketsPerSegmentBits = bucketsPerSegmentBits;
+			this.bucketsPerSegmentMask = bucketsPerSegmentMask;
+			this.buckets = buckets;
+			this.partitionsBeingBuilt = partitionsBeingBuilt;
+			this.probedSet = probedSet;
+			init();
+		}
+		
+		private void init() {
+			scanCount = -1;
+			while (!moveToNextBucket()) {
+				if (scanCount >= totalBucketNumber) {
+					break;
+				}
+			}
+		}
+		
+		public BT next(BT reuse) {
+			// search unprobed record in bucket, while found none, move to next bucket and search.
+			while (true) {
+				BT result = nextInBucket(reuse);
+				if (result == null) {
+					if (!moveToNextOnHeapBucket()) {
+						return null;
+					}
+				} else {
+					return result;
+				}
+			}
+		}
+		
+		public BT next() {
+			// search unProbed record in bucket, while found none, move to next bucket and search.
+			while (true) {
+				BT result = nextInBucket();
+				if (result == null) {
+					// return null while there is no more bucket.
+					if (!moveToNextOnHeapBucket()) {
+						return null;
+					}
+				} else {
+					return result;
+				}
+			}
+		}
 
+		/**
+		 * Loop to make sure that it would move to next on heap bucket, return true while move to a on heap bucket,
+		 * return false if there is no more bucket.
+		 */
+		private boolean moveToNextOnHeapBucket() {
+			while (!moveToNextBucket()) {
+				if (scanCount >= totalBucketNumber) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/**
+		 * Move to next bucket, return true while move to a on heap bucket, return false while move to a spilled bucket
+		 * or there is no more bucket.
+		 */
+		private boolean moveToNextBucket() {
+			scanCount++;
+			if (scanCount > totalBucketNumber - 1) {
+				return false;
+			}
+			// move to next bucket, update all the current bucket status with new bucket information.
+			final int bucketArrayPos = scanCount >> this.bucketsPerSegmentBits;
+			final int currentBucketInSegmentOffset = (scanCount & this.bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
+			MemorySegment currentBucket = this.buckets[bucketArrayPos];
+			final int partitionNumber = currentBucket.get(currentBucketInSegmentOffset + HEADER_PARTITION_OFFSET);
+			final HashPartition<BT, PT> p = this.partitionsBeingBuilt.get(partitionNumber);
+			if (p.isInMemory()) {
+				setBucket(currentBucket, p.overflowSegments, p, currentBucketInSegmentOffset);
+				return true;
+			} else {
+				return false;
+			}
+		}
+	
+		// update current bucket status.
+		private void setBucket(MemorySegment bucket, MemorySegment[] overflowSegments, HashPartition<BT, PT> partition,
+			int bucketInSegmentOffset) {
+			this.bucketSegment = bucket;
+			this.overflowSegments = overflowSegments;
+			this.partition = partition;
+			this.bucketInSegmentOffset = bucketInSegmentOffset;
+			this.countInSegment = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+			this.numInSegment = 0;
+			// reset probedSet with probedFlags offset in this bucket.
+			this.probedSet.setMemorySegment(bucketSegment, this.bucketInSegmentOffset + HEADER_PROBED_FLAGS_OFFSET);
+		}
+	
+		private BT nextInBucket(BT reuse) {
+			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
+			while (true) {
+				while (this.numInSegment < this.countInSegment) {
+					boolean probed = probedSet.get(numInSegment);
+					if (!probed) {
+						final long pointer = this.bucketSegment.getLong(this.bucketInSegmentOffset +
+							BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
+						try {
+							this.partition.setReadPosition(pointer);
+							reuse = this.accessor.deserialize(reuse, this.partition);
+							this.numInSegment++;
+							return reuse;
+						} catch (IOException ioex) {
+							throw new RuntimeException("Error deserializing key or value from the hashtable: " +
+								ioex.getMessage(), ioex);
+						}
+					} else {
+						this.numInSegment++;
+					}
+				}
+
+				// this segment is done. check if there is another chained bucket
+				final long forwardPointer = this.bucketSegment.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
+				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
+					return null;
+				}
+
+				final int overflowSegNum = (int) (forwardPointer >>> 32);
+				this.bucketSegment = this.overflowSegments[overflowSegNum];
+				this.bucketInSegmentOffset = (int) forwardPointer;
+				this.countInSegment = this.bucketSegment.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+				this.numInSegment = 0;
+				// reset probedSet with probedFlags offset in this bucket.
+				this.probedSet.setMemorySegment(bucketSegment, this.bucketInSegmentOffset + HEADER_PROBED_FLAGS_OFFSET);
+			}
+		}
+	
+		private BT nextInBucket() {
+			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
+			while (true) {
+				while (this.numInSegment < this.countInSegment) {
+					boolean probed = probedSet.get(numInSegment);
+					if (!probed) {
+						final long pointer = this.bucketSegment.getLong(this.bucketInSegmentOffset +
+							BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
+						try {
+							this.partition.setReadPosition(pointer);
+							BT result = this.accessor.deserialize(this.partition);
+							this.numInSegment++;
+							return result;
+						} catch (IOException ioex) {
+							throw new RuntimeException("Error deserializing key or value from the hashtable: " +
+								ioex.getMessage(), ioex);
+						}
+					} else {
+						this.numInSegment++;
+					}
+				}
+	
+				// this segment is done. check if there is another chained bucket
+				final long forwardPointer = this.bucketSegment.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
+				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
+					return null;
+				}
+
+				final int overflowSegNum = (int) (forwardPointer >>> 32);
+				this.bucketSegment = this.overflowSegments[overflowSegNum];
+				this.bucketInSegmentOffset = (int) forwardPointer;
+				this.countInSegment = this.bucketSegment.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+				this.numInSegment = 0;
+				// reset probedSet with probedFlags offset in this bucket.
+				this.probedSet.setMemorySegment(bucketSegment, this.bucketInSegmentOffset + HEADER_PROBED_FLAGS_OFFSET);
+			}
+		}
+		
+		public void back() {
+			this.numInSegment--;
+		}
+	}
+	
 	// ======================================================================================================
 	
 	public static final class ProbeIterator<PT> {

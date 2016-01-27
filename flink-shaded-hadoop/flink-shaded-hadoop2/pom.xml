@@ -77,10 +77,6 @@ under the License.
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
 				</exclusion>
@@ -119,10 +115,6 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
 					<artifactId>jersey-test-framework-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>javax.servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -201,10 +193,6 @@ under the License.
 					<artifactId>core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
 				</exclusion>
@@ -243,10 +231,6 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
 					<artifactId>jersey-test-framework-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>javax.servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -337,10 +321,6 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
 				</exclusion>
@@ -379,10 +359,6 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
 					<artifactId>jersey-test-framework-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>javax.servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -473,10 +449,6 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
 				</exclusion>
@@ -515,10 +487,6 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
 					<artifactId>jersey-test-framework-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>javax.servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>
@@ -609,10 +577,6 @@ under the License.
 					<artifactId>netty</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty</artifactId>
 				</exclusion>
@@ -651,10 +615,6 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.jersey-test-framework</groupId>
 					<artifactId>jersey-test-framework-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>javax.servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jersey</groupId>

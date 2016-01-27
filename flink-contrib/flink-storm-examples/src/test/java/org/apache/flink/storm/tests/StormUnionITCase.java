@@ -17,8 +17,8 @@
  */
 package org.apache.flink.storm.tests;
 
+import backtype.storm.Config;
 import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
 
 import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
@@ -26,7 +26,6 @@ import org.apache.flink.storm.tests.operators.FiniteRandomSpout;
 import org.apache.flink.storm.tests.operators.MergerBolt;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
-
 
 public class StormUnionITCase extends StreamingProgramTestBase {
 
@@ -76,12 +75,9 @@ public class StormUnionITCase extends StreamingProgramTestBase {
 
 		// execute program locally
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, FlinkTopology.createTopology(builder));
-
-		Utils.sleep(10 * 1000);
-
-		// TODO kill does no do anything so far
-		cluster.killTopology(topologyId);
+		Config conf = new Config();
+		conf.put(FlinkLocalCluster.SUBMIT_BLOCKING, true); // only required to stabilize integration test
+		cluster.submitTopology(topologyId, conf, FlinkTopology.createTopology(builder));
 		cluster.shutdown();
 	}
 

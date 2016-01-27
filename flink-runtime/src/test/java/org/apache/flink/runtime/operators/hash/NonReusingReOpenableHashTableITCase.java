@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.TupleMatch;
 import org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.TupleMatchRemovingJoin;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
@@ -228,7 +227,7 @@ public class NonReusingReOpenableHashTableITCase {
 				new NonReusingBuildFirstReOpenableHashJoinIterator<>(
 						buildInput, probeInput, this.recordSerializer, this.record1Comparator,
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
-					this.memoryManager, ioManager, this.parentTask, 1.0, false, true);
+					this.memoryManager, ioManager, this.parentTask, 1.0, false, false, true);
 
 		iterator.open();
 		// do first join with both inputs
@@ -342,8 +341,8 @@ public class NonReusingReOpenableHashTableITCase {
 
 				final Tuple2<Integer, Integer> probeRec = join.getCurrentProbeRecord();
 				Integer key = probeRec.f0;
-
-				HashBucketIterator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
+				
+				MutableObjectIterator<Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
 				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0);
@@ -456,8 +455,8 @@ public class NonReusingReOpenableHashTableITCase {
 
 				final Tuple2<Integer, Integer> probeRec = join.getCurrentProbeRecord();
 				Integer key = probeRec.f0;
-
-				HashBucketIterator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
+				
+				MutableObjectIterator<Tuple2<Integer, Integer>> buildSide = join.getBuildSideIterator();
 				if ((record = buildSide.next(recordReuse)) != null) {
 					numBuildValues = 1;
 					Assert.assertEquals("Probe-side key was different than build-side key.", key, record.f0);

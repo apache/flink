@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -53,6 +54,7 @@ import java.io.Serializable;
  * @param <IN2> The type of the elements in the second input.
  * @param <OUT> The type of the result elements.
  */
+@Public
 public interface FlatJoinFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	/**

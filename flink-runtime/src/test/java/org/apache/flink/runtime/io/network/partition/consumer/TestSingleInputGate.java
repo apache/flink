@@ -24,14 +24,21 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.PartitionStateChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.util.event.EventListener;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkElementIndex;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -51,8 +58,37 @@ public class TestSingleInputGate {
 	public TestSingleInputGate(int numberOfInputChannels, boolean initialize) {
 		checkArgument(numberOfInputChannels >= 1);
 
-		this.inputGate = spy(new SingleInputGate(
-				"Test Task Name", new JobID(), new ExecutionAttemptID(), new IntermediateDataSetID(), 0, numberOfInputChannels, mock(PartitionStateChecker.class)));
+		SingleInputGate realGate = new SingleInputGate(
+				"Test Task Name", new JobID(), new ExecutionAttemptID(), new IntermediateDataSetID(), 0, numberOfInputChannels, mock(PartitionStateChecker.class));
+
+		this.inputGate = spy(realGate);
+
+		// Notify about late registrations (added for DataSinkTaskTest#testUnionDataSinkTask).
+		// After merging registerInputOutput and invoke, we have to make sure that the test
+		// notifcations happen at the expected time. In real programs, this is guaranteed by
+		// the instantiation and request partition life cycle.
+		try {
+			Field f = realGate.getClass().getDeclaredField("inputChannelsWithData");
+			f.setAccessible(true);
+			final BlockingQueue<InputChannel> notifications = (BlockingQueue<InputChannel>) f.get(realGate);
+
+			doAnswer(new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					invocation.callRealMethod();
+
+					if (!notifications.isEmpty()) {
+						EventListener<InputGate> listener = (EventListener<InputGate>) invocation.getArguments()[0];
+						listener.onEvent(inputGate);
+					}
+
+					return null;
+				}
+			}).when(inputGate).registerListener(any(EventListener.class));
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 
 		this.inputChannels = new TestInputChannel[numberOfInputChannels];
 

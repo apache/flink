@@ -16,11 +16,11 @@
 # limitations under the License.
 ################################################################################
 from struct import pack
-import sys
-
 from flink.connection.Constants import Types
-from flink.plan.Constants import _Dummy
 
+
+#=====Compatibility====================================================================================================
+import sys
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
@@ -30,57 +30,128 @@ else:
     stringtype = str
 
 
+#=====Collector========================================================================================================
 class Collector(object):
-    def __init__(self, con, env):
+    def __init__(self, con, env, info):
         self._connection = con
         self._serializer = None
+        self._env = env
+        self._as_array = isinstance(info.types, bytearray)
+
+    def _close(self):
+        self._connection.send_end_signal()
+
+    def collect(self, value):
+        self._serializer = ArraySerializer(value, self._env._types) if self._as_array else KeyValuePairSerializer(value, self._env._types)
+        self.collect = self._collect
+        self.collect(value)
+
+    def _collect(self, value):
+        serialized_value = self._serializer.serialize(value)
+        self._connection.write(serialized_value)
+
+
+class PlanCollector(object):
+    def __init__(self, con, env):
+        self._connection = con
         self._env = env
 
     def _close(self):
         self._connection.send_end_signal()
 
     def collect(self, value):
-        self._serializer = _get_serializer(self._connection.write, value, self._env._types)
-        self.collect = self._collect
-        self.collect(value)
-
-    def _collect(self, value):
-        self._connection.write(self._serializer.serialize(value))
+        type = _get_type_info(value, self._env._types)
+        serializer = _get_serializer(value, self._env._types)
+        self._connection.write(b"".join([type, serializer.serialize(value)]))
 
 
-def _get_serializer(write, value, custom_types):
+#=====Serializer=======================================================================================================
+class Serializer(object):
+    def serialize(self, value):
+        pass
+
+
+class KeyValuePairSerializer(Serializer):
+    def __init__(self, value, custom_types):
+        self._typeK = [_get_type_info(key, custom_types) for key in value[0]]
+        self._typeV = _get_type_info(value[1], custom_types)
+        self._typeK_length = [len(type) for type in self._typeK]
+        self._typeV_length = len(self._typeV)
+        self._serializerK = [_get_serializer(key, custom_types) for key in value[0]]
+        self._serializerV = _get_serializer(value[1], custom_types)
+
+    def serialize(self, value):
+        bits = [pack(">i", len(value[0]))[3:4]]
+        for i in range(len(value[0])):
+            x = self._serializerK[i].serialize(value[0][i])
+            bits.append(pack(">i", len(x) + self._typeK_length[i]))
+            bits.append(self._typeK[i])
+            bits.append(x)
+        v = self._serializerV.serialize(value[1])
+        bits.append(pack(">i", len(v) + self._typeV_length))
+        bits.append(self._typeV)
+        bits.append(v)
+        return b"".join(bits)
+
+
+class ArraySerializer(Serializer):
+    def __init__(self, value, custom_types):
+        self._type = _get_type_info(value, custom_types)
+        self._type_length = len(self._type)
+        self._serializer = _get_serializer(value, custom_types)
+
+    def serialize(self, value):
+        serialized_value = self._serializer.serialize(value)
+        return b"".join([pack(">i", len(serialized_value) + self._type_length), self._type, serialized_value])
+
+
+def _get_type_info(value, custom_types):
     if isinstance(value, (list, tuple)):
-        write(Types.TYPE_TUPLE)
-        write(pack(">I", len(value)))
-        return TupleSerializer(write, value, custom_types)
+        return b"".join([pack(">i", len(value))[3:4], b"".join([_get_type_info(field, custom_types) for field in value])])
     elif value is None:
-        write(Types.TYPE_NULL)
+        return Types.TYPE_NULL
+    elif isinstance(value, stringtype):
+        return Types.TYPE_STRING
+    elif isinstance(value, bool):
+        return Types.TYPE_BOOLEAN
+    elif isinstance(value, int) or PY2 and isinstance(value, long):
+        return Types.TYPE_LONG
+    elif isinstance(value, bytearray):
+        return Types.TYPE_BYTES
+    elif isinstance(value, float):
+        return Types.TYPE_DOUBLE
+    else:
+        for entry in custom_types:
+            if isinstance(value, entry[1]):
+                return entry[0]
+        raise Exception("Unsupported Type encountered.")
+
+
+def _get_serializer(value, custom_types):
+    if isinstance(value, (list, tuple)):
+        return TupleSerializer(value, custom_types)
+    elif value is None:
         return NullSerializer()
     elif isinstance(value, stringtype):
-        write(Types.TYPE_STRING)
         return StringSerializer()
     elif isinstance(value, bool):
-        write(Types.TYPE_BOOLEAN)
         return BooleanSerializer()
     elif isinstance(value, int) or PY2 and isinstance(value, long):
-        write(Types.TYPE_LONG)
         return LongSerializer()
     elif isinstance(value, bytearray):
-        write(Types.TYPE_BYTES)
         return ByteArraySerializer()
     elif isinstance(value, float):
-        write(Types.TYPE_DOUBLE)
         return FloatSerializer()
     else:
         for entry in custom_types:
             if isinstance(value, entry[1]):
-                write(entry[0])
-                return CustomTypeSerializer(entry[2])
+                return CustomTypeSerializer(entry[0], entry[2])
         raise Exception("Unsupported Type encountered.")
 
 
-class CustomTypeSerializer(object):
-    def __init__(self, serializer):
+class CustomTypeSerializer(Serializer):
+    def __init__(self, id, serializer):
+        self._id = id
         self._serializer = serializer
 
     def serialize(self, value):
@@ -88,9 +159,9 @@ class CustomTypeSerializer(object):
         return b"".join([pack(">i",len(msg)), msg])
 
 
-class TupleSerializer(object):
-    def __init__(self, write, value, custom_types):
-        self.serializer = [_get_serializer(write, field, custom_types) for field in value]
+class TupleSerializer(Serializer):
+    def __init__(self, value, custom_types):
+        self.serializer = [_get_serializer(field, custom_types) for field in value]
 
     def serialize(self, value):
         bits = []
@@ -99,83 +170,33 @@ class TupleSerializer(object):
         return b"".join(bits)
 
 
-class BooleanSerializer(object):
+class BooleanSerializer(Serializer):
     def serialize(self, value):
         return pack(">?", value)
 
 
-class FloatSerializer(object):
+class FloatSerializer(Serializer):
     def serialize(self, value):
         return pack(">d", value)
 
 
-class LongSerializer(object):
+class LongSerializer(Serializer):
     def serialize(self, value):
         return pack(">q", value)
 
 
-class ByteArraySerializer(object):
+class ByteArraySerializer(Serializer):
     def serialize(self, value):
         value = bytes(value)
         return pack(">I", len(value)) + value
 
 
-class StringSerializer(object):
+class StringSerializer(Serializer):
     def serialize(self, value):
         value = value.encode("utf-8")
         return pack(">I", len(value)) + value
 
 
-class NullSerializer(object):
+class NullSerializer(Serializer):
     def serialize(self, value):
         return b""
-
-
-class TypedCollector(object):
-    def __init__(self, con, env):
-        self._connection = con
-        self._env = env
-
-    def collect(self, value):
-        if not isinstance(value, (list, tuple)):
-            self._send_field(value)
-        else:
-            self._connection.write(Types.TYPE_TUPLE)
-            meta = pack(">I", len(value))
-            self._connection.write(bytes([meta[3]]) if PY3 else meta[3])
-            for field in value:
-                self.collect(field)
-
-    def _send_field(self, value):
-        if value is None:
-            self._connection.write(Types.TYPE_NULL)
-        elif isinstance(value, stringtype):
-            value = value.encode("utf-8")
-            size = pack(">I", len(value))
-            self._connection.write(b"".join([Types.TYPE_STRING, size, value]))
-        elif isinstance(value, bytes):
-            size = pack(">I", len(value))
-            self._connection.write(b"".join([Types.TYPE_BYTES, size, value]))
-        elif isinstance(value, bool):
-            data = pack(">?", value)
-            self._connection.write(b"".join([Types.TYPE_BOOLEAN, data]))
-        elif isinstance(value, int) or PY2 and isinstance(value, long):
-            data = pack(">q", value)
-            self._connection.write(b"".join([Types.TYPE_LONG, data]))
-        elif isinstance(value, float):
-            data = pack(">d", value)
-            self._connection.write(b"".join([Types.TYPE_DOUBLE, data]))
-        elif isinstance(value, bytearray):
-            value = bytes(value)
-            size = pack(">I", len(value))
-            self._connection.write(b"".join([Types.TYPE_BYTES, size, value]))
-        elif isinstance(value, _Dummy):
-            self._connection.write(pack(">i", 127)[3:])
-            self._connection.write(pack(">i", 0))
-        else:
-            for entry in self._env._types:
-                if isinstance(value, entry[1]):
-                    self._connection.write(entry[0])
-                    self._connection.write(CustomTypeSerializer(entry[2]).serialize(value))
-                    return
-            raise Exception("Unsupported Type encountered.")
