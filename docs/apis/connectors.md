@@ -159,7 +159,7 @@ Execute the following commands:
    ~~~xml
    <dependency>
        <groupId>org.apache.flink</groupId>
-       <artifactId>flink-hadoop-compatibility</artifactId>
+       <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
        <version>{{site.version}}</version>
    </dependency>
    <dependency>

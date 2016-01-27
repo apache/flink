@@ -161,7 +161,7 @@ If you want to add Flink to an existing Maven project, add the following entry t
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -170,12 +170,12 @@ If you want to add Flink to an existing Maven project, add the following entry t
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-scala</artifactId>
+  <artifactId>flink-scala{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

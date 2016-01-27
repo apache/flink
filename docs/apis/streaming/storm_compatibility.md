@@ -46,7 +46,7 @@ Add the following dependency to your `pom.xml` if you want to execute Storm code
 ~~~xml
 <dependency>
 	<groupId>org.apache.flink</groupId>
-	<artifactId>flink-storm</artifactId>
+	<artifactId>flink-storm{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
 ~~~

@@ -31,7 +31,7 @@ Twitter Streaming API provides opportunity to connect to the stream of tweets ma
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-twitter</artifactId>
+  <artifactId>flink-connector-twitter{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

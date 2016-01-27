@@ -46,7 +46,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-gelly</artifactId>
+    <artifactId>flink-gelly{{ site.scala_version_suffix }}</artifactId>
     <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
@@ -55,7 +55,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 {% highlight xml %}
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-gelly-scala</artifactId>
+    <artifactId>flink-gelly-scala{{ site.scala_version_suffix }}</artifactId>
     <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}

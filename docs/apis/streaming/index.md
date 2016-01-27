@@ -179,12 +179,12 @@ If you want to add Flink to an existing Maven project, add the following entry t
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-java</artifactId>
+  <artifactId>flink-streaming-java{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -193,12 +193,12 @@ If you want to add Flink to an existing Maven project, add the following entry t
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-scala</artifactId>
+  <artifactId>flink-streaming-scala{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

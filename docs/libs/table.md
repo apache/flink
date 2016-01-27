@@ -41,7 +41,7 @@ The following dependency must be added to your project when using the Table API:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table</artifactId>
+  <artifactId>flink-table{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

@@ -57,7 +57,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>Uses the <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API of Kafka internally. Offsets are committed to ZK by Flink.</td>
     </tr>
      <tr>
-        <td>flink-connector-kafka-0.8</td>
+        <td>flink-connector-kafka-0.8{{ site.scala_version_suffix }}</td>
         <td>1.0.0</td>
         <td>FlinkKafkaConsumer08<br>
         FlinkKafkaProducer08</td>
@@ -65,7 +65,7 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>Uses the <a href="https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+SimpleConsumer+Example">SimpleConsumer</a> API of Kafka internally. Offsets are committed to ZK by Flink.</td>
     </tr>
      <tr>
-        <td>flink-connector-kafka-0.9</td>
+        <td>flink-connector-kafka-0.9{{ site.scala_version_suffix }}</td>
         <td>1.0.0</td>
         <td>FlinkKafkaConsumer09<br>
         FlinkKafkaProducer09</td>
@@ -80,7 +80,7 @@ Then, import the connector in your maven project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kafka-0.8</artifactId>
+  <artifactId>flink-connector-kafka-0.8{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

@@ -33,7 +33,7 @@ following dependency to your project:
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-elasticsearch</artifactId>
+  <artifactId>flink-connector-elasticsearch{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

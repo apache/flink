@@ -31,7 +31,7 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-rabbitmq</artifactId>
+  <artifactId>flink-connector-rabbitmq{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}

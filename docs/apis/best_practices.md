@@ -342,7 +342,7 @@ Change your projects `pom.xml` file like this:
 	</dependency>
 	<dependency>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-java</artifactId>
+		<artifactId>flink-streaming-java{{ site.scala_version_suffix }}</artifactId>
 		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>
@@ -357,7 +357,7 @@ Change your projects `pom.xml` file like this:
 	</dependency>
 	<dependency>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-clients</artifactId>
+		<artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
 		<version>{{ site.version }}</version>
 		<exclusions>
 			<exclusion>

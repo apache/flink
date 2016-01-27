@@ -51,7 +51,7 @@ If you are developing your program as a Maven project, you have to add the
 ~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{ site.version }}</version>
 </dependency>
 ~~~

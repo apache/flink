@@ -30,6 +30,9 @@ version: "1.0-SNAPSHOT"
 version_hadoop1: "1.0-hadoop1-SNAPSHOT"
 version_short: "1.0" # Used for the top navbar w/o snapshot suffix
 
+# This suffix is appended to the Scala-dependent Maven artifact names
+scala_version_suffix: "_2.10"
+
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
 website_url: "http://flink.apache.org"
