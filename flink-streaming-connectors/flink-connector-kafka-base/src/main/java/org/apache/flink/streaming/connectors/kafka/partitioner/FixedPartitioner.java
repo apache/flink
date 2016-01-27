@@ -54,27 +54,23 @@ import java.io.Serializable;
 public class FixedPartitioner<T> extends KafkaPartitioner<T> implements Serializable {
 	private static final long serialVersionUID = 1627268846962918126L;
 
-	int targetPartition = -1;
+	private int targetPartition = -1;
 
 	@Override
 	public void open(int parallelInstanceId, int parallelInstances, int[] partitions) {
-		int p = 0;
-		for (int i = 0; i < parallelInstances; i++) {
-			if (i == parallelInstanceId) {
-				targetPartition = partitions[p];
-				return;
-			}
-			if (++p == partitions.length) {
-				p = 0;
-			}
+		if (parallelInstanceId < 0 || parallelInstances <= 0 || partitions.length == 0) {
+			throw new IllegalArgumentException();
 		}
+		
+		this.targetPartition = partitions[parallelInstanceId % partitions.length];
 	}
 
 	@Override
 	public int partition(T next, byte[] serializedKey, byte[] serializedValue, int numPartitions) {
-		if (targetPartition == -1) {
+		if (targetPartition >= 0) {
+			return targetPartition;
+		} else {
 			throw new RuntimeException("The partitioner has not been initialized properly");
 		}
-		return targetPartition;
 	}
 }
