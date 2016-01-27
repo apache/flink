@@ -28,7 +28,7 @@ Flink comes with an integrated interactive Scala Shell.
 It can be used in a local setup as well as in a cluster setup. To get started with downloading
 Flink and setting up a cluster please refer to
 [local setup]({{ site.baseurl }}/setup/local_setup.html) or
-[cluster setup]({{ site.baseurl }}/setup/cluster.html)
+[cluster setup]({{ site.baseurl }}/setup/cluster_setup.html)
 
 To use the shell with an integrated Flink cluster just execute:
 

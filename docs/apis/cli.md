@@ -110,7 +110,7 @@ The command line can be used to
 
 ### Savepoints
 
-[Savepoints]({{site.baseurl}}/apis/savepoints.html) are controlled via the command line client:
+[Savepoints]({{site.baseurl}}/apis/streaming/savepoints.html) are controlled via the command line client:
 
 #### Trigger a savepoint
 

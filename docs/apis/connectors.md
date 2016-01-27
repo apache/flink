@@ -103,7 +103,7 @@ One implementation of these `InputFormat`s is the `HadoopInputFormat`. This is a
 users to use all existing Hadoop input formats with Flink.
 
 This section shows some examples for connecting Flink to other systems.
-[Read more about Hadoop compatibility in Flink](hadoop_compatibility.html).
+[Read more about Hadoop compatibility in Flink]({{ site.baseurl }}/apis/batch/hadoop_compatibility.html).
 
 ## Avro support in Flink
 
