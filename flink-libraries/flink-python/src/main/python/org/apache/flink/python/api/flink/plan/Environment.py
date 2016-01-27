@@ -238,11 +238,7 @@ class Environment(object):
 
     def _send_plan(self):
         self._send_parameters()
-        self._collector.collect(len(self._sources) + len(self._sets) + len(self._sinks) + len(self._broadcast))
-        self._send_sources()
         self._send_operations()
-        self._send_sinks()
-        self._send_broadcast()
 
     def _send_parameters(self):
         collect = self._collector.collect
@@ -251,117 +247,40 @@ class Environment(object):
         collect(("mode", self._local_mode))
         collect(("retry", self._retry))
 
-    def _send_sources(self):
-        for source in self._sources:
-            identifier = source.identifier
-            collect = self._collector.collect
-            collect(identifier)
-            collect(source.id)
-            for case in Switch(identifier):
-                if case(_Identifier.SOURCE_CSV):
-                    collect(source.path)
-                    collect(source.delimiter_field)
-                    collect(source.delimiter_line)
-                    collect(source.types)
-                    break
-                if case(_Identifier.SOURCE_TEXT):
-                    collect(source.path)
-                    break
-                if case(_Identifier.SOURCE_VALUE):
-                    collect(len(source.values))
-                    for value in source.values:
-                        collect(value)
-                    break
-
     def _send_operations(self):
-        collect = self._collector.collect
+        self._collector.collect(len(self._sources) + len(self._sets) + len(self._sinks) + len(self._broadcast))
+        for source in self._sources:
+            self._send_operation(source)
         for set in self._sets:
-            identifier = set.identifier
-            collect(set.identifier)
-            collect(set.id)
-            collect(set.parent.id)
-            for case in Switch(identifier):
-                if case(_Identifier.REBALANCE):
-                    break
-                if case(_Identifier.DISTINCT, _Identifier.PARTITION_HASH):
-                    collect(set.keys)
-                    break
-                if case(_Identifier.FIRST):
-                    collect(set.count)
-                    break
-                if case(_Identifier.SORT):
-                    collect(set.field)
-                    collect(set.order)
-                    break
-                if case(_Identifier.GROUP):
-                    collect(set.keys)
-                    break
-                if case(_Identifier.COGROUP):
-                    collect(set.other.id)
-                    collect(set.key1)
-                    collect(set.key2)
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.CROSS, _Identifier.CROSSH, _Identifier.CROSST):
-                    collect(set.other.id)
-                    collect(set.uses_udf)
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.REDUCE, _Identifier.GROUPREDUCE):
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.JOIN, _Identifier.JOINH, _Identifier.JOINT):
-                    collect(set.key1)
-                    collect(set.key2)
-                    collect(set.other.id)
-                    collect(set.uses_udf)
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.MAP, _Identifier.MAPPARTITION, _Identifier.FLATMAP, _Identifier.FILTER):
-                    collect(set.types)
-                    collect(set.name)
-                    break
-                if case(_Identifier.UNION):
-                    collect(set.other.id)
-                    break
-                if case(_Identifier.PROJECTION):
-                    collect(set.keys)
-                    break
-                if case():
-                    raise KeyError("Environment._send_child_sets(): Invalid operation identifier: " + str(identifier))
-
-    def _send_sinks(self):
+            self._send_operation(set)
         for sink in self._sinks:
-            identifier = sink.identifier
-            collect = self._collector.collect
-            collect(identifier)
-            collect(sink.parent.id)
-            for case in Switch(identifier):
-                if case(_Identifier.SINK_CSV):
-                    collect(sink.path)
-                    collect(sink.delimiter_field)
-                    collect(sink.delimiter_line)
-                    collect(sink.write_mode)
-                    break;
-                if case(_Identifier.SINK_TEXT):
-                    collect(sink.path)
-                    collect(sink.write_mode)
-                    break
-                if case(_Identifier.SINK_PRINT):
-                    collect(sink.to_err)
-                    break
+            self._send_operation(sink)
+        for bcv in self._broadcast:
+            self._send_operation(bcv)
 
-    def _send_broadcast(self):
+    def _send_operation(self, set):
         collect = self._collector.collect
-        for entry in self._broadcast:
-            collect(_Identifier.BROADCAST)
-            collect(entry.parent.id)
-            collect(entry.other.id)
-            collect(entry.name)
+        collect(set.identifier)
+        collect(set.parent.id if set.parent is not None else -1)
+        collect(set.other.id if set.other is not None else -1)
+        collect(set.field)
+        collect(set.order)
+        collect(set.keys)
+        collect(set.key1)
+        collect(set.key2)
+        collect(set.types)
+        collect(set.uses_udf)
+        collect(set.name)
+        collect(set.delimiter_line)
+        collect(set.delimiter_field)
+        collect(set.write_mode)
+        collect(set.path)
+        collect(set.id)
+        collect(set.to_err)
+        collect(set.count)
+        collect(len(set.values))
+        for value in set.values:
+            collect(value)
 
     def _receive_result(self):
         jer = JobExecutionResult()

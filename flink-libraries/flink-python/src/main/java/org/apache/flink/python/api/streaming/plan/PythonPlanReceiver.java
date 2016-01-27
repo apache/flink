@@ -49,7 +49,7 @@ public class PythonPlanReceiver implements Serializable {
 
 	private Deserializer getDeserializer() throws IOException {
 		byte type = (byte) input.readByte();
-		if (type > 0 && type < 26) {
+		if (type >= 0 && type < 26) {
 				Deserializer[] d = new Deserializer[type];
 				for (int x = 0; x < d.length; x++) {
 					d[x] = getDeserializer();

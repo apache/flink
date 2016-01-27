@@ -548,6 +548,7 @@ class OperatorSet(DataSet):
 
     def with_broadcast_set(self, name, set):
         child = OperationInfo()
+        child.identifier = _Identifier.BROADCAST
         child.parent = self._info
         child.other = set._info
         child.name = name

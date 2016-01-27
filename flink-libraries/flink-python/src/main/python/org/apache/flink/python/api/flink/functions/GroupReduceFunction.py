@@ -27,7 +27,7 @@ class GroupReduceFunction(Function.Function):
 
     def _configure(self, input_file, output_file, port, env, info):
         super(GroupReduceFunction, self)._configure(input_file, output_file, port, env, info)
-        if info.key1 is None:
+        if len(info.key1) == 0:
             self._run = self._run_all_group_reduce
         else:
             self._run = self._run_grouped_group_reduce

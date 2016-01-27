@@ -280,7 +280,7 @@ public class PythonPlanBinder {
 	 */
 	protected enum Operation {
 		SOURCE_CSV, SOURCE_TEXT, SOURCE_VALUE, SOURCE_SEQ, SINK_CSV, SINK_TEXT, SINK_PRINT,
-		PROJECTION, SORT, UNION, FIRST, DISTINCT, GROUPBY, AGGREGATE,
+		SORT, UNION, FIRST, DISTINCT, GROUPBY, AGGREGATE,
 		REBALANCE, PARTITION_HASH,
 		BROADCAST,
 		COGROUP, CROSS, CROSS_H, CROSS_T, FILTER, FLATMAP, GROUPREDUCE, JOIN, JOIN_H, JOIN_T, MAP, REDUCE, MAPPARTITION
@@ -289,119 +289,103 @@ public class PythonPlanBinder {
 	private void receiveOperations() throws IOException {
 		Integer operationCount = (Integer) streamer.getRecord(true);
 		for (int x = 0; x < operationCount; x++) {
-			String identifier = (String) streamer.getRecord();
-			Operation op = null;
+			PythonOperationInfo info = new PythonOperationInfo(streamer);
+			Operation op;
 			try {
-				op = Operation.valueOf(identifier.toUpperCase());
+				op = Operation.valueOf(info.identifier.toUpperCase());
 			} catch (IllegalArgumentException iae) {
-				throw new IllegalArgumentException("Invalid operation specified: " + identifier);
+				throw new IllegalArgumentException("Invalid operation specified: " + info.identifier);
 			}
-			if (op != null) {
-				switch (op) {
-					case SOURCE_CSV:
-						createCsvSource(createOperationInfo(op));
-						break;
-					case SOURCE_TEXT:
-						createTextSource(createOperationInfo(op));
-						break;
-					case SOURCE_VALUE:
-						createValueSource(createOperationInfo(op));
-						break;
-					case SOURCE_SEQ:
-						createSequenceSource(createOperationInfo(op));
-						break;
-					case SINK_CSV:
-						createCsvSink(createOperationInfo(op));
-						break;
-					case SINK_TEXT:
-						createTextSink(createOperationInfo(op));
-						break;
-					case SINK_PRINT:
-						createPrintSink(createOperationInfo(op));
-						break;
-					case BROADCAST:
-						createBroadcastVariable(createOperationInfo(op));
-						break;
-					case AGGREGATE:
-						createAggregationOperation(createOperationInfo(op));
-						break;
-					case DISTINCT:
-						createDistinctOperation(createOperationInfo(op));
-						break;
-					case FIRST:
-						createFirstOperation(createOperationInfo(op));
-						break;
-					case PARTITION_HASH:
-						createHashPartitionOperation(createOperationInfo(op));
-						break;
-					case PROJECTION:
-						createProjectOperation(createOperationInfo(op));
-						break;
-					case REBALANCE:
-						createRebalanceOperation(createOperationInfo(op));
-						break;
-					case GROUPBY:
-						createGroupOperation(createOperationInfo(op));
-						break;
-					case SORT:
-						createSortOperation(createOperationInfo(op));
-						break;
-					case UNION:
-						createUnionOperation(createOperationInfo(op));
-						break;
-					case COGROUP:
-						createCoGroupOperation(createOperationInfo(op));
-						break;
-					case CROSS:
-						createCrossOperation(NONE, createOperationInfo(op));
-						break;
-					case CROSS_H:
-						createCrossOperation(HUGE, createOperationInfo(op));
-						break;
-					case CROSS_T:
-						createCrossOperation(TINY, createOperationInfo(op));
-						break;
-					case FILTER:
-						createFilterOperation(createOperationInfo(op));
-						break;
-					case FLATMAP:
-						createFlatMapOperation(createOperationInfo(op));
-						break;
-					case GROUPREDUCE:
-						createGroupReduceOperation(createOperationInfo(op));
-						break;
-					case JOIN:
-						createJoinOperation(NONE, createOperationInfo(op));
-						break;
-					case JOIN_H:
-						createJoinOperation(HUGE, createOperationInfo(op));
-						break;
-					case JOIN_T:
-						createJoinOperation(TINY, createOperationInfo(op));
-						break;
-					case MAP:
-						createMapOperation(createOperationInfo(op));
-						break;
-					case MAPPARTITION:
-						createMapPartitionOperation(createOperationInfo(op));
-						break;
-					case REDUCE:
-						createReduceOperation(createOperationInfo(op));
-						break;
-				}
+			switch (op) {
+				case SOURCE_CSV:
+					createCsvSource(info);
+					break;
+				case SOURCE_TEXT:
+					createTextSource(info);
+					break;
+				case SOURCE_VALUE:
+					createValueSource(info);
+					break;
+				case SOURCE_SEQ:
+					createSequenceSource(info);
+					break;
+				case SINK_CSV:
+					createCsvSink(info);
+					break;
+				case SINK_TEXT:
+					createTextSink(info);
+					break;
+				case SINK_PRINT:
+					createPrintSink(info);
+					break;
+				case BROADCAST:
+					createBroadcastVariable(info);
+					break;
+				case AGGREGATE:
+					createAggregationOperation(info);
+					break;
+				case DISTINCT:
+					createDistinctOperation(info);
+					break;
+				case FIRST:
+					createFirstOperation(info);
+					break;
+				case PARTITION_HASH:
+					createHashPartitionOperation(info);
+					break;
+				case REBALANCE:
+					createRebalanceOperation(info);
+					break;
+				case GROUPBY:
+					createGroupOperation(info);
+					break;
+				case SORT:
+					createSortOperation(info);
+					break;
+				case UNION:
+					createUnionOperation(info);
+					break;
+				case COGROUP:
+					createCoGroupOperation(info);
+					break;
+				case CROSS:
+					createCrossOperation(NONE, info);
+					break;
+				case CROSS_H:
+					createCrossOperation(HUGE, info);
+					break;
+				case CROSS_T:
+					createCrossOperation(TINY, info);
+					break;
+				case FILTER:
+					createFilterOperation(info);
+					break;
+				case FLATMAP:
+					createFlatMapOperation(info);
+					break;
+				case GROUPREDUCE:
+					createGroupReduceOperation(info);
+					break;
+				case JOIN:
+					createJoinOperation(NONE, info);
+					break;
+				case JOIN_H:
+					createJoinOperation(HUGE, info);
+					break;
+				case JOIN_T:
+					createJoinOperation(TINY, info);
+					break;
+				case MAP:
+					createMapOperation(info);
+					break;
+				case MAPPARTITION:
+					createMapPartitionOperation(info);
+					break;
+				case REDUCE:
+					createReduceOperation(info);
+					break;
 			}
 		}
-	}
-
-	/**
-	 * This method creates an OperationInfo object based on the operation-identifier passed.
-	 *
-	 * @param operationIdentifier
-	 * @return
-	 * @throws IOException
-	 */
-	private PythonOperationInfo createOperationInfo(Operation operationIdentifier) throws IOException {
-		return new PythonOperationInfo(streamer, operationIdentifier);
 	}
 
 	private void createCsvSource(PythonOperationInfo info) throws IOException {
@@ -489,11 +473,6 @@ public class PythonPlanBinder {
 	private void createHashPartitionOperation(PythonOperationInfo info) throws IOException {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		sets.put(info.setID, op1.partitionByHash(info.keys).map(new KeyDiscarder()).name("HashPartitionPostStep"));
-	}
-
-	private void createProjectOperation(PythonOperationInfo info) throws IOException {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.project(info.fields).name("Projection"));
 	}
 
 	private void createRebalanceOperation(PythonOperationInfo info) throws IOException {
