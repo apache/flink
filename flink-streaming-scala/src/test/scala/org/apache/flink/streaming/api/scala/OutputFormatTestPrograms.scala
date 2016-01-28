@@ -46,15 +46,6 @@ object OutputFormatTestPrograms {
     env.execute("Scala WordCountToText")
   }
 
-  def wordCountToText(input : String, outputPath : String, millis : Long) : Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val text = env.fromElements(input)
-
-    val counts = wordCountProgram(text)
-    counts.writeAsText(outputPath, millis)
-
-    env.execute("Scala WordCountToText")
-  }
 
   def wordCountToText(
       input : String,
@@ -70,20 +61,6 @@ object OutputFormatTestPrograms {
     env.execute("Scala WordCountToText")
   }
 
-  def wordCountToText(
-      input : String,
-      outputPath : String,
-      writeMode : FileSystem.WriteMode,
-      millis : Long) : Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val text = env.fromElements(input)
-
-    val counts = wordCountProgram(text)
-
-    counts.writeAsText(outputPath, writeMode, millis)
-
-    env.execute("Scala WordCountToText")
-  }
 
   def wordCountToCsv(input : String, outputPath : String) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -96,16 +73,6 @@ object OutputFormatTestPrograms {
     env.execute("Scala WordCountToCsv")
   }
 
-  def wordCountToCsv(input : String, outputPath : String, millis : Long) : Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val text = env.fromElements(input)
-
-    val counts = wordCountProgram(text)
-
-    counts.writeAsCsv(outputPath, millis)
-
-    env.execute("Scala WordCountToCsv")
-  }
 
   def wordCountToCsv(
       input : String,
@@ -121,26 +88,11 @@ object OutputFormatTestPrograms {
     env.execute("Scala WordCountToCsv")
   }
 
-  def wordCountToCsv(
-      input : String,
-      outputPath : String,
-      writeMode : FileSystem.WriteMode,
-      millis : Long) : Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val text = env.fromElements(input)
-
-    val counts = wordCountProgram(text)
-
-    counts.writeAsCsv(outputPath, writeMode, millis)
-
-    env.execute("Scala WordCountToCsv")
-  }
 
   def wordCountToCsv(
       input : String,
       outputPath : String,
       writeMode : FileSystem.WriteMode,
-      millis : Long,
       rowDelimiter: String,
       fieldDelimiter: String) : Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -148,7 +100,7 @@ object OutputFormatTestPrograms {
 
     val counts = wordCountProgram(text)
 
-    counts.writeAsCsv(outputPath, writeMode, millis, rowDelimiter, fieldDelimiter)
+    counts.writeAsCsv(outputPath, writeMode, rowDelimiter, fieldDelimiter)
 
     env.execute("Scala WordCountToCsv")
   }

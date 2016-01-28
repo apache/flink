@@ -90,7 +90,7 @@ public class IterateExample {
 
 		// emit results
 		if (fileOutput) {
-			numbers.writeAsText(outputPath, 1);
+			numbers.writeAsText(outputPath);
 		} else {
 			numbers.print();
 		}
