@@ -18,22 +18,23 @@
 
 package org.apache.flink.streaming.runtime.state;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+
 import org.junit.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
@@ -70,19 +71,22 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				}
 			})
 			.print();
-
-		boolean caughtSuccess = false;
+		
 		try {
 			see.execute();
-		} catch (JobExecutionException e) {
-			if (e.getCause() instanceof SuccessException) {
-				caughtSuccess = true;
-			} else {
-				throw e;
+			fail("This should throw a 'SuccessException'");
+		}
+		catch (JobExecutionException e) {
+			Throwable cause = e.getCause();
+			if (cause == null || !(cause.getCause() instanceof SuccessException)) {
+				e.printStackTrace();
+				fail(e.getMessage());
 			}
 		}
-
-		assertTrue(caughtSuccess);
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 
@@ -90,7 +94,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void initializeForJob(Environment env) throws Exception {
+		public void initializeForJob(JobID id) throws Exception {
 			throw new SuccessException();
 		}
 
@@ -105,11 +109,8 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public <K, V> KvState<K, V, FailingStateBackend> createKvState(String stateId,
-			String stateName,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<V> valueSerializer,
-			V defaultValue) throws Exception {
+		public <K, V> KvState<K, V, FailingStateBackend> createKvState(
+				TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer, V defaultValue) throws Exception {
 			return null;
 		}
 
