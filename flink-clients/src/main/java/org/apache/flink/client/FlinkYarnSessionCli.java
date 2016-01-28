@@ -87,6 +87,9 @@ public class FlinkYarnSessionCli {
 	private AbstractFlinkYarnCluster yarnCluster = null;
 	private boolean detachedMode = false;
 
+	/** Default yarn application name. */
+	private String defaultApplicationName = null;
+
 	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
 		QUERY = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
 		QUEUE = new Option(shortPrefix + "qu", longPrefix + "queue", true, "Specify YARN queue.");
@@ -102,6 +105,11 @@ public class FlinkYarnSessionCli {
 		NAME = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 	}
 
+	/**
+	 * Creates a new Yarn Client.
+	 * @param cmd the command line to parse options from
+	 * @return an instance of the client or null if there was an error
+	 */
 	public AbstractFlinkYarnClient createFlinkYarnClient(CommandLine cmd) {
 
 		AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
@@ -222,7 +230,13 @@ public class FlinkYarnSessionCli {
 
 		if(cmd.hasOption(NAME.getOpt())) {
 			flinkYarnClient.setName(cmd.getOptionValue(NAME.getOpt()));
+		} else {
+			// set the default application name, if none is specified
+			if(defaultApplicationName != null) {
+				flinkYarnClient.setName(defaultApplicationName);
+			}
 		}
+
 		return flinkYarnClient;
 	}
 
@@ -464,6 +478,16 @@ public class FlinkYarnSessionCli {
 			}
 		}
 		return 0;
+	}
+
+	/**
+	 * Sets the default Yarn Application Name.
+	 * @param defaultApplicationName the name of the yarn application to use
+	 * @return FlinkYarnSessionCli instance, for chaining
+     */
+	public FlinkYarnSessionCli withDefaultApplicationName(String defaultApplicationName) {
+		this.defaultApplicationName = defaultApplicationName;
+		return this;
 	}
 
 	/**

@@ -935,13 +935,20 @@ public class CliFrontend {
 		if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
 			logAndSysout("YARN cluster mode detected. Switching Log4j output to console");
 
+			// Default yarn application name to use, if nothing is specified on the command line
+			String applicationName = "Flink Application: " + programName;
+
 			// user wants to run Flink in YARN cluster.
 			CommandLine commandLine = options.getCommandLine();
-			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser.getFlinkYarnSessionCli().createFlinkYarnClient(commandLine);
+			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser
+														.getFlinkYarnSessionCli()
+														.withDefaultApplicationName(applicationName)
+														.createFlinkYarnClient(commandLine);
+
 			if (flinkYarnClient == null) {
 				throw new RuntimeException("Unable to create Flink YARN Client. Check previous log messages");
 			}
-			flinkYarnClient.setName("Flink Application: " + programName);
+
 			// in case the main detached mode wasn't set, we don't wanna overwrite the one loaded
 			// from yarn options.
 			if (detachedMode) {
