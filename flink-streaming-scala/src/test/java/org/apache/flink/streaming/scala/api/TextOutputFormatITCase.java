@@ -53,37 +53,18 @@ public class TextOutputFormatITCase extends StreamingMultipleProgramsTestBase {
 		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
 	}
 
-	@Test
-	public void testPathMillis() throws Exception {
-		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, 1);
-	}
 
 	@Test
 	public void testPathWriteMode() throws Exception {
 		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 	}
 
-	@Test
-	public void testPathWriteModeMillis() throws Exception {
-		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1);
-	}
 
 	@Test
 	public void failPathWriteMode() throws Exception {
 		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
 		try {
 			OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
-			fail("File should exist.");
-		} catch (Exception e) {
-			assertTrue(e.getCause().getMessage().contains("File already exists"));
-		}
-	}
-
-	@Test
-	public void failPathWriteModeMillis() throws Exception {
-		OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath);
-		try {
-			OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE, 1);
 			fail("File should exist.");
 		} catch (Exception e) {
 			assertTrue(e.getCause().getMessage().contains("File already exists"));

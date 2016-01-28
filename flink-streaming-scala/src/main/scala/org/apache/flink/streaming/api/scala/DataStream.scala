@@ -738,21 +738,9 @@ class DataStream[T](stream: JavaStream[T]) {
     */
   @PublicEvolving
   def writeAsText(path: String): DataStreamSink[T] =
-    stream.writeAsText(path, 0L)
+    stream.writeAsText(path)
 
-  /**
-   * Writes a DataStream to the file specified by path in text format. The
-   * writing is performed periodically, every millis milliseconds. For
-   * every element of the DataStream the result of .toString
-   * is written.
-   *
-   * @param path The path pointing to the location the text file is written to
-   * @param millis The file update frequency
-   * @return The closed DataStream
-   */
-  @PublicEvolving
-  def writeAsText(path: String, millis: Long): DataStreamSink[T] =
-    stream.writeAsText(path, millis)
+
 
   /**
     * Writes a DataStream to the file specified by path in text format. For
@@ -773,30 +761,6 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-    * Writes a DataStream to the file specified by path in text format. The writing is performed
-    * periodically every millis milliseconds. For every element of the DataStream the result of
-    * .toString is written.
-    *
-    * @param path The path pointing to the location the text file is written to
-    * @param writeMode Controls the behavior for existing files. Options are NO_OVERWRITE and
-    *                  OVERWRITE.
-    * @param millis The file update frequency
-    * @return The closed DataStream
-    */
-  @PublicEvolving
-  def writeAsText(
-      path: String,
-      writeMode: FileSystem.WriteMode,
-      millis: Long)
-    : DataStreamSink[T] = {
-    if (writeMode != null) {
-      stream.writeAsText(path, writeMode, millis)
-    } else {
-      stream.writeAsText(path, millis)
-    }
-  }
-
-  /**
     * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
     * is performed periodically every millis milliseconds.
     *
@@ -808,25 +772,6 @@ class DataStream[T](stream: JavaStream[T]) {
     writeAsCsv(
       path,
       null,
-      0L,
-      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
-      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
-  }
-
-  /**
-    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
-    * is performed periodically every millis milliseconds.
-    *
-    * @param path Path to the location of the CSV file
-    * @param millis File update frequency
-    * @return The closed DataStream
-    */
-  @PublicEvolving
-  def writeAsCsv(path: String, millis: Long): DataStreamSink[T] = {
-    writeAsCsv(
-      path,
-      null,
-      millis,
       ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
   }
@@ -844,7 +789,6 @@ class DataStream[T](stream: JavaStream[T]) {
     writeAsCsv(
       path,
       writeMode,
-      0L,
       ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
   }
@@ -855,26 +799,6 @@ class DataStream[T](stream: JavaStream[T]) {
     *
     * @param path Path to the location of the CSV file
     * @param writeMode Controls whether an existing file is overwritten or not
-    * @param millis File update frequency
-    * @return The closed DataStream
-    */
-  @PublicEvolving
-  def writeAsCsv(path: String, writeMode: FileSystem.WriteMode, millis: Long): DataStreamSink[T] = {
-    writeAsCsv(
-      path,
-      writeMode,
-      millis,
-      ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
-      ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER)
-  }
-
-  /**
-    * Writes the DataStream in CSV format to the file specified by the path parameter. The writing
-    * is performed periodically every millis milliseconds.
-    *
-    * @param path Path to the location of the CSV file
-    * @param writeMode Controls whether an existing file is overwritten or not
-    * @param millis File update frequency
     * @param rowDelimiter Delimiter for consecutive rows
     * @param fieldDelimiter Delimiter for consecutive fields
     * @return The closed DataStream
@@ -883,7 +807,6 @@ class DataStream[T](stream: JavaStream[T]) {
   def writeAsCsv(
       path: String,
       writeMode: FileSystem.WriteMode,
-      millis: Long,
       rowDelimiter: String,
       fieldDelimiter: String)
     : DataStreamSink[T] = {
@@ -892,16 +815,15 @@ class DataStream[T](stream: JavaStream[T]) {
     if (writeMode != null) {
       of.setWriteMode(writeMode)
     }
-    stream.write(of.asInstanceOf[OutputFormat[T]], millis)
+    stream.writeUsingOutputFormat(of.asInstanceOf[OutputFormat[T]])
   }
 
   /**
-   * Writes a DataStream using the given [[OutputFormat]]. The
-   * writing is performed periodically, in every millis milliseconds.
+   * Writes a DataStream using the given [[OutputFormat]].
    */
   @PublicEvolving
-  def write(format: OutputFormat[T], millis: Long): DataStreamSink[T] = {
-    stream.write(format, millis)
+  def writeUsingOutputFormat(format: OutputFormat[T]): DataStreamSink[T] = {
+    stream.writeUsingOutputFormat(format)
   }
 
   /**

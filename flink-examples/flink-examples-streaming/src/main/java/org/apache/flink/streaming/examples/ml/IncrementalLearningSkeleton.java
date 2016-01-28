@@ -50,8 +50,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class IncrementalLearningSkeleton {
 
-	private static DataStream<Integer> trainingData = null;
-	private static DataStream<Integer> newData = null;
 
 	// *************************************************************************
 	// PROGRAM
@@ -66,8 +64,8 @@ public class IncrementalLearningSkeleton {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		trainingData = env.addSource(new FiniteTrainingDataSource());
-		newData = env.addSource(new FiniteNewDataSource());
+		DataStream<Integer> trainingData = env.addSource(new FiniteTrainingDataSource());
+		DataStream<Integer> newData = env.addSource(new FiniteNewDataSource());
 
 		// build new model on every second of new data
 		DataStream<Double[]> model = trainingData
@@ -80,7 +78,7 @@ public class IncrementalLearningSkeleton {
 
 		// emit result
 		if (fileOutput) {
-			prediction.writeAsText(outputPath, 1);
+			prediction.writeAsText(outputPath);
 		} else {
 			prediction.print();
 		}

@@ -1819,14 +1819,14 @@ of each element on the standard out / strandard error stream. Optionally, a pref
 prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
 greater than 1, the output will also be prepended with the identifier of the task which produced the output.
 
-- `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
+- `writeUsingOutputFormat()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
   custom object-to-bytes conversion.
 
 - `writeToSocket` - Writes elements to a socket according to a `SerializationSchema`
 
 - `addSink` - Invokes a custom sink function. Flink comes bundled with connectors to other systems (such as
     Apache Kafka) that are implemented as sink functions.
-
+    
 </div>
 <div data-lang="scala" markdown="1">
 
@@ -1847,7 +1847,7 @@ of each element on the standard out / strandard error stream. Optionally, a pref
 prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
 greater than 1, the output will also be prepended with the identifier of the task which produced the output.
 
-- `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
+- `writeUsingOutputFormat()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
   custom object-to-bytes conversion.
 
 - `writeToSocket` - Writes elements to a socket according to a `SerializationSchema`
@@ -1857,6 +1857,17 @@ greater than 1, the output will also be prepended with the identifier of the tas
 
 </div>
 </div>
+
+Note that the `write*()` methods on `DataStream` are mainly intended for debugging purposes.
+They are not participating in Flink's checkpointing, this means these functions usually have 
+at-least-once semantics. The data flushing to the target system depends on the implementation of the 
+OutputFormat. This means that not all elements send to the OutputFormat are immediately showing up 
+in the target system. Also, in failure cases, those records might be lost.
+
+For reliable, exactly-once delivery of a stream into a file system, use the `flink-connector-filesystem`.
+Also, custom implementations through the `.addSink(...)` method can partiticpate in Flink's checkpointing
+for exactly-once semantics.
+
 
 
 {% top %}

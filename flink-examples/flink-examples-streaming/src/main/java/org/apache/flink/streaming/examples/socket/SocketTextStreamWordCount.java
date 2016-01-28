@@ -67,7 +67,7 @@ public class SocketTextStreamWordCount {
 						.sum(1);
 
 		if (fileOutput) {
-			counts.writeAsText(outputPath, 1);
+			counts.writeAsText(outputPath);
 		} else {
 			counts.print();
 		}

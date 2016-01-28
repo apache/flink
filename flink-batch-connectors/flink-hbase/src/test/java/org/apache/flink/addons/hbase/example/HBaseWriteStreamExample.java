@@ -41,7 +41,7 @@ import org.apache.hadoop.hbase.util.Bytes;
  */
 public class HBaseWriteStreamExample {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.getExecutionEnvironment();
 
@@ -64,14 +64,9 @@ public class HBaseWriteStreamExample {
 				isRunning = false;
 			}
 		});
-		dataStream.write(new HBaseOutputFormat(), 0L);
+		dataStream.writeUsingOutputFormat(new HBaseOutputFormat());
 
-		try {
-			env.execute();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		env.execute();
 	}
 
 	/**
