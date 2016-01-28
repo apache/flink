@@ -206,7 +206,7 @@ class MultinomialNaiveBayes extends Predictor[MultinomialNaiveBayes] {
 object MultinomialNaiveBayes {
 
   // ========================================== Parameters =========================================
-  // TODO code comments
+
   case object P1 extends Parameter[Int] {
     override val defaultValue: Option[Int] = Some(0)
   }
@@ -501,13 +501,23 @@ object MultinomialNaiveBayes {
       (Int, String),
       (Int, String)]() {
 
-    val mapInitializer = new BroadcastVariableInitializer[
+    val mapInitializer13 = new BroadcastVariableInitializer[
         (String, Double, Double),
         immutable.Map[String, Double]] {
       def initializeBroadcastVariable(
           data: java.lang.Iterable[(String, Double, Double)])
         : immutable.Map[String, Double] = {
         data.asScala.map(x => (x._1, x._3)).toMap
+      }
+    }
+
+    val mapInitializer12 = new BroadcastVariableInitializer[
+      (String, Double, Double),
+      immutable.Map[String, Double]] {
+      def initializeBroadcastVariable(
+                                       data: java.lang.Iterable[(String, Double, Double)])
+      : immutable.Map[String, Double] = {
+        data.asScala.map(x => (x._1, x._2)).toMap
       }
     }
 
@@ -636,7 +646,7 @@ object MultinomialNaiveBayes {
           .reduce((line1, line2) => (line1._1, line1._2, line1._3 + line2._3))
           .join(wordsInText).where(0).equalTo(0) {
           (foundW, wordsIT) => (foundW._1, foundW._2, foundW._3, wordsIT._2)
-        }.mapWithBcInitializer(classRelatedModelData)(mapInitializer){
+        }.mapWithBcInitializer(classRelatedModelData)(mapInitializer13){
           (value, map) =>
             (value._1, value._2, (value._4 - value._3) * map(value._2))
         }
@@ -678,7 +688,7 @@ object MultinomialNaiveBayes {
           // 1. Map: calculate the pwc value for every word (id -> class -> pwc)
           // 2. Sum: Sum these pwc values for each class and document
           sumPwcNotFoundWords = notFoundWords
-            .mapWithBcInitializer(classRelatedModelData)(mapInitializer){
+            .mapWithBcInitializer(classRelatedModelData)(mapInitializer13){
               (value, map) =>
                 if (sr1 == 1 && r1 == 0) {
                     //same as sr1 == 0, but there is no multiplication with the word counts
@@ -703,7 +713,7 @@ object MultinomialNaiveBayes {
           sumPwcNotFoundWords = notFoundWords
             .join(improvementData).where(2).equalTo(0) {
             (nf, imp) => (nf._1, nf._2, nf._4, imp._2)
-          }.mapWithBcInitializer(classRelatedModelData)(mapInitializer){
+          }.mapWithBcInitializer(classRelatedModelData)(mapInitializer13){
             (value, map) =>
               if (sr1 == 0 && r1 == 1) {
                 (value._1, value._2, value._3 * value._4 * map(value._2))
@@ -779,7 +789,7 @@ object MultinomialNaiveBayes {
         //calculate posterior values for each class
         // 1. Map: add sumPwc values with log(P(c)) (provided by broadcast)
         posterior = sumPwc
-          .mapWithBcInitializer(classRelatedModelData)(mapInitializer) {
+          .mapWithBcInitializer(classRelatedModelData)(mapInitializer12) {
             (value, map) => (value._1, value._2, value._3 + map(value._2))
           }
       } else if (s1 == 1) {
