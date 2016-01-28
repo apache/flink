@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,6 +48,7 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	private final String groupId;
 
 	private final CuratorFramework curatorClient;
+	private final String zkConnect;
 
 
 	public ZookeeperOffsetHandler(Properties props) {
@@ -56,7 +58,7 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 					+ ConsumerConfig.GROUP_ID_CONFIG + "' has not been set");
 		}
 		
-		String zkConnect = props.getProperty("zookeeper.connect");
+		zkConnect = props.getProperty("zookeeper.connect");
 		if (zkConnect == null) {
 			throw new IllegalArgumentException("Required property 'zookeeper.connect' has not been set");
 		}
@@ -89,15 +91,29 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 
 	@Override
 	public void seekFetcherToInitialOffsets(List<KafkaTopicPartitionLeader> partitions, Fetcher fetcher) throws Exception {
-		for (KafkaTopicPartitionLeader tp : partitions) {
-			long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopicPartition().getTopic(), tp.getTopicPartition().getPartition());
+		// we put all seek offsets into this map to either seek for all partitions or for none (in an error case)
+		Map<KafkaTopicPartition, Long> seekOffsets = new HashMap<>();
+		try {
+			for (KafkaTopicPartitionLeader tp : partitions) {
+				long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopicPartition().getTopic(), tp.getTopicPartition().getPartition());
 
-			if (offset != OFFSET_NOT_SET) {
+				if (offset != OFFSET_NOT_SET) {
+					// the offset in Zookeeper was the last read offset, seek is accepting the next-to-read-offset.
+					seekOffsets.put(tp.getTopicPartition(), offset + 1);
+				}
+			}
+		} catch(Exception e) {
+			LOG.warn("Error while retrieving initial offsets from Zookeeper with connection string: " + zkConnect, e);
+			seekOffsets = null;
+		}
+
+		if (seekOffsets != null) {
+			// seek
+			for (Map.Entry<KafkaTopicPartition, Long> seekOffset : seekOffsets.entrySet()) {
+				KafkaTopicPartition partition = seekOffset.getKey();
 				LOG.info("Offset for partition {} was set to {} in ZooKeeper. Seeking fetcher to that position.",
-						tp.getTopicPartition().getPartition(), offset);
-
-				// the offset in Zookeeper was the last read offset, seek is accepting the next-to-read-offset.
-				fetcher.seek(tp.getTopicPartition(), offset + 1);
+						partition, seekOffset.getValue());
+				fetcher.seek(partition, seekOffset.getValue());
 			}
 		}
 	}
