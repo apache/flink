@@ -688,7 +688,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				try {
 					target.trigger(timestamp);
 				} catch (Throwable t) {
-					LOG.error("Caught exception while processing timer.", t);
+					if (task.isRunning) {
+						LOG.error("Caught exception while processing timer.", t);
+					}
 					if (task.asyncException == null) {
 						task.asyncException = new TimerException(t);
 					}
