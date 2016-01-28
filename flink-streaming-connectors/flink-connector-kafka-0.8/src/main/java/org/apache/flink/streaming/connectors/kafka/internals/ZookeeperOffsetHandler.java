@@ -45,10 +45,22 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 	
 	private static final long OFFSET_NOT_SET = FlinkKafkaConsumer08.OFFSET_NOT_SET;
 
+	public static final String IGNORE_ZK_ERRORS_KEY = "flink.zookeeper-offset-handler.ignore-errors";
+	public static final String IGNORE_ZK_ERRORS_DEFAULT = "true";
+
+	/**
+	 * Controls whether soon as one offset cannot be fetched, all follow the auto-reset behavior
+	 * If set to "false", those offsets set in ZK will be used, the rest is determined from Kafka
+	 */
+	public static final String FALLBACK_ALL_KEY = "flink.zookeeper-offset-handler.fallback-all";
+	public static final String FALLBACK_ALL_DEFAULT = "true";
+
 	private final String groupId;
 
 	private final CuratorFramework curatorClient;
 	private final String zkConnect;
+	private final boolean ignoreErrors;
+	private final boolean fallbackAll;
 
 
 	public ZookeeperOffsetHandler(Properties props) {
@@ -62,6 +74,10 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 		if (zkConnect == null) {
 			throw new IllegalArgumentException("Required property 'zookeeper.connect' has not been set");
 		}
+
+		this.ignoreErrors = Boolean.valueOf(props.getProperty(IGNORE_ZK_ERRORS_KEY, IGNORE_ZK_ERRORS_DEFAULT));
+
+		this.fallbackAll = Boolean.valueOf(props.getProperty(FALLBACK_ALL_KEY, FALLBACK_ALL_DEFAULT));
 
 		// we use Curator's default timeouts
 		int sessionTimeoutMs =  Integer.valueOf(props.getProperty("zookeeper.session.timeout.ms", "60000"));
@@ -79,12 +95,20 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 
 	@Override
 	public void commit(Map<KafkaTopicPartition, Long> offsetsToCommit) throws Exception {
-		for (Map.Entry<KafkaTopicPartition, Long> entry : offsetsToCommit.entrySet()) {
-			KafkaTopicPartition tp = entry.getKey();
-			long offset = entry.getValue();
-			
-			if (offset >= 0) {
-				setOffsetInZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition(), offset);
+		try {
+			for (Map.Entry<KafkaTopicPartition, Long> entry : offsetsToCommit.entrySet()) {
+				KafkaTopicPartition tp = entry.getKey();
+				long offset = entry.getValue();
+
+				if (offset >= 0) {
+					setOffsetInZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition(), offset);
+				}
+			}
+		} catch(Exception e) {
+			if(ignoreErrors) {
+				LOG.warn("Error while committing offsets to Zookeeper with connection string: " + zkConnect, e);
+			} else {
+				throw new RuntimeException("Error while committing initial offsets to Zookeeper", e);
 			}
 		}
 	}
@@ -103,8 +127,14 @@ public class ZookeeperOffsetHandler implements OffsetHandler {
 				}
 			}
 		} catch(Exception e) {
-			LOG.warn("Error while retrieving initial offsets from Zookeeper with connection string: " + zkConnect, e);
-			seekOffsets = null;
+			if(ignoreErrors) {
+				LOG.warn("Error while retrieving initial offsets from Zookeeper with connection string: " + zkConnect, e);
+				if(fallbackAll) {
+					seekOffsets = null;
+				}
+			} else {
+				throw new RuntimeException("Error while getting initial offsets from Zookeeper", e);
+			}
 		}
 
 		if (seekOffsets != null) {
