@@ -66,7 +66,7 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 	@Override
 	public void open() {
 		if (priorityQueue == null) {
-			priorityQueue = new PriorityQueue<>(new StreamRecordComparator<IN>());
+			priorityQueue = new PriorityQueue<StreamRecord<IN>>(INITIAL_PRIORITY_QUEUE_CAPACITY, new StreamRecordComparator<IN>());
 		}
 	}
 
@@ -128,7 +128,7 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 
 		int numberPriorityQueueEntries = div.readInt();
 
-		priorityQueue = new PriorityQueue<>(new StreamRecordComparator<IN>());
+		priorityQueue = new PriorityQueue<StreamRecord<IN>>(numberPriorityQueueEntries, new StreamRecordComparator<IN>());
 
 		for (int i = 0; i <numberPriorityQueueEntries; i++) {
 			priorityQueue.offer(streamRecordSerializer.deserialize(div));

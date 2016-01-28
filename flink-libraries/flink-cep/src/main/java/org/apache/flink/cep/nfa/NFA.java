@@ -307,6 +307,8 @@ public class NFA<T> implements Serializable {
 
 		ArrayList<Map<String, T>> result = new ArrayList<>();
 
+		TypeSerializer<T> serializer = nonDuplicatingTypeSerializer.getTypeSerializer();
+
 		// generate the correct names from the collection of LinkedHashMultimaps
 		for (LinkedHashMultimap<State<T>, T> path: paths) {
 			Map<String, T> resultPath = new HashMap<>();
@@ -318,7 +320,9 @@ public class NFA<T> implements Serializable {
 				for (T event: events) {
 					resultPath.put(
 						events.size() > 1 ? generateStateName(key.getName(), counter): key.getName(),
-						event);
+						// copy the element so that the user can change it
+						serializer.isImmutableType() ? event : serializer.copy(event)
+					);
 				}
 			}
 

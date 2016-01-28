@@ -812,7 +812,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		@Override
 		public int hashCode() {
-			return Long.hashCode(timestamp) + 31 * value.hashCode();
+			return (int) (this.timestamp ^ this.timestamp >>> 32) + 31 * value.hashCode();
 		}
 	}
 

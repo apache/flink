@@ -85,7 +85,7 @@ public class CEP {
 					keySerializer,
 					nfaFactory));
 		} else {
-			 patternStream = input.transform(
+			patternStream = input.transform(
 				PATTERN_OPERATOR_NAME,
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
 				new CEPPatternOperator<T>(

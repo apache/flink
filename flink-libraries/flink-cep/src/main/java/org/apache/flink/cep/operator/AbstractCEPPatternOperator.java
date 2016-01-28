@@ -41,6 +41,8 @@ public abstract class AbstractCEPPatternOperator<IN>
 
 	private static final long serialVersionUID = -4166778210774160757L;
 
+	protected static final int INITIAL_PRIORITY_QUEUE_CAPACITY = 11;
+
 	private final TypeSerializer<IN> inputSerializer;
 	private final boolean isProcessingTime;
 

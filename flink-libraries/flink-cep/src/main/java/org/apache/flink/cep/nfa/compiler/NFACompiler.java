@@ -32,6 +32,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -139,7 +140,7 @@ public class NFACompiler {
 			NFA<T> nfa = new NFA<T>(inputTypeSerializer, windowTime);
 			nfa.addStates(states.values());
 
-			return new NFAFactoryImpl<T>(inputTypeSerializer, windowTime, states.values());
+			return new NFAFactoryImpl<T>(inputTypeSerializer, windowTime, new HashSet<>(states.values()));
 		}
 	}
 

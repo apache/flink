@@ -325,7 +325,7 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 
 		@Override
 		public PriorityQueue<StreamRecord<T>> createPriorityQueue() {
-			return new PriorityQueue<>(new StreamRecordComparator<T>());
+			return new PriorityQueue<StreamRecord<T>>(INITIAL_PRIORITY_QUEUE_CAPACITY, new StreamRecordComparator<T>());
 		}
 	}
 }
