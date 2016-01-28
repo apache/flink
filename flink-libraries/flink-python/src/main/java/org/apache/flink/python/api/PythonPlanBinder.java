@@ -388,42 +388,53 @@ public class PythonPlanBinder {
 		}
 	}
 
+	private int getParallelism(PythonOperationInfo info) {
+		return info.parallelism == -1 ? env.getParallelism() : info.parallelism;
+	}
+
 	private void createCsvSource(PythonOperationInfo info) throws IOException {
 		if (!(info.types instanceof TupleTypeInfo)) {
 			throw new RuntimeException("The output type of a csv source has to be a tuple. The derived type is " + info);
 		}
-
-		sets.put(info.setID, env.createInput(new TupleCsvInputFormat(new Path(info.path),
-				info.lineDelimiter, info.fieldDelimiter, (TupleTypeInfo) info.types), info.types)
-				.name("CsvSource").map(new SerializerMap()).name("CsvSourcePostStep"));
+		Path path = new Path(info.path);
+		String lineD = info.lineDelimiter;
+		String fieldD = info.fieldDelimiter;
+		TupleTypeInfo<?> types = (TupleTypeInfo) info.types;
+		sets.put(info.setID, env.createInput(new TupleCsvInputFormat(path, lineD, fieldD, types), info.types).setParallelism(getParallelism(info)).name("CsvSource")
+				.map(new SerializerMap()).setParallelism(getParallelism(info)).name("CsvSourcePostStep"));
 	}
 
 	private void createTextSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.readTextFile(info.path).name("TextSource").map(new SerializerMap()).name("TextSourcePostStep"));
+		sets.put(info.setID, env.readTextFile(info.path).setParallelism(getParallelism(info)).name("TextSource")
+				.map(new SerializerMap()).setParallelism(getParallelism(info)).name("TextSourcePostStep"));
 	}
 
 	private void createValueSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.fromElements(info.values).name("ValueSource").map(new SerializerMap()).name("ValueSourcePostStep"));
+		sets.put(info.setID, env.fromElements(info.values).setParallelism(getParallelism(info)).name("ValueSource")
+				.map(new SerializerMap()).setParallelism(getParallelism(info)).name("ValueSourcePostStep"));
 	}
 
 	private void createSequenceSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.generateSequence(info.from, info.to).name("SequenceSource").map(new SerializerMap()).name("SequenceSourcePostStep"));
+		sets.put(info.setID, env.generateSequence(info.from, info.to).setParallelism(getParallelism(info)).name("SequenceSource")
+				.map(new SerializerMap()).setParallelism(getParallelism(info)).name("SequenceSourcePostStep"));
 	}
 
 	private void createCsvSink(PythonOperationInfo info) throws IOException {
 		DataSet parent = (DataSet) sets.get(info.parentID);
-		parent.map(new StringTupleDeserializerMap()).name("CsvSinkPreStep")
-				.writeAsCsv(info.path, info.lineDelimiter, info.fieldDelimiter, info.writeMode).name("CsvSink");
+		parent.map(new StringTupleDeserializerMap()).setParallelism(getParallelism(info)).name("CsvSinkPreStep")
+				.writeAsCsv(info.path, info.lineDelimiter, info.fieldDelimiter, info.writeMode).setParallelism(getParallelism(info)).name("CsvSink");
 	}
 
 	private void createTextSink(PythonOperationInfo info) throws IOException {
 		DataSet parent = (DataSet) sets.get(info.parentID);
-		parent.map(new StringDeserializerMap()).writeAsText(info.path, info.writeMode).name("TextSink");
+		parent.map(new StringDeserializerMap()).setParallelism(getParallelism(info))
+			.writeAsText(info.path, info.writeMode).setParallelism(getParallelism(info)).name("TextSink");
 	}
 
 	private void createPrintSink(PythonOperationInfo info) throws IOException {
 		DataSet parent = (DataSet) sets.get(info.parentID);
-		parent.map(new StringDeserializerMap()).name("PrintSinkPreStep").output(new PrintingOutputFormat(info.toError));
+		parent.map(new StringDeserializerMap()).setParallelism(getParallelism(info)).name("PrintSinkPreStep")
+			.output(new PrintingOutputFormat(info.toError)).setParallelism(getParallelism(info));
 	}
 
 	private void createBroadcastVariable(PythonOperationInfo info) throws IOException {
@@ -452,17 +463,18 @@ public class PythonPlanBinder {
 			ao = ao.and(info.aggregates[x].agg, info.aggregates[x].field);
 		}
 
-		sets.put(info.setID, ao.name("Aggregation"));
+		sets.put(info.setID, ao.setParallelism(getParallelism(info)).name("Aggregation"));
 	}
 
 	private void createDistinctOperation(PythonOperationInfo info) throws IOException {
 		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op.distinct(info.keys).name("Distinct").map(new KeyDiscarder()).name("DistinctPostStep"));
+		sets.put(info.setID, op.distinct(info.keys).setParallelism(getParallelism(info)).name("Distinct")
+				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("DistinctPostStep"));
 	}
 
 	private void createFirstOperation(PythonOperationInfo info) throws IOException {
 		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op.first(info.count).name("First"));
+		sets.put(info.setID, op.first(info.count).setParallelism(getParallelism(info)).name("First"));
 	}
 
 	private void createGroupOperation(PythonOperationInfo info) throws IOException {
@@ -472,12 +484,13 @@ public class PythonPlanBinder {
 
 	private void createHashPartitionOperation(PythonOperationInfo info) throws IOException {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.partitionByHash(info.keys).map(new KeyDiscarder()).name("HashPartitionPostStep"));
+		sets.put(info.setID, op1.partitionByHash(info.keys).setParallelism(getParallelism(info))
+				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("HashPartitionPostStep"));
 	}
 
 	private void createRebalanceOperation(PythonOperationInfo info) throws IOException {
 		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op.rebalance().name("Rebalance"));
+		sets.put(info.setID, op.rebalance().setParallelism(getParallelism(info)).name("Rebalance"));
 	}
 
 	private void createSortOperation(PythonOperationInfo info) throws IOException {
@@ -494,19 +507,16 @@ public class PythonPlanBinder {
 	private void createUnionOperation(PythonOperationInfo info) throws IOException {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
-		sets.put(info.setID, op1.union(op2).name("Union"));
+		sets.put(info.setID, op1.union(op2).setParallelism(getParallelism(info)).name("Union"));
 	}
 
 	private void createCoGroupOperation(PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
-		sets.put(info.setID, new CoGroupRawOperator(
-				op1,
-				op2,
-				new Keys.ExpressionKeys(info.keys1, op1.getType()),
-				new Keys.ExpressionKeys(info.keys2, op2.getType()),
-				new PythonCoGroup(info.setID, info.types),
-				info.types, info.name));
+		Keys.ExpressionKeys<?> key1 = new Keys.ExpressionKeys(info.keys1, op1.getType());
+		Keys.ExpressionKeys<?> key2 = new Keys.ExpressionKeys(info.keys2, op2.getType());
+		PythonCoGroup pcg = new PythonCoGroup(info.setID, info.types);
+		sets.put(info.setID, new CoGroupRawOperator(op1, op2, key1, key2, pcg, info.types, info.name).setParallelism(getParallelism(info)));
 	}
 
 	private void createCrossOperation(DatasizeHint mode, PythonOperationInfo info) {
@@ -527,8 +537,10 @@ public class PythonPlanBinder {
 			default:
 				throw new IllegalArgumentException("Invalid Cross mode specified: " + mode);
 		}
+
+		defaultResult.setParallelism(getParallelism(info));
 		if (info.usesUDF) {
-			sets.put(info.setID, defaultResult.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
+			sets.put(info.setID, defaultResult.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 		} else {
 			sets.put(info.setID, defaultResult.name("DefaultCross"));
 		}
@@ -536,12 +548,12 @@ public class PythonPlanBinder {
 
 	private void createFilterOperation(PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
+		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createFlatMapOperation(PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
+		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createGroupReduceOperation(PythonOperationInfo info) {
@@ -560,24 +572,18 @@ public class PythonPlanBinder {
 	}
 
 	private DataSet applyGroupReduceOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.reduceGroup(new IdentityGroupReduce())
-				.setCombinable(false).name("PythonGroupReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types))
-				.name(info.name);
+		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).name("PythonGroupReducePreStep").setParallelism(getParallelism(info))
+				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private DataSet applyGroupReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
-		return op1.reduceGroup(new IdentityGroupReduce())
-				.setCombinable(false).name("PythonGroupReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types))
-				.name(info.name);
+		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonGroupReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private DataSet applyGroupReduceOperation(SortedGrouping op1, PythonOperationInfo info) {
-		return op1.reduceGroup(new IdentityGroupReduce())
-				.setCombinable(false).name("PythonGroupReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types))
-				.name(info.name);
+		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonGroupReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private void createJoinOperation(DatasizeHint mode, PythonOperationInfo info) {
@@ -585,21 +591,24 @@ public class PythonPlanBinder {
 		DataSet op2 = (DataSet) sets.get(info.otherID);
 
 		if (info.usesUDF) {
-			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode)
-					.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
+			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info))
+					.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 		} else {
-			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode));
+			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info)));
 		}
 	}
 
-	private DataSet createDefaultJoin(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode) {
+	private DataSet createDefaultJoin(DataSet op1, DataSet op2, String[] firstKeys, String[] secondKeys, DatasizeHint mode, int parallelism) {
 		switch (mode) {
 			case NONE:
-				return op1.join(op2).where(firstKeys).equalTo(secondKeys).map(new NestedKeyDiscarder()).name("DefaultJoinPostStep");
+				return op1.join(op2).where(firstKeys).equalTo(secondKeys).setParallelism(parallelism)
+					.map(new NestedKeyDiscarder()).setParallelism(parallelism).name("DefaultJoinPostStep");
 			case HUGE:
-				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys).map(new NestedKeyDiscarder()).name("DefaultJoinPostStep");
+				return op1.joinWithHuge(op2).where(firstKeys).equalTo(secondKeys).setParallelism(parallelism)
+					.map(new NestedKeyDiscarder()).setParallelism(parallelism).name("DefaultJoinPostStep");
 			case TINY:
-				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys).map(new NestedKeyDiscarder()).name("DefaultJoinPostStep");
+				return op1.joinWithTiny(op2).where(firstKeys).equalTo(secondKeys).setParallelism(parallelism)
+					.map(new NestedKeyDiscarder()).setParallelism(parallelism).name("DefaultJoinPostStep");
 			default:
 				throw new IllegalArgumentException("Invalid join mode specified.");
 		}
@@ -607,12 +616,12 @@ public class PythonPlanBinder {
 
 	private void createMapOperation(PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
+		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createMapPartitionOperation(PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).name(info.name));
+		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createReduceOperation(PythonOperationInfo info) {
@@ -627,16 +636,12 @@ public class PythonPlanBinder {
 	}
 
 	private DataSet applyReduceOperation(DataSet op1, PythonOperationInfo info) {
-		return op1.reduceGroup(new IdentityGroupReduce())
-				.setCombinable(false).name("PythonReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types))
-				.name(info.name);
+		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private DataSet applyReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
-		return op1.reduceGroup(new IdentityGroupReduce())
-				.setCombinable(false).name("PythonReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types))
-				.name(info.name);
+		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonReducePreStep")
+				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 }

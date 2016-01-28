@@ -55,6 +55,22 @@ class CsvStringify(MapFunction):
             return str(value)
 
 
+class DataSink(object):
+    def __init__(self, env, info):
+        self._env = env
+        self._info = info
+        info.id = env._counter
+        env._counter += 1
+
+    def name(self, name):
+        self._info.name = name
+        return self
+
+    def set_parallelism(self, parallelism):
+        self._info.parallelism.value = parallelism
+        return self
+
+
 class DataSet(object):
     def __init__(self, env, info):
         self._env = env
@@ -66,15 +82,18 @@ class DataSet(object):
         """
         Writes a DataSet to the standard output stream (stdout).
         """
-        self.map(Stringify())._output(to_error)
+        return self.map(Stringify())._output(to_error)
 
     def _output(self, to_error):
         child = OperationInfo()
+        child_set = DataSink(self._env, child)
         child.identifier = _Identifier.SINK_PRINT
         child.parent = self._info
         child.to_err = to_error
+        self._info.parallelism = child.parallelism
         self._info.sinks.append(child)
         self._env._sinks.append(child)
+        return child_set
 
     def write_text(self, path, write_mode=WriteMode.NO_OVERWRITE):
         """
@@ -87,12 +106,15 @@ class DataSet(object):
 
     def _write_text(self, path, write_mode):
         child = OperationInfo()
+        child_set = DataSink(self._env, child)
         child.identifier = _Identifier.SINK_TEXT
         child.parent = self._info
         child.path = path
         child.write_mode = write_mode
+        self._info.parallelism = child.parallelism
         self._info.sinks.append(child)
         self._env._sinks.append(child)
+        return child_set
 
     def write_csv(self, path, line_delimiter="\n", field_delimiter=',', write_mode=WriteMode.NO_OVERWRITE):
         """
@@ -106,14 +128,17 @@ class DataSet(object):
 
     def _write_csv(self, path, line_delimiter, field_delimiter, write_mode):
         child = OperationInfo()
+        child_set = DataSink(self._env, child)
         child.identifier = _Identifier.SINK_CSV
         child.path = path
         child.parent = self._info
         child.delimiter_field = field_delimiter
         child.delimiter_line = line_delimiter
         child.write_mode = write_mode
+        self._info.parallelism = child.parallelism
         self._info.sinks.append(child)
         self._env._sinks.append(child)
+        return child_set
 
     def reduce_group(self, operator, combinable=False):
         """
@@ -303,6 +328,7 @@ class DataSet(object):
         child.identifier = _Identifier.DISTINCT
         child.parent = self._info
         child.keys = fields
+        self._info.parallelism = child.parallelism
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
@@ -498,6 +524,7 @@ class DataSet(object):
         child.identifier = _Identifier.PARTITION_HASH
         child.parent = self._info
         child.keys = fields
+        self._info.parallelism = child.parallelism
         self._info.children.append(child)
         self._env._sets.append(child)
         return child_set
@@ -539,6 +566,10 @@ class DataSet(object):
 
     def name(self, name):
         self._info.name = name
+        return self
+
+    def set_parallelism(self, parallelism):
+        self._info.parallelism.value = parallelism
         return self
 
 
@@ -611,6 +642,7 @@ class Grouping(object):
         child.types = _createArrayTypeInfo()
         child.name = "PythonGroupReduce"
         child.key1 = self._child_chain[0].keys
+        self._info.parallelism = child.parallelism
         self._info.children.append(child)
         self._env._sets.append(child)
 
@@ -666,6 +698,7 @@ class UnsortedGrouping(Grouping):
         child.name = "PythonReduce"
         child.types = _createArrayTypeInfo()
         child.key1 = self._child_chain[0].keys
+        self._info.parallelism = child.parallelism
         self._info.children.append(child)
         self._env._sets.append(child)
 
@@ -830,6 +863,8 @@ class CoGroupOperatorUsing(object):
         self._info.key2 = tuple([x for x in range(len(self._info.key2))])
         operator._keys1 = self._info.key1
         operator._keys2 = self._info.key2
+        self._info.parent.parallelism = self._info.parallelism
+        self._info.other.parallelism = self._info.parallelism
         self._info.operator = operator
         self._info.types = _createArrayTypeInfo()
         self._info.name = "PythonCoGroup"
@@ -864,6 +899,7 @@ class JoinOperatorWhere(object):
         new_parent_set = self._info.parent_set.map(lambda x: (f(x), x))
         new_parent_set._info.types = _createKeyValueTypeInfo(len(fields))
         self._info.parent = new_parent_set._info
+        self._info.parent.parallelism = self._info.parallelism
         self._info.parent.children.append(self._info)
         self._info.key1 = tuple([x for x in range(len(fields))])
         return JoinOperatorTo(self._env, self._info)
@@ -895,6 +931,7 @@ class JoinOperatorTo(object):
         new_other_set = self._info.other_set.map(lambda x: (f(x), x))
         new_other_set._info.types = _createKeyValueTypeInfo(len(fields))
         self._info.other = new_other_set._info
+        self._info.other.parallelism = self._info.parallelism
         self._info.other.children.append(self._info)
         self._info.key2 = tuple([x for x in range(len(fields))])
         self._env._sets.append(self._info)
@@ -977,6 +1014,7 @@ class Projectable:
         child.parent = info
         child.types = _createArrayTypeInfo()
         child.name = "Projector"
+        child.parallelism = info.parallelism
         info.children.append(child)
         env._sets.append(child)
         return child_set

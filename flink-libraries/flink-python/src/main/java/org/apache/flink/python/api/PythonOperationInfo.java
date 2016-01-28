@@ -45,6 +45,7 @@ public class PythonOperationInfo {
 	public boolean toError;
 	public String name;
 	public boolean usesUDF;
+	public int parallelism;
 
 	public PythonOperationInfo(PythonPlanStreamer streamer) throws IOException {
 		identifier = (String) streamer.getRecord();
@@ -90,6 +91,7 @@ public class PythonOperationInfo {
 		for (int x = 0; x < valueCount; x++) {
 			values[x] = streamer.getRecord();
 		}
+		parallelism = (Integer) streamer.getRecord(true);
 
 		/*
 		aggregates = new AggregationEntry[count];

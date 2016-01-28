@@ -18,6 +18,11 @@
 from flink.plan.Constants import WriteMode
 
 
+class Value():
+    def __init__(self, value):
+        self.value = value
+
+
 class OperationInfo():
     def __init__(self, info=None):
         if info is None:
@@ -42,6 +47,7 @@ class OperationInfo():
             self.projections = []
             self.id = -1
             self.to_err = False
+            self.parallelism = Value(-1)
             #internally used
             self.parent_set = None
             self.other_set = None

@@ -281,6 +281,7 @@ class Environment(object):
         collect(len(set.values))
         for value in set.values:
             collect(value)
+        collect(set.parallelism.value)
 
     def _receive_result(self):
         jer = JobExecutionResult()
