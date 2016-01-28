@@ -56,6 +56,10 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
+	/**
+	 * Checks that a certain event sequence is recognized
+	 * @throws Exception
+	 */
 	@Test
 	public void testSimplePatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -116,6 +120,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
+		// expected sequence of matching event ids
 		expected = "2,6,8";
 
 		env.execute();
@@ -195,6 +200,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
+		// the expected sequences of matching event ids
 		expected = "2,2,2\n3,3,3\n42,42,42";
 
 		env.execute();
@@ -286,6 +292,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
+		// the expected sequence of matching event ids
 		expected = "1,5,4";
 
 		env.execute();
@@ -391,6 +398,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
+		// the expected sequences of matching event ids
 		expected = "1,1,1\n2,2,2";
 
 		env.execute();

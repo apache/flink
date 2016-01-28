@@ -27,17 +27,40 @@ import org.apache.flink.util.Collector;
 
 import java.util.Map;
 
+/**
+ * Stream abstraction for CEP pattern detection. A pattern stream is a stream which emits detected
+ * pattern sequences as a map of events associated with their names. The pattern is detected using a
+ * {@link org.apache.flink.cep.nfa.NFA}. In order to process the detected sequences, the user
+ * has to specify a {@link PatternSelectFunction} or a {@link PatternFlatSelectFunction}.
+ *
+ * @param <T> Type of the events
+ */
 public class PatternStream<T> {
 
+	// underlying data stream
 	private final DataStream<Map<String, T>> patternStream;
+	// type information of input type T
 	private final TypeInformation<T> inputType;
 
-	public PatternStream(final DataStream<Map<String, T>> patternStream, final TypeInformation<T> inputType) {
+	PatternStream(final DataStream<Map<String, T>> patternStream, final TypeInformation<T> inputType) {
 		this.patternStream = patternStream;
 		this.inputType = inputType;
 	}
 
+	/**
+	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
+	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
+	 * exactly one resulting element.
+	 *
+	 * @param patternSelectFunction The pattern select function which is called for each detected
+	 *                              pattern sequence.
+	 * @param <R> Type of the resulting elements
+	 * @return {@link DataStream} which contains the resulting elements from the pattern select
+	 *         function.
+	 */
 	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction) {
+		// we have to extract the output type from the provided pattern selection function manually
+		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternSelectFunction,
 			PatternSelectFunction.class,
@@ -53,7 +76,20 @@ public class PatternStream<T> {
 			.returns(outTypeInfo);
 	}
 
+	/**
+	 * Applies a flat select function to the detected pattern sequence. For each pattern sequence
+	 * the provided {@link PatternFlatSelectFunction} is called. The pattern flat select function
+	 * can produce an arbitrary number of resulting elements.
+	 *
+	 * @param patternFlatSelectFunction The pattern flat select function which is called for each
+	 *                                  detected pattern sequence.
+	 * @param <R> Typ of the resulting elements
+	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
+	 *         function.
+	 */
 	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
+		// we have to extract the output type from the provided pattern selection function manually
+		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatSelectFunction,
 			PatternFlatSelectFunction.class,
@@ -69,7 +105,13 @@ public class PatternStream<T> {
 			)).returns(outTypeInfo);
 	}
 
-	public static class PatternSelectMapper<T, R> implements MapFunction<Map<String, T>, R> {
+	/**
+	 * Wrapper for a {@link PatternSelectFunction}.
+	 *
+	 * @param <T> Type of the input elements
+	 * @param <R> Type of the resulting elements
+	 */
+	private static class PatternSelectMapper<T, R> implements MapFunction<Map<String, T>, R> {
 		private static final long serialVersionUID = 2273300432692943064L;
 
 		private final PatternSelectFunction<T, R> patternSelectFunction;
@@ -84,7 +126,13 @@ public class PatternStream<T> {
 		}
 	}
 
-	public static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, T>, R> {
+	/**
+	 * Wrapper for a {@link PatternFlatSelectFunction}.
+	 *
+	 * @param <T> Type of the input elements
+	 * @param <R> Type of the resulting elements
+	 */
+	private static class PatternFlatSelectMapper<T, R> implements FlatMapFunction<Map<String, T>, R> {
 
 		private static final long serialVersionUID = -8610796233077989108L;
 

@@ -18,11 +18,27 @@
 
 package org.apache.flink.cep.nfa;
 
+/**
+ * Helper class which encapsulates the state of the NFA computation. It points to the current state,
+ * the last taken event, its occurrence timestamp, the current version and the starting timestamp
+ * of the overall pattern.
+ *
+ * @param <T> Type of the input events
+ */
 public class ComputationState<T> {
+	// pointer to the NFA state of the computation
 	private final State<T> state;
+
+	// the last taken event
 	private final T event;
+
+	// timestamp of the last taken event
 	private final long timestamp;
+
+	// The current version of the state to discriminate the valid pattern paths in the SharedBuffer
 	private final DeweyNumber version;
+
+	// Timestamp of the first element in the pattern
 	private final long startTimestamp;
 
 	public ComputationState(

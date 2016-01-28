@@ -29,6 +29,12 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.PriorityQueue;
 
+/**
+ * Base class for CEP pattern operator. The operator uses a {@link NFA} to detect complex event
+ * patterns. The detected event patterns are then outputted to the down stream operators.
+ *
+ * @param <IN> Type of the input elements
+ */
 public abstract class AbstractCEPPatternOperator<IN>
 	extends AbstractStreamOperator<Map<String, IN>>
 	implements OneInputStreamOperator<IN, Map<String, IN>> {
@@ -49,10 +55,6 @@ public abstract class AbstractCEPPatternOperator<IN>
 		return inputSerializer;
 	}
 
-	public boolean isProcessingTime() {
-		return isProcessingTime;
-	}
-
 	protected abstract NFA<IN> getNFA() throws IOException;
 
 	protected abstract PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException;
@@ -60,6 +62,7 @@ public abstract class AbstractCEPPatternOperator<IN>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		if (isProcessingTime) {
+			// there can be no out of order elements in processing time
 			NFA<IN> nfa = getNFA();
 			processEvent(nfa, element.getValue(), element.getTimestamp());
 		} else {
@@ -76,6 +79,14 @@ public abstract class AbstractCEPPatternOperator<IN>
 		}
 	}
 
+	/**
+	 * Process the given event by giving it to the NFA and outputting the produced set of matched
+	 * event sequences.
+	 *
+	 * @param nfa NFA to be used for the event detection
+	 * @param event The current event to be processed
+	 * @param timestamp The timestamp of the event
+	 */
 	protected void processEvent(NFA<IN> nfa, IN event, long timestamp) {
 		Collection<Map<String, IN>> patterns = nfa.process(
 			event,

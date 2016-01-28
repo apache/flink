@@ -35,12 +35,22 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.PriorityQueue;
 
+/**
+ * CEP pattern operator implementation which is used for non keyed streams. Consequently,
+ * the operator state only includes a single {@link NFA} and a priority queue to order out of order
+ * elements in case of event time processing.
+ *
+ * @param <IN> Type of the input elements
+ */
 public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 	private static final long serialVersionUID = 7487334510746595640L;
 
 	private final StreamRecordSerializer<IN> streamRecordSerializer;
 
+	// global nfa for all elements
 	private NFA<IN> nfa;
+
+	// queue to buffer out of order stream records
 	private transient PriorityQueue<StreamRecord<IN>> priorityQueue;
 
 	public CEPPatternOperator(
@@ -83,7 +93,10 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		final StateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(checkpointId, timestamp);
+		final StateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(
+			checkpointId,
+			timestamp);
+
 		final ObjectOutputStream oos = new ObjectOutputStream(os);
 		final StateBackend.CheckpointStateOutputView ov = new StateBackend.CheckpointStateOutputView(os);
 
@@ -103,6 +116,8 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 	@Override
 	@SuppressWarnings("unchecked")
 	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
+		super.restoreState(state, recoveryTimestamp);
+
 		StreamStateHandle stream = (StreamStateHandle)state.getOperatorState();
 
 		final InputStream is = stream.getState(getUserCodeClassloader());

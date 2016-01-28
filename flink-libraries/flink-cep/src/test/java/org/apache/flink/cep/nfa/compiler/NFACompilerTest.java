@@ -24,10 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
-import org.apache.flink.cep.nfa.Action;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
+import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -42,6 +42,9 @@ import static org.junit.Assert.assertEquals;
 
 public class NFACompilerTest extends TestLogger {
 
+	/**
+	 * Tests that the NFACompiler generates the correct NFA from a given Pattern
+	 */
 	@Test
 	public void testNFACompilerWithSimplePattern() {
 		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
@@ -95,11 +98,11 @@ public class NFACompilerTest extends TestLogger {
 		assertTrue(startTransitionMap.containsKey("start"));
 
 		StateTransition<Event> reflexiveTransition = startTransitionMap.get("start");
-		assertEquals(Action.IGNORE, reflexiveTransition.getAction());
+		assertEquals(StateTransitionAction.IGNORE, reflexiveTransition.getAction());
 
 		assertTrue(startTransitionMap.containsKey("middle"));
 		StateTransition<Event> startMiddleTransition = startTransitionMap.get("middle");
-		assertEquals(Action.TAKE, startMiddleTransition.getAction());
+		assertEquals(StateTransitionAction.TAKE, startMiddleTransition.getAction());
 
 		assertTrue(stateMap.containsKey("middle"));
 		State<Event> middleState = stateMap.get("middle");
@@ -115,7 +118,7 @@ public class NFACompilerTest extends TestLogger {
 		assertTrue(middleTransitionMap.containsKey("end"));
 		StateTransition<Event> middleEndTransition = middleTransitionMap.get("end");
 
-		assertEquals(Action.TAKE, middleEndTransition.getAction());
+		assertEquals(StateTransitionAction.TAKE, middleEndTransition.getAction());
 
 		assertTrue(stateMap.containsKey("end"));
 		State<Event> endState = stateMap.get("end");

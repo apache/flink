@@ -24,15 +24,44 @@ import org.apache.flink.cep.SubEvent;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
+import static org.junit.Assert.*;
+
 public class PatternTest extends TestLogger {
+	/**
+	 * These test simply test that the pattern construction completes without failure
+	 */
+
 	@Test
 	public void testStrictContiguity() {
 		Pattern<Object, ?> pattern = Pattern.begin("start").next("next").next("end");
+		Pattern<Object, ?> previous;
+		Pattern<Object, ?> previous2;
+
+		assertNotNull(previous = pattern.getPrevious());
+		assertNotNull(previous2 = previous.getPrevious());
+		assertNull(previous2.getPrevious());
+
+		assertEquals(pattern.getName(), "end");
+		assertEquals(previous.getName(), "next");
+		assertEquals(previous2.getName(), "start");
 	}
 
 	@Test
 	public void testNonStrictContiguity() {
 		Pattern<Object, ?> pattern = Pattern.begin("start").followedBy("next").followedBy("end");
+		Pattern<Object, ?> previous;
+		Pattern<Object, ?> previous2;
+
+		assertNotNull(previous = pattern.getPrevious());
+		assertNotNull(previous2 = previous.getPrevious());
+		assertNull(previous2.getPrevious());
+
+		assertTrue(pattern instanceof FollowedByPattern);
+		assertTrue(previous instanceof FollowedByPattern);
+
+		assertEquals(pattern.getName(), "end");
+		assertEquals(previous.getName(), "next");
+		assertEquals(previous2.getName(), "start");
 	}
 
 	@Test
@@ -52,11 +81,40 @@ public class PatternTest extends TestLogger {
 				return value.getId() == 42;
 			}
 		});
+
+		Pattern<Event, ?> previous;
+		Pattern<Event, ?> previous2;
+
+		assertNotNull(previous = pattern.getPrevious());
+		assertNotNull(previous2 = previous.getPrevious());
+		assertNull(previous2.getPrevious());
+
+		assertNotNull(pattern.getFilterFunction());
+		assertNotNull(previous.getFilterFunction());
+		assertNull(previous2.getFilterFunction());
+
+		assertEquals(pattern.getName(), "end");
+		assertEquals(previous.getName(), "next");
+		assertEquals(previous2.getName(), "start");
 	}
 
 	@Test
 	public void testPatternWithSubtyping() {
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").next("subevent").subtype(SubEvent.class).followedBy("end");
+
+		Pattern<Event, ?> previous;
+		Pattern<Event, ?> previous2;
+
+		assertNotNull(previous = pattern.getPrevious());
+		assertNotNull(previous2 = previous.getPrevious());
+		assertNull(previous2.getPrevious());
+
+		assertNotNull(previous.getFilterFunction());
+		assertTrue(previous.getFilterFunction() instanceof SubtypeFilterFunction);
+
+		assertEquals(pattern.getName(), "end");
+		assertEquals(previous.getName(), "subevent");
+		assertEquals(previous2.getName(), "start");
 	}
 
 	@Test
@@ -69,5 +127,19 @@ public class PatternTest extends TestLogger {
 				return false;
 			}
 		}).followedBy("end");
+
+		Pattern<Event, ?> previous;
+		Pattern<Event, ?> previous2;
+
+		assertNotNull(previous = pattern.getPrevious());
+		assertNotNull(previous2 = previous.getPrevious());
+		assertNull(previous2.getPrevious());
+
+		assertTrue(pattern instanceof FollowedByPattern);
+		assertNotNull(previous.getFilterFunction());
+
+		assertEquals(pattern.getName(), "end");
+		assertEquals(previous.getName(), "subevent");
+		assertEquals(previous2.getName(), "start");
 	}
 }

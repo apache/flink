@@ -54,7 +54,7 @@ public class CEP {
 	 * @param pattern Pattern specification which shall be detected
 	 * @param <T> Type of the input events
 	 * @param <K> Type of the key in case of a KeyedStream (necessary to bind keySelector and
-	 *              keySerializer to the same type)
+	 *            keySerializer to the same type)
 	 * @return Resulting pattern stream
 	 */
 	public static <T, K> PatternStream<T> pattern(DataStream<T> input, Pattern<T, ?> pattern) {

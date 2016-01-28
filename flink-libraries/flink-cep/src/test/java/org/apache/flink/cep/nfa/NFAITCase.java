@@ -96,6 +96,10 @@ public class NFAITCase extends TestLogger {
 		assertEquals(endEvent, patternMap.get("end"));
 	}
 
+	/**
+	 * Tests that the NFA successfully filters out expired elements with respect to the window
+	 * length
+	 */
 	@Test
 	public void testSimplePatternWithTimeWindowNFA() {
 		List<StreamEvent<Event>> events = new ArrayList<>();

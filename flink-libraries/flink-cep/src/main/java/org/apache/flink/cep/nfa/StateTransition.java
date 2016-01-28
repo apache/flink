@@ -26,17 +26,17 @@ import java.util.Objects;
 public class StateTransition<T> implements Serializable {
 	private static final long serialVersionUID = -4825345749997891838L;
 
-	private final Action action;
+	private final StateTransitionAction action;
 	private final State<T> targetState;
 	private final FilterFunction<T> condition;
 
-	public StateTransition(final Action action, final State<T> targetState, final FilterFunction<T> condition) {
+	public StateTransition(final StateTransitionAction action, final State<T> targetState, final FilterFunction<T> condition) {
 		this.action = action;
 		this.targetState = targetState;
 		this.condition = condition;
 	}
 
-	public Action getAction() {
+	public StateTransitionAction getAction() {
 		return action;
 	}
 

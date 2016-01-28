@@ -27,15 +27,31 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 
-public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
+/**
+ * Type serializer which keeps track of the serialized objects so that each object is only
+ * serialized once. If the same object shall be serialized again, then a reference handle is
+ * written instead.
+ *
+ * Avoiding duplication is achieved by keeping an internal identity hash map. This map contains
+ * all serialized objects. To make the serializer work it is important that the same serializer
+ * is used for a coherent serialization run. After the serialization has stopped, the identity
+ * hash map should be cleared.
+ *
+ * @param <T> Type of the element to be serialized
+ */
+public class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = -7633631762221447524L;
 
+	// underlying type serializer
 	private final TypeSerializer<T> typeSerializer;
 
+	// here we store the already serialized objects
 	private transient IdentityHashMap<T, Integer> identityMap;
+
+	// here we store the already deserialized objects
 	private transient ArrayList<T> elementList;
 
-	public ReferenceTypeSerializer(final TypeSerializer<T> typeSerializer) {
+	public NonDuplicatingTypeSerializer(final TypeSerializer<T> typeSerializer) {
 		this.typeSerializer = typeSerializer;
 
 		this.identityMap = new IdentityHashMap<>();
@@ -46,6 +62,10 @@ public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
 		return typeSerializer;
 	}
 
+	/**
+	 * Clears the data structures containing the already serialized/deserialized objects. This
+	 * effectively resets the type serializer.
+	 */
 	public void clearReferences() {
 		identityMap.clear();
 		elementList.clear();
@@ -58,7 +78,7 @@ public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		return new ReferenceTypeSerializer<>(typeSerializer);
+		return new NonDuplicatingTypeSerializer<>(typeSerializer);
 	}
 
 	@Override
@@ -81,6 +101,17 @@ public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
 		return typeSerializer.getLength();
 	}
 
+	/**
+	 * Serializes the given record.
+	 * <p>
+	 * First a boolean indicating whether a reference handle (true) or the object (false) is
+	 * written. Then, either the reference handle or the object is written.
+	 *
+	 * @param record The record to serialize.
+	 * @param target The output view to write the serialized data to.
+	 *
+	 * @throws IOException
+	 */
 	public void serialize(T record, DataOutputView target) throws IOException {
 		if (identityMap.containsKey(record)) {
 			target.writeBoolean(true);
@@ -91,6 +122,16 @@ public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
+	/**
+	 * Deserializes an object from the input view.
+	 * <p>
+	 * First it reads a boolean indicating whether a reference handle or a serialized object
+	 * follows.
+	 *
+	 * @param source The input view from which to read the data.
+	 * @return The deserialized object
+	 * @throws IOException
+	 */
 	public T deserialize(DataInputView source) throws IOException {
 		boolean alreadyRead = source.readBoolean();
 
@@ -125,9 +166,9 @@ public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof ReferenceTypeSerializer) {
+		if (obj instanceof NonDuplicatingTypeSerializer) {
 			@SuppressWarnings("unchecked")
-			ReferenceTypeSerializer<T> other = (ReferenceTypeSerializer<T>)obj;
+			NonDuplicatingTypeSerializer<T> other = (NonDuplicatingTypeSerializer<T>)obj;
 
 			return (other.canEqual(this) && typeSerializer.equals(other.typeSerializer));
 		} else {
@@ -137,7 +178,7 @@ public class ReferenceTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof ReferenceTypeSerializer;
+		return obj instanceof NonDuplicatingTypeSerializer;
 	}
 
 	@Override

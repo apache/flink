@@ -98,7 +98,7 @@ public class SharedBufferTest extends TestLogger {
 	}
 
 	@Test
-	public void testSharedBufferSerializability() throws IOException, ClassNotFoundException {
+	public void testSharedBufferSerialization() throws IOException, ClassNotFoundException {
 		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>(Event.createTypeSerializer());
 		int numberEvents = 8;
 		Event[] events = new Event[numberEvents];

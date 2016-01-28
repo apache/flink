@@ -18,6 +18,14 @@
 
 package org.apache.flink.cep.pattern;
 
+/**
+ * Pattern operator which signifies that the there is a non-strict temporal contiguity between
+ * itself and its preceding pattern operator. This means that there might be events in between
+ * two matching events. These events are then simply ignored.
+ *
+ * @param <T> Base type of the events
+ * @param <F> Subtype of T to which the operator is currently constrained
+ */
 public class FollowedByPattern<T, F extends T> extends Pattern<T, F> {
 	FollowedByPattern(final String name, Pattern<T, ?> previous) {
 		super(name, previous);

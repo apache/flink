@@ -21,9 +21,19 @@ package org.apache.flink.cep.nfa;
 import java.io.Serializable;
 import java.util.Arrays;
 
+/**
+ * Versioning scheme which allows to retrieve dependencies between different versions.
+ *
+ * A dewey number consists of a sequence of digits d1.d2.d3. ... .dn. A dewey number v is compatible
+ * to v' iff v contains v' as a prefix or if both dewey number differ only in the last digit and
+ * the last digit of v is greater than v'.
+ *
+ */
 public class DeweyNumber implements Serializable {
 
 	private static final long serialVersionUID = 6170434818252267825L;
+
+	// sequence of digits
 	private final int[] deweyNumber;
 
 	public DeweyNumber(int start) {
@@ -34,8 +44,18 @@ public class DeweyNumber implements Serializable {
 		this.deweyNumber = deweyNumber;
 	}
 
+	/**
+	 * Checks whether this dewey number is compatible to the other dewey number.
+	 *
+	 * True iff this contains other as a prefix or iff they differ only in the last digit whereas
+	 * the last digit of this is greater than the last digit of other.
+	 *
+	 * @param other The other dewey number to check compatibility against
+	 * @return Whether this dewey number is compatible to the other dewey number
+	 */
 	public boolean isCompatibleWith(DeweyNumber other) {
 		if (length() > other.length()) {
+			// prefix case
 			for (int i = 0; i < other.length(); i++) {
 				if (other.deweyNumber[i] != deweyNumber[i]) {
 					return false;
@@ -44,6 +64,7 @@ public class DeweyNumber implements Serializable {
 
 			return true;
 		} else if (length() == other.length()) {
+			// check init digits for equality
 			int lastIndex = length() - 1;
 			for (int i = 0; i < lastIndex; i++) {
 				if (other.deweyNumber[i] != deweyNumber[i]) {
@@ -51,6 +72,7 @@ public class DeweyNumber implements Serializable {
 				}
 			}
 
+			// check that the last digit is greater or equal
 			return deweyNumber[lastIndex] >= other.deweyNumber[lastIndex];
 		} else {
 			return false;
@@ -61,6 +83,12 @@ public class DeweyNumber implements Serializable {
 		return deweyNumber.length;
 	}
 
+	/**
+	 * Creates a new dewey number from this such that its last digit is increased by
+	 * one.
+	 *
+	 * @return A new dewey number derived from this whose last digit is increased by one
+	 */
 	public DeweyNumber increase() {
 		int[] newDeweyNumber = Arrays.copyOf(deweyNumber, deweyNumber.length);
 		newDeweyNumber[deweyNumber.length - 1]++;
@@ -68,6 +96,11 @@ public class DeweyNumber implements Serializable {
 		return new DeweyNumber(newDeweyNumber);
 	}
 
+	/**
+	 * Creates a new dewey number from this such that a 0 is appended as new last digit.
+	 *
+	 * @return A new dewey number which contains this as a prefix and has 0 as last digit
+	 */
 	public DeweyNumber addStage() {
 		int[] newDeweyNumber = Arrays.copyOf(deweyNumber, deweyNumber.length + 1);
 
@@ -105,6 +138,13 @@ public class DeweyNumber implements Serializable {
 		return builder.toString();
 	}
 
+	/**
+	 * Creates a dewey number from a string representation. The input string must be a dot separated
+	 * string of integers.
+	 *
+	 * @param deweyNumberString Dot separated string of integers
+	 * @return Dewey number generated from the given input string
+	 */
 	public static DeweyNumber fromString(final String deweyNumberString) {
 		String[] splits = deweyNumberString.split("\\.");
 

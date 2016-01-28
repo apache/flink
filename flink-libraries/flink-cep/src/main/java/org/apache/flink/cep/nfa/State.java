@@ -23,6 +23,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
 
+/**
+ * Represents a state of the {@link NFA}.
+ * <p>
+ * Each state is identified by a name and a state type. Furthermore, it contains a collection of
+ * state transitions. The state transitions describe under which conditions it is possible to enter
+ * a new state.
+ *
+ * @param <T> Type of the input events
+ */
 public class State<T> implements Serializable {
 	private static final long serialVersionUID = 6658700025989097781L;
 
@@ -45,10 +54,6 @@ public class State<T> implements Serializable {
 
 	public String getName() {
 		return name;
-	}
-
-	public StateType getStateType() {
-		return stateType;
 	}
 
 	public Collection<StateTransition<T>> getStateTransitions() {
@@ -93,9 +98,12 @@ public class State<T> implements Serializable {
 		return Objects.hash(name, stateType, stateTransitions);
 	}
 
+	/**
+	 * Set of valid state types.
+	 */
 	public enum StateType {
-		Start,
-		Final,
-		Normal
+		Start, // the state is a starting state for the NFA
+		Final, // the state is a final state for the NFA
+		Normal // the state is neither a start nor a final state
 	}
 }

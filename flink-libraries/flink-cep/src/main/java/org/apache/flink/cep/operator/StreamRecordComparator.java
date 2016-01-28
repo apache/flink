@@ -23,6 +23,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import java.io.Serializable;
 import java.util.Comparator;
 
+/**
+ * Compares two {@link StreamRecord}s based on their timestamp
+ *
+ * @param <IN> Type of the value field of the StreamRecord
+ */
 public class StreamRecordComparator<IN> implements Comparator<StreamRecord<IN>>, Serializable {
 	private static final long serialVersionUID = 1581054988433915305L;
 

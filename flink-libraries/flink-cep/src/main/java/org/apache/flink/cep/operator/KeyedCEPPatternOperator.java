@@ -40,20 +40,34 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+/**
+ * CEP pattern operator implementation for a keyed input stream. For each key, the operator creates
+ * a {@link NFA} and a priority queue to buffer out of order elements. Both data structures are
+ * stored using the key value state. Additionally, the set of all seen keys is kept as part of the
+ * operator state. This is necessary to trigger the execution for all keys upon receiving a new
+ * watermark.
+ *
+ * @param <IN> Type of the input elements
+ * @param <KEY> Type of the key on which the input stream is keyed
+ */
 public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator<IN> {
 	private static final long serialVersionUID = -7234999752950159178L;
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorState";
 	private static final String PRIORIRY_QUEUE_STATE_NAME = "priorityQueueStateName";
 
+	// necessary to extract the key from the input elements
 	private final KeySelector<IN, KEY> keySelector;
+
+	// necessary to serialize the set of seen keys
 	private final TypeSerializer<KEY> keySerializer;
 
 	private final PriorityQueueFactory<StreamRecord<IN>> priorityQueueFactory = new PriorityQueueStreamRecordFactory<>();
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
 	// stores the keys we've already seen to trigger execution upon receiving a watermark
-	// this can be problematic, since it is never cleared; should be changed once the state refactory is done
+	// this can be problematic, since it is never cleared
+	// TODO: fix once the state refactoring is completed
 	private transient Set<KEY> keys;
 
 	private transient OperatorState<NFA<IN>> nfaOperatorState;
@@ -74,6 +88,7 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		if (keys == null) {
 			keys = new HashSet<>();
@@ -131,6 +146,7 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
+		// iterate over all keys to trigger the execution of the buffered elements
 		for (KEY key: keys) {
 			setKeyContext(key);
 
@@ -165,6 +181,9 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 
 	@Override
 	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
+		super.restoreState(state, recoveryTimestamp);
+
+		@SuppressWarnings("unchecked")
 		StateHandle<DataInputView> stateHandle = (StateHandle<DataInputView>) state;
 
 		DataInputView inputView = stateHandle.getState(getUserCodeClassloader());
@@ -180,6 +199,11 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 		}
 	}
 
+	/**
+	 * Custom type serializer implementation to serialize priority queues.
+	 *
+	 * @param <T> Type of the priority queue's elements
+	 */
 	private static class PriorityQueueSerializer<T> extends TypeSerializer<PriorityQueue<T>> {
 
 		private static final long serialVersionUID = -231980397616187715L;

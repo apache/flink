@@ -42,7 +42,7 @@ import static org.junit.Assert.assertEquals;
 public class NFATest extends TestLogger {
 	@Test
 	public void testSimpleNFA() {
-		NFA<Event> nfa = new NFA<Event>(Event.createTypeSerializer(), 0);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 0);
 		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
@@ -53,25 +53,33 @@ public class NFATest extends TestLogger {
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);
 		State<Event> endState = new State<>("end", State.StateType.Final);
-		StateTransition<Event> starting2Start = new StateTransition<>(Action.TAKE, startState, new FilterFunction<Event>() {
-			private static final long serialVersionUID = -4869589195918650396L;
+		StateTransition<Event> starting2Start = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			startState,
+			new FilterFunction<Event>() {
+				private static final long serialVersionUID = -4869589195918650396L;
 
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("start");
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("start");
+				}
 			}
-		});
+		);
 
-		StateTransition<Event> start2End = new StateTransition<>(Action.TAKE, endState, new FilterFunction<Event>() {
-			private static final long serialVersionUID = 2979804163709590673L;
+		StateTransition<Event> start2End = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			endState,
+			new FilterFunction<Event>() {
+				private static final long serialVersionUID = 2979804163709590673L;
 
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
 			}
-		});
+		);
 
-		StateTransition<Event> start2Start = new StateTransition<>(Action.IGNORE, startState, null);
+		StateTransition<Event> start2Start = new StateTransition<>(StateTransitionAction.IGNORE, startState, null);
 
 		startingState.addStateTransition(starting2Start);
 		startState.addStateTransition(start2End);
@@ -101,7 +109,7 @@ public class NFATest extends TestLogger {
 
 	@Test
 	public void testTimeoutWindowPruning() {
-		NFA nfa = new NFA(Event.createTypeSerializer(), 2);
+		NFA<Event> nfa = new NFA<>(Event.createTypeSerializer(), 2);
 		List<StreamEvent<Event>> streamEvents = new ArrayList<>();
 
 		streamEvents.add(StreamEvent.of(new Event(1, "start", 1.0), 1L));
@@ -112,25 +120,34 @@ public class NFATest extends TestLogger {
 		State<Event> startingState = new State<>("", State.StateType.Start);
 		State<Event> startState = new State<>("start", State.StateType.Normal);
 		State<Event> endState = new State<>("end", State.StateType.Final);
-		StateTransition<Event> starting2Start = new StateTransition<>(Action.TAKE, startState, new FilterFunction<Event>() {
-			private static final long serialVersionUID = -4869589195918650396L;
+		StateTransition<Event> starting2Start = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			startState,
+			new FilterFunction<Event>() {
+				private static final long serialVersionUID = -4869589195918650396L;
 
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("start");
-			}
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("start");
+				}
 		});
 
-		StateTransition<Event> start2End = new StateTransition<>(Action.TAKE, endState, new FilterFunction<Event>() {
-			private static final long serialVersionUID = 2979804163709590673L;
+		StateTransition<Event> start2End = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			endState,
+			new FilterFunction<Event>() {
+				private static final long serialVersionUID = 2979804163709590673L;
 
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
 		});
 
-		StateTransition<Event> start2Start = new StateTransition<>(Action.IGNORE, startState, null);
+		StateTransition<Event> start2Start = new StateTransition<>(
+			StateTransitionAction.IGNORE,
+			startState,
+			null);
 
 		startingState.addStateTransition(starting2Start);
 		startState.addStateTransition(start2End);
@@ -189,11 +206,20 @@ public class NFATest extends TestLogger {
 		State<Event> startState = new State<>("start", State.StateType.Normal);
 		State<Event> endState = new State<>("end", State.StateType.Final);
 
-		StateTransition<Event> starting2Start = new StateTransition<>(Action.TAKE, startState, new NameFilter("start"));
+		StateTransition<Event> starting2Start = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			startState,
+			new NameFilter("start"));
 
-		StateTransition<Event> start2End = new StateTransition<>(Action.TAKE, endState, new NameFilter("end"));
+		StateTransition<Event> start2End = new StateTransition<>(
+			StateTransitionAction.TAKE,
+			endState,
+			new NameFilter("end"));
 
-		StateTransition<Event> start2Start = new StateTransition<>(Action.IGNORE, startState, null);
+		StateTransition<Event> start2Start = new StateTransition<>(
+			StateTransitionAction.IGNORE,
+			startState,
+			null);
 
 		startingState.addStateTransition(starting2Start);
 		startState.addStateTransition(start2End);

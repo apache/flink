@@ -20,10 +20,10 @@ package org.apache.flink.cep.nfa.compiler;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.cep.nfa.Action;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
+import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.FollowedByPattern;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -34,27 +34,52 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
+ * {@link NFAFactory}.
+ */
 public class NFACompiler {
 
 	protected final static String BEGINNING_STATE_NAME = "$beginningState$";
 
+	/**
+	 * Compiles the given pattern into a {@link NFA}.
+	 *
+	 * @param pattern Definition of sequence pattern
+	 * @param inputTypeSerializer Serializer for the input type
+	 * @param <T> Type of the input events
+	 * @return Non-deterministic finite automaton representing the given pattern
+	 */
 	public static <T> NFA<T> compile(Pattern<T, ?> pattern, TypeSerializer<T> inputTypeSerializer) {
 		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer);
 
 		return factory.createNFA();
 	}
 
+	/**
+	 * Compiles the given pattern into a {@link NFAFactory}. The NFA factory can be used to create
+	 * multiple NFAs.
+	 *
+	 * @param pattern Definition of sequence pattern
+	 * @param inputTypeSerializer Serializer for the input type
+	 * @param <T> Type of the input events
+	 * @return Factory for NFAs corresponding to the given pattern
+	 */
+	@SuppressWarnings("unchecked")
 	public static <T> NFAFactory<T> compileFactory(Pattern<T, ?> pattern, TypeSerializer<T> inputTypeSerializer) {
 		if (pattern == null) {
+			// return a factory for empty NFAs
 			return new NFAFactoryImpl<T>(inputTypeSerializer, 0, Collections.<State<T>>emptyList());
 		} else {
+			// set of all generated states
 			Map<String, State<T>> states = new HashMap<>();
 			long windowTime;
 
-			Pattern<T, ?> succeedingPattern = null;
-			State<T> succeedingState = null;
+			Pattern<T, ?> succeedingPattern;
+			State<T> succeedingState;
 			Pattern<T, ?> currentPattern = pattern;
 
+			// we're traversing the pattern from the end to the beginning --> the first state is the final state
 			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final);
 
 			states.put(currentPattern.getName(), currentState);
@@ -69,6 +94,7 @@ public class NFACompiler {
 				Time currentWindowTime = currentPattern.getWindowTime();
 
 				if (currentWindowTime != null && currentWindowTime.toMilliseconds() < windowTime) {
+					// the window time is the global minimum of all window times of each state
 					windowTime = currentWindowTime.toMilliseconds();
 				}
 
@@ -79,25 +105,22 @@ public class NFACompiler {
 					states.put(currentState.getName(), currentState);
 				}
 
+				currentState.addStateTransition(new StateTransition<T>(
+					StateTransitionAction.TAKE,
+					succeedingState,
+					(FilterFunction<T>) succeedingPattern.getFilterFunction()));
+
 				if (succeedingPattern instanceof FollowedByPattern) {
+					// the followed by pattern entails a reflexive ignore transition
 					currentState.addStateTransition(new StateTransition<T>(
-						Action.TAKE,
-						succeedingState,
-						(FilterFunction<T>) succeedingPattern.getFilterFunction()));
-					currentState.addStateTransition(new StateTransition<T>(
-						Action.IGNORE,
+						StateTransitionAction.IGNORE,
 						currentState,
 						null
 					));
-				} else {
-					currentState.addStateTransition(new StateTransition<T>(
-						Action.TAKE,
-						succeedingState,
-						(FilterFunction<T>) succeedingPattern.getFilterFunction()));
 				}
 			}
 
-			// beginning state
+			// add the beginning state
 			final State<T> beginningState;
 
 			if (states.containsKey(BEGINNING_STATE_NAME)) {
@@ -108,22 +131,35 @@ public class NFACompiler {
 			}
 
 			beginningState.addStateTransition(new StateTransition<T>(
-				Action.TAKE,
+				StateTransitionAction.TAKE,
 				currentState,
 				(FilterFunction<T>) currentPattern.getFilterFunction()
 			));
 
-			NFA<T> nfa = new NFA(inputTypeSerializer, windowTime);
+			NFA<T> nfa = new NFA<T>(inputTypeSerializer, windowTime);
 			nfa.addStates(states.values());
 
-			return new NFAFactoryImpl(inputTypeSerializer, windowTime, states.values());
+			return new NFAFactoryImpl<T>(inputTypeSerializer, windowTime, states.values());
 		}
 	}
 
+	/**
+	 * Factory interface for {@link NFA}.
+	 *
+	 * @param <T> Type of the input events which are processed by the NFA
+	 */
 	public interface NFAFactory<T> extends Serializable {
 		NFA<T> createNFA();
 	}
 
+	/**
+	 * Implementation of the {@link NFAFactory} interface.
+	 * <p>
+	 * The implementation takes the input type serializer, the window time and the set of
+	 * states and their transitions to be able to create an NFA from them.
+	 *
+	 * @param <T> Type of the input events which are processed by the NFA
+	 */
 	private static class NFAFactoryImpl<T> implements NFAFactory<T> {
 
 		private static final long serialVersionUID = 8939783698296714379L;
