@@ -21,38 +21,41 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
-import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
 
-/**
- * Flink RelNode which matches along with ReduceOperator.
- */
-public class DataSetReduce<T> extends SingleRel implements DataSetRelNode<T> {
+public class DataSetMapPartition<IN, OUT> extends SingleRel implements DataSetRelNode<OUT> {
 	
-	public DataSetReduce(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
+	private final static String NAME = "DataSetMapPartition";
+	private TypeInformation<OUT> outputType;
+	private MapPartitionFunction<IN, OUT> mapPartitionFunction;
+	
+	public DataSetMapPartition(RelOptCluster cluster, RelTraitSet traits, RelNode input,
+		TypeInformation<OUT> outputType, MapPartitionFunction<IN, OUT> mapPartitionFunction) {
+		
 		super(cluster, traits, input);
+		this.outputType = outputType;
+		this.mapPartitionFunction = mapPartitionFunction;
 	}
 	
-	private TypeInformation<T> getType() {
-		return null;
+	private MapPartitionFunction<IN, OUT> getMapPartitionFunction() {
+		return this.mapPartitionFunction;
 	}
 	
 	private String getName() {
-		return null;
+		return NAME;
 	}
 	
-	private ReduceFunction<T> getReduceFunction() {
-		return null;
-	}
-	
-	private int[] getGroupingKeys() {
-		return null;
+	private TypeInformation<OUT> getType() {
+		return this.outputType;
 	}
 	
 	@Override
-	public DataSet<T> translateToPlan() {
+	public DataSet<OUT> translateToPlan() {
 		return null;
 	}
 }

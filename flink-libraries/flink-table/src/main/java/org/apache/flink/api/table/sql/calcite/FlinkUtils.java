@@ -15,41 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.sql.calcite.node;
+package org.apache.flink.api.table.sql.calcite;
 
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.typeinfo.RowTypeInfo;
+import scala.collection.JavaConversions;
 
-/**
- * Flink RelNode which matches along with DataSource.
- *
- * @param <T>
- */
-public class DataSetSource<T> extends TableScan implements DataSetRelNode<T> {
+import java.util.LinkedList;
+import java.util.List;
+
+public class FlinkUtils {
 	
-	public DataSetSource(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table) {
-		super(cluster, traitSet, table);
-	}
-	
-	private TypeInformation<T> getType() {
-		return null;
-	}
-	
-	private String getName() {
-		return null;
-	}
-	
-	private DataSet<T> getDatSource() {
-		return null;
-	}
-	
-	@Override
-	public DataSet<T> translateToPlan() {
-		return null;
+	public static RowTypeInfo getRowTypeInfoFromRelDataType(RelDataType rowType) {
+		List<TypeInformation<?>> outputFieldTypes = new LinkedList<>();
+		for (RelDataTypeField relField : rowType.getFieldList()) {
+			RelDataType sqlType = relField.getType();
+			TypeInformation<?> typeInformation = TypeConverter.sqlTypeToTypeInfo(sqlType.getSqlTypeName());
+			outputFieldTypes.add(typeInformation);
+		}
+		return new RowTypeInfo(JavaConversions.asScalaBuffer(outputFieldTypes).toSeq(),
+			JavaConversions.asScalaBuffer(rowType.getFieldNames()).toSeq());
 	}
 }

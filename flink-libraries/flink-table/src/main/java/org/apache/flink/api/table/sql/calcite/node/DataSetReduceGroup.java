@@ -21,7 +21,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
@@ -47,7 +47,7 @@ public class DataSetReduceGroup<IN, OUT> extends SingleRel implements DataSetRel
 		return null;
 	}
 	
-	private RichGroupReduceFunction<IN, OUT> getGroupReduceFunction() {
+	private GroupReduceFunction<IN, OUT> getGroupReduceFunction() {
 		return null;
 	}
 	

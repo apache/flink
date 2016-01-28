@@ -27,6 +27,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.join.JoinType;
 import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
 
 /**
  * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -37,15 +39,15 @@ public class DataSetJoin<L, R, OUT> extends BiRel implements DataSetRelNode<OUT>
 		super(cluster, traitSet, left, right);
 	}
 	
+	private TypeInformation<OUT> getType() {
+		return null;
+	}
+	
 	private TypeInformation<L> getLeftInputType() {
 		return null;
 	}
 	
 	private TypeInformation<R> getRightInputType() {
-		return null;
-	}
-	
-	private TypeInformation<OUT> getType() {
 		return null;
 	}
 	

@@ -21,7 +21,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
@@ -29,15 +29,14 @@ import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
 /**
  * Flink RelNode which matches along with FlatMapOperator.
  *
- * @param <T>
  */
-public class DataSetFlatMap<T> extends SingleRel implements DataSetRelNode<T> {
+public class DataSetFlatMap<IN, OUT> extends SingleRel implements DataSetRelNode<OUT> {
 	
 	protected DataSetFlatMap(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
 		super(cluster, traits, input);
 	}
 	
-	private TypeInformation<T> getType() {
+	private TypeInformation<OUT> getType() {
 		return null;
 	}
 	
@@ -45,12 +44,12 @@ public class DataSetFlatMap<T> extends SingleRel implements DataSetRelNode<T> {
 		return null;
 	}
 	
-	private RichFlatMapFunction<T, T> getFlatMapFunction() {
+	private FlatMapFunction<IN, OUT> getFlatMapFunction() {
 		return null;
 	}
 	
 	@Override
-	public DataSet<T> translateToPlan() {
+	public DataSet<OUT> translateToPlan() {
 		return null;
 	}
 }

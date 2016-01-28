@@ -25,30 +25,35 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
+import org.apache.flink.api.table.sql.calcite.DataSetRelNode;
 
 /**
  * Flink RelNode which matches along with MapOperator.
  */
 public class DataSetMap<IN, OUT> extends SingleRel implements DataSetRelNode<OUT> {
 	
-	protected DataSetMap(RelOptCluster cluster, RelTraitSet traits, RelNode input) {
-		super(cluster, traits, input);
-	}
+	private final static String NAME = "DataSetMap";
+	private TypeInformation<OUT> outputType;
+	private RichMapFunction<IN, OUT> mapFunction;
 	
-	private TypeInformation<IN> getInputType() {
-		return null;
+	public DataSetMap(RelOptCluster cluster, RelTraitSet traits, RelNode input, 
+		TypeInformation<OUT> outputType, RichMapFunction<IN, OUT> mapFunction) {
+		super(cluster, traits, input);
+		this.outputType = outputType;
+		this.mapFunction = mapFunction;
 	}
 	
 	private TypeInformation<OUT> getType() {
-		return null;
+		return this.outputType;
 	}
 	
 	private String getName() {
-		return null;
+		return NAME;
 	}
 	
 	private RichMapFunction<IN, OUT> getMapFunction() {
-		return null;
+		return this.mapFunction;
 	}
 	
 	@Override
