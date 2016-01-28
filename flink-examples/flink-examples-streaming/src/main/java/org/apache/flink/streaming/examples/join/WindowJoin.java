@@ -87,7 +87,7 @@ public class WindowJoin {
 
 		// emit result
 		if (fileOutput) {
-			joinedStream.writeAsText(outputPath, 1);
+			joinedStream.writeAsText(outputPath);
 		} else {
 			joinedStream.print();
 		}

@@ -49,7 +49,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
-import org.apache.flink.streaming.api.functions.sink.FileSinkFunctionByMillis;
+import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
@@ -193,7 +193,7 @@ public class DataStream<T> {
 			
 			unionedTransforms.add(newStream.getTransformation());
 		}
-		return new DataStream<T>(this.environment, new UnionTransformation<T>(unionedTransforms));
+		return new DataStream<>(this.environment, new UnionTransformation<>(unionedTransforms));
 	}
 
 	/**
@@ -208,7 +208,7 @@ public class DataStream<T> {
 	 * @return The {@link SplitStream}
 	 */
 	public SplitStream<T> split(OutputSelector<T> outputSelector) {
-		return new SplitStream<T>(this, clean(outputSelector));
+		return new SplitStream<>(this, clean(outputSelector));
 	}
 
 	/**
@@ -222,7 +222,7 @@ public class DataStream<T> {
 	 * @return The {@link ConnectedStreams}.
 	 */
 	public <R> ConnectedStreams<T, R> connect(DataStream<R> dataStream) {
-		return new ConnectedStreams<T, R>(environment, this, dataStream);
+		return new ConnectedStreams<>(environment, this, dataStream);
 	}
 
 	/**
@@ -235,7 +235,7 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
-		return new KeyedStream<T, K>(this, clean(key));
+		return new KeyedStream<>(this, clean(key));
 	}
 
 	/**
@@ -250,7 +250,7 @@ public class DataStream<T> {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return keyBy(KeySelectorUtil.getSelectorForArray(fields, getType()));
 		} else {
-			return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
+			return keyBy(new Keys.ExpressionKeys<>(fields, getType()));
 		}
 	}
 
@@ -266,11 +266,11 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 **/
 	public KeyedStream<T, Tuple> keyBy(String... fields) {
-		return keyBy(new Keys.ExpressionKeys<T>(fields, getType()));
+		return keyBy(new Keys.ExpressionKeys<>(fields, getType()));
 	}
 
 	private KeyedStream<T, Tuple> keyBy(Keys<T> keys) {
-		return new KeyedStream<T, Tuple>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
+		return new KeyedStream<>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
 				getType(), getExecutionConfig())));
 	}
 
@@ -288,7 +288,7 @@ public class DataStream<T> {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return partitionByHash(KeySelectorUtil.getSelectorForArray(fields, getType()));
 		} else {
-			return partitionByHash(new Keys.ExpressionKeys<T>(fields, getType()));
+			return partitionByHash(new Keys.ExpressionKeys<>(fields, getType()));
 		}
 	}
 
@@ -303,7 +303,7 @@ public class DataStream<T> {
 	 *
 	 */
 	public DataStream<T> partitionByHash(String... fields) {
-		return partitionByHash(new Keys.ExpressionKeys<T>(fields, getType()));
+		return partitionByHash(new Keys.ExpressionKeys<>(fields, getType()));
 	}
 
 	/**
@@ -316,7 +316,7 @@ public class DataStream<T> {
 	 * @return The partitioned DataStream
 	 */
 	public DataStream<T> partitionByHash(KeySelector<T, ?> keySelector) {
-		return setConnectionType(new HashPartitioner<T>(clean(keySelector)));
+		return setConnectionType(new HashPartitioner<>(clean(keySelector)));
 	}
 
 	//private helper method for partitioning
@@ -326,7 +326,7 @@ public class DataStream<T> {
 				getType(),
 				getExecutionConfig()));
 
-		return setConnectionType(new HashPartitioner<T>(keySelector));
+		return setConnectionType(new HashPartitioner<>(keySelector));
 	}
 
 	/**
@@ -340,7 +340,7 @@ public class DataStream<T> {
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
-		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<T>(new int[]{field}, getType());
+		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<>(new int[]{field}, getType());
 		return partitionCustom(partitioner, outExpressionKeys);
 	}
 
@@ -355,7 +355,7 @@ public class DataStream<T> {
 	 * @return The partitioned DataStream.
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
-		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<T>(new String[]{field}, getType());
+		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<>(new String[]{field}, getType());
 		return partitionCustom(partitioner, outExpressionKeys);
 	}
 
@@ -376,7 +376,7 @@ public class DataStream<T> {
 	 * @see KeySelector
 	 */
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, KeySelector<T, K> keySelector) {
-		return setConnectionType(new CustomPartitionerWrapper<K, T>(clean(partitioner),
+		return setConnectionType(new CustomPartitionerWrapper<>(clean(partitioner),
 				clean(keySelector)));
 	}
 
@@ -385,7 +385,7 @@ public class DataStream<T> {
 		KeySelector<T, K> keySelector = KeySelectorUtil.getSelectorForOneKey(keys, partitioner, getType(), getExecutionConfig());
 
 		return setConnectionType(
-				new CustomPartitionerWrapper<K, T>(
+				new CustomPartitionerWrapper<>(
 						clean(partitioner),
 						clean(keySelector)));
 	}
@@ -499,7 +499,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public IterativeStream<T> iterate() {
-		return new IterativeStream<T>(this, 0);
+		return new IterativeStream<>(this, 0);
 	}
 
 	/**
@@ -535,7 +535,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public IterativeStream<T> iterate(long maxWaitTimeMillis) {
-		return new IterativeStream<T>(this, maxWaitTimeMillis);
+		return new IterativeStream<>(this, maxWaitTimeMillis);
 	}
 
 	/**
@@ -557,7 +557,7 @@ public class DataStream<T> {
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
 				Utils.getCallLocationName(), true);
 
-		return transform("Map", outType, new StreamMap<T, R>(clean(mapper)));
+		return transform("Map", outType, new StreamMap<>(clean(mapper)));
 	}
 
 	/**
@@ -581,7 +581,7 @@ public class DataStream<T> {
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType(), Utils.getCallLocationName(), true);
 
-		return transform("Flat Map", outType, new StreamFlatMap<T, R>(clean(flatMapper)));
+		return transform("Flat Map", outType, new StreamFlatMap<>(clean(flatMapper)));
 
 	}
 
@@ -600,7 +600,7 @@ public class DataStream<T> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<T, ?> filter(FilterFunction<T> filter) {
-		return transform("Filter", getType(), new StreamFilter<T>(clean(filter)));
+		return transform("Filter", getType(), new StreamFilter<>(clean(filter)));
 
 	}
 
@@ -623,7 +623,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public <R extends Tuple> SingleOutputStreamOperator<R, ?> project(int... fieldIndexes) {
-		return new StreamProjection<T>(this, fieldIndexes).projectTupleX();
+		return new StreamProjection<>(this, fieldIndexes).projectTupleX();
 	}
 
 	/**
@@ -774,7 +774,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> print() {
-		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>();
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>();
 		return addSink(printFunction);
 	}
 
@@ -789,7 +789,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> printToErr() {
-		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>(true);
+		PrintSinkFunction<T> printFunction = new PrintSinkFunction<>(true);
 		return addSink(printFunction);
 	}
 
@@ -807,29 +807,9 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path) {
-		return write(new TextOutputFormat<T>(new Path(path)), 0L);
+		return writeUsingOutputFormat(new TextOutputFormat<T>(new Path(path)));
 	}
 
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically, in every millis milliseconds.
-	 *
-	 * <p>
-	 * For every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 *
-	 * @param path
-	 *            The path pointing to the location the text file is written to.
-	 * @param millis
-	 *            The file update frequency.
-	 *
-	 * @return The closed DataStream.
-	 */
-	@PublicEvolving
-	public DataStreamSink<T> writeAsText(String path, long millis) {
-		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(path));
-		return write(tof, millis);
-	}
 
 	/**
 	 * Writes a DataStream to the file specified by path in text format.
@@ -848,34 +828,11 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
-		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(path));
+		TextOutputFormat<T> tof = new TextOutputFormat<>(new Path(path));
 		tof.setWriteMode(writeMode);
-		return write(tof, 0L);
+		return writeUsingOutputFormat(tof);
 	}
 
-	/**
-	 * Writes a DataStream to the file specified by path in text format.
-	 *
-	 * <p>
-	 * For every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 *
-	 * @param path
-	 *            The path pointing to the location the text file is written to
-	 * @param writeMode
-	 *            Controls the behavior for existing files. Options are
-	 *            NO_OVERWRITE and OVERWRITE.
-	 * @param millis
-	 T            the file update frequency
-	 *
-	 * @return The closed DataStream.
-	 */
-	@PublicEvolving
-	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode, long millis) {
-		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(path));
-		tof.setWriteMode(writeMode);
-		return write(tof, millis);
-	}
 
 	/**
 	 * Writes a DataStream to the file specified by the path parameter.
@@ -891,28 +848,9 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path) {
-		return writeAsCsv(path, null, 0L, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+		return writeAsCsv(path, null, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 
-	/**
-	 * Writes a DataStream to the file specified by the path parameter. The
-	 * writing is performed periodically, in every millis milliseconds.
-	 *
-	 * <p>
-	 * For every field of an element of the DataStream the result of {@link Object#toString()}
-	 * is written. This method can only be used on data streams of tuples.
-	 *
-	 * @param path
-	 *            the path pointing to the location the text file is written to
-	 * @param millis
-	 *            the file update frequency
-	 *
-	 * @return the closed DataStream
-	 */
-	@PublicEvolving
-	public DataStreamSink<T> writeAsCsv(String path, long millis) {
-		return writeAsCsv(path, null, millis, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-	}
 
 	/**
 	 * Writes a DataStream to the file specified by the path parameter.
@@ -931,7 +869,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
-		return writeAsCsv(path, writeMode, 0L, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+		return writeAsCsv(path, writeMode, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
 
 	/**
@@ -947,31 +885,6 @@ public class DataStream<T> {
 	 * @param writeMode
 	 *            Controls the behavior for existing files. Options are
 	 *            NO_OVERWRITE and OVERWRITE.
-	 * @param millis
-	 *            the file update frequency
-	 *
-	 * @return the closed DataStream
-	 */
-	@PublicEvolving
-	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode, long millis) {
-		return writeAsCsv(path, writeMode, millis, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by the path parameter. The
-	 * writing is performed periodically every millis milliseconds.
-	 *
-	 * <p>
-	 * For every field of an element of the DataStream the result of {@link Object#toString()}
-	 * is written. This method can only be used on data streams of tuples.
-	 *
-	 * @param path
-	 *            the path pointing to the location the text file is written to
-	 * @param writeMode
-	 *            Controls the behavior for existing files. Options are
-	 *            NO_OVERWRITE and OVERWRITE.
-	 * @param millis
-	 *            the file update frequency
 	 * @param rowDelimiter
 	 *            the delimiter for two rows
 	 * @param fieldDelimiter
@@ -984,14 +897,13 @@ public class DataStream<T> {
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
 			String path,
 			WriteMode writeMode,
-			long millis,
 			String rowDelimiter,
 			String fieldDelimiter) {
 		Preconditions.checkArgument(
 			getType().isTupleType(),
 			"The writeAsCsv() method can only be used on data streams of tuples.");
 
-		CsvOutputFormat<X> of = new CsvOutputFormat<X>(
+		CsvOutputFormat<X> of = new CsvOutputFormat<>(
 			new Path(path),
 			rowDelimiter,
 			fieldDelimiter);
@@ -1000,7 +912,7 @@ public class DataStream<T> {
 			of.setWriteMode(writeMode);
 		}
 
-		return write((OutputFormat<T>) of, millis);
+		return writeUsingOutputFormat((OutputFormat<T>) of);
 	}
 
 	/**
@@ -1017,7 +929,7 @@ public class DataStream<T> {
 	 */
 	@PublicEvolving
 	public DataStreamSink<T> writeToSocket(String hostName, int port, SerializationSchema<T> schema) {
-		DataStreamSink<T> returnStream = addSink(new SocketClientSink<T>(hostName, port, schema, 0));
+		DataStreamSink<T> returnStream = addSink(new SocketClientSink<>(hostName, port, schema, 0));
 		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
 		return returnStream;
 	}
@@ -1025,13 +937,16 @@ public class DataStream<T> {
 	/**
 	 * Writes the dataStream into an output, described by an OutputFormat.
 	 *
+	 * The output is not participating in Flink's checkpointing!
+	 *
+	 * For writing to a file system periodically, the use of the "flink-connector-filesystem" is recommended.
+	 *
 	 * @param format The output format
-	 * @param millis the write frequency
 	 * @return The closed DataStream
 	 */
 	@PublicEvolving
-	public DataStreamSink<T> write(OutputFormat<T> format, long millis) {
-		return addSink(new FileSinkFunctionByMillis<T>(format, millis));
+	public DataStreamSink<T> writeUsingOutputFormat(OutputFormat<T> format) {
+		return addSink(new OutputFormatSinkFunction<>(format));
 	}
 
 	/**
@@ -1054,7 +969,7 @@ public class DataStream<T> {
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo
 		transformation.getOutputType();
 
-		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<T, R>(
+		OneInputTransformation<T, R> resultTransform = new OneInputTransformation<>(
 				this.transformation,
 				operatorName,
 				operator,
@@ -1077,7 +992,7 @@ public class DataStream<T> {
 	 * @return The modified DataStream.
 	 */
 	protected DataStream<T> setConnectionType(StreamPartitioner<T> partitioner) {
-		return new DataStream<T>(this.getExecutionEnvironment(), new PartitionTransformation<T>(this.getTransformation(), partitioner));
+		return new DataStream<>(this.getExecutionEnvironment(), new PartitionTransformation<>(this.getTransformation(), partitioner));
 	}
 
 	/**
@@ -1099,9 +1014,9 @@ public class DataStream<T> {
 			((InputTypeConfigurable) sinkFunction).setInputType(getType(), getExecutionConfig() );
 		}
 
-		StreamSink<T> sinkOperator = new StreamSink<T>(clean(sinkFunction));
+		StreamSink<T> sinkOperator = new StreamSink<>(clean(sinkFunction));
 
-		DataStreamSink<T> sink = new DataStreamSink<T>(this, sinkOperator);
+		DataStreamSink<T> sink = new DataStreamSink<>(this, sinkOperator);
 
 		getExecutionEnvironment().addOperator(sink.getTransformation());
 		return sink;
