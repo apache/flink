@@ -35,7 +35,6 @@ import java.io.Serializable;
 
 import static org.junit.Assert.assertTrue;
 
-
 public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 
 	/**
