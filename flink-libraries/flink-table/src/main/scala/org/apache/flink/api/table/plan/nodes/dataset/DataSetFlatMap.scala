@@ -30,12 +30,12 @@ import org.apache.flink.api.table.Row
   *
   */
 class DataSetFlatMap(
-                         cluster: RelOptCluster,
-                         traitSet: RelTraitSet,
-                         input: RelNode,
-                         rowType: RelDataType,
-                         opName: String,
-                         func: FlatMapFunction[Row, Row])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    rowType: RelDataType,
+    opName: String,
+    func: FlatMapFunction[Row, Row])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -56,7 +56,7 @@ class DataSetFlatMap(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

@@ -18,8 +18,11 @@
 
 package org.apache.flink.api.table.plan
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.schema.{Table, SchemaPlus}
+import org.apache.calcite.schema.impl.AbstractTable
+import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.tools.{Frameworks, RelBuilder}
 import org.apache.flink.api.table.plan.schema.DataSetTable
 
@@ -27,6 +30,8 @@ object TranslationContext {
 
   private var relBuilder: RelBuilder = null
   private var tables: SchemaPlus = null
+  private var tabNames: Map[AbstractTable, String] = null
+  private val nameCntr: AtomicInteger = new AtomicInteger(0)
 
   reset()
 
@@ -42,20 +47,27 @@ object TranslationContext {
       .traitDefs(ConventionTraitDef.INSTANCE)
       .build
 
+    tabNames = Map[AbstractTable, String]()
+
     relBuilder = RelBuilder.create(frameworkConfig)
 
   }
 
-  def addDataSet(tabName: String, newTable: DataSetTable[_]): Unit = {
+  def addDataSet(newTable: DataSetTable[_]): String = {
 
-    val registeredTable: Table = tables.getTable(tabName)
+    // look up name
+    val tabName = tabNames.get(newTable)
 
-    if (registeredTable == null) {
-      tables.add(tabName, newTable)
+    tabName match {
+      case Some(name) =>
+        name
+      case None =>
+        val tabName = "DataSetTable_" + nameCntr.getAndIncrement()
+        tabNames += (newTable -> tabName)
+        tables.add(tabName, newTable)
+        tabName
     }
-    else if (registeredTable != newTable) {
-      throw new RuntimeException("Different table for same name already in catalog registered.")
-    }
+
   }
 
   def getRelBuilder: RelBuilder = {

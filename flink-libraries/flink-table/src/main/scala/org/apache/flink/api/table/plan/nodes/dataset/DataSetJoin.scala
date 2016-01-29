@@ -31,17 +31,17 @@ import org.apache.flink.api.table.Row
   * Flink RelNode which matches along with JoinOperator and its related operations.
   */
 class DataSetJoin(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 left: RelNode,
-                 right: RelNode,
-                 rowType: RelDataType,
-                 opName: String,
-                 joinKeysLeft: Array[Int],
-                 joinKeysRight: Array[Int],
-                 joinType: JoinType,
-                 joinHint: JoinHint,
-                 func: JoinFunction[Row, Row, Row])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    left: RelNode,
+    right: RelNode,
+    rowType: RelDataType,
+    opName: String,
+    joinKeysLeft: Array[Int],
+    joinKeysRight: Array[Int],
+    joinType: JoinType,
+    joinHint: JoinHint,
+    func: JoinFunction[Row, Row, Row])
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -67,7 +67,7 @@ class DataSetJoin(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

@@ -27,19 +27,19 @@ import org.apache.calcite.rel.core.Project
 import org.apache.calcite.rex.RexNode
 
 class FlinkProject(
-                  cluster: RelOptCluster,
-                  traitSet: RelTraitSet,
-                  input: RelNode,
-                  projects: java.util.List[RexNode],
-                  rowType: RelDataType)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    projects: java.util.List[RexNode],
+    rowType: RelDataType)
   extends Project(cluster, traitSet, input, projects, rowType)
   with FlinkRel {
 
   override def copy(
-                     traitSet: RelTraitSet,
-                     input: RelNode,
-                     projects: util.List[RexNode],
-                     rowType: RelDataType): Project = {
+      traitSet: RelTraitSet,
+      input: RelNode,
+      projects: util.List[RexNode],
+      rowType: RelDataType): Project = {
     new FlinkProject(cluster, traitSet, input, projects, rowType)
   }
 }

@@ -28,13 +28,13 @@ import org.apache.flink.api.table.Row
   * Flink RelNode which matches along with SortPartitionOperator.
   */
 class DataSetSort(
-                   cluster: RelOptCluster,
-                   traitSet: RelTraitSet,
-                   input: RelNode,
-                   rowType: RelDataType,
-                   opName: String,
-                   sortKey: Array[Int],
-                   sortOrder: Array[Boolean])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    rowType: RelDataType,
+    opName: String,
+    sortKey: Array[Int],
+    sortOrder: Array[Boolean])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -56,7 +56,7 @@ class DataSetSort(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

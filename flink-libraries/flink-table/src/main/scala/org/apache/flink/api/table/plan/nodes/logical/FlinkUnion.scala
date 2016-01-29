@@ -25,10 +25,10 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{SetOp, Union}
 
 class FlinkUnion(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 inputs: java.util.List[RelNode],
-                 all: Boolean)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    inputs: java.util.List[RelNode],
+    all: Boolean)
   extends Union(cluster, traitSet, inputs, all)
   with FlinkRel {
 

@@ -29,13 +29,13 @@ import org.apache.flink.api.table.Row
   * Flink RelNode which matches along with ReduceOperator.
   */
 class DataSetReduce(
-                     cluster: RelOptCluster,
-                     traits: RelTraitSet,
-                     input: RelNode,
-                     rowType: RelDataType,
-                     opName: String,
-                     groupingKeys: Array[Int],
-                     func: ReduceFunction[Row])
+    cluster: RelOptCluster,
+    traits: RelTraitSet,
+    input: RelNode,
+    rowType: RelDataType,
+    opName: String,
+    groupingKeys: Array[Int],
+    func: ReduceFunction[Row])
   extends SingleRel(cluster, traits, input)
   with DataSetRel {
 
@@ -57,7 +57,7 @@ class DataSetReduce(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

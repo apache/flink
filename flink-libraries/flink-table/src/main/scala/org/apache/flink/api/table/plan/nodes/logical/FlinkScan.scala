@@ -22,9 +22,9 @@ import org.apache.calcite.plan.{RelOptTable, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.TableScan
 
 class FlinkScan(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 table: RelOptTable)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    table: RelOptTable)
   extends TableScan(cluster, traitSet, table)
   with FlinkRel {
 

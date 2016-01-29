@@ -27,7 +27,7 @@ trait DataSetRel extends RelNode {
   /**
     * Translate the FlinkRelNode into Flink operator.
     */
-  def translateToPlan: DataSet[Row]
+  def translateToPlan: DataSet[Any]
 
 }
 

@@ -24,10 +24,10 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
 
 class FlinkCalc(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 input: RelNode,
-                 program: RexProgram)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    program: RexProgram)
   extends Calc(cluster, traitSet, input, program)
   with FlinkRel {
 

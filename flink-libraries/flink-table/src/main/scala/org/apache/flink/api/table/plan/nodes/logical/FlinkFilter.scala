@@ -24,10 +24,10 @@ import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rex.RexNode
 
 class FlinkFilter(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 input: RelNode,
-                 condition: RexNode)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    condition: RexNode)
   extends Filter(cluster, traitSet, input, condition)
   with FlinkRel {
 

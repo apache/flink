@@ -24,23 +24,23 @@ import org.apache.calcite.rel.core.{JoinRelType, Join}
 import org.apache.calcite.rex.RexNode
 
 class FlinkJoin(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 left: RelNode,
-                 right: RelNode,
-                 condition: RexNode,
-                 joinType: JoinRelType,
-                 variablesStopped: java.util.Set[String])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    left: RelNode,
+    right: RelNode,
+    condition: RexNode,
+    joinType: JoinRelType,
+    variablesStopped: java.util.Set[String])
   extends Join(cluster, traitSet, left, right, condition, joinType, variablesStopped)
   with FlinkRel {
 
   override def copy(
-                     traitSet: RelTraitSet,
-                     condition: RexNode,
-                     left: RelNode,
-                     right: RelNode,
-                     joinType: JoinRelType,
-                     semiJoinDone: Boolean): Join = {
+      traitSet: RelTraitSet,
+      condition: RexNode,
+      left: RelNode,
+      right: RelNode,
+      joinType: JoinRelType,
+      semiJoinDone: Boolean): Join = {
     new FlinkJoin(cluster, traitSet, left, right, condition, joinType, getVariablesStopped)
   }
 }

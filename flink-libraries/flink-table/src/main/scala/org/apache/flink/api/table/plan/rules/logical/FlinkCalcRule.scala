@@ -28,7 +28,7 @@ class FlinkCalcRule
   extends ConverterRule(
       classOf[LogicalCalc],
       Convention.NONE,
-    FlinkConvention.INSTANCE,
+      FlinkConvention.INSTANCE,
       "FlinkCalcRule")
   {
 

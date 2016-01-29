@@ -29,23 +29,24 @@ import org.apache.calcite.util.ImmutableBitSet
 import scala.collection.JavaConversions._
 
 class FlinkAggregate(
-                 cluster: RelOptCluster,
-                 traitSet: RelTraitSet,
-                 input: RelNode,
-                 indicator: Boolean,
-                 groupSet: ImmutableBitSet,
-                 groupSets: java.util.List[ImmutableBitSet],
-                 aggCalls: java.util.List[AggregateCall])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    indicator: Boolean,
+    groupSet: ImmutableBitSet,
+    groupSets: java.util.List[ImmutableBitSet],
+    aggCalls: java.util.List[AggregateCall])
   extends Aggregate(cluster, traitSet, input, indicator, groupSet, groupSets, aggCalls)
   with FlinkRel {
 
   override def copy(
-                     traitSet: RelTraitSet,
-                     input: RelNode,
-                     indicator: Boolean,
-                     groupSet: ImmutableBitSet,
-                     groupSets: util.List[ImmutableBitSet],
-                     aggCalls: util.List[AggregateCall]): Aggregate = {
+      traitSet: RelTraitSet,
+      input: RelNode,
+      indicator: Boolean,
+      groupSet: ImmutableBitSet,
+      groupSets: util.List[ImmutableBitSet],
+      aggCalls: util.List[AggregateCall]): Aggregate = {
+
     new FlinkAggregate(
       cluster,
       traitSet,

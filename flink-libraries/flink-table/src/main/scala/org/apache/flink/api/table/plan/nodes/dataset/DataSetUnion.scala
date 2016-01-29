@@ -29,12 +29,12 @@ import org.apache.flink.api.table.Row
 *
 */
 class DataSetUnion(
-                    cluster: RelOptCluster,
-                    traitSet: RelTraitSet,
-                    left: RelNode,
-                    right: RelNode,
-                    rowType: RelDataType,
-                    opName: String)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    left: RelNode,
+    right: RelNode,
+    rowType: RelDataType,
+    opName: String)
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 
@@ -55,7 +55,7 @@ class DataSetUnion(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 

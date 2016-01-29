@@ -33,8 +33,9 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.TypeConverter
 
 class DataSetTable[T](
-                       val dataSet: DataSet[T],
-                       val fieldNames: Array[String]) extends AbstractTable {
+    val dataSet: DataSet[T],
+    val fieldNames: Array[String])
+  extends AbstractTable {
 
   // check uniquenss of field names
   if (fieldNames.length != fieldNames.toSet.size) {

@@ -29,11 +29,11 @@ import org.apache.flink.api.table.Row
   * Flink RelNode which matches along with DataSource.
   */
 class DataSetSource(
-                     cluster: RelOptCluster,
-                     traitSet: RelTraitSet,
-                     table: RelOptTable,
-                     rowType: RelDataType,
-                     inputDataSet: DataSet[_])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    table: RelOptTable,
+    rowType: RelDataType,
+    inputDataSet: DataSet[_])
   extends TableScan(cluster, traitSet, table)
   with DataSetRel {
 
@@ -49,7 +49,7 @@ class DataSetSource(
     )
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

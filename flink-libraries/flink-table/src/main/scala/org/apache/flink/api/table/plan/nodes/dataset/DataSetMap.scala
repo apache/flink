@@ -29,12 +29,12 @@ import org.apache.flink.api.table.Row
   * Flink RelNode which matches along with MapOperator.
   */
 class DataSetMap(
-                  cluster: RelOptCluster,
-                  traitSet: RelTraitSet,
-                  input: RelNode,
-                  rowType: RelDataType,
-                  opName: String,
-                  func: MapFunction[Row, Row])
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    rowType: RelDataType,
+    opName: String,
+    func: MapFunction[Row, Row])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -57,7 +57,7 @@ class DataSetMap(
 
   override def toString() = opName
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

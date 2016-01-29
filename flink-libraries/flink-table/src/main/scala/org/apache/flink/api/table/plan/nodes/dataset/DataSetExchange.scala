@@ -29,13 +29,13 @@ import org.apache.flink.api.table.Row
   * Flink RelNode which matches along with PartitionOperator.
   */
 class DataSetExchange(
-                       cluster: RelOptCluster,
-                       traitSet: RelTraitSet,
-                       input: RelNode,
-                       rowType: RelDataType,
-                       opName: String,
-                       partitionKey: Array[Int],
-                       partitionMethod: PartitionMethod)
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    input: RelNode,
+    rowType: RelDataType,
+    opName: String,
+    partitionKey: Array[Int],
+    partitionMethod: PartitionMethod)
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -57,7 +57,7 @@ class DataSetExchange(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Row] = {
+  override def translateToPlan: DataSet[Any] = {
     ???
   }
 }

@@ -47,13 +47,12 @@ class JavaBatchTranslator extends PlanTranslator {
       repr.asInstanceOf[JavaDataSet[A]],
       fieldNames
     )
-    val tableName = repr.hashCode().toString
 
-    TranslationContext.addDataSet(tableName, dataSetTable)
+    val tabName = TranslationContext.addDataSet(dataSetTable)
     val relBuilder = TranslationContext.getRelBuilder
 
     // create table scan operator
-    relBuilder.scan(tableName)
+    relBuilder.scan(tabName)
     new Table(relBuilder.build(), relBuilder)
   }
 
