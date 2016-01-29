@@ -68,7 +68,7 @@ import scala.collection.JavaConverters._
   *
   * - Bulk iterations
   * - Broadcast variables in bulk iterations
-  * - Custom Scala objects
+  * - Scala case classes
   */
 object KMeans {
 
@@ -88,36 +88,9 @@ object KMeans {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
 
     // get input data:
-    // points
-    var points: DataSet[Point] = null
-    if (params.has("points")) {
-      points =
-        env.readCsvFile[(Double, Double)](
-          params.get("points"),
-          fieldDelimiter = " ",
-          includedFields = Array(0, 1))
-          .map { x => new Point(x._1, x._2) }
-    } else {
-      env.fromCollection(KMeansData.POINTS map {
-        case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
-      })
-    }
-
-    // centroids
-    var centroids: DataSet[KMeans.Centroid] = null
-    if (params.has("centroids")) {
-      centroids =
-        env.readCsvFile[(Int, Double, Double)](
-          params.get("centroids"),
-          fieldDelimiter = " ",
-          includedFields = Array(0, 1, 2))
-          .map { x => new Centroid(x._1, x._2, x._3) }
-    } else {
-      centroids = env.fromCollection(KMeansData.CENTROIDS map {
-        case Array(id, x, y) =>
-          new Centroid(id.asInstanceOf[Int], x.asInstanceOf[Double], y.asInstanceOf[Double])
-      })
-    }
+    // read the points and centroids from the provided paths or fall back to default data
+    val points: DataSet[Point] = getPointDataSet(params, env)
+    val centroids: DataSet[Centroid] = getCentroidDataSet(params, env)
 
     val finalCentroids = centroids.iterate(params.getInt("iterations", 10)) { currentCentroids =>
       val newCentroids = points
@@ -141,49 +114,92 @@ object KMeans {
 
   }
 
-  /**
-    * A simple two-dimensional point.
-    */
-  class Point(var x: Double = 0, var y: Double = 0) extends Serializable {
+  // *************************************************************************
+  //     DATA SOURCE READING (POINTS AND CENTROIDS)
+  // *************************************************************************
 
-    def add(other: Point): Point = {
+  def getCentroidDataSet(params: ParameterTool, env: ExecutionEnvironment): DataSet[Centroid] = {
+    if (params.has("centroids")) {
+      env.readCsvFile[Centroid](
+        params.get("centroids"),
+        fieldDelimiter = " ",
+        includedFields = Array(0, 1, 2))
+    } else {
+      env.fromCollection(KMeansData.CENTROIDS map {
+        case Array(id, x, y) =>
+          new Centroid(id.asInstanceOf[Int], x.asInstanceOf[Double], y.asInstanceOf[Double])
+      })
+    }
+  }
+
+  def getPointDataSet(params: ParameterTool, env: ExecutionEnvironment): DataSet[Point] = {
+    if (params.has("points")) {
+      env.readCsvFile[Point](
+        params.get("points"),
+        fieldDelimiter = " ",
+        includedFields = Array(0, 1))
+    } else {
+      env.fromCollection(KMeansData.POINTS map {
+        case Array(x, y) => new Point(x.asInstanceOf[Double], y.asInstanceOf[Double])
+      })
+    }
+  }
+
+  // *************************************************************************
+  //     DATA TYPES
+  // *************************************************************************
+
+  /**
+    * Common trait for operations supported by both points and centroids
+    * Note: case class inheritance is not allowed in Scala
+    */
+  trait Coordinate extends Serializable {
+
+    var x: Double
+    var y: Double
+
+    def add(other: Coordinate): this.type = {
       x += other.x
       y += other.y
       this
     }
 
-    def div(other: Long): Point = {
+    def div(other: Long): this.type = {
       x /= other
       y /= other
       this
     }
 
-    def euclideanDistance(other: Point): Double = {
+    def euclideanDistance(other: Coordinate): Double =
       Math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y))
-    }
 
     def clear(): Unit = {
       x = 0
       y = 0
     }
 
-    override def toString: String = {
-      x + " " + y
-    }
+    override def toString: String =
+      s"$x $y"
+
   }
+
+  /**
+    * A simple two-dimensional point.
+    */
+  case class Point(var x: Double = 0, var y: Double = 0) extends Coordinate
 
   /**
     * A simple two-dimensional centroid, basically a point with an ID.
     */
-  class Centroid(var id: Int = 0, x: Double = 0, y: Double = 0) extends Point(x, y) {
+  case class Centroid(var id: Int = 0, var x: Double = 0, var y: Double = 0) extends Coordinate {
 
     def this(id: Int, p: Point) {
       this(id, p.x, p.y)
     }
 
-    override def toString: String = {
-      id + " " + super.toString
-    }
+    override def toString: String =
+      s"$id ${super.toString}"
+
   }
 
   /** Determines the closest cluster center for a data point. */
