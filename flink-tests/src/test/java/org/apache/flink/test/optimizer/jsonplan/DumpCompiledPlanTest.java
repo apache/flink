@@ -80,7 +80,11 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 		env.setAsContext();
 		try {
-			KMeans.main(new String[] {IN_FILE, IN_FILE, OUT_FILE, "123"});
+			KMeans.main(new String[] {
+				"--points ", IN_FILE,
+				"--centroids ", IN_FILE,
+				"--output ", OUT_FILE,
+				"--iterations", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {

@@ -165,7 +165,11 @@ public class JsonJobGraphGenerationTest {
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
 
 				String tmpDir = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
-				KMeans.main(new String[] {tmpDir, tmpDir, tmpDir, "100"});
+				KMeans.main(new String[] {
+					"--points ", tmpDir,
+					"--centroids ", tmpDir,
+					"--output ", tmpDir,
+					"--iterations", "100"});
 			}
 			catch (AbortError ignored) {}
 
