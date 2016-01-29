@@ -217,7 +217,7 @@ public class JsonJobGraphGenerationTest {
 	
 	private static interface JsonValidator {
 		
-		void validtateJson(String json) throws Exception;
+		void validateJson(String json) throws Exception;
 	}
 	
 	private static class GenericValidator implements JsonValidator {
@@ -231,7 +231,7 @@ public class JsonJobGraphGenerationTest {
 		}
 
 		@Override
-		public void validtateJson(String json) throws Exception {
+		public void validateJson(String json) throws Exception {
 			final Map<String, JsonNode> idToNode = new HashMap<>();
 			
 			// validate the produced JSON
@@ -334,7 +334,7 @@ public class JsonJobGraphGenerationTest {
 			JsonParser parser = new JsonFactory().createJsonParser(jsonPlan);
 			while (parser.nextToken() != null);
 			
-			validator.validtateJson(jsonPlan);
+			validator.validateJson(jsonPlan);
 			
 			throw new AbortError();
 		}
