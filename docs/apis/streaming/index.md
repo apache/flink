@@ -1922,7 +1922,7 @@ a definition of time. Flink has support for three kinds of time:
 When dealing with event time, transformations need to avoid indefinite
 wait times for events to arrive. *Watermarks* provide the mechanism to control the event time-processing time skew. Watermarks
 are emitted by the sources. A watermark with a certain timestamp denotes the knowledge that no event
-with timestamp lower than the timestamp of the watermark will ever arrive.
+with timestamp lower or equal to the timestamp of the watermark will ever arrive.
 
 You can specify the semantics of time in a Flink DataStream program using `StreamExecutionEnviroment`, as
 
