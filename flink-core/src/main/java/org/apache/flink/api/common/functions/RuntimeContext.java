@@ -31,6 +31,7 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -145,6 +146,7 @@ public interface RuntimeContext {
 	/**
 	 * Convenience function to create a counter object for histograms.
 	 */
+	@Experimental
 	Histogram getHistogram(String name);
 	
 	// --------------------------------------------------------------------------------------------
@@ -208,13 +210,11 @@ public interface RuntimeContext {
 	 *
 	 * keyedStream.map(new RichMapFunction<MyType, Tuple2<MyType, Long>>() {
 	 *
-	 *     private ValueStateDescriptor<Long> countIdentifier =
-	 *         new ValueStateDescriptor<>("count", 0L, LongSerializer.INSTANCE);
-	 *
 	 *     private ValueState<Long> count;
 	 *
 	 *     public void open(Configuration cfg) {
-	 *         state = getRuntimeContext().getPartitionedState(countIdentifier);
+	 *         state = getRuntimeContext().getPartitionedState(
+	 *                 new ValueStateDescriptor<Long>("count", 0L, LongSerializer.INSTANCE));
 	 *     }
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
@@ -291,9 +291,11 @@ public interface RuntimeContext {
 	 *
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
+	 * 
+	 * @deprecated Use the more expressive {@link #getPartitionedState(StateDescriptor)} instead.
 	 */
 	@Deprecated
-	<S> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
+	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
 
 	/**
 	 * Gets the key/value state, which is only accessible if the function is executed on
@@ -330,7 +332,6 @@ public interface RuntimeContext {
 	 *     
 	 * }</pre>
 	 * 
-	 *
 	 * @param name The name of the key/value state.
 	 * @param stateType The type information for the type that is stored in the state.
 	 *                  Used to create serializers for managed memory and checkpoints.
@@ -342,7 +343,9 @@ public interface RuntimeContext {
 	 * 
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
+	 * 
+	 * @deprecated Use the more expressive {@link #getPartitionedState(StateDescriptor)} instead.
 	 */
 	@Deprecated
-	<S> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
+	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 }

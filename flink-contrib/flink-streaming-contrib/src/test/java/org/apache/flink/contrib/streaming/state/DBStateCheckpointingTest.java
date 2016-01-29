@@ -32,9 +32,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.derby.drda.NetworkServerControl;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -46,6 +50,7 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.test.checkpointing.PartitionedStateCheckpointingITCase.IdentityKeySelector;
 import org.apache.flink.test.checkpointing.PartitionedStateCheckpointingITCase.NonSerializableLong;
 import org.apache.flink.test.checkpointing.StreamFaultToleranceTestBase;
+
 import org.junit.After;
 import org.junit.Before;
 
@@ -182,7 +187,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 
 	private static class OnceFailingPartitionedSum extends RichMapFunction<Integer, Tuple2<Integer, Long>> {
 
-		private static Map<Integer, Long> allSums = new ConcurrentHashMap<Integer, Long>();
+		private static Map<Integer, Long> allSums = new ConcurrentHashMap<>();
 
 		private static volatile boolean hasFailed = false;
 
@@ -191,7 +196,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		private long failurePos;
 		private long count;
 
-		private OperatorState<Long> sum;
+		private ValueState<Long> sum;
 
 		OnceFailingPartitionedSum(long numElements) {
 			this.numElements = numElements;
@@ -204,7 +209,8 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			sum = getRuntimeContext().getKeyValueState("my_state", Long.class, 0L);
+			sum = getRuntimeContext().getPartitionedState(
+					new ValueStateDescriptor<>("my_state", 0L, LongSerializer.INSTANCE));
 		}
 
 		@Override
@@ -224,15 +230,19 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 
 	private static class CounterSink extends RichSinkFunction<Tuple2<Integer, Long>> {
 
-		private static Map<Integer, Long> allCounts = new ConcurrentHashMap<Integer, Long>();
+		private static Map<Integer, Long> allCounts = new ConcurrentHashMap<>();
 
-		private OperatorState<NonSerializableLong> aCounts;
-		private OperatorState<Long> bCounts;
+		private ValueState<NonSerializableLong> aCounts;
+		private ValueState<Long> bCounts;
 
 		@Override
 		public void open(Configuration parameters) throws IOException {
-			aCounts = getRuntimeContext().getKeyValueState("a", NonSerializableLong.class, NonSerializableLong.of(0L));
-			bCounts = getRuntimeContext().getKeyValueState("b", Long.class, 0L);
+			aCounts = getRuntimeContext().getPartitionedState(
+					new ValueStateDescriptor<>("a", NonSerializableLong.of(0L), 
+							new KryoSerializer<>(NonSerializableLong.class, new ExecutionConfig())));
+			
+			bCounts = getRuntimeContext().getPartitionedState(
+					new ValueStateDescriptor<>("b", 0L, LongSerializer.INSTANCE));
 		}
 
 		@Override

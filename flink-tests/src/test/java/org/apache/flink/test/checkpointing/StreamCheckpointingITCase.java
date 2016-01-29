@@ -20,7 +20,9 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -238,7 +240,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 		private long failurePos;
 		private long count;
 		
-		private OperatorState<Long> pCount;
+		private ValueState<Long> pCount;
 		private long inputCount;
 
 		OnceFailingPrefixCounter(long numElements) {
@@ -252,7 +254,9 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			pCount = getRuntimeContext().getKeyValueState("pCount", Long.class, 0L);
+			
+			pCount = getRuntimeContext().getPartitionedState(
+					new ValueStateDescriptor<>("pCount", 0L, LongSerializer.INSTANCE));
 		}
 		
 		@Override
