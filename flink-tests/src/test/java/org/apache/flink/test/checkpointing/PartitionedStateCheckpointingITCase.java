@@ -172,7 +172,7 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
-			sum = getRuntimeContext().getPartitionedState(
+			sum = getRuntimeContext().getState(
 					new ValueStateDescriptor<>("my_state", 0L, LongSerializer.INSTANCE));
 		}
 
@@ -201,11 +201,11 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 		@Override
 		public void open(Configuration parameters) throws IOException {
 			
-			aCounts = getRuntimeContext().getPartitionedState(
+			aCounts = getRuntimeContext().getState(
 					new ValueStateDescriptor<>("a", NonSerializableLong.of(0L), 
 							new KryoSerializer<>(NonSerializableLong.class, new ExecutionConfig())));
 			
-			bCounts = getRuntimeContext().getPartitionedState(
+			bCounts = getRuntimeContext().getState(
 					new ValueStateDescriptor<>("b", 0L, LongSerializer.INSTANCE));
 		}
 

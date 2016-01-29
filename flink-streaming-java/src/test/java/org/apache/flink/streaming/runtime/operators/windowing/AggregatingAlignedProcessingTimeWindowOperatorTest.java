@@ -23,7 +23,8 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -934,7 +935,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 
-		private OperatorState<Integer> state;
+		private ValueState<Integer> state;
 
 		@Override
 		public void open(Configuration parameters) {
@@ -942,7 +943,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			// start with one, so the final count is correct and we test that we do not
 			// initialize with 0 always by default
-			state = getRuntimeContext().getKeyValueState("totalCount", Integer.class, 1);
+			state = getRuntimeContext().getState(
+					new ValueStateDescriptor<>("totalCount", 1, IntSerializer.INSTANCE));
 		}
 
 		@Override

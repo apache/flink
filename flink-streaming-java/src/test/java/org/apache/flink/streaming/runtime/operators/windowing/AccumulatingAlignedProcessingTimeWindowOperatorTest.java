@@ -21,7 +21,8 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -521,11 +522,6 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 			finalResult.addAll(out2.getElements());
 			assertEquals(numElements, finalResult.size());
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
-
 			Collections.sort(finalResult);
 			for (int i = 0; i < numElements; i++) {
 				assertEquals(i, finalResult.get(i).intValue());
@@ -761,12 +757,13 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		// get "volatile" style access to entries
 		static final Map<Integer, Integer> globalCounts = new ConcurrentHashMap<>();
 		
-		private OperatorState<Integer> state;
+		private ValueState<Integer> state;
 
 		@Override
 		public void open(Configuration parameters) {
 			assertNotNull(getRuntimeContext());
-			state = getRuntimeContext().getKeyValueState("totalCount", Integer.class, 0);
+			state = getRuntimeContext().getState(
+					new ValueStateDescriptor<>("totalCount", 0, IntSerializer.INSTANCE));
 		}
 
 		@Override
