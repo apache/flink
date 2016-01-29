@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.table.test;
 
-import org.apache.flink.api.table.ExpressionException;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
@@ -31,6 +30,7 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.NotImplementedError;
 
 import java.util.List;
 
@@ -42,7 +42,7 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -56,13 +56,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = table.select(
 				"a - 5, a + 5, a / 2, a * 2, a % 2, -a");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "0,10,2,10,1,-5";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "0,10,2,10,1,-5";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testLogic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -76,13 +76,13 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = table.select(
 				"b && true, b && false, b || false, !b");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "true,false,true,false";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "true,false,true,false";
+		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = NotImplementedError.class)
 	public void testComparisons() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -96,10 +96,10 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		Table result = table.select(
 				"a > c, a >= b, a < c, a.isNull, a.isNotNull");
 
-//		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
-//		List<Row> results = ds.collect();
-//		String expected = "true,true,false,false,true";
-//		compareResultAsText(results, expected);
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = ds.collect();
+		String expected = "true,true,false,false,true";
+		compareResultAsText(results, expected);
 	}
 
 }

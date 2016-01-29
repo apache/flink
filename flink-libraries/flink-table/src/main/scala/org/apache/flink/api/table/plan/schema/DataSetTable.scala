@@ -16,18 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.operators
+package org.apache.flink.api.table.plan.schema
 
+import java.lang.Double
+import java.util
+import java.util.Collections
+
+import org.apache.calcite.rel.{RelCollation, RelDistribution}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.TypeConverter
 
 class DataSetTable[T](
-  val dataSet: DataSet[T],
-  val fieldNames: Array[String]) extends AbstractTable {
+    val dataSet: DataSet[T],
+    val fieldNames: Array[String])
+  extends AbstractTable {
 
   // check uniquenss of field names
   if (fieldNames.length != fieldNames.toSet.size) {
@@ -63,4 +71,19 @@ class DataSetTable[T](
     builder.build
   }
 
+//  override def getStatistic: Statistic = {
+//    new DefaultDataSetStatistic
+//  }
+
+}
+
+class DefaultDataSetStatistic extends Statistic {
+
+  override def getRowCount: Double = 1000d
+
+  override def getCollations: util.List[RelCollation] = Collections.emptyList()
+
+  override def isKey(columns: ImmutableBitSet): Boolean = false
+
+  override def getDistribution: RelDistribution = null
 }
