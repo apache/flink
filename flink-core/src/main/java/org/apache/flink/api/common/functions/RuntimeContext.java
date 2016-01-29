@@ -31,10 +31,13 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
@@ -188,13 +191,15 @@ public interface RuntimeContext {
 	 */
 	DistributedCache getDistributedCache();
 	
-	// --------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	//  Methods for accessing state
+	// ------------------------------------------------------------------------
 
 	/**
-	 * Gets the partitioned state, which is only accessible if the function is executed on
-	 * a KeyedStream. When interacting with the state only the instance bound to the key of the
-	 * element currently processed by the function is changed.
-	 * Each operator may maintain multiple partitioned states, addressed with different names.
+	 * Gets a handle to the system's key/value state. The key/value state is only accessible
+	 * if the function is executed on a KeyedStream. On each access, the state exposes the value
+	 * for the the key of the element currently processed by the function.
+	 * Each function may have multiple partitioned states, addressed with different names.
 	 *
 	 * <p>Because the scope of each value is the key of the currently processed element,
 	 * and the elements are distributed by the Flink runtime, the system can transparently
@@ -213,31 +218,111 @@ public interface RuntimeContext {
 	 *     private ValueState<Long> count;
 	 *
 	 *     public void open(Configuration cfg) {
-	 *         state = getRuntimeContext().getPartitionedState(
+	 *         state = getRuntimeContext().getState(
 	 *                 new ValueStateDescriptor<Long>("count", 0L, LongSerializer.INSTANCE));
 	 *     }
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
-	 *         long count = state.value();
-	 *         state.update(value + 1);
+	 *         long count = state.value() + 1;
+	 *         state.update(value);
 	 *         return new Tuple2<>(value, count);
 	 *     }
 	 * });
-	 *
 	 * }</pre>
 	 *
-	 * @param stateDescriptor The StateDescriptor that contains the name and type of the
-	 *                        state that is being accessed.
+	 * @param stateProperties The descriptor defining the properties of the stats.
 	 *
-	 * @param <S> The type of the state.
+	 * @param <T> The type of value stored in the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part of a KeyedStream).
+	 */
+	<T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
+
+	/**
+	 * Gets a handle to the system's key/value list state. This state is similar to the state
+	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+	 * holds lists. One can adds elements to the list, or retrieve the list as a whole. 
+	 * 
+	 * <p>This state is only accessible if the function is executed on a KeyedStream.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 *
+	 * keyedStream.map(new RichFlatMapFunction<MyType, List<MyType>>() {
+	 *
+	 *     private ListState<MyType> state;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getListState(
+	 *                 new ListStateDescriptor<>("myState", MyType.class));
+	 *     }
+	 *
+	 *     public void flatMap(MyType value, Collector<MyType> out) {
+	 *         if (value.isDivider()) {
+	 *             for (MyType t : state.get()) {
+	 *                 out.collect(t);
+	 *             }
+	 *         } else {
+	 *             state.add(value);
+	 *         }
+	 *     }
+	 * });
+	 * }</pre>
+	 *
+	 * @param stateProperties The descriptor defining the properties of the stats.
+	 *
+	 * @param <T> The type of value stored in the state.
 	 *
 	 * @return The partitioned state object.
 	 *
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
-	<S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor);
+	<T> ListState<T> getListState(ListStateDescriptor<T> stateProperties);
 
+	/**
+	 * Gets a handle to the system's key/value list state. This state is similar to the state
+	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+	 * aggregates values.
+	 *
+	 * <p>This state is only accessible if the function is executed on a KeyedStream.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 *
+	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
+	 *
+	 *     private ReducingState<Long> sum;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getReducingState(
+	 *                 new ReducingStateDescriptor<>("sum", MyType.class, 0L, (a, b) -> a + b));
+	 *     }
+	 *
+	 *     public Tuple2<MyType, Long> map(MyType value) {
+	 *         sum.add(value.count());
+	 *         return new Tuple2<>(value, sum.get());
+	 *     }
+	 * });
+	 * 
+	 * }</pre>
+	 *
+	 * @param stateProperties The descriptor defining the properties of the stats.
+	 *
+	 * @param <T> The type of value stored in the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part of a KeyedStream).
+	 */
+	<T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties);
+	
 	/**
 	 * Gets the key/value state, which is only accessible if the function is executed on
 	 * a KeyedStream. Upon calling {@link ValueState#value()}, the key/value state will
@@ -292,7 +377,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 * 
-	 * @deprecated Use the more expressive {@link #getPartitionedState(StateDescriptor)} instead.
+	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
 	 */
 	@Deprecated
 	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
@@ -344,7 +429,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no key/value state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 * 
-	 * @deprecated Use the more expressive {@link #getPartitionedState(StateDescriptor)} instead.
+	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
 	 */
 	@Deprecated
 	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);

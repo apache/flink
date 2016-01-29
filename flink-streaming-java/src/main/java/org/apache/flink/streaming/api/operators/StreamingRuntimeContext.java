@@ -21,9 +21,12 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorState;
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -106,11 +109,32 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public <S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
+	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			return operator.getPartitionedState(stateDescriptor);
+			return operator.getPartitionedState(stateProperties);
 		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state.", e);
+			throw new RuntimeException("Error while getting state", e);
+		}
+	}
+
+	@Override
+	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+		requireNonNull(stateProperties, "The state properties must not be null");
+		try {
+			return operator.getPartitionedState(stateProperties);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while getting state", e);
+		}
+	}
+
+	@Override
+	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+		requireNonNull(stateProperties, "The state properties must not be null");
+		try {
+			return operator.getPartitionedState(stateProperties);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while getting state", e);
 		}
 	}
 
@@ -138,8 +162,9 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		requireNonNull(name, "The name of the state must not be null");
 		requireNonNull(stateType, "The state type information must not be null");
 
-		ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, defaultState, stateType.createSerializer(getExecutionConfig()));
-		return getPartitionedState(stateDesc);
+		ValueStateDescriptor<S> stateProps = 
+				new ValueStateDescriptor<>(name, defaultState, stateType.createSerializer(getExecutionConfig()));
+		return getState(stateProps);
 	}
 
 	// ------------------ expose (read only) relevant information from the stream config -------- //

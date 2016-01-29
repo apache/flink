@@ -255,7 +255,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
 			
-			pCount = getRuntimeContext().getPartitionedState(
+			pCount = getRuntimeContext().getState(
 					new ValueStateDescriptor<>("pCount", 0L, LongSerializer.INSTANCE));
 		}
 		

@@ -223,7 +223,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 						public void open(Configuration parameters) {
 							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
 							open = true;
-							count = getRuntimeContext().getPartitionedState(
+							count = getRuntimeContext().getState(
 									new ValueStateDescriptor<>("count", 0, IntSerializer.INSTANCE));
 						}
 
