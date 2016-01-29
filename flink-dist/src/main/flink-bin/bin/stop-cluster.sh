@@ -31,7 +31,8 @@ if [[ $? -ne 0 ]]; then
         ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop &"
     done
 else
-    pdsh -w $(IFS=, ; echo "${SLAVES[*]}") "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop"
+    PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+        "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop"
 fi
 
 # Stop JobManager instance(s)
