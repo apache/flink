@@ -23,13 +23,9 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CollectionSerializer;
-
-import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
-import de.javakaffee.kryoserializers.jodatime.JodaIntervalSerializer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecordBase;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -37,11 +33,13 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.joda.time.DateTime;
-import org.joda.time.Interval;
 
 import java.io.Serializable;
-import java.lang.reflect.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -165,36 +163,6 @@ public class Serializers {
 	//	ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(avroType);
 	//	reg.registerTypeWithKryoSerializer(avroType, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
 	}
-	
-	/**
-	 * Currently, the following classes of JodaTime are supported:
-	 *      - DateTime
-	 *      - Interval
-	 *
-	 *      The following chronologies are supported: (see {@link de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer})
-	 * <ul>
-	 * <li>{@link org.joda.time.chrono.ISOChronology}</li>
-	 * <li>{@link org.joda.time.chrono.CopticChronology}</li>
-	 * <li>{@link org.joda.time.chrono.EthiopicChronology}</li>
-	 * <li>{@link org.joda.time.chrono.GregorianChronology}</li>
-	 * <li>{@link org.joda.time.chrono.JulianChronology}</li>
-	 * <li>{@link org.joda.time.chrono.IslamicChronology}</li>
-	 * <li>{@link org.joda.time.chrono.BuddhistChronology}</li>
-	 * <li>{@link org.joda.time.chrono.GJChronology}</li>
-	 * </ul>
-	 */
-	public static void registerJodaTime(ExecutionConfig reg) {
-		reg.registerTypeWithKryoSerializer(DateTime.class, JodaDateTimeSerializer.class);
-		reg.registerTypeWithKryoSerializer(Interval.class, JodaIntervalSerializer.class);
-	}
-	
-	/**
-	 * Register less frequently used serializers
-	 */
-	public static void registerJavaUtils(ExecutionConfig reg) {
-		// BitSet, Regex is already present through twitter-chill.
-	}
-
 
 	// --------------------------------------------------------------------------------------------
 	// Custom Serializers
