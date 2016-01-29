@@ -34,6 +34,7 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.OperatorState;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -179,14 +180,14 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	@Deprecated
-	public <S> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Override
 	@Deprecated
-	public <S> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
+	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}

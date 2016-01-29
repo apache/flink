@@ -19,7 +19,9 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -215,13 +217,14 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 						private boolean open = false;
 
-						private OperatorState<Integer> count;
+						private ValueState<Integer> count;
 
 						@Override
 						public void open(Configuration parameters) {
 							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
 							open = true;
-							count = getRuntimeContext().getKeyValueState("count", Integer.class, 0);
+							count = getRuntimeContext().getPartitionedState(
+									new ValueStateDescriptor<>("count", 0, IntSerializer.INSTANCE));
 						}
 
 						@Override

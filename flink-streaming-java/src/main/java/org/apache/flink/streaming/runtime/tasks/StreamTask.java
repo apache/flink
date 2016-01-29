@@ -494,7 +494,7 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 					// start a Thread that does the asynchronous materialization and
 					// then sends the checkpoint acknowledge
 
-					String threadName = "Materialize checkpoint " + checkpointId + " for " + getName();
+					String threadName = "Materialize checkpoint state " + checkpointId + " - " + getName();
 					Thread checkpointThread = new Thread(threadName) {
 						@Override
 						public void run() {

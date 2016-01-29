@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
@@ -298,10 +299,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
 
     val filterFun = new RichFilterFunction[T] with StatefulFunction[T, Boolean, S] {
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
 
       override def filter(in: T): Boolean = {
         applyWithState(in, cleanFun)
@@ -326,10 +328,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
     val mapper = new RichMapFunction[T, R] with StatefulFunction[T, R, S] {
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
       
       override def map(in: T): R = {
         applyWithState(in, cleanFun)
@@ -354,10 +357,11 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     val cleanFun = clean(fun)
     val stateTypeInfo: TypeInformation[S] = implicitly[TypeInformation[S]]
+    val serializer: TypeSerializer[S] = stateTypeInfo.createSerializer(getExecutionConfig)
     
     val flatMapper = new RichFlatMapFunction[T, R] with StatefulFunction[T,TraversableOnce[R],S]{
 
-      override val stateType: TypeInformation[S] = stateTypeInfo
+      override val stateSerializer: TypeSerializer[S] = serializer
       
       override def flatMap(in: T, out: Collector[R]): Unit = {
         applyWithState(in, cleanFun) foreach out.collect

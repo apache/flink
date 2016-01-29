@@ -41,7 +41,7 @@ public abstract class StateDescriptor<S extends State> implements Serializable {
 	 * @param name The name of the {@code StateDescriptor}.
 	 */
 	public StateDescriptor(String name) {
-		this.name = requireNonNull(name);;
+		this.name = requireNonNull(name);
 	}
 
 	/**
