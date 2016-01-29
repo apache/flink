@@ -332,6 +332,11 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	//  Create type information
 	// --------------------------------------------------------------------------------------------
+
+	@SuppressWarnings("unchecked")
+	public static <T> TypeInformation<T> createTypeInfo(Class<T> type) {
+		return (TypeInformation<T>) createTypeInfo((Type) type);
+	}
 	
 	public static TypeInformation<?> createTypeInfo(Type t) {
 		TypeInformation<?> ti = new TypeExtractor().privateCreateTypeInfo(t);

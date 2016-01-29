@@ -18,22 +18,23 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import static org.junit.Assert.*;
-
 import com.esotericsoftware.kryo.Kryo;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest;
 import org.apache.flink.api.java.typeutils.runtime.TestDataOutputSerializer;
-import org.joda.time.DateTime;
-import org.junit.Test;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Random;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("unchecked")
 public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
@@ -42,7 +43,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 	
 	@Test
 	public void testJavaList(){
-		Collection<Integer> a = new ArrayList<Integer>();
+		Collection<Integer> a = new ArrayList<>();
 
 		fillCollection(a);
 
@@ -51,7 +52,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
 	@Test
 	public void testJavaSet(){
-		Collection<Integer> b = new HashSet<Integer>();
+		Collection<Integer> b = new HashSet<>();
 
 		fillCollection(b);
 
@@ -62,24 +63,12 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
 	@Test
 	public void testJavaDequeue(){
-		Collection<Integer> c = new LinkedList<Integer>();
-
+		Collection<Integer> c = new LinkedList<>();
 		fillCollection(c);
-
 		runTests(c);
 	}
 
-	@Test
-	public void testJodaTime(){
-		Collection<DateTime> b = new HashSet<DateTime>();
-		Serializers.registerJodaTime(ec);
-		b.add(new DateTime(1));
-		b.add(new DateTime(2));
-
-		runTests(b);
-	}
-
-	private void fillCollection(Collection<Integer> coll){
+	private void fillCollection(Collection<Integer> coll) {
 		coll.add(42);
 		coll.add(1337);
 		coll.add(49);
@@ -140,7 +129,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 			int numElements = 100;
 			// construct a memory target that is too small for the string
 			TestDataOutputSerializer target = new TestDataOutputSerializer(5*numElements, 5*numElements);
-			KryoSerializer<Integer> serializer = new KryoSerializer<Integer>(Integer.class, new ExecutionConfig());
+			KryoSerializer<Integer> serializer = new KryoSerializer<>(Integer.class, new ExecutionConfig());
 
 			for(int i = 0; i < numElements; i++){
 				serializer.serialize(i, target);

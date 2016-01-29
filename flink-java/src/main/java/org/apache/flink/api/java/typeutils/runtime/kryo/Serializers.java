@@ -23,24 +23,28 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CollectionSerializer;
+
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import de.javakaffee.kryoserializers.jodatime.JodaIntervalSerializer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecordBase;
+
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 
@@ -54,49 +58,78 @@ import java.util.Set;
  * Also, there is a Java Annotation for adding a default serializer (@DefaultSerializer) to classes.
  */
 public class Serializers {
-	/**
-	 * NOTE: This method is not a public Flink API.
-	 *
-	 * This method walks the entire hierarchy of the given type and registers all types it encounters
-	 * to Kryo.
-	 * It also watches for types which need special serializers.
-	 */
-	private static Set<Class<?>> alreadySeen = new HashSet<>();
 
-	public static void recursivelyRegisterType(Class<?> type, ExecutionConfig config) {
-		alreadySeen.add(type);
-		
-		if (type.isPrimitive()) {
+	public static void recursivelyRegisterType(TypeInformation<?> typeInfo, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+		if (typeInfo instanceof GenericTypeInfo) {
+			GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
+			Serializers.recursivelyRegisterType(genericTypeInfo.getTypeClass(), config, alreadySeen);
+		}
+		else if (typeInfo instanceof CompositeType) {
+			List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<>();
+			Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
+			for (GenericTypeInfo<?> gt : genericTypesInComposite) {
+				Serializers.recursivelyRegisterType(gt.getTypeClass(), config, alreadySeen);
+			}
+		}
+		else if (typeInfo instanceof ObjectArrayTypeInfo) {
+			ObjectArrayTypeInfo<?, ?> objectArrayTypeInfo = (ObjectArrayTypeInfo<?, ?>) typeInfo;
+			recursivelyRegisterType(objectArrayTypeInfo.getComponentInfo(), config, alreadySeen);
+		}
+	}
+	
+	public static void recursivelyRegisterType(Class<?> type, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+		// don't register or remember primitives
+		if (type == null || type.isPrimitive() || type == Object.class) {
 			return;
 		}
-		config.registerKryoType(type);
-		addSerializerForType(config, type);
-
-		Field[] fields = type.getDeclaredFields();
-		for (Field field : fields) {
-			if(Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
-				continue;
-			}
-			Type fieldType = field.getGenericType();
-			if (fieldType instanceof ParameterizedType) { // field has generics
-				ParameterizedType parameterizedFieldType = (ParameterizedType) fieldType;
-				for (Type t: parameterizedFieldType.getActualTypeArguments()) {
-					if (TypeExtractor.isClassType(t) ) {
-						Class<?> clazz = TypeExtractor.typeToClass(t);
-						if (!alreadySeen.contains(clazz)) {
-							recursivelyRegisterType(TypeExtractor.typeToClass(t), config);
-						}
-					}
+		
+		// prevent infinite recursion for recursive types
+		if (!alreadySeen.add(type)) {
+			return;
+		}
+		
+		if (type.isArray()) {
+			recursivelyRegisterType(type.getComponentType(), config, alreadySeen);
+		}
+		else {
+			config.registerKryoType(type);
+			checkAndAddSerializerForTypeAvro(config, type);
+	
+			Field[] fields = type.getDeclaredFields();
+			for (Field field : fields) {
+				if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
+					continue;
 				}
-			}
-			Class<?> clazz = field.getType();
-			if (!alreadySeen.contains(clazz)) {
-				recursivelyRegisterType(clazz, config);
+				Type fieldType = field.getGenericType();
+				recursivelyRegisterGenericType(fieldType, config, alreadySeen);
 			}
 		}
 	}
+	
+	private static void recursivelyRegisterGenericType(Type fieldType, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+		if (fieldType instanceof ParameterizedType) {
+			// field has generics
+			ParameterizedType parameterizedFieldType = (ParameterizedType) fieldType;
+			
+			for (Type t: parameterizedFieldType.getActualTypeArguments()) {
+				if (TypeExtractor.isClassType(t) ) {
+					recursivelyRegisterType(TypeExtractor.typeToClass(t), config, alreadySeen);
+				}
+			}
 
-	public static void addSerializerForType(ExecutionConfig reg, Class<?> type) {
+			recursivelyRegisterGenericType(parameterizedFieldType.getRawType(), config, alreadySeen);
+		}
+		else if (fieldType instanceof GenericArrayType) {
+			GenericArrayType genericArrayType = (GenericArrayType) fieldType;
+			recursivelyRegisterGenericType(genericArrayType.getGenericComponentType(), config, alreadySeen);
+		}
+		else if (fieldType instanceof Class) {
+			Class<?> clazz = (Class<?>) fieldType;
+			recursivelyRegisterType(clazz, config, alreadySeen);
+		}
+	}
+
+	private static void checkAndAddSerializerForTypeAvro(ExecutionConfig reg, Class<?> type) {
 		if (GenericData.Record.class.isAssignableFrom(type)) {
 			registerGenericAvro(reg);
 		}
@@ -105,16 +138,13 @@ public class Serializers {
 			Class<? extends SpecificRecordBase> specRecordClass = (Class<? extends SpecificRecordBase>) type;
 			registerSpecificAvro(reg, specRecordClass);
 		}
-		if (DateTime.class.isAssignableFrom(type) || Interval.class.isAssignableFrom(type)) {
-			registerJodaTime(reg);
-		}
 	}
 
 	/**
 	 * Register these serializers for using Avro's {@link GenericData.Record} and classes
 	 * implementing {@link org.apache.avro.specific.SpecificRecordBase}
 	 */
-	public static void registerGenericAvro(ExecutionConfig reg) {
+	private static void registerGenericAvro(ExecutionConfig reg) {
 		// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
 		// because Kryo is not able to serialize them properly, we use this serializer for them
 		reg.registerTypeWithKryoSerializer(GenericData.Array.class, SpecificInstanceCollectionSerializerForArrayList.class);
@@ -126,8 +156,7 @@ public class Serializers {
 		reg.addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
 	}
 
-
-	public static void registerSpecificAvro(ExecutionConfig reg, Class<? extends SpecificRecordBase> avroType) {
+	private static void registerSpecificAvro(ExecutionConfig reg, Class<? extends SpecificRecordBase> avroType) {
 		registerGenericAvro(reg);
 		// This rule only applies if users explicitly use the GenericTypeInformation for the avro types
 		// usually, we are able to handle Avro POJOs with the POJO serializer.
@@ -136,14 +165,13 @@ public class Serializers {
 	//	ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(avroType);
 	//	reg.registerTypeWithKryoSerializer(avroType, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
 	}
-
-
+	
 	/**
 	 * Currently, the following classes of JodaTime are supported:
-	 * 	- DateTime
-	 * 	- Interval
+	 *      - DateTime
+	 *      - Interval
 	 *
-	 * 	The following chronologies are supported: (see {@link de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer})
+	 *      The following chronologies are supported: (see {@link de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer})
 	 * <ul>
 	 * <li>{@link org.joda.time.chrono.ISOChronology}</li>
 	 * <li>{@link org.joda.time.chrono.CopticChronology}</li>
@@ -159,7 +187,7 @@ public class Serializers {
 		reg.registerTypeWithKryoSerializer(DateTime.class, JodaDateTimeSerializer.class);
 		reg.registerTypeWithKryoSerializer(Interval.class, JodaIntervalSerializer.class);
 	}
-
+	
 	/**
 	 * Register less frequently used serializers
 	 */
