@@ -40,8 +40,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Base class for all stream operators. Operators that contain a user function should extend the class 
- * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class). 
+ * Base class for all stream operators. Operators that contain a user function should extend the class
+ * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class).
  * 
  * <p>For concrete implementations, one of the following two interfaces must also be implemented, to
  * mark the operator as unary or binary:
@@ -54,11 +54,10 @@ import java.util.Map;
  *
  * @param <OUT> The output type of the operator
  */
-public abstract class AbstractStreamOperator<OUT> 
-		implements StreamOperator<OUT>, java.io.Serializable {
+public abstract class AbstractStreamOperator<OUT> implements StreamOperator<OUT>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	/** The logger used by the operator class and its subclasses */
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperator.class);
 
@@ -66,14 +65,14 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// A sane default for most operators
 	protected ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
-	
+
 	private boolean inputCopyDisabled = false;
-	
+
 	// ---------------- runtime fields ------------------
 
 	/** The task that contains this operator (and other operators in the same chain) */
 	private transient StreamTask<?, ?> container;
-	
+
 	private transient StreamConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
@@ -81,22 +80,21 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The runtime context for UDFs */
 	private transient StreamingRuntimeContext runtimeContext;
 
-	
 	// ---------------- key/value state ------------------
-	
+
 	/** key selector used to get the key for the state. Non-null only is the operator uses key/value state */
 	private transient KeySelector<?, ?> stateKeySelector;
-	
+
 	private transient KvState<?, ?, ?>[] keyValueStates;
-	
+
 	private transient HashMap<String, KvState<?, ?, ?>> keyValueStatesByName;
-	
+
 	private transient TypeSerializer<?> keySerializer;
-	
+
 	private transient HashMap<String, KvStateSnapshot<?, ?, ?>> keyValueStateSnapshots;
 
 	private long recoveryTimestamp;
-	
+
 	// ------------------------------------------------------------------------
 	//  Life Cycle
 	// ------------------------------------------------------------------------
@@ -134,7 +132,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void close() throws Exception {}
-	
+
 	/**
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.
@@ -150,7 +148,7 @@ public abstract class AbstractStreamOperator<OUT>
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Checkpointing
 	// ------------------------------------------------------------------------
@@ -158,22 +156,22 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		// here, we deal with key/value state snapshots
-		
+
 		StreamTaskState state = new StreamTaskState();
 		if (keyValueStates != null) {
 			HashMap<String, KvStateSnapshot<?, ?, ?>> snapshots = new HashMap<>(keyValueStatesByName.size());
-			
+
 			for (Map.Entry<String, KvState<?, ?, ?>> entry : keyValueStatesByName.entrySet()) {
 				KvStateSnapshot<?, ?, ?> snapshot = entry.getValue().snapshot(checkpointId, timestamp);
 				snapshots.put(entry.getKey(), snapshot);
 			}
-			
+
 			state.setKvStates(snapshots);
 		}
-		
+
 		return state;
 	}
-	
+
 	@Override
 	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
 		// restore the key/value state. the actual restore happens lazily, when the function requests
@@ -181,7 +179,7 @@ public abstract class AbstractStreamOperator<OUT>
 		keyValueStateSnapshots = state.getKvStates();
 		this.recoveryTimestamp = recoveryTimestamp;
 	}
-	
+
 	@Override
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
 		// We check whether the KvStates require notifications
@@ -207,19 +205,19 @@ public abstract class AbstractStreamOperator<OUT>
 	public ExecutionConfig getExecutionConfig() {
 		return container.getExecutionConfig();
 	}
-	
+
 	public StreamConfig getOperatorConfig() {
 		return config;
 	}
-	
+
 	public StreamTask<?, ?> getContainingTask() {
 		return container;
 	}
-	
+
 	public ClassLoader getUserCodeClassloader() {
 		return container.getUserCodeClassLoader();
 	}
-	
+
 	/**
 	 * Returns a context that allows the operator to query information about the execution and also
 	 * to interact with systems such as broadcast variables and managed state. This also allows
@@ -249,7 +247,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 *
 	 * @param stateType The type information for the state type, used for managed memory and state snapshots.
 	 * @param defaultValue The default value that the state should return for keys that currently have
-	 *                     no value associated with them 
+	 *                     no value associated with them
 	 *
 	 * @param <V> The type of the state value.
 	 *
@@ -263,13 +261,13 @@ public abstract class AbstractStreamOperator<OUT>
 	{
 		return createKeyValueState(name, stateType.createSerializer(getExecutionConfig()), defaultValue);
 	}
-	
+
 	/**
 	 * Creates a key/value state handle, using the state backend configured for this task.
 	 * 
 	 * @param valueSerializer The type serializer for the state type, used for managed memory and state snapshots.
 	 * @param defaultValue The default value that the state should return for keys that currently have
-	 *                     no value associated with them 
+	 *                     no value associated with them
 	 * 
 	 * @param <K> The type of the state key.
 	 * @param <V> The type of the state value.
@@ -292,7 +290,7 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		TypeSerializer<K> keySerializer;
-		
+
 		// first time state access, make sure we load the state partitioner
 		if (stateKeySelector == null) {
 			stateKeySelector = config.getStatePartitioner(getUserCodeClassloader());
@@ -314,11 +312,11 @@ public abstract class AbstractStreamOperator<OUT>
 			// should never happen, this is merely a safeguard
 			throw new RuntimeException();
 		}
-		
+
 		Backend stateBackend = (Backend) container.getStateBackend();
 
 		KvState<K, V, Backend> kvstate = null;
-		
+
 		// check whether we restore the key/value state from a snapshot, or create a new blank one
 		if (keyValueStateSnapshots != null) {
 			KvStateSnapshot<K, V, Backend> snapshot = (KvStateSnapshot<K, V, Backend>) keyValueStateSnapshots.remove(name);
@@ -328,7 +326,7 @@ public abstract class AbstractStreamOperator<OUT>
 						stateBackend, keySerializer, valueSerializer, defaultValue, getUserCodeClassloader(), recoveryTimestamp);
 			}
 		}
-		
+
 		if (kvstate == null) {
 			// create unique state id from operator id + state name
 			String stateId = name + "_" + getOperatorConfig().getVertexID();
@@ -343,7 +341,7 @@ public abstract class AbstractStreamOperator<OUT>
 		keyValueStates = keyValueStatesByName.values().toArray(new KvState[keyValueStatesByName.size()]);
 		return kvstate;
 	}
-	
+
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setKeyContextElement(StreamRecord record) throws Exception {
@@ -363,24 +361,31 @@ public abstract class AbstractStreamOperator<OUT>
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Context and chaining properties
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		this.chainingStrategy = strategy;
 	}
-	
+
 	@Override
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;
 	}
-	
+
 	@Override
 	public boolean isInputCopyingDisabled() {
 		return inputCopyDisabled;
+	}
+
+	@Override
+	public void setLastInputChannelNumber(int channelNumber) {
+		if (this.runtimeContext != null) {
+			this.runtimeContext.setLastInputChannelNumber(channelNumber);
+		}
 	}
 
 	/**
