@@ -220,7 +220,7 @@ class IsotonicRegressionITSuite extends FlatSpec with Matchers with FlinkTestBas
 		val env = ExecutionEnvironment.getExecutionEnvironment
 		env.setParallelism(2)
 
-		val dataset = generateIsotonicInput(env, labels)
+		val dataset = generateIsotonicInput(env, labels, weights, reverse = false)
 		val ir = new IsotonicRegression().setIsotonic(isotonic)
 		ir.fit(dataset)
 		ir
