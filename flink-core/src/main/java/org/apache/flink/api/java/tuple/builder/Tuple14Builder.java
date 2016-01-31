@@ -28,19 +28,19 @@ package org.apache.flink.api.java.tuple.builder;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple14;
 
-public class Tuple3Builder<T0, T1, T2> {
+public class Tuple14Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> {
 
-	private List<Tuple3<T0, T1, T2>> tuples = new ArrayList<Tuple3<T0, T1, T2>>();
+	private List<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> tuples = new ArrayList<>();
 
-	public Tuple3Builder<T0, T1, T2> add(T0 value0, T1 value1, T2 value2){
-		tuples.add(new Tuple3<T0, T1, T2>(value0, value1, value2));
+	public Tuple14Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9, T10 value10, T11 value11, T12 value12, T13 value13){
+		tuples.add(new Tuple14<>(value0, value1, value2, value3, value4, value5, value6, value7, value8, value9, value10, value11, value12, value13));
 		return this;
 	}
 
 	@SuppressWarnings("unchecked")
-	public Tuple3<T0, T1, T2>[] build(){
-		return tuples.toArray(new Tuple3[tuples.size()]);
+	public Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>[] build(){
+		return tuples.toArray(new Tuple14[tuples.size()]);
 	}
 }
