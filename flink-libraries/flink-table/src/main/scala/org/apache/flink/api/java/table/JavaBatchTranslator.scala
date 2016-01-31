@@ -20,13 +20,14 @@ package org.apache.flink.api.java.table
 
 import java.lang.reflect.Modifier
 
+import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.aggregation.AggregationFunction
 import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys
-import org.apache.flink.api.java.operators.{GroupReduceOperator, Keys, MapOperator, UnsortedGrouping}
+import Keys.ExpressionKeys
+import org.apache.flink.api.java.operators.{GroupReduceOperator, MapOperator, UnsortedGrouping}
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.table.expressions.analysis.ExtractEquiJoinFields
 import org.apache.flink.api.table.plan._

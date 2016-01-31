@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.type.extractor;
-
-
-import static org.junit.Assert.*;
+package org.apache.flink.api.java.typeutils;
 
 import java.io.IOException;
 
@@ -30,12 +27,12 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class TypeExtractorInputFormatsTest {

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
-import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.operators.{Keys, Order}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
@@ -31,7 +31,7 @@ import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.{DataSet => JavaDataSet, Utils}
@@ -93,6 +93,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
   /**
    * Returns the execution environment associated with the current DataSet.
+ *
    * @return associated execution environment
    */
   def getExecutionEnvironment: ExecutionEnvironment =
@@ -515,7 +516,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Convenience method to get the count (number of elements) of a DataSet
    *
    * @return A long integer that represents the number of elements in the set
-   *
    * @see org.apache.flink.api.java.Utils.CountHelper
    */
   @throws(classOf[Exception])
@@ -531,7 +531,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * As DataSet can contain a lot of data, this method should be used with caution.
    *
    * @return A Seq containing the elements of the DataSet
-   *
    * @see org.apache.flink.api.java.Utils.CollectHelper
    */
   @throws(classOf[Exception])
@@ -1369,7 +1368,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Range-partitions a DataSet on the specified fields.
    *
-  '''important:''' This operation requires an extra pass over the DataSet to compute the range
+  *'''important:''' This operation requires an extra pass over the DataSet to compute the range
    * boundaries and shuffles the whole DataSet over the network.
    * This can take significant amount of time.
    */
@@ -1385,7 +1384,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Range-partitions a DataSet using the specified key selector function.
    *
-  '''important:''' This operation requires an extra pass over the DataSet to compute the range
+  *'''important:''' This operation requires an extra pass over the DataSet to compute the range
    * boundaries and shuffles the whole DataSet over the network.
    * This can take significant amount of time.
    */
@@ -1516,6 +1515,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Writes `this` DataSet to the specified location. This uses [[AnyRef.toString]] on
    * each element.
+ *
    * @see org.apache.flink.api.java.DataSet#writeAsText(String)
    */
   def writeAsText(
@@ -1532,6 +1532,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Writes `this` DataSet to the specified location as CSV file(s).
    *
    * This only works on Tuple DataSets. For individual tuple fields [[AnyRef.toString]] is used.
+ *
    * @see org.apache.flink.api.java.DataSet#writeAsText(String)
    */
   def writeAsCsv(
@@ -1623,8 +1624,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * *
    * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
-   * @param sinkIdentifier The string to prefix the output with.
-   * 
+ *
+   * @param sinkIdentifier The string to prefix the output with. 
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @Deprecated
@@ -1636,8 +1637,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Writes a DataSet to the standard error stream (stderr) with a sink identifier prefixed.
    * This uses [[AnyRef.toString]] on each element.
-   * @param sinkIdentifier The string to prefix the output with.
-   * 
+ *
+   * @param sinkIdentifier The string to prefix the output with. 
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @Deprecated

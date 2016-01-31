@@ -33,7 +33,6 @@ import org.apache.flink.configuration.Configuration;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.List;
 import java.util.Random;
 
 import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
@@ -59,24 +58,6 @@ public final class Utils {
 		StackTraceElement elem = stackTrace[depth];
 
 		return String.format("%s(%s:%d)", elem.getMethodName(), elem.getFileName(), elem.getLineNumber());
-	}
-
-	/**
-	 * Returns all GenericTypeInfos contained in a composite type.
-	 *
-	 * @param typeInfo {@link CompositeType}
-	 */
-	public static void getContainedGenericTypes(CompositeType<?> typeInfo, List<GenericTypeInfo<?>> target) {
-		for (int i = 0; i < typeInfo.getArity(); i++) {
-			TypeInformation<?> type = typeInfo.getTypeAt(i);
-			if (type instanceof CompositeType) {
-				getContainedGenericTypes((CompositeType<?>) type, target);
-			} else if (type instanceof GenericTypeInfo) {
-				if (!target.contains(type)) {
-					target.add((GenericTypeInfo<?>) type);
-				}
-			}
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

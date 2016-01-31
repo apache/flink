@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.type.extractor;
+package org.apache.flink.api.java.typeutils;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -38,7 +38,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
@@ -46,30 +45,20 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
-import org.apache.flink.api.java.typeutils.Either;
-import org.apache.flink.api.java.typeutils.EitherTypeInfo;
-import org.apache.flink.api.java.typeutils.EnumTypeInfo;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.api.java.typeutils.ValueTypeInfo;
-import org.apache.flink.api.java.typeutils.WritableTypeInfo;
+import org.apache.flink.types.Either;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
 import org.apache.hadoop.io.Writable;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-
+@SuppressWarnings("serial")
 public class TypeExtractorTest {
 
 	
@@ -97,7 +86,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(ti, TypeExtractor.getForClass(Boolean.class));
 
 		// use getForObject()
-		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeExtractor.getForObject(Boolean.valueOf(true)));
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, TypeExtractor.getForObject(true));
 	}
 	
 	public static class MyWritable implements Writable {
@@ -356,7 +345,9 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, (TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomType"), (TypeInformation) TypeInfoParser.parse("Integer"));
+		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, 
+				(TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType"),
+				(TypeInformation) TypeInfoParser.parse("Integer"));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -408,7 +399,8 @@ public class TypeExtractorTest {
 
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Long,org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomType>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, 
+				(TypeInformation) TypeInfoParser.parse("Tuple2<Long,org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType>"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -849,25 +841,6 @@ public class TypeExtractorTest {
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	@Test
-	public void testFunctionWithMissingGenericsAndReturns() {
-		RichMapFunction function = new RichMapFunction() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Object map(Object value) throws Exception {
-				return null;
-			}
-		};
-
-		TypeInformation info = ExecutionEnvironment.getExecutionEnvironment()
-				.fromElements("arbitrary", "data")
-				.map(function).returns("String").getResultType();
-
-		Assert.assertEquals(TypeInfoParser.parse("String"), info);
-	}
-
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testFunctionDependingOnInputAsSuperclass() {
@@ -1256,7 +1229,8 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomArrayObject[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function,
+				(TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomArrayObject[]"));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
@@ -1816,11 +1790,13 @@ public class TypeExtractorTest {
 				return null;
 			}
 		};
-		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomType<"
-				+ "myField1=String,myField2=int"
-				+ ">[][][]"));
+		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, 
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType<"
+					+ "myField1=String,myField2=int"
+					+ ">[][][]"));
+		
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
-				+ "PojoType<org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomType, fields = [myField1: String, myField2: Integer]>"
+				+ "PojoType<org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType, fields = [myField1: String, myField2: Integer]>"
 				+ ">>>", ti.toString());
 		
 		// generic array

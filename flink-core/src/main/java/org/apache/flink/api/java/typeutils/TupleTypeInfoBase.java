@@ -24,9 +24,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.base.Preconditions;
+
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 
 public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 
@@ -35,7 +36,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	private final static String REGEX_FIELD = "(f?)([0-9]+)";
 	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
 	private final static String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
-			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR
+			+"|\\"+ ExpressionKeys.SELECT_ALL_CHAR
 			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR_SCALA;
 
 	private static final Pattern PATTERN_FIELD = Pattern.compile(REGEX_FIELD);

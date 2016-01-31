@@ -20,7 +20,8 @@ package org.apache.flink.api.scala.operators
 import java.util
 
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException
+import org.apache.flink.api.common.operators.Keys
+import Keys.IncompatibleKeysException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.junit.{Assert, Test}

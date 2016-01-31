@@ -20,15 +20,15 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.apache.flink.api.java.typeutils.Either.Left;
-import static org.apache.flink.api.java.typeutils.Either.Right;
+import static org.apache.flink.types.Either.Left;
+import static org.apache.flink.types.Either.Right;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.Either;
+import org.apache.flink.types.Either;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.junit.Test;

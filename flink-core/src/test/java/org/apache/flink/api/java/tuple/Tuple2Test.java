@@ -16,22 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.api.java.tuple;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.types.NullFieldException;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * This interface can be implemented by functions and input formats to tell the framework
- * about their produced data type. This method acts as an alternative to the reflection analysis
- * that is otherwise performed and is useful in situations where the produced data type may vary
- * depending on parameterization.
- */
-public interface ResultTypeQueryable<T> {
+public class Tuple2Test {
 
-	/**
-	 * Gets the data type (as a {@link TypeInformation}) produced by this function or input format.
-	 * 
-	 * @return The data type produced by this function or input format.
-	 */
-	TypeInformation<T> getProducedType();
+	@Test
+	public void testSwapValues() {
+		Tuple2<String, Integer> toSwap = new Tuple2<>("Test case", 25);
+		Tuple2<Integer, String> swapped = toSwap.swap();
+
+		Assert.assertEquals(swapped.f0, toSwap.f1);
+
+		Assert.assertEquals(swapped.f1, toSwap.f0);
+	}
+	
+	@Test(expected = NullFieldException.class)
+	public void testGetFieldNotNull() {
+		Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
+
+		Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
+		tuple.getFieldNotNull(1);
+	}
 }

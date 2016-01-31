@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
+import org.apache.flink.types.Either;
 
 /**
  * A {@link TypeInformation} for the {@link Either} type of the Java API.

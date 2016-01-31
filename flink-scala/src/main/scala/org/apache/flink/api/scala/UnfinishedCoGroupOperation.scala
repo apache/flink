@@ -19,6 +19,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.functions.CoGroupFunction
+import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
@@ -36,6 +37,7 @@ import scala.reflect.ClassTag
  *   val right = ...
  *   val coGroupResult = left.coGroup(right).where(...).isEqualTo(...)
  * }}}
+ *
  * @tparam L The type of the left input of the coGroup.
  * @tparam R The type of the right input of the coGroup.
  */
