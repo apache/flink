@@ -30,7 +30,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.avro.specific.SpecificRecordBase;
+
 import org.apache.commons.lang3.ClassUtils;
+
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -54,9 +56,12 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
 import org.apache.hadoop.io.Writable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

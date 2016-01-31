@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java.type.extractor;
+
+package org.apache.flink.api.java.typeutils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,18 +29,11 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoField;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyWritable;
-import org.apache.flink.api.java.typeutils.WritableTypeInfo;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -559,67 +553,7 @@ public class PojoTypeExtractionTest {
 			}
 		}
 	}
-
-
-	public static class Vertex<K, V> {
-
-		private K key1;
-		private K key2;
-		private V value;
-
-		public Vertex() {}
-
-		public Vertex(K key, V value) {
-			this.key1 = key;
-			this.key2 = key;
-			this.value = value;
-		}
-
-		public Vertex(K key1, K key2, V value) {
-			this.key1 = key1;
-			this.key2 = key2;
-			this.value = value;
-		}
-
-		public void setKey1(K key1) {
-			this.key1 = key1;
-		}
-
-		public void setKey2(K key2) {
-			this.key2 = key2;
-		}
-
-		public K getKey1() {
-			return key1;
-		}
-
-		public K getKey2() {
-			return key2;
-		}
-
-		public void setValue(V value) {
-			this.value = value;
-		}
-
-		public V getValue() {
-			return value;
-		}
-	}
-
-	public static class VertexTyped extends Vertex<Long, Double>{
-		public VertexTyped(Long l, Double d) {
-			super(l, d);
-		}
-		public VertexTyped() {
-		}
-	}
-
-	@Test
-	public void testGetterSetterWithVertex() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
-	}
-
+	
 	public static class MyMapper<T> implements MapFunction<PojoWithGenerics<Long, T>, PojoWithGenerics<T,T>> {
 		private static final long serialVersionUID = 1L;
 
@@ -636,7 +570,8 @@ public class PojoTypeExtractionTest {
 		MapFunction<?, ?> function = new MyMapper<String>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=Long,field2=String>"));
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=Long,field2=String>"));
+		
 		Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
 		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
 		for(int i = 0; i < pti.getArity(); i++) {
@@ -710,7 +645,8 @@ public class PojoTypeExtractionTest {
 		MapFunction<?, ?> function = new MyMapper3<Boolean, Character>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoTuple<extraField=char,f0=boolean,f1=boolean,f2=long>"));
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoTuple<extraField=char,f0=boolean,f1=boolean,f2=long>"));
+		
 		Assert.assertTrue(ti instanceof TupleTypeInfo<?>);
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
 		Assert.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, tti.getTypeAt(0));
@@ -735,7 +671,7 @@ public class PojoTypeExtractionTest {
 		MapFunction<?, ?> function = new MyMapper4<Byte>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields1<field=Tuple2<byte,byte>>"));
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields1<field=Tuple2<byte,byte>>"));
 		Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
 	}
 
@@ -757,8 +693,8 @@ public class PojoTypeExtractionTest {
 		MapFunction<?, ?> function = new MyMapper5<Byte>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields2<"
-						+ "field=org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=byte,field2=byte>"
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields2<"
+						+ "field=org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=byte,field2=byte>"
 						+ ">"));
 		Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
 	}
@@ -781,7 +717,7 @@ public class PojoTypeExtractionTest {
 		MapFunction<?, ?> function = new MyMapper6<Integer>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields3<"
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields3<"
 						+ "field=int[]"
 						+ ">"));
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
@@ -805,7 +741,7 @@ public class PojoTypeExtractionTest {
 		MapFunction<?, ?> function = new MyMapper7<Integer>();
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields4<"
+				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields4<"
 						+ "field=Tuple1<int>[]"
 						+ ">"));
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);

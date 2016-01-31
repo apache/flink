@@ -19,10 +19,10 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.common.operators.Keys
 
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.operators.Keys
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import Keys.ExpressionKeys
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**

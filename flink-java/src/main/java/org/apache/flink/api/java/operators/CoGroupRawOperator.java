@@ -21,11 +21,12 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
+import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException;
 
 /**
  * A {@link DataSet} that is the result of a CoGroup transformation. 

@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.api.java.type.extractor;
+package org.apache.flink.api.java.typeutils;
 
 import static org.junit.Assert.assertTrue;
 

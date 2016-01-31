@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.operators;
+package org.apache.flink.api.common.operators;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,22 +24,12 @@ import java.util.List;
 import com.google.common.base.Joiner;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.KeyRemovingMapper;
-import org.apache.flink.api.java.operators.translation.TwoKeyExtractingMapper;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import com.google.common.base.Preconditions;
@@ -175,87 +165,6 @@ public abstract class Keys<T> {
 						+ "Partitioner type: " + typeInfo + " , key type: " + keyType);
 				}
 			}
-		}
-
-		@SuppressWarnings("unchecked")
-		public static <T, K> Operator<Tuple2<K, T>> appendKeyExtractor(
-			Operator<T> input,
-			SelectorFunctionKeys<T, K> key)
-		{
-
-			TypeInformation<T> inputType = key.getInputType();
-			TypeInformation<Tuple2<K, T>> typeInfoWithKey = createTypeWithKey(key);
-			KeyExtractingMapper<T, K> extractor = new KeyExtractingMapper(key.getKeyExtractor());
-
-			MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>> mapper =
-				new MapOperatorBase<T, Tuple2<K, T>, MapFunction<T, Tuple2<K, T>>>(
-					extractor,
-					new UnaryOperatorInformation(inputType, typeInfoWithKey),
-					"Key Extractor"
-				);
-
-			mapper.setInput(input);
-			mapper.setParallelism(input.getParallelism());
-
-			return mapper;
-		}
-
-		@SuppressWarnings("unchecked")
-		public static <T, K1, K2> Operator<Tuple3<K1, K2, T>> appendKeyExtractor(
-			Operator<T> input,
-			SelectorFunctionKeys<T, K1> key1,
-			SelectorFunctionKeys<T, K2> key2)
-		{
-
-			TypeInformation<T> inputType = key1.getInputType();
-			TypeInformation<Tuple3<K1, K2, T>> typeInfoWithKey = createTypeWithKey(key1, key2);
-			TwoKeyExtractingMapper<T, K1, K2> extractor =
-				new TwoKeyExtractingMapper<>(key1.getKeyExtractor(), key2.getKeyExtractor());
-
-			MapOperatorBase<T, Tuple3<K1, K2, T>, MapFunction<T, Tuple3<K1, K2, T>>> mapper =
-				new MapOperatorBase<T, Tuple3<K1, K2, T>, MapFunction<T, Tuple3<K1, K2, T>>>(
-					extractor,
-					new UnaryOperatorInformation<>(inputType, typeInfoWithKey),
-					"Key Extractor"
-				);
-
-			mapper.setInput(input);
-			mapper.setParallelism(input.getParallelism());
-
-			return mapper;
-		}
-
-		public static <T, K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> appendKeyRemover(
-			Operator<Tuple2<K, T>> inputWithKey,
-			SelectorFunctionKeys<T, K> key)
-		{
-
-			TypeInformation<T> inputType = key.getInputType();
-			TypeInformation<Tuple2<K, T>> typeInfoWithKey = createTypeWithKey(key);
-
-			MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>> mapper =
-				new MapOperatorBase<Tuple2<K, T>, T, MapFunction<Tuple2<K, T>, T>>(
-					new KeyRemovingMapper<T, K>(),
-					new UnaryOperatorInformation<>(typeInfoWithKey, inputType),
-					"Key Remover"
-				);
-			mapper.setInput(inputWithKey);
-			mapper.setParallelism(inputWithKey.getParallelism());
-
-			return mapper;
-		}
-
-		public static <T, K> TypeInformation<Tuple2<K, T>> createTypeWithKey(
-			SelectorFunctionKeys<T, K> key)
-		{
-			return new TupleTypeInfo<>(key.getKeyType(), key.getInputType());
-		}
-
-		public static <T, K1, K2> TypeInformation<Tuple3<K1, K2, T>> createTypeWithKey(
-			SelectorFunctionKeys<T, K1> key1,
-			SelectorFunctionKeys<T, K2> key2)
-		{
-			return new TupleTypeInfo<>(key1.getKeyType(), key2.getKeyType(), key1.getInputType());
 		}
 
 		@Override

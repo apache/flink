@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction, Partitioner, RichFlatJoinFunction}
+import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
@@ -256,6 +257,7 @@ private[flink] abstract class UnfinishedJoinOperationBase[L, R, O <: JoinFunctio
  *   val right = ...
  *   val joinResult = left.join(right).where(...).equalTo(...)
  * }}}
+ *
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.
  */
@@ -287,6 +289,7 @@ class UnfinishedJoinOperation[L, R](
  *     (first, second) => ...
  *   }
  * }}}
+ *
  * @tparam L The type of the left input of the join.
  * @tparam R The type of the right input of the join.
  */
