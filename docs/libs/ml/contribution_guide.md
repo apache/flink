@@ -1,7 +1,11 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - How to Contribute 
-title: <a href="../ml">FlinkML</a> - How to Contribute
+title: FlinkML - How to Contribute
+
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: How To Contribute
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

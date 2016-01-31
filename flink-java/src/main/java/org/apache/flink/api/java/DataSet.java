@@ -46,7 +46,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.io.CsvOutputFormat;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
@@ -387,8 +386,7 @@ public abstract class DataSet<T> {
 	public long count() throws Exception {
 		final String id = new AbstractID().toString();
 
-		flatMap(new Utils.CountHelper<T>(id)).name("count()")
-				.output(new DiscardingOutputFormat<Long>()).name("count() sink");
+		output(new Utils.CountHelper<T>(id)).name("count()");
 
 		JobExecutionResult res = getExecutionEnvironment().execute();
 		return res.<Long> getAccumulatorResult(id);
@@ -405,8 +403,7 @@ public abstract class DataSet<T> {
 		final String id = new AbstractID().toString();
 		final TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
 		
-		this.flatMap(new Utils.CollectHelper<>(id, serializer)).name("collect()")
-				.output(new DiscardingOutputFormat<T>()).name("collect() sink");
+		this.output(new Utils.CollectHelper<>(id, serializer)).name("collect()");
 		JobExecutionResult res = getExecutionEnvironment().execute();
 
 		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
@@ -604,7 +601,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(int... fields) {
-		return new DistinctOperator<>(this, new Keys.ExpressionKeys<>(fields, getType(), true), Utils.getCallLocationName());
+		return new DistinctOperator<>(this, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -689,7 +686,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public UnsortedGrouping<T> groupBy(int... fields) {
-		return new UnsortedGrouping<>(this, new Keys.ExpressionKeys<>(fields, getType(), false));
+		return new UnsortedGrouping<>(this, new Keys.ExpressionKeys<>(fields, getType()));
 	}
 
 	/**
@@ -844,6 +841,7 @@ public abstract class DataSet<T> {
 		switch(strategy) {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
 			case REPARTITION_HASH_SECOND:
 			case BROADCAST_HASH_SECOND:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.LEFT_OUTER);
@@ -894,6 +892,7 @@ public abstract class DataSet<T> {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
 			case REPARTITION_HASH_FIRST:
+			case REPARTITION_HASH_SECOND:
 			case BROADCAST_HASH_FIRST:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.RIGHT_OUTER);
 			default:
@@ -941,6 +940,8 @@ public abstract class DataSet<T> {
 		switch(strategy) {
 			case OPTIMIZER_CHOOSES:
 			case REPARTITION_SORT_MERGE:
+			case REPARTITION_HASH_FIRST:
+			case REPARTITION_HASH_SECOND:
 				return new JoinOperatorSetsBase<>(this, other, strategy, JoinType.FULL_OUTER);
 			default:
 			throw new InvalidProgramException("Invalid JoinHint for FullOuterJoin: "+strategy);
@@ -1168,7 +1169,7 @@ public abstract class DataSet<T> {
 		Preconditions.checkNotNull(workset);
 		Preconditions.checkNotNull(keyPositions);
 		
-		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<>(keyPositions, getType(), false);
+		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<>(keyPositions, getType());
 		return new DeltaIteration<>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
 
@@ -1217,7 +1218,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByHash(int... fields) {
-		return new PartitionOperator<>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<>(fields, getType(), false), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1257,7 +1258,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByRange(int... fields) {
-		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, getType(), false), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, PartitionMethod.RANGE, new Keys.ExpressionKeys<>(fields, getType()), Utils.getCallLocationName());
 	}
 
 	/**
@@ -1300,7 +1301,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, int field) {
-		return new PartitionOperator<>(this, new Keys.ExpressionKeys<>(new int[] {field}, getType(), false), clean(partitioner), Utils.getCallLocationName());
+		return new PartitionOperator<>(this, new Keys.ExpressionKeys<>(new int[] {field}, getType()), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**

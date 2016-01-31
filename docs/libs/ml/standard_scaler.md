@@ -1,7 +1,10 @@
 ---
 mathjax: include
-htmlTitle: FlinkML - Standard Scaler
-title: <a href="../ml">FlinkML</a> - Standard Scaler
+title: FlinkML - Standard Scaler
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Standard Scaler
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -44,4 +44,9 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	public long getAndIncrement() throws Exception {
 		return checkpointIdCounter.getAndIncrement();
 	}
+
+	@Override
+	public void setCount(long newCount) {
+		checkpointIdCounter.set(newCount);
+	}
 }

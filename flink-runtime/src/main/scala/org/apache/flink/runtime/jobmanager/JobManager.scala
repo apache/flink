@@ -19,21 +19,22 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.{File, IOException}
-import java.net.{UnknownHostException, InetAddress, InetSocketAddress}
+import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress, InetSocketAddress}
 import java.util.UUID
 
 import akka.actor.Status.Failure
 import akka.actor._
 import akka.pattern.ask
 import grizzled.slf4j.Logger
-import org.apache.flink.api.common.{ExecutionConfig, JobID}
+import org.apache.flink.api.common.{ApplicationID, ExecutionConfig, JobID}
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.checkpoint.{CheckpointRecoveryFactory, StandaloneCheckpointRecoveryFactory, ZooKeeperCheckpointRecoveryFactory}
+import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
+import org.apache.flink.runtime.execution.UnrecoverableException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionJobVertex}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceManager}
@@ -50,7 +51,7 @@ import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
 import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
-import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint}
+import org.apache.flink.runtime.messages.checkpoint.{DeclineCheckpoint, AbstractCheckpointMessage, AcknowledgeCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
@@ -60,13 +61,14 @@ import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil, NetUtils}
+import org.jboss.netty.channel.ChannelException
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.language.postfixOps
-
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -136,6 +138,9 @@ class JobManager(
   val webMonitorPort : Int = flinkConfiguration.getInteger(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
+  protected val savepointStore : SavepointStore =
+    SavepointStoreFactory.createFromConfig(flinkConfiguration)
+
   /**
    * Run when the job manager is started. Simply logs an informational message.
    * The method also starts the leader election service.
@@ -167,6 +172,14 @@ class JobManager(
         log.error("Could not start the checkpoint recovery service.", e)
         throw new RuntimeException("Could not start the checkpoint recovery service.", e)
     }
+
+    try {
+      savepointStore.start()
+    } catch {
+      case e: Exception =>
+        log.error("Could not start the savepoint store.", e)
+        throw new RuntimeException("Could not start the  savepoint store store.", e)
+    }
   }
 
   override def postStop(): Unit = {
@@ -188,6 +201,14 @@ class JobManager(
       _.getActorGateway().tell(
         Disconnect("JobManager is shutting down"),
         new AkkaActorGateway(self, leaderSessionID.orNull))
+    }
+
+    try {
+      savepointStore.stop()
+    } catch {
+      case e: Exception =>
+        log.error("Could not stop the savepoint store.", e)
+        throw new RuntimeException("Could not stop the  savepoint store store.", e)
     }
 
     try {
@@ -502,6 +523,74 @@ class JobManager(
     case checkpointMessage : AbstractCheckpointMessage =>
       handleCheckpointMessage(checkpointMessage)
 
+    case TriggerSavepoint(jobId) =>
+      currentJobs.get(jobId) match {
+        case Some((graph, _)) =>
+          val savepointCoordinator = graph.getSavepointCoordinator()
+
+          if (savepointCoordinator != null) {
+            // Immutable copy for the future
+            val senderRef = sender()
+
+            future {
+              try {
+                // Do this async, because checkpoint coordinator operations can
+                // contain blocking calls to the state backend or ZooKeeper.
+                val savepointFuture = savepointCoordinator.triggerSavepoint(
+                  System.currentTimeMillis())
+
+                savepointFuture.onComplete {
+                  // Success, respond with the savepoint path
+                  case scala.util.Success(savepointPath) =>
+                    senderRef ! TriggerSavepointSuccess(jobId, savepointPath)
+
+                  // Failure, respond with the cause
+                  case scala.util.Failure(t) =>
+                    senderRef ! TriggerSavepointFailure(
+                      jobId,
+                      new Exception("Failed to complete savepoint", t))
+                }(context.dispatcher)
+              } catch {
+                case e: Exception =>
+                  senderRef ! TriggerSavepointFailure(jobId, new Exception(
+                    "Failed to trigger savepoint", e))
+              }
+            }(context.dispatcher)
+          } else {
+            sender() ! TriggerSavepointFailure(jobId, new IllegalStateException(
+              "Checkpointing disabled. You can enable it via the execution environment of " +
+                "your job."))
+          }
+
+        case None =>
+          sender() ! TriggerSavepointFailure(jobId, new IllegalArgumentException("Unknown job."))
+      }
+
+    case DisposeSavepoint(savepointPath) =>
+      val senderRef = sender()
+      future {
+        try {
+          log.info(s"Disposing savepoint at '$savepointPath'.")
+
+          val savepoint = savepointStore.getState(savepointPath)
+
+          log.debug(s"$savepoint")
+
+          // Discard the associated checkpoint
+          savepoint.getCompletedCheckpoint.discard(getClass.getClassLoader)
+
+          // Dispose the savepoint
+          savepointStore.disposeState(savepointPath)
+
+          senderRef ! DisposeSavepointSuccess
+        } catch {
+          case t: Throwable =>
+            log.error(s"Failed to dispose savepoint at '$savepointPath'.", t)
+
+            senderRef ! DisposeSavepointFailure(t)
+        }
+      }(context.dispatcher)
+
     case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
@@ -761,6 +850,7 @@ class JobManager(
    * @param isRecovery Flag indicating whether this is a recovery or initial submission
    */
   private def submitJob(jobGraph: JobGraph, jobInfo: JobInfo, isRecovery: Boolean = false): Unit = {
+
     if (jobGraph == null) {
       jobInfo.client ! decorateMessage(JobResultFailure(
         new SerializedThrowable(
@@ -929,7 +1019,8 @@ class JobManager(
             leaderSessionID.orNull,
             checkpointIdCounter,
             completedCheckpoints,
-            recoveryMode)
+            recoveryMode,
+            savepointStore)
         }
 
         // get notified about job status changes
@@ -973,6 +1064,21 @@ class JobManager(
             executionGraph.restoreLatestCheckpointedState()
           }
           else {
+            val snapshotSettings = jobGraph.getSnapshotSettings
+            if (snapshotSettings != null) {
+              val savepointPath = snapshotSettings.getSavepointPath()
+
+              // Reset state back to savepoint
+              if (savepointPath != null) {
+                try {
+                  executionGraph.restoreSavepoint(savepointPath)
+                } catch {
+                  case e: Exception =>
+                    throw new UnrecoverableException(e)
+                }
+              }
+            }
+
             submittedJobGraphs.putJobGraph(new SubmittedJobGraph(jobGraph, jobInfo))
           }
 
@@ -1021,11 +1127,23 @@ class JobManager(
         val jid = ackMessage.getJob()
         currentJobs.get(jid) match {
           case Some((graph, _)) =>
-            val coordinator = graph.getCheckpointCoordinator()
-            if (coordinator != null) {
+            val checkpointCoordinator = graph.getCheckpointCoordinator()
+            val savepointCoordinator = graph.getSavepointCoordinator()
+
+            if (checkpointCoordinator != null && savepointCoordinator != null) {
               future {
                 try {
-                  coordinator.receiveAcknowledgeMessage(ackMessage)
+                  if (checkpointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
+                    // OK, this is the common case
+                  }
+                  else {
+                    // Try the savepoint coordinator if the message was not addressed
+                    // to the periodic checkpoint coordinator.
+                    if (!savepointCoordinator.receiveAcknowledgeMessage(ackMessage)) {
+                      log.info("Received message for non-existing checkpoint " +
+                        ackMessage.getCheckpointId)
+                    }
+                  }
                 }
                 catch {
                   case t: Throwable =>
@@ -1035,11 +1153,49 @@ class JobManager(
             }
             else {
               log.error(
-                s"Received ConfirmCheckpoint message for job $jid with no CheckpointCoordinator")
+                s"Received AcknowledgeCheckpoint message for job $jid with no " +
+                  s"CheckpointCoordinator")
             }
-            
-          case None => log.error(s"Received ConfirmCheckpoint for unavailable job $jid")
+
+          case None => log.error(s"Received AcknowledgeCheckpoint for unavailable job $jid")
         }
+
+      case declineMessage: DeclineCheckpoint =>
+        val jid = declineMessage.getJob()
+        currentJobs.get(jid) match {
+          case Some((graph, _)) =>
+            val checkpointCoordinator = graph.getCheckpointCoordinator()
+            val savepointCoordinator = graph.getSavepointCoordinator()
+
+            if (checkpointCoordinator != null && savepointCoordinator != null) {
+              future {
+                try {
+                  if (checkpointCoordinator.receiveDeclineMessage(declineMessage)) {
+                    // OK, this is the common case
+                  }
+                  else {
+                    // Try the savepoint coordinator if the message was not addressed
+                    // to the periodic checkpoint coordinator.
+                    if (!savepointCoordinator.receiveDeclineMessage(declineMessage)) {
+                      log.info("Received message for non-existing checkpoint " +
+                        declineMessage.getCheckpointId)
+                    }
+                  }
+                }
+                catch {
+                  case t: Throwable =>
+                    log.error(s"Error in CheckpointCoordinator while processing $declineMessage", t)
+                }
+              }(context.dispatcher)
+            }
+            else {
+              log.error(
+                s"Received DeclineCheckpoint message for job $jid with no CheckpointCoordinator")
+            }
+
+          case None => log.error(s"Received DeclineCheckpoint for unavailable job $jid")
+        }
+
 
       // unknown checkpoint message
       case _ => unhandled(actorMessage)
@@ -1393,7 +1549,8 @@ object JobManager {
     // parsing the command line arguments
     val (configuration: Configuration,
          executionMode: JobManagerMode,
-         listeningHost: String, listeningPort: Int) =
+         listeningHost: String,
+         listeningPortRange: java.util.Iterator[Integer]) =
     try {
       parseArgs(args)
     }
@@ -1414,19 +1571,16 @@ object JobManager {
       System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
 
-    if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
-      // address and will not be reachable from anyone remote
-      if (listeningPort != 0) {
-        val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-          "' is invalid, it must be equal to 0."
+    if (!listeningPortRange.hasNext) {
+      if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
+        val message = "Config parameter '" + ConfigConstants.RECOVERY_JOB_MANAGER_PORT +
+          "' does not specify a valid port range."
         LOG.error(message)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
-    } else {
-      // address and will not be reachable from anyone remote
-      if (listeningPort <= 0 || listeningPort >= 65536) {
-        val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-          "' is invalid, it must be greater than 0 and less than 65536."
+      else {
+        val message = s"Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+          "' does not specify a valid port."
         LOG.error(message)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
@@ -1442,20 +1596,18 @@ object JobManager {
               configuration,
               executionMode,
               listeningHost,
-              listeningPort)
+              listeningPortRange)
           }
         })
-      }
-      else {
+      } else {
         LOG.info("Security is not enabled. Starting non-authenticated JobManager.")
         runJobManager(
           configuration,
           executionMode,
           listeningHost,
-          listeningPort)
+          listeningPortRange)
       }
-    }
-    catch {
+    } catch {
       case t: Throwable =>
         LOG.error("Failed to run JobManager.", t)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
@@ -1494,6 +1646,103 @@ object JobManager {
 
     // block until everything is shut down
     jobManagerSystem.awaitTermination()
+  }
+
+  /**
+    * Starts and runs the JobManager with all its components trying to bind to
+    * a port in the specified range.
+    *
+    * @param configuration The configuration object for the JobManager.
+    * @param executionMode The execution mode in which to run. Execution mode LOCAL will spawn an
+    *                      an additional TaskManager in the same process.
+    * @param listeningAddress The hostname where the JobManager should listen for messages.
+    * @param listeningPortRange The port range where the JobManager should listen for messages.
+    */
+  def runJobManager(
+      configuration: Configuration,
+      executionMode: JobManagerMode,
+      listeningAddress: String,
+      listeningPortRange: java.util.Iterator[Integer])
+    : Unit = {
+
+    val result = retryOnBindException({
+      // Try all ports in the range until successful
+      val socket = NetUtils.createSocketFromPorts(
+        listeningPortRange,
+        new NetUtils.SocketFactory {
+          override def createSocket(port: Int): ServerSocket = new ServerSocket(
+            // Use the correct listening address, bound ports will only be
+            // detected later by Akka.
+            port, 0, InetAddress.getByName(listeningAddress))
+        })
+
+      val port =
+        if (socket == null) {
+          throw new BindException(s"Unable to allocate port for JobManager.")
+        } else {
+          try {
+            socket.getLocalPort()
+          } finally {
+            socket.close()
+          }
+        }
+
+      runJobManager(configuration, executionMode, listeningAddress, port)
+    }, { !listeningPortRange.hasNext }, 5000)
+
+    result match {
+      case scala.util.Failure(f) => throw f
+    }
+  }
+
+  /**
+    * Retries a function if it fails because of a [[java.net.BindException]].
+    *
+    * @param fn The function to retry
+    * @param stopCond Flag to signal termination
+    * @param maxSleepBetweenRetries Max random sleep time between retries
+    * @tparam T Return type of the the function to retry
+    * @return Return value of the the function to retry
+    */
+  @tailrec
+  def retryOnBindException[T](
+      fn: => T,
+      stopCond: => Boolean,
+      maxSleepBetweenRetries : Long = 0 )
+    : scala.util.Try[T] = {
+
+    def sleepBeforeRetry : Unit = {
+      if (maxSleepBetweenRetries > 0) {
+        val sleepTime = ((Math.random() * maxSleepBetweenRetries).asInstanceOf[Long])
+        LOG.info(s"Retrying after bind exception. Sleeping for ${sleepTime} ms.")
+        Thread.sleep(sleepTime)
+      }
+    }
+
+    scala.util.Try {
+      fn
+    } match {
+      case scala.util.Failure(x: BindException) =>
+        if (stopCond) {
+          scala.util.Failure(new RuntimeException(
+            "Unable to do further retries starting the actor system"))
+        } else {
+          sleepBeforeRetry
+          retryOnBindException(fn, stopCond)
+        }
+      case scala.util.Failure(x: Exception) => x.getCause match {
+        case c: ChannelException =>
+          if (stopCond) {
+            scala.util.Failure(new RuntimeException(
+              "Unable to do further retries starting the actor system"))
+          } else {
+            sleepBeforeRetry
+            retryOnBindException(fn, stopCond)
+          }
+        case _ => scala.util.Failure(x)
+      }
+      case f => f
+    }
   }
 
   /** Starts an ActorSystem, the JobManager and all its components including the WebMonitor.
@@ -1644,7 +1893,8 @@ object JobManager {
    * @param args command line arguments
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]): (Configuration, JobManagerMode, String, Int) = {
+  def parseArgs(args: Array[String])
+    : (Configuration, JobManagerMode, String, java.util.Iterator[Integer]) = {
     val parser = new scopt.OptionParser[JobManagerCliOptions]("JobManager") {
       head("Flink JobManager")
 
@@ -1709,27 +1959,44 @@ object JobManager {
 
     val host = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
 
-    // high availability mode
-    val port: Int =
+    val portRange =
+      // high availability mode
       if (ZooKeeperUtils.isZooKeeperRecoveryMode(configuration)) {
-        LOG.info("Starting JobManager in High-Availability Mode")
+        LOG.info("Starting JobManager with high-availability")
 
         configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
-        0
+
+        // The port range of allowed job manager ports or 0 for random
+        configuration.getString(
+          ConfigConstants.RECOVERY_JOB_MANAGER_PORT,
+          ConfigConstants.DEFAULT_RECOVERY_JOB_MANAGER_PORT)
       }
       else {
         LOG.info("Starting JobManager without high-availability")
-  
-        configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-            ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+        // In standalone mode, we don't allow port ranges
+        val listeningPort = configuration.getInteger(
+          ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+        if (listeningPort <= 0 || listeningPort >= 65536) {
+          val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+            "' is invalid, it must be greater than 0 and less than 65536."
+          LOG.error(message)
+          System.exit(STARTUP_FAILURE_RETURN_CODE)
+        }
+
+        String.valueOf(listeningPort)
       }
 
     val executionMode = config.getJobManagerMode
-    val hostPortUrl = NetUtils.hostAndPortToUrlString(host, port)
-    
-    LOG.info(s"Starting JobManager on $hostPortUrl with execution mode $executionMode")
+    val hostUrl = NetUtils.ipAddressToUrlString(InetAddress.getByName(host))
 
-    (configuration, executionMode, host, port)
+    LOG.info(s"Starting JobManager on $hostUrl:$portRange with execution mode $executionMode")
+
+    val portRangeIterator = NetUtils.getPortRangeFromString(portRange)
+
+    (configuration, executionMode, host, portRangeIterator)
   }
 
   /**
@@ -1764,7 +2031,7 @@ object JobManager {
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
     val executionRetries = configuration.getInteger(
-      ConfigConstants.DEFAULT_EXECUTION_RETRIES_KEY,
+      ConfigConstants.EXECUTION_RETRIES_KEY,
       ConfigConstants.DEFAULT_EXECUTION_RETRIES)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
@@ -1774,7 +2041,7 @@ object JobManager {
     // unless explicitly specifies, this is dependent on the heartbeat timeout
     val pauseString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
                                               ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
-    val delayString = configuration.getString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY,
+    val delayString = configuration.getString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY,
                                               pauseString)
 
     val delayBetweenRetries: Long = try {
@@ -1782,7 +2049,7 @@ object JobManager {
       }
       catch {
         case n: NumberFormatException => throw new Exception(
-          s"Invalid config value for ${ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY}: " +
+          s"Invalid config value for ${ConfigConstants.EXECUTION_RETRY_DELAY_KEY}: " +
             s"$pauseString. Value must be a valid duration (such as 100 milli or 1 min)");
       }
 

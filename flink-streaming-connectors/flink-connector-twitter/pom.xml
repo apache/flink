@@ -25,12 +25,12 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-connectors-parent</artifactId>
+		<artifactId>flink-streaming-connectors</artifactId>
 		<version>1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-twitter</artifactId>
+	<artifactId>flink-connector-twitter_2.10</artifactId>
 	<name>flink-connector-twitter</name>
 
 	<packaging>jar</packaging>
@@ -39,7 +39,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

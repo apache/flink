@@ -64,7 +64,7 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -640,7 +640,7 @@ public class DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public AllWindowedStream<T, TimeWindow> timeWindowAll(AbstractTime size) {
+	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
 		return windowAll(TumblingTimeWindows.of(size));
 	}
 
@@ -660,7 +660,7 @@ public class DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 */
-	public AllWindowedStream<T, TimeWindow> timeWindowAll(AbstractTime size, AbstractTime slide) {
+	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
 		return windowAll(SlidingTimeWindows.of(size, slide));
 	}
 

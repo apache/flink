@@ -30,7 +30,6 @@ import java.io.IOException;
  * A serialization and deserialization schema that uses Flink's serialization stack to
  * transform typed from and to byte arrays.
  *
- * @see TypeInformationKeyValueSerializationSchema for a serialization schema supporting Key Value pairs.
  * 
  * @param <T> The type to be serialized.
  */

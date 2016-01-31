@@ -182,6 +182,9 @@ public class StreamGraphGenerator {
 		if (transform.getResourceStrategy() != StreamGraph.ResourceStrategy.DEFAULT) {
 			streamGraph.setResourceStrategy(transform.getId(), transform.getResourceStrategy());
 		}
+		if (transform.getUid() != null) {
+			streamGraph.setTransformationId(transform.getId(), transform.getUid());
+		}
 
 		return transformedIds;
 	}

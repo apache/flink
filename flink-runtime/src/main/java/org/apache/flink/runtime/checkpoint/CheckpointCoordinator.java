@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.slf4j.Logger;
@@ -70,7 +71,7 @@ public class CheckpointCoordinator {
 	private static final int NUM_GHOST_CHECKPOINT_IDS = 16;
 
 	/** Coordinator-wide lock to safeguard the checkpoint updates */
-	private final Object lock = new Object();
+	protected final Object lock = new Object();
 
 	/** The job whose checkpoint this coordinator coordinates */
 	private final JobID job;
@@ -96,7 +97,7 @@ public class CheckpointCoordinator {
 
 	/** Checkpoint ID counter to ensure ascending IDs. In case of job manager failures, these
 	 * need to be ascending across job managers. */
-	private final CheckpointIDCounter checkpointIdCounter;
+	protected final CheckpointIDCounter checkpointIdCounter;
 
 	/** Class loader used to deserialize the state handles (as they may be user-defined) */
 	private final ClassLoader userClassLoader;
@@ -238,6 +239,28 @@ public class CheckpointCoordinator {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	// Callbacks
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Callback on shutdown of the coordinator. Called in lock scope.
+	 */
+	protected void onShutdown() {
+	}
+
+	/**
+	 * Callback on cancellation of a checkpoint. Called in lock scope.
+	 */
+	protected void onCancelCheckpoint(long canceledCheckpointId) {
+	}
+
+	/**
+	 * Callback on full acknowledgement of a checkpoint. Called in lock scope.
+	 */
+	protected void onFullyAcknowledgedCheckpoint(CompletedCheckpoint checkpoint) {
+	}
+
+	// --------------------------------------------------------------------------------------------
 	//  Clean shutdown
 	// --------------------------------------------------------------------------------------------
 
@@ -276,6 +299,8 @@ public class CheckpointCoordinator {
 
 					// clean and discard all successful checkpoints
 					completedCheckpointStore.discardAllCheckpoints();
+
+					onShutdown();
 				}
 			}
 			finally {
@@ -311,6 +336,18 @@ public class CheckpointCoordinator {
 	 * @param timestamp The timestamp for the checkpoint.
 	 */
 	public boolean triggerCheckpoint(long timestamp) throws Exception {
+		return triggerCheckpoint(timestamp, -1);
+	}
+
+	/**
+	 * Triggers a new checkpoint and uses the given timestamp as the checkpoint
+	 * timestamp.
+	 *
+	 * @param timestamp The timestamp for the checkpoint.
+	 * @param nextCheckpointId The checkpoint ID to use for this checkpoint or <code>-1</code> if
+	 *                         the checkpoint ID counter should be queried.
+	 */
+	public boolean triggerCheckpoint(long timestamp, long nextCheckpointId) throws Exception {
 		// make some eager pre-checks
 		synchronized (lock) {
 			// abort if the coordinator has been shutdown in the meantime
@@ -367,15 +404,20 @@ public class CheckpointCoordinator {
 		// we will actually trigger this checkpoint!
 
 		final long checkpointID;
-		try {
-			// this must happen outside the locked scope, because it communicates
-			// with external services (in HA mode) and may block for a while.
-			checkpointID = checkpointIdCounter.getAndIncrement();
+		if (nextCheckpointId < 0) {
+			try {
+				// this must happen outside the locked scope, because it communicates
+				// with external services (in HA mode) and may block for a while.
+				checkpointID = checkpointIdCounter.getAndIncrement();
+			}
+			catch (Throwable t) {
+				int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
+				return false;
+			}
 		}
-		catch (Throwable t) {
-			int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
-			LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
-			return false;
+		else {
+			checkpointID = nextCheckpointId;
 		}
 
 		LOG.info("Triggering checkpoint " + checkpointID + " @ " + timestamp);
@@ -396,6 +438,8 @@ public class CheckpointCoordinator {
 							checkpoint.discard(userClassLoader);
 							pendingCheckpoints.remove(checkpointID);
 							rememberRecentCheckpointId(checkpointID);
+
+							onCancelCheckpoint(checkpointID);
 
 							triggerQueuedRequests();
 						}
@@ -461,29 +505,127 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	public void receiveAcknowledgeMessage(AcknowledgeCheckpoint message) throws Exception {
+	/**
+	 * Receives a {@link DeclineCheckpoint} message and returns whether the
+	 * message was associated with a pending checkpoint.
+	 *
+	 * @param message Checkpoint decline from the task manager
+	 *
+	 * @return Flag indicating whether the declined checkpoint was associated
+	 * with a pending checkpoint.
+	 */
+	public boolean receiveDeclineMessage(DeclineCheckpoint message) throws Exception {
 		if (shutdown || message == null) {
-			return;
+			return false;
 		}
 		if (!job.equals(message.getJob())) {
-			LOG.error("Received AcknowledgeCheckpoint message for wrong job: {}", message);
-			return;
+			LOG.error("Received DeclineCheckpoint message for wrong job: {}", message);
+			return false;
 		}
 
 		final long checkpointId = message.getCheckpointId();
 
 		CompletedCheckpoint completed = null;
 		PendingCheckpoint checkpoint;
+
+		// Flag indicating whether the ack message was for a known pending
+		// checkpoint.
+		boolean isPendingCheckpoint;
+
 		synchronized (lock) {
 			// we need to check inside the lock for being shutdown as well, otherwise we
 			// get races and invalid error log messages
 			if (shutdown) {
-				return;
+				return false;
 			}
 
 			checkpoint = pendingCheckpoints.get(checkpointId);
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
+				isPendingCheckpoint = true;
+
+				LOG.info("Discarding checkpoint " + checkpointId
+					+ " because of checkpoint decline from task " + message.getTaskExecutionId());
+
+				pendingCheckpoints.remove(checkpointId);
+				checkpoint.discard(userClassLoader);
+				rememberRecentCheckpointId(checkpointId);
+
+				boolean haveMoreRecentPending = false;
+				Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
+				while (entries.hasNext()) {
+					PendingCheckpoint p = entries.next().getValue();
+					if (!p.isDiscarded() && p.getCheckpointTimestamp() >= checkpoint.getCheckpointTimestamp()) {
+						haveMoreRecentPending = true;
+						break;
+					}
+				}
+				if (!haveMoreRecentPending && !triggerRequestQueued) {
+					LOG.info("Triggering new checkpoint because of discarded checkpoint " + checkpointId);
+					triggerCheckpoint(System.currentTimeMillis());
+				} else if (!haveMoreRecentPending) {
+					LOG.info("Promoting queued checkpoint request because of discarded checkpoint " + checkpointId);
+					triggerQueuedRequests();
+				}
+			} else if (checkpoint != null) {
+				// this should not happen
+				throw new IllegalStateException(
+					"Received message for discarded but non-removed checkpoint " + checkpointId);
+			} else {
+				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
+				if (recentPendingCheckpoints.contains(checkpointId)) {
+					isPendingCheckpoint = true;
+					LOG.info("Received another decline checkpoint message for now expired checkpoint attempt " + checkpointId);
+				} else {
+					isPendingCheckpoint = false;
+				}
+			}
+		}
+
+		return isPendingCheckpoint;
+	}
+
+	/**
+	 * Receives an AcknowledgeCheckpoint message and returns whether the
+	 * message was associated with a pending checkpoint.
+	 *
+	 * @param message Checkpoint ack from the task manager
+	 *
+	 * @return Flag indicating whether the ack'd checkpoint was associated
+	 * with a pending checkpoint.
+	 *
+	 * @throws Exception If the checkpoint cannot be added to the completed checkpoint store.
+	 */
+	public boolean receiveAcknowledgeMessage(AcknowledgeCheckpoint message) throws Exception {
+		if (shutdown || message == null) {
+			return false;
+		}
+		if (!job.equals(message.getJob())) {
+			LOG.error("Received AcknowledgeCheckpoint message for wrong job: {}", message);
+			return false;
+		}
+
+		final long checkpointId = message.getCheckpointId();
+
+		CompletedCheckpoint completed = null;
+		PendingCheckpoint checkpoint;
+
+		// Flag indicating whether the ack message was for a known pending
+		// checkpoint.
+		boolean isPendingCheckpoint;
+
+		synchronized (lock) {
+			// we need to check inside the lock for being shutdown as well, otherwise we
+			// get races and invalid error log messages
+			if (shutdown) {
+				return false;
+			}
+
+			checkpoint = pendingCheckpoints.get(checkpointId);
+
+			if (checkpoint != null && !checkpoint.isDiscarded()) {
+				isPendingCheckpoint = true;
+
 				if (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getState(), message.getStateSize())) {
 					if (checkpoint.isFullyAcknowledged()) {
 						completed = checkpoint.toCompletedCheckpoint();
@@ -498,6 +640,8 @@ public class CheckpointCoordinator {
 						rememberRecentCheckpointId(checkpointId);
 
 						dropSubsumedCheckpoints(completed.getTimestamp());
+
+						onFullyAcknowledgedCheckpoint(completed);
 
 						triggerQueuedRequests();
 					}
@@ -516,10 +660,11 @@ public class CheckpointCoordinator {
 			else {
 				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 				if (recentPendingCheckpoints.contains(checkpointId)) {
+					isPendingCheckpoint = true;
 					LOG.warn("Received late message for now expired checkpoint attempt " + checkpointId);
 				}
 				else {
-					LOG.info("Received message for non-existing checkpoint " + checkpointId);
+					isPendingCheckpoint = false;
 				}
 			}
 		}
@@ -540,6 +685,8 @@ public class CheckpointCoordinator {
 
 			statsTracker.onCompletedCheckpoint(completed);
 		}
+
+		return isPendingCheckpoint;
 	}
 
 	private void rememberRecentCheckpointId(long id) {
@@ -557,6 +704,8 @@ public class CheckpointCoordinator {
 				rememberRecentCheckpointId(p.getCheckpointId());
 
 				p.discard(userClassLoader);
+
+				onCancelCheckpoint(p.getCheckpointId());
 
 				entries.remove();
 			}
@@ -679,6 +828,27 @@ public class CheckpointCoordinator {
 		}
 	}
 
+	protected long getAndIncrementCheckpointId() {
+		try {
+			// this must happen outside the locked scope, because it communicates
+			// with external services (in HA mode) and may block for a while.
+			return checkpointIdCounter.getAndIncrement();
+		}
+		catch (Throwable t) {
+			int numUnsuccessful = ++numUnsuccessfulCheckpointsTriggers;
+			LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
+			return -1;
+		}
+	}
+
+	protected ActorGateway getJobStatusListener() {
+		return jobStatusListener;
+	}
+
+	protected void setJobStatusListener(ActorGateway jobStatusListener) {
+		this.jobStatusListener = jobStatusListener;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Periodic scheduling of checkpoints
 	// --------------------------------------------------------------------------------------------
@@ -689,7 +859,7 @@ public class CheckpointCoordinator {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
 			}
 
-			// make sure all prior timers are cancelled 
+			// make sure all prior timers are cancelled
 			stopCheckpointScheduler();
 
 			periodicScheduling = true;
@@ -718,7 +888,7 @@ public class CheckpointCoordinator {
 	}
 
 	// ------------------------------------------------------------------------
-	//  job status listener that schedules / cancels periodic checkpoints 
+	//  job status listener that schedules / cancels periodic checkpoints
 	// ------------------------------------------------------------------------
 
 	public ActorGateway createActivatorDeactivator(ActorSystem actorSystem, UUID leaderSessionID) {

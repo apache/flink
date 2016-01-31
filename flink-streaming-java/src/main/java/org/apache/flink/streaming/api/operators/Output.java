@@ -33,7 +33,7 @@ public interface Output<T> extends Collector<T> {
 	 * Emits a {@link Watermark} from an operator. This watermark is broadcast to all downstream
 	 * operators.
 	 *
-	 * <p>A watermark specifies that no element with a timestamp older or equal to the watermark
+	 * <p>A watermark specifies that no element with a timestamp lower or equal to the watermark
 	 * timestamp will be emitted in the future.
 	 */
 	void emitWatermark(Watermark mark);

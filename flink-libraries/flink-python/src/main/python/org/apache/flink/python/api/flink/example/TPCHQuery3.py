@@ -87,13 +87,13 @@ if __name__ == "__main__":
         .join(order) \
         .where(0) \
         .equal_to(1) \
-        .using(CustomerOrderJoin(),[INT, FLOAT, STRING, INT])
+        .using(CustomerOrderJoin())
 
     result = customerWithOrder \
         .join(lineitem) \
         .where(0) \
         .equal_to(0) \
-        .using(CustomerOrderLineitemJoin(), [INT, FLOAT, STRING, INT]) \
+        .using(CustomerOrderLineitemJoin()) \
         .group_by(0, 2, 3) \
         .reduce(SumReducer())
 

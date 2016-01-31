@@ -111,10 +111,11 @@ public class OneInputStreamOperatorTestHarness<IN, OUT> {
 	}
 
 	/**
-	 * Calls close on the operator.
+	 * Calls close and dispose on the operator.
 	 */
 	public void close() throws Exception {
 		operator.close();
+		operator.dispose();
 	}
 
 	public void processElement(StreamRecord<IN> element) throws Exception {

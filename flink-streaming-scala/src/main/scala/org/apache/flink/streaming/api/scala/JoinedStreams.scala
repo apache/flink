@@ -95,7 +95,7 @@ object JoinedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -168,7 +168,7 @@ object JoinedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 
@@ -263,7 +263,7 @@ object JoinedStreams {
      */
     def apply[T: TypeInformation](function: JoinFunction[T1, T2, T]): DataStream[T] = {
 
-      val join = new JavaJoinedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
+      val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
       join
         .where(keySelector1)
@@ -280,7 +280,7 @@ object JoinedStreams {
      */
     def apply[T: TypeInformation](function: FlatJoinFunction[T1, T2, T]): DataStream[T] = {
 
-      val join = new JavaJoinedStreams[T1, T2](input1.getJavaStream, input2.getJavaStream)
+      val join = new JavaJoinedStreams[T1, T2](input1.javaStream, input2.javaStream)
 
       join
         .where(keySelector1)
@@ -296,7 +296,7 @@ object JoinedStreams {
      * is not disabled in the [[org.apache.flink.api.common.ExecutionConfig]].
      */
     private[flink] def clean[F <: AnyRef](f: F): F = {
-      new StreamExecutionEnvironment(input1.getJavaStream.getExecutionEnvironment).scalaClean(f)
+      new StreamExecutionEnvironment(input1.javaStream.getExecutionEnvironment).scalaClean(f)
     }
   }
 

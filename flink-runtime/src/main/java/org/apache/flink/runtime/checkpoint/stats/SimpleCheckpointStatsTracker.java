@@ -299,31 +299,32 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 				long[][] subTaskStats = this.subTaskStats.get(operatorId);
 
 				if (subTaskStats == null) {
-					throw new IllegalArgumentException("Unknown operator ID.");
+					return Option.empty();
 				}
+				else {
+					long maxDuration = Long.MIN_VALUE;
+					long stateSize = 0;
 
-				long maxDuration = Long.MIN_VALUE;
-				long stateSize = 0;
+					for (long[] subTaskStat : subTaskStats) {
+						if (subTaskStat[0] > maxDuration) {
+							maxDuration = subTaskStat[0];
+						}
 
-				for (long[] subTaskStat : subTaskStats) {
-					if (subTaskStat[0] > maxDuration) {
-						maxDuration = subTaskStat[0];
+						stateSize += subTaskStat[1];
 					}
 
-					stateSize += subTaskStat[1];
+					stats = new OperatorCheckpointStats(
+							latestCompletedCheckpoint.getCheckpointID(),
+							latestCompletedCheckpoint.getTimestamp(),
+							maxDuration,
+							stateSize,
+							subTaskStats);
+
+					// Remember this and don't recompute if requested again
+					operatorStatsCache.put(operatorId, stats);
+
+					return Option.apply(stats);
 				}
-
-				stats = new OperatorCheckpointStats(
-						latestCompletedCheckpoint.getCheckpointID(),
-						latestCompletedCheckpoint.getTimestamp(),
-						maxDuration,
-						stateSize,
-						subTaskStats);
-
-				// Remember this and don't recompute if requested again
-				operatorStatsCache.put(operatorId, stats);
-
-				return Option.apply(stats);
 			}
 			else {
 				return Option.empty();

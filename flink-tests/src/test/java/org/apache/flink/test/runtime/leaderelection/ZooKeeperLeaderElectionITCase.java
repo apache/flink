@@ -148,7 +148,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 
 		// we "effectively" disable the automatic RecoverAllJobs message and sent it manually to make
 		// sure that all TMs have registered to the JM prior to issueing the RecoverAllJobs message
-		configuration.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, AkkaUtils.INF_TIMEOUT().toString());
+		configuration.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, AkkaUtils.INF_TIMEOUT().toString());
 
 		Tasks.BlockingOnceReceiver$.MODULE$.blocking_$eq(true);
 

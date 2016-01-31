@@ -21,7 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.AbstractTime;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
@@ -98,7 +98,7 @@ public class SlidingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	 * @param slide The slide interval of the generated windows.
 	 * @return The time policy.
 	 */
-	public static SlidingTimeWindows of(AbstractTime size, AbstractTime slide) {
+	public static SlidingTimeWindows of(Time size, Time slide) {
 		return new SlidingTimeWindows(size.toMilliseconds(), slide.toMilliseconds());
 	}
 

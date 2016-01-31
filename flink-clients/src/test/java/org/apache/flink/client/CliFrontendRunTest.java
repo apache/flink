@@ -22,7 +22,9 @@ package org.apache.flink.client;
 import static org.apache.flink.client.CliFrontendTestUtils.*;
 import static org.junit.Assert.*;
 
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.junit.BeforeClass;
@@ -89,6 +91,16 @@ public class CliFrontendRunTest {
 				String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
 				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				assertNotEquals(0, testFrontend.run(parameters));
+			}
+
+			// test configure savepoint path
+			{
+				String[] parameters = {"-s", "expectedSavepointPath", getTestJarPath()};
+				RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(1, false, false);
+				assertEquals(0, testFrontend.run(parameters));
+
+				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+				assertEquals("expectedSavepointPath", options.getSavepointPath());
 			}
 		}
 		catch (Exception e) {

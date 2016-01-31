@@ -57,7 +57,7 @@ if [[ $STARTSTOP == "start" ]]; then
         #
         TM_MAX_OFFHEAP_SIZE="8388607T"
 
-        if [[ "${FLINK_TM_MEM_PRE_ALLOCATE}" == "true" ]] && useOffHeapMemory; then
+        if useOffHeapMemory; then
             if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
                 # We split up the total memory in heap and off-heap memory
                 if [[ "${FLINK_TM_HEAP}" -le "${FLINK_TM_MEM_MANAGED_SIZE}" ]]; then

@@ -37,7 +37,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
     val excludedNames = Seq(
       // These are only used internally. Should be internal API but Java doesn't have
       // private[flink].
-      "org.apache.flink.streaming.api.datastream.DataStream.getExecutionEnvironment",
       "org.apache.flink.streaming.api.datastream.DataStream.getType",
       "org.apache.flink.streaming.api.datastream.DataStream.copy",
       "org.apache.flink.streaming.api.datastream.DataStream.transform",

@@ -219,41 +219,35 @@ public class TaskCancelTest {
 
 	public static class InfiniteSource extends AbstractInvokable {
 
-		private RecordWriter<IntValue> writer;
-
-		@Override
-		public void registerInputOutput() {
-			writer = new RecordWriter<IntValue>(getEnvironment().getWriter(0));
-		}
-
 		@Override
 		public void invoke() throws Exception {
+			RecordWriter<IntValue> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+
 			final IntValue val = new IntValue();
 
-			for (int i = 0; true; i++) {
-				if (Thread.interrupted()) {
-					return;
-				}
+			try {
+				for (int i = 0; true; i++) {
+					if (Thread.interrupted()) {
+						return;
+					}
 
-				val.setValue(i);
-				writer.emit(val);
+					val.setValue(i);
+					writer.emit(val);
+				}
+			}
+			finally {
+				writer.clearBuffers();
 			}
 		}
 	}
 
 	public static class AgnosticUnion extends AbstractInvokable {
 
-		private RecordReader<IntValue> reader;
-
-		@Override
-		public void registerInputOutput() {
-			UnionInputGate union = new UnionInputGate(getEnvironment().getAllInputGates());
-
-			reader = new RecordReader<IntValue>(union, IntValue.class);
-		}
-
 		@Override
 		public void invoke() throws Exception {
+			UnionInputGate union = new UnionInputGate(getEnvironment().getAllInputGates());
+			RecordReader<IntValue> reader = new RecordReader<>(union, IntValue.class);
+
 			while (reader.next() != null) {
 			}
 		}

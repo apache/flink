@@ -269,14 +269,17 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
+			out.waitForNElements(numElements, 60_000);
+
+			// get and verify the result
+			List<Tuple2<Integer, Integer>> result = out.getElements();
+			assertEquals(numElements, result.size());
+
 			synchronized (lock) {
 				op.close();
 			}
 			op.dispose();
 
-			// get and verify the result
-			List<Tuple2<Integer, Integer>> result = out.getElements();
-			assertEquals(numElements, result.size());
 
 			Collections.sort(result, tupleComparator);
 			for (int i = 0; i < numElements; i++) {
@@ -335,13 +338,15 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
+			out.waitForNElements(numWindows, 60_000);
+
+			List<Tuple2<Integer, Integer>> result = out.getElements();
+
 			synchronized (lock) {
 				op.close();
 			}
 			op.dispose();
-			
-			List<Tuple2<Integer, Integer>> result = out.getElements();
-			
+
 			// we have ideally one element per window. we may have more, when we emitted a value into the
 			// successive window (corner case), so we can have twice the number of elements, in the worst case.
 			assertTrue(result.size() >= numWindows && result.size() <= 2 * numWindows);
@@ -487,57 +492,6 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			timerService.shutdown();
 		}
 	}
-	
-	@Test
-	public void testEmitTrailingDataOnClose() {
-		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
-		try {
-			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>();
-			final Object lock = new Object();
-			final StreamTask<?, ?> mockTask = createMockTaskWithTimer(timerService, lock);
-			
-			// the operator has a window time that is so long that it will not fire in this test
-			final long oneYear = 365L * 24 * 60 * 60 * 1000;
-			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
-					new AggregatingProcessingTimeWindowOperator<>(
-							sumFunction, fieldOneSelector,
-							IntSerializer.INSTANCE, tupleSerializer, oneYear, oneYear);
-
-			op.setup(mockTask, new StreamConfig(new Configuration()), out);
-			op.open();
-			
-			List<Integer> data = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-			for (Integer i : data) {
-				synchronized (lock) {
-					StreamRecord<Tuple2<Integer, Integer>> next = new StreamRecord<>(new Tuple2<>(i, i));
-					op.setKeyContextElement(next);
-					op.processElement(next);
-				}
-			}
-
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
-			
-			// get and verify the result
-			List<Tuple2<Integer, Integer>> result = out.getElements();
-			assertEquals(data.size(), result.size());
-			
-			Collections.sort(result, tupleComparator);
-			for (int i = 0; i < data.size(); i++) {
-				assertEquals(data.get(i), result.get(i).f0);
-				assertEquals(data.get(i), result.get(i).f1);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			timerService.shutdown();
-		}
-	}
 
 	@Test
 	public void testPropagateExceptionsFromProcessElement() {
@@ -667,15 +621,17 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 				Thread.sleep(1);
 			}
 
-			synchronized (lock) {
-				op.close();
-			}
-			op.dispose();
+			out2.waitForNElements(numElements - resultAtSnapshot.size(), 60_000);
 
 			// get and verify the result
 			List<Tuple2<Integer, Integer>> finalResult = new ArrayList<>(resultAtSnapshot);
 			finalResult.addAll(out2.getElements());
 			assertEquals(numElements, finalResult.size());
+
+			synchronized (lock) {
+				op.close();
+			}
+			op.dispose();
 
 			Collections.sort(finalResult, tupleComparator);
 			for (int i = 0; i < numElements; i++) {
@@ -812,7 +768,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 	public void testKeyValueStateInWindowFunctionTumbling() {
 		final ScheduledExecutorService timerService = Executors.newSingleThreadScheduledExecutor();
 		try {
-			final long hundredYears = 100L * 365 * 24 * 60 * 60 * 1000;
+			final long thirtySeconds = 30_000;
 			
 			final CollectingOutput<Tuple2<Integer, Integer>> out = new CollectingOutput<>();
 			final Object lock = new Object();
@@ -823,7 +779,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			AggregatingProcessingTimeWindowOperator<Integer, Tuple2<Integer, Integer>> op =
 					new AggregatingProcessingTimeWindowOperator<>(
 							new StatefulFunction(), fieldOneSelector,
-							IntSerializer.INSTANCE, tupleSerializer, hundredYears, hundredYears);
+							IntSerializer.INSTANCE, tupleSerializer, thirtySeconds, thirtySeconds);
 
 			op.setup(mockTask, createTaskConfig(fieldOneSelector, IntSerializer.INSTANCE), out);
 			op.open();
@@ -841,9 +797,9 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 					op.setKeyContextElement(next2);
 					op.processElement(next2);
 				}
-
-				op.close();
 			}
+
+			out.waitForNElements(2, 60_000);
 
 			List<Tuple2<Integer, Integer>> result = out.getElements();
 			assertEquals(2, result.size());
@@ -854,7 +810,8 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 
 			assertEquals(10, StatefulFunction.globalCounts.get(1).intValue());
 			assertEquals(10, StatefulFunction.globalCounts.get(2).intValue());
-		
+
+			op.close();
 			op.dispose();
 		}
 		catch (Exception e) {

@@ -87,7 +87,7 @@ public class ZooKeeperTestUtils {
 		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
 		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "6 s");
 		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
-		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "10 s");
+		config.setString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY, "10 s");
 
 		return config;
 	}

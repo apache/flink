@@ -18,27 +18,13 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Terminated, ActorRef}
-import org.apache.flink.runtime.execution.ExecutionState
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.messages.JobManagerMessages.{ResponseLeaderSessionID,
-RequestLeaderSessionID}
-import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
-import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
-AcknowledgeRegistration}
-import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, TaskInFinalState}
-import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.TestingMessages.{CheckIfJobRemoved, Alive,
-DisableDisconnect}
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
+import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerConfiguration}
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /** Subclass of the [[TaskManager]] to support testing messages

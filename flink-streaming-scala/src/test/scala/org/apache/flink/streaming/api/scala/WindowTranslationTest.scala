@@ -57,7 +57,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
         Time.of(100, TimeUnit.MILLISECONDS)))
       .reduce(reducer)
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
         .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
     
     val operator1 = transform1.getOperator
@@ -77,7 +77,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
             out: Collector[(String, Int)]) { }
       })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
@@ -101,7 +101,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .trigger(CountTrigger.of(100))
       .reduce(reducer)
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
@@ -126,7 +126,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
                     out: Collector[(String, Int)]) { }
     })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
@@ -154,7 +154,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
       .evictor(TimeEvictor.of(Time.of(1, TimeUnit.SECONDS)))
       .reduce(reducer)
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
@@ -180,7 +180,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
                     out: Collector[(String, Int)]) { }
     })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator
@@ -215,7 +215,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
                    out: Collector[(String, Int)]) { }
       })
 
-    val transform1 = window1.getJavaStream.getTransformation
+    val transform1 = window1.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator1 = transform1.getOperator
@@ -240,7 +240,7 @@ class WindowTranslationTest extends StreamingMultipleProgramsTestBase {
                    out: Collector[(String, Int)]) { }
       })
 
-    val transform2 = window2.getJavaStream.getTransformation
+    val transform2 = window2.javaStream.getTransformation
       .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
 
     val operator2 = transform2.getOperator

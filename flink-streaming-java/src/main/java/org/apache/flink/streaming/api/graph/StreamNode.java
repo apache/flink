@@ -65,6 +65,8 @@ public class StreamNode implements Serializable {
 
 	private InputFormat<?, ?> inputFormat;
 
+	private String transformationId;
+
 	public StreamNode(StreamExecutionEnvironment env, Integer id, StreamOperator<?> operator,
 			String operatorName, List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
@@ -240,6 +242,14 @@ public class StreamNode implements Serializable {
 
 	public void setStateKeySerializer(TypeSerializer<?> stateKeySerializer) {
 		this.stateKeySerializer = stateKeySerializer;
+	}
+
+	String getTransformationId() {
+		return transformationId;
+	}
+
+	void setTransformationId(String transformationId) {
+		this.transformationId = transformationId;
 	}
 
 	@Override

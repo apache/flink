@@ -154,7 +154,7 @@ public class MusicProfiles implements ProgramDescription {
 							public Long vertexJoin(Long vertexValue, Long inputValue) {
 								return inputValue;
 							}
-						}).run(new LabelPropagation<String, NullValue>(maxIterations));
+						}).run(new LabelPropagation<String, Long, NullValue>(maxIterations));
 
 		if (fileOutput) {
 			verticesWithCommunity.writeAsCsv(communitiesOutputPath, "\n", "\t");

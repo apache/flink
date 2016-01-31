@@ -37,10 +37,11 @@ class HadoopInputFormat[K, V](
       fetchNext()
     }
     if (!hasNext) {
-      return null
+      null
+    } else {
+      fetched = false
+      (recordReader.getCurrentKey, recordReader.getCurrentValue)
     }
-    fetched = false
-    (recordReader.getCurrentKey, recordReader.getCurrentValue)
   }
 
 }

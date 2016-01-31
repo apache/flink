@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.exampleJavaPrograms;
 
-import org.apache.flink.examples.java.graph.EnumTrianglesBasic;
+import org.apache.flink.examples.java.graph.EnumTriangles;
 import org.apache.flink.test.testdata.EnumTriangleData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
@@ -40,7 +40,7 @@ public class EnumTriangleBasicITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void testProgram() throws Exception {
-		EnumTrianglesBasic.main(new String[] { edgePath, resultPath });
+		EnumTriangles.main(new String[] { edgePath, resultPath });
 	}
 
 }

@@ -508,19 +508,11 @@ class YarnJobManager(
    * @return A Tuple2 containing the heap and the offHeap limit in megabytes.
    */
   private def calculateMemoryLimits(memoryLimit: Long): Long = {
-    val eagerAllocation = flinkConfiguration.getBoolean(
-      ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE);
-    if (eagerAllocation) {
-      log.info("Heap limits calculated with eager memory allocation.")
-    } else {
-      log.info("Heap limits calculated with lazy memory allocation.")
-    }
 
     val useOffHeap = flinkConfiguration.getBoolean(
       ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false)
 
-    if (useOffHeap && eagerAllocation) {
+    if (useOffHeap) {
       val fixedOffHeapSize = flinkConfiguration.getLong(
         ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L)
 

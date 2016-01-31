@@ -1,5 +1,8 @@
 ---
 title:  "Local Execution"
+# Top-level navigation
+top-nav-group: apis
+top-nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -44,7 +47,7 @@ If you are developing your program in a Maven project, you have to add the `flin
 ~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients</artifactId>
+  <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
 ~~~
@@ -99,7 +102,7 @@ Users can use algorithms implemented for batch processing also for cases that ar
 public static void main(String[] args) throws Exception {
     // initialize a new Collection-based execution environment
     final ExecutionEnvironment env = new CollectionEnvironment();
-    
+
     DataSet<User> users = env.fromCollection( /* get elements from a Java Collection */);
 
     /* Data Set transformations ... */
@@ -107,10 +110,10 @@ public static void main(String[] args) throws Exception {
     // retrieve the resulting Tuple2 elements into a ArrayList.
     Collection<...> result = new ArrayList<...>();
     resultDataSet.output(new LocalCollectionOutputFormat<...>(result));
-    
+
     // kick off execution.
     env.execute();
-    
+
     // Do some work with the resulting ArrayList (=Collection).
     for(... t : result) {
         System.err.println("Result = "+t);
@@ -118,6 +121,6 @@ public static void main(String[] args) throws Exception {
 }
 ~~~
 
-The `flink-java-examples` module contains a full example, called `CollectionExecutionExample`.
+The `flink-examples-batch` module contains a full example, called `CollectionExecutionExample`.
 
 Please note that the execution of the collection-based Flink programs is only possible on small data, which fits into the JVM heap. The execution on collections is not multi-threaded, only one thread is used.

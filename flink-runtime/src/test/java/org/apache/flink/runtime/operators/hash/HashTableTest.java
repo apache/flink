@@ -131,7 +131,7 @@ public class HashTableTest {
 			
 			try {
 				while (table.nextRecord()) {
-					MutableHashTable.HashBucketIterator<Tuple2<Long, byte[]>, Long> matches = table.getBuildSideIterator();
+					MutableObjectIterator<Tuple2<Long, byte[]>> matches = table.getBuildSideIterator();
 					while (matches.next() != null);
 				}
 			}
@@ -240,7 +240,7 @@ public class HashTableTest {
 				new ByteArrayIterator(1, 128,(byte) 1)));
 
 		while(table.nextRecord()) {
-			MutableHashTable.HashBucketIterator<byte[], byte[]> iterator = table.getBuildSideIterator();
+			MutableObjectIterator<byte[]> iterator = table.getBuildSideIterator();
 
 			int counter = 0;
 

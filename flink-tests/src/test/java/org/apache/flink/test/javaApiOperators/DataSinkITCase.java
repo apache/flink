@@ -64,7 +64,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Integer> ds = CollectionDataSets.getIntegerDataSet(env);
-		ds.sortPartition("*", Order.DESCENDING).writeAsText(resultPath).setParallelism(1);
+		ds.writeAsText(resultPath).sortLocalOutput("*", Order.DESCENDING).setParallelism(1);
 
 		env.execute();
 
@@ -78,7 +78,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
-		ds.sortPartition("*", Order.ASCENDING).writeAsText(resultPath).setParallelism(1);
+		ds.writeAsText(resultPath).sortLocalOutput("*", Order.ASCENDING).setParallelism(1);
 
 		env.execute();
 
@@ -99,7 +99,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds.sortPartition(0, Order.ASCENDING).writeAsCsv(resultPath).setParallelism(1);
+		ds.writeAsCsv(resultPath).sortLocalOutput(0, Order.ASCENDING).setParallelism(1);
 
 		env.execute();
 
@@ -133,7 +133,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds.sortPartition(0, Order.DESCENDING).writeAsCsv(resultPath).setParallelism(1);
+		ds.writeAsCsv(resultPath).sortLocalOutput(0, Order.DESCENDING).setParallelism(1);
 
 		env.execute();
 
@@ -167,7 +167,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		ds.sortPartition(1, Order.DESCENDING).sortPartition(0, Order.ASCENDING).writeAsCsv(resultPath).setParallelism(1);
+		ds.writeAsCsv(resultPath)
+			.sortLocalOutput(1, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -202,10 +204,10 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
 				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
-		ds.sortPartition("f0.f1", Order.ASCENDING)
-				.sortPartition("f1", Order.DESCENDING)
-				.writeAsText(resultPath)
-				.setParallelism(1);
+		ds.writeAsText(resultPath)
+			.sortLocalOutput("f0.f1", Order.ASCENDING)
+			.sortLocalOutput("f1", Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -227,10 +229,10 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
 				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
-		ds.sortPartition(1, Order.ASCENDING)
-				.sortPartition(2, Order.DESCENDING)
-				.writeAsText(resultPath)
-				.setParallelism(1);
+		ds.writeAsText(resultPath)
+			.sortLocalOutput(1, Order.ASCENDING)
+			.sortLocalOutput(2, Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -251,7 +253,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
-		ds.sortPartition("number", Order.ASCENDING).writeAsText(resultPath).setParallelism(1);
+		ds.writeAsText(resultPath).sortLocalOutput("number", Order.ASCENDING).setParallelism(1);
 
 		env.execute();
 
@@ -272,10 +274,10 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
-		ds.sortPartition("str", Order.ASCENDING)
-				.sortPartition("number", Order.DESCENDING)
-				.writeAsText(resultPath)
-				.setParallelism(1);
+		ds.writeAsText(resultPath)
+			.sortLocalOutput("str", Order.ASCENDING)
+			.sortLocalOutput("number", Order.DESCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -298,11 +300,11 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<CollectionDataSets.POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
-		ds.sortPartition("nestedTupleWithCustom.f0", Order.ASCENDING)
-				.sortPartition("nestedTupleWithCustom.f1.myInt", Order.DESCENDING)
-				.sortPartition("nestedPojo.longNumber", Order.ASCENDING)
-				.writeAsText(resultPath)
-				.setParallelism(1);
+		ds.writeAsText(resultPath)
+			.sortLocalOutput("nestedTupleWithCustom.f0", Order.ASCENDING)
+			.sortLocalOutput("nestedTupleWithCustom.f1.myInt", Order.DESCENDING)
+			.sortLocalOutput("nestedPojo.longNumber", Order.ASCENDING)
+			.setParallelism(1);
 
 		env.execute();
 
@@ -332,9 +334,9 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 			public Long map(Long value) throws Exception {
 				return rand.nextLong();
 			}
-		}).sortPartition("*", Order.ASCENDING)
-				.writeAsText(resultPath)
-				.setParallelism(4);
+		}).writeAsText(resultPath)
+			.sortLocalOutput("*", Order.ASCENDING)
+			.setParallelism(4);
 
 		env.execute();
 

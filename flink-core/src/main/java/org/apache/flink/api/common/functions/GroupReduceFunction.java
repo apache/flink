@@ -38,6 +38,11 @@ import org.apache.flink.util.Collector;
  * 
  * DataSet<X> result = input.groupBy(<key-definition>).reduceGroup(new MyGroupReduceFunction());
  * }</pre>
+ *
+ * Partial computation can significantly improve the performance of a {@link GroupReduceFunction}.
+ * This technique is also known as applying a Combiner.
+ * Implement the {@link GroupCombineFunction<T, T>} interface to enable partial computations, i.e.,
+ * a combiner for this {@link GroupReduceFunction}.
  * 
  * @param <T> Type of the elements that this function processes.
  * @param <O> The type of the elements returned by the user-defined function.

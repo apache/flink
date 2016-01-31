@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.utils;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
@@ -30,6 +31,7 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 
 import java.util.Collections;
@@ -244,6 +246,25 @@ public final class DataSetUtils {
 		String callLocation = Utils.getCallLocationName();
 		SampleInCoordinator<T> sampleInCoordinator = new SampleInCoordinator<>(withReplacement, numSamples, seed);
 		return new GroupReduceOperator<>(mapPartitionOperator, input.getType(), sampleInCoordinator, callLocation);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Checksum
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Convenience method to get the count (number of elements) of a DataSet
+	 * as well as the checksum (sum over element hashes).
+	 *
+	 * @return A ChecksumHashCode that represents the count and checksum of elements in the data set.
+	 */
+	public static <T> Utils.ChecksumHashCode checksumHashCode(DataSet<T> input) throws Exception {
+		final String id = new AbstractID().toString();
+
+		input.output(new Utils.ChecksumHashCodeHelper<T>(id)).name("ChecksumHashCode");
+
+		JobExecutionResult res = input.getExecutionEnvironment().execute();
+		return res.<Utils.ChecksumHashCode> getAccumulatorResult(id);
 	}
 
 

@@ -14,10 +14,11 @@ package org.apache.flink.python.api.functions;
 
 import java.io.IOException;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.streaming.PythonStreamer;
+import org.apache.flink.python.api.streaming.data.PythonStreamer;
 import org.apache.flink.util.Collector;
 
 /**
@@ -33,7 +34,7 @@ public class PythonMapPartition<IN, OUT> extends RichMapPartitionFunction<IN, OU
 
 	public PythonMapPartition(int id, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer(this, id);
+		streamer = new PythonStreamer(this, id, typeInformation instanceof PrimitiveArrayTypeInfo);
 	}
 
 	/**

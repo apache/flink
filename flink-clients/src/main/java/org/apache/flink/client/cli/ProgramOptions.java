@@ -19,19 +19,20 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
-import java.net.URL;
 import java.net.MalformedURLException;
-import java.util.List;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_PATH_OPTION;
 
 /**
  * Base class for command line options that refer to a JAR file program.
@@ -51,6 +52,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final boolean stdoutLogging;
 
 	private final boolean detachedMode;
+
+	private final String savepointPath;
 
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
@@ -105,6 +108,12 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
 		detachedMode = line.hasOption(DETACHED_OPTION.getOpt());
+
+		if (line.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
+			savepointPath = line.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+		} else {
+			savepointPath = null;
+		}
 	}
 
 	public String getJarFilePath() {
@@ -133,5 +142,9 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public boolean getDetachedMode() {
 		return detachedMode;
+	}
+
+	public String getSavepointPath() {
+		return savepointPath;
 	}
 }

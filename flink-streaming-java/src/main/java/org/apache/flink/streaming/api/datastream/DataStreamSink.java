@@ -54,6 +54,23 @@ public class DataStreamSink<T> {
 	}
 
 	/**
+	 * Sets an ID for this operator.
+	 *
+	 * <p>The specified ID is used to assign the same operator ID across job
+	 * submissions (for example when starting a job from a savepoint).
+	 *
+	 * <p><strong>Important</strong>: this ID needs to be unique per
+	 * transformation and job. Otherwise, job submission will fail.
+	 *
+	 * @param uid The unique user-specified ID of this transformation.
+	 * @return The operator with the specified ID.
+	 */
+	public DataStreamSink<T> uid(String uid) {
+		transformation.setUid(uid);
+		return this;
+	}
+
+	/**
 	 * Sets the parallelism for this sink. The degree must be higher than zero.
 	 *
 	 * @param parallelism The parallelism for this sink.

@@ -22,11 +22,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -166,8 +167,9 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
 
-	@Combinable
-	public static class MockCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+	public static class MockCombiningReduceStub implements
+		GroupReduceFunction<Record, Record>, GroupCombineFunction<Record, Record>
+	{
 		private static final long serialVersionUID = 1L;
 
 		private final IntValue theInteger = new IntValue();
@@ -194,8 +196,9 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		}
 	}
 
-	@Combinable
-	public static final class MockFailingCombiningReduceStub extends RichGroupReduceFunction<Record, Record> {
+	public static final class MockFailingCombiningReduceStub implements
+		GroupReduceFunction<Record, Record>, GroupCombineFunction<Record, Record>
+	{
 		private static final long serialVersionUID = 1L;
 
 		private int cnt = 0;

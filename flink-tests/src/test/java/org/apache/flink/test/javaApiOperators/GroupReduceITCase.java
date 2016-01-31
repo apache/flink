@@ -19,6 +19,7 @@
 package org.apache.flink.test.javaApiOperators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -465,7 +466,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
-			return new Tuple2<Integer, Long>(t.f0, t.f4);
+			return new Tuple2<>(t.f0, t.f4);
 		}
 	}
 
@@ -525,7 +526,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				c++; // haha
 				n = v.nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal;
 			}
-			out.collect(new Tuple2<String, Integer>(n,c));
+			out.collect(new Tuple2<>(n,c));
 		}
 	}
 
@@ -770,7 +771,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Integer, Integer> getKey(CustomType value) throws Exception {
-			return new Tuple2<Integer, Integer>(value.myInt, value.myInt);
+			return new Tuple2<>(value.myInt, value.myInt);
 		}
 	}
 
@@ -894,7 +895,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, Integer, String, Long> in) {
-			return new Tuple2<Long, Integer>(in.f4, in.f2);
+			return new Tuple2<>(in.f4, in.f2);
 		}
 	}
 
@@ -1086,7 +1087,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 											k = v.f0;
 											s += v.f1;
 										}
-										out.collect(new Tuple2<Integer, Long>(k, s));
+										out.collect(new Tuple2<>(k, s));
 									}
 								}
 								);
@@ -1131,7 +1132,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testJodatimeDateTimeWithKryo() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple2<Integer, DateTime>> ds = env.fromElements(new Tuple2<Integer, DateTime>(1, DateTime.now()));
+		DataSet<Tuple2<Integer, DateTime>> ds = env.fromElements(new Tuple2<>(1, DateTime.now()));
 		DataSet<Tuple2<Integer, DateTime>> reduceDs = ds.groupBy("f1").sum(0).project(0);
 
 		List<Tuple2<Integer, DateTime>> result = reduceDs.collect();
@@ -1150,9 +1151,9 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	public void testDateNullException() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Integer, Date>> in = env.fromElements(new Tuple2<Integer, Date>(0, new Date(1230000000)),
+		DataSet<Tuple2<Integer, Date>> in = env.fromElements(new Tuple2<>(0, new Date(1230000000)),
 				new Tuple2<Integer, Date>(1, null),
-				new Tuple2<Integer, Date>(2, new Date(1230000000))
+				new Tuple2<>(2, new Date(1230000000))
 		);
 
 		DataSet<String> r = in.groupBy(0).reduceGroup(new GroupReduceFunction<Tuple2<Integer, Date>, String>() {
@@ -1207,14 +1208,14 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		@Override
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, Long>> out) {
 			int i = 0;
-			long l = 0l;
+			long l = 0L;
 
 			for (Tuple3<Integer, Long, String> t : values) {
 				i += t.f0;
 				l = t.f1;
 			}
 
-			out.collect(new Tuple2<Integer, Long>(i, l));
+			out.collect(new Tuple2<>(i, l));
 
 		}
 	}
@@ -1239,7 +1240,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				concat.setLength(concat.length() - 1);
 			}
 
-			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat.toString()));
+			out.collect(new Tuple3<>(sum, key, concat.toString()));
 		}
 	}
 
@@ -1252,8 +1253,8 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
 		{
 			int i = 0;
-			long l = 0l;
-			long l2 = 0l;
+			long l = 0L;
+			long l2 = 0L;
 
 			for ( Tuple5<Integer, Long, Integer, String, Long> t : values ) {
 				i = t.f0;
@@ -1261,7 +1262,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				l2 = t.f4;
 			}
 
-			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, "P-)", l2));
+			out.collect(new Tuple5<>(i, l, 0, "P-)", l2));
 		}
 	}
 
@@ -1274,8 +1275,8 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
 		{
 			int i = 0;
-			long l = 0l;
-			long l2 = 0l;
+			long l = 0L;
+			long l2 = 0L;
 			StringBuilder concat = new StringBuilder();
 
 			for ( Tuple5<Integer, Long, Integer, String, Long> t : values ) {
@@ -1288,7 +1289,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				concat.setLength(concat.length() - 1);
 			}
 
-			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, concat.toString(), l2));
+			out.collect(new Tuple5<>(i, l, 0, concat.toString(), l2));
 		}
 	}
 
@@ -1372,14 +1373,14 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
 			int i = 0;
-			long l = 0l;
+			long l = 0L;
 
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				l += t.f1;
 			}
 
-			out.collect(new Tuple3<Integer, Long, String>(i, l, "Hello World"));
+			out.collect(new Tuple3<>(i, l, "Hello World"));
 		}
 	}
 
@@ -1420,26 +1421,28 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
 			int i = 0;
-			long l = 0l;
+			long l = 0L;
 
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				i += t.f0;
 				l = t.f1;
 			}
 
-			out.collect(new Tuple3<Integer, Long, String>(i, l, this.f2Replace));
+			out.collect(new Tuple3<>(i, l, this.f2Replace));
 
 		}
 	}
 
-	@RichGroupReduceFunction.Combinable
-	public static class Tuple3GroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+	public static class Tuple3GroupReduceWithCombine
+		implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>>,
+					GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>
+	{
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
-			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
+			Tuple3<Integer, Long, String> o = new Tuple3<>(0, 0L, "");
 
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				o.f0 += t.f0;
@@ -1461,13 +1464,14 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				s = t.f2;
 			}
 
-			out.collect(new Tuple2<Integer, String>(i, s));
+			out.collect(new Tuple2<>(i, s));
 
 		}
 	}
 
-	@RichGroupReduceFunction.Combinable
-	public static class Tuple3SortedGroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+	public static class Tuple3SortedGroupReduceWithCombine
+		implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>>,
+					GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -1486,7 +1490,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				concat.setLength(concat.length() - 1);
 			}
 
-			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat.toString()));
+			out.collect(new Tuple3<>(sum, key, concat.toString()));
 		}
 
 		@Override
@@ -1499,18 +1503,19 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				s = t.f2;
 			}
 
-			out.collect(new Tuple2<Integer, String>(i, s));
+			out.collect(new Tuple2<>(i, s));
 		}
 	}
 
-	@RichGroupReduceFunction.Combinable
-	public static class Tuple3AllGroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+	public static class Tuple3AllGroupReduceWithCombine
+		implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>>,
+					GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 
-			Tuple3<Integer, Long, String> o = new Tuple3<Integer, Long, String>(0, 0l, "");
+			Tuple3<Integer, Long, String> o = new Tuple3<>(0, 0L, "");
 
 			for ( Tuple3<Integer, Long, String> t : values ) {
 				o.f0 += t.f0;
@@ -1532,13 +1537,14 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				s += t.f2;
 			}
 
-			out.collect(new Tuple2<Integer, String>(i, s));
+			out.collect(new Tuple2<>(i, s));
 
 		}
 	}
 
-	@RichGroupReduceFunction.Combinable
-	public static class CustomTypeGroupReduceWithCombine extends RichGroupReduceFunction<CustomType, CustomType> {
+	public static class CustomTypeGroupReduceWithCombine
+		implements GroupReduceFunction<CustomType, CustomType>,
+					GroupCombineFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -1571,8 +1577,9 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		}
 	}
 
-	@RichGroupReduceFunction.Combinable
-	public static class OrderCheckingCombinableReduce extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+	public static class OrderCheckingCombinableReduce
+		implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>,
+					GroupCombineFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override

@@ -457,7 +457,7 @@ public class ExecutionConfig implements Serializable {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
 
-		defaultKryoSerializers.put(type, new SerializableSerializer<T>(serializer));
+		defaultKryoSerializers.put(type, new SerializableSerializer<>(serializer));
 	}
 
 	/**
@@ -487,7 +487,7 @@ public class ExecutionConfig implements Serializable {
 			throw new NullPointerException("Cannot register null class or serializer.");
 		}
 
-		registeredTypesWithKryoSerializers.put(type, new SerializableSerializer<T>(serializer));
+		registeredTypesWithKryoSerializers.put(type, new SerializableSerializer<>(serializer));
 	}
 
 	/**
@@ -571,7 +571,7 @@ public class ExecutionConfig implements Serializable {
 		if (isForceKryoEnabled()) {
 			// if we force kryo, we must also return all the types that
 			// were previously only registered as POJO
-			LinkedHashSet<Class<?>> result = new LinkedHashSet<Class<?>>();
+			LinkedHashSet<Class<?>> result = new LinkedHashSet<>();
 			result.addAll(registeredKryoTypes);
 			for(Class<?> t : registeredPojoTypes) {
 				if (!result.contains(t)) {
