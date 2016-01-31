@@ -26,30 +26,6 @@ class IsotonicRegressionITSuite extends FlatSpec with Matchers with FlinkTestBas
 
 	behavior of "The isotonic regression implementation"
 
-	//  it should "build correct isotonic regression model" in {
-	//    val env = ExecutionEnvironment.getExecutionEnvironment
-	//    env.setParallelism(2)
-	//
-	//    val dataset = generateIsotonicInput(env, Seq(1, 2, 3, 1, 6, 17, 16, 17, 18))
-	//    val ir = new IsotonicRegression().setIsotonic(true)
-	//
-	//    ir.fit(dataset)
-	//    val model = ir.model.get.collect().head
-	//
-	//    println(ir.predict(dataset).collect())
-	//
-	//    model.boundaries should be (Seq(0, 1, 3, 4, 5, 6, 7, 8))
-	//    model.predictions should be (Seq(1, 2, 2, 6, 16.5, 16.5, 17.0, 18.0))
-	//    ir.isotonic should be (true)
-	//  }
-	//
-	//  private def generateIsotonicInput(env: ExecutionEnvironment, labels: Seq[Double]): DataSet[
-	//    (Double, Double, Double)] = {
-	//    env.fromCollection(
-	//      labels.zipWithIndex.map { case (label, i) => (label, i.toDouble, 1.0) }
-	//    )
-	//  }
-
 	it should "correctly build model and predict data with increasing isotonic regression model" in {
 		/*
 		 The following result could be re-produced with sklearn.
@@ -76,7 +52,7 @@ class IsotonicRegressionITSuite extends FlatSpec with Matchers with FlinkTestBas
 		ir.isotonic should be(true)
 	}
 
-	// this produces an error with the range partitioning!
+	// pending until FLINK-3281 is resolved
 	//  it should "build empty prediction-model for empty input" in {
 	//    val ir = runIsotonicRegression(Seq(), true)
 	//    val model = ir.model.get.collect().head
