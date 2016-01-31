@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
 /**
@@ -31,7 +30,11 @@ package org.apache.flink.types;
  * @see org.apache.flink.types.Value
  * @see org.apache.flink.core.io.IOReadableWritable
  * @see java.lang.Comparable
+ * 
+ * @deprecated The Key type is a relict of a deprecated and removed API and will be removed
+ *             in future versions as well.
  */
+@Deprecated
 public interface Key<T> extends Value, Comparable<T> {
 	
 	/**
