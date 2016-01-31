@@ -17,29 +17,30 @@
  */
 
 
-package org.apache.flink.api.java.tuple;
+// --------------------------------------------------------------
+//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
+//  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
+// --------------------------------------------------------------
 
-import org.apache.flink.types.NullFieldException;
-import org.junit.Assert;
-import org.junit.Test;
 
-public class Tuple2Test {
+package org.apache.flink.api.java.tuple.builder;
 
-	@Test
-	public void testSwapValues() {
-		Tuple2<String, Integer> toSwap = new Tuple2<>("Test case", 25);
-		Tuple2<Integer, String> swapped = toSwap.swap();
+import java.util.ArrayList;
+import java.util.List;
 
-		Assert.assertEquals(swapped.f0, toSwap.f1);
+import org.apache.flink.api.java.tuple.Tuple1;
 
-		Assert.assertEquals(swapped.f1, toSwap.f0);
+public class Tuple1Builder<T0> {
+
+	private List<Tuple1<T0>> tuples = new ArrayList<>();
+
+	public Tuple1Builder<T0> add(T0 value0){
+		tuples.add(new Tuple1<>(value0));
+		return this;
 	}
-	
-	@Test(expected = NullFieldException.class)
-	public void testGetFieldNotNull() {
-		Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
 
-		Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
-		tuple.getFieldNotNull(1);
+	@SuppressWarnings("unchecked")
+	public Tuple1<T0>[] build(){
+		return tuples.toArray(new Tuple1[tuples.size()]);
 	}
 }

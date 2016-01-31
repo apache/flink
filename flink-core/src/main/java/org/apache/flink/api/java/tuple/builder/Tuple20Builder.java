@@ -28,19 +28,19 @@ package org.apache.flink.api.java.tuple.builder;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.tuple.Tuple11;
+import org.apache.flink.api.java.tuple.Tuple20;
 
-public class Tuple11Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> {
+public class Tuple20Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> {
 
-	private List<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> tuples = new ArrayList<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>();
+	private List<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> tuples = new ArrayList<>();
 
-	public Tuple11Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9, T10 value10){
-		tuples.add(new Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(value0, value1, value2, value3, value4, value5, value6, value7, value8, value9, value10));
+	public Tuple20Builder<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> add(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5, T6 value6, T7 value7, T8 value8, T9 value9, T10 value10, T11 value11, T12 value12, T13 value13, T14 value14, T15 value15, T16 value16, T17 value17, T18 value18, T19 value19){
+		tuples.add(new Tuple20<>(value0, value1, value2, value3, value4, value5, value6, value7, value8, value9, value10, value11, value12, value13, value14, value15, value16, value17, value18, value19));
 		return this;
 	}
 
 	@SuppressWarnings("unchecked")
-	public Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>[] build(){
-		return tuples.toArray(new Tuple11[tuples.size()]);
+	public Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>[] build(){
+		return tuples.toArray(new Tuple20[tuples.size()]);
 	}
 }
