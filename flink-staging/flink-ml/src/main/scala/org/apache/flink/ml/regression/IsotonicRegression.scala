@@ -22,20 +22,52 @@ import java.util.Arrays.binarySearch
 
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.common.{Parameter, ParameterMap}
 import org.apache.flink.ml.pipeline.{FitOperation, PredictOperation, Predictor}
 
 import scala.collection.mutable.ArrayBuffer
-;
 
 case class IsotonicRegressionModel(boundaries: Array[Double], predictions: Array[Double])
 
 /**
- * ported from org.apache.spark.mllib.regression.IsotonicRegression
- *
- * https://github.com/apache/spark/blob/3e7e05f5ee763925ed60410d7de04cf36b723de1
- *      /mllib/src/main/scala/org/apache/spark/mllib/regression/IsotonicRegression.scala
- */
+  * Isotonic regression.
+  * Currently implemented using parallelized pool adjacent violators algorithm.
+  * Only univariate (single feature) algorithm supported.
+  *
+  * Sequential PAV implementation based on:
+  * Tibshirani, Ryan J., Holger Hoefling, and Robert Tibshirani.
+  * "Nearly-isotonic regression." Technometrics 53.1 (2011): 54-61.
+  * Available from [[http://www.stat.cmu.edu/~ryantibs/papers/neariso.pdf]]
+  *
+  * Sequential PAV parallelization based on:
+  * Kearsley, Anthony J., Richard A. Tapia, and Michael W. Trosset.
+  * "An approach to parallelizing isotonic regression."
+  * Applied Mathematics and Parallel Computing. Physica-Verlag HD, 1996. 141-147.
+  * Available from [[http://softlib.rice.edu/pub/CRPC-TRs/reports/CRPC-TR96640.pdf]]
+  *
+  * @see [[http://en.wikipedia.org/wiki/Isotonic_regression Isotonic regression (Wikipedia)]]
+  *
+  * This is a port from the implementation in Apache Spark.
+  *
+  * @example
+  * {{{
+  *             val ir = IsotonicRegression()
+  *               .setIsotonic(true)
+  *
+  *             val trainingDS: DataSet[(Double,Double,Double)] = ...
+  *             val testingDS: DataSet[(Double)] = ...
+  *
+  *             mlr.fit(trainingDS)
+  *
+  *             val predictions = mlr.predict(testingDS)
+  *          }}}
+  *
+  * =Parameters=
+  *
+  * - [[org.apache.flink.ml.regression.IsotonicRegression.Isotonic]]:
+  * true if labels shall be ascending, false if labels shall be descending.
+  *
+  */
 class IsotonicRegression extends Predictor[IsotonicRegression] {
 
     var isotonic = true
@@ -51,19 +83,33 @@ class IsotonicRegression extends Predictor[IsotonicRegression] {
 
 object IsotonicRegression {
 
+    // ====================================== Parameters ===========================================
+
+    case object Isotonic extends Parameter[Boolean] {
+        val defaultValue = Some(true)
+    }
+
+    // ======================================== Factory methods ====================================
+
+    def apply(): IsotonicRegression = {
+        new IsotonicRegression()
+    }
+
+    // ====================================== Operations ===========================================
+
     class AdjacentPoolViolatersMapper extends MapFunction[Array[(Double, Double, Double)], Array[
         (Double, Double, Double)]] {
 
         /**
-         * Performs a pool adjacent violators algorithm (PAV).
-         * Uses approach with single processing of data where violators
-         * in previously processed data created by pooling are fixed immediately.
-         * Uses optimization of discovering monotonicity violating sequences (blocks).
-         *
-         * @param input Input data of tuples (label, feature, weight).
-         * @return Result tuples (label, feature, weight) where labels were updated
-         *         to form a monotone sequence as per isotonic regression definition.
-         */
+          * Performs a pool adjacent violators algorithm (PAV).
+          * Uses approach with single processing of data where violators
+          * in previously processed data created by pooling are fixed immediately.
+          * Uses optimization of discovering monotonicity violating sequences (blocks).
+          *
+          * @param input Input data of tuples (label, feature, weight).
+          * @return Result tuples (label, feature, weight) where labels were updated
+          *         to form a monotone sequence as per isotonic regression definition.
+          */
         override def map(input: Array[(Double, Double, Double)]):
         Array[(Double, Double, Double)] = {
             if (input.isEmpty) {
