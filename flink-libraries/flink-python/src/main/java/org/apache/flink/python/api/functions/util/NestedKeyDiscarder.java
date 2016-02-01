@@ -23,6 +23,7 @@ Utility function to extract values from 2 Key-Value Tuples after a DefaultJoin.
 @ForwardedFields("f0.f1->f0; f1.f1->f1")
 public class NestedKeyDiscarder<IN> implements MapFunction<IN, Tuple2<byte[], byte[]>> {
 	@Override
+	@SuppressWarnings("unchecked")
 	public Tuple2<byte[], byte[]> map(IN value) throws Exception {
 		Tuple2<Tuple2<Tuple, byte[]>, Tuple2<Tuple, byte[]>> x = (Tuple2<Tuple2<Tuple, byte[]>, Tuple2<Tuple, byte[]>>) value;
 		return new Tuple2<>(x.f0.f1, x.f1.f1);
