@@ -140,7 +140,9 @@ public class RMQSourceTest {
 			}
 
 			// check if the messages are being acknowledged and the transaction comitted
-			source.notifyCheckpointComplete(snapshotId);
+			synchronized (DummySourceContext.lock) {
+				source.notifyCheckpointComplete(snapshotId);
+			}
 			totalNumberOfAcks += numIds;
 
 		}
