@@ -19,14 +19,14 @@
 package org.apache.flink.api.java.table
 
 import org.apache.calcite.plan.{RelTraitSet, RelOptUtil}
-import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.Programs
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.Table
-import org.apache.flink.api.table.plan.nodes.dataset.DataSetRel
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.api.table.plan.rules.FlinkRuleSets
 import org.apache.flink.api.table.plan.schema.DataSetTable
 
@@ -61,20 +61,19 @@ class JavaBatchTranslator extends PlanTranslator {
     // get the planner for the plan
     val planner = lPlan.getCluster.getPlanner
 
-    // we do not have any special requirements for the output
-    val outputProps = RelTraitSet.createEmpty()
 
     println("-----------")
     println("Input Plan:")
     println("-----------")
     println(RelOptUtil.toString(lPlan))
-
+    
     // decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(lPlan)
 
     // optimize the logical Flink plan
     val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
-    val optPlan = optProgram.run(planner, decorPlan, outputProps)
+    val flinkOutputProps = RelTraitSet.createEmpty()
+    val optPlan = optProgram.run(planner, decorPlan, flinkOutputProps)
 
     println("---------------")
     println("Optimized Plan:")
@@ -83,7 +82,10 @@ class JavaBatchTranslator extends PlanTranslator {
 
     // optimize the logical Flink plan
     val dataSetProgram = Programs.ofRules(FlinkRuleSets.DATASET_TRANS_RULES)
-    val dataSetPlan = dataSetProgram.run(planner, optPlan, outputProps)
+    val dataSetOutputProps = RelTraitSet.createEmpty()
+      .plus(DataSetConvention.INSTANCE)
+      .plus(RelCollations.of()).simplify()
+    val dataSetPlan = dataSetProgram.run(planner, optPlan, dataSetOutputProps)
 
     println("-------------")
     println("DataSet Plan:")
