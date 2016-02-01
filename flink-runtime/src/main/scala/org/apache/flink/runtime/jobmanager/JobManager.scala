@@ -50,6 +50,7 @@ import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{Heartbeat, SendStackTrace}
 import org.apache.flink.runtime.messages.TaskMessages.{PartitionState, UpdateTaskExecutionState}
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.{ResponseStackTraceSampleFailure, ResponseStackTraceSampleSuccess, StackTraceSampleMessages}
 import org.apache.flink.runtime.messages.accumulators.{AccumulatorMessage, AccumulatorResultStringsFound, AccumulatorResultsErroneous, AccumulatorResultsFound, RequestAccumulatorResults, RequestAccumulatorResultsStringified}
 import org.apache.flink.runtime.messages.checkpoint.{DeclineCheckpoint, AbstractCheckpointMessage, AcknowledgeCheckpoint}
 import org.apache.flink.runtime.messages.webmonitor._
@@ -110,7 +111,7 @@ class JobManager(
     protected val leaderElectionService: LeaderElectionService,
     protected val submittedJobGraphs : SubmittedJobGraphStore,
     protected val checkpointRecoveryFactory : CheckpointRecoveryFactory)
-  extends FlinkActor 
+  extends FlinkActor
   with LeaderSessionMessageFilter // mixin oder is important, we want filtering after logging
   with LogMessages // mixin order is important, we want first logging
   with LeaderContender
@@ -781,6 +782,8 @@ class JobManager(
 
     case message: InfoMessage => handleInfoRequestMessage(message, sender())
 
+    case message: StackTraceSampleMessages => handleStackTraceSampleMessage(message)
+
     case RequestStackTrace(instanceID) =>
       val gateway = instanceManager.getRegisteredInstanceById(instanceID).getActorGateway
       gateway.forward(SendStackTrace, new AkkaActorGateway(sender, leaderSessionID.orNull))
@@ -1325,6 +1328,42 @@ class JobManager(
     }
     catch {
       case e: Throwable => log.error(s"Error responding to message $actorMessage", e)
+    }
+  }
+
+  /**
+    * Handles stack trace sample response messages. Sampling is triggered via
+    * the [[ExecutionGraph]].
+    *
+    * @param message Stack trace sample response message.
+    */
+  private def handleStackTraceSampleMessage(message: StackTraceSampleMessages): Unit = {
+    try {
+      message match {
+        case ResponseStackTraceSampleSuccess(sampleId, jobId, executionId, traces) =>
+          currentJobs.get(jobId).foreach {
+              _ match {
+                case (graph, _) =>
+                  graph
+                    .getStackTraceSampleCoordinator
+                    .collectStackTraces(sampleId, executionId, traces)
+              }
+          }
+
+        case ResponseStackTraceSampleFailure(sampleId, jobId, executionId, cause) =>
+          currentJobs.get(jobId).foreach {
+            _ match {
+              case (graph, _) =>
+                  graph
+                    .getStackTraceSampleCoordinator
+                    .cancelStackTraceSample(sampleId, cause)
+            }
+          }
+
+        case _ => log.error("Unrecognized task sample message " + message)
+      }
+    } catch {
+      case e: Throwable => log.error(s"Error responding to message $message", e)
     }
   }
 

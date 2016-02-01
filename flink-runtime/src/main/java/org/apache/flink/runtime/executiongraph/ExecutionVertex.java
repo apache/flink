@@ -471,7 +471,7 @@ public class ExecutionVertex implements Serializable {
 		this.currentExecution.fail(t);
 	}
 
-	public void sendMessageToCurrentExecution(Serializable message, ExecutionAttemptID attemptID) {
+	public boolean sendMessageToCurrentExecution(Serializable message, ExecutionAttemptID attemptID) {
 		Execution exec = getCurrentExecutionAttempt();
 		
 		// check that this is for the correct execution attempt
@@ -483,15 +483,20 @@ public class ExecutionVertex implements Serializable {
 				ActorGateway gateway = slot.getInstance().getActorGateway();
 				if (gateway != null) {
 					gateway.tell(message);
+					return true;
+				} else {
+					return false;
 				}
 			}
 			else {
 				LOG.debug("Skipping message to undeployed task execution {}/{}", getSimpleName(), attemptID);
+				return false;
 			}
 		}
 		else {
 			LOG.debug("Skipping message to {}/{} because it does not match the current execution",
 					getSimpleName(), attemptID);
+			return false;
 		}
 	}
 	
