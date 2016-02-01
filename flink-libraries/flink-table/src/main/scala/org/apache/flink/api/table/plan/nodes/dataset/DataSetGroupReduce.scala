@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelWriter, RelNode, SingleRel}
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
@@ -36,7 +36,7 @@ class DataSetGroupReduce(
     rowType: RelDataType,
     opName: String,
     groupingKeys: Array[Int],
-    func: GroupReduceFunction[Row, Row])
+    func: GroupReduceFunction[Any, Any])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
