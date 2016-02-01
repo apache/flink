@@ -134,6 +134,12 @@ under the License.
 			<version>${curator.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 </project>

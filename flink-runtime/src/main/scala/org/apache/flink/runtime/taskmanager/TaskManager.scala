@@ -19,34 +19,29 @@
 package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, IOException}
+import java.lang.management.{ManagementFactory, OperatingSystemMXBean}
+import java.lang.reflect.Method
 import java.net.{InetAddress, InetSocketAddress}
+import java.util
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import java.lang.reflect.Method
-import java.lang.management.{OperatingSystemMXBean, ManagementFactory}
 
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
-
-import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.codahale.metrics.json.MetricsModule
-import com.codahale.metrics.jvm.{BufferPoolMetricSet, MemoryUsageGaugeSet, GarbageCollectorMetricSet}
-
+import com.codahale.metrics.jvm.{BufferPoolMetricSet, GarbageCollectorMetricSet, MemoryUsageGaugeSet}
+import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
-
 import org.apache.flink.configuration._
-import org.apache.flink.core.memory.{HybridMemorySegment, HeapMemorySegment, MemorySegmentFactory, MemoryType}
+import org.apache.flink.core.memory.{HeapMemorySegment, HybridMemorySegment, MemorySegmentFactory, MemoryType}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
-import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
-import org.apache.flink.runtime.messages.TaskMessages._
-import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
-import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.blob.{BlobService, BlobCache}
+import org.apache.flink.runtime.blob.{BlobCache, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
@@ -56,24 +51,28 @@ import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
-import org.apache.flink.runtime.memory.MemoryManager 
+import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
+import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.{SampleTaskStackTrace, ResponseStackTraceSampleFailure, ResponseStackTraceSampleSuccess, StackTraceSampleMessages, TriggerStackTraceSample}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
-import org.apache.flink.util.NetUtils
+import org.apache.flink.runtime.messages.TaskMessages._
+import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
-import org.apache.flink.runtime.util.{SignalHandler, LeaderRetrievalUtils, MathUtils, EnvironmentInformation}
+import org.apache.flink.runtime.util.{EnvironmentInformation, LeaderRetrievalUtils, MathUtils, SignalHandler}
+import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
+import org.apache.flink.util.NetUtils
 
+import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ForkJoinPool
-import scala.util.{Failure, Success}
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -272,6 +271,9 @@ class TaskManager(
 
     // registration messages for connecting and disconnecting from / to the JobManager
     case message: RegistrationMessage => handleRegistrationMessage(message)
+
+    // task sampling messages
+    case message: StackTraceSampleMessages => handleStackTraceSampleMessage(message)
 
     // ----- miscellaneous messages ----
 
@@ -640,6 +642,120 @@ class TaskManager(
     }
   }
 
+  private def handleStackTraceSampleMessage(message: StackTraceSampleMessages): Unit = {
+    message match {
+
+      // Triggers the sampling of a task
+      case TriggerStackTraceSample(
+        sampleId,
+        executionId,
+        numSamples,
+        delayBetweenSamples,
+        maxStackTraceDepth) =>
+
+          log.debug(s"Triggering stack trace sample $sampleId.")
+
+          val senderRef = sender()
+
+          self ! SampleTaskStackTrace(
+            sampleId,
+            executionId,
+            delayBetweenSamples,
+            maxStackTraceDepth,
+            numSamples,
+            new java.util.ArrayList(),
+            senderRef)
+
+      // Repeatedly sent to self to sample a task
+      case SampleTaskStackTrace(
+        sampleId,
+        executionId,
+        delayBetweenSamples,
+        maxStackTraceDepth,
+        remainingNumSamples,
+        currentTraces,
+        sender) =>
+
+        try {
+          if (remainingNumSamples >= 1) {
+            getStackTrace(executionId, maxStackTraceDepth) match {
+              case Some(stackTrace) =>
+
+                currentTraces.add(stackTrace)
+
+                if (remainingNumSamples > 1) {
+                  // ---- Continue ----
+                  val msg = SampleTaskStackTrace(
+                    sampleId,
+                    executionId,
+                    delayBetweenSamples,
+                    maxStackTraceDepth,
+                    remainingNumSamples - 1,
+                    currentTraces,
+                    sender)
+
+                  context.system.scheduler.scheduleOnce(
+                    delayBetweenSamples,
+                    self,
+                    msg)(context.dispatcher)
+                } else {
+                  // ---- Done ----
+                  log.debug(s"Done with stack trace sample $sampleId.")
+
+                  sender ! ResponseStackTraceSampleSuccess(
+                    sampleId,
+                    executionId,
+                    currentTraces)
+                }
+
+              case None =>
+                if (currentTraces.size() == 0) {
+                  throw new IllegalStateException(s"Cannot sample task $executionId. " +
+                    s"Either the task is not known to the task manager or it is not running.")
+                } else {
+                  throw new IllegalStateException(s"Cannot sample task $executionId. " +
+                    s"Task was removed after ${currentTraces.size()} sample(s).")
+                }
+            }
+          } else {
+            throw new IllegalStateException("Non-positive number of remaining samples")
+          }
+        } catch {
+          case e: Exception =>
+            sender ! ResponseStackTraceSampleFailure(sampleId, executionId, e)
+        }
+
+      case _ => unhandled(message)
+    }
+
+    /**
+      * Returns a stack trace of a running task.
+      *
+      * @param executionId ID of the running task.
+      * @param maxStackTraceDepth Maximum depth of the stack trace. 0 indicates
+      *                           no maximum and collects the complete stack
+      *                           trace.
+      * @return Stack trace of the running task.
+      */
+    def getStackTrace(
+      executionId: ExecutionAttemptID,
+      maxStackTraceDepth: Int): Option[Array[StackTraceElement]] = {
+
+      val task = runningTasks.get(executionId)
+
+      if (task != null && task.getExecutionState == ExecutionState.RUNNING) {
+        val stackTrace : Array[StackTraceElement] = task.getExecutingThread.getStackTrace
+
+        if (maxStackTraceDepth > 0) {
+          Option(util.Arrays.copyOfRange(stackTrace, 0, maxStackTraceDepth.min(stackTrace.length)))
+        } else {
+          Option(stackTrace)
+        }
+      } else {
+        Option.empty
+      }
+    }
+  }
 
   // --------------------------------------------------------------------------
   //  Task Manager / JobManager association and initialization
