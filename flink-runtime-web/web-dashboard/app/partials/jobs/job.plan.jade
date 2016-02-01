@@ -30,4 +30,7 @@
       li(ui-sref-active='active')
         a(ui-sref=".checkpoints({nodeid: nodeid})") Checkpoints
 
+      li(ng-if="job.state == 'RUNNING'" ui-sref-active='active')
+        a(ui-sref=".backpressure({nodeid: nodeid})") Back Pressure
+
   .panel-body.clean(ui-view="node-details")
