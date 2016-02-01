@@ -1692,6 +1692,7 @@ object JobManager {
 
     result match {
       case scala.util.Failure(f) => throw f
+      case _ =>
     }
   }
 
