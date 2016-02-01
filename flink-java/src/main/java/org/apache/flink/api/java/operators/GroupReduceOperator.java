@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.java.operators.translation.CombineToGroupCombineWrapper;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -30,6 +31,7 @@ import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -52,7 +54,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceOperator.class);
 
-	private final GroupReduceFunction<IN, OUT> function;
+	private GroupReduceFunction<IN, OUT> function;
 
 	private final Grouping<IN> grouper;
 	
@@ -68,12 +70,12 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	 */
 	public GroupReduceOperator(DataSet<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
-		
+
 		this.function = function;
 		this.grouper = null;
 		this.defaultName = defaultName;
 
-		checkCombinability();
+		this.combinable = checkCombinability();
 	}
 	
 	/**
@@ -84,18 +86,18 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	 */
 	public GroupReduceOperator(Grouping<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
 		super(input != null ? input.getInputDataSet() : null, resultType);
-		
+
 		this.function = function;
 		this.grouper = input;
 		this.defaultName = defaultName;
 
-		checkCombinability();
+		this.combinable = checkCombinability();
 
 		UdfOperatorUtils.analyzeSingleInputUdf(this, GroupReduceFunction.class, defaultName, function, grouper.keys);
 	}
 
-	private void checkCombinability() {
-		if (function instanceof GroupCombineFunction) {
+	private boolean checkCombinability() {
+		if (function instanceof GroupCombineFunction || function instanceof CombineFunction) {
 
 			// check if the generic types of GroupCombineFunction and GroupReduceFunction match, i.e.,
 			//   GroupCombineFunction<IN, IN> and GroupReduceFunction<IN, OUT>.
@@ -110,7 +112,9 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 					if (((ParameterizedType) genInterface).getRawType().equals(GroupReduceFunction.class)) {
 						reduceTypes = ((ParameterizedType) genInterface).getActualTypeArguments();
 					// get parameters of GroupCombineFunction
-					} else if (((ParameterizedType) genInterface).getRawType().equals(GroupCombineFunction.class)) {
+					} else if ((((ParameterizedType) genInterface).getRawType().equals(GroupCombineFunction.class)) ||
+						(((ParameterizedType) genInterface).getRawType().equals(CombineFunction.class))) {
+
 						combineTypes = ((ParameterizedType) genInterface).getActualTypeArguments();
 					}
 				}
@@ -120,24 +124,25 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 				combineTypes != null && combineTypes.length == 2) {
 
 				if (reduceTypes[0].equals(combineTypes[0]) && reduceTypes[0].equals(combineTypes[1])) {
-					this.combinable = true;
+					return true;
 				} else {
 					LOG.warn("GroupCombineFunction cannot be used as combiner for GroupReduceFunction. " +
 						"Generic types are incompatible.");
-					this.combinable = false;
+					return false;
 				}
 			}
 			else if (reduceTypes == null || reduceTypes.length != 2) {
 				LOG.warn("Cannot check generic types of GroupReduceFunction. " +
 					"Enabling combiner but combine function might fail at runtime.");
-				this.combinable = true;
+				return true;
 			}
 			else {
 				LOG.warn("Cannot check generic types of GroupCombineFunction. " +
 					"Enabling combiner but combine function might fail at runtime.");
-				this.combinable = true;
+				return true;
 			}
 		}
+		return false;
 	}
 	
 	
@@ -156,13 +161,18 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 	
 	public GroupReduceOperator<IN, OUT> setCombinable(boolean combinable) {
-		// sanity check that the function is a subclass of the combine interface
-		if (combinable && !(function instanceof GroupCombineFunction)) {
-			throw new IllegalArgumentException("The function does not implement the combine interface.");
+
+		if(combinable) {
+			// sanity check that the function is a subclass of the combine interface
+			if (!checkCombinability()) {
+				throw new IllegalArgumentException("Either the function does not implement a combine interface, " +
+					"or the types of the combine() and reduce() methods are not compatible.");
+			}
+			this.combinable = true;
 		}
-		
-		this.combinable = combinable;
-		
+		else {
+			this.combinable = false;
+		}
 		return this;
 	}
 
@@ -191,10 +201,16 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
+	@SuppressWarnings("unchecked")
 	protected GroupReduceOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
 
 		String name = getName() != null ? getName() : "GroupReduce at " + defaultName;
-		
+
+		// wrap CombineFunction in GroupCombineFunction if combinable
+		this.function = (combinable && function instanceof CombineFunction<?,?>) ?
+							new CombineToGroupCombineWrapper((CombineFunction<?,?>) function) :
+							function;
+
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
@@ -236,7 +252,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 				return po;
 			}
 		}
-		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
+		else if (grouper.getKeys() instanceof ExpressionKeys) {
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<>(getInputType(), getResultType());
