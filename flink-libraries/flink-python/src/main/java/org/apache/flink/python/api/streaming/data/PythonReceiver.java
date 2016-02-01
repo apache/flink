@@ -124,7 +124,7 @@ public class PythonReceiver implements Serializable {
 			}
 			byte[] value = new byte[fileBuffer.getInt()];
 			fileBuffer.get(value);
-			return new Tuple2(keys, value);
+			return new Tuple2<>(keys, value);
 		}
 	}
 
