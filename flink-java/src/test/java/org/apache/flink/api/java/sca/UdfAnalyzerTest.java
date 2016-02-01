@@ -366,7 +366,6 @@ public class UdfAnalyzerTest {
 
 	@Test
 	public void testForwardWithGetMethod() {
-		System.out.println("HERE");
 		compareAnalyzerResultWithAnnotationsSingleInput(MapFunction.class, Map20.class,
 				"Tuple4<Integer, Integer, Integer, Integer>", "Tuple4<Integer, Integer, Integer, Integer>");
 	}
