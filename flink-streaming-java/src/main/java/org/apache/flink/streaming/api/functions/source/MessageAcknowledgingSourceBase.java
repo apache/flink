@@ -124,7 +124,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
+	public synchronized void open(Configuration parameters) throws Exception {
 		idsForCurrentCheckpoint = new ArrayList<>(64);
 		pendingCheckpoints = new ArrayDeque<>(numCheckpointsToKeep);
 		idsProcessedButNotAcknowledged = new HashSet<>();
@@ -167,7 +167,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 		LOG.debug("Snapshotting state. Messages: {}, checkpoint id: {}, timestamp: {}",
 					idsForCurrentCheckpoint, checkpointId, checkpointTimestamp);
 
-		synchronized (pendingCheckpoints) {
+		synchronized (this) {
 			pendingCheckpoints.addLast(new Tuple2<>(checkpointId, idsForCurrentCheckpoint));
 
 			idsForCurrentCheckpoint = new ArrayList<>(64);
@@ -177,21 +177,19 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 	}
 
 	@Override
-	public void restoreState(SerializedCheckpointData[] state) throws Exception {
-		synchronized (pendingCheckpoints) {
-			pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
-			// build a set which contains all processed ids. It may be used to check if we have
-			// already processed an incoming message.
-			for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
-				idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
-			}
+	public synchronized void restoreState(SerializedCheckpointData[] state) throws Exception {
+		pendingCheckpoints = SerializedCheckpointData.toDeque(state, idSerializer);
+		// build a set which contains all processed ids. It may be used to check if we have
+		// already processed an incoming message.
+		for (Tuple2<Long, List<UId>> checkpoint : pendingCheckpoints) {
+			idsProcessedButNotAcknowledged.addAll(checkpoint.f1);
 		}
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		LOG.debug("Committing Messages externally for checkpoint {}", checkpointId);
-		synchronized (pendingCheckpoints) {
+		synchronized (this) {
 			for (Iterator<Tuple2<Long, List<UId>>> iter = pendingCheckpoints.iterator(); iter.hasNext(); ) {
 				Tuple2<Long, List<UId>> checkpoint = iter.next();
 				long id = checkpoint.f0;
