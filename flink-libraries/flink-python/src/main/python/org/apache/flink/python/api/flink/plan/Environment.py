@@ -44,7 +44,6 @@ class Environment(object):
         #parameters
         self._dop = -1
         self._local_mode = False
-        self._debug_mode = False
         self._retry = 0
 
         #sets
@@ -142,16 +141,13 @@ class Environment(object):
     def get_number_of_execution_retries(self):
         return self._retry
 
-    def execute(self, local=False, debug=False):
+    def execute(self, local=False):
         """
         Triggers the program execution.
 
         The environment will execute all parts of the program that have resulted in a "sink" operation.
         """
-        if debug:
-            local = True
         self._local_mode = local
-        self._debug_mode = debug
         self._optimize_plan()
 
         plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
@@ -243,7 +239,6 @@ class Environment(object):
     def _send_parameters(self):
         collect = self._collector.collect
         collect(("dop", self._dop))
-        collect(("debug", self._debug_mode))
         collect(("mode", self._local_mode))
         collect(("retry", self._retry))
 

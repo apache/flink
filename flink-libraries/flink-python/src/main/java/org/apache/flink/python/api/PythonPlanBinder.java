@@ -91,8 +91,6 @@ public class PythonPlanBinder {
 	private static String FLINK_HDFS_PATH = "hdfs:/tmp";
 	public static final String FLINK_TMP_DATA_DIR = System.getProperty("java.io.tmpdir") + File.separator + "flink_data";
 
-	public static boolean DEBUG = false;
-
 	private HashMap<Integer, Object> sets = new HashMap();
 	public ExecutionEnvironment env;
 	private PythonPlanStreamer streamer;
@@ -218,10 +216,8 @@ public class PythonPlanBinder {
 
 	private void close() {
 		try { //prevent throwing exception so that previous exceptions aren't hidden.
-			if (!DEBUG) {
-				FileSystem hdfs = FileSystem.get(new URI(FLINK_HDFS_PATH));
-				hdfs.delete(new Path(FLINK_HDFS_PATH), true);
-			}
+			FileSystem hdfs = FileSystem.get(new URI(FLINK_HDFS_PATH));
+			hdfs.delete(new Path(FLINK_HDFS_PATH), true);
 
 			FileSystem local = FileSystem.getLocalFileSystem();
 			local.delete(new Path(FLINK_PYTHON_FILE_PATH), true);
@@ -247,12 +243,11 @@ public class PythonPlanBinder {
 	private enum Parameters {
 		DOP,
 		MODE,
-		RETRY,
-		DEBUG
+		RETRY
 	}
 
 	private void receiveParameters() throws IOException {
-		for (int x = 0; x < 4; x++) {
+		for (int x = 0; x < 3; x++) {
 			Tuple value = (Tuple) streamer.getRecord(true);
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
@@ -265,9 +260,6 @@ public class PythonPlanBinder {
 				case RETRY:
 					int retry = (Integer) value.getField(1);
 					env.setRestartStrategy(RestartStrategies.fixedDelayRestart(retry, 10000L));
-					break;
-				case DEBUG:
-					DEBUG = (Boolean) value.getField(1);
 					break;
 			}
 		}

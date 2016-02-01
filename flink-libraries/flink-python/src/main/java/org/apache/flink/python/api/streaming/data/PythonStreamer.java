@@ -26,7 +26,6 @@ import java.util.Iterator;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.api.PythonPlanBinder;
-import static org.apache.flink.python.api.PythonPlanBinder.DEBUG;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_DC_ID;
@@ -54,7 +53,6 @@ public class PythonStreamer implements Serializable {
 
 	private final int id;
 	private final boolean usePython3;
-	private final boolean debug;
 	private final String planArguments;
 
 	private String inputFilePath;
@@ -78,7 +76,6 @@ public class PythonStreamer implements Serializable {
 	public PythonStreamer(AbstractRichFunction function, int id, boolean usesByteArray) {
 		this.id = id;
 		this.usePython3 = PythonPlanBinder.usePython3;
-		this.debug = DEBUG;
 		planArguments = PythonPlanBinder.arguments.toString();
 		sender = new PythonSender();
 		receiver = new PythonReceiver(usesByteArray);
@@ -113,15 +110,9 @@ public class PythonStreamer implements Serializable {
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
 
-		if (debug) {
-			socket.setSoTimeout(0);
-			LOG.info("Waiting for Python Process : " + function.getRuntimeContext().getTaskName()
-					+ " Run python " + planPath + planArguments);
-		} else {
-			process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
-			new StreamPrinter(process.getInputStream()).start();
-			new StreamPrinter(process.getErrorStream(), true, msg).start();
-		}
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
+		new StreamPrinter(process.getInputStream()).start();
+		new StreamPrinter(process.getErrorStream(), true, msg).start();
 
 		shutdownThread = new Thread() {
 			@Override
@@ -147,12 +138,10 @@ public class PythonStreamer implements Serializable {
 			Thread.sleep(2000);
 		} catch (InterruptedException ex) {
 		}
-		if (!debug) {
-			try {
-				process.exitValue();
-				throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
-			} catch (IllegalThreadStateException ise) { //process still active -> start receiving data
-			}
+		try {
+			process.exitValue();
+			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
+		} catch (IllegalThreadStateException ise) { //process still active -> start receiving data
 		}
 
 		socket = server.accept();
@@ -173,9 +162,7 @@ public class PythonStreamer implements Serializable {
 		} catch (Exception e) {
 			LOG.error("Exception occurred while closing Streamer. :" + e.getMessage());
 		}
-		if (!debug) {
-			destroyProcess();
-		}
+		destroyProcess();
 		if (shutdownThread != null) {
 			Runtime.getRuntime().removeShutdownHook(shutdownThread);
 		}
