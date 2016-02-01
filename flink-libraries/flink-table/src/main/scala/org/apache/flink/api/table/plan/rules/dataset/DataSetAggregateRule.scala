@@ -21,8 +21,11 @@ package org.apache.flink.api.table.plan.rules.dataset
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetReduce}
+import org.apache.flink.api.table.plan.functions.aggregate.AggregateFactory
+import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetGroupReduce}
 import org.apache.flink.api.table.plan.nodes.logical.{FlinkAggregate, FlinkConvention}
+
+import scala.collection.JavaConversions._
 
 class DataSetAggregateRule
   extends ConverterRule(
@@ -37,14 +40,20 @@ class DataSetAggregateRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
     val convInput: RelNode = RelOptRule.convert(agg.getInput, DataSetConvention.INSTANCE)
 
-    new DataSetReduce(
+    val grouping = agg.getGroupSet.asList().map {
+      case a: java.lang.Integer => a.intValue
+    }.toArray
+
+    val aggregateFunction = AggregateFactory.createAggregateInstance(agg.getAggCallList)
+
+    new DataSetGroupReduce(
       rel.getCluster,
       traitSet,
       convInput,
       rel.getRowType,
       agg.toString,
-      Array[Int](),
-      null)
+      grouping,
+      aggregateFunction)
   }
 }
 
