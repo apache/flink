@@ -19,7 +19,7 @@
 package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.rel.core.JoinRelType._
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
@@ -29,8 +29,11 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{Row, TableException}
-
 import scala.collection.JavaConversions._
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 object TypeConverter {
 
@@ -139,4 +142,10 @@ object TypeConverter {
     returnType.asInstanceOf[TypeInformation[Any]]
   }
 
+  def sqlJoinTypeToFlinkJoinType(sqlJoinType: JoinRelType): JoinType = sqlJoinType match {
+    case INNER => JoinType.INNER
+    case LEFT => JoinType.LEFT_OUTER
+    case RIGHT => JoinType.RIGHT_OUTER
+    case FULL => JoinType.FULL_OUTER
+  }
 }
