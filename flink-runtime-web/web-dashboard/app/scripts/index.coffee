@@ -113,6 +113,13 @@ angular.module('flinkApp', ['ui.router', 'angularMoment'])
         templateUrl: "partials/jobs/job.plan.node-list.checkpoints.html"
         controller: 'JobPlanCheckpointsController'
 
+  .state "single-job.plan.backpressure",
+    url: "/backpressure"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.backpressure.html"
+        controller: 'JobPlanBackPressureController'
+
   .state "single-job.timeline",
     url: "/timeline"
     views:
