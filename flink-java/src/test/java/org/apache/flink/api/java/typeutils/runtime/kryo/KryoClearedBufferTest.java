@@ -22,13 +22,16 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.typeutils.runtime.ByteArrayInputView;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
@@ -69,7 +72,8 @@ public class KryoClearedBufferTest {
 			// now the Kryo Output should have been cleared
 		}
 
-		TestRecord actualRecord = kryoSerializer.deserialize(new ByteArrayInputView(target.getBuffer()));
+		TestRecord actualRecord = kryoSerializer.deserialize(
+				new DataInputViewStreamWrapper(new ByteArrayInputStream(target.getBuffer())));
 
 		Assert.assertEquals(testRecord, actualRecord);
 

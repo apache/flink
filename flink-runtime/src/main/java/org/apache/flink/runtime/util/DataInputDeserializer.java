@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.EOFException;
@@ -31,7 +30,11 @@ import org.apache.flink.core.memory.MemoryUtils;
 /**
  * A simple and efficient deserializer for the {@link java.io.DataInput} interface.
  */
-public class DataInputDeserializer implements DataInputView {
+public class DataInputDeserializer implements DataInputView, java.io.Serializable {
+	
+	private static final long serialVersionUID = 1L;
+
+	// ------------------------------------------------------------------------
 	
 	private byte[] buffer;
 	
@@ -39,8 +42,9 @@ public class DataInputDeserializer implements DataInputView {
 
 	private int position;
 
-	public DataInputDeserializer() {
-	}
+	// ------------------------------------------------------------------------
+	
+	public DataInputDeserializer() {}
 	
 	public DataInputDeserializer(byte[] buffer, int start, int len) {
 		setBuffer(buffer, start, len);
@@ -50,6 +54,10 @@ public class DataInputDeserializer implements DataInputView {
 		setBuffer(buffer);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Chaning buffers
+	// ------------------------------------------------------------------------
+	
 	public void setBuffer(ByteBuffer buffer) {
 		if (buffer.hasArray()) {
 			this.buffer = buffer.array();
@@ -311,44 +319,36 @@ public class DataInputDeserializer implements DataInputView {
 			return n;
 		}
 	}
-	
-	@SuppressWarnings("restriction")
-	private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
-	
-	@SuppressWarnings("restriction")
-	private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
-	
-	private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
 
 	@Override
 	public void skipBytesToRead(int numBytes) throws IOException {
 		int skippedBytes = skipBytes(numBytes);
 
-		if(skippedBytes < numBytes){
+		if (skippedBytes < numBytes){
 			throw new EOFException("Could not skip " + numBytes +" bytes.");
 		}
 	}
 
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-		if(b == null){
+		if (b == null){
 			throw new NullPointerException("Byte array b cannot be null.");
 		}
 
-		if(off < 0){
+		if (off < 0){
 			throw new IndexOutOfBoundsException("Offset cannot be negative.");
 		}
 
-		if(len < 0){
+		if (len < 0){
 			throw new IndexOutOfBoundsException("Length cannot be negative.");
 		}
 
-		if(b.length - off < len){
+		if (b.length - off < len){
 			throw new IndexOutOfBoundsException("Byte array does not provide enough space to store requested data" +
 					".");
 		}
 
-		if(this.position >= this.end) {
+		if (this.position >= this.end) {
 			return -1;
 		} else {
 			int toRead = Math.min(this.end-this.position, len);
@@ -363,4 +363,16 @@ public class DataInputDeserializer implements DataInputView {
 	public int read(byte[] b) throws IOException {
 		return read(b, 0, b.length);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	@SuppressWarnings("restriction")
+	private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+
+	@SuppressWarnings("restriction")
+	private static final long BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+
+	private static final boolean LITTLE_ENDIAN = (MemoryUtils.NATIVE_BYTE_ORDER == ByteOrder.LITTLE_ENDIAN);
 }
