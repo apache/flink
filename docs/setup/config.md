@@ -163,6 +163,8 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 - `jobmanager.web.port`: Port of the JobManager's web interface that displays status of running jobs and execution time breakdowns of finished jobs (DEFAULT: 8081). Setting this value to `-1` disables the web frontend.
 - `jobmanager.web.history`: The number of latest jobs that the JobManager's web front-end in its history (DEFAULT: 5).
+- `jobmanager.web.checkpoints.disable`: Disables checkpoint statistics (DEFAULT: `false`).
+- `jobmanager.web.checkpoints.history`: Number of checkpoint statistics to remember (DEFAULT: `10`).
 
 ### Webclient
 
