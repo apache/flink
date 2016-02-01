@@ -232,6 +232,24 @@ angular.module('flinkApp')
 
     deferred.promise
 
+  # Operator-level back pressure stats
+  @getOperatorBackPressure = (vertexid) ->
+    deferred = $q.defer()
+
+    $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/vertices/" + vertexid + "/backpressure"
+    .success (data) =>
+      deferred.resolve(data)
+
+    deferred.promise
+
+  @translateBackPressureLabelState = (state) ->
+    switch state.toLowerCase()
+      when 'in-progress' then 'danger'
+      when 'ok' then 'success'
+      when 'low' then 'warning'
+      when 'high' then 'danger'
+      else 'default'
+
   @loadExceptions = ->
     deferred = $q.defer()
 

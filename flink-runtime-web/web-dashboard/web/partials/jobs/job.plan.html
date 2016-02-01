@@ -26,6 +26,7 @@ limitations under the License.
       <li ui-sref-active="active"><a ui-sref=".overview({nodeid: nodeid})">Overview</a></li>
       <li ui-sref-active="active"><a ui-sref=".accumulators({nodeid: nodeid})">Accumulators</a></li>
       <li ui-sref-active="active"><a ui-sref=".checkpoints({nodeid: nodeid})">Checkpoints</a></li>
+      <li ng-if="job.state == 'RUNNING'" ui-sref-active="active"><a ui-sref=".backpressure({nodeid: nodeid})">Back Pressure</a></li>
     </ul>
   </nav>
   <div ui-view="node-details" class="panel-body clean"></div>
