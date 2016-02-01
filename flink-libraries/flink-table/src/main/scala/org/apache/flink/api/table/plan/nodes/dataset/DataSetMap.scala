@@ -18,12 +18,11 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelWriter, RelNode, SingleRel}
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.Row
 
 /**
   * Flink RelNode which matches along with MapOperator.
@@ -34,7 +33,7 @@ class DataSetMap(
     input: RelNode,
     rowType: RelDataType,
     opName: String,
-    func: MapFunction[Row, Row])
+    func: MapFunction[Any, Any])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
