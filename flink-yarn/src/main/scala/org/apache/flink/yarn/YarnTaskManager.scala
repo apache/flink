@@ -55,5 +55,8 @@ class YarnTaskManager(
       log.info(s"Stopping YARN TaskManager with final application status $status " +
         s"and diagnostics: $diagnostics")
       context.system.shutdown()
+
+      log.info("Shutdown completed. Stopping JVM")
+      System.exit(0)
   }
 }

@@ -183,6 +183,9 @@ class YarnJobManager(
       // Shutdown and discard all queued messages
       context.system.shutdown()
 
+      log.info("Shutdown completed. Stopping JVM")
+      System.exit(0)
+
     case RegisterApplicationClient =>
       val client = sender()
 
