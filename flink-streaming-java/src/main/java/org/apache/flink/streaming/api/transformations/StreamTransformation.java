@@ -126,7 +126,7 @@ public abstract class StreamTransformation<T> {
 
 	protected long bufferTimeout = -1;
 
-	protected StreamGraph.ResourceStrategy resourceStrategy = StreamGraph.ResourceStrategy.DEFAULT;
+	private String slotSharingGroup;
 
 	/**
 	 * Creates a new {@code StreamTransformation} with the given name, output type and parallelism.
@@ -140,6 +140,7 @@ public abstract class StreamTransformation<T> {
 		this.name = Preconditions.checkNotNull(name);
 		this.outputType = outputType;
 		this.parallelism = parallelism;
+		this.slotSharingGroup = null;
 	}
 
 	/**
@@ -201,6 +202,29 @@ public abstract class StreamTransformation<T> {
 	 */
 	public String getUid() {
 		return uid;
+	}
+
+	/**
+	 * Returns the slot sharing group of this transformation.
+	 *
+	 * @see #setSlotSharingGroup(String)
+	 */
+	public String getSlotSharingGroup() {
+		return slotSharingGroup;
+	}
+
+	/**
+	 * Sets the slot sharing group of this transformation. Parallel instances of operations that
+	 * are in the same slot sharing group will be co-located in the same TaskManager slot, if
+	 * possible.
+	 *
+	 * <p>Initially, an operation is in the default slot sharing group. This can be explicitly
+	 * set using {@code setSlotSharingGroup("default")}.
+	 *
+	 * @param slotSharingGroup The slot sharing group name.
+	 */
+	public void setSlotSharingGroup(String slotSharingGroup) {
+		this.slotSharingGroup = slotSharingGroup;
 	}
 
 	/**
@@ -274,25 +298,6 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets the {@link org.apache.flink.streaming.api.graph.StreamGraph.ResourceStrategy} of this
-	 * {@code StreamTransformation}. The resource strategy is used when scheduling operations on actual
-	 * workers when transforming the StreamTopology to an
-	 * {@link org.apache.flink.runtime.executiongraph.ExecutionGraph}.
-	 */
-	public void setResourceStrategy(StreamGraph.ResourceStrategy resourceStrategy) {
-		this.resourceStrategy = resourceStrategy;
-	}
-
-	/**
-	 * Returns the {@code ResourceStrategy} of this {@code StreamTransformation}.
-	 *
-	 * @see #setResourceStrategy(StreamGraph.ResourceStrategy)
-	 */
-	public StreamGraph.ResourceStrategy getResourceStrategy() {
-		return resourceStrategy;
-	}
-
-	/**
 	 * Returns all transitive predecessor {@code StreamTransformation}s of this {@code StreamTransformation}. This
 	 * is, for example, used when determining whether a feedback edge of an iteration
 	 * actually has the iteration head as a predecessor.
@@ -334,10 +339,7 @@ public abstract class StreamTransformation<T> {
 		if (!name.equals(that.name)) {
 			return false;
 		}
-		if (outputType != null ? !outputType.equals(that.outputType) : that.outputType != null) {
-			return false;
-		}
-		return resourceStrategy == that.resourceStrategy;
+		return outputType != null ? outputType.equals(that.outputType) : that.outputType == null;
 	}
 
 	@Override
@@ -347,7 +349,6 @@ public abstract class StreamTransformation<T> {
 		result = 31 * result + (outputType != null ? outputType.hashCode() : 0);
 		result = 31 * result + parallelism;
 		result = 31 * result + (int) (bufferTimeout ^ (bufferTimeout >>> 32));
-		result = 31 * result + resourceStrategy.hashCode();
 		return result;
 	}
 }
