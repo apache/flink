@@ -21,10 +21,8 @@ package org.apache.flink.api.table.plan.rules.dataset
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetSource}
 import org.apache.flink.api.table.plan.nodes.logical.{FlinkScan, FlinkConvention}
-import org.apache.flink.api.table.plan.schema.DataSetTable
 
 class DataSetScanRule
   extends ConverterRule(
@@ -33,17 +31,17 @@ class DataSetScanRule
     DataSetConvention.INSTANCE,
     "DataSetScanRule")
 {
+
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkScan = rel.asInstanceOf[FlinkScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val dataSet: DataSet[_] = scan.getTable().unwrap(classOf[DataSetTable[_]]).dataSet
+
 
     new DataSetSource(
       rel.getCluster,
       traitSet,
       scan.getTable,
-      rel.getRowType,
-      dataSet
+      rel.getRowType
     )
   }
 }

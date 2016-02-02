@@ -22,19 +22,34 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, GenericTypeInfo}
+import org.apache.flink.api.java.typeutils.ValueTypeInfo._
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 object TypeConverter {
 
   def typeInfoToSqlType(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
     case BOOLEAN_TYPE_INFO => BOOLEAN
+    case BOOLEAN_VALUE_TYPE_INFO => BOOLEAN
     case BYTE_TYPE_INFO => TINYINT
+    case BYTE_VALUE_TYPE_INFO => TINYINT
     case SHORT_TYPE_INFO => SMALLINT
+    case SHORT_VALUE_TYPE_INFO => SMALLINT
     case INT_TYPE_INFO => INTEGER
+    case INT_VALUE_TYPE_INFO => INTEGER
     case LONG_TYPE_INFO => BIGINT
+    case LONG_VALUE_TYPE_INFO => BIGINT
     case FLOAT_TYPE_INFO => FLOAT
+    case FLOAT_VALUE_TYPE_INFO => FLOAT
     case DOUBLE_TYPE_INFO => DOUBLE
+    case DOUBLE_VALUE_TYPE_INFO => DOUBLE
     case STRING_TYPE_INFO => VARCHAR
+    case STRING_VALUE_TYPE_INFO => VARCHAR
     case DATE_TYPE_INFO => DATE
+//    case t: TupleTypeInfo[_] => ROW
+//    case c: CaseClassTypeInfo[_] => ROW
+//    case p: PojoTypeInfo[_] => STRUCTURED
+//    case g: GenericTypeInfo[_] => OTHER
     case _ => ??? // TODO more types
     }
 

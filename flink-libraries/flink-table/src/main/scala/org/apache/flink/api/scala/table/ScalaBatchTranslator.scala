@@ -38,8 +38,12 @@ class ScalaBatchTranslator extends PlanTranslator {
 
   type Representation[A] = DataSet[A]
 
-  override def createTable[A](repr: Representation[A], fieldNames: Array[String]): Table = {
-    javaTranslator.createTable(repr.javaSet, fieldNames)
+  override def createTable[A](
+    repr: Representation[A],
+    fieldIndexes: Array[Int],
+    fieldNames: Array[String]): Table =
+  {
+    javaTranslator.createTable(repr.javaSet, fieldIndexes, fieldNames)
   }
 
   override def translate[O](op: RelNode)(implicit tpe: TypeInformation[O]): DataSet[O] = {
