@@ -22,7 +22,7 @@ import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetFlatMap}
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkFilter, FlinkConvention}
+import org.apache.flink.api.table.plan.nodes.logical.{FlinkConvention, FlinkFilter}
 
 class DataSetFilterRule
   extends ConverterRule(
