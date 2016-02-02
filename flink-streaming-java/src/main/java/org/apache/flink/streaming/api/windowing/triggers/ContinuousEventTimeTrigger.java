@@ -74,6 +74,9 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 	}
 
 	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {}
+
+	@Override
 	public String toString() {
 		return "ContinuousProcessingTimeTrigger(" + interval + ")";
 	}

@@ -79,6 +79,11 @@ public class PurgingTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {
+		nestedTrigger.clear(window, ctx);
+	}
+
+	@Override
 	public String toString() {
 		return "PurgingTrigger(" + nestedTrigger.toString() + ")";
 	}

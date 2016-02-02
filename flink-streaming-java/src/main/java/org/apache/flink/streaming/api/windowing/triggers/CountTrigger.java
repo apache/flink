@@ -66,6 +66,11 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 	}
 
 	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {
+		ctx.getPartitionedState(stateDesc).clear();
+	}
+
+	@Override
 	public String toString() {
 		return "CountTrigger(" +  maxCount + ")";
 	}

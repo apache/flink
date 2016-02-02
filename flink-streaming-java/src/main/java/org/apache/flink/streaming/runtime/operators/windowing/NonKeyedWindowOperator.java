@@ -284,6 +284,10 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 		if (triggerResult.isFire()) {
 			emitWindow(context);
 		}
+
+		if (triggerResult.isPurge()) {
+			context.clear();
+		}
 	}
 
 	@Override
@@ -516,6 +520,23 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			triggers.add(this);
 		}
 
+		@Override
+		public void deleteProcessingTimeTimer(long time) {
+			Set<Context> triggers = processingTimeTimers.get(time);
+			if (triggers != null) {
+				triggers.remove(this);
+			}
+		}
+
+		@Override
+		public void deleteEventTimeTimer(long time) {
+			Set<Context> triggers = watermarkTimers.get(time);
+			if (triggers != null) {
+				triggers.remove(this);
+			}
+
+		}
+
 		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
 			Trigger.TriggerResult onElementResult = trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
 			if (watermarkTimer > 0 && watermarkTimer <= currentWatermark) {
@@ -552,6 +573,10 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			} else {
 				return Trigger.TriggerResult.CONTINUE;
 			}
+		}
+
+		public void clear() throws Exception {
+			trigger.clear(window, this);
 		}
 	}
 
