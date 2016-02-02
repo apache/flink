@@ -94,14 +94,12 @@ under the License.
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-			<version>2.5</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.joda</groupId>
 			<artifactId>joda-convert</artifactId>
-			<version>1.7</version>
 			<scope>test</scope>
 		</dependency>
 
