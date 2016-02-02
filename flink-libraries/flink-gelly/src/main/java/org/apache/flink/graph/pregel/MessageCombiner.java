@@ -21,7 +21,7 @@ package org.apache.flink.graph.pregel;
 import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.Either;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -49,7 +49,7 @@ public abstract class MessageCombiner<K, Message> implements Serializable {
 	}
 
 	/**
-	 * Combines messages from sent different vertices to a target vertex.
+	 * Combines messages sent from different vertices to a target vertex.
 	 * Implementing this method might reduce communication costs during a vertex-centric
 	 * iteration.
 	 * 

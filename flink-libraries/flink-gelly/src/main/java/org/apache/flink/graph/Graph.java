@@ -1684,10 +1684,10 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Runs a VertexCentric iteration on the graph.
+	 * Runs a {@link VertexCentricIteration} on the graph.
 	 * No configuration options are provided.
 	 *
-	 * @param computeFunction the vertex update function
+	 * @param computeFunction the vertex compute function
 	 * @param combiner an optional message combiner
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * 
@@ -1702,12 +1702,12 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
-	 * Runs a VetexCentric iteration on the graph with configuration options.
+	 * Runs a {@link VertexCentricIteration} on the graph with configuration options.
 	 * 
-	 * @param computeFunction the vertex update function
+	 * @param computeFunction the vertex compute function
 	 * @param combiner an optional message combiner
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
-	 * @param parameters the iteration configuration parameters
+	 * @param parameters the {@link VertexCentricConfiguration} parameters
 	 * 
 	 * @return the updated Graph after the vertex-centric iteration has converged or
 	 * after maximumNumberOfIterations.

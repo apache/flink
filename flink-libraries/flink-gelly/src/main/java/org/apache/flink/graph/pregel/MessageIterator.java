@@ -21,7 +21,7 @@ package org.apache.flink.graph.pregel;
 import java.util.Iterator;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.Either;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -47,11 +47,8 @@ public final class MessageIterator<Message> implements Iterator<Message>, Iterab
 		if (first != null) {
 			return true;
 		}
-		else if (this.source != null) {
-			return this.source.hasNext();	
-		}
 		else {
-			return false;
+			return ((this.source != null) && (this.source.hasNext()));
 		}
 	}
 	

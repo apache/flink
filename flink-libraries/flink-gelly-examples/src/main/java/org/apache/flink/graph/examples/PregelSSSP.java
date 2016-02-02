@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.example;
+package org.apache.flink.graph.examples;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -25,7 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
+import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
 import org.apache.flink.graph.pregel.ComputeFunction;
 import org.apache.flink.graph.pregel.MessageCombiner;
 import org.apache.flink.graph.pregel.MessageIterator;
@@ -45,7 +45,7 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * edge 1-2 with distance 0.1, and edge 1-3 with distance 1.4.
  *
  * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.graph.example.utils.SingleSourceShortestPathsData}
+ * {@link org.apache.flink.graph.examples.data.SingleSourceShortestPathsData}
  */
 public class PregelSSSP implements ProgramDescription {
 
