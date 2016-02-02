@@ -146,6 +146,9 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
 	private volatile boolean isRunning;
+	
+	/** Flag to mark this task as canceled */
+	private volatile boolean canceled;
 
 	private long recoveryTimestamp;
 
@@ -191,6 +194,11 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 			// task specific initialization
 			init();
 			
+			// save the work of reloadig state, etc, if the task is already canceled
+			if (canceled) {
+				throw new CancelTaskException();
+			}
+			
 			// -------- Invoke --------
 			LOG.debug("Invoking {}", getName());
 			
@@ -205,7 +213,12 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 				openAllOperators();
 			}
 
-			// let the task do its work
+			// final check to exit early before starting to run
+			if (canceled) {
+				throw new CancelTaskException();
+			}
+
+				// let the task do its work
 			isRunning = true;
 			run();
 			isRunning = false;
@@ -290,11 +303,16 @@ public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 	@Override
 	public final void cancel() throws Exception {
 		isRunning = false;
+		canceled = true;
 		cancelTask();
 	}
 
 	public final boolean isRunning() {
 		return isRunning;
+	}
+	
+	public final boolean isCanceled() {
+		return canceled;
 	}
 	
 	private void openAllOperators() throws Exception {
