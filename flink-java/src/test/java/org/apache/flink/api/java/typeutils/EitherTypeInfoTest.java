@@ -23,7 +23,8 @@ import static org.junit.Assert.assertNotEquals;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.Either.Right;
+import org.apache.flink.types.Either;
+import org.apache.flink.types.Either.Right;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 

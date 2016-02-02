@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.types;
 
 /**
  * This type represents a value of one two possible types, Left or Right (a
