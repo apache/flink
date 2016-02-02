@@ -28,40 +28,45 @@ import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.api.common.typeinfo.AtomicType
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.plan.TypeConverter
 
 class DataSetTable[T](
     val dataSet: DataSet[T],
+    val fieldIndexes: Array[Int],
     val fieldNames: Array[String])
   extends AbstractTable {
 
+  if (fieldIndexes.length != fieldNames.length) {
+    throw new IllegalArgumentException(
+      "Number of field indexes and field names must be equal.")
+  }
+
   // check uniquenss of field names
   if (fieldNames.length != fieldNames.toSet.size) {
-    throw new scala.IllegalArgumentException(
+    throw new IllegalArgumentException(
       "Table field names must be unique.")
   }
 
-  val dataSetType: CompositeType[T] =
+  val fieldTypes: Array[SqlTypeName] =
     dataSet.getType match {
       case cType: CompositeType[T] =>
-        cType
-      case _ =>
-        throw new scala.IllegalArgumentException(
-          "DataSet must have a composite type.")
-    }
-
-  val fieldTypes: Array[SqlTypeName] =
-    if (fieldNames.length == dataSetType.getArity) {
-      (0 until dataSetType.getArity)
-        .map(i => dataSetType.getTypeAt(i))
-        .map(TypeConverter.typeInfoToSqlType)
-        .toArray
-    }
-    else {
-      throw new IllegalArgumentException(
-        "Arity of DataSet type not equal to number of field names.")
+        if (fieldNames.length != cType.getArity) {
+          throw new IllegalArgumentException(
+          s"Arity of DataSet type (" + cType.getFieldNames.deep + ") " +
+            "not equal to number of field names " + fieldNames.deep + ".")
+        }
+        fieldIndexes
+          .map(cType.getTypeAt(_))
+          .map(TypeConverter.typeInfoToSqlType(_))
+      case aType: AtomicType[T] =>
+        if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
+          throw new IllegalArgumentException(
+            "Non-composite input type may have only a single field and its index must be 0.")
+        }
+        Array(TypeConverter.typeInfoToSqlType(aType))
     }
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {

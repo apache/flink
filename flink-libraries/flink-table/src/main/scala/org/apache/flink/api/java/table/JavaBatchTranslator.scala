@@ -40,11 +40,13 @@ class JavaBatchTranslator extends PlanTranslator {
 
   override def createTable[A](
       repr: Representation[A],
+      fieldIndexes: Array[Int],
       fieldNames: Array[String]): Table = {
 
     // create table representation from DataSet
     val dataSetTable = new DataSetTable[A](
       repr.asInstanceOf[JavaDataSet[A]],
+      fieldIndexes,
       fieldNames
     )
 
