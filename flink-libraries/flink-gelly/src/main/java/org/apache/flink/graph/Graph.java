@@ -51,6 +51,10 @@ import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
+import org.apache.flink.graph.pregel.ComputeFunction;
+import org.apache.flink.graph.pregel.MessageCombiner;
+import org.apache.flink.graph.pregel.VertexCentricConfiguration;
+import org.apache.flink.graph.pregel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.ScatterGatherConfiguration;
 import org.apache.flink.graph.spargel.ScatterGatherIteration;
@@ -1676,6 +1680,47 @@ public class Graph<K, VV, EV> {
 
 		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(iteration);
 
+		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
+	}
+
+	/**
+	 * Runs a VertexCentric iteration on the graph.
+	 * No configuration options are provided.
+	 *
+	 * @param computeFunction the vertex update function
+	 * @param combiner an optional message combiner
+	 * @param maximumNumberOfIterations maximum number of iterations to perform
+	 * 
+	 * @return the updated Graph after the vertex-centric iteration has converged or
+	 * after maximumNumberOfIterations.
+	 */
+	public <M> Graph<K, VV, EV> runVertexCentricIteration(
+			ComputeFunction<K, VV, EV, M> computeFunction, 
+			MessageCombiner<K, M> combiner, int maximumNumberOfIterations) {
+
+		return this.runVertexCentricIteration(computeFunction, combiner, maximumNumberOfIterations, null);
+	}
+
+	/**
+	 * Runs a VetexCentric iteration on the graph with configuration options.
+	 * 
+	 * @param computeFunction the vertex update function
+	 * @param combiner an optional message combiner
+	 * @param maximumNumberOfIterations maximum number of iterations to perform
+	 * @param parameters the iteration configuration parameters
+	 * 
+	 * @return the updated Graph after the vertex-centric iteration has converged or
+	 * after maximumNumberOfIterations.
+	 */
+	public <M> Graph<K, VV, EV> runVertexCentricIteration(
+			ComputeFunction<K, VV, EV, M> computeFunction,
+			MessageCombiner<K, M> combiner, int maximumNumberOfIterations,
+			VertexCentricConfiguration parameters) {
+
+		VertexCentricIteration<K, VV, EV, M> iteration = VertexCentricIteration.withEdges(
+				edges, computeFunction, maximumNumberOfIterations);
+		iteration.configure(parameters);
+		DataSet<Vertex<K, VV>> newVertices = this.getVertices().runOperation(iteration);
 		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
 	}
 

@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.examples;
+package org.apache.flink.graph.example;
 
-import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -26,18 +25,18 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.gsa.ApplyFunction;
-import org.apache.flink.graph.gsa.GatherFunction;
-import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.gsa.Neighbor;
+import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
+import org.apache.flink.graph.pregel.ComputeFunction;
+import org.apache.flink.graph.pregel.MessageCombiner;
+import org.apache.flink.graph.pregel.MessageIterator;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * This example shows how to use Gelly's Gather-Sum-Apply iterations.
+ * This example shows how to use Gelly's Vertex-Centric iterations.
  * 
  * It is an implementation of the Single-Source-Shortest-Paths algorithm.
  * For a scatter-gather implementation of the same algorithm, please refer to {@link SingleSourceShortestPaths}
- * and for a vertex-centric implementation, see {@link PregelSSSP}. 
+ * and for a gather-sum-apply implementation see {@link GSASingleSourceShortestPaths}.  
  *
  * The input file is a plain text file and must be formatted as follows:
  * Edges are represented by tuples of srcVertexId, trgVertexId, distance which are
@@ -46,39 +45,34 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * edge 1-2 with distance 0.1, and edge 1-3 with distance 1.4.
  *
  * If no parameters are provided, the program is run with default data from
- * {@link SingleSourceShortestPathsData}
+ * {@link org.apache.flink.graph.example.utils.SingleSourceShortestPathsData}
  */
-public class GSASingleSourceShortestPaths implements ProgramDescription {
-
-	// --------------------------------------------------------------------------------------------
-	//  Program
-	// --------------------------------------------------------------------------------------------
+public class PregelSSSP implements ProgramDescription {
 
 	public static void main(String[] args) throws Exception {
 
-		if(!parseParameters(args)) {
+		if (!parseParameters(args)) {
 			return;
 		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Edge<Long, Double>> edges = getEdgeDataSet(env);
+		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
 
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges, new InitVertices(srcVertexId), env);
+		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges, new InitVertices(), env);
 
-		// Execute the GSA iteration
-		Graph<Long, Double, Double> result = graph.runGatherSumApplyIteration(
-				new CalculateDistances(), new ChooseMinDistance(), new UpdateDistance(), maxIterations);
+		// Execute the vertex-centric iteration
+		Graph<Long, Double, Double> result = graph.runVertexCentricIteration(
+				new SSSPComputeFunction(srcVertexId), new SSSPCombiner(), 
+				maxIterations);
 
 		// Extract the vertices as the result
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
 
 		// emit result
-		if(fileOutput) {
+		if (fileOutput) {
 			singleSourceShortestPaths.writeAsCsv(outputPath, "\n", ",");
-
-			// since file sinks are lazy, we trigger the execution explicitly
-			env.execute("GSA Single Source Shortest Paths");
+			env.execute("Pregel Single Source Shortest Paths Example");
 		} else {
 			singleSourceShortestPaths.print();
 		}
@@ -90,53 +84,60 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("serial")
-	private static final class InitVertices implements MapFunction<Long, Double>{
+	private static final class InitVertices implements MapFunction<Long, Double> {
 
-		private long srcId;
+		public Double map(Long id) { return Double.POSITIVE_INFINITY; }
+	}
 
-		public InitVertices(long srcId) {
-			this.srcId = srcId;
+	/**
+	 * The compute function for SSSP
+	 */
+	@SuppressWarnings("serial")
+	public static final class SSSPComputeFunction extends ComputeFunction<Long, Double, Double, Double> {
+
+		private final long srcId;
+
+		public SSSPComputeFunction(long src) {
+			this.srcId = src;
 		}
 
-		public Double map(Long id) {
-			if (id.equals(srcId)) {
-				return 0.0;
+		public void compute(Vertex<Long, Double> vertex, MessageIterator<Double> messages) {
+
+			double minDistance = (vertex.getId().equals(srcId)) ? 0d : Double.POSITIVE_INFINITY;
+
+			for (Double msg : messages) {
+				minDistance = Math.min(minDistance, msg);
 			}
-			else {
-				return Double.POSITIVE_INFINITY;
+
+			if (minDistance < vertex.getValue()) {
+				setNewVertexValue(minDistance);
+				for (Edge<Long, Double> e: getEdges()) {
+					sendMessageTo(e.getTarget(), minDistance + e.getValue());
+				}
 			}
 		}
 	}
 
+	/**
+	 * The messages combiner.
+	 * Out of all messages destined to a target vertex, only the minimum distance is propagated.
+	 */
 	@SuppressWarnings("serial")
-	private static final class CalculateDistances extends GatherFunction<Double, Double, Double> {
+	public static final class SSSPCombiner extends MessageCombiner<Long, Double> {
 
-		public Double gather(Neighbor<Double, Double> neighbor) {
-			return neighbor.getNeighborValue() + neighbor.getEdgeValue();
-		}
-	};
+		public void combineMessages(MessageIterator<Double> messages) {
 
-	@SuppressWarnings("serial")
-	private static final class ChooseMinDistance extends SumFunction<Double, Double, Double> {
-
-		public Double sum(Double newValue, Double currentValue) {
-			return Math.min(newValue, currentValue);
-		}
-	};
-
-	@SuppressWarnings("serial")
-	private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
-
-		public void apply(Double newDistance, Double oldDistance) {
-			if (newDistance < oldDistance) {
-				setResult(newDistance);
+			double minMessage = Double.POSITIVE_INFINITY;
+			for (Double msg: messages) {
+				minMessage = Math.min(minMessage, msg);
 			}
+			sendCombinedMessage(minMessage);
 		}
 	}
 
-	// --------------------------------------------------------------------------------------------
-	//  Util methods
-	// --------------------------------------------------------------------------------------------
+	// ******************************************************************************************************************
+	// UTIL METHODS
+	// ******************************************************************************************************************
 
 	private static boolean fileOutput = false;
 
@@ -150,9 +151,9 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if (args.length > 0) {
+		if(args.length > 0) {
 			if(args.length != 4) {
-				System.err.println("Usage: GSASingleSourceShortestPaths <source vertex id>" +
+				System.err.println("Usage: PregelSSSP <source vertex id>" +
 						" <input edges path> <output path> <num iterations>");
 				return false;
 			}
@@ -163,21 +164,22 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 			outputPath = args[2];
 			maxIterations = Integer.parseInt(args[3]);
 		} else {
-				System.out.println("Executing GSASingle Source Shortest Paths example "
+				System.out.println("Executing Pregel Single Source Shortest Paths example "
 						+ "with default parameters and built-in default data.");
 				System.out.println("  Provide parameters to read input data from files.");
 				System.out.println("  See the documentation for the correct format of input files.");
-				System.out.println("Usage: GSASingleSourceShortestPaths <source vertex id>" +
+				System.out.println("Usage: PregelSSSP <source vertex id>" +
 						" <input edges path> <output path> <num iterations>");
 		}
 		return true;
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return env.readCsvFile(edgesInputPath)
-					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
+					.fieldDelimiter("\t")
+					.ignoreComments("%")
 					.types(Long.class, Long.class, Double.class)
 					.map(new Tuple3ToEdgeMap<Long, Double>());
 		} else {
@@ -187,6 +189,6 @@ public class GSASingleSourceShortestPaths implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "GSA Single Source Shortest Paths";
+		return "Vertex-centric Single Source Shortest Paths";
 	}
 }
