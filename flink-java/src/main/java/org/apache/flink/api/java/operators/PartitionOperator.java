@@ -21,13 +21,14 @@ package org.apache.flink.api.java.operators;
 import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.operators.Keys.SelectorFunctionKeys;
+import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
@@ -150,9 +151,9 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		Partitioner<?> customPartitioner)
 	{
 		final SelectorFunctionKeys<T, K> keys = (SelectorFunctionKeys<T, K>) rawKeys;
-		TypeInformation<Tuple2<K, T>> typeInfoWithKey = SelectorFunctionKeys.createTypeWithKey(keys);
+		TypeInformation<Tuple2<K, T>> typeInfoWithKey = KeyFunctions.createTypeWithKey(keys);
 
-		Operator<Tuple2<K, T>> keyedInput = SelectorFunctionKeys.appendKeyExtractor(input, keys);
+		Operator<Tuple2<K, T>> keyedInput = KeyFunctions.appendKeyExtractor(input, keys);
 
 		PartitionOperatorBase<Tuple2<K, T>> keyedPartitionedInput =
 			new PartitionOperatorBase<>(new UnaryOperatorInformation<>(typeInfoWithKey, typeInfoWithKey), pMethod, new int[]{0}, name);
@@ -160,7 +161,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		keyedPartitionedInput.setCustomPartitioner(customPartitioner);
 		keyedPartitionedInput.setParallelism(partitionDop);
 
-		return SelectorFunctionKeys.appendKeyRemover(keyedPartitionedInput, keys);
+		return KeyFunctions.appendKeyRemover(keyedPartitionedInput, keys);
 	}
 
 	

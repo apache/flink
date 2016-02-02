@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.types
 
 import java.io.{DataInput, DataOutput}
 
-import org.apache.flink.api.java.`type`.extractor.TypeExtractorTest.CustomTuple
+import org.apache.flink.api.java.typeutils.TypeExtractorTest.CustomTuple
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.hadoop.io.Writable
 import org.junit.{Assert, Test}
@@ -602,7 +602,7 @@ class TypeInformationGenTest {
     // This checks the condition in checkCollection. If this fails with IllegalArgumentException,
     // then things like "env.fromElements((),(),())" won't work.
     import scala.collection.JavaConversions._
-    CollectionInputFormat.checkCollection(Seq((),(),()), (new UnitTypeInfo).getTypeClass)
+    CollectionInputFormat.checkCollection(Seq((),(),()), (new UnitTypeInfo).getTypeClass())
   }
 }
 

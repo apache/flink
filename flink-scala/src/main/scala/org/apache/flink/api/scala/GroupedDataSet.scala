@@ -19,11 +19,11 @@ package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
-import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.operators.{Keys, Order}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import org.apache.flink.util.Collector
