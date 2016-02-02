@@ -45,6 +45,11 @@ public class ProcessingTimeTrigger implements Trigger<Object, TimeWindow> {
 	}
 
 	@Override
+	public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
+		ctx.deleteProcessingTimeTimer(window.maxTimestamp());
+	}
+
+	@Override
 	public String toString() {
 		return "ProcessingTimeTrigger()";
 	}

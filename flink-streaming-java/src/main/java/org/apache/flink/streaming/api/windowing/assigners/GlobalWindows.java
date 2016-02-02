@@ -87,6 +87,9 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) {
 			return TriggerResult.CONTINUE;
 		}
+
+		@Override
+		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {}
 	}
 
 	@Override

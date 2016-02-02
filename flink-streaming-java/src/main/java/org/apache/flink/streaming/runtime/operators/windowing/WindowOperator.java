@@ -1,20 +1,20 @@
 /**
-* Licensed to the Apache Software Foundation (ASF) under one
-* or more contributor license agreements.  See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership.  The ASF licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License.  You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -85,8 +85,8 @@ import static java.util.Objects.requireNonNull;
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 public class WindowOperator<K, IN, ACC, OUT, W extends Window>
-		extends AbstractUdfStreamOperator<OUT, WindowFunction<ACC, OUT, K, W>>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
+	extends AbstractUdfStreamOperator<OUT, WindowFunction<ACC, OUT, K, W>>
+	implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -164,12 +164,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * Creates a new {@code WindowOperator} based on the given policies and user functions.
 	 */
 	public WindowOperator(WindowAssigner<? super IN, W> windowAssigner,
-			TypeSerializer<W> windowSerializer,
-			KeySelector<IN, K> keySelector,
-			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends MergingState<IN, ACC>> windowStateDescriptor,
-			WindowFunction<ACC, OUT, K, W> windowFunction,
-			Trigger<? super IN, ? super W> trigger) {
+		TypeSerializer<W> windowSerializer,
+		KeySelector<IN, K> keySelector,
+		TypeSerializer<K> keySerializer,
+		StateDescriptor<? extends MergingState<IN, ACC>> windowStateDescriptor,
+		WindowFunction<ACC, OUT, K, W> windowFunction,
+		Trigger<? super IN, ? super W> trigger) {
 
 		super(windowFunction);
 
@@ -258,8 +258,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (triggerResult.isFire()) {
 			timestampedCollector.setTimestamp(window.maxTimestamp());
 
-			setKeyContext(key);
-
 			MergingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
 				windowStateDescriptor);
 
@@ -269,12 +267,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			if (triggerResult.isPurge()) {
 				windowState.clear();
+				context.clear();
 			}
 		} else if (triggerResult.isPurge()) {
-			setKeyContext(key);
 			MergingState<IN, ACC> windowState = getPartitionedState(window, windowSerializer,
 				windowStateDescriptor);
 			windowState.clear();
+			context.clear();
 		}
 	}
 
@@ -293,7 +292,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				context.key = timer.key;
 				context.window = timer.window;
-				Trigger.TriggerResult triggerResult = context.onEventTime(mark.getTimestamp());
+				setKeyContext(timer.key);
+				Trigger.TriggerResult triggerResult = context.onEventTime(timer.timestamp);
 				processTriggerResult(triggerResult, context.key, context.window);
 			} else {
 				fire = false;
@@ -319,7 +319,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 				context.key = timer.key;
 				context.window = timer.window;
-				Trigger.TriggerResult triggerResult = context.onProcessingTime(time);
+				setKeyContext(timer.key);
+				Trigger.TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
 				processTriggerResult(triggerResult, context.key, context.window);
 			} else {
 				fire = false;
@@ -410,6 +411,23 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 		}
 
+		@Override
+		public void deleteProcessingTimeTimer(long time) {
+			Timer<K, W> timer = new Timer<>(time, key, window);
+			if (processingTimeTimers.remove(timer)) {
+				processingTimeTimersQueue.remove(timer);
+			}
+		}
+
+		@Override
+		public void deleteEventTimeTimer(long time) {
+			Timer<K, W> timer = new Timer<>(time, key, window);
+			if (watermarkTimers.remove(timer)) {
+				watermarkTimersQueue.remove(timer);
+			}
+
+		}
+
 		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
 			return trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
 		}
@@ -420,6 +438,18 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		public Trigger.TriggerResult onEventTime(long time) throws Exception {
 			return trigger.onEventTime(time, window, this);
+		}
+
+		public void clear() throws Exception {
+			trigger.clear(window, this);
+		}
+
+		@Override
+		public String toString() {
+			return "Context{" +
+				"key=" + key +
+				", window=" + window +
+				'}';
 		}
 	}
 
@@ -454,8 +484,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Timer<?, ?> timer = (Timer<?, ?>) o;
 
 			return timestamp == timer.timestamp
-					&& key.equals(timer.key)
-					&& window.equals(timer.window);
+				&& key.equals(timer.key)
+				&& window.equals(timer.window);
 
 		}
 
@@ -470,10 +500,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		public String toString() {
 			return "Timer{" +
-					"timestamp=" + timestamp +
-					", key=" + key +
-					", window=" + window +
-					'}';
+				"timestamp=" + timestamp +
+				", key=" + key +
+				", window=" + window +
+				'}';
 		}
 	}
 

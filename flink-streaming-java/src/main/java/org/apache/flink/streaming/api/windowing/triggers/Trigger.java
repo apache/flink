@@ -73,6 +73,13 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 */
 	TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
 
+	/**
+	 * Clears any state that the trigger might still hold for the given window. This is called
+	 * when a window is purged. Timers set using {@link TriggerContext#registerEventTimeTimer(long)}
+	 * and {@link TriggerContext#registerProcessingTimeTimer(long)} should be deleted here as
+	 * well as state acquired using {@link TriggerContext#getPartitionedState(StateDescriptor)}.
+	 */
+	void clear(W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Result type for trigger methods. This determines what happens with the window.
@@ -149,6 +156,16 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 */
 		void registerEventTimeTimer(long time);
+
+		/**
+		 * Delete the processing time trigger for the given time.
+		 */
+		void deleteProcessingTimeTimer(long time);
+
+		/**
+		 * Delete the event-time trigger for the given time.
+		 */
+		void deleteEventTimeTimer(long time);
 
 		/**
 		 * Retrieves an {@link State} object that can be used to interact with

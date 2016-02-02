@@ -90,6 +90,9 @@ public class ContinuousProcessingTimeTrigger<W extends Window> implements Trigge
 		return TriggerResult.CONTINUE;
 	}
 
+	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {}
+
 	@VisibleForTesting
 	public long getInterval() {
 		return interval;

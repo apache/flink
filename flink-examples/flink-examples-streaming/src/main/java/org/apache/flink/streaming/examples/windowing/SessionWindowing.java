@@ -45,7 +45,7 @@ public class SessionWindowing {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.setParallelism(2);
+		env.setParallelism(1);
 
 		final List<Tuple3<String, Long, Integer>> input = new ArrayList<>();
 
@@ -103,7 +103,7 @@ public class SessionWindowing {
 
 		private final Long sessionTimeout;
 
-		private final ValueStateDescriptor<Long> stateDesc = new ValueStateDescriptor<>("last-seen", 1L,
+		private final ValueStateDescriptor<Long> stateDesc = new ValueStateDescriptor<>("last-seen", -1L,
 			BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new ExecutionConfig()));
 
 
@@ -120,12 +120,15 @@ public class SessionWindowing {
 
 			Long timeSinceLastEvent = timestamp - lastSeen;
 
+			ctx.deleteEventTimeTimer(lastSeen + sessionTimeout);
+
 			// Update the last seen event time
 			lastSeenState.update(timestamp);
 
 			ctx.registerEventTimeTimer(timestamp + sessionTimeout);
 
-			if (timeSinceLastEvent > sessionTimeout) {
+			if (lastSeen != -1 && timeSinceLastEvent > sessionTimeout) {
+				System.out.println("FIRING ON ELEMENT: " + element + " ts: " + timestamp + " last " + lastSeen);
 				return TriggerResult.FIRE_AND_PURGE;
 			} else {
 				return TriggerResult.CONTINUE;
@@ -138,6 +141,7 @@ public class SessionWindowing {
 			Long lastSeen = lastSeenState.value();
 
 			if (time - lastSeen >= sessionTimeout) {
+				System.out.println("CTX: " + ctx + " Firing Time " + time + " last seen " + lastSeen);
 				return TriggerResult.FIRE_AND_PURGE;
 			}
 			return TriggerResult.CONTINUE;
@@ -146,6 +150,15 @@ public class SessionWindowing {
 		@Override
 		public TriggerResult onProcessingTime(long time, GlobalWindow window, TriggerContext ctx) throws Exception {
 			return TriggerResult.CONTINUE;
+		}
+
+		@Override
+		public void clear(GlobalWindow window, TriggerContext ctx) throws Exception {
+			ValueState<Long> lastSeenState = ctx.getPartitionedState(stateDesc);
+			if (lastSeenState.value() != -1) {
+				ctx.deleteEventTimeTimer(lastSeenState.value() + sessionTimeout);
+			}
+			lastSeenState.clear();
 		}
 	}
 

@@ -72,6 +72,11 @@ public class DeltaTrigger<T, W extends Window> implements Trigger<T, W> {
 	}
 
 	@Override
+	public void clear(W window, TriggerContext ctx) throws Exception {
+		ctx.getPartitionedState(stateDesc).clear();
+	}
+
+	@Override
 	public String toString() {
 		return "DeltaTrigger(" +  deltaFunction + ", " + threshold + ")";
 	}

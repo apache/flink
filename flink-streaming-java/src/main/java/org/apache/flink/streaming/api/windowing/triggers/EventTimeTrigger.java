@@ -47,6 +47,11 @@ public class EventTimeTrigger implements Trigger<Object, TimeWindow> {
 	}
 
 	@Override
+	public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
+		ctx.deleteEventTimeTimer(window.maxTimestamp());
+	}
+
+	@Override
 	public String toString() {
 		return "EventTimeTrigger()";
 	}
