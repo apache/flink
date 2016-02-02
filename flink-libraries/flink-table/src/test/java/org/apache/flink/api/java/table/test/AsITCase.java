@@ -28,8 +28,8 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import scala.NotImplementedError;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RunWith(Parameterized.class)
@@ -40,8 +40,8 @@ public class AsITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	@Test(expected = NotImplementedError.class)
-	public void testAs() throws Exception {
+	@Test
+	public void testAsFromTuple() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
@@ -50,12 +50,39 @@ public class AsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
-		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
-				"how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
-				"Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +
-				"Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
-				"Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
-				"6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n";
+		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
+			"4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
+			"7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
+			"11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" +
+			"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
+			"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
+			"20,6,Comment#14\n" + "21,6,Comment#15\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testAsFromPojo() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		List<SmallPojo> data = new ArrayList<>();
+		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales"));
+		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering"));
+		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR"));
+
+		Table table =
+			tableEnv.fromDataSet(env.fromCollection(data),
+				"department AS a, " +
+				"age AS b, " +
+				"salary AS c, " +
+				"name AS d");
+
+		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
+		List<Row> results = ds.collect();
+		String expected =
+			"Sales,28,4000.0,Peter\n" +
+			"Engineering,56,10000.0,Anna\n" +
+			"HR,42,6000.0,Lucy\n";
 		compareResultAsText(results, expected);
 	}
 
@@ -129,5 +156,23 @@ public class AsITCase extends MultipleProgramsTestBase {
 		String expected = "";
 		compareResultAsText(results, expected);
 	}
+
+	public static class SmallPojo {
+
+		public SmallPojo() { }
+
+		public SmallPojo(String name, int age, double salary, String department) {
+			this.name = name;
+			this.age = age;
+			this.salary = salary;
+			this.department = department;
+		}
+
+		public String name;
+		public int age;
+		public double salary;
+		public String department;
+	}
+
 }
 
