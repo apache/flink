@@ -145,7 +145,7 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def disableChaining(): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.disableChaining();
+      case ds: SingleOutputStreamOperator[_, _] => ds.disableChaining()
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -161,7 +161,7 @@ class DataStream[T](stream: JavaStream[T]) {
   @PublicEvolving
   def startNewChain(): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.startNewChain();
+      case ds: SingleOutputStreamOperator[_, _] => ds.startNewChain()
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -169,37 +169,23 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-   * Isolates the operator in its own resource group. This will cause the
-   * operator to grab as many task slots as its degree of parallelism. If
-   * there are no free resources available, the job will fail to start.
-   * All subsequent operators are assigned to the default resource group.
+   * Sets the slot sharing group of this operation. Parallel instances of
+   * operations that are in the same slot sharing group will be co-located in the same
+   * TaskManager slot, if possible.
    *
+   * Operations inherit the slot sharing group of input operations if all input operations
+   * are in the same slot sharing group and no slot sharing group was explicitly specified.
+   *
+   * Initially an operation is in the default slot sharing group. An operation can be put into
+   * the default group explicitly by setting the slot sharing group to `"default"`.
+   *
+   * @param slotSharingGroup The slot sharing group name.
    */
   @PublicEvolving
-  def isolateResources(): DataStream[T] = {
+  def slotSharingGroup(slotSharingGroup: String): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.isolateResources();
-      case _ =>
-        throw new UnsupportedOperationException("Only supported for operators.")
-    }
-    this
-  }
-
-  /**
-   * By default all operators in a streaming job share the same resource
-   * group. Each resource group takes as many task manager slots as the
-   * maximum parallelism operator in that group. By calling this method, this
-   * operators starts a new resource group and all subsequent operators will
-   * be added to this group unless specified otherwise. Please note that
-   * local executions have by default as many available task slots as the
-   * environment parallelism, so in order to start a new resource group the
-   * degree of parallelism for the operators must be decreased from the
-   * default.
-   */
-  @PublicEvolving
-  def startNewResourceGroup(): DataStream[T] = {
-    stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.startNewResourceGroup();
+      case ds: SingleOutputStreamOperator[_, _] => ds.slotSharingGroup(slotSharingGroup)
+      case sink: DataStreamSink[_] => sink.slotSharingGroup(slotSharingGroup)
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }
@@ -216,7 +202,7 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def setBufferTimeout(timeoutMillis: Long): DataStream[T] = {
     stream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.setBufferTimeout(timeoutMillis);
+      case ds: SingleOutputStreamOperator[_, _] => ds.setBufferTimeout(timeoutMillis)
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }

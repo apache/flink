@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This represents a feedback point in a topology. The type of the feedback elements must not match
+ * This represents a feedback point in a topology. The type of the feedback elements need not match
  * the type of the upstream {@code StreamTransformation} because the only allowed operations
  * after a {@code CoFeedbackTransformation} are
  * {@link org.apache.flink.streaming.api.transformations.TwoInputTransformation TwoInputTransformations}.

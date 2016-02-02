@@ -100,12 +100,12 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void init() {
-		this.jobVertices = new HashMap<Integer, JobVertex>();
-		this.builtVertices = new HashSet<Integer>();
-		this.chainedConfigs = new HashMap<Integer, Map<Integer, StreamConfig>>();
-		this.vertexConfigs = new HashMap<Integer, StreamConfig>();
-		this.chainedNames = new HashMap<Integer, String>();
-		this.physicalEdgesInOrder = new ArrayList<StreamEdge>();
+		this.jobVertices = new HashMap<>();
+		this.builtVertices = new HashSet<>();
+		this.chainedConfigs = new HashMap<>();
+		this.vertexConfigs = new HashMap<>();
+		this.chainedNames = new HashMap<>();
+		this.physicalEdgesInOrder = new ArrayList<>();
 	}
 
 	public JobGraph createJobGraph(String jobName) {
@@ -149,7 +149,7 @@ public class StreamingJobGraphGenerator {
 
 			// create if not set
 			if (inEdges == null) {
-				inEdges = new ArrayList<StreamEdge>();
+				inEdges = new ArrayList<>();
 				physicalInEdgesInOrder.put(target, inEdges);
 			}
 
@@ -403,8 +403,7 @@ public class StreamingJobGraphGenerator {
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
 				&& headOperator != null
-				&& upStreamVertex.getSlotSharingID() == downStreamVertex.getSlotSharingID()
-				&& upStreamVertex.getSlotSharingID() != -1
+				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
 				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
 				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
@@ -415,20 +414,18 @@ public class StreamingJobGraphGenerator {
 
 	private void setSlotSharing() {
 
-		Map<Integer, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+		Map<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
 
 		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
-			int slotSharingID = streamGraph.getStreamNode(entry.getKey()).getSlotSharingID();
+			String slotSharingGroup = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
 
-			if (slotSharingID != -1) {
-				SlotSharingGroup group = slotSharingGroups.get(slotSharingID);
-				if (group == null) {
-					group = new SlotSharingGroup();
-					slotSharingGroups.put(slotSharingID, group);
-				}
-				entry.getValue().setSlotSharingGroup(group);
+			SlotSharingGroup group = slotSharingGroups.get(slotSharingGroup);
+			if (group == null) {
+				group = new SlotSharingGroup();
+				slotSharingGroups.put(slotSharingGroup, group);
 			}
+			entry.getValue().setSlotSharingGroup(group);
 		}
 
 		for (Tuple2<StreamNode, StreamNode> pair : streamGraph.getIterationSourceSinkPairs()) {
@@ -704,7 +701,7 @@ public class StreamingJobGraphGenerator {
 		if (LOG.isDebugEnabled()) {
 			String udfClassName = "";
 			if (node.getOperator() instanceof AbstractUdfStreamOperator) {
-				udfClassName = ((AbstractUdfStreamOperator) node.getOperator())
+				udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())
 						.getUserFunction().getClass().getName();
 			}
 
@@ -737,7 +734,7 @@ public class StreamingJobGraphGenerator {
 		hasher.putString(node.getOperatorName(), Charset.forName("UTF-8"));
 
 		if (node.getOperator() instanceof AbstractUdfStreamOperator) {
-			String udfClassName = ((AbstractUdfStreamOperator) node.getOperator())
+			String udfClassName = ((AbstractUdfStreamOperator<?, ?>) node.getOperator())
 					.getUserFunction().getClass().getName();
 
 			hasher.putString(udfClassName, Charset.forName("UTF-8"));
