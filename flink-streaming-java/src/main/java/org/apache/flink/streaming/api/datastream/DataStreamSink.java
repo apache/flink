@@ -103,4 +103,23 @@ public class DataStreamSink<T> {
 		this.transformation.setChainingStrategy(ChainingStrategy.NEVER);
 		return this;
 	}
+
+	/**
+	 * Sets the slot sharing group of this operation. Parallel instances of
+	 * operations that are in the same slot sharing group will be co-located in the same
+	 * TaskManager slot, if possible.
+	 *
+	 * <p>Operations inherit the slot sharing group of input operations if all input operations
+	 * are in the same slot sharing group and no slot sharing group was explicitly specified.
+	 *
+	 * <p>Initially an operation is in the default slot sharing group. An operation can be put into
+	 * the default group explicitly by setting the slot sharing group to {@code "default"}.
+	 *
+	 * @param slotSharingGroup The slot sharing group name.
+	 */
+	@PublicEvolving
+	public DataStreamSink<T> slotSharingGroup(String slotSharingGroup) {
+		transformation.setSlotSharingGroup(slotSharingGroup);
+		return this;
+	}
 }
