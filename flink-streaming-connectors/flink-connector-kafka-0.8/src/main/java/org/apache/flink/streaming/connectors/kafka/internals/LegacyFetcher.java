@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
@@ -199,8 +200,10 @@ public class LegacyFetcher implements Fetcher {
 			
 			FetchPartition[] partitions = partitionsList.toArray(new FetchPartition[partitionsList.size()]);
 
+			final KeyedDeserializationSchema<T> clonedDeserializer = InstantiationUtil.clone(deserializer);
+
 			SimpleConsumerThread<T> thread = new SimpleConsumerThread<>(this, config,
-					broker, partitions, sourceContext, deserializer, lastOffsets);
+					broker, partitions, sourceContext, clonedDeserializer, lastOffsets);
 
 			thread.setName(String.format("SimpleConsumer - %s - broker-%s (%s:%d)",
 					taskName, broker.id(), broker.host(), broker.port()));
