@@ -24,6 +24,7 @@ import com.google.common.io.Files;
 import org.apache.flink.graph.examples.GSASingleSourceShortestPaths;
 import org.apache.flink.graph.examples.SingleSourceShortestPaths;
 import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
+import org.apache.flink.graph.example.PregelSSSP;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.junit.After;
@@ -71,6 +72,13 @@ public class SingleSourceShortestPathsITCase extends MultipleProgramsTestBase {
     @Test
     public void testGSASSSPExample() throws Exception {
         GSASingleSourceShortestPaths.main(new String[]{SingleSourceShortestPathsData.SRC_VERTEX_ID + "",
+                edgesPath, resultPath, 10 + ""});
+        expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
+    }
+
+    @Test
+    public void testPregelSSSPExample() throws Exception {
+        PregelSSSP.main(new String[]{SingleSourceShortestPathsData.SRC_VERTEX_ID + "",
                 edgesPath, resultPath, 10 + ""});
         expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
     }
