@@ -18,10 +18,12 @@
 package org.apache.flink.api.table.plan
 
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.parser.ExpressionParser
-import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReference, UnresolvedFieldReference}
+import org.apache.flink.api.table.expressions.{Naming, Expression, UnresolvedFieldReference}
 import org.apache.flink.api.table.Table
 
 import scala.language.reflectiveCalls
@@ -42,7 +44,10 @@ abstract class PlanTranslator {
   /**
    * Creates a [[Table]] from a DataSet (the underlying representation).
    */
-  def createTable[A](repr: Representation[A], fieldNames: Array[String]): Table
+  def createTable[A](
+    repr: Representation[A],
+    fieldIndexes: Array[Int],
+    fieldNames: Array[String]): Table
 
   /**
    * Creates a [[Table]] from the given DataSet.
@@ -50,10 +55,15 @@ abstract class PlanTranslator {
   def createTable[A](repr: Representation[A]): Table = {
 
     val fieldNames: Array[String] = repr.getType() match {
-      case c: CompositeType[A] => c.getFieldNames
-      case tpe => Array() // createTable will throw an exception for this later
+      case t: TupleTypeInfo[A] => t.getFieldNames
+      case c: CaseClassTypeInfo[A] => c.getFieldNames
+      case p: PojoTypeInfo[A] => p.getFieldNames
+      case tpe =>
+        throw new IllegalArgumentException(
+          s"Type $tpe requires explicit field naming with AS.")
     }
-    createTable(repr, fieldNames)
+    val fieldIndexes = fieldNames.indices.toArray
+    createTable(repr, fieldIndexes, fieldNames)
   }
 
   /**
@@ -75,17 +85,60 @@ abstract class PlanTranslator {
     */
   def createTable[A](repr: Representation[A], exprs: Array[Expression]): Table = {
 
-    val fieldNames: Array[String] = exprs
-      .map {
-        case ResolvedFieldReference(name, _) =>
-          name
-        case UnresolvedFieldReference(name) =>
-          name
-        case _ =>
-          throw new IllegalArgumentException("Only field expressions allowed")
-      }
+    val inputType = repr.getType()
 
-    createTable(repr, fieldNames)
+    val indexedNames: Array[(Int, String)] = inputType match {
+      case a: AtomicType[A] =>
+        if (exprs.length != 1) {
+          throw new IllegalArgumentException("Atomic type may can only have a single field.")
+        }
+        exprs.map {
+          case UnresolvedFieldReference(name) => (0, name)
+          case _ => throw new IllegalArgumentException(
+            "Field reference expression expected.")
+        }
+      case t: TupleTypeInfo[A] =>
+        exprs.zipWithIndex.map {
+          case (UnresolvedFieldReference(name), idx) => (idx, name)
+          case (Naming(UnresolvedFieldReference(origName), name), _) =>
+            val idx = t.getFieldIndex(origName)
+            if (idx < 0) {
+              throw new IllegalArgumentException(s"$origName is not a field of type $t")
+            }
+            (idx, name)
+          case _ => throw new IllegalArgumentException(
+            "Field reference expression or naming expression expected.")
+        }
+      case c: CaseClassTypeInfo[A] =>
+        exprs.zipWithIndex.map {
+          case (UnresolvedFieldReference(name), idx) => (idx, name)
+          case (Naming(UnresolvedFieldReference(origName), name), _) =>
+            val idx = c.getFieldIndex(origName)
+            if (idx < 0) {
+              throw new IllegalArgumentException(s"$origName is not a field of type $c")
+            }
+            (idx, name)
+          case _ => throw new IllegalArgumentException(
+            "Field reference expression or naming expression expected.")
+        }
+      case p: PojoTypeInfo[A] =>
+        exprs.map {
+          case Naming(UnresolvedFieldReference(origName), name) =>
+            val idx = p.getFieldIndex(origName)
+            if (idx < 0) {
+              throw new IllegalArgumentException(s"$origName is not a field of type $p")
+            }
+            (idx, name)
+          case _ => throw new IllegalArgumentException(
+            "Field naming expression expected.")
+        }
+      case tpe => throw new IllegalArgumentException(
+        s"Type $tpe cannot be converted into Table.")
+    }
+
+    val (fieldIndexes, fieldNames) = indexedNames.unzip
+
+    createTable(repr, fieldIndexes.toArray, fieldNames.toArray)
   }
 
 }
