@@ -44,7 +44,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Gets the underlying java DataStream object.
    */
-  private[flink] def javaStream: JavaStream[T] = stream
+  def javaStream: JavaStream[T] = stream
 
   /**
     * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
@@ -130,7 +130,7 @@ class DataStream[T](stream: JavaStream[T]) {
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
   }
-  
+
   /**
    * Turns off chaining for this operator so thread co-location will not be
    * used as an optimization. </p> Chaining can be turned off for the whole
