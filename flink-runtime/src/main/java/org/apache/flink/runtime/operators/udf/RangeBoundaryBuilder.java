@@ -60,13 +60,15 @@ public class RangeBoundaryBuilder<T> extends RichMapPartitionFunction<T, Object[
 
 		int boundarySize = parallelism - 1;
 		Object[][] boundaries = new Object[boundarySize][];
-		double avgRange = sampledData.size() / (double) parallelism;
-		int numKey = comparator.getFlatComparators().length;
-		for (int i = 1; i < parallelism; i++) {
-			T record = sampledData.get((int) (i * avgRange));
-			Object[] keys = new Object[numKey];
-			comparator.extractKeys(record, keys, 0);
-			boundaries[i-1] = keys;
+		if (sampledData.size() > 0) {
+			double avgRange = sampledData.size() / (double) parallelism;
+			int numKey = comparator.getFlatComparators().length;
+			for (int i = 1; i < parallelism; i++) {
+				T record = sampledData.get((int) (i * avgRange));
+				Object[] keys = new Object[numKey];
+				comparator.extractKeys(record, keys, 0);
+				boundaries[i-1] = keys;
+			}
 		}
 
 		out.collect(boundaries);

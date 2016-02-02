@@ -50,6 +50,38 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
   }
 
   @Test
+  def testEmptyHashPartition(): Unit = {
+    /*
+     * Test hash partition by tuple field
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromCollection(Seq[Tuple1[String]]())
+
+    val unique = ds.partitionByHash(0)
+
+    unique.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+
+    expected = ""
+  }
+
+  @Test
+  def testEmptyRangePartition(): Unit = {
+    /*
+     * Test hash partition by tuple field
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromCollection(Seq[Tuple1[String]]())
+
+    val unique = ds.partitionByRange(0)
+
+    unique.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+
+    expected = ""
+  }
+
+  @Test
   def testHashPartitionByTupleField(): Unit = {
     /*
      * Test hash partition by tuple field
