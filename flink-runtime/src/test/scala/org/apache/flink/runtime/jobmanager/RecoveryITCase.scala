@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern, JobVertex}
@@ -82,7 +83,10 @@ class RecoveryITCase(_system: ActorSystem)
 
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val executionConfig = new ExecutionConfig()
+      executionConfig.setNumberOfExecutionRetries(1);
+
+      val jobGraph = new JobGraph("Pointwise job", executionConfig, sender, receiver)
 
       val cluster = createTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "2 s")
       cluster.start()
@@ -126,7 +130,10 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val executionConfig = new ExecutionConfig()
+      executionConfig.setNumberOfExecutionRetries(1);
+
+      val jobGraph = new JobGraph("Pointwise job", executionConfig, sender, receiver)
 
       val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "2 s")
       cluster.start()
@@ -170,7 +177,10 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val executionConfig = new ExecutionConfig()
+      executionConfig.setNumberOfExecutionRetries(1);
+
+      val jobGraph = new JobGraph("Pointwise job", executionConfig, sender, receiver)
 
       val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "2 s")
       cluster.start()

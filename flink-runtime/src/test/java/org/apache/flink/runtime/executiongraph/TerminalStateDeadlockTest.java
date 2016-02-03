@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -185,6 +186,7 @@ public class TerminalStateDeadlockTest {
 				jobId,
 				"test graph",
 				EMPTY_CONFIG,
+				new ExecutionConfig(),
 				TIMEOUT,
 				new FixedDelayRestartStrategy(1, 0));
 		}

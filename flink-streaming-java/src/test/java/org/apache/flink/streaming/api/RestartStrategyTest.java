@@ -42,7 +42,7 @@ public class RestartStrategyTest {
 		StreamGraph graph = env.getStreamGraph();
 		JobGraph jobGraph = graph.getJobGraph();
 
-		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getRestartStrategyConfiguration();
+		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getExecutionConfig().getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
@@ -64,7 +64,7 @@ public class RestartStrategyTest {
 		StreamGraph graph = env.getStreamGraph();
 		JobGraph jobGraph = graph.getJobGraph();
 
-		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getRestartStrategyConfiguration();
+		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getExecutionConfig().getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration);
@@ -86,7 +86,7 @@ public class RestartStrategyTest {
 		StreamGraph graph = env.getStreamGraph();
 		JobGraph jobGraph = graph.getJobGraph();
 
-		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getRestartStrategyConfiguration();
+		RestartStrategies.RestartStrategyConfiguration restartStrategy = jobGraph.getExecutionConfig().getRestartStrategy();
 
 		Assert.assertNotNull(restartStrategy);
 		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);

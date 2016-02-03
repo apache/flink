@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.util.InstantiationUtil;
 import org.junit.Assert;
 
 import java.io.IOException;
@@ -104,12 +103,6 @@ public class StreamTaskTestHarness<OUT> {
 		this.jobConfig = new Configuration();
 		this.taskConfig = new Configuration();
 		this.executionConfig = new ExecutionConfig();
-		
-		try {
-			InstantiationUtil.writeObjectToConfig(executionConfig, this.jobConfig, ExecutionConfig.CONFIG_KEY);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
 
 		streamConfig = new StreamConfig(taskConfig);
 		streamConfig.setChainStart();
@@ -156,7 +149,8 @@ public class StreamTaskTestHarness<OUT> {
 	 * Task thread to finish running.
 	 */
 	public void invoke() throws Exception {
-		mockEnv = new StreamMockEnvironment(jobConfig, taskConfig, memorySize, new MockInputSplitProvider(), bufferSize);
+		mockEnv = new StreamMockEnvironment(jobConfig, taskConfig, executionConfig,
+			memorySize, new MockInputSplitProvider(), bufferSize);
 		task.setEnvironment(mockEnv);
 
 		initializeInputs();

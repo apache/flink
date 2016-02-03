@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -44,9 +45,15 @@ public class DummyEnvironment implements Environment {
 	private final TaskInfo taskInfo;
 	private final JobID jobId = new JobID();
 	private final JobVertexID jobVertexId = new JobVertexID();
+	private final ExecutionConfig executionConfig = new ExecutionConfig();
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, subTaskIndex, numSubTasks, 0);
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 
 	@Override
