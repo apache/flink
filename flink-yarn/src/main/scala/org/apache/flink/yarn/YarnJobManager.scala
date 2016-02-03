@@ -185,6 +185,12 @@ class YarnJobManager(
 
       context.system.shutdown()
 
+      // Await actor system termination and shut down JVM
+      new YarnProcessShutDownThread(
+        log.logger,
+        context.system,
+        FiniteDuration(10, SECONDS)).start()
+
     case RegisterApplicationClient =>
       val client = sender()
 

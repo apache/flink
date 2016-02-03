@@ -23,8 +23,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
+import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
 import org.apache.flink.yarn.YarnMessages.StopYarnSession
+
+import scala.concurrent.duration._
 
 /** An extension of the TaskManager that listens for additional YARN related
   * messages.
@@ -55,5 +57,11 @@ class YarnTaskManager(
       log.info(s"Stopping YARN TaskManager with final application status $status " +
         s"and diagnostics: $diagnostics")
       context.system.shutdown()
+
+      // Await actor system termination and shut down JVM
+      new YarnProcessShutDownThread(
+        log.logger,
+        context.system,
+        FiniteDuration(10, SECONDS)).start()
   }
 }
