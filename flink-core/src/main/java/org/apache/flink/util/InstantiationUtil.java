@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -297,6 +298,21 @@ public final class InstantiationUtil {
 			oos.writeObject(o);
 			return baos.toByteArray();
 		}
+	}
+
+	/**
+	 * Clones the given serializable object using Java serialization.
+	 *
+	 * @param obj Object to clone
+	 * @param classLoader class loader to use to deserialize the object
+	 * @param <T> Type of the object to clone
+	 * @return Cloned object
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	public static <T extends Serializable> T clone(T obj, ClassLoader classLoader) throws IOException, ClassNotFoundException {
+		final byte[] serializedObject = serializeObject(obj);
+		return deserializeObject(serializedObject, classLoader);
 	}
 	
 	// --------------------------------------------------------------------------------------------
