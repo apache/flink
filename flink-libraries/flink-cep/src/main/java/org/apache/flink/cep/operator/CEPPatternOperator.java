@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -93,12 +93,12 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		final StateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(
+		final AbstractStateBackend.CheckpointStateOutputStream os = this.getStateBackend().createCheckpointStateOutputStream(
 			checkpointId,
 			timestamp);
 
 		final ObjectOutputStream oos = new ObjectOutputStream(os);
-		final StateBackend.CheckpointStateOutputView ov = new StateBackend.CheckpointStateOutputView(os);
+		final AbstractStateBackend.CheckpointStateOutputView ov = new AbstractStateBackend.CheckpointStateOutputView(os);
 
 		oos.writeObject(nfa);
 
