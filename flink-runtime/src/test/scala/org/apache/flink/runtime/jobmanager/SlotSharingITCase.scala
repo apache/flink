@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorSystem
+import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{Sender, AgnosticBinaryReceiver, Receiver}
@@ -30,7 +32,6 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
-import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
 class SlotSharingITCase(_system: ActorSystem)
@@ -65,7 +66,7 @@ class SlotSharingITCase(_system: ActorSystem)
       sender.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", new ExecutionConfig(), sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -109,8 +110,8 @@ class SlotSharingITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
-      val vertices = (List(sender1, sender2, receiver)).asJava
-      val jobGraph = new JobGraph("Bipartite job", vertices)
+      val jobGraph = new JobGraph("Bipartite job", new ExecutionConfig(),
+        sender1, sender2, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)

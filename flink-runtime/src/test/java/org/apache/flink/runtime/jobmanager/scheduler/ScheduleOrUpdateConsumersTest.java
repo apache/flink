@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import com.google.common.collect.Lists;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -35,7 +36,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest.SubtaskIndexReceiver.CONFIG_KEY;
@@ -111,13 +111,12 @@ public class ScheduleOrUpdateConsumersTest {
 		pipelinedReceiver.setSlotSharingGroup(slotSharingGroup);
 		blockingReceiver.setSlotSharingGroup(slotSharingGroup);
 
-		List<JobVertex> vertices = Arrays.asList(sender,
-			pipelinedReceiver,
-			blockingReceiver);
-
 		final JobGraph jobGraph = new JobGraph(
 				"Mixed pipelined and blocking result",
-				vertices);
+				new ExecutionConfig(),
+				sender,
+				pipelinedReceiver,
+				blockingReceiver);
 
 		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}

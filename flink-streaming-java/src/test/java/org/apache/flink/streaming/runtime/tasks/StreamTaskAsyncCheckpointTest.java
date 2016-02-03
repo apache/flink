@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -75,6 +76,11 @@ public class StreamTaskAsyncCheckpointTest {
 			testHarness.memorySize,
 			new MockInputSplitProvider(),
 			testHarness.bufferSize) {
+
+			@Override
+			public ExecutionConfig getExecutionConfig() {
+				return testHarness.executionConfig;
+			}
 
 			@Override
 			public void acknowledgeCheckpoint(long checkpointId) {

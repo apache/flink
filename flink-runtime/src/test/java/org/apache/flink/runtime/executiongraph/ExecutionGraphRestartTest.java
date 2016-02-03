@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
@@ -72,13 +73,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		sender.setInvokableClass(Tasks.NoOpInvokable.class);
 		sender.setParallelism(NUM_TASKS);
 
-		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
+		JobGraph jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender);
 
 		ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutionContext(),
 				new JobID(),
 				"test job",
 				new Configuration(),
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -127,14 +129,15 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		groupVertex.setStrictlyCoLocatedWith(groupVertex2);
 		
 		//initiate and schedule job
-		JobGraph jobGraph = new JobGraph("Pointwise job", groupVertex, groupVertex2);
+		JobGraph jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), groupVertex, groupVertex2);
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"test job",
 			new Configuration(),
-				AkkaUtils.getDefaultTimeout(),
-				new FixedDelayRestartStrategy(1, 0L));
+			new ExecutionConfig(),
+			AkkaUtils.getDefaultTimeout(),
+			new FixedDelayRestartStrategy(1, 0L));
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
 		assertEquals(JobStatus.CREATED, eg.getState());
@@ -181,13 +184,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		sender.setInvokableClass(Tasks.NoOpInvokable.class);
 		sender.setParallelism(NUM_TASKS);
 
-		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
+		JobGraph jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender);
 
 		ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutionContext(),
 				new JobID(),
 				"Test job",
 				new Configuration(),
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new FixedDelayRestartStrategy(1, 1000));
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
@@ -216,6 +220,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"TestJob",
 				new Configuration(),
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				// We want to manually control the restart and delay
 				new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
@@ -224,7 +229,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 		jobVertex.setParallelism(NUM_TASKS);
 
-		JobGraph jobGraph = new JobGraph("TestJob", jobVertex);
+		JobGraph jobGraph = new JobGraph("TestJob", new ExecutionConfig(), jobVertex);
 
 		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
@@ -274,6 +279,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"TestJob",
 				new Configuration(),
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				// We want to manually control the restart and delay
 				new FixedDelayRestartStrategy(Integer.MAX_VALUE, Long.MAX_VALUE));
@@ -289,7 +295,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 		jobVertex.setParallelism(NUM_TASKS);
 
-		JobGraph jobGraph = new JobGraph("TestJob", jobVertex);
+		JobGraph jobGraph = new JobGraph("TestJob", new ExecutionConfig(), jobVertex);
 
 		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
@@ -349,13 +355,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		sender.setInvokableClass(Tasks.NoOpInvokable.class);
 		sender.setParallelism(NUM_TASKS);
 
-		JobGraph jobGraph = new JobGraph("Pointwise job", sender);
+		JobGraph jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender);
 
 		ExecutionGraph eg = spy(new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"Test job",
 			new Configuration(),
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new FixedDelayRestartStrategy(1, 1000)));
 
@@ -419,13 +426,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		receiver.setInvokableClass(Tasks.NoOpInvokable.class);
 		receiver.setParallelism(1);
 
-		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
+		JobGraph jobGraph = new JobGraph("Pointwise job", new ExecutionConfig(), sender, receiver);
 
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
 			new JobID(),
 			"test job",
 			new Configuration(),
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new FixedDelayRestartStrategy(1, 1000));
 
@@ -510,8 +518,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 		vertex.setParallelism(1);
 
-		JobGraph jobGraph = new JobGraph("Test Job", vertex);
-		jobGraph.setRestartStrategyConfiguration(RestartStrategies.fixedDelayRestart(
+		JobGraph jobGraph = new JobGraph("Test Job", new ExecutionConfig(), vertex);
+		jobGraph.getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(
 				Integer.MAX_VALUE, Integer.MAX_VALUE));
 
 		ExecutionGraph eg = new ExecutionGraph(
@@ -519,6 +527,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"test job",
 				new Configuration(),
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new FixedDelayRestartStrategy(1, 1000000));
 
@@ -561,8 +570,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		vertex.setInvokableClass(Tasks.NoOpInvokable.class);
 		vertex.setParallelism(1);
 
-		JobGraph jobGraph = new JobGraph("Test Job", vertex);
-		jobGraph.setRestartStrategyConfiguration(RestartStrategies.fixedDelayRestart(
+		JobGraph jobGraph = new JobGraph("Test Job", new ExecutionConfig(), vertex);
+		jobGraph.getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(
 				Integer.MAX_VALUE, Integer.MAX_VALUE));
 
 		ExecutionGraph eg = new ExecutionGraph(
@@ -570,6 +579,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 				new JobID(),
 				"test job",
 				new Configuration(),
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new FixedDelayRestartStrategy(1, 1000000));
 

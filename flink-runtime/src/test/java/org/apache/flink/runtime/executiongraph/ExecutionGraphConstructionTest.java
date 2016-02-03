@@ -26,6 +26,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -106,6 +107,7 @@ public class ExecutionGraphConstructionTest {
 			jobId, 
 			jobName, 
 			cfg,
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -149,7 +151,8 @@ public class ExecutionGraphConstructionTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
+			cfg,
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -216,7 +219,8 @@ public class ExecutionGraphConstructionTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
+			cfg,
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -470,7 +474,8 @@ public class ExecutionGraphConstructionTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
+			cfg,
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -526,7 +531,8 @@ public class ExecutionGraphConstructionTest {
 			TestingUtils.defaultExecutionContext(), 
 			jobId, 
 			jobName, 
-			cfg, 
+			cfg,
+			new ExecutionConfig(),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy());
 		try {
@@ -587,7 +593,8 @@ public class ExecutionGraphConstructionTest {
 				TestingUtils.defaultExecutionContext(), 
 				jobId, 
 				jobName, 
-				cfg, 
+				cfg,
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 			try {
@@ -632,7 +639,8 @@ public class ExecutionGraphConstructionTest {
 				TestingUtils.defaultExecutionContext(), 
 				jobId, 
 				jobName,
-				cfg, 
+				cfg,
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 
@@ -697,14 +705,14 @@ public class ExecutionGraphConstructionTest {
 			JobVertex v8 = new JobVertex("vertex8");
 			v8.setParallelism(2);
 
-			List<JobVertex> vertices = Arrays.asList(v1, v2, v3, v4, v5, v6, v7, v8);
-			JobGraph jg = new JobGraph(jobId, jobName, vertices);
+			JobGraph jg = new JobGraph(jobId, jobName, new ExecutionConfig(), v1, v2, v3, v4, v5, v6, v7, v8);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutionContext(), 
 				jobId, 
 				jobName, 
-				cfg, 
+				cfg,
+				new ExecutionConfig(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy());
 			

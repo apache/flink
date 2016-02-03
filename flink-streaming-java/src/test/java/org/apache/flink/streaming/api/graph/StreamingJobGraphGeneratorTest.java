@@ -44,10 +44,10 @@ public class StreamingJobGraphGeneratorTest {
 
 		StreamGraph streamingJob = new StreamGraph(env);
 		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob);
-		
+
 		boolean closureCleanerEnabled = r.nextBoolean(), forceAvroEnabled = r.nextBoolean(), forceKryoEnabled = r.nextBoolean(), objectReuseEnabled = r.nextBoolean(), sysoutLoggingEnabled = r.nextBoolean();
 		int dop = 1 + r.nextInt(10);
-		
+
 		ExecutionConfig config = streamingJob.getExecutionConfig();
 		if(closureCleanerEnabled) {
 			config.enableClosureCleaner();
@@ -75,16 +75,22 @@ public class StreamingJobGraphGeneratorTest {
 			config.disableSysoutLogging();
 		}
 		config.setParallelism(dop);
-		
+
 		JobGraph jobGraph = compiler.createJobGraph();
-		
+
+		final String EXEC_CONFIG_KEY = "runtime.config";
+
+		InstantiationUtil.writeObjectToConfig(jobGraph.getExecutionConfig(),
+			jobGraph.getJobConfiguration(),
+			EXEC_CONFIG_KEY);
+
 		ExecutionConfig executionConfig = InstantiationUtil.readObjectFromConfig(
 				jobGraph.getJobConfiguration(),
-				ExecutionConfig.CONFIG_KEY,
+				EXEC_CONFIG_KEY,
 				Thread.currentThread().getContextClassLoader());
-		
+
 		assertNotNull(executionConfig);
-		
+
 		assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
 		assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
 		assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());

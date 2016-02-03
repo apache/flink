@@ -41,12 +41,9 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
@@ -112,21 +109,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			LOG.debug(getLogString("Rich Sink detected. Initializing runtime context."));
 		}
 
-		ExecutionConfig executionConfig;
-		try {
-			ExecutionConfig c = InstantiationUtil.readObjectFromConfig(
-					getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					getUserCodeClassLoader());
-			if (c != null) {
-				executionConfig = c;
-			} else {
-				LOG.warn("The execution config returned by the configuration was null");
-				executionConfig = new ExecutionConfig();
-			}
-		} catch (IOException | ClassNotFoundException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		}
+		ExecutionConfig executionConfig = getExecutionConfig();
+
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 		
 		try {
