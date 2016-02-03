@@ -172,11 +172,7 @@ public class CliFrontend {
 		this.config = GlobalConfiguration.getConfiguration();
 
 		// load the YARN properties
-		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
-		String currentUser = System.getProperty("user.name");
-		String propertiesFileLocation = config.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
-
-		File propertiesFile = new File(propertiesFileLocation, CliFrontend.YARN_PROPERTIES_FILE + currentUser);
+		File propertiesFile = new File(getYarnPropertiesLocation(config));
 		if (propertiesFile.exists()) {
 
 			logAndSysout("Found YARN properties file " + propertiesFile.getAbsolutePath());
@@ -1294,5 +1290,13 @@ public class CliFrontend {
 		else {
 			return Collections.emptyMap();
 		}
+	}
+
+	public static String getYarnPropertiesLocation(Configuration conf) {
+		String defaultPropertiesFileLocation = System.getProperty("java.io.tmpdir");
+		String currentUser = System.getProperty("user.name");
+		String propertiesFileLocation = conf.getString(ConfigConstants.YARN_PROPERTIES_FILE_LOCATION, defaultPropertiesFileLocation);
+
+		return propertiesFileLocation + File.separator + CliFrontend.YARN_PROPERTIES_FILE + currentUser;
 	}
 }

@@ -253,7 +253,7 @@ object FlinkShell {
   def fetchDeployedYarnClusterInfo() = {
     // load configuration
     val globalConfig = GlobalConfiguration.getConfiguration
-    val propertiesLocation = FlinkYarnSessionCli.getYarnPropertiesLocation(globalConfig)
+    val propertiesLocation = CliFrontend.getYarnPropertiesLocation(globalConfig)
     val propertiesFile = new File(propertiesLocation)
 
     // read properties
