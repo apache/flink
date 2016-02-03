@@ -1,5 +1,9 @@
 ---
-title: FlinkML - How to Contribute
+title: "Streaming Libraries"
+sub-nav-group: streaming
+sub-nav-id: libs
+sub-nav-pos: 4
+sub-nav-title: Libraries
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,6 +24,4 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<meta http-equiv="refresh" content="1; url={{ site.baseurl }}/apis/batch/libs/ml/contribution_guide.html" />
-
-The *contribution guide* has been moved. Redirecting to [{{ site.baseurl }}/apis/batch/libs/ml/contribution_guide.html]({{ site.baseurl }}/apis/batch/libs/ml/contribution_guide.html) in 1 second.
+- Complex event processing: [CEP](cep.html)

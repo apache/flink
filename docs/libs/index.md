@@ -1,9 +1,5 @@
 ---
 title: "Libraries"
-sub-nav-group: batch
-sub-nav-id: libs
-sub-nav-pos: 6
-sub-nav-title: Libraries
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,6 +20,6 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-- Graph processing: [Gelly](gelly_guide.html)
-- Machine Learning: [FlinkML](ml/index.html)
-- Relational Queries: [Table](table.html)
+<meta http-equiv="refresh" content="1; url={{ site.baseurl }}/apis/batch/libs/index.html" />
+
+The *libraries guide* has been moved. Redirecting to [{{ site.baseurl }}/apis/batch/libs/index.html]({{ site.baseurl }}/apis/batch/libs/index.html) in 1 second.

@@ -71,7 +71,7 @@ under the License.
             </li>
 
             <!-- Programming Guides -->
-            <li class="dropdown{% if page.url contains '/apis/' %} active{% endif %}">
+            <li class="dropdown{% unless page.url contains '/libs/' %}{% if page.url contains '/apis/' %} active{% endif %}{% endunless %}">
               <a href="{{ apis }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Programming Guides <span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 {% assign apis_group = (site.pages | where: "top-nav-group" , "apis" | sort: "top-nav-pos") %}
