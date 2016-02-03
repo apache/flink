@@ -30,9 +30,9 @@ import backtype.storm.generated.Nimbus;
 import backtype.storm.generated.NotAliveException;
 import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
-
+import com.esotericsoftware.kryo.Serializer;
 import com.google.common.collect.Lists;
-
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
@@ -48,7 +48,8 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.storm.util.StormConfig;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -68,6 +69,8 @@ import java.util.Map;
  * Flink's JobManager instead of Storm's Nimbus.
  */
 public class FlinkClient {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkClient.class);
 
 	/** The client's configuration */
 	private final Map<?,?> conf;
@@ -181,9 +184,13 @@ public class FlinkClient {
 		}
 
 		/* set storm configuration */
-		if (this.conf != null) {
-			topology.getConfig().setGlobalJobParameters(new StormConfig(this.conf));
+		try {
+			FlinkClient.addStormConfigToTopology(topology, conf);
+		} catch (ClassNotFoundException e) {
+			LOG.error("Could not register class for Kryo serialization.", e);
+			throw new InvalidTopologyException("Could not register class for Kryo serialization.");
 		}
+
 
 		final JobGraph jobGraph = topology.getStreamGraph().getJobGraph(name);
 		jobGraph.addJar(new Path(uploadedJarUri));
@@ -319,6 +326,30 @@ public class FlinkClient {
 
 		return JobManager.getJobManagerActorRef(new InetSocketAddress(this.jobManagerHost, this.jobManagerPort),
 				actorSystem, AkkaUtils.getLookupTimeout(configuration));
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	static void addStormConfigToTopology(FlinkTopology topology, Map conf) throws ClassNotFoundException {
+		if (conf != null) {
+			ExecutionConfig flinkConfig = topology.getExecutionEnvironment().getConfig();
+
+			flinkConfig.setGlobalJobParameters(new StormConfig(conf));
+
+			// add all registered types to ExecutionConfig
+			List<?> registeredClasses = (List<?>) conf.get(Config.TOPOLOGY_KRYO_REGISTER);
+			if (registeredClasses != null) {
+				for (Object klass : registeredClasses) {
+					if (klass instanceof String) {
+						flinkConfig.registerKryoType(Class.forName((String) klass));
+					} else {
+						for (Map.Entry<String, String> register : ((Map<String, String>) klass).entrySet()) {
+							flinkConfig.registerTypeWithKryoSerializer(Class.forName(register.getKey()),
+									(Class<? extends Serializer<?>>) Class.forName(register.getValue()));
+						}
+					}
+				}
+			}
+		}
 	}
 
 }

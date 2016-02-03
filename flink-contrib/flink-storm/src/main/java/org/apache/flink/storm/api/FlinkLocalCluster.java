@@ -73,6 +73,8 @@ public class FlinkLocalCluster {
 			topology.getConfig().setGlobalJobParameters(new StormConfig(conf));
 		}
 
+		FlinkClient.addStormConfigToTopology(topology, conf);
+
 		JobGraph jobGraph = topology.getStreamGraph().getJobGraph(topologyName);
 		this.flink.submitJobDetached(jobGraph);
 	}
