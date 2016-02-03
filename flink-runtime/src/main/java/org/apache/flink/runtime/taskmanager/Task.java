@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -219,6 +220,9 @@ public class Task implements Runnable {
 
 	private volatile long recoveryTs;
 
+	/** The job specific execution configuration (see {@link ExecutionConfig}). */
+	private final ExecutionConfig executionConfig;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
@@ -248,6 +252,7 @@ public class Task implements Runnable {
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 		this.recoveryTs = tdd.getRecoveryTimestamp();
+		this.executionConfig = checkNotNull(tdd.getExecutionConfig());
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -496,8 +501,8 @@ public class Task implements Runnable {
 			TaskInputSplitProvider splitProvider = new TaskInputSplitProvider(jobManager,
 					jobId, vertexId, executionId, userCodeClassLoader, actorAskTimeout);
 
-			Environment env = new RuntimeEnvironment(appId, jobId, vertexId, executionId, taskInfo,
-					jobConfiguration, taskConfiguration,
+			Environment env = new RuntimeEnvironment(appId, jobId, vertexId, executionId,
+					executionConfig, taskInfo, jobConfiguration, taskConfiguration,
 					userCodeClassLoader, memoryManager, ioManager,
 					broadcastVariableManager, accumulatorRegistry,
 					splitProvider, distributedCacheEntries,

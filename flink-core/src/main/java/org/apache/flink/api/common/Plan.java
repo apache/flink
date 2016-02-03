@@ -294,25 +294,6 @@ public class Plan implements Visitable<Operator<?>> {
 	}
 	
 	/**
-	 * Gets the number of times the system will try to re-execute failed tasks. A value
-	 * of {@code -1} indicates that the system default value (as defined in the configuration)
-	 * should be used.
-	 * 
-	 * @return The number of times the system will try to re-execute failed tasks.
-	 */
-	public int getNumberOfExecutionRetries() {
-		return getExecutionConfig().getNumberOfExecutionRetries();
-	}
-	
-	/**
-	 * Gets the delay between retry failed task.
-	 * @return The delay the system will wait to retry.
-	 */
-	public long getExecutionRetryDelay() {
-		return getExecutionConfig().getExecutionRetryDelay();
-	}
-
-	/**
 	 * Gets the optimizer post-pass class for this job. The post-pass typically creates utility classes
 	 * for data types and is specific to a particular data model (record, tuple, Scala, ...)
 	 *

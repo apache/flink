@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import java.io.IOException;
-import java.util.Random;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -27,9 +24,12 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.util.InstantiationUtil;
 
+import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Random;
 
 import static org.junit.Assert.*;
 
@@ -44,10 +44,10 @@ public class StreamingJobGraphGeneratorTest {
 
 		StreamGraph streamingJob = new StreamGraph(env);
 		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob);
-		
+
 		boolean closureCleanerEnabled = r.nextBoolean(), forceAvroEnabled = r.nextBoolean(), forceKryoEnabled = r.nextBoolean(), objectReuseEnabled = r.nextBoolean(), sysoutLoggingEnabled = r.nextBoolean();
 		int dop = 1 + r.nextInt(10);
-		
+
 		ExecutionConfig config = streamingJob.getExecutionConfig();
 		if(closureCleanerEnabled) {
 			config.enableClosureCleaner();
@@ -75,16 +75,22 @@ public class StreamingJobGraphGeneratorTest {
 			config.disableSysoutLogging();
 		}
 		config.setParallelism(dop);
-		
+
 		JobGraph jobGraph = compiler.createJobGraph("test");
-		
+
+		final String exec_config_key = "runtime.config";
+
+		InstantiationUtil.writeObjectToConfig(jobGraph.getExecutionConfig(),
+			jobGraph.getJobConfiguration(),
+			exec_config_key);
+
 		ExecutionConfig executionConfig = InstantiationUtil.readObjectFromConfig(
 				jobGraph.getJobConfiguration(),
-				ExecutionConfig.CONFIG_KEY,
+				exec_config_key,
 				Thread.currentThread().getContextClassLoader());
-		
+
 		assertNotNull(executionConfig);
-		
+
 		assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
 		assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
 		assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());

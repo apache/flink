@@ -23,6 +23,7 @@ import akka.testkit.JavaTestKit;
 
 import com.typesafe.config.Config;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -118,7 +119,7 @@ public class JobManagerTest {
 				sender.setInvokableClass(Tasks.BlockingNoOpInvokable.class); // just block
 				sender.createAndAddResultDataSet(rid, PIPELINED);
 
-				final JobGraph jobGraph = new JobGraph("Blocking test job", sender);
+				final JobGraph jobGraph = new JobGraph("Blocking test job", new ExecutionConfig(), sender);
 				final JobID jid = jobGraph.getJobID();
 
 				final ActorGateway jobManagerGateway = cluster.getLeaderGateway(

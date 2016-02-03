@@ -914,6 +914,7 @@ class JobManager(
               jobGraph.getJobID,
               jobGraph.getName,
               jobGraph.getJobConfiguration,
+              jobGraph.getExecutionConfig,
               timeout,
               jobGraph.getUserJarBlobKeys,
               jobGraph.getClasspaths,
@@ -1051,7 +1052,8 @@ class JobManager(
       }
       catch {
         case t: Throwable =>
-          log.error(s"Failed to submit job $jobId ($jobName)", t)
+          val message = t.getMessage
+          log.error(s"Failed to submit job $jobId ($jobName): $message", t)
 
           libraryCacheManager.unregisterJob(jobId)
           currentJobs.remove(jobId)
@@ -1063,7 +1065,8 @@ class JobManager(
           val rt: Throwable = if (t.isInstanceOf[JobExecutionException]) {
             t
           } else {
-            new JobExecutionException(jobId, s"Failed to submit job $jobId ($jobName)", t)
+            val message = t.getMessage
+            new JobExecutionException(jobId, s"Failed to submit job $jobId ($jobName): $message", t)
           }
 
           jobInfo.client ! decorateMessage(JobResultFailure(new SerializedThrowable(rt)))

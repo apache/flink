@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorSystem;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -59,7 +60,6 @@ import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,6 +183,9 @@ public class ExecutionGraph implements Serializable {
 
 	// ------ Configuration of the Execution -------
 
+	/** The execution configuration (see {@link ExecutionConfig}) related to this specific job. */
+	private ExecutionConfig executionConfig;
+
 	/** The number of times failed executions should be retried. */
 	private int numberOfRetriesLeft;
 
@@ -239,7 +242,6 @@ public class ExecutionGraph implements Serializable {
 	private ExecutionContext executionContext;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
-	private ExecutionConfig executionConfig;
 
 	private String jsonPlan;
 
@@ -261,6 +263,7 @@ public class ExecutionGraph implements Serializable {
 			jobId,
 			jobName,
 			jobConfig,
+			new ExecutionConfig(),
 			timeout,
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
@@ -273,6 +276,7 @@ public class ExecutionGraph implements Serializable {
 			JobID jobId,
 			String jobName,
 			Configuration jobConfig,
+			ExecutionConfig config,
 			FiniteDuration timeout,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
@@ -302,7 +306,7 @@ public class ExecutionGraph implements Serializable {
 
 		this.requiredJarFiles = requiredJarFiles;
 		this.requiredClasspaths = requiredClasspaths;
-
+		this.executionConfig = Preconditions.checkNotNull(config);
 		this.timeout = timeout;
 	}
 
@@ -939,12 +943,7 @@ public class ExecutionGraph implements Serializable {
 		if (!state.isTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
-		// "unpack" execution config before we throw away the usercode classloader.
-		try {
-			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY,userClassLoader);
-		} catch (Exception e) {
-			LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
-		}
+
 		// clear the non-serializable fields
 		userClassLoader = null;
 		scheduler = null;

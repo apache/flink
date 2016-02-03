@@ -393,7 +393,7 @@ public class FlinkYarnSessionCli {
 			printUsage();
 			return 1;
 		}
-
+		
 		// Query cluster for metrics
 		if (cmd.hasOption(QUERY.getOpt())) {
 			AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
