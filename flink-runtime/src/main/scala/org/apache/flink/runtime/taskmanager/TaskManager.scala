@@ -1813,6 +1813,7 @@ object TaskManager {
           connectionInfo.address(),
           connectionInfo.dataPort(),
           pageSize,
+          slots,
           configuration)
       )
     }
