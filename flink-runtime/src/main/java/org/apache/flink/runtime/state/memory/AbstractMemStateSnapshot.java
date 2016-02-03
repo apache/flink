@@ -36,7 +36,7 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the value in the snapshot state.
  */
-public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S>> implements KvStateSnapshot<K, N, S, SD, MemoryStateBackend> {
+public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> implements KvStateSnapshot<K, N, S, SD, MemoryStateBackend> {
 
 	private static final long serialVersionUID = 1L;
 

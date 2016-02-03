@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -255,8 +254,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
 			
-			pCount = getRuntimeContext().getState(
-					new ValueStateDescriptor<>("pCount", 0L, LongSerializer.INSTANCE));
+			pCount = getRuntimeContext().getState(new ValueStateDescriptor<>("pCount", Long.class, 0L));
 		}
 		
 		@Override

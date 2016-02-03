@@ -18,10 +18,10 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
+
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -38,8 +38,8 @@ public class ContinuousEventTimeTrigger<W extends Window> implements Trigger<Obj
 
 	private final long interval;
 
-	private final ValueStateDescriptor<Boolean> stateDesc = new ValueStateDescriptor<>("first", true,
-		BasicTypeInfo.BOOLEAN_TYPE_INFO.createSerializer(new ExecutionConfig()));
+	private final ValueStateDescriptor<Boolean> stateDesc = 
+			new ValueStateDescriptor<>("first", BooleanSerializer.INSTANCE, true);
 
 	private ContinuousEventTimeTrigger(long interval) {
 		this.interval = interval;

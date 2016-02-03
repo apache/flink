@@ -63,7 +63,6 @@ import org.junit.Test;
 import com.google.common.base.Optional;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.fail;
 
 public class DbStateBackendTest {
 
@@ -201,7 +200,7 @@ public class DbStateBackendTest {
 			backend.initializeForJob(env, "dummy_test_kv", IntSerializer.INSTANCE);
 
 			ValueState<String> state = backend.createValueState(IntSerializer.INSTANCE,
-				new ValueStateDescriptor<>("state1", null, StringSerializer.INSTANCE));
+				new ValueStateDescriptor<>("state1", StringSerializer.INSTANCE, null));
 
 			LazyDbValueState<Integer, Integer, String> kv = (LazyDbValueState<Integer, Integer, String>) state;
 
@@ -455,9 +454,14 @@ public class DbStateBackendTest {
 		backend2.initializeForJob(new DummyEnvironment("test", 3, 1), "dummy_2", StringSerializer.INSTANCE);
 		backend3.initializeForJob(new DummyEnvironment("test", 3, 2), "dummy_3", StringSerializer.INSTANCE);
 
-		ValueState<String> s1State = backend1.createValueState(StringSerializer.INSTANCE, new ValueStateDescriptor<>("a1", null, StringSerializer.INSTANCE));
-		ValueState<String> s2State = backend2.createValueState(StringSerializer.INSTANCE, new ValueStateDescriptor<>("a2", null, StringSerializer.INSTANCE));
-		ValueState<String> s3State = backend3.createValueState(StringSerializer.INSTANCE, new ValueStateDescriptor<>("a3", null, StringSerializer.INSTANCE));
+		ValueState<String> s1State = backend1.createValueState(StringSerializer.INSTANCE, 
+				new ValueStateDescriptor<>("a1", StringSerializer.INSTANCE, null));
+		
+		ValueState<String> s2State = backend2.createValueState(StringSerializer.INSTANCE, 
+				new ValueStateDescriptor<>("a2", StringSerializer.INSTANCE, null));
+		
+		ValueState<String> s3State = backend3.createValueState(StringSerializer.INSTANCE, 
+				new ValueStateDescriptor<>("a3", StringSerializer.INSTANCE, null));
 
 		LazyDbValueState<?, ?, ?> s1 = (LazyDbValueState<?, ?, ?>) s1State;
 		LazyDbValueState<?, ?, ?> s2 = (LazyDbValueState<?, ?, ?>) s2State;
@@ -520,7 +524,7 @@ public class DbStateBackendTest {
 		backend.initializeForJob(env, "dummy_test_caching", IntSerializer.INSTANCE);
 
 		ValueState<String> state = backend.createValueState(IntSerializer.INSTANCE,
-			new ValueStateDescriptor<>("state1", "a", StringSerializer.INSTANCE));
+			new ValueStateDescriptor<>("state1", StringSerializer.INSTANCE, "a"));
 
 		LazyDbValueState<Integer, Integer, String> kv = (LazyDbValueState<Integer, Integer, String>) state;
 

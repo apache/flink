@@ -195,6 +195,11 @@ public class DbStateBackend extends AbstractStateBackend {
 	@Override
 	protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer,
 		ValueStateDescriptor<T> stateDesc) throws Exception {
+		
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+		
 		String stateName = operatorIdentifier + "_"+ stateDesc.getName();
 
 		return new LazyDbValueState<>(
@@ -210,7 +215,14 @@ public class DbStateBackend extends AbstractStateBackend {
 	@Override
 	protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer,
 		ListStateDescriptor<T> stateDesc) throws Exception {
-		ValueStateDescriptor<ArrayList<T>> valueStateDescriptor = new ValueStateDescriptor<>(stateDesc.getName(), null, new ArrayListSerializer<>(stateDesc.getSerializer()));
+
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+		
+		ValueStateDescriptor<ArrayList<T>> valueStateDescriptor = new ValueStateDescriptor<>(stateDesc.getName(), 
+				new ArrayListSerializer<>(stateDesc.getSerializer()), null);
+		
 		ValueState<ArrayList<T>> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
 		return new GenericListState<>(valueState);
 	}
@@ -220,7 +232,13 @@ public class DbStateBackend extends AbstractStateBackend {
 	protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer,
 		ReducingStateDescriptor<T> stateDesc) throws Exception {
 
-		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(stateDesc.getName(), null, stateDesc.getSerializer());
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+		
+		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<>(
+				stateDesc.getName(), stateDesc.getSerializer(), null);
+		
 		ValueState<T> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
 		return new GenericReducingState<>(valueState, stateDesc.getReduceFunction());
 	}

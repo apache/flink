@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import com.google.common.base.Joiner;
+
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -29,11 +31,10 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.IntValueSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.types.IntValue;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,7 +68,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
-			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", null, StringSerializer.INSTANCE);
+			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+		
 			ValueState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")
@@ -149,7 +152,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		try {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
-			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", StringSerializer.INSTANCE);
+			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 			ListState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")
@@ -246,7 +249,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 						return value1 + "," + value2;
 					}
 				},
-				StringSerializer.INSTANCE);
+				String.class);
 			ReducingState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")
@@ -336,12 +339,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 				"test_op",
 				IntSerializer.INSTANCE);
 
-			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id",
-				null,
-				StringSerializer.INSTANCE);
-			ValueState<String> state = backend.getPartitionedState(null,
-				VoidSerializer.INSTANCE,
-				kvId);
+			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+			
+			ValueState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")
 			KvState<Integer, Void, ValueState<String>, ValueStateDescriptor<String>, B> kv =
@@ -379,7 +380,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		try {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
-			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", StringSerializer.INSTANCE);
+			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 			ListState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")
@@ -427,7 +428,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 						return value1 + "," + value2;
 					}
 				},
-				StringSerializer.INSTANCE);
+				String.class);
 			ReducingState<String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")
@@ -468,7 +469,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		try {
 			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
 
-			ValueStateDescriptor<IntValue> kvId = new ValueStateDescriptor<>("id", new IntValue(-1), IntValueSerializer.INSTANCE);
+			ValueStateDescriptor<IntValue> kvId = new ValueStateDescriptor<>("id", IntValue.class, new IntValue(-1));
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+			
 			ValueState<IntValue> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
 
 			@SuppressWarnings("unchecked")

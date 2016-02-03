@@ -39,7 +39,7 @@ import static java.util.Objects.requireNonNull;
  * @param <SD> The type of StateDescriptor for the State S
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend>
+public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend>
 		implements KvState<K, N, S, SD, Backend>, State {
 
 	/** Map containing the actual key/value pairs */

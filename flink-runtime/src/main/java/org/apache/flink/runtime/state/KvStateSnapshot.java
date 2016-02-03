@@ -39,7 +39,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <SD> The type of the {@link StateDescriptor}
  * @param <Backend> The type of the backend that can restore the state from this snapshot.
  */
-public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend> extends java.io.Serializable {
+public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> extends java.io.Serializable {
 
 	/**
 	 * Loads the key/value state back from this snapshot.

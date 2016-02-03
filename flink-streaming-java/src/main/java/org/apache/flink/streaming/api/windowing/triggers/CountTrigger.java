@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.io.IOException;
@@ -35,8 +35,8 @@ public class CountTrigger<W extends Window> implements Trigger<Object, W> {
 
 	private final long maxCount;
 
-	private final ValueStateDescriptor<Long> stateDesc = new ValueStateDescriptor<>("count", 0L,
-		BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new ExecutionConfig()));
+	private final ValueStateDescriptor<Long> stateDesc =
+			new ValueStateDescriptor<>("count", LongSerializer.INSTANCE, 0L);
 
 
 	private CountTrigger(long maxCount) {

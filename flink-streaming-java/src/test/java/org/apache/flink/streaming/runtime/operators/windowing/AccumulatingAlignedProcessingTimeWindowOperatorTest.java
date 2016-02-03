@@ -763,7 +763,7 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 		public void open(Configuration parameters) {
 			assertNotNull(getRuntimeContext());
 			state = getRuntimeContext().getState(
-					new ValueStateDescriptor<>("totalCount", 0, IntSerializer.INSTANCE));
+					new ValueStateDescriptor<>("totalCount", Integer.class, 0));
 		}
 
 		@Override

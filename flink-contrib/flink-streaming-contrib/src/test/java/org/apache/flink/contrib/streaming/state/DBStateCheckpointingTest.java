@@ -31,14 +31,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.derby.drda.NetworkServerControl;
-import org.apache.flink.api.common.ExecutionConfig;
+
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -210,7 +209,7 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 			failurePos = (new Random().nextLong() % (failurePosMax - failurePosMin)) + failurePosMin;
 			count = 0;
 			sum = getRuntimeContext().getState(
-					new ValueStateDescriptor<>("my_state", 0L, LongSerializer.INSTANCE));
+					new ValueStateDescriptor<>("my_state", Long.class, 0L));
 		}
 
 		@Override
@@ -238,11 +237,9 @@ public class DBStateCheckpointingTest extends StreamFaultToleranceTestBase {
 		@Override
 		public void open(Configuration parameters) throws IOException {
 			aCounts = getRuntimeContext().getState(
-					new ValueStateDescriptor<>("a", NonSerializableLong.of(0L), 
-							new KryoSerializer<>(NonSerializableLong.class, new ExecutionConfig())));
+					new ValueStateDescriptor<>("a", NonSerializableLong.class, NonSerializableLong.of(0L)));
 			
-			bCounts = getRuntimeContext().getState(
-					new ValueStateDescriptor<>("b", 0L, LongSerializer.INSTANCE));
+			bCounts = getRuntimeContext().getState(new ValueStateDescriptor<>("b", Long.class, 0L));
 		}
 
 		@Override

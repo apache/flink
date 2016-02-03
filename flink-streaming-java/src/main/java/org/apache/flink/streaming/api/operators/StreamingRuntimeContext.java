@@ -112,6 +112,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
+			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 			return operator.getPartitionedState(stateProperties);
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
@@ -122,6 +123,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
 		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
+			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 			return operator.getPartitionedState(stateProperties);
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
@@ -132,6 +134,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
+			stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 			return operator.getPartitionedState(stateProperties);
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
@@ -163,7 +166,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		requireNonNull(stateType, "The state type information must not be null");
 
 		ValueStateDescriptor<S> stateProps = 
-				new ValueStateDescriptor<>(name, defaultState, stateType.createSerializer(getExecutionConfig()));
+				new ValueStateDescriptor<>(name, stateType, defaultState);
 		return getState(stateProps);
 	}
 

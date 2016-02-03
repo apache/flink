@@ -64,10 +64,13 @@ public class StreamGroupedFold<IN, OUT, KEY>
 					"operator. Probably the setOutputType method was not called.");
 		}
 
-		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-		initialValue = outTypeSerializer.deserialize(in);
-		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, null, outTypeSerializer);
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais))
+		{
+			initialValue = outTypeSerializer.deserialize(in);
+		}
+		
+		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, outTypeSerializer, null);
 		values = getPartitionedState(stateId);
 	}
 

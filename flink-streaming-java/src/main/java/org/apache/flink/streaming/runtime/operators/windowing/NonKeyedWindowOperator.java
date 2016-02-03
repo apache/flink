@@ -448,13 +448,14 @@ public class NonKeyedWindowOperator<IN, OUT, W extends Window>
 			requireNonNull(name, "The name of the state must not be null");
 			requireNonNull(stateType, "The state type information must not be null");
 
-			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, defaultState, stateType.createSerializer(getExecutionConfig()));
+			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(
+					name, stateType.createSerializer(getExecutionConfig()), defaultState);
 			return getPartitionedState(stateDesc);
 		}
 
 		@Override
 		@SuppressWarnings("rawtypes, unchecked")
-		public <S extends State> S getPartitionedState(final StateDescriptor<S> stateDescriptor) {
+		public <S extends State> S getPartitionedState(final StateDescriptor<S, ?> stateDescriptor) {
 			if (!(stateDescriptor instanceof ValueStateDescriptor)) {
 				throw new UnsupportedOperationException("NonKeyedWindowOperator Triggers only " +
 					"support ValueState.");
