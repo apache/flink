@@ -18,7 +18,8 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.state.OperatorState;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -26,7 +27,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -70,8 +71,8 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 	// TODO: fix once the state refactoring is completed
 	private transient Set<KEY> keys;
 
-	private transient OperatorState<NFA<IN>> nfaOperatorState;
-	private transient OperatorState<PriorityQueue<StreamRecord<IN>>> priorityQueueOperatorState;
+	private transient ValueState<NFA<IN>> nfaOperatorState;
+	private transient ValueState<PriorityQueue<StreamRecord<IN>>> priorityQueueOperatorState;
 
 	public KeyedCEPPatternOperator(
 			TypeSerializer<IN> inputSerializer,
@@ -95,19 +96,21 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 		}
 
 		if (nfaOperatorState == null) {
-			nfaOperatorState = this.createKeyValueState(
-				NFA_OPERATOR_STATE_NAME,
-				new KryoSerializer<NFA<IN>>((Class<NFA<IN>>) (Class<?>) NFA.class, getExecutionConfig()),
-				null);
+			nfaOperatorState = getPartitionedState(
+					new ValueStateDescriptor<NFA<IN>>(
+						NFA_OPERATOR_STATE_NAME,
+						new KryoSerializer<NFA<IN>>((Class<NFA<IN>>) (Class<?>) NFA.class, getExecutionConfig()),
+						null));
 		}
 
 		if (priorityQueueOperatorState == null) {
-			priorityQueueOperatorState = this.createKeyValueState(
-				PRIORIRY_QUEUE_STATE_NAME,
-				new PriorityQueueSerializer<StreamRecord<IN>>(
-					new StreamRecordSerializer<IN>(getInputSerializer()),
-					new PriorityQueueStreamRecordFactory<IN>()),
-				null);
+			priorityQueueOperatorState = getPartitionedState(
+					new ValueStateDescriptor<PriorityQueue<StreamRecord<IN>>>(
+						PRIORIRY_QUEUE_STATE_NAME,
+						new PriorityQueueSerializer<StreamRecord<IN>>(
+							new StreamRecordSerializer<IN>(getInputSerializer()),
+							new PriorityQueueStreamRecordFactory<IN>()),
+						null));
 		}
 	}
 
@@ -166,7 +169,7 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractCEPPatternOperator
 	public StreamTaskState snapshotOperatorState(long checkpointId, long timestamp) throws Exception {
 		StreamTaskState taskState = super.snapshotOperatorState(checkpointId, timestamp);
 
-		StateBackend.CheckpointStateOutputView ov = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
+		AbstractStateBackend.CheckpointStateOutputView ov = getStateBackend().createCheckpointStateOutputView(checkpointId, timestamp);
 
 		ov.writeInt(keys.size());
 
