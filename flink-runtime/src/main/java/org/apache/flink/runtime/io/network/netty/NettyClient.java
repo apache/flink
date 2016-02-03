@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -49,7 +48,7 @@ class NettyClient {
 		this.config = config;
 	}
 
-	void init(final NettyProtocol protocol) throws IOException {
+	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty client has already been initialized.");
 
 		long start = System.currentTimeMillis();
@@ -91,7 +90,7 @@ class NettyClient {
 		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getClientConnectTimeoutSeconds() * 1000);
 
 		// Pooled allocator for Netty's ByteBuf instances
-		bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+		bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
 
 		// Receive and send buffer size
 		int receiveAndSendBufferSize = config.getSendAndReceiveBufferSize();
@@ -117,6 +116,10 @@ class NettyClient {
 
 	NettyConfig getConfig() {
 		return config;
+	}
+
+	Bootstrap getBootstrap() {
+		return bootstrap;
 	}
 
 	void shutdown() {
