@@ -158,7 +158,7 @@ public class PartitionRequestClientFactoryTest {
 	// ------------------------------------------------------------------------
 
 	private static Tuple2<NettyServer, NettyClient> createNettyServerAndClient(NettyProtocol protocol) throws IOException {
-		final NettyConfig config = new NettyConfig(InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, new Configuration());
+		final NettyConfig config = new NettyConfig(InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
 
 		final NettyServer server = new NettyServer(config);
 		final NettyClient client = new NettyClient(config);
@@ -166,8 +166,10 @@ public class PartitionRequestClientFactoryTest {
 		boolean success = false;
 
 		try {
-			server.init(protocol);
-			client.init(protocol);
+			NettyBufferPool bufferPool = new NettyBufferPool(1);
+
+			server.init(protocol, bufferPool);
+			client.init(protocol, bufferPool);
 
 			success = true;
 		}
