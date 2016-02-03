@@ -137,7 +137,19 @@ public class ZooKeeperTestEnvironment {
 	 */
 	public void deleteAll() throws Exception {
 		final String path = "/" + client.getNamespace();
-		ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, false);
+		
+		for (int attempt = 0; attempt < 3; attempt++) {
+			try {
+				ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, false);
+				break;
+			}
+			catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
+				// that seems all right. if one of the children we want to delete is
+				// actually already deleted, that's fine. 
+				
+				// still, fall through the loop to delete the other children 
+			}
+		}
 	}
 
 }
