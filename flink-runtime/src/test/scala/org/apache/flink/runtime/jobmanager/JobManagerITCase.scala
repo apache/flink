@@ -33,7 +33,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableExcepti
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
-import org.apache.flink.runtime.testutils.JobManagerActorTestUtils
 import org.junit.runner.RunWith
 import org.mockito.Mockito._
 import org.scalatest.junit.JUnitRunner
@@ -43,6 +42,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
+
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
 class JobManagerITCase(_system: ActorSystem)
@@ -253,7 +254,8 @@ class JobManagerITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+      val vertices = (List(sender1, receiver, sender2)).asJava
+      val jobGraph = new JobGraph("Bipartite Job", vertices)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -298,7 +300,8 @@ class JobManagerITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+      val vertices = (List(sender1, receiver, sender2)).asJava
+      val jobGraph = new JobGraph("Bipartite Job", vertices)
 
       val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)
@@ -340,7 +343,8 @@ class JobManagerITCase(_system: ActorSystem)
       forwarder.connectNewDataSetAsInput(sender, DistributionPattern.ALL_TO_ALL)
       receiver.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
+      val vertices = (List(sender, forwarder, receiver)).asJava
+      val jobGraph = new JobGraph("Forwarding Job", vertices)
 
       jobGraph.setScheduleMode(ScheduleMode.ALL)
 

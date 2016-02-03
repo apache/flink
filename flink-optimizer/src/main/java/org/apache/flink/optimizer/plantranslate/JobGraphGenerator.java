@@ -217,7 +217,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// ----------- finalize the job graph -----------
 		
 		// create the job graph object
-		JobGraph graph = new JobGraph(jobId, program.getJobName());
+		JobGraph graph = new JobGraph(jobId, program.getJobName(), program.getOriginalPlan().getExecutionConfig());
 		graph.setNumberOfExecutionRetries(program.getOriginalPlan().getNumberOfExecutionRetries());
 		graph.setExecutionRetryDelay(program.getOriginalPlan().getExecutionRetryDelay());
 		graph.setAllowQueuedScheduling(false);

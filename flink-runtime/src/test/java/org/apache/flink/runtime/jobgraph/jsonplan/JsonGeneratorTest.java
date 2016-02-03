@@ -29,7 +29,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -65,9 +67,10 @@ public class JsonGeneratorTest {
 			
 			sink1.connectNewDataSetAsInput(join2, DistributionPattern.POINTWISE);
 			sink2.connectNewDataSetAsInput(join1, DistributionPattern.ALL_TO_ALL);
-			
-			JobGraph jg = new JobGraph("my job", source1, source2, source3,
-					intermediate1, intermediate2, join1, join2, sink1, sink2);
+
+			List<JobVertex> vertices = Arrays.asList(source1, source2, source3,
+				intermediate1, intermediate2, join1, join2, sink1, sink2);
+			JobGraph jg = new JobGraph("my job", vertices);
 			
 			String plan = JsonPlanGenerator.generatePlan(jg);
 			assertNotNull(plan);
