@@ -62,7 +62,7 @@ import static java.util.Objects.requireNonNull;
  * @param <SD> The type of {@link StateDescriptor}.
  * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend>
+public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend>
 	implements KvState<K, N, S, SD, Backend>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
@@ -258,7 +258,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		}
 	}
 
-	public static abstract class AbstractRocksDBSnapshot<K, N, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, S, SD, Backend> {
+	public static abstract class AbstractRocksDBSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, S, SD, Backend> {
 		private static final long serialVersionUID = 1L;
 
 		private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBSnapshot.class);

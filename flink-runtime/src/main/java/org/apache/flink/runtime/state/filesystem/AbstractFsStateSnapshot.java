@@ -39,7 +39,7 @@ import java.util.Map;
  * @param <N> The type of the namespace in the snapshot state.
  * @param <SV> The type of the state value.
  */
-public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, FsStateBackend> {
+public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD, FsStateBackend> {
 
 	private static final long serialVersionUID = 1L;
 

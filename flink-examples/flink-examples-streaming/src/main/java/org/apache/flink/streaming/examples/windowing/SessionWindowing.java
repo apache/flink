@@ -17,10 +17,8 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -103,8 +101,8 @@ public class SessionWindowing {
 
 		private final Long sessionTimeout;
 
-		private final ValueStateDescriptor<Long> stateDesc = new ValueStateDescriptor<>("last-seen", -1L,
-			BasicTypeInfo.LONG_TYPE_INFO.createSerializer(new ExecutionConfig()));
+		private final ValueStateDescriptor<Long> stateDesc = 
+				new ValueStateDescriptor<>("last-seen", Long.class, -1L);
 
 
 		public SessionTrigger(Long sessionTimeout) {

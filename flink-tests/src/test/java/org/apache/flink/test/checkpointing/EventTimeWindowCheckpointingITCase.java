@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -45,6 +44,7 @@ import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -224,7 +224,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							assertEquals(PARALLELISM, getRuntimeContext().getNumberOfParallelSubtasks());
 							open = true;
 							count = getRuntimeContext().getState(
-									new ValueStateDescriptor<>("count", 0, IntSerializer.INSTANCE));
+									new ValueStateDescriptor<>("count", Integer.class, 0));
 						}
 
 						@Override

@@ -55,13 +55,13 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 	private final Evictor<? super IN, ? super W> evictor;
 
-	private final StateDescriptor<? extends ListState<StreamRecord<IN>>> windowStateDescriptor;
+	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor;
 
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
 		TypeSerializer<W> windowSerializer,
 		KeySelector<IN, K> keySelector,
 		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends ListState<StreamRecord<IN>>> windowStateDescriptor,
+		StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
 		WindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
 		Trigger<? super IN, ? super W> trigger,
 		Evictor<? super IN, ? super W> evictor) {
@@ -161,7 +161,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	@VisibleForTesting
 	@SuppressWarnings("unchecked, rawtypes")
-	public StateDescriptor<? extends MergingState<IN, Iterable<IN>>> getStateDescriptor() {
-		return (StateDescriptor<? extends MergingState<IN, Iterable<IN>>>) windowStateDescriptor;
+	public StateDescriptor<? extends MergingState<IN, Iterable<IN>>, ?> getStateDescriptor() {
+		return (StateDescriptor<? extends MergingState<IN, Iterable<IN>>, ?>) windowStateDescriptor;
 	}
 }

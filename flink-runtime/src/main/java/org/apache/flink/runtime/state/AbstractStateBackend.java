@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -178,11 +179,15 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public <K, N, S extends State> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S> stateDescriptor) throws Exception {
+	public <K, N, S extends State> S getPartitionedState(final N namespace, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
 		if (keySerializer == null) {
 			throw new Exception("State key serializer has not been configured in the config. " +
 					"This operation cannot use partitioned state.");
+		}
+		
+		if (!stateDescriptor.isSerializerInitialized()) {
+			stateDescriptor.initializeSerializerUnlessSet(new ExecutionConfig());
 		}
 
 		if (keyValueStatesByName == null) {

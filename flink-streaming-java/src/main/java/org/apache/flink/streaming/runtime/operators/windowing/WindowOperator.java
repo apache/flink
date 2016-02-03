@@ -102,7 +102,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected final Trigger<? super IN, ? super W> trigger;
 
-	protected final StateDescriptor<? extends MergingState<IN, ACC>> windowStateDescriptor;
+	protected final StateDescriptor<? extends MergingState<IN, ACC>, ?> windowStateDescriptor;
 
 	/**
 	 * If this is true. The current processing time is set as the timestamp of incoming elements.
@@ -167,7 +167,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		TypeSerializer<W> windowSerializer,
 		KeySelector<IN, K> keySelector,
 		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends MergingState<IN, ACC>> windowStateDescriptor,
+		StateDescriptor<? extends MergingState<IN, ACC>, ?> windowStateDescriptor,
 		WindowFunction<ACC, OUT, K, W> windowFunction,
 		Trigger<? super IN, ? super W> trigger) {
 
@@ -374,15 +374,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			requireNonNull(name, "The name of the state must not be null");
 			requireNonNull(stateType, "The state type information must not be null");
 
-			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, defaultState, stateType.createSerializer(getExecutionConfig()));
+			ValueStateDescriptor<S> stateDesc = new ValueStateDescriptor<>(name, stateType.createSerializer(getExecutionConfig()), defaultState);
 			return getPartitionedState(stateDesc);
 		}
 
 		@SuppressWarnings("unchecked")
-		public <S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
+		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
 			try {
-				return WindowOperator.this.getPartitionedState(window, windowSerializer,
-					stateDescriptor);
+				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
 				throw new RuntimeException("Could not retrieve state", e);
 			}
@@ -608,7 +607,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@VisibleForTesting
-	public StateDescriptor<? extends MergingState<IN, ACC>> getStateDescriptor() {
+	public StateDescriptor<? extends MergingState<IN, ACC>, ?> getStateDescriptor() {
 		return windowStateDescriptor;
 	}
 }

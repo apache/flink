@@ -35,7 +35,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
  * @param <SD> The type of the {@link StateDescriptor} for state {@code S}.
  * @param <Backend> The type of {@link AbstractStateBackend} that manages this {@code KvState}.
  */
-public interface KvState<K, N, S extends State, SD extends StateDescriptor<S>, Backend extends AbstractStateBackend> {
+public interface KvState<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> {
 
 	/**
 	 * Sets the current key, which will be used when using the state access methods.

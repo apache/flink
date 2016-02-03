@@ -179,7 +179,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 		 *                                       function (function is not part os a KeyedStream).
 		 */
-		<S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor);
+		<S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
 
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with

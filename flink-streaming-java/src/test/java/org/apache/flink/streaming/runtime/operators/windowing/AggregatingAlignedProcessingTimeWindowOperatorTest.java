@@ -943,8 +943,7 @@ public class AggregatingAlignedProcessingTimeWindowOperatorTest {
 			
 			// start with one, so the final count is correct and we test that we do not
 			// initialize with 0 always by default
-			state = getRuntimeContext().getState(
-					new ValueStateDescriptor<>("totalCount", 1, IntSerializer.INSTANCE));
+			state = getRuntimeContext().getState(new ValueStateDescriptor<>("totalCount", Integer.class, 1));
 		}
 
 		@Override

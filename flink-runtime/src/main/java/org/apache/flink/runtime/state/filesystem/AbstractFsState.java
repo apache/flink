@@ -41,7 +41,7 @@ import java.util.Map;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractFsState<K, N, SV, S extends State, SD extends StateDescriptor<S>>
+public abstract class AbstractFsState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
 		extends AbstractHeapState<K, N, SV, S, SD, FsStateBackend> {
 
 	/** The file system state backend backing snapshots of this state */

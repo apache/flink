@@ -39,7 +39,7 @@ import java.util.Map;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractMemState<K, N, SV, S extends State, SD extends StateDescriptor<S>>
+public abstract class AbstractMemState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
 		extends AbstractHeapState<K, N, SV, S, SD, MemoryStateBackend> {
 
 	public AbstractMemState(TypeSerializer<K> keySerializer,
