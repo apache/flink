@@ -196,9 +196,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 							continue;
 						}
 					}
-					synchronized (sessionIdsPerSnapshot) {
-						sessionIds.add(deliveryTag);
-					}
+					sessionIds.add(deliveryTag);
 				}
 
 				ctx.collect(result);

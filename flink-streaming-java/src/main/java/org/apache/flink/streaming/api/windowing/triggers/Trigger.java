@@ -72,13 +72,13 @@ public interface Trigger<T, W extends Window> extends Serializable {
 
 
 	/**
-	 * Result type for trigger methods. This determines what happens which the window.
+	 * Result type for trigger methods. This determines what happens with the window.
 	 *
 	 * <p>
 	 * On {@code FIRE} the pane is evaluated and results are emitted. The contents of the window
 	 * are kept. {@code FIRE_AND_PURGE} acts like {@code FIRE} but the contents of the pane
 	 * are purged. On {@code CONTINUE} nothing happens, processing continues. On {@code PURGE}
-	 * the contents of the window are discarded and now result is emitted for the window.
+	 * the contents of the window are discarded and no result is emitted for the window.
 	 */
 	enum TriggerResult {
 		CONTINUE(false, false), FIRE_AND_PURGE(true, true), FIRE(true, false), PURGE(false, true);

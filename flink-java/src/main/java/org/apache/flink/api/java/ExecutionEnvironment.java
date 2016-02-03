@@ -18,14 +18,10 @@
 
 package org.apache.flink.api.java;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import com.esotericsoftware.kryo.Serializer;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -38,7 +34,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.io.CsvReader;
@@ -52,7 +47,6 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -64,14 +58,22 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.Visitor;
+
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.esotericsoftware.kryo.Serializer;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * The ExecutionEnvironment is the context in which a program is executed. A
@@ -942,30 +944,23 @@ public abstract class ExecutionEnvironment {
 			plan.setDefaultParallelism(getParallelism());
 		}
 		plan.setExecutionConfig(getConfig());
+		
 		// Check plan for GenericTypeInfo's and register the types at the serializers.
-		plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
-			@Override
-			public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
-				OperatorInformation<?> opInfo = visitable.getOperatorInfo();
-				TypeInformation<?> typeInfo = opInfo.getOutputType();
-				if(typeInfo instanceof GenericTypeInfo) {
-					GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
-					if(!config.isAutoTypeRegistrationDisabled()) {
-						Serializers.recursivelyRegisterType(genericTypeInfo.getTypeClass(), config);
-					}
+		if (!config.isAutoTypeRegistrationDisabled()) {
+			plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
+				
+				private final HashSet<Class<?>> deduplicator = new HashSet<>();
+				
+				@Override
+				public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
+					OperatorInformation<?> opInfo = visitable.getOperatorInfo();
+					Serializers.recursivelyRegisterType(opInfo.getOutputType(), config, deduplicator);
+					return true;
 				}
-				if(typeInfo instanceof CompositeType) {
-					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<>();
-					Utils.getContainedGenericTypes((CompositeType<?>)typeInfo, genericTypesInComposite);
-					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
-						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
-					}
-				}
-				return true;
-			}
-			@Override
-			public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
-		});
+				@Override
+				public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
+			});
+		}
 
 		try {
 			registerCachedFilesWithPlan(plan);

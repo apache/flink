@@ -107,16 +107,14 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 	 */
 	protected final void acknowledgeIDs(long checkpointId, List<UId> uniqueIds) {
 		LOG.debug("Acknowledging ids for checkpoint {}", checkpointId);
-		synchronized (sessionIdsPerSnapshot) {
-			Iterator<Tuple2<Long, List<SessionId>>> iterator = sessionIdsPerSnapshot.iterator();
-			while (iterator.hasNext()) {
-				final Tuple2<Long, List<SessionId>> next = iterator.next();
-				long id = next.f0;
-				if (id <= checkpointId) {
-					acknowledgeSessionIDs(next.f1);
-					// remove ids for this session
-					iterator.remove();
-				}
+		Iterator<Tuple2<Long, List<SessionId>>> iterator = sessionIdsPerSnapshot.iterator();
+		while (iterator.hasNext()) {
+			final Tuple2<Long, List<SessionId>> next = iterator.next();
+			long id = next.f0;
+			if (id <= checkpointId) {
+				acknowledgeSessionIDs(next.f1);
+				// remove ids for this session
+				iterator.remove();
 			}
 		}
 	}
@@ -134,10 +132,8 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 
 	@Override
 	public SerializedCheckpointData[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-		synchronized (sessionIdsPerSnapshot) {
-			sessionIdsPerSnapshot.add(new Tuple2<>(checkpointId, sessionIds));
-			sessionIds = new ArrayList<>(64);
-		}
+		sessionIdsPerSnapshot.add(new Tuple2<>(checkpointId, sessionIds));
+		sessionIds = new ArrayList<>(64);
 		return super.snapshotState(checkpointId, checkpointTimestamp);
 	}
 }

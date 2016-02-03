@@ -18,12 +18,12 @@
 
 package org.apache.flink.yarn
 
-import java.util.{UUID, Date}
+import java.util.{List => JavaList, UUID, Date}
 
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
+import org.apache.hadoop.yarn.api.records.{ContainerStatus, Container, FinalApplicationStatus}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
@@ -40,7 +40,24 @@ object YarnMessages {
 
   case object JobManagerStopped
 
+  /**
+    * Entry point to start a new YarnSession.
+    * @param config The configuration to start the YarnSession with.
+    * @param webServerPort The port of the web server to bind to.
+    */
   case class StartYarnSession(config: Configuration, webServerPort: Int)
+
+  /**
+    * Callback from the async resource manager client when containers were allocated.
+    * @param containers List of containers which were allocated.
+    */
+  case class YarnContainersAllocated(containers: JavaList[Container])
+
+  /**
+    * Callback from the async resource manager client when containers were completed.
+    * @param statuses List of the completed containers' status.
+    */
+  case class YarnContainersCompleted(statuses: JavaList[ContainerStatus])
 
   /** Triggers the registration of the ApplicationClient to the YarnJobManager
     *

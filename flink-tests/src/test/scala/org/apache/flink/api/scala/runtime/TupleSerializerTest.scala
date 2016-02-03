@@ -18,20 +18,21 @@
 package org.apache.flink.api.scala.runtime
 
 import java.util
+import java.util.Random
+
+import org.apache.flink.api.scala._
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.runtime.kryo.{Serializers, KryoSerializer}
 import org.apache.flink.util.StringUtils
-import org.joda.time.DateTime
+
 import org.joda.time.LocalDate
+
 import org.junit.Assert
 import org.junit.Test
-import org.apache.flink.api.scala._
+
 import scala.collection.JavaConverters._
-import java.util.Random
 
 class TupleSerializerTest {
 
@@ -95,20 +96,6 @@ class TupleSerializerTest {
 
   @Test
   def testTuple2StringJodaTime(): Unit = {
-    val rnd: Random = new Random(807346528946L)
-
-    val testTuples = Array(
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      ("", rnd.nextDouble),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
-      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)))
-    runTests(testTuples)
-  }
-
-  @Test
-  def testTuple2StringJodaTime2(): Unit = {
     val rnd: Random = new Random(807346528946L)
 
     val testTuples = Array(
@@ -208,9 +195,9 @@ class TupleSerializerTest {
   private final def runTests[T <: Product : TypeInformation](instances: Array[T]) {
     try {
       // Register the custom Kryo Serializer
-      val conf = new ExecutionConfig
+      val conf = new ExecutionConfig()
       conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
-      Serializers.registerJodaTime(conf)
+      
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
       val serializer = tupleTypeInfo.createSerializer(conf)
       val tupleClass = tupleTypeInfo.getTypeClass

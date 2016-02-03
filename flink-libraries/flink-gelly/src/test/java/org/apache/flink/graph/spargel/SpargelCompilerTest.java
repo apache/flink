@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.graph.spargel;
 
 import static org.junit.Assert.assertEquals;
@@ -74,7 +73,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 				
-				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+				DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
 						new ConnectedComponents.CCUpdater<Long>(),
 						new ConnectedComponents.CCMessenger<Long>(), 100)
 						.getVertices();
@@ -156,11 +155,11 @@ public class SpargelCompilerTest extends CompilerTestBase {
 
 				Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
-				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+				ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 				parameters.addBroadcastSetForMessagingFunction(BC_VAR_NAME, bcVar);
 				parameters.addBroadcastSetForUpdateFunction(BC_VAR_NAME, bcVar);
 
-				DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(
+				DataSet<Vertex<Long, Long>> result = graph.runScatterGatherIteration(
 						new ConnectedComponents.CCUpdater<Long>(),
 						new ConnectedComponents.CCMessenger<Long>(), 100)
 						.getVertices();

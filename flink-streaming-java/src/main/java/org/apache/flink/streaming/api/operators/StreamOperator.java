@@ -105,7 +105,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	/**
 	 * Restores the operator state, if this operator's execution is recovering from a checkpoint.
 	 * This method restores the operator state (if the operator is stateful) and the key/value state
-	 * (if it had been used and was initialized when the snapshot ocurred).
+	 * (if it had been used and was initialized when the snapshot occurred).
 	 *
 	 * <p>This method is called after {@link #setup(StreamTask, StreamConfig, Output)}
 	 * and before {@link #open()}.

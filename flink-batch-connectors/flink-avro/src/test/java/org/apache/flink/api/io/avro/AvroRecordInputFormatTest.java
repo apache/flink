@@ -22,10 +22,7 @@ import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -219,41 +216,43 @@ public class AvroRecordInputFormatTest {
 	 */
 	@Test
 	public void testDeserializeToGenericType() throws IOException {
-		DatumReader<GenericData.Record> datumReader = new GenericDatumReader<GenericData.Record>(userSchema);
+		DatumReader<GenericData.Record> datumReader = new GenericDatumReader<>(userSchema);
 
-		FileReader<GenericData.Record> dataFileReader = DataFileReader.openReader(testFile, datumReader);
-		// initialize Record by reading it from disk (thats easier than creating it by hand)
-		GenericData.Record rec = new GenericData.Record(userSchema);
-		dataFileReader.next(rec);
-		// check if record has been read correctly
-		assertNotNull(rec);
-		assertEquals("name not equal", TEST_NAME, rec.get("name").toString() );
-		assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
-		assertEquals(null, rec.get("type_long_test")); // it is null for the first record.
+		try (FileReader<GenericData.Record> dataFileReader = DataFileReader.openReader(testFile, datumReader)) {
+			// initialize Record by reading it from disk (thats easier than creating it by hand)
+			GenericData.Record rec = new GenericData.Record(userSchema);
+			dataFileReader.next(rec);
+			
+			// check if record has been read correctly
+			assertNotNull(rec);
+			assertEquals("name not equal", TEST_NAME, rec.get("name").toString());
+			assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
+			assertEquals(null, rec.get("type_long_test")); // it is null for the first record.
 
-		// now serialize it with our framework:
+			// now serialize it with our framework:
+			TypeInformation<GenericData.Record> te = TypeExtractor.createTypeInfo(GenericData.Record.class);
 
-		TypeInformation<GenericData.Record> te = (TypeInformation<GenericData.Record>) TypeExtractor.createTypeInfo(GenericData.Record.class);
-		ExecutionConfig ec = new ExecutionConfig();
-		Assert.assertEquals(GenericTypeInfo.class, te.getClass());
-		Serializers.recursivelyRegisterType(( (GenericTypeInfo) te).getTypeClass(), ec);
+			ExecutionConfig ec = new ExecutionConfig();
+			Assert.assertEquals(GenericTypeInfo.class, te.getClass());
+			
+			Serializers.recursivelyRegisterType(te.getTypeClass(), ec, new HashSet<Class<?>>());
 
-		TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
-		Assert.assertEquals(1, ec.getDefaultKryoSerializerClasses().size());
-		Assert.assertTrue(
-			ec.getDefaultKryoSerializerClasses().containsKey(Schema.class) &&
-			ec.getDefaultKryoSerializerClasses().get(Schema.class).equals(Serializers.AvroSchemaSerializer.class));
-		ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
-		tser.serialize(rec, target);
+			TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
+			Assert.assertEquals(1, ec.getDefaultKryoSerializerClasses().size());
+			Assert.assertTrue(
+					ec.getDefaultKryoSerializerClasses().containsKey(Schema.class) &&
+							ec.getDefaultKryoSerializerClasses().get(Schema.class).equals(Serializers.AvroSchemaSerializer.class));
+			ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
+			tser.serialize(rec, target);
 
-		GenericData.Record newRec = tser.deserialize(target.getInputView());
+			GenericData.Record newRec = tser.deserialize(target.getInputView());
 
-		// check if it is still the same
-		assertNotNull(newRec);
-		assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), newRec.get("type_enum").toString());
-		assertEquals("name not equal", TEST_NAME, newRec.get("name").toString() );
-		assertEquals(null, newRec.get("type_long_test"));
-
+			// check if it is still the same
+			assertNotNull(newRec);
+			assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), newRec.get("type_enum").toString());
+			assertEquals("name not equal", TEST_NAME, newRec.get("name").toString());
+			assertEquals(null, newRec.get("type_long_test"));
+		}
 	}
 
 	/**
@@ -264,28 +263,30 @@ public class AvroRecordInputFormatTest {
 
 		DatumReader<User> datumReader = new SpecificDatumReader<User>(userSchema);
 
-		FileReader<User> dataFileReader = DataFileReader.openReader(testFile, datumReader);
-		User rec = dataFileReader.next();
+		try (FileReader<User> dataFileReader = DataFileReader.openReader(testFile, datumReader)) {
+			User rec = dataFileReader.next();
 
-		// check if record has been read correctly
-		assertNotNull(rec);
-		assertEquals("name not equal", TEST_NAME, rec.get("name").toString() );
-		assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
+			// check if record has been read correctly
+			assertNotNull(rec);
+			assertEquals("name not equal", TEST_NAME, rec.get("name").toString());
+			assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
 
-		// now serialize it with our framework:
-		ExecutionConfig ec = new ExecutionConfig();
-		TypeInformation<User> te = (TypeInformation<User>) TypeExtractor.createTypeInfo(User.class);
-		Assert.assertEquals(AvroTypeInfo.class, te.getClass());
-		TypeSerializer<User> tser = te.createSerializer(ec);
-		ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
-		tser.serialize(rec, target);
+			// now serialize it with our framework:
+			ExecutionConfig ec = new ExecutionConfig();
+			TypeInformation<User> te = TypeExtractor.createTypeInfo(User.class);
 
-		User newRec = tser.deserialize(target.getInputView());
+			Assert.assertEquals(AvroTypeInfo.class, te.getClass());
+			TypeSerializer<User> tser = te.createSerializer(ec);
+			ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
+			tser.serialize(rec, target);
 
-		// check if it is still the same
-		assertNotNull(newRec);
-		assertEquals("name not equal", TEST_NAME, newRec.getName().toString() );
-		assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString() );
+			User newRec = tser.deserialize(target.getInputView());
+
+			// check if it is still the same
+			assertNotNull(newRec);
+			assertEquals("name not equal", TEST_NAME, newRec.getName().toString());
+			assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString());
+		}
 	}
 
 

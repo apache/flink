@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.runtime.ByteArrayInputView;
+import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
 
 import java.io.IOException;
@@ -46,10 +46,16 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	/** The serializer for the value */
 	private final TypeSerializer<V> valueSerializer;
 
-	/** reusable output serialization buffers */
+	/** reusable input deserialization buffer */
+	private final DataInputDeserializer inputDeserializer;
+	
+	/** reusable output serialization buffer for the key */
 	private transient DataOutputSerializer keyOutputSerializer;
-	private transient DataOutputSerializer valueOutputSerializer;
 
+	/** reusable output serialization buffer for the value */
+	private transient DataOutputSerializer valueOutputSerializer;
+	
+	
 	/** The type information, to be returned by {@link #getProducedType()}. It is
 	 * transient, because it is not serializable. Note that this means that the type information
 	 * is not available at runtime, but only prior to the first serialization / deserialization */
@@ -68,11 +74,22 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 		this.typeInfo = new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo);
 		this.keySerializer = keyTypeInfo.createSerializer(ec);
 		this.valueSerializer = valueTypeInfo.createSerializer(ec);
+		this.inputDeserializer = new DataInputDeserializer();
 	}
 
+	/**
+	 * Creates a new de-/serialization schema for the given types. This constructor accepts the types
+	 * as classes and internally constructs the type information from the classes.
+	 * 
+	 * <p>If the types are parametrized and cannot be fully defined via classes, use the constructor
+	 * that accepts {@link TypeInformation} instead.
+	 * 
+	 * @param keyClass The class of the key de-/serialized by this schema.
+	 * @param valueClass The class of the value de-/serialized by this schema.
+	 * @param config The execution config, which is used to parametrize the type serializers.
+	 */
 	public TypeInformationKeyValueSerializationSchema(Class<K> keyClass, Class<V> valueClass, ExecutionConfig config) {
-		//noinspection unchecked
-		this( (TypeInformation<K>) TypeExtractor.createTypeInfo(keyClass), (TypeInformation<V>) TypeExtractor.createTypeInfo(valueClass), config);
+		this(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass), config);
 	}
 
 	// ------------------------------------------------------------------------
@@ -81,12 +98,15 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	@Override
 	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
 		K key = null;
-		if(messageKey != null) {
-			key = keySerializer.deserialize(new ByteArrayInputView(messageKey));
-		}
 		V value = null;
-		if(message != null) {
-			value = valueSerializer.deserialize(new ByteArrayInputView(message));
+		
+		if (messageKey != null) {
+			inputDeserializer.setBuffer(messageKey, 0, messageKey.length);
+			key = keySerializer.deserialize(inputDeserializer);
+		}
+		if (message != null) {
+			inputDeserializer.setBuffer(message, 0, message.length);
+			value = valueSerializer.deserialize(inputDeserializer);
 		}
 		return new Tuple2<>(key, value);
 	}
@@ -104,7 +124,7 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 
 	@Override
 	public byte[] serializeKey(Tuple2<K, V> element) {
-		if(element.f0 == null) {
+		if (element.f0 == null) {
 			return null;
 		} else {
 			// key is not null. serialize it:
@@ -132,7 +152,7 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	@Override
 	public byte[] serializeValue(Tuple2<K, V> element) {
 		// if the value is null, its serialized value is null as well.
-		if(element.f1 == null) {
+		if (element.f1 == null) {
 			return null;
 		}
 

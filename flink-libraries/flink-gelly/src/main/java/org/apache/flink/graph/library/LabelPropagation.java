@@ -77,7 +77,7 @@ public class LabelPropagation<K, VV extends Comparable<VV>, EV>
 		// iteratively adopt the most frequent label among the neighbors of each vertex
 		return input
 			.mapEdges(new NullValueEdgeMapper<K, EV>())
-			.runVertexCentricIteration(
+			.runScatterGatherIteration(
 				new UpdateVertexLabel<K, VV>(), new SendNewLabelToNeighbors<K, VV>(valueType), maxIterations)
 			.getVertices();
 	}

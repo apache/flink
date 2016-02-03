@@ -31,7 +31,7 @@ import org.apache.flink.graph.scala.utils.Tuple3ToEdgeMap
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData
 
 /**
- * This example shows how to use Gelly's vertex-centric iterations.
+ * This example shows how to use Gelly's scatter-gather iterations.
  * 
  * It is an implementation of the Single-Source-Shortest-Paths algorithm. 
  *
@@ -54,8 +54,8 @@ object SingleSourceShortestPaths {
     val edges: DataSet[Edge[Long, Double]] = getEdgesDataSet(env)
     val graph = Graph.fromDataSet[Long, Double, Double](edges, new InitVertices(srcVertexId), env)
 
-    // Execute the vertex-centric iteration
-    val result = graph.runVertexCentricIteration(new VertexDistanceUpdater,
+    // Execute the scatter-gather iteration
+    val result = graph.runScatterGatherIteration(new VertexDistanceUpdater,
       new MinDistanceMessenger, maxIterations)
 
     // Extract the vertices as the result

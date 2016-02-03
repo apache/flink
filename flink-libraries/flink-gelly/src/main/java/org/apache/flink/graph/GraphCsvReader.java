@@ -154,7 +154,6 @@ public class GraphCsvReader {
 			throw new RuntimeException("The edges input file cannot be null!");
 		}
 
-		@SuppressWarnings("serial")
 		DataSet<Tuple3<K, K, NullValue>> edges = edgeReader.types(vertexKey, vertexKey)
 				.map(new MapFunction<Tuple2<K, K>, Tuple3<K, K, NullValue>>() {
 

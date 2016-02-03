@@ -21,11 +21,13 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
 import org.junit.Test;
 
@@ -33,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.fail;
 
+@SuppressWarnings("serial")
 public class FastFailuresITCase {
 
 	static final AtomicInteger FAILURES_SO_FAR = new AtomicInteger();
@@ -40,12 +43,21 @@ public class FastFailuresITCase {
 	
 	@Test
 	public void testThis() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
+		
+		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(config, false);
+		cluster.start();
+		
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
+				"localhost", cluster.getLeaderRPCPort());
 
+		env.getConfig().disableSysoutLogging();
 		env.getConfig().setExecutionRetryDelay(0);
 		env.setParallelism(4);
 		env.enableCheckpointing(1000);
-
+		
 		DataStream<Tuple2<Integer, Integer>> input = env.addSource(new RichSourceFunction<Tuple2<Integer, Integer>>() {
 
 			@Override

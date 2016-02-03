@@ -81,7 +81,7 @@ public class SpargelTranslationTest {
 							}
 						}), env);
 
-				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+				ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 				parameters.addBroadcastSetForMessagingFunction(BC_SET_MESSAGES_NAME, bcMessaging);
 				parameters.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcUpdate);
@@ -89,7 +89,7 @@ public class SpargelTranslationTest {
 				parameters.setParallelism(ITERATION_parallelism);
 				parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 
-				result = graph.runVertexCentricIteration(new UpdateFunction(), new MessageFunctionNoEdgeValue(),
+				result = graph.runScatterGatherIteration(new UpdateFunction(), new MessageFunctionNoEdgeValue(),
 						NUM_ITERATIONS, parameters).getVertices();
 
 				result.output(new DiscardingOutputFormat<Vertex<String, Double>>());
@@ -167,7 +167,7 @@ public class SpargelTranslationTest {
 							}
 						}), env);
 
-				VertexCentricConfiguration parameters = new VertexCentricConfiguration();
+				ScatterGatherConfiguration parameters = new ScatterGatherConfiguration();
 
 				parameters.addBroadcastSetForMessagingFunction(BC_SET_MESSAGES_NAME, bcVar);
 				parameters.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcVar);
@@ -175,7 +175,7 @@ public class SpargelTranslationTest {
 				parameters.setParallelism(ITERATION_parallelism);
 				parameters.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
-				result = graph.runVertexCentricIteration(new UpdateFunction(), new MessageFunctionNoEdgeValue(),
+				result = graph.runScatterGatherIteration(new UpdateFunction(), new MessageFunctionNoEdgeValue(),
 						NUM_ITERATIONS, parameters).getVertices();
 
 				result.output(new DiscardingOutputFormat<Vertex<String, Double>>());

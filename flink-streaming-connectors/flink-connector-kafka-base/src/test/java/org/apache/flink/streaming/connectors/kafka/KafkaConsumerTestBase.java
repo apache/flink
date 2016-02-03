@@ -39,9 +39,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
-import org.apache.flink.api.java.typeutils.runtime.ByteArrayInputView;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.streaming.api.checkpoint.CheckpointNotifier;
@@ -82,6 +83,7 @@ import org.junit.Assert;
 
 import org.junit.Rule;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -734,14 +736,16 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 	private static class Tuple2WithTopicDeserializationSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>> {
 
-		TypeSerializer ts;
+		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
+		
 		public Tuple2WithTopicDeserializationSchema(ExecutionConfig ec) {
-			ts = TypeInfoParser.parse("Tuple2<Integer, Integer>").createSerializer(ec);
+			ts = TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>").createSerializer(ec);
 		}
 
 		@Override
 		public Tuple3<Integer, Integer, String> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-			Tuple2<Integer, Integer> t2 = (Tuple2<Integer, Integer>) ts.deserialize(new ByteArrayInputView(message));
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+			Tuple2<Integer, Integer> t2 = ts.deserialize(in);
 			return new Tuple3<>(t2.f0, t2.f1, topic);
 		}
 
@@ -1103,8 +1107,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	public static class FixedNumberDeserializationSchema implements DeserializationSchema<Tuple2<Integer, Integer>> {
+		
 		final int finalCount;
 		int count = 0;
+		
 		TypeInformation<Tuple2<Integer, Integer>> ti = TypeInfoParser.parse("Tuple2<Integer, Integer>");
 		TypeSerializer<Tuple2<Integer, Integer>> ser = ti.createSerializer(new ExecutionConfig());
 
@@ -1114,7 +1120,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		@Override
 		public Tuple2<Integer, Integer> deserialize(byte[] message) throws IOException {
-			return ser.deserialize(new ByteArrayInputView(message));
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+			return ser.deserialize(in);
 		}
 
 		@Override
