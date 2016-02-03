@@ -133,5 +133,7 @@ public class CEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN> {
 		for (int i = 0; i <numberPriorityQueueEntries; i++) {
 			priorityQueue.offer(streamRecordSerializer.deserialize(div));
 		}
+
+		div.close();
 	}
 }
