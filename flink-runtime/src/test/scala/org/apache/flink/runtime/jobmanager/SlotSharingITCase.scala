@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorSystem
-import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
@@ -31,6 +30,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[JUnitRunner])
 class SlotSharingITCase(_system: ActorSystem)
@@ -109,7 +109,8 @@ class SlotSharingITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
-      val jobGraph = new JobGraph("Bipartite job", sender1, sender2, receiver)
+      val vertices = (List(sender1, sender2, receiver)).asJava
+      val jobGraph = new JobGraph("Bipartite job", vertices)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)

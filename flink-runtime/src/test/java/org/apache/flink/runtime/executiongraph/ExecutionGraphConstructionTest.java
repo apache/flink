@@ -696,8 +696,9 @@ public class ExecutionGraphConstructionTest {
 			// isolated vertex
 			JobVertex v8 = new JobVertex("vertex8");
 			v8.setParallelism(2);
-			
-			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
+
+			List<JobVertex> vertices = Arrays.asList(v1, v2, v3, v4, v5, v6, v7, v8);
+			JobGraph jg = new JobGraph(jobId, jobName, vertices);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutionContext(), 

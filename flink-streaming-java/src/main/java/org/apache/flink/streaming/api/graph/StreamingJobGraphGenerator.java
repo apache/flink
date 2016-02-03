@@ -327,7 +327,7 @@ public class StreamingJobGraphGenerator {
 		config.setChainedOutputs(chainableOutputs);
 
 		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
-		
+
 		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
 		
 		config.setStateBackend(streamGraph.getStateBackend());

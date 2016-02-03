@@ -217,8 +217,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// ----------- finalize the job graph -----------
 		
 		// create the job graph object
-		JobGraph graph = new JobGraph(jobId, program.getJobName());
-
+		JobGraph graph = new JobGraph(jobId, program.getJobName(), program.getOriginalPlan().getExecutionConfig());
 		graph.setRestartStrategyConfiguration(program.getOriginalPlan().getRestartStrategyConfiguration());
 		graph.setAllowQueuedScheduling(false);
 		graph.setSessionTimeout(program.getOriginalPlan().getSessionTimeout());
