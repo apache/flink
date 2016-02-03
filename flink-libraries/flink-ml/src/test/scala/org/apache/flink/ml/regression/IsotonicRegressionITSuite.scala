@@ -52,12 +52,11 @@ class IsotonicRegressionITSuite extends FlatSpec with Matchers with FlinkTestBas
     ir.isotonic should be(true)
   }
 
-  // pending until FLINK-3281 is resolved
-  //  it should "build empty prediction-model for empty input" in {
-  //    val ir = runIsotonicRegression(Seq(), true)
-  //    val model = ir.model.get.collect().head
-  //    model.predictions should be (Seq())
-  //  }
+  it should "build empty prediction-model for empty input" in {
+    val ir = runIsotonicRegression(Seq(), true)
+    val model = ir.model.get.collect().head
+    model.predictions should be (Seq())
+  }
 
   it should "build one-sized prediction-model for one-sized input" in {
     val ir = runIsotonicRegression(Seq(1.0), isotonic = true)

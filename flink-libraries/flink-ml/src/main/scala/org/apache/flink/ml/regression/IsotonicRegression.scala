@@ -236,22 +236,21 @@ object IsotonicRegression {
   implicit val predictIR =
     new PredictOperation[IsotonicRegression, IsotonicRegressionModel, Double, Double] {
 
-      override def getModel(self: IsotonicRegression, predictParameters: ParameterMap):
-      DataSet[IsotonicRegressionModel] =
+      override def getModel(self: IsotonicRegression,
+                            predictParameters: ParameterMap): DataSet[IsotonicRegressionModel] = {
         self.model match {
           case Some(model) => model
           case None => throw new RuntimeException("The IsotonicRegression has not " +
             "been fitted to the data. This is necessary to learn the model.")
         }
+      }
+
+      private def linearInterpolation(x1: Double, y1: Double,
+                                      x2: Double, y2: Double, x: Double): Double = {
+        y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+      }
 
       override def predict(value: Double, model: IsotonicRegressionModel): Double = {
-
-        def linearInterpolation(x1: Double, y1: Double, x2: Double, y2: Double, x:
-        Double):
-        Double = {
-          y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-        }
-
         val boundaries = model.boundaries
         val predictions = model.predictions
 
@@ -274,7 +273,6 @@ object IsotonicRegression {
         } else {
           predictions(foundIndex)
         }
-
       }
     }
 
