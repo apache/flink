@@ -46,8 +46,6 @@ import org.apache.flink.ml._
   *                      function between successive iterations is is smaller than this value.
   *                      [[IterativeSolver.LearningRateMethodValue]] determines functional form of
   *                      effective learning rate.
-  *                      [[IterativeSolver.Decay]] Used in some functional forms for determining
-  *                      effective learning rate.
   */
 abstract class GradientDescent extends IterativeSolver {
 
@@ -192,10 +190,19 @@ abstract class GradientDescent extends IterativeSolver {
       (left, right) =>
         val (leftGradVector, leftCount) = left
         val (rightGradVector, rightCount) = right
-        // Add the left gradient to the right one
-        BLAS.axpy(1.0, leftGradVector.weights, rightGradVector.weights)
+
+        // make the left gradient dense so that the following reduce operations (left fold) reuse
+        // it. This strongly depends on the underlying implementation of the ReduceDriver which
+        // always passes the new input element as the second parameter
+        val result = leftGradVector.weights match {
+          case d: DenseVector => d
+          case s: SparseVector => s.toDenseVector
+        }
+
+        // Add the right gradient to the result
+        BLAS.axpy(1.0, rightGradVector.weights, result)
         val gradients = WeightVector(
-          rightGradVector.weights, leftGradVector.intercept + rightGradVector.intercept)
+          result, leftGradVector.intercept + rightGradVector.intercept)
 
         (gradients , leftCount + rightCount)
     }.mapWithBcVariableIteration(currentWeights){

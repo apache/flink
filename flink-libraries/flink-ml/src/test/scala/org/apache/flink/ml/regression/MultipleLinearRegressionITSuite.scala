@@ -66,6 +66,32 @@ class MultipleLinearRegressionITSuite
     srs should be (expectedSquaredResidualSum +- 2)
   }
 
+  it should "work with sparse vectors as input" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val mlr = MultipleLinearRegression()
+
+    val sparseInputDS = env.fromCollection(RegressionData.sparseData)
+
+    val parameters = ParameterMap()
+
+    parameters.add(MultipleLinearRegression.Stepsize, 2.0)
+    parameters.add(MultipleLinearRegression.Iterations, 10)
+    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+
+    mlr.fit(sparseInputDS, parameters)
+
+    val weightList = mlr.weightsOption.get.collect()
+
+    val WeightVector(weights, intercept) = weightList.head
+
+    RegressionData.expectedWeightsSparseInput.toIterator zip weights.valueIterator foreach {
+      case (expectedWeight, weight) =>
+        weight should be (expectedWeight +- 1)
+    }
+    intercept should be (RegressionData.expectedInterceptSparseInput +- 0.4)
+  }
+
   it should "estimate a cubic function" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
