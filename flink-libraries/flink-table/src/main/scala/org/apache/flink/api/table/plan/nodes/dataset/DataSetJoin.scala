@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelTraitSet, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
+import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.flink.api.common.functions.JoinFunction
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -42,7 +42,7 @@ class DataSetJoin(
     joinKeysRight: Array[Int],
     joinType: JoinType,
     joinHint: JoinHint,
-    func: JoinFunction[Any, Any, Any])
+    func: JoinFunction[Row, Row, Row])
   extends BiRel(cluster, traitSet, left, right)
   with DataSetRel {
 

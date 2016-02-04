@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.functions.aggregate
+package org.apache.flink.api.table.runtime.aggregate
 
 class CountAggregate extends Aggregate[Long] {
   private var count: Long = 0L

@@ -59,7 +59,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testGroupedAggregate() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
@@ -78,7 +78,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testGroupingKeyForwardIfNotUsed() throws Exception {
 
 		// the grouping key needs to be forwarded to the intermediate DataSet, even
@@ -101,7 +101,7 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testGroupNoAggregation() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

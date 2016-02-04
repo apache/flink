@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.functions.aggregate
+package org.apache.flink.api.table.runtime.aggregate
 
 import java.util
-
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -26,17 +25,18 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.table.plan.PlanGenException
-import org.apache.flink.api.table.plan.functions.AggregateFunction
+import org.apache.flink.api.table.runtime.AggregateFunction
+import org.apache.flink.api.table.Row
+import org.apache.calcite.rel.`type`.RelDataType
 
 object AggregateFactory {
 
-  def createAggregateInstance(aggregateCalls: Seq[AggregateCall]):
-    RichGroupReduceFunction[Any, Any] = {
+  def createAggregateInstance(aggregateCalls: Seq[AggregateCall],
+      inputType: RelDataType, groupings: Array[Int]): RichGroupReduceFunction[Row, Row] = {
 
     val fieldIndexes = new Array[Int](aggregateCalls.size)
     val aggregates = new Array[Aggregate[_ <: Any]](aggregateCalls.size)
     aggregateCalls.zipWithIndex.map { case (aggregateCall, index) =>
-      val sqlType = aggregateCall.getType
       val argList: util.List[Integer] = aggregateCall.getArgList
       // currently assume only aggregate on singleton field.
       if (argList.isEmpty) {
@@ -46,33 +46,34 @@ object AggregateFactory {
           throw new PlanGenException("Aggregate fields should not be empty.")
         }
       } else {
-        fieldIndexes(index) = argList.get(0);
+          fieldIndexes(index) = argList.get(0)
       }
+      val sqlTypeName = inputType.getFieldList.get(fieldIndexes(index)).getType.getSqlTypeName
       aggregateCall.getAggregation match {
         case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction => {
-          sqlType.getSqlTypeName match {
+          sqlTypeName match {
             case TINYINT =>
-              aggregates(index) = new TinyIntSumAggregate
+              aggregates(index) = new SumAggregate[Byte]
             case SMALLINT =>
-              aggregates(index) = new SmallIntSumAggregate
+              aggregates(index) = new SumAggregate[Short]
             case INTEGER =>
-              aggregates(index) = new IntSumAggregate
+              aggregates(index) = new SumAggregate[Int]
             case BIGINT =>
-              aggregates(index) = new LongSumAggregate
+              aggregates(index) = new SumAggregate[Long]
             case FLOAT =>
-              aggregates(index) = new FloatSumAggregate
+              aggregates(index) = new SumAggregate[Float]
             case DOUBLE =>
-              aggregates(index) = new DoubleSumAggregate
+              aggregates(index) = new SumAggregate[Double]
             case sqlType: SqlTypeName =>
               throw new PlanGenException("Sum aggregate does no support type:" + sqlType)
           }
         }
         case _: SqlAvgAggFunction => {
-          sqlType.getSqlTypeName match {
+          sqlTypeName match {
             case TINYINT =>
-              aggregates(index) = new TinyIntAvgAggregate
+              aggregates(index) = new ByteAvgAggregate
             case SMALLINT =>
-              aggregates(index) = new SmallIntAvgAggregate
+              aggregates(index) = new ShortAvgAggregate
             case INTEGER =>
               aggregates(index) = new IntAvgAggregate
             case BIGINT =>
@@ -87,11 +88,11 @@ object AggregateFactory {
         }
         case sqlMinMaxFunction: SqlMinMaxAggFunction => {
           if (sqlMinMaxFunction.isMin) {
-            sqlType.getSqlTypeName match {
+            sqlTypeName match {
               case TINYINT =>
-                aggregates(index) = new TinyIntMinAggregate
+                aggregates(index) = new TinyMinAggregate
               case SMALLINT =>
-                aggregates(index) = new SmallIntMinAggregate
+                aggregates(index) = new SmallMinAggregate
               case INTEGER =>
                 aggregates(index) = new IntMinAggregate
               case BIGINT =>
@@ -104,7 +105,7 @@ object AggregateFactory {
                 throw new PlanGenException("Min aggregate does no support type:" + sqlType)
             }
           } else {
-            sqlType.getSqlTypeName match {
+            sqlTypeName match {
               case TINYINT =>
                 aggregates(index) = new TinyIntMaxAggregate
               case SMALLINT =>
@@ -129,7 +130,7 @@ object AggregateFactory {
       }
     }
 
-    new AggregateFunction(aggregates, fieldIndexes)
+    new AggregateFunction(aggregates, fieldIndexes, groupings)
   }
 
 }

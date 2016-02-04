@@ -15,23 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.functions
+package org.apache.flink.api.table.runtime.aggregate
 
-import org.apache.flink.api.table.Row
+class SumAggregate[T: Numeric] extends Aggregate[T] {
 
-object FunctionUtils {
-
-  def getFieldValue(record: Any, fieldIndex: Int): Any = {
-    record match {
-      case row: Row => row.productElement(fieldIndex)
-      case _ => throw new UnsupportedOperationException("Do not support types other than Row now.")
-    }
+  private var result: T = _
+  val numericResult = implicitly[Numeric[T]]
+  /**
+    * Initialize the aggregate state.
+    */
+  override def initiateAggregate: Unit = {
+    result = implicitly[Numeric[T]].zero
   }
 
-  def putFieldValue(record: Any, fieldIndex: Int, fieldValue: Any): Unit = {
-    record match {
-      case row: Row => row.setField(fieldIndex, fieldValue)
-      case _ => throw new UnsupportedOperationException("Do not support types other than Row now.")
-    }
+  /**
+    * Feed the aggregate field value.
+    *
+    * @param value
+    */
+  override def aggregate(value: Any): Unit = {
+    val input: T = value.asInstanceOf[T]
+
+    result = numericResult.plus(result, input.asInstanceOf[T])
+  }
+
+  /**
+    * Return final aggregated value.
+    *
+    * @return
+    */
+  override def getAggregated(): T = {
+    result
   }
 }
