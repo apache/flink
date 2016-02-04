@@ -25,7 +25,10 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import java.util.Arrays;
 
@@ -59,6 +62,14 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 		this.appendSorting(flatOrderKeys, sortOrder);
 	}
 
+	public <K> SortPartitionOperator(DataSet<T> dataSet, Keys.SelectorFunctionKeys<T, K> sortKey, Order sortOrder, String sortLocationName) {
+		super(dataSet, dataSet.getType());
+		this.sortLocationName = sortLocationName;
+
+		int[] flatOrderKeys = getFlatFields(sortKey);
+		this.appendSorting(flatOrderKeys, sortOrder);
+	}
+
 	/**
 	 * Appends an additional sort order with the specified field in the specified order to the
 	 * local partition sorting of the DataSet.
@@ -79,12 +90,28 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 	 * local partition sorting of the DataSet.
 	 *
 	 * @param field The field expression referring to the field of the additional sort order of
-	 *                 the local partition sorting.
-	 * @param order The order  of the additional sort order of the local partition sorting.
+	 *              the local partition sorting.
+	 * @param order The order of the additional sort order of the local partition sorting.
 	 * @return The DataSet with sorted local partitions.
 	 */
 	public SortPartitionOperator<T> sortPartition(String field, Order order) {
 		int[] flatOrderKeys = getFlatFields(field);
+		this.appendSorting(flatOrderKeys, order);
+		return this;
+	}
+
+	/**
+	 * Appends an additional sort order with the specified field in the specified order to the
+	 * local partition sorting of the DataSet.
+	 *
+	 * @param keyExtractor The KeySelector function which extracts the key value of the additional
+	 *                     sort order of the local partition sorting.
+	 * @param order The order of the additional sort order of the local partition sorting.
+	 * @return The DataSet with sorted local partitions.
+	 */
+	public <K> SortPartitionOperator<T> sortPartition(KeySelector<T, K> keyExtractor, Order order) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		int[] flatOrderKeys = getFlatFields(new Keys.SelectorFunctionKeys<>(clean(keyExtractor), getType(), keyType));
 		this.appendSorting(flatOrderKeys, order);
 		return this;
 	}
@@ -111,6 +138,14 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 
 		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(fields, super.getType());
 		return ek.computeLogicalKeyPositions();
+	}
+
+	private <K> int[] getFlatFields(Keys.SelectorFunctionKeys<T, K> key) {
+		if (!key.getKeyType().isSortKeyType()) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
+		}
+
+		return key.computeLogicalKeyPositions();
 	}
 
 	private void appendSorting(int[] flatOrderFields, Order order) {

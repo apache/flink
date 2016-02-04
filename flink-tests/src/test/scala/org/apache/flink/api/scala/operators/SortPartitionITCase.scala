@@ -166,6 +166,23 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
+  @Test
+  def testSortPartitionWithKeySelector(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(4)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val result = ds
+      .map { x => x }.setParallelism(4)
+      .sortPartition(_._2, Order.DESCENDING)
+      .mapPartition(new OrderCheckMapper(new Tuple3Checker))
+      .distinct()
+      .collect()
+
+    val expected: String = "(true)\n"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
 }
 
 trait OrderChecker[T] extends Serializable {
