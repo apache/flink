@@ -169,6 +169,88 @@ public class SortPartitionTest {
 		tupleDs.sortPartition("f3", Order.ASCENDING);
 	}
 
+	@Test
+	public void testSortPartitionWithKeySelector1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// should work
+		try {
+			tupleDs.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, Integer>() {
+				@Override
+				public Integer getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return value.f0;
+				}
+			}, Order.ASCENDING);
+		} catch (Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testSortPartitionWithKeySelector2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// must not work
+		tupleDs.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, Long[]>() {
+			@Override
+			public Long[] getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+				return value.f3;
+			}
+		}, Order.ASCENDING);
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testSortPartitionWithKeySelector3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// must not work
+		tupleDs
+			.sortPartition("f1", Order.ASCENDING)
+			.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, CustomType>() {
+				@Override
+				public CustomType getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return value.f2;
+				}
+			}, Order.ASCENDING);
+	}
+
+	@Test
+	public void testSortPartitionWithKeySelector4() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// should work
+		try {
+			tupleDs.sortPartition(new KeySelector<Tuple4<Integer,Long,CustomType,Long[]>, Tuple2<Integer, Long>>() {
+				@Override
+				public Tuple2<Integer, Long> getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return new Tuple2<>(value.f0, value.f1);
+				}
+			}, Order.ASCENDING);
+		} catch (Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testSortPartitionWithKeySelector5() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// must not work
+		tupleDs
+			.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, CustomType>() {
+				@Override
+				public CustomType getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return value.f2;
+				}
+			}, Order.ASCENDING)
+			.sortPartition("f1", Order.ASCENDING);
+	}
+
 	public static class CustomType implements Serializable {
 		
 		public static class Nest {
