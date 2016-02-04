@@ -220,6 +220,12 @@ public class Task implements Runnable {
 	private volatile long recoveryTs;
 
 	/**
+	 * The interval (in milliseconds) between consecutive attempts to
+	 * cancel a running task (see {@link TaskCanceler}).
+	 * */
+	private volatile long cancellationInterval;
+
+	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to 
 	 * be undone in the case of a failing task deployment.</p>
 	 */
@@ -248,6 +254,7 @@ public class Task implements Runnable {
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 		this.recoveryTs = tdd.getRecoveryTimestamp();
+		this.cancellationInterval = tdd.getExecutionConfig().getTaskCancellationInterval();
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -805,7 +812,9 @@ public class Task implements Runnable {
 						// because the canceling may block on user code, we cancel from a separate thread
 						// we do not reuse the async call handler, because that one may be blocked, in which
 						// case the canceling could not continue
-						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask);
+						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread,
+							taskNameWithSubtask, cancellationInterval);
+
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
 								"Canceler for " + taskNameWithSubtask);
 						cancelThread.setDaemon(true);
@@ -1047,14 +1056,17 @@ public class Task implements Runnable {
 
 		private final Logger logger;
 		private final AbstractInvokable invokable;
-		private final Thread executer;
+		private final Thread executor;
 		private final String taskName;
+		private final long cancellationIntervalMillis;
 
-		public TaskCanceler(Logger logger, AbstractInvokable invokable, Thread executer, String taskName) {
+		public TaskCanceler(Logger logger, AbstractInvokable invokable,
+							Thread executor, String taskName, long cancellationInterval) {
 			this.logger = logger;
 			this.invokable = invokable;
-			this.executer = executer;
+			this.executor = executor;
 			this.taskName = taskName;
+			this.cancellationIntervalMillis = cancellationInterval;
 		}
 
 		@Override
@@ -1070,9 +1082,9 @@ public class Task implements Runnable {
 				}
 
 				// interrupt the running thread initially 
-				executer.interrupt();
+				executor.interrupt();
 				try {
-					executer.join(30000);
+					executor.join(this.cancellationIntervalMillis);
 				}
 				catch (InterruptedException e) {
 					// we can ignore this
@@ -1081,11 +1093,11 @@ public class Task implements Runnable {
 				// it is possible that the user code does not react immediately. for that
 				// reason, we spawn a separate thread that repeatedly interrupts the user code until
 				// it exits
-				while (executer.isAlive()) {
+				while (executor.isAlive()) {
 
 					// build the stack trace of where the thread is stuck, for the log
 					StringBuilder bld = new StringBuilder();
-					StackTraceElement[] stack = executer.getStackTrace();
+					StackTraceElement[] stack = executor.getStackTrace();
 					for (StackTraceElement e : stack) {
 						bld.append(e).append('\n');
 					}
@@ -1093,9 +1105,9 @@ public class Task implements Runnable {
 					logger.warn("Task '{}' did not react to cancelling signal, but is stuck in method:\n {}",
 							taskName, bld.toString());
 
-					executer.interrupt();
+					executor.interrupt();
 					try {
-						executer.join(30000);
+						executor.join(this.cancellationIntervalMillis);
 					}
 					catch (InterruptedException e) {
 						// we can ignore this

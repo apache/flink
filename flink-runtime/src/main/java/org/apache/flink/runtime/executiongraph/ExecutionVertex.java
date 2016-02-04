@@ -654,7 +654,7 @@ public class ExecutionVertex implements Serializable {
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), attemptNumber, getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
 				producedPartitions, consumedPartitions, jarFiles, classpaths, targetSlot.getRoot().getSlotNumber(),
-				operatorState, recoveryTimestamp);
+				operatorState, recoveryTimestamp, this.getExecutionGraph().getExecutionConfig());
 	}
 
 	// --------------------------------------------------------------------------------------------

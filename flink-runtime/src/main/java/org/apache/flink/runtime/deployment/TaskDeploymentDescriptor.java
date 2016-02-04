@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
@@ -93,24 +94,28 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final SerializedValue<StateHandle<?>> operatorState;
 
 	private long recoveryTimestamp;
-		
+
+	/** The interval (in millis) between consecutive task cancellation retries. */
+	private final ExecutionConfig executionConfig;
+
 	/**
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
-			ApplicationID appId, JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
-			String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
-			Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
-			List<ResultPartitionDeploymentDescriptor> producedPartitions,
-			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
-			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState,
-			long recoveryTimestamp) {
+		ApplicationID appId, JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId,
+		String taskName, int indexInSubtaskGroup, int numberOfSubtasks, int attemptNumber,
+		Configuration jobConfiguration, Configuration taskConfiguration, String invokableClassName,
+		List<ResultPartitionDeploymentDescriptor> producedPartitions,
+		List<InputGateDeploymentDescriptor> inputGates,
+		List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
+		int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState,
+		long recoveryTimestamp, ExecutionConfig executionConfig) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
 		checkArgument(targetSlotNumber >= 0);
 		checkArgument(attemptNumber >= 0);
+		checkArgument(executionConfig != null);
 
 		this.appId = checkNotNull(appId);
 		this.jobID = checkNotNull(jobID);
@@ -130,6 +135,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
 		this.recoveryTimestamp = recoveryTimestamp;
+		this.executionConfig = executionConfig;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -143,7 +149,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 		this(appId, jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
-				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1);
+				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null, -1, new ExecutionConfig());
 	}
 
 	/**
@@ -206,6 +212,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public TaskInfo getTaskInfo() {
 		return new TaskInfo(taskName, indexInSubtaskGroup, numberOfSubtasks, attemptNumber);
+	}
+
+	/**
+	 * Returns the execution configuration of the job at hand.
+	 */
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 
 	/**
