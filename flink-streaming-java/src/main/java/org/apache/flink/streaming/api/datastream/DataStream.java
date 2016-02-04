@@ -77,6 +77,7 @@ import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.HashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -390,12 +391,8 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are broadcasted to every parallel instance of the next component.
-	 *
-	 * <p>
-	 * This setting only effects the how the outputs will be distributed between
-	 * the parallel instances of the next processing operator.
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are broadcasted to every parallel instance of the next operation.
 	 *
 	 * @return The DataStream with broadcast partitioning set.
 	 */
@@ -404,12 +401,8 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are shuffled uniformly randomly to the next component.
-	 *
-	 * <p>
-	 * This setting only effects the how the outputs will be distributed between
-	 * the parallel instances of the next processing operator.
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are shuffled uniformly randomly to the next operation.
 	 *
 	 * @return The DataStream with shuffle partitioning set.
 	 */
@@ -419,13 +412,8 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are forwarded to the local subtask of the next component (whenever
-	 * possible).
-	 *
-	 * <p>
-	 * This setting only effects the how the outputs will be distributed between
-	 * the parallel instances of the next processing operator.
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are forwarded to the local subtask of the next operation.
 	 *
 	 * @return The DataStream with forward partitioning set.
 	 */
@@ -435,18 +423,39 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are distributed evenly to instances of the next component in a Round-robin
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are distributed evenly to instances of the next operation in a round-robin
 	 * fashion.
-	 *
-	 * <p>
-	 * This setting only effects the how the outputs will be distributed between
-	 * the parallel instances of the next processing operator.
 	 *
 	 * @return The DataStream with rebalance partitioning set.
 	 */
 	public DataStream<T> rebalance() {
 		return setConnectionType(new RebalancePartitioner<T>());
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output elements
+	 * are distributed evenly to a subset of instances of the next operation in a round-robin
+	 * fashion.
+	 *
+	 * <p>The subset of downstream operations to which the upstream operation sends
+	 * elements depends on the degree of parallelism of both the upstream and downstream operation.
+	 * For example, if the upstream operation has parallelism 2 and the downstream operation
+	 * has parallelism 4, then one upstream operation would distribute elements to two
+	 * downstream operations while the other upstream operation would distribute to the other
+	 * two downstream operations. If, on the other hand, the downstream operation has parallelism
+	 * 2 while the upstream operation has parallelism 4 then two upstream operations will
+	 * distribute to one downstream operation while the other two upstream operations will
+	 * distribute to the other downstream operations.
+	 *
+	 * <p>In cases where the different parallelisms are not multiples of each other one or several
+	 * downstream operations will have a differing number of inputs from upstream operations.
+	 *
+	 * @return The DataStream with rescale partitioning set.
+	 */
+	@Experimental
+	public DataStream<T> rescale() {
+		return setConnectionType(new RescalePartitioner<T>());
 	}
 
 	/**

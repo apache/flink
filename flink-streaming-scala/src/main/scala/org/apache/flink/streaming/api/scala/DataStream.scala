@@ -300,7 +300,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Partitions a tuple DataStream on the specified key fields using a custom partitioner.
    * This method takes the key position to partition on, and a partitioner that accepts the key
    * type.
-   * <p>
+   *
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
@@ -310,7 +310,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Partitions a POJO DataStream on the specified key fields using a custom partitioner.
    * This method takes the key expression to partition on, and a partitioner that accepts the key
    * type.
-   * <p>
+   *
    * Note: This method works only on single field keys.
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
@@ -320,7 +320,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Partitions a DataStream on the key returned by the selector, using a custom partitioner.
    * This method takes the key selector to get the key to partition on, and a partitioner that
    * accepts the key type.
-   * <p>
+   *
    * Note: This method works only on single field keys, i.e. the selector cannot return tuples
    * of fields.
    */
@@ -336,10 +336,7 @@ class DataStream[T](stream: JavaStream[T]) {
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
-   * are broad casted to every parallel instance of the next component. This
-   * setting only effects the how the outputs will be distributed between the
-   * parallel instances of the next processing operator.
-   *
+   * are broad casted to every parallel instance of the next component.
    */
   def broadcast: DataStream[T] = stream.broadcast()
 
@@ -353,10 +350,7 @@ class DataStream[T](stream: JavaStream[T]) {
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
-   * are shuffled to the next component. This setting only effects the how the
-   * outputs will be distributed between the parallel instances of the next
-   * processing operator.
-   *
+   * are shuffled to the next component.
    */
   @Experimental
   def shuffle: DataStream[T] = stream.shuffle()
@@ -364,22 +358,36 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are forwarded to the local subtask of the next component (whenever
-   * possible). This is the default partitioner setting. This setting only
-   * effects the how the outputs will be distributed between the parallel
-   * instances of the next processing operator.
-   *
+   * possible).
    */
   @Experimental
   def forward: DataStream[T] = stream.forward()
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
-   * are distributed evenly to the next component.This setting only effects
-   * the how the outputs will be distributed between the parallel instances of
-   * the next processing operator.
-   *
+   * are distributed evenly to the next component.
    */
   def rebalance: DataStream[T] = stream.rebalance()
+
+  /**
+   * Sets the partitioning of the [[DataStream]] so that the output tuples
+   * are distributed evenly to a subset of instances of the downstream operation.
+   *
+   * The subset of downstream operations to which the upstream operation sends
+   * elements depends on the degree of parallelism of both the upstream and downstream operation.
+   * For example, if the upstream operation has parallelism 2 and the downstream operation
+   * has parallelism 4, then one upstream operation would distribute elements to two
+   * downstream operations while the other upstream operation would distribute to the other
+   * two downstream operations. If, on the other hand, the downstream operation has parallelism
+   * 2 while the upstream operation has parallelism 4 then two upstream operations will
+   * distribute to one downstream operation while the other two upstream operations will
+   * distribute to the other downstream operations.
+   *
+   * In cases where the different parallelisms are not multiples of each other one or several
+   * downstream operations will have a differing number of inputs from upstream operations.
+   */
+  @Experimental
+  def rescale: DataStream[T] = stream.rescale()
 
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
@@ -387,16 +395,16 @@ class DataStream[T](stream: JavaStream[T]) {
    * a transformation that creates two DataStreams. The first one is the output
    * that will be fed back to the start of the iteration and the second is the output
    * stream of the iterative part.
-   * <p>
+   *
    * stepfunction: initialStream => (feedback, output)
-   * <p>
+   *
    * A common pattern is to use output splitting to create feedback and output DataStream.
    * Please refer to the .split(...) method of the DataStream
-   * <p>
+   *
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
    * If no data received in the set time the stream terminates.
-   * <p>
+   *
    * By default the feedback partitioning is set to match the input, to override this set
    * the keepPartitioning flag to true
    *
@@ -424,9 +432,8 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * This allows the user to distinguish standard input from feedback inputs.
    *
-   * <p>
    * stepfunction: initialStream => (feedback, output)
-   * <p>
+   *
    * The user must set the max waiting time for the iteration head.
    * If no data received in the set time the stream terminates. If this parameter is set
    * to 0 then the iteration sources will indefinitely, so the job must be killed to stop.
