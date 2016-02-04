@@ -64,10 +64,11 @@ under the License.
 						</goals>
 						<configuration>
 							<artifactSet combine.self="override">
-								<excludes>
-									<exclude>log4j</exclude>
-									<exclude>org.slf4j:slf4j-log4j12</exclude>
-								</excludes>
+								<includes>
+									<include>com.google.guava:*</include>
+									<include>org.ow2.asm:*</include>
+									<include>org.apache.curator:*</include>
+								</includes>
 							</artifactSet>
 						</configuration>
 					</execution>

@@ -29,7 +29,7 @@
 	</parent>
 
 	<modules>
-        <module>flink-shaded-curator-recipes</module>
+		<module>flink-shaded-curator-recipes</module>
 		<module>flink-shaded-curator-test</module>
 	</modules>
 
