@@ -310,8 +310,33 @@ public final class InstantiationUtil {
 	 * @throws ClassNotFoundException
 	 */
 	public static <T extends Serializable> T clone(T obj) throws IOException, ClassNotFoundException {
-		final byte[] serializedObject = serializeObject(obj);
-		return deserializeObject(serializedObject, obj.getClass().getClassLoader());
+		if (obj == null) {
+			return null;
+		} else {
+			return clone(obj, obj.getClass().getClassLoader());
+		}
+	}
+
+	/**
+	 * Clones the given serializable object using Java serialization, using the given classloader to
+	 * resolve the cloned classes.
+	 *
+	 * @param obj Object to clone
+	 * @param classLoader The classloader to resolve the classes during deserialization.
+	 * @param <T> Type of the object to clone
+	 * 
+	 * @return Cloned object
+	 * 
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	public static <T extends Serializable> T clone(T obj, ClassLoader classLoader) throws IOException, ClassNotFoundException {
+		if (obj == null) {
+			return null;
+		} else {
+			final byte[] serializedObject = serializeObject(obj);
+			return deserializeObject(serializedObject, classLoader);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

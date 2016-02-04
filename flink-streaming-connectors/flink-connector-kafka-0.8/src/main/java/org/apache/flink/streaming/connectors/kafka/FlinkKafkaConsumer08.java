@@ -251,7 +251,8 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 		
 		// create fetcher
-		fetcher = new LegacyFetcher(this.subscribedPartitions, props, getRuntimeContext().getTaskName());
+		fetcher = new LegacyFetcher(this.subscribedPartitions, props, 
+				getRuntimeContext().getTaskName(), getRuntimeContext().getUserCodeClassLoader());
 
 		// offset handling
 		offsetHandler = new ZookeeperOffsetHandler(props);
