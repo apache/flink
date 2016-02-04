@@ -410,6 +410,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+						
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-shaded-curator-recipes</include>
