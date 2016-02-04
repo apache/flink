@@ -80,7 +80,7 @@ public class DistCp {
 			return;
 		}
 
-		final int parallelism = Integer.valueOf(params.getInt("parallelism", 10));
+		final int parallelism = params.getInt("parallelism", 10);
 		if (parallelism <= 0) {
 			System.err.println("Parallelism should be greater than 0");
 			return;
