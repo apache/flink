@@ -15,105 +15,95 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.functions.aggregate
+package org.apache.flink.api.table.runtime.aggregate
 
-abstract class AvgAggregate[T] extends Aggregate[T] {
+import java.math.BigInteger
+import com.google.common.math.LongMath
 
-}
-
-// TinyInt average aggregate return Int as aggregated value.
-class TinyIntAvgAggregate extends AvgAggregate[Int] {
-  private var avgValue: Double = 0
-  private var count: Int = 0
+// for byte, short, int we return int
+abstract class IntegralAvgAggregate[T: Numeric] extends Aggregate[T] {
+  
+  var sum: Long = 0
+  var count: Long = 0
 
   override def initiateAggregate: Unit = {
-    avgValue = 0
+    sum = 0
     count = 0
   }
 
+}
+
+class ByteAvgAggregate extends IntegralAvgAggregate[Byte] {
+
   override def aggregate(value: Any): Unit = {
     count += 1
-    val current = value.asInstanceOf[Byte]
-    avgValue += (current - avgValue) / count
+    sum = LongMath.checkedAdd(sum, value.asInstanceOf[Byte])
   }
 
-  override def getAggregated(): Int = {
-    avgValue.toInt
+  override def getAggregated(): Byte = {
+    (sum / count).toByte
   }
 }
 
-// SmallInt average aggregate return Int as aggregated value.
-class SmallIntAvgAggregate extends AvgAggregate[Int] {
-  private var avgValue: Double = 0
-  private var count: Int = 0
-
-  override def initiateAggregate: Unit = {
-    avgValue = 0
-    count = 0
-  }
+class ShortAvgAggregate extends IntegralAvgAggregate[Short] {
 
   override def aggregate(value: Any): Unit = {
     count += 1
-    val current = value.asInstanceOf[Short]
-    avgValue += (current - avgValue) / count
+    sum = LongMath.checkedAdd(sum, value.asInstanceOf[Short])
   }
 
-  override def getAggregated(): Int = {
-    avgValue.toInt
+  override def getAggregated(): Short = {
+    (sum / count).toShort
   }
 }
 
-// Int average aggregate return Int as aggregated value.
-class IntAvgAggregate extends AvgAggregate[Int] {
-  private var avgValue: Double = 0
-  private var count: Int = 0
-
-  override def initiateAggregate: Unit = {
-    avgValue = 0
-    count = 0
-  }
+class IntAvgAggregate extends IntegralAvgAggregate[Int] {
 
   override def aggregate(value: Any): Unit = {
     count += 1
-    val current = value.asInstanceOf[Int]
-    avgValue += (current - avgValue) / count
+    sum = LongMath.checkedAdd(sum, value.asInstanceOf[Int])
   }
 
   override def getAggregated(): Int = {
-    avgValue.toInt
+    (sum / count).toInt
   }
 }
 
 // Long average aggregate return Long as aggregated value.
-class LongAvgAggregate extends AvgAggregate[Long] {
-  private var avgValue: Double = 0
-  private var count: Int = 0
+class LongAvgAggregate extends Aggregate[Long] {
+
+  var sum: BigInteger = BigInteger.ZERO
+  var count: Long = 0
 
   override def initiateAggregate: Unit = {
-    avgValue = 0
+    sum = BigInteger.ZERO
     count = 0
   }
 
   override def aggregate(value: Any): Unit = {
     count += 1
-    val current = value.asInstanceOf[Long]
-    avgValue += (current - avgValue) / count
+    sum = sum.add(BigInteger.valueOf(value.asInstanceOf[Long]))
   }
 
   override def getAggregated(): Long = {
-    avgValue.toLong
+    sum.divide(BigInteger.valueOf(count)).longValue
   }
 }
 
 // Float average aggregate return Float as aggregated value.
-class FloatAvgAggregate extends AvgAggregate[Float] {
-  private var avgValue: Double = 0
-  private var count: Int = 0
+abstract class FloatingPointAvgAggregate[T: Numeric] extends Aggregate[T] {
+
+  var avgValue: Double = 0
+  var count: Long = 0
 
   override def initiateAggregate: Unit = {
     avgValue = 0
     count = 0
   }
+}
+
+// Double average aggregate return Double as aggregated value.
+class FloatAvgAggregate extends FloatingPointAvgAggregate[Float] {
 
   override def aggregate(value: Any): Unit = {
     count += 1
@@ -127,14 +117,7 @@ class FloatAvgAggregate extends AvgAggregate[Float] {
 }
 
 // Double average aggregate return Double as aggregated value.
-class DoubleAvgAggregate extends AvgAggregate[Double] {
-  private var avgValue: Double = 0
-  private var count: Int = 0
-
-  override def initiateAggregate: Unit = {
-    avgValue = 0
-    count = 0
-  }
+class DoubleAvgAggregate extends FloatingPointAvgAggregate[Double] {
 
   override def aggregate(value: Any): Unit = {
     count += 1

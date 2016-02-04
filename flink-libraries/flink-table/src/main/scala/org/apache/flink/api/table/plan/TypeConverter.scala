@@ -135,7 +135,7 @@ object TypeConverter {
             logicalFieldTypes.head
           }
           else {
-            new TupleTypeInfo[Any](logicalFieldTypes.toArray:_*)
+            new TupleTypeInfo[Tuple](logicalFieldTypes.toArray:_*)
           }
         }
     }
