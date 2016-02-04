@@ -98,7 +98,7 @@ public class MockRuntimeContext extends StreamingRuntimeContext {
 
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
-		throw new UnsupportedOperationException();
+		return getClass().getClassLoader();
 	}
 
 	@Override

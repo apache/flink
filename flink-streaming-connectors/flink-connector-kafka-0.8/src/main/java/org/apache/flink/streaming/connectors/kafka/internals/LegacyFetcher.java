@@ -31,11 +31,12 @@ import kafka.message.MessageAndOffset;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
  * This fetcher uses Kafka's low-level API to pull data from a specific
@@ -70,6 +71,9 @@ public class LegacyFetcher implements Fetcher {
 	
 	/** The first error that occurred in a connection thread */
 	private final AtomicReference<Throwable> error;
+	
+	/** The classloader for dynamically loaded classes */
+	private final ClassLoader userCodeClassloader;
 
 	/** The partitions that the fetcher should read, with their starting offsets */
 	private Map<KafkaTopicPartitionLeader, Long> partitionsToRead;
@@ -86,8 +90,13 @@ public class LegacyFetcher implements Fetcher {
 	/** Flag to shot the fetcher down */
 	private volatile boolean running = true;
 
-	public LegacyFetcher(List<KafkaTopicPartitionLeader> partitions, Properties props, String taskName) {
-		this.config = checkNotNull(props, "The config properties cannot be null");
+	public LegacyFetcher(
+				List<KafkaTopicPartitionLeader> partitions, Properties props,
+				String taskName, ClassLoader userCodeClassloader) {
+		
+		this.config = requireNonNull(props, "The config properties cannot be null");
+		this.userCodeClassloader = requireNonNull(userCodeClassloader);
+		
 		//this.topic = checkNotNull(topic, "The topic cannot be null");
 		this.partitionsToRead = new HashMap<>();
 		for (KafkaTopicPartitionLeader p: partitions) {
@@ -200,7 +209,8 @@ public class LegacyFetcher implements Fetcher {
 			
 			FetchPartition[] partitions = partitionsList.toArray(new FetchPartition[partitionsList.size()]);
 
-			final KeyedDeserializationSchema<T> clonedDeserializer = InstantiationUtil.clone(deserializer);
+			final KeyedDeserializationSchema<T> clonedDeserializer =
+					InstantiationUtil.clone(deserializer, userCodeClassloader);
 
 			SimpleConsumerThread<T> thread = new SimpleConsumerThread<>(this, config,
 					broker, partitions, sourceContext, clonedDeserializer, lastOffsets);
@@ -344,9 +354,9 @@ public class LegacyFetcher implements Fetcher {
 			this.config = config;
 			this.broker = broker;
 			this.partitions = partitions;
-			this.sourceContext = checkNotNull(sourceContext);
-			this.deserializer = checkNotNull(deserializer);
-			this.offsetsState = checkNotNull(offsetsState);
+			this.sourceContext = requireNonNull(sourceContext);
+			this.deserializer = requireNonNull(deserializer);
+			this.offsetsState = requireNonNull(offsetsState);
 		}
 
 		@Override
