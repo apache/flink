@@ -46,7 +46,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testGroupedAggregate(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
@@ -62,7 +62,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testGroupingKeyForwardIfNotUsed(): Unit = {
 
     // the grouping key needs to be forwarded to the intermediate DataSet, even
@@ -78,7 +78,7 @@ class GroupedAggregationsITCase(mode: TestExecutionMode) extends MultipleProgram
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testGroupNoAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment

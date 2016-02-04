@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.functions.aggregate
+package org.apache.flink.api.table.runtime.aggregate
 
 /**
- * Represent a Sql aggregate function, user should initiate the aggregate at first, then feed it
- * with grouped aggregate field values, and get aggregated value finally.
- * @tparam T
+ * Represents a SQL aggregate function. The user should first initialize the aggregate, then feed it
+ * with grouped aggregate field values, and finally get the aggregated value.
+ * @tparam T the output type
  */
-trait Aggregate[T] {
+trait Aggregate[T] extends Serializable {
   /**
-   * Initiate current aggregate state.
+   * Initialize the aggregate state.
    */
   def initiateAggregate
 
