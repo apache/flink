@@ -518,10 +518,14 @@ class YarnJobManager(
     val priority = Records.newRecord(classOf[Priority])
     priority.setPriority(0)
 
+    val taskManagerSlots = env.get(FlinkYarnClientBase.ENV_SLOTS).toInt
+    val vcores: Int = flinkConfiguration
+      .getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1))
+
     // Resource requirements for worker containers
     val capability = Records.newRecord(classOf[Resource])
     capability.setMemory(memoryPerTaskManager)
-    capability.setVirtualCores(1) // hard-code that number (YARN is not accounting for CPUs)
+    capability.setVirtualCores(vcores)
     new ContainerRequest(capability, null, null, priority)
   }
 
