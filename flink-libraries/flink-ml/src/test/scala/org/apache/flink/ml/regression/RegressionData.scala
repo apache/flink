@@ -19,13 +19,28 @@
 package org.apache.flink.ml.regression
 
 import org.apache.flink.ml.common.LabeledVector
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math.{SparseVector, DenseVector}
 
 object RegressionData {
 
   val expectedWeights = Array[Double](3.0094)
   val expectedWeight0: Double = 9.8158
   val expectedSquaredResidualSum: Double = 49.7596/2
+
+  val sparseData: Seq[LabeledVector] = Seq(
+    new LabeledVector(1.0, new SparseVector(10, Array(0, 2, 3), Array(1.0, 1.0, 1.0))),
+    new LabeledVector(1.0, new SparseVector(10, Array(0, 1, 5, 9), Array(1.0, 1.0, 1.0, 1.0))),
+    new LabeledVector(0.0, new SparseVector(10, Array(0, 2), Array(0.0, 1.0))),
+    new LabeledVector(0.0, new SparseVector(10, Array(0), Array(0.0))),
+    new LabeledVector(0.0, new SparseVector(10, Array(0, 2), Array(0.0, 1.0))),
+    new LabeledVector(0.0, new SparseVector(10, Array(0), Array(0.0))))
+
+  val expectedWeightsSparseInput = Array(0.5448906338353784, 0.15718880164669916,
+                                         0.034001300318125725, 0.38770183218867915, 0.0,
+                                         0.15718880164669916, 0.0, 0.0, 0.0, 0.15718880164669916)
+
+  val expectedInterceptSparseInput = -0.006918274867886108
+
 
   val data: Seq[LabeledVector] = Seq(
     LabeledVector(10.7949, DenseVector(0.2714)),
