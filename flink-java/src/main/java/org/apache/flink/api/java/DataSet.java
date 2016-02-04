@@ -1381,6 +1381,24 @@ public abstract class DataSet<T> {
 		return new SortPartitionOperator<>(this, field, order, Utils.getCallLocationName());
 	}
 
+	/**
+	 * Locally sorts the partitions of the DataSet on the extracted key in the specified order.
+	 * The DataSet can be sorted on multiple values by returning a tuple from the KeySelector.
+	 *
+	 * Note that no additional sort keys can be appended to a KeySelector sort keys. To sort
+	 * the partitions by multiple values using KeySelector, the KeySelector must return a tuple
+	 * consisting of the values.
+	 *
+	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet
+	 *                     on which the DataSet is sorted.
+	 * @param order The order in which the DataSet is sorted.
+	 * @return The DataSet with sorted local partitions.
+	 */
+	public <K> SortPartitionOperator<T> sortPartition(KeySelector<T, K> keyExtractor, Order order) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
+		return new SortPartitionOperator<>(this, new Keys.SelectorFunctionKeys<>(clean(keyExtractor), getType(), keyType), order, Utils.getCallLocationName());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Top-K
 	// --------------------------------------------------------------------------------------------

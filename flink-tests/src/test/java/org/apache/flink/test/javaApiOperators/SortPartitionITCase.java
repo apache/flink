@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -197,6 +198,58 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		compareResultAsText(result, expected);
 	}
 
+	@Test
+	public void testSortPartitionWithKeySelector1() throws Exception {
+		/*
+		 * Test sort partition on an extracted key
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		List<Tuple1<Boolean>> result = ds
+			.map(new IdMapper<Tuple3<Integer, Long, String>>()).setParallelism(4) // parallelize input
+			.sortPartition(new KeySelector<Tuple3<Integer, Long, String>, Long>() {
+				@Override
+				public Long getKey(Tuple3<Integer, Long, String> value) throws Exception {
+					return value.f1;
+				}
+			}, Order.ASCENDING)
+			.mapPartition(new OrderCheckMapper<>(new Tuple3AscendingChecker()))
+			.distinct().collect();
+
+		String expected = "(true)\n";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testSortPartitionWithKeySelector2() throws Exception {
+		/*
+		 * Test sort partition on an extracted key
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		List<Tuple1<Boolean>> result = ds
+			.map(new IdMapper<Tuple3<Integer, Long, String>>()).setParallelism(4) // parallelize input
+			.sortPartition(new KeySelector<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>>() {
+				@Override
+				public Tuple2<Integer, Long> getKey(Tuple3<Integer, Long, String> value) throws Exception {
+					return new Tuple2<>(value.f0, value.f1);
+				}
+			}, Order.DESCENDING)
+			.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+			.distinct().collect();
+
+		String expected = "(true)\n";
+
+		compareResultAsText(result, expected);
+	}
+
 	public interface OrderChecker<T> extends Serializable {
 		boolean inOrder(T t1, T t2);
 	}
@@ -206,6 +259,14 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		@Override
 		public boolean inOrder(Tuple3<Integer, Long, String> t1, Tuple3<Integer, Long, String> t2) {
 			return t1.f1 >= t2.f1;
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static class Tuple3AscendingChecker implements OrderChecker<Tuple3<Integer, Long, String>> {
+		@Override
+		public boolean inOrder(Tuple3<Integer, Long, String> t1, Tuple3<Integer, Long, String> t2) {
+			return t1.f1 <= t2.f1;
 		}
 	}
 
