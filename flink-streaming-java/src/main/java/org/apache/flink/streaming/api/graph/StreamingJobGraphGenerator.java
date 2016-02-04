@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -361,10 +362,16 @@ public class StreamingJobGraphGenerator {
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 		if (partitioner instanceof ForwardPartitioner) {
 			downStreamVertex.connectNewDataSetAsInput(
-					headVertex,
-					DistributionPattern.POINTWISE,
-					ResultPartitionType.PIPELINED,
-					true);
+				headVertex,
+				DistributionPattern.POINTWISE,
+				ResultPartitionType.PIPELINED,
+				true);
+		} else if (partitioner instanceof RescalePartitioner){
+			downStreamVertex.connectNewDataSetAsInput(
+				headVertex,
+				DistributionPattern.POINTWISE,
+				ResultPartitionType.PIPELINED,
+				true);
 		} else {
 			downStreamVertex.connectNewDataSetAsInput(
 					headVertex,
