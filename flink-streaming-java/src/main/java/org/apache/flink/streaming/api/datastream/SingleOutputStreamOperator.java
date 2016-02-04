@@ -114,28 +114,40 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public SingleOutputStreamOperator<T, O> broadcast() {
 		return (SingleOutputStreamOperator<T, O>) super.broadcast();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	@Experimental
 	public SingleOutputStreamOperator<T, O> shuffle() {
 		return (SingleOutputStreamOperator<T, O>) super.shuffle();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	@Experimental
 	public SingleOutputStreamOperator<T, O> forward() {
 		return (SingleOutputStreamOperator<T, O>) super.forward();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
 	public SingleOutputStreamOperator<T, O> rebalance() {
 		return (SingleOutputStreamOperator<T, O>) super.rebalance();
 	}
 
 	@SuppressWarnings("unchecked")
+	@Override
+	@Experimental
+	public SingleOutputStreamOperator<T, O> rescale() {
+		return (SingleOutputStreamOperator<T, O>) super.rescale();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
 	@Experimental
 	public SingleOutputStreamOperator<T, O> global() {
 		return (SingleOutputStreamOperator<T, O>) super.global();

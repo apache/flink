@@ -1270,8 +1270,8 @@ dataStream.partitionByHash(0);
         <p>
             Uses a user-defined Partitioner to select the target task for each element.
             {% highlight java %}
-dataStream.partitionCustom(new Partitioner(){...}, "someKey");
-dataStream.partitionCustom(new Partitioner(){...}, 0);
+dataStream.partitionCustom(partitioner, "someKey");
+dataStream.partitionCustom(partitioner, 0);
             {% endhighlight %}
         </p>
       </td>
@@ -1282,7 +1282,7 @@ dataStream.partitionCustom(new Partitioner(){...}, 0);
        <p>
             Partitions elements randomly according to a uniform distribution.
             {% highlight java %}
-dataStream.partitionRandom();
+dataStream.shuffle();
             {% endhighlight %}
        </p>
      </td>
@@ -1296,6 +1296,51 @@ dataStream.partitionRandom();
             {% highlight java %}
 dataStream.rebalance();
             {% endhighlight %}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            Partitions elements, round-robin, to a subset of downstream operations. This is
+            useful if you want to have pipelines where you, for example, fan out from
+            each parallel instance of a source to a subset of several mappers to distribute load
+            but don't want the full rebalance that rebalance() would incur. This would require only
+            local data transfers instead of transferring data over network, depending on
+            other configuration values such as the number of slots of TaskManagers.
+        </p>
+        <p>
+            The subset of downstream operations to which the upstream operation sends
+            elements depends on the degree of parallelism of both the upstream and downstream operation.
+            For example, if the upstream operation has parallelism 2 and the downstream operation
+            has parallelism 4, then one upstream operation would distribute elements to two
+            downstream operations while the other upstream operation would distribute to the other
+            two downstream operations. If, on the other hand, the downstream operation has parallelism
+            2 while the upstream operation has parallelism 4 then two upstream operations would
+            distribute to one downstream operation while the other two upstream operations would
+            distribute to the other downstream operations.
+        </p>
+        <p>
+            In cases where the different parallelisms are not multiples of each other one or several
+            downstream operations will have a differing number of inputs from upstream operations.
+
+        </p>
+        </p>
+            Please see this figure for a visualization of the connection pattern in the above
+            example:
+        </p>
+
+        <div style="text-align: center">
+            <img src="{{ site.baseurl }}/apis/streaming/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            </div>
+
+
+        <p>
+                    {% highlight java %}
+dataStream.rescale();
+            {% endhighlight %}
+
         </p>
       </td>
     </tr>
@@ -1357,7 +1402,7 @@ dataStream.partitionCustom(partitioner, 0)
        <p>
             Partitions elements randomly according to a uniform distribution.
             {% highlight scala %}
-dataStream.partitionRandom()
+dataStream.shuffle()
             {% endhighlight %}
        </p>
      </td>
@@ -1371,6 +1416,51 @@ dataStream.partitionRandom()
             {% highlight scala %}
 dataStream.rebalance()
             {% endhighlight %}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            Partitions elements, round-robin, to a subset of downstream operations. This is
+            useful if you want to have pipelines where you, for example, fan out from
+            each parallel instance of a source to a subset of several mappers to distribute load
+            but don't want the full rebalance that rebalance() would incur. This would require only
+            local data transfers instead of transferring data over network, depending on
+            other configuration values such as the number of slots of TaskManagers.
+        </p>
+        <p>
+            The subset of downstream operations to which the upstream operation sends
+            elements depends on the degree of parallelism of both the upstream and downstream operation.
+            For example, if the upstream operation has parallelism 2 and the downstream operation
+            has parallelism 4, then one upstream operation would distribute elements to two
+            downstream operations while the other upstream operation would distribute to the other
+            two downstream operations. If, on the other hand, the downstream operation has parallelism
+            2 while the upstream operation has parallelism 4 then two upstream operations would
+            distribute to one downstream operation while the other two upstream operations would
+            distribute to the other downstream operations.
+        </p>
+        <p>
+            In cases where the different parallelisms are not multiples of each other one or several
+            downstream operations will have a differing number of inputs from upstream operations.
+
+        </p>
+        </p>
+            Please see this figure for a visualization of the connection pattern in the above
+            example:
+        </p>
+
+        <div style="text-align: center">
+            <img src="{{ site.baseurl }}/apis/streaming/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            </div>
+
+
+        <p>
+                    {% highlight java %}
+dataStream.rescale()
+            {% endhighlight %}
+
         </p>
       </td>
     </tr>
