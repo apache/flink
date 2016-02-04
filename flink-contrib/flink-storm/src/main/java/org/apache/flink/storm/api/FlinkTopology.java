@@ -229,9 +229,24 @@ public class FlinkTopology {
 		boolean makeProgress = true;
 		while (bolts.size() > 0) {
 			if (!makeProgress) {
-				throw new RuntimeException(
-						"Unable to build Topology. Could not connect the following bolts: "
-								+ bolts.keySet());
+				StringBuilder strBld = new StringBuilder();
+				strBld.append("Unable to build Topology. Could not connect the following bolts:");
+				for (String boltId : bolts.keySet()) {
+					strBld.append("\n  ");
+					strBld.append(boltId);
+					strBld.append(": missing input streams [");
+					for (Entry<GlobalStreamId, Grouping> streams : unprocessdInputsPerBolt
+							.get(boltId)) {
+						strBld.append("'");
+						strBld.append(streams.getKey().get_streamId());
+						strBld.append("' from '");
+						strBld.append(streams.getKey().get_componentId());
+						strBld.append("'; ");
+					}
+					strBld.append("]");
+				}
+
+				throw new RuntimeException(strBld.toString());
 			}
 			makeProgress = false;
 

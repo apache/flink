@@ -19,8 +19,11 @@ package org.apache.flink.storm.wrappers;
 
 import backtype.storm.generated.StormTopology;
 import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
+
 import com.google.common.collect.Sets;
+
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -58,8 +61,6 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 	private final IRichSpout spout;
 	/** The name of the spout. */
 	private final String name;
-	/** The wrapper of the given Flink collector. */
-	private SpoutCollector<OUT> collector;
 	/** Indicates, if the source is still running or was canceled. */
 	private volatile boolean isRunning = true;
 	/** The number of {@link IRichSpout#nextTuple()} calls. */
@@ -239,9 +240,7 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 
 	@Override
 	public final void run(final SourceContext<OUT> ctx) throws Exception {
-		this.collector = new SpoutCollector<OUT>(this.numberOfAttributes, ctx);
-
-		GlobalJobParameters config = super.getRuntimeContext().getExecutionConfig()
+		final GlobalJobParameters config = super.getRuntimeContext().getExecutionConfig()
 				.getGlobalJobParameters();
 		StormConfig stormConfig = new StormConfig();
 
@@ -253,9 +252,14 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 			}
 		}
 
-		this.spout.open(stormConfig, WrapperSetupHelper.createTopologyContext(
+		final TopologyContext stormTopologyContext = WrapperSetupHelper.createTopologyContext(
 				(StreamingRuntimeContext) super.getRuntimeContext(), this.spout, this.name,
-				this.stormTopology, stormConfig), new SpoutOutputCollector(this.collector));
+				this.stormTopology, stormConfig);
+
+		SpoutCollector<OUT> collector = new SpoutCollector<OUT>(this.numberOfAttributes,
+				stormTopologyContext.getThisTaskId(), ctx);
+
+		this.spout.open(stormConfig, stormTopologyContext, new SpoutOutputCollector(collector));
 		this.spout.activate();
 
 		if (numberOfInvocations == null) {
@@ -278,9 +282,9 @@ public final class SpoutWrapper<OUT> extends RichParallelSourceFunction<OUT> {
 				}
 			} else {
 				do {
-					this.collector.tupleEmitted = false;
+					collector.tupleEmitted = false;
 					this.spout.nextTuple();
-				} while (this.collector.tupleEmitted && this.isRunning);
+				} while (collector.tupleEmitted && this.isRunning);
 			}
 		}
 	}

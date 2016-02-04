@@ -45,7 +45,8 @@ public class FlinkLocalCluster {
 
 	/** The log used by this mini cluster */
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkLocalCluster.class);
-	/** The flink mini cluster on which to execute the programs */
+
+	/** The Flink mini cluster on which to execute the programs */
 	private FlinkMiniCluster flink;
 
 	/** Configuration key to submit topology in blocking mode if flag is set to {@code true}. */
@@ -122,8 +123,10 @@ public class FlinkLocalCluster {
 	}
 
 	public void shutdown() {
-		flink.stop();
-		flink = null;
+		if (this.flink != null) {
+			this.flink.stop();
+			this.flink = null;
+		}
 	}
 
 	public String getTopologyConf(final String id) {
@@ -183,8 +186,8 @@ public class FlinkLocalCluster {
 	public static interface LocalClusterFactory {
 
 		/**
-		 * Creates a local flink cluster.
-		 * @return A local flink cluster.
+		 * Creates a local Flink cluster.
+		 * @return A local Flink cluster.
 		 */
 		FlinkLocalCluster createLocalCluster();
 	}
