@@ -60,7 +60,8 @@ object FlinkRuleSets {
     AggregateRemoveRule.INSTANCE,
     AggregateJoinTransposeRule.EXTENDED,
     AggregateUnionAggregateRule.INSTANCE,
-    AggregateReduceFunctionsRule.INSTANCE,
+    // deactivate this rule temporarily
+    // AggregateReduceFunctionsRule.INSTANCE,
     AggregateExpandDistinctAggregatesRule.INSTANCE,
 
     // remove unnecessary sort rule

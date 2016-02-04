@@ -15,57 +15,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.plan.functions
+package org.apache.flink.api.table.runtime
 
 import java.lang.Iterable
-
 import com.google.common.base.Preconditions
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.api.table.plan.functions.aggregate.Aggregate
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.util.Collector
-
 import scala.collection.JavaConversions._
+import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.runtime.aggregate.Aggregate
 
 /**
- * A wrapper Flink GroupReduceOperator UDF of aggregates, it takes the grouped data as input,
+ * A wrapper Flink GroupReduceOperator UDF of aggregates. It takes the grouped data as input,
  * feed to the aggregates, and collect the record with aggregated value.
  *
- * @param aggregates Sql aggregate functions.
- * @param fields  The grouped keys' index.
+ * @param aggregates SQL aggregate functions.
+ * @param fields The grouped keys' indices in the input.
+ * @param groupingKeys The grouping keys' positions.
  */
 class AggregateFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
-    private val fields: Array[Int]) extends RichGroupReduceFunction[Any, Any] {
+    private val fields: Array[Int],
+    private val groupingKeys: Array[Int]) extends RichGroupReduceFunction[Row, Row] {
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(fields)
+    Preconditions.checkNotNull(groupingKeys)
     Preconditions.checkArgument(aggregates.size == fields.size)
-
-    aggregates.foreach(_.initiateAggregate)
   }
 
-  override def reduce(records: Iterable[Any], out: Collector[Any]): Unit = {
-    var currentValue: Any = null
+  override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
+    aggregates.foreach(_.initiateAggregate)
+
+    var currentRecord: Row = null
 
     // iterate all input records, feed to each aggregate.
-    val aggregateAndField = aggregates.zip(fields)
-    records.foreach {
-      value =>
-        currentValue = value
-        aggregateAndField.foreach {
-          case (aggregate, field) =>
-            aggregate.aggregate(FunctionUtils.getFieldValue(value, field))
-        }
+    val recordIterator = records.iterator
+    while (recordIterator.hasNext) {
+      currentRecord = recordIterator.next()
+      for (i <- 0 until aggregates.length) {
+        aggregates(i).aggregate(currentRecord.productElement(fields(i)))
+      }
     }
 
-    // reuse the latest record, and set all the aggregated values.
-    aggregateAndField.foreach {
-      case (aggregate, field) =>
-        FunctionUtils.putFieldValue(currentValue, field, aggregate.getAggregated())
-    }
+    // output a new Row type that contains the grouping keys and aggregates
+    var outValue: Row = new Row(groupingKeys.length + aggregates.length)
 
-    out.collect(currentValue)
+    // copy the grouping fields from the last input row to the output row
+    for (i <- 0 until groupingKeys.length) {
+      outValue.setField(i, currentRecord.productElement(groupingKeys(i)))
+    }
+    // copy the results of the aggregate functions to the output row
+    for (i <- groupingKeys.length until groupingKeys.length + aggregates.length) {
+      outValue.setField(i, aggregates(i - groupingKeys.length).getAggregated)
+    }
+    out.collect(outValue)
   }
 }

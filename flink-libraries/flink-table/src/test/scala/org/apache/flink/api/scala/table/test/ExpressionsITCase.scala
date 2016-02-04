@@ -77,7 +77,6 @@ class ExpressionsITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // advanced functions not supported yet
   @Ignore
   @Test
   def testCaseInsensitiveForAs(): Unit = {

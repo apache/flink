@@ -57,20 +57,4 @@ class FlinkAggregate(
       aggCalls
     )
   }
-
-  override def computeSelfCost (planner: RelOptPlanner): RelOptCost = {
-
-    val origCosts = super.computeSelfCost(planner)
-    val deltaCost = planner.getCostFactory.makeHugeCost()
-
-    // only prefer aggregations with transformed Avg
-    aggCalls.toList.foldLeft[RelOptCost](origCosts){
-      (c: RelOptCost, a: AggregateCall) =>
-        if (a.getAggregation.isInstanceOf[SqlAvgAggFunction]) {
-          c.plus(deltaCost)
-        } else {
-          c
-        }
-    }
-  }
 }

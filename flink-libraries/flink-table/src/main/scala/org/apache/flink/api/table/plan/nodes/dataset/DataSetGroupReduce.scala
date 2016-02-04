@@ -25,6 +25,11 @@ import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.table.{TableConfig, Row}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import scala.collection.JavaConverters._
+import org.apache.flink.api.table.plan.TypeConverter
 
 /**
   * Flink RelNode which matches along with ReduceGroupOperator.
@@ -36,7 +41,7 @@ class DataSetGroupReduce(
     rowType: RelDataType,
     opName: String,
     groupingKeys: Array[Int],
-    func: GroupReduceFunction[Any, Any])
+    func: GroupReduceFunction[Row, Row])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -61,6 +66,27 @@ class DataSetGroupReduce(
   override def translateToPlan(
       config: TableConfig,
       expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-    ???
+
+    val inputDS = input.asInstanceOf[DataSetRel].translateToPlan(config)
+
+    // get the output types
+    val fieldsNames = rowType.getFieldNames
+    val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
+    .map(f => f.getType.getSqlTypeName)
+    .map(n => TypeConverter.sqlTypeToTypeInfo(n))
+    .toArray
+
+    val rowTypeInfo = new RowTypeInfo(fieldTypes)
+
+    if (groupingKeys.length > 0) {
+      inputDS.asInstanceOf[DataSet[Row]].groupBy(groupingKeys: _*).reduceGroup(func)
+      .returns(rowTypeInfo)
+      .asInstanceOf[DataSet[Any]]
+    }
+    else {
+      // global aggregation
+      inputDS.asInstanceOf[DataSet[Row]].reduceGroup(func)
+      .returns(rowTypeInfo).asInstanceOf[DataSet[Any]]
+    }
   }
 }
