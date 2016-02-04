@@ -16,14 +16,20 @@
  */
 package org.apache.flink.storm.wrappers;
 
+import backtype.storm.generated.GlobalStreamId;
+import backtype.storm.generated.Grouping;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.MessageId;
 import backtype.storm.utils.Utils;
+
 import com.google.common.collect.Sets;
+
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple25;
@@ -36,6 +42,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A {@link BoltWrapper} wraps an {@link IRichBolt} in order to execute the Storm bolt within a Flink Streaming program.
@@ -66,12 +73,12 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	/** The topology context of the bolt. */
 	private transient TopologyContext topologyContext;
 
-	/** The stream ID of the input stream for this bolt. */
-	private final String inputStreamId;
-	/** The component ID of the input stream for this bolt. */
-	private final String inputComponentId;
-	/** The schema (ie, ordered field names) of the input stream. */
-	private final Fields inputSchema;
+	/** The IDs of the input streams for this bolt per producer task ID. */
+	private final HashMap<Integer, String> inputStreamIds = new HashMap<Integer, String>();
+	/** The IDs of the producres for this bolt per producer task ID.. */
+	private final HashMap<Integer, String> inputComponentIds = new HashMap<Integer, String>();
+	/** The schema (ie, ordered field names) of the input streams per producer taskID. */
+	private final HashMap<Integer, Fields> inputSchemas = new HashMap<Integer, Fields>();
 
 	/**
 	 * We have to use this because Operators must output {@link StreamRecord}.
@@ -216,12 +223,6 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *            The Storm {@link IRichBolt bolt} to be used.
 	 * @param name
 	 *            The name of the bolt.
-	 * @param inputStreamId
-	 *            The stream id of the input stream for this bolt
-	 * @param inputComponentId
-	 *            The component id of the input stream for this bolt
-	 * @param inputSchema
-	 *            The schema (ie, ordered field names) of the input stream.
 	 * @param rawOutputs
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
@@ -235,9 +236,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 			final Collection<String> rawOutputs) throws IllegalArgumentException {
 		this.bolt = bolt;
 		this.name = name;
-		this.inputComponentId = inputComponentId;
-		this.inputStreamId = inputStreamId;
-		this.inputSchema = inputSchema;
+		this.inputSchemas.put(null, inputSchema);
 		this.numberOfAttributes = WrapperSetupHelper.getNumberOfAttributes(bolt, rawOutputs);
 	}
 
@@ -256,8 +255,6 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		super.open();
 
 		this.flinkCollector = new TimestampedCollector<>(this.output);
-		final OutputCollector stormCollector = new OutputCollector(new BoltCollector<OUT>(
-				this.numberOfAttributes, this.flinkCollector));
 
 		GlobalJobParameters config = getExecutionConfig().getGlobalJobParameters();
 		StormConfig stormConfig = new StormConfig();
@@ -272,6 +269,24 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 
 		this.topologyContext = WrapperSetupHelper.createTopologyContext(
 				getRuntimeContext(), this.bolt, this.name, this.stormTopology, stormConfig);
+
+		final OutputCollector stormCollector = new OutputCollector(new BoltCollector<OUT>(
+				this.numberOfAttributes, this.topologyContext.getThisTaskId(), this.flinkCollector));
+
+		if (this.stormTopology != null) {
+			Map<GlobalStreamId, Grouping> inputs = this.topologyContext.getThisSources();
+
+			for (GlobalStreamId inputStream : inputs.keySet()) {
+				for (Integer tid : this.topologyContext.getComponentTasks(inputStream
+						.get_componentId())) {
+					this.inputComponentIds.put(tid, inputStream.get_componentId());
+					this.inputStreamIds.put(tid, inputStream.get_streamId());
+					this.inputSchemas.put(tid,
+							this.topologyContext.getComponentOutputFields(inputStream));
+				}
+			}
+		}
+
 		this.bolt.prepare(stormConfig, this.topologyContext, stormCollector);
 	}
 
@@ -283,9 +298,21 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	@Override
 	public void processElement(final StreamRecord<IN> element) throws Exception {
 		this.flinkCollector.setTimestamp(element.getTimestamp());
+
 		IN value = element.getValue();
-		this.bolt.execute(new StormTuple<>(value, this.inputSchema, this.topologyContext
-				.getThisTaskId(), this.inputStreamId, this.inputComponentId));
+
+		if (this.stormTopology != null) {
+			Tuple tuple = (Tuple) value;
+			Integer producerTaskId = tuple.getField(tuple.getArity() - 1);
+
+			this.bolt.execute(new StormTuple<>(value, this.inputSchemas.get(producerTaskId),
+					producerTaskId, this.inputStreamIds.get(producerTaskId), this.inputComponentIds
+					.get(producerTaskId), MessageId.makeUnanchored()));
+
+		} else {
+			this.bolt.execute(new StormTuple<>(value, this.inputSchemas.get(null), -1, null, null,
+					MessageId.makeUnanchored()));
+		}
 	}
 
 	@Override

@@ -46,14 +46,16 @@ class BoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOutputC
 	 * 
 	 * @param numberOfAttributes
 	 *            The number of attributes of the emitted tuples per output stream.
+	 * @param taskId
+	 *            The ID of the producer task (negative value for unknown).
 	 * @param flinkOutput
 	 *            The Flink output object to be used.
 	 * @throws UnsupportedOperationException
 	 *             if the specified number of attributes is greater than 25
 	 */
-	BoltCollector(final HashMap<String, Integer> numberOfAttributes,
+	BoltCollector(final HashMap<String, Integer> numberOfAttributes, final int taskId,
 			final Collector<OUT> flinkOutput) throws UnsupportedOperationException {
-		super(numberOfAttributes);
+		super(numberOfAttributes, taskId);
 		assert (flinkOutput != null);
 		this.flinkOutput = flinkOutput;
 	}
