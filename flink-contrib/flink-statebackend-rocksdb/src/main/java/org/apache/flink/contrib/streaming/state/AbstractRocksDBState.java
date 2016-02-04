@@ -150,8 +150,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 
 		RocksDB.loadLibrary();
 
-		try {
-			BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), new BackupableDBOptions(restorePath + "/"));
+		try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), new BackupableDBOptions(restorePath + "/"))) {
 			backupEngine.restoreDbFromLatestBackup(new File(dbPath, "db").getAbsolutePath(), new File(dbPath, "db").getAbsolutePath(), new RestoreOptions(true));
 			FileUtils.deleteDirectory(new File(restorePath));
 		} catch (RocksDBException|IOException|IllegalArgumentException e) {
@@ -230,10 +229,9 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 				}
 			}
 
-			BackupEngine backupEngine = BackupEngine.open(Env.getDefault(),
-				new BackupableDBOptions(localBackupPath.getAbsolutePath()));
-
-			backupEngine.createNewBackup(db);
+			try (BackupEngine backupEngine = BackupEngine.open(Env.getDefault(), new BackupableDBOptions(localBackupPath.getAbsolutePath()))) {
+				backupEngine.createNewBackup(db);
+			}
 
 			HDFSCopyFromLocal.copyFromLocal(localBackupPath, backupUri);
 			KvStateSnapshot<K, N, S, SD, Backend> result = createRocksDBSnapshot(backupUri, checkpointId);
