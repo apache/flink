@@ -181,6 +181,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-n", "1",
 				"-jm", "768",
 				"-tm", "1024",
+				"-s", "3", // set the slots 3 to check if the vCores are set properly!
 				"-nm", "customName",
 				"-Dfancy-configuration-value=veryFancy",
 				"-Dyarn.maximum-failed-containers=3"},
@@ -269,6 +270,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				String command = Joiner.on(" ").join(entry.getValue().getLaunchContext().getCommands());
 				if(command.contains(YarnTaskManagerRunner.class.getSimpleName())) {
 					taskManagerContainer = entry.getKey();
+					Assert.assertEquals(3, entry.getValue().getResource().getVirtualCores());
 					nodeManager = nm;
 					nmIdent = new NMTokenIdentifier(taskManagerContainer.getApplicationAttemptId(), null, "",0);
 					// allow myself to do stuff with the container
