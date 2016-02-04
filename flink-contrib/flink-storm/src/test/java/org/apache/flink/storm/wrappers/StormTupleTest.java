@@ -19,9 +19,10 @@ package org.apache.flink.storm.wrappers;
 
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.MessageId;
 import backtype.storm.tuple.Values;
+
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.storm.util.AbstractTest;
 import org.junit.Assert;
@@ -51,7 +52,8 @@ public class StormTupleTest extends AbstractTest {
 	public void nonTupleTest() {
 		final Object flinkTuple = this.r.nextInt();
 
-		final StormTuple<Object> tuple = new StormTuple<Object>(flinkTuple, null);
+		final StormTuple<Object> tuple = new StormTuple<Object>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertSame(flinkTuple, tuple.getValue(0));
 
 		final List<Object> values = tuple.getValues();
@@ -61,24 +63,50 @@ public class StormTupleTest extends AbstractTest {
 
 	@Test
 	public void tupleTest() throws InstantiationException, IllegalAccessException {
-		final int numberOfAttributes = this.r.nextInt(26);
-		final Object[] data = new Object[numberOfAttributes];
+		for (int numberOfAttributes = 0; numberOfAttributes < 26; ++numberOfAttributes) {
+			final Object[] data = new Object[numberOfAttributes];
 
-		final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
-		for (int i = 0; i < numberOfAttributes; ++i) {
-			data[i] = this.r.nextInt();
-			flinkTuple.setField(data[i], i);
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
+			for (int i = 0; i < numberOfAttributes; ++i) {
+				data[i] = this.r.nextInt();
+				flinkTuple.setField(data[i], i);
+			}
+
+			final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+					null);
+			final List<Object> values = tuple.getValues();
+
+			Assert.assertEquals(numberOfAttributes, values.size());
+			for (int i = 0; i < numberOfAttributes; ++i) {
+				Assert.assertEquals(flinkTuple.getField(i), values.get(i));
+			}
+
+			Assert.assertEquals(numberOfAttributes, tuple.size());
 		}
+	}
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
-		final List<Object> values = tuple.getValues();
+	@Test
+	public void tupleTestWithTaskId() throws InstantiationException, IllegalAccessException {
+		for (int numberOfAttributes = 1; numberOfAttributes < 26; ++numberOfAttributes) {
+			final Object[] data = new Object[numberOfAttributes];
 
-		Assert.assertEquals(numberOfAttributes, values.size());
-		for (int i = 0; i < numberOfAttributes; ++i) {
-			Assert.assertEquals(flinkTuple.getField(i), values.get(i));
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
+			for (int i = 0; i < numberOfAttributes - 1; ++i) {
+				data[i] = this.r.nextInt();
+				flinkTuple.setField(data[i], i);
+			}
+
+			final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, 0, null, null,
+					null);
+			final List<Object> values = tuple.getValues();
+
+			Assert.assertEquals(numberOfAttributes - 1, values.size());
+			for (int i = 0; i < numberOfAttributes - 1; ++i) {
+				Assert.assertEquals(flinkTuple.getField(i), values.get(i));
+			}
+
+			Assert.assertEquals(numberOfAttributes - 1, tuple.size());
 		}
-
-		Assert.assertEquals(numberOfAttributes, tuple.size());
 	}
 
 	@Test
@@ -90,7 +118,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getBinary(index));
 	}
 
@@ -98,7 +127,8 @@ public class StormTupleTest extends AbstractTest {
 	public void testBoolean() {
 		final Boolean flinkTuple = this.r.nextBoolean();
 
-		final StormTuple<Boolean> tuple = new StormTuple<Boolean>(flinkTuple, null);
+		final StormTuple<Boolean> tuple = new StormTuple<Boolean>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple, tuple.getBoolean(0));
 	}
 
@@ -106,7 +136,7 @@ public class StormTupleTest extends AbstractTest {
 	public void testByte() {
 		final Byte flinkTuple = (byte) this.r.nextInt();
 
-		final StormTuple<Byte> tuple = new StormTuple<Byte>(flinkTuple, null);
+		final StormTuple<Byte> tuple = new StormTuple<Byte>(flinkTuple, null, -1, null, null, null);
 		Assert.assertEquals(flinkTuple, tuple.getByte(0));
 	}
 
@@ -114,7 +144,8 @@ public class StormTupleTest extends AbstractTest {
 	public void testDouble() {
 		final Double flinkTuple = this.r.nextDouble();
 
-		final StormTuple<Double> tuple = new StormTuple<Double>(flinkTuple, null);
+		final StormTuple<Double> tuple = new StormTuple<Double>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple, tuple.getDouble(0));
 	}
 
@@ -122,7 +153,8 @@ public class StormTupleTest extends AbstractTest {
 	public void testFloat() {
 		final Float flinkTuple = this.r.nextFloat();
 
-		final StormTuple<Float> tuple = new StormTuple<Float>(flinkTuple, null);
+		final StormTuple<Float> tuple = new StormTuple<Float>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple, tuple.getFloat(0));
 	}
 
@@ -130,7 +162,8 @@ public class StormTupleTest extends AbstractTest {
 	public void testInteger() {
 		final Integer flinkTuple = this.r.nextInt();
 
-		final StormTuple<Integer> tuple = new StormTuple<Integer>(flinkTuple, null);
+		final StormTuple<Integer> tuple = new StormTuple<Integer>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple, tuple.getInteger(0));
 	}
 
@@ -138,7 +171,7 @@ public class StormTupleTest extends AbstractTest {
 	public void testLong() {
 		final Long flinkTuple = this.r.nextLong();
 
-		final StormTuple<Long> tuple = new StormTuple<Long>(flinkTuple, null);
+		final StormTuple<Long> tuple = new StormTuple<Long>(flinkTuple, null, -1, null, null, null);
 		Assert.assertEquals(flinkTuple, tuple.getLong(0));
 	}
 
@@ -146,7 +179,8 @@ public class StormTupleTest extends AbstractTest {
 	public void testShort() {
 		final Short flinkTuple = (short) this.r.nextInt();
 
-		final StormTuple<Short> tuple = new StormTuple<Short>(flinkTuple, null);
+		final StormTuple<Short> tuple = new StormTuple<Short>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple, tuple.getShort(0));
 	}
 
@@ -156,7 +190,8 @@ public class StormTupleTest extends AbstractTest {
 		this.r.nextBytes(data);
 		final String flinkTuple = new String(data);
 
-		final StormTuple<String> tuple = new StormTuple<String>(flinkTuple, null);
+		final StormTuple<String> tuple = new StormTuple<String>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple, tuple.getString(0));
 	}
 
@@ -169,7 +204,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getBinary(index));
 	}
 
@@ -181,7 +217,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getBoolean(index));
 	}
 
@@ -193,7 +230,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getByte(index));
 	}
 
@@ -205,7 +243,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getDouble(index));
 	}
 
@@ -217,7 +256,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getFloat(index));
 	}
 
@@ -229,7 +269,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getInteger(index));
 	}
 
@@ -241,7 +282,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getLong(index));
 	}
 
@@ -253,7 +295,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getShort(index));
 	}
 
@@ -267,7 +310,8 @@ public class StormTupleTest extends AbstractTest {
 		final Tuple flinkTuple = new Tuple5<Object, Object, Object, Object, Object>();
 		flinkTuple.setField(data, index);
 
-		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null);
+		final StormTuple<Tuple> tuple = new StormTuple<Tuple>(flinkTuple, null, -1, null, null,
+				null);
 		Assert.assertEquals(flinkTuple.getField(index), tuple.getString(index));
 	}
 
@@ -275,7 +319,7 @@ public class StormTupleTest extends AbstractTest {
 	public void testContains() throws Exception {
 		Fields schema = new Fields("a1", "a2");
 		StormTuple<Object> tuple = new StormTuple<Object>(Tuple.getTupleClass(1).newInstance(),
-				schema);
+				schema, -1, null, null, null);
 
 		Assert.assertTrue(tuple.contains("a1"));
 		Assert.assertTrue(tuple.contains("a2"));
@@ -285,11 +329,8 @@ public class StormTupleTest extends AbstractTest {
 	@Test
 	public void testGetFields() throws Exception {
 		Fields schema = new Fields();
-
-		Assert.assertSame(schema, new StormTuple<Object>(Tuple.getTupleClass(1).newInstance(),
-				schema).getFields());
-
-		Assert.assertSame(null, new StormTuple<Object>(null, schema).getFields());
+		Assert.assertSame(schema,
+				new StormTuple<Object>(null, schema, -1, null, null, null).getFields());
 
 	}
 
@@ -297,13 +338,12 @@ public class StormTupleTest extends AbstractTest {
 	public void testFieldIndex() throws Exception {
 		Fields schema = new Fields("a1", "a2");
 		StormTuple<Object> tuple = new StormTuple<Object>(Tuple.getTupleClass(1).newInstance(),
-				schema);
+				schema, -1, null, null, null);
 
 		Assert.assertEquals(0, tuple.fieldIndex("a1"));
 		Assert.assertEquals(1, tuple.fieldIndex("a2"));
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testSelect() throws Exception {
 		Tuple tuple = Tuple.getTupleClass(arity).newInstance();
@@ -324,14 +364,14 @@ public class StormTupleTest extends AbstractTest {
 		Fields schema = new Fields(attributeNames);
 		Fields selector = new Fields(filterNames);
 
-		Assert.assertEquals(values, new StormTuple(tuple, schema).select(selector));
+		Assert.assertEquals(values,
+				new StormTuple<>(tuple, schema, -1, null, null, null).select(selector));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetValueByField() throws Exception {
 		Object value = mock(Object.class);
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getValueByField(fieldName));
 
 	}
@@ -341,7 +381,7 @@ public class StormTupleTest extends AbstractTest {
 		Object value = mock(Object.class);
 		TestPojoMember<Object> pojo = new TestPojoMember<Object>(value);
 		StormTuple<TestPojoMember<Object>> tuple = new StormTuple<TestPojoMember<Object>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getValueByField(fieldNamePojo));
 	}
 
@@ -350,15 +390,14 @@ public class StormTupleTest extends AbstractTest {
 		Object value = mock(Object.class);
 		TestPojoGetter<Object> pojo = new TestPojoGetter<Object>(value);
 		StormTuple<TestPojoGetter<Object>> tuple = new StormTuple<TestPojoGetter<Object>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getValueByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetStringByField() throws Exception {
 		String value = "stringValue";
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getStringByField(fieldName));
 	}
 
@@ -367,7 +406,7 @@ public class StormTupleTest extends AbstractTest {
 		String value = "stringValue";
 		TestPojoMember<String> pojo = new TestPojoMember<String>(value);
 		StormTuple<TestPojoMember<String>> tuple = new StormTuple<TestPojoMember<String>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getStringByField(fieldNamePojo));
 	}
 
@@ -376,15 +415,14 @@ public class StormTupleTest extends AbstractTest {
 		String value = "stringValue";
 		TestPojoGetter<String> pojo = new TestPojoGetter<String>(value);
 		StormTuple<TestPojoGetter<String>> tuple = new StormTuple<TestPojoGetter<String>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getStringByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetIntegerByField() throws Exception {
 		Integer value = r.nextInt();
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getIntegerByField(fieldName));
 	}
 
@@ -393,7 +431,7 @@ public class StormTupleTest extends AbstractTest {
 		Integer value = r.nextInt();
 		TestPojoMember<Integer> pojo = new TestPojoMember<Integer>(value);
 		StormTuple<TestPojoMember<Integer>> tuple = new StormTuple<TestPojoMember<Integer>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getIntegerByField(fieldNamePojo));
 	}
 
@@ -402,15 +440,14 @@ public class StormTupleTest extends AbstractTest {
 		Integer value = r.nextInt();
 		TestPojoGetter<Integer> pojo = new TestPojoGetter<Integer>(value);
 		StormTuple<TestPojoGetter<Integer>> tuple = new StormTuple<TestPojoGetter<Integer>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getIntegerByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetLongByField() throws Exception {
 		Long value = r.nextLong();
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getLongByField(fieldName));
 	}
 
@@ -418,8 +455,8 @@ public class StormTupleTest extends AbstractTest {
 	public void testGetLongByFieldPojo() throws Exception {
 		Long value = r.nextLong();
 		TestPojoMember<Long> pojo = new TestPojoMember<Long>(value);
-		StormTuple<TestPojoMember<Long>> tuple = new StormTuple<TestPojoMember<Long>>(pojo,
-				null);
+		StormTuple<TestPojoMember<Long>> tuple = new StormTuple<TestPojoMember<Long>>(pojo, null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getLongByField(fieldNamePojo));
 	}
 
@@ -427,16 +464,15 @@ public class StormTupleTest extends AbstractTest {
 	public void testGetLongByFieldPojoGetter() throws Exception {
 		Long value = r.nextLong();
 		TestPojoGetter<Long> pojo = new TestPojoGetter<Long>(value);
-		StormTuple<TestPojoGetter<Long>> tuple = new StormTuple<TestPojoGetter<Long>>(pojo,
-				null);
+		StormTuple<TestPojoGetter<Long>> tuple = new StormTuple<TestPojoGetter<Long>>(pojo, null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getLongByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetBooleanByField() throws Exception {
 		Boolean value = r.nextBoolean();
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertEquals(value, tuple.getBooleanByField(fieldName));
 	}
 
@@ -445,7 +481,7 @@ public class StormTupleTest extends AbstractTest {
 		Boolean value = r.nextBoolean();
 		TestPojoMember<Boolean> pojo = new TestPojoMember<Boolean>(value);
 		StormTuple<TestPojoMember<Boolean>> tuple = new StormTuple<TestPojoMember<Boolean>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getBooleanByField(fieldNamePojo));
 	}
 
@@ -454,15 +490,14 @@ public class StormTupleTest extends AbstractTest {
 		Boolean value = r.nextBoolean();
 		TestPojoGetter<Boolean> pojo = new TestPojoGetter<Boolean>(value);
 		StormTuple<TestPojoGetter<Boolean>> tuple = new StormTuple<TestPojoGetter<Boolean>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getBooleanByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetShortByField() throws Exception {
 		Short value = (short) r.nextInt();
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getShortByField(fieldName));
 	}
 
@@ -471,7 +506,8 @@ public class StormTupleTest extends AbstractTest {
 		Short value = (short) r.nextInt();
 		TestPojoMember<Short> pojo = new TestPojoMember<Short>(value);
 		StormTuple<TestPojoMember<Short>> tuple = new StormTuple<TestPojoMember<Short>>(pojo,
-				null);
+				null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getShortByField(fieldNamePojo));
 	}
 
@@ -480,15 +516,15 @@ public class StormTupleTest extends AbstractTest {
 		Short value = (short) r.nextInt();
 		TestPojoGetter<Short> pojo = new TestPojoGetter<Short>(value);
 		StormTuple<TestPojoGetter<Short>> tuple = new StormTuple<TestPojoGetter<Short>>(pojo,
-				null);
+				null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getShortByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetByteByField() throws Exception {
 		Byte value = new Byte((byte) r.nextInt());
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getByteByField(fieldName));
 	}
 
@@ -497,7 +533,8 @@ public class StormTupleTest extends AbstractTest {
 		Byte value = new Byte((byte) r.nextInt());
 		TestPojoMember<Byte> pojo = new TestPojoMember<Byte>(value);
 		StormTuple<TestPojoMember<Byte>> tuple = new StormTuple<TestPojoMember<Byte>>(pojo,
-				null);
+				null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getByteByField(fieldNamePojo));
 	}
 
@@ -506,15 +543,15 @@ public class StormTupleTest extends AbstractTest {
 		Byte value = new Byte((byte) r.nextInt());
 		TestPojoGetter<Byte> pojo = new TestPojoGetter<Byte>(value);
 		StormTuple<TestPojoGetter<Byte>> tuple = new StormTuple<TestPojoGetter<Byte>>(pojo,
-				null);
+				null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getByteByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetDoubleByField() throws Exception {
 		Double value = r.nextDouble();
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getDoubleByField(fieldName));
 	}
 
@@ -523,7 +560,7 @@ public class StormTupleTest extends AbstractTest {
 		Double value = r.nextDouble();
 		TestPojoMember<Double> pojo = new TestPojoMember<Double>(value);
 		StormTuple<TestPojoMember<Double>> tuple = new StormTuple<TestPojoMember<Double>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getDoubleByField(fieldNamePojo));
 	}
 
@@ -532,15 +569,14 @@ public class StormTupleTest extends AbstractTest {
 		Double value = r.nextDouble();
 		TestPojoGetter<Double> pojo = new TestPojoGetter<Double>(value);
 		StormTuple<TestPojoGetter<Double>> tuple = new StormTuple<TestPojoGetter<Double>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(value, tuple.getDoubleByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetFloatByField() throws Exception {
 		Float value = r.nextFloat();
-		StormTuple tuple = testGetByField(arity, index, value);
+		StormTuple<?> tuple = testGetByField(arity, index, value);
 		Assert.assertSame(value, tuple.getFloatByField(fieldName));
 	}
 
@@ -549,7 +585,8 @@ public class StormTupleTest extends AbstractTest {
 		Float value = r.nextFloat();
 		TestPojoMember<Float> pojo = new TestPojoMember<Float>(value);
 		StormTuple<TestPojoMember<Float>> tuple = new StormTuple<TestPojoMember<Float>>(pojo,
-				null);
+				null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getFloatByField(fieldNamePojo));
 	}
 
@@ -558,16 +595,16 @@ public class StormTupleTest extends AbstractTest {
 		Float value = r.nextFloat();
 		TestPojoGetter<Float> pojo = new TestPojoGetter<Float>(value);
 		StormTuple<TestPojoGetter<Float>> tuple = new StormTuple<TestPojoGetter<Float>>(pojo,
-				null);
+				null,
+				-1, null, null, null);
 		Assert.assertSame(value, tuple.getFloatByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings("rawtypes")
 	@Test
 	public void testGetBinaryByField() throws Exception {
 		byte[] data = new byte[1 + r.nextInt(20)];
 		r.nextBytes(data);
-		StormTuple tuple = testGetByField(arity, index, data);
+		StormTuple<?> tuple = testGetByField(arity, index, data);
 		Assert.assertSame(data, tuple.getBinaryByField(fieldName));
 	}
 
@@ -577,7 +614,7 @@ public class StormTupleTest extends AbstractTest {
 		r.nextBytes(data);
 		TestPojoMember<byte[]> pojo = new TestPojoMember<byte[]>(data);
 		StormTuple<TestPojoMember<byte[]>> tuple = new StormTuple<TestPojoMember<byte[]>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(data, tuple.getBinaryByField(fieldNamePojo));
 	}
 
@@ -587,12 +624,11 @@ public class StormTupleTest extends AbstractTest {
 		r.nextBytes(data);
 		TestPojoGetter<byte[]> pojo = new TestPojoGetter<byte[]>(data);
 		StormTuple<TestPojoGetter<byte[]>> tuple = new StormTuple<TestPojoGetter<byte[]>>(pojo,
-				null);
+				null, -1, null, null, null);
 		Assert.assertSame(data, tuple.getBinaryByField(fieldNamePojo));
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private <T> StormTuple testGetByField(int arity, int index, T value)
+	private <T> StormTuple<?> testGetByField(int arity, int index, T value)
 			throws Exception {
 
 		assert (index < arity);
@@ -610,41 +646,42 @@ public class StormTupleTest extends AbstractTest {
 		}
 		Fields schema = new Fields(attributeNames);
 
-		return new StormTuple(tuple, schema);
+		return new StormTuple<>(tuple, schema, -1, null, null, null);
 	}
 
 	@Test
 	public void testGetSourceGlobalStreamid() {
-		GlobalStreamId globalStreamid =
-			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceGlobalStreamid();
+		GlobalStreamId globalStreamid = new StormTuple<>(null, null, -1, "streamId", "componentID",
+				null).getSourceGlobalStreamid();
 		Assert.assertEquals("streamId", globalStreamid.get_streamId());
 		Assert.assertEquals("componentID", globalStreamid.get_componentId());
 	}
 
 	@Test
 	public void testGetSourceComponent() {
-		String sourceComponent =
-			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceComponent();
+		String sourceComponent = new StormTuple<>(null, null, -1, null, "componentID", null)
+				.getSourceComponent();
 		Assert.assertEquals("componentID", sourceComponent);
 	}
 
 	@Test
 	public void testGetSourceTask() {
-		String sourceStreamId =
-			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceStreamId();
-		Assert.assertEquals("streamId", sourceStreamId);
+		int sourceTaskId = new StormTuple<>(null, null, 42, null, null, null).getSourceTask();
+		Assert.assertEquals(42, sourceTaskId);
 	}
 
 	@Test
 	public void testGetSourceStreamId() {
-		String sourceStreamId =
-			new StormTuple<>(new Tuple1<>(), null, 0, "streamId", "componentID").getSourceStreamId();
+		String sourceStreamId = new StormTuple<>(null, null, -1, "streamId", null, null)
+				.getSourceStreamId();
 		Assert.assertEquals("streamId", sourceStreamId);
 	}
 
 	@Test
 	public void testGetMessageId() {
-		Assert.assertNotNull(new StormTuple<>(null, null).getMessageId());
+		MessageId messageId = MessageId.makeUnanchored();
+		StormTuple<?> stormTuple = new StormTuple<>(null, null, -1, null, null, messageId);
+		Assert.assertSame(messageId, stormTuple.getMessageId());
 	}
 
 	public static class TestPojoMember<T> {

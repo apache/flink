@@ -29,8 +29,6 @@ import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.MessageId;
 import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
-import com.google.common.base.Preconditions;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -41,55 +39,61 @@ import java.util.List;
  */
 public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
-	/** The Storm representation of the original Flink tuple */
+	/** The Storm representation of the original Flink tuple. */
 	private final Values stormTuple;
-	/** The schema (ie, ordered field names) of the tuple */
+	/** The schema (ie, ordered field names) of this tuple. */
 	private final Fields schema;
-
-	/** The task id where this tuple is processed */
-	private final int taskId;
-	/** The producer of this tuple */
+	/** The task ID where this tuple was produced. */
+	private final int producerTaskId;
+	/** The input stream from which this tuple was received. */
 	private final String producerStreamId;
-	/** The producer's component id of this tuple */
+	/** The producer's component ID of this tuple. */
 	private final String producerComponentId;
-	/** The message that is associated with this tuple */
-	private final MessageId id;
+	/** The message that is associated with this tuple. */
+	private final MessageId messageId;
+
 
 	/**
-	 * Constructor which sets defaults for producerComponentId, taskId, and componentID
-	 * @param flinkTuple the Flink tuple
-	 * @param schema The schema of the storm fields
+	 * Create a new Storm tuple from the given Flink tuple.
+	 * 
+	 * @param flinkTuple
+	 *            The Flink tuple to be converted.
+	 * @param schema
+	 *            The schema (ie, ordered field names) of the tuple.
+	 * @param producerTaskId
+	 *            The task ID of the producer (a valid, ie, non-negative ID, implicates the truncation of the last
+	 *            attribute of {@code flinkTuple}).
+	 * @param producerStreamId
+	 *            The input stream ID from which this tuple was received.
+	 * @param producerComponentId
+	 *            The component ID of the producer.
+	 * @param messageId
+	 *            The message ID of this tuple.
 	 */
-	public StormTuple(final IN flinkTuple, final Fields schema) {
-		this(flinkTuple, schema, -1, Utils.DEFAULT_STREAM_ID, BoltWrapper.DEFAULT_ID);
-	}
-
-	/**
-	 * Create a new Storm tuple from the given Flink tuple. The provided {@code nameIndexMap} is ignored for raw input
-	 * types.
-	 * @param flinkTuple The Flink tuple to be converted.
-	 * @param schema The schema (ie, ordered field names) of the tuple.
-	 * @param producerComponentId The component id of the producer.
-	 */
-	public StormTuple(final IN flinkTuple, final Fields schema, int taskId, String producerStreamId, String producerComponentId) {
+	public StormTuple(final IN flinkTuple, final Fields schema, final int producerTaskId, final String producerStreamId, final String producerComponentId, final MessageId messageId) {
 		if (flinkTuple instanceof org.apache.flink.api.java.tuple.Tuple) {
-			this.schema = schema;
 			final org.apache.flink.api.java.tuple.Tuple t = (org.apache.flink.api.java.tuple.Tuple) flinkTuple;
 
-			final int numberOfAttributes = t.getArity();
+			final int numberOfAttributes;
+			// does flinkTuple carry producerTaskId as last attribute?
+			if (producerTaskId < 0) {
+				numberOfAttributes = t.getArity();
+			} else {
+				numberOfAttributes = t.getArity() - 1;
+			}
 			this.stormTuple = new Values();
 			for (int i = 0; i < numberOfAttributes; ++i) {
 				this.stormTuple.add(t.getField(i));
 			}
 		} else {
-			this.schema = null;
 			this.stormTuple = new Values(flinkTuple);
 		}
 
-		this.taskId = Preconditions.checkNotNull(taskId);
-		this.producerStreamId = Preconditions.checkNotNull(producerStreamId);
-		this.producerComponentId = Preconditions.checkNotNull(producerComponentId);
-		this.id = Preconditions.checkNotNull(MessageId.makeUnanchored());
+		this.schema = schema;
+		this.producerTaskId = producerTaskId;
+		this.producerStreamId = producerStreamId;
+		this.producerComponentId = producerComponentId;
+		this.messageId = messageId;
 	}
 
 	@Override
@@ -289,54 +293,92 @@ public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	@Override
 	public GlobalStreamId getSourceGlobalStreamid() {
-		return new GlobalStreamId(getSourceComponent(), producerStreamId);
+		return new GlobalStreamId(this.producerComponentId, this.producerStreamId);
 	}
 
 	@Override
 	public String getSourceComponent() {
-		return producerComponentId;
+		return this.producerComponentId;
 	}
 
 	@Override
 	public int getSourceTask() {
-		return taskId;
+		return this.producerTaskId;
 	}
 
 	@Override
 	public String getSourceStreamId() {
-		return producerStreamId;
+		return this.producerStreamId;
 	}
 
 	@Override
 	public MessageId getMessageId() {
-		return id;
+		return this.messageId;
 	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = (prime * result) + ((this.stormTuple == null) ? 0 : this.stormTuple.hashCode());
+		result = prime * result + ((messageId == null) ? 0 : messageId.hashCode());
+		result = prime * result
+				+ ((producerComponentId == null) ? 0 : producerComponentId.hashCode());
+		result = prime * result + ((producerStreamId == null) ? 0 : producerStreamId.hashCode());
+		result = prime * result + producerTaskId;
+		result = prime * result + ((schema == null) ? 0 : schema.toList().hashCode());
+		result = prime * result + ((stormTuple == null) ? 0 : stormTuple.hashCode());
 		return result;
 	}
 
+	@SuppressWarnings("rawtypes")
 	@Override
-	public boolean equals(final Object obj) {
+	public boolean equals(Object obj) {
 		if (this == obj) {
 			return true;
 		}
 		if (obj == null) {
 			return false;
 		}
-		if (this.getClass() != obj.getClass()) {
+		if (getClass() != obj.getClass()) {
 			return false;
 		}
-		final StormTuple<?> other = (StormTuple<?>) obj;
-		if (this.stormTuple == null) {
+		StormTuple other = (StormTuple) obj;
+		if (messageId == null) {
+			if (other.messageId != null) {
+				return false;
+			}
+		} else if (!messageId.equals(other.messageId)) {
+			return false;
+		}
+		if (producerComponentId == null) {
+			if (other.producerComponentId != null) {
+				return false;
+			}
+		} else if (!producerComponentId.equals(other.producerComponentId)) {
+			return false;
+		}
+		if (producerStreamId == null) {
+			if (other.producerStreamId != null) {
+				return false;
+			}
+		} else if (!producerStreamId.equals(other.producerStreamId)) {
+			return false;
+		}
+		if (producerTaskId != other.producerTaskId) {
+			return false;
+		}
+		if (schema == null) {
+			if (other.schema != null) {
+				return false;
+			}
+		} else if (!schema.toList().equals(other.schema.toList())) {
+			return false;
+		}
+		if (stormTuple == null) {
 			if (other.stormTuple != null) {
 				return false;
 			}
-		} else if (!this.stormTuple.equals(other.stormTuple)) {
+		} else if (!stormTuple.equals(other.stormTuple)) {
 			return false;
 		}
 		return true;
@@ -344,6 +386,7 @@ public class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	@Override
 	public String toString() {
-		return "StormTuple{ "+ stormTuple.toString() +" }";
+		return "StormTuple{ " + stormTuple.toString() + "[" + this.producerComponentId + ","
+				+ this.producerStreamId + "," + this.producerTaskId + "," + this.messageId + "]}";
 	}
 }

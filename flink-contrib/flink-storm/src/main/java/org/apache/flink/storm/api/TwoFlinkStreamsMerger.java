@@ -18,6 +18,7 @@ import org.apache.flink.util.Collector;
 
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.MessageId;
 
 /**
  * Merges two Flink {@link DataStreams} into a stream of type {@link StormTuple}.
@@ -46,12 +47,12 @@ final class TwoFlinkStreamsMerger<IN1, IN2> implements CoFlatMapFunction<IN1, IN
 	@Override
 	public void flatMap1(IN1 value, Collector<StormTuple> out) throws Exception {
 		out.collect(new StormTuple<IN1>(value, this.inputSchema1, 0,
-				this.inputStreamId1, this.inputComponentId1));
+				this.inputStreamId1, this.inputComponentId1, MessageId.makeUnanchored()));
 	}
 
 	@Override
 	public void flatMap2(IN2 value, Collector<StormTuple> out) throws Exception {
 		out.collect(new StormTuple<IN2>(value, this.inputSchema2, 0,
-				this.inputStreamId2, this.inputComponentId2));
+				this.inputStreamId2, this.inputComponentId2, MessageId.makeUnanchored()));
 	}
 }
