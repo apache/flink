@@ -38,7 +38,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class UnionITCase extends MultipleProgramsTestBase {
 
-
 	public UnionITCase(TestExecutionMode mode) {
 		super(mode);
 	}

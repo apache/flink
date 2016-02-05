@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.test.TableProgramsTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
@@ -34,17 +35,16 @@ import scala.NotImplementedError;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class FilterITCase extends MultipleProgramsTestBase {
+public class FilterITCase extends TableProgramsTestBase {
 
-
-	public FilterITCase(TestExecutionMode mode){
-		super(mode);
+	public FilterITCase(TestExecutionMode mode, TableConfigMode configMode){
+		super(mode, configMode);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testAllRejectingFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -63,7 +63,7 @@ public class FilterITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testAllPassingFilter() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -85,10 +85,10 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testFilterOnIntegerTupleField() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -106,10 +106,10 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testNotEquals() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
@@ -127,10 +127,10 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testIntegerBiggerThan128() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<>(300, 1L, "Hello"));
 

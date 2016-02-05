@@ -15,22 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table.typeinfo
-
-import org.apache.flink.api.common.operators.Operator
-import org.apache.flink.api.java.operators.SingleInputOperator
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
+package org.apache.flink.api.table
 
 /**
- * This is a logical operator that can hold a [[RenamingProxyTypeInfo]] for renaming some
- * fields of a [[org.apache.flink.api.common.typeutils.CompositeType]]. At runtime this
- * disappears since the translation methods simply returns the input.
+ * General Exception for all errors during table handling.
  */
-class RenameOperator[T](
-    input: JavaDataSet[T],
-    renamingTypeInformation: RenamingProxyTypeInfo[T])
-  extends SingleInputOperator[T, T, RenameOperator[T]](input, renamingTypeInformation) {
-
-  override protected def translateToDataFlow(
-      input: Operator[T]): Operator[T] = input
-}
+class TableException(msg: String) extends RuntimeException(msg)

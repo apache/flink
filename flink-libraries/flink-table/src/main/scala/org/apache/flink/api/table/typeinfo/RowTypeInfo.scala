@@ -20,31 +20,28 @@ package org.apache.flink.api.table.typeinfo
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType.TypeComparatorBuilder
-import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
+import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.table.Row
-import org.apache.flink.api.table.expressions.Expression
 
 import scala.collection.mutable.ArrayBuffer
+import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.table.Row
 
 /**
  * TypeInformation for [[Row]].
  */
-class RowTypeInfo(
-    fieldTypes: Seq[TypeInformation[_]],
-    fieldNames: Seq[String])
-  extends CaseClassTypeInfo[Row](classOf[Row], Array(), fieldTypes, fieldNames) {
+class RowTypeInfo(fieldTypes: Seq[TypeInformation[_]])
+  extends CaseClassTypeInfo[Row](
+    classOf[Row],
+    Array(),
+    fieldTypes,
+    for (i <- fieldTypes.indices) yield "f" + i)
+{
 
   /**
    * Temporary variable for directly passing orders to comparators.
    */
   var comparatorOrders: Option[Array[Boolean]] = None
-
-  def this(fields: Seq[Expression]) = this(fields.map(_.typeInfo), fields.map(_.name))
-
-  if (fieldNames.toSet.size != fieldNames.size) {
-    throw new IllegalArgumentException("Field names must be unique.")
-  }
 
   override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[Row] = {
     val fieldSerializers: Array[TypeSerializer[Any]] = new Array[TypeSerializer[Any]](getArity)

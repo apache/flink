@@ -36,7 +36,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
-
 	public GroupedAggregationsITCase(TestExecutionMode mode){
 		super(mode);
 	}

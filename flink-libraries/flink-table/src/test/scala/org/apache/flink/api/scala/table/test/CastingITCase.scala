@@ -19,19 +19,17 @@
 package org.apache.flink.api.scala.table.test
 
 import java.util.Date
-
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.table.Row
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-
 import scala.collection.JavaConverters._
+import org.apache.flink.api.table.codegen.CodeGenException
 
 @RunWith(classOf[Parameterized])
 class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -49,6 +47,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Ignore // gives different types of exceptions for cluster and collection modes
   @Test(expected = classOf[NotImplementedError])
   def testNumericAutoCastInArithmetic(): Unit = {
 
@@ -63,7 +62,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test
   def testNumericAutoCastInComparison(): Unit = {
 
     // don't test everything, just some common cast directions
@@ -79,7 +78,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test(expected = classOf[CodeGenException])
   def testCastFromString: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -106,7 +105,7 @@ class CastingITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test(expected = classOf[CodeGenException])
   def testCastDateToStringAndLong {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromElements(("2011-05-03 15:51:36.000", "1304437896000"))

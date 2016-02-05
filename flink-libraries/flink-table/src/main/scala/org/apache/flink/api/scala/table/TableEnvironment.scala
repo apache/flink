@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java.table
+package org.apache.flink.api.scala.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.scala.DataSet
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.table.{TableConfig, Table}
 
 /**
@@ -38,20 +38,18 @@ class TableEnvironment {
   def getConfig = config
 
   /**
-   * Transforms the given DataSet to a [[org.apache.flink.api.table.Table]].
-   * The fields of the DataSet type are renamed to the given set of fields:
-   *
-   * Example:
+   * Converts the [[DataSet]] to a [[Table]]. The field names can be specified like this:
    *
    * {{{
-   *   tableEnv.fromDataSet(set, "a, b")
+   *   val in: DataSet[(String, Int)] = ...
+   *   val table = in.as('a, 'b)
    * }}}
    *
-   * This will transform the set containing elements of two fields to a table where the fields
-   * are named a and b.
+   * This results in a [[Table]] that has field `a` of type `String` and field `b`
+   * of type `Int`.
    */
-  def fromDataSet[T](set: DataSet[T], fields: String): Table = {
-    new JavaBatchTranslator(config).createTable(set, fields)
+  def fromDataSet[T](set: DataSet[T], fields: Expression*): Table = {
+    new ScalaBatchTranslator(config).createTable(set, fields.toArray)
   }
 
   /**
@@ -60,7 +58,7 @@ class TableEnvironment {
    * [[org.apache.flink.api.table.Table]] fields.
    */
   def fromDataSet[T](set: DataSet[T]): Table = {
-    new JavaBatchTranslator(config).createTable(set)
+    new ScalaBatchTranslator(config).createTable(set)
   }
 
   /**
@@ -69,10 +67,8 @@ class TableEnvironment {
    * [[org.apache.flink.api.table.Table]]. That is, the names of the
    * fields and the types must match.
    */
-  @SuppressWarnings(Array("unchecked"))
-  def toDataSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
-    new JavaBatchTranslator(config).translate[T](table.relNode)(
-      TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
+  def toDataSet[T: TypeInformation](table: Table): DataSet[T] = {
+     new ScalaBatchTranslator(config).translate[T](table.relNode)
   }
 
 }

@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.nodes.dataset
+package org.apache.flink.api.table.runtime
 
-import org.apache.calcite.rel.RelNode
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.common.functions.Function
+import org.codehaus.commons.compiler.CompileException
+import org.codehaus.janino.SimpleCompiler
 
-trait DataSetRel extends RelNode {
+trait FunctionCompiler[T <: Function] {
 
-  /**
-    * Translate the FlinkRelNode into Flink operator.
-    */
-  def translateToPlan(
-      config: TableConfig,
-      expectedType: Option[TypeInformation[Any]] = None)
-    : DataSet[Any]
-
+  @throws(classOf[CompileException])
+  def compile(cl: ClassLoader, name: String, code: String): Class[T] = {
+    require(cl != null, "Classloader must not be null.")
+    val compiler = new SimpleCompiler()
+    compiler.setParentClassLoader(cl)
+    compiler.cook(code)
+    compiler.getClassLoader.loadClass(name).asInstanceOf[Class[T]]
+  }
 }
-

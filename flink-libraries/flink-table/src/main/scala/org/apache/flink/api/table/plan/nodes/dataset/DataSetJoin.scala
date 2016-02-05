@@ -23,9 +23,10 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
 import org.apache.flink.api.common.functions.JoinFunction
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableConfig, Row}
 
 /**
   * Flink RelNode which matches along with JoinOperator and its related operations.
@@ -67,7 +68,9 @@ class DataSetJoin(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Any] = {
+  override def translateToPlan(
+      config: TableConfig,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
     ???
   }
 }
