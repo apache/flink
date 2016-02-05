@@ -38,7 +38,8 @@ class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T])
    */
   override def sortPartition(field: Int, order: Order): DataSet[T] = {
     if (set.useKeySelector()) {
-      throw new InvalidProgramException("Expression keys cannot be appended after selector function keys")
+      throw new InvalidProgramException("Expression keys cannot be appended after selector " +
+        "function keys")
     }
 
     this.set.sortPartition(field, order)
@@ -50,7 +51,8 @@ class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T])
    */
   override def sortPartition(field: String, order: Order): DataSet[T] = {
     if (set.useKeySelector()) {
-      throw new InvalidProgramException("Expression keys cannot be appended after selector function keys")
+      throw new InvalidProgramException("Expression keys cannot be appended after selector " +
+        "function keys")
     }
 
     this.set.sortPartition(field, order)
