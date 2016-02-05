@@ -22,11 +22,16 @@ import java.lang.reflect.Array;
 
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.ObjectArrayComparator;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
-public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
+public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> implements AtomicType<T> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -72,15 +77,59 @@ public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	@Override
 	public boolean isKeyType() {
-		return false;
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return (TypeSerializer<T>) new GenericArraySerializer<C>(
-			componentInfo.getTypeClass(),
-			componentInfo.createSerializer(executionConfig));
+				componentInfo.getTypeClass(),
+				componentInfo.createSerializer(executionConfig));
+	}
+
+	@SuppressWarnings("unchecked")
+	private TypeComparator<? super Object> getBaseComparatorInfo(TypeInformation<? extends Object> componentInfo, boolean sortOrderAscending, ExecutionConfig executionConfig) {
+		/**
+		 * method tries to find out the Comparator to be used to compare each element (of primitive type or composite type) of the provided Object arrays.
+		 */
+		if (componentInfo instanceof ObjectArrayTypeInfo) {
+			return getBaseComparatorInfo(((ObjectArrayTypeInfo) componentInfo).getComponentInfo(), sortOrderAscending, executionConfig);
+		}
+		else if (componentInfo instanceof PrimitiveArrayTypeInfo) {
+			return getBaseComparatorInfo(((PrimitiveArrayTypeInfo<? extends Object>) componentInfo).getComponentType(), sortOrderAscending, executionConfig);
+		}
+		else {
+			if (componentInfo instanceof AtomicType) {
+				return ((AtomicType<? super Object>) componentInfo).createComparator(sortOrderAscending, executionConfig);
+			}
+			else if (componentInfo instanceof CompositeType) {
+				int componentArity = ((CompositeType<? extends Object>) componentInfo).getArity();
+				int [] logicalKeyFields = new int[componentArity];
+				boolean[] orders = new boolean[componentArity];
+
+				for (int i=0;i < componentArity;i++) {
+					logicalKeyFields[i] = i;
+					orders[i] = sortOrderAscending;
+				}
+
+				return ((CompositeType<? super Object>) componentInfo).createComparator(logicalKeyFields, orders, 0, executionConfig);
+			}
+			else {
+				throw new IllegalArgumentException("Could not add a comparator for the component type " + componentInfo.getClass().getName());
+			}
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
+
+		return (TypeComparator<T>) new ObjectArrayComparator<T,C>(
+			sortOrderAscending,
+			(GenericArraySerializer<T>) createSerializer(executionConfig),
+			getBaseComparatorInfo(componentInfo, sortOrderAscending, executionConfig)
+		);
 	}
 
 	@Override

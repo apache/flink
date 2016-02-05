@@ -311,7 +311,7 @@ public class DataSinkTest {
 			.sortLocalOutput("*", Order.ASCENDING);
 	}
 
-	@Test(expected = InvalidProgramException.class)
+	@Test
 	public void testArrayOrderFull() {
 
 		List<Object[]> arrayData = new ArrayList<>();
@@ -321,10 +321,13 @@ public class DataSinkTest {
 				.getExecutionEnvironment();
 		DataSet<Object[]> pojoDs = env
 				.fromCollection(arrayData);
-
-		// must not work
-		pojoDs.writeAsText("/tmp/willNotHappen")
-			.sortLocalOutput("*", Order.ASCENDING);
+		// should work
+		try {
+			pojoDs.writeAsText("/tmp/willNotHappen")
+				.sortLocalOutput("*", Order.ASCENDING);
+		} catch (Exception e) {
+			Assert.fail();
+		}
 	}
 
 	/**
