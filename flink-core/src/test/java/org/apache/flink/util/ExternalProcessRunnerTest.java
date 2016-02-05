@@ -20,6 +20,7 @@ package org.apache.flink.util;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class ExternalProcessRunnerTest {
@@ -71,8 +72,7 @@ public class ExternalProcessRunnerTest {
 
 		assertEquals(1, result);
 		// this needs to be adapted if the test changes because it contains the line number
-		assertEquals(runner.getErrorOutput().toString(), "Exception in thread \"main\" java.lang.RuntimeException: HEHE, I'm failing.\n" +
-			"\tat org.apache.flink.util.ExternalProcessRunnerTest$Failing.main(ExternalProcessRunnerTest.java:94)\n");
+		assertTrue(runner.getErrorOutput().toString().startsWith("Exception in thread \"main\""));
 	}
 
 
