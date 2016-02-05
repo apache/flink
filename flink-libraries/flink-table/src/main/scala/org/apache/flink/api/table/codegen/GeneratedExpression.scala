@@ -16,22 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.table.plan.nodes.dataset
+package org.apache.flink.api.table.codegen
 
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.TableConfig
 
-trait DataSetRel extends RelNode {
-
-  /**
-    * Translate the FlinkRelNode into Flink operator.
-    */
-  def translateToPlan(
-      config: TableConfig,
-      expectedType: Option[TypeInformation[Any]] = None)
-    : DataSet[Any]
-
-}
-
+case class GeneratedExpression(
+    resultTerm: String,
+    nullTerm: String,
+    code: String,
+    resultType: TypeInformation[_])

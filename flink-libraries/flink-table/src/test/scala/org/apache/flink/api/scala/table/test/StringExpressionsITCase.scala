@@ -26,13 +26,13 @@ import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import scala.collection.JavaConverters._
+import org.apache.flink.api.table.codegen.CodeGenException
 
 @RunWith(classOf[Parameterized])
 class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test(expected = classOf[CodeGenException])
   def testSubstring(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
@@ -43,7 +43,7 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[NotImplementedError])
+  @Test(expected = classOf[CodeGenException])
   def testSubstringWithMaxEnd(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val t = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)

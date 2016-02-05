@@ -21,8 +21,9 @@ package org.apache.flink.api.table.plan.nodes.dataset
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelWriter, BiRel, RelNode}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.{TableConfig, Row}
 
 /**
 * Flink RelNode which matches along with UnionOperator.
@@ -55,7 +56,9 @@ class DataSetUnion(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Any] = {
+  override def translateToPlan(
+      config: TableConfig,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
     ???
   }
 

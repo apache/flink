@@ -22,7 +22,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.java.table.JavaBatchTranslator
 import org.apache.flink.api.scala.wrap
 import org.apache.flink.api.table.plan._
-import org.apache.flink.api.table.Table
+import org.apache.flink.api.table.{TableConfig, Table}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 
@@ -32,9 +32,9 @@ import scala.reflect.ClassTag
  * [[PlanTranslator]] for creating [[Table]]s from Scala [[DataSet]]s and
  * translating them back to Scala [[DataSet]]s.
  */
-class ScalaBatchTranslator extends PlanTranslator {
+class ScalaBatchTranslator(config: TableConfig = TableConfig.DEFAULT) extends PlanTranslator {
 
-  private val javaTranslator = new JavaBatchTranslator
+  private val javaTranslator = new JavaBatchTranslator(config)
 
   type Representation[A] = DataSet[A]
 

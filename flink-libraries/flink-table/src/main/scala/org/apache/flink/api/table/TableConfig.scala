@@ -35,9 +35,15 @@ class TableConfig extends Serializable {
   private var nullCheck: Boolean = false
 
   /**
+    * Defines if efficient types (such as Tuple types or Atomic types)
+    * should be used within operators where possible.
+    */
+  private var efficientTypeUsage = false
+
+  /**
    * Sets the timezone for date/time/timestamp conversions.
    */
-  def setTimeZone(timeZone: TimeZone) = {
+  def setTimeZone(timeZone: TimeZone): Unit = {
     require(timeZone != null, "timeZone must not be null.")
     this.timeZone = timeZone
   }
@@ -55,12 +61,30 @@ class TableConfig extends Serializable {
   /**
    * Sets the NULL check. If enabled, all fields need to be checked for NULL first.
    */
-  def setNullCheck(nullCheck: Boolean) = {
+  def setNullCheck(nullCheck: Boolean): Unit = {
     this.nullCheck = nullCheck
+  }
+
+  /**
+    * Returns the usage of efficient types. If enabled, efficient types (such as Tuple types
+    * or Atomic types) are used within operators where possible.
+    *
+    * NOTE: Currently, this is an experimental feature.
+    */
+  def getEfficientTypeUsage = efficientTypeUsage
+
+  /**
+    * Sets the usage of efficient types. If enabled, efficient types (such as Tuple types
+    * or Atomic types) are used within operators where possible.
+    *
+    * NOTE: Currently, this is an experimental feature.
+    */
+  def setEfficientTypeUsage(efficientTypeUsage: Boolean): Unit = {
+    this.efficientTypeUsage = efficientTypeUsage
   }
 
 }
 
 object TableConfig {
-  val DEFAULT = new TableConfig()
+  def DEFAULT = new TableConfig()
 }

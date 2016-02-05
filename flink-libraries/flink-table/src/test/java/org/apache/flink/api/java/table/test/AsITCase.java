@@ -20,6 +20,7 @@ package org.apache.flink.api.java.table.test;
 
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
+import org.apache.flink.api.table.codegen.CodeGenException;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.table.TableEnvironment;
@@ -34,7 +35,6 @@ import java.util.List;
 
 @RunWith(Parameterized.class)
 public class AsITCase extends MultipleProgramsTestBase {
-
 
 	public AsITCase(TestExecutionMode mode){
 		super(mode);
@@ -60,7 +60,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test
+	@Test(expected = CodeGenException.class)
 	public void testAsFromPojo() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();

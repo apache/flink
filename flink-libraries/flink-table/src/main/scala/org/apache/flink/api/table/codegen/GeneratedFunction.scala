@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
 
-/**
- * The functions in this package are used transforming Table API operations to Java API operations.
- */
-package object runtime
+package org.apache.flink.api.table.codegen
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+
+case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)

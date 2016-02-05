@@ -18,12 +18,15 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.expressions.Literal
+import org.apache.flink.api.table.test.TableProgramsTestBase
+import org.apache.flink.api.table.test.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -32,7 +35,10 @@ import scala.collection.JavaConverters._
 
 
 @RunWith(classOf[Parameterized])
-class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class FilterITCase(
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+  extends TableProgramsTestBase(mode, configMode) {
 
   @Test
   def testAllRejectingFilter(): Unit = {
@@ -44,9 +50,9 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val filterDs = ds.filter( Literal(false) )
 
-//    val expected = "\n"
-//    val results = filterDs.collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "\n"
+    val results = filterDs.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -57,17 +63,19 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
 
-//    val filterDs = ds.filter( Literal(true) )
-//    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
-//      "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
-//      "Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +
-//      "Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
-//      "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
-//      "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
-//    val results = filterDs.collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val filterDs = ds.filter( Literal(true) )
+    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
+      "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
+      "Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +
+      "Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
+      "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
+      "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val results = filterDs.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  // TODO test broken does not test Table API
+  @Ignore
   @Test
   def testFilterOnStringTupleField(): Unit = {
     /*
@@ -78,7 +86,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val filterDs = ds.filter( _._3.contains("world") )
 
 //    val expected = "(3,2,Hello world)\n" + "(4,3,Hello world, how are you?)\n"
-//    val results = filterDs.collect()
+//    val results = filterDs.toDataSet[Row](getConfig).collect()
 //    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -92,12 +100,12 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val filterDs = ds.filter( 'a % 2 === 0 )
 
-//    val expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" +
-//      "6,3,Luke Skywalker\n" + "8,4," + "Comment#2\n" + "10,4,Comment#4\n" +
-//      "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
-//      "Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n"
-//    val results = filterDs.collect()
-//    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" +
+      "6,3,Luke Skywalker\n" + "8,4," + "Comment#2\n" + "10,4,Comment#4\n" +
+      "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
+      "Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n"
+    val results = filterDs.toDataSet[Row](getConfig).collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -118,7 +126,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   }
 
   // These two not yet done, but are planned
-
+  // TODO test broken does not test Table API
   @Ignore
   @Test
   def testFilterBasicType(): Unit = {
@@ -132,10 +140,11 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val filterDs = ds.filter( _.startsWith("H") )
 
 //    val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n"
-//    val results = filterDs.collect()
+//    val results = filterDs.toDataSet[Row](getConfig).collect()
 //    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  // TODO test broken does not test Table API
   @Ignore
   @Test
   def testFilterOnCustomType(): Unit = {
@@ -147,7 +156,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
     val filterDs = ds.filter( _.myString.contains("a") )
 
 //    val expected = "3,3,Hello world, how are you?\n" + "3,4,I am fine.\n" + "3,5,Luke Skywalker\n"
-//    val results = filterDs.collect()
+//    val results = filterDs.toDataSet[Row](getConfig).collect()
 //    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

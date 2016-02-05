@@ -51,7 +51,7 @@ class RowSerializerTest {
   @Test
   def testRowSerializer(): Unit = {
     val rowInfo: TypeInformation[Row] = new RowTypeInfo(
-      Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), Seq("id", "name"))
+      Seq(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO))
 
     val row1 = new Row(2)
     row1.setField(0, 1)
@@ -85,20 +85,7 @@ class RowSerializerTest {
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO), Seq(
-      "id0",
-      "id1",
-      "id2",
-      "id3",
-      "id4",
-      "id5",
-      "id6",
-      "id7",
-      "id8",
-      "id9",
-      "id10",
-      "id11",
-      "name"))
+      BasicTypeInfo.STRING_TYPE_INFO))
 
     val row = new Row(13)
     row.setField(0, 2)
@@ -134,8 +121,7 @@ class RowSerializerTest {
           BasicTypeInfo.INT_TYPE_INFO,
           BasicTypeInfo.BOOLEAN_TYPE_INFO,
           BasicTypeInfo.SHORT_TYPE_INFO),
-        TypeExtractor.createTypeInfo(classOf[MyPojo])),
-      Array("f0", "f1", "f2", "f3", "f4"))
+        TypeExtractor.createTypeInfo(classOf[MyPojo])))
 
     val testPojo1 = new MyPojo()
     testPojo1.name = null

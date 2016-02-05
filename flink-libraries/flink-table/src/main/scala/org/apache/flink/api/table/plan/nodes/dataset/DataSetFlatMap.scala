@@ -18,12 +18,14 @@
 
 package org.apache.flink.api.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCost, RelOptPlanner, RelTraitSet, RelOptCluster}
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.{RelWriter, RelNode, SingleRel}
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.plan.TypeConverter._
 
 /**
   * Flink RelNode which matches along with FlatMapOperator.
@@ -35,7 +37,7 @@ class DataSetFlatMap(
     input: RelNode,
     rowType: RelDataType,
     opName: String,
-    func: FlatMapFunction[Row, Row])
+    func: (TableConfig, TypeInformation[Any], TypeInformation[Any]) => FlatMapFunction[Any, Any])
   extends SingleRel(cluster, traitSet, input)
   with DataSetRel {
 
@@ -56,7 +58,17 @@ class DataSetFlatMap(
     super.explainTerms(pw).item("name", opName)
   }
 
-  override def translateToPlan: DataSet[Any] = {
-    ???
+  override def toString = opName
+
+  override def translateToPlan(config: TableConfig,
+      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+    val inputDataSet = input.asInstanceOf[DataSetRel].translateToPlan(config)
+    val returnType = determineReturnType(
+      getRowType,
+      expectedType,
+      config.getNullCheck,
+      config.getEfficientTypeUsage)
+    val flatMapFunc = func.apply(config, inputDataSet.getType, returnType)
+    inputDataSet.flatMap(flatMapFunc)
   }
 }

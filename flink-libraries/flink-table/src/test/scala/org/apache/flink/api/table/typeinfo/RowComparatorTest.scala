@@ -38,8 +38,7 @@ class RowComparatorTest extends ComparatorTestBase[Row] {
         BasicTypeInfo.INT_TYPE_INFO,
         BasicTypeInfo.BOOLEAN_TYPE_INFO,
         BasicTypeInfo.SHORT_TYPE_INFO),
-      TypeExtractor.createTypeInfo(classOf[MyPojo])),
-    Array("f0", "f1", "f2", "f3", "f4"))
+      TypeExtractor.createTypeInfo(classOf[MyPojo])))
 
   val testPojo1 = new MyPojo()
   // TODO we cannot test null here as PojoComparator has no support for null keys

@@ -21,8 +21,15 @@ package org.apache.flink.api.table.plan.rules.dataset
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetMap}
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkProject, FlinkConvention}
+import org.apache.flink.api.table.plan.nodes.logical.{FlinkConvention, FlinkProject}
+import org.apache.flink.api.table.runtime.MapRunner
+
+import scala.collection.JavaConversions._
 
 class DataSetProjectRule
   extends ConverterRule(
@@ -37,13 +44,40 @@ class DataSetProjectRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
     val convInput: RelNode = RelOptRule.convert(proj.getInput, DataSetConvention.INSTANCE)
 
+    val func = (
+        config: TableConfig,
+        inputType: TypeInformation[Any],
+        returnType: TypeInformation[Any]) => {
+      val generator = new CodeGenerator(config, inputType)
+
+      // projection and implicit type conversion
+      val projection = generator.generateResultExpression(returnType, proj.getProjects)
+
+      val body =
+        s"""
+          |${projection.code}
+          |return ${projection.resultTerm};
+          |""".stripMargin
+
+      val genFunction = generator.generateFunction(
+        description,
+        classOf[MapFunction[Any, Any]],
+        body,
+        returnType)
+
+      new MapRunner[Any, Any](
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType)
+    }
+
     new DataSetMap(
       rel.getCluster,
       traitSet,
       convInput,
       rel.getRowType,
       proj.toString,
-      null)
+      func)
   }
 }
 

@@ -21,8 +21,13 @@ package org.apache.flink.api.table.plan.rules.dataset
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.table.TableConfig
+import org.apache.flink.api.table.codegen.CodeGenerator
 import org.apache.flink.api.table.plan.nodes.dataset.{DataSetConvention, DataSetFlatMap}
-import org.apache.flink.api.table.plan.nodes.logical.{FlinkFilter, FlinkConvention}
+import org.apache.flink.api.table.plan.nodes.logical.{FlinkConvention, FlinkFilter}
+import org.apache.flink.api.table.runtime.FlatMapRunner
 
 class DataSetFilterRule
   extends ConverterRule(
@@ -37,13 +42,54 @@ class DataSetFilterRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
     val convInput: RelNode = RelOptRule.convert(filter.getInput, DataSetConvention.INSTANCE)
 
+    val func = (
+        config: TableConfig,
+        inputType: TypeInformation[Any],
+        returnType: TypeInformation[Any]) => {
+      val generator = new CodeGenerator(config, inputType)
+
+      val condition = generator.generateExpression(filter.getCondition)
+
+      // conversion
+      val body = if (inputType != returnType) {
+        val conversion = generator.generateConverterResultExpression(returnType)
+        s"""
+          |${condition.code}
+          |if (${condition.resultTerm}) {
+          |  ${conversion.code}
+          |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+          |}
+          |""".stripMargin
+      }
+      // no conversion
+      else {
+        s"""
+          |${condition.code}
+          |if (${condition.resultTerm}) {
+          |  ${generator.collectorTerm}.collect(${generator.input1Term});
+          |}
+          |""".stripMargin
+      }
+
+      val genFunction = generator.generateFunction(
+        description,
+        classOf[FlatMapFunction[Any, Any]],
+        body,
+        returnType)
+
+      new FlatMapRunner[Any, Any](
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType)
+    }
+
     new DataSetFlatMap(
       rel.getCluster,
       traitSet,
       convInput,
       rel.getRowType,
       filter.toString,
-      null)
+      func)
   }
 }
 
