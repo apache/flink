@@ -136,7 +136,7 @@ public class SimpleCheckpointStatsTracker implements CheckpointStatsTracker {
 		}
 
 		synchronized (statsLock) {
-			int overallStateSize = 0;
+			long overallStateSize = 0;
 
 			// Operator stats
 			Map<JobVertexID, long[][]> statsForSubTasks = new HashMap<>();
