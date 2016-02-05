@@ -1508,6 +1508,27 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
   }
 
+  /**
+    * Locally sorts the partitions of the DataSet on the specified field in the specified order.
+    * The DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+    */
+  def sortPartition[K: TypeInformation](fun: T => K, order: Order): DataSet[T] ={
+    val keyExtractor = new KeySelector[T, K] {
+      val cleanFun = clean(fun)
+      def getKey(in: T) = cleanFun(in)
+    }
+
+    val keyType = implicitly[TypeInformation[K]]
+    new PartitionSortedDataSet[T](
+      new SortPartitionOperator[T](javaSet,
+        new Keys.SelectorFunctionKeys[T, K](
+          keyExtractor,
+          javaSet.getType,
+          keyType),
+        order,
+        getCallLocationName()))
+  }
+
   // --------------------------------------------------------------------------------------------
   //  Result writing
   // --------------------------------------------------------------------------------------------

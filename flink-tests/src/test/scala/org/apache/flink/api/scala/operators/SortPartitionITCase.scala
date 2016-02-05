@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.flink.api.common.functions.MapPartitionFunction
 import org.apache.flink.api.common.operators.Order
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -158,6 +159,58 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
 
     val result = ds
       .sortPartition(1, Order.DESCENDING).setParallelism(3)
+      .mapPartition(new OrderCheckMapper(new Tuple3Checker))
+      .distinct()
+      .collect()
+
+    val expected: String = "(true)\n"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testSortPartitionWithKeySelector1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(4)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val result = ds
+      .map { x => x }.setParallelism(4)
+      .sortPartition(_._2, Order.DESCENDING)
+      .mapPartition(new OrderCheckMapper(new Tuple3Checker))
+      .distinct()
+      .collect()
+
+    val expected: String = "(true)\n"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testSortPartitionWithKeySelector2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(4)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val result = ds
+      .map { x => x }.setParallelism(4)
+      .sortPartition(x => (x._2, x._1), Order.DESCENDING)
+      .mapPartition(new OrderCheckMapper(new Tuple3Checker))
+      .distinct()
+      .collect()
+
+    val expected: String = "(true)\n"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test(expected = classOf[InvalidProgramException])
+  def testSortPartitionWithKeySelector3(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(4)
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val result = ds
+      .map { x => x }.setParallelism(4)
+      .sortPartition(x => (x._2, x._1), Order.DESCENDING)
+      .sortPartition(0, Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple3Checker))
       .distinct()
       .collect()
