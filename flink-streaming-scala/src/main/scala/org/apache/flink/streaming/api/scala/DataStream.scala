@@ -360,7 +360,6 @@ class DataStream[T](stream: JavaStream[T]) {
    * are forwarded to the local subtask of the next component (whenever
    * possible).
    */
-  @Experimental
   def forward: DataStream[T] = stream.forward()
 
   /**
