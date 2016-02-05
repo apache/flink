@@ -36,7 +36,7 @@ under the License.
     <packaging>jar</packaging>
 
     <properties>
-        <jedis.vaersion>2.8.0</jedis.vaersion>
+        <jedis.version>2.8.0</jedis.version>
     </properties>
 
     <dependencies>
@@ -49,7 +49,13 @@ under the License.
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>${jedis.vaersion}</version>
+            <version>${jedis.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
         </dependency>
 
         <dependency>
