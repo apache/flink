@@ -40,7 +40,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -282,7 +281,12 @@ public class SimpleCheckpointStatsTrackerTest {
 		int maxNumOperators = 32;
 		int minParallelism = 4;
 		int maxParallelism = 16;
-		int maxStateSize = 32 * 1024;
+
+		// Use yuge numbers here in order to test that summing up state sizes
+		// does not overflow. This was a bug in the initial version, because
+		// the individual state sizes (longs) were summed up in an int.
+		long minStateSize = Integer.MAX_VALUE;
+		long maxStateSize = Long.MAX_VALUE;
 		CompletedCheckpoint[] checkpoints = new CompletedCheckpoint[numCheckpoints];
 
 		int numOperators = RAND.nextInt(maxNumOperators - minNumOperators + 1) + minNumOperators;
@@ -320,7 +324,7 @@ public class SimpleCheckpointStatsTrackerTest {
 
 					states.add(new StateForTask(
 							new SerializedValue<StateHandle<?>>(null),
-							RAND.nextInt(maxStateSize + 1),
+							minStateSize + ((long) (RAND.nextDouble() * (maxStateSize - minStateSize))),
 							operatorId,
 							subtaskIndex,
 							duration));
