@@ -18,13 +18,19 @@
 
 package org.apache.flink.api.table.plan
 
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, GenericTypeInfo}
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.table.typeinfo.RowTypeInfo
+import org.apache.flink.api.table.{Row, TableException}
+
+import scala.collection.JavaConversions._
 
 object TypeConverter {
 
@@ -51,7 +57,7 @@ object TypeConverter {
 //    case p: PojoTypeInfo[_] => STRUCTURED
 //    case g: GenericTypeInfo[_] => OTHER
     case _ => ??? // TODO more types
-    }
+  }
 
   def sqlTypeToTypeInfo(sqlType: SqlTypeName): TypeInformation[_] = sqlType match {
     case BOOLEAN => BOOLEAN_TYPE_INFO
@@ -63,7 +69,74 @@ object TypeConverter {
     case DOUBLE => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
     case DATE => DATE_TYPE_INFO
-    case _ => ??? // TODO more types
+    case _ =>
+      println(sqlType)
+      ??? // TODO more types
+  }
+
+  def determineReturnType(
+      logicalRowType: RelDataType,
+      expectedPhysicalType: Option[TypeInformation[Any]],
+      nullable: Boolean,
+      useEfficientTypes: Boolean)
+    : TypeInformation[Any] = {
+    // convert to type information
+    val logicalFieldTypes = logicalRowType.getFieldList map { relDataType =>
+      TypeConverter.sqlTypeToTypeInfo(relDataType.getType.getSqlTypeName)
     }
+
+    val returnType = expectedPhysicalType match {
+      // a certain physical type is expected (but not Row)
+      // check if expected physical type is compatible with logical field type
+      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
+        if (typeInfo.getArity != logicalFieldTypes.length) {
+          throw new TableException("Arity of result does not match expected type.")
+        }
+        typeInfo match {
+          case ct: CompositeType[_] =>
+            logicalFieldTypes.zipWithIndex foreach {
+              case (fieldTypeInfo, i) =>
+                val expectedTypeInfo = ct.getTypeAt(i)
+                if (fieldTypeInfo != expectedTypeInfo) {
+                  throw new TableException(s"Result field does not match expected type." +
+                    s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
+                }
+            }
+          case at: AtomicType[_] =>
+            val fieldTypeInfo = logicalFieldTypes.head
+            if (fieldTypeInfo != at) {
+              throw new TableException(s"Result field does not match expected type." +
+                s"Expected: $at; Actual: $fieldTypeInfo")
+            }
+
+          case _ =>
+            throw new TableException("Unsupported result type.")
+        }
+        typeInfo
+
+      // Row is expected, create the arity for it
+      case Some(typeInfo) if typeInfo.getTypeClass == classOf[Row] =>
+        new RowTypeInfo(logicalFieldTypes)
+
+      // no physical type
+      // determine type based on logical fields and configuration parameters
+      case None =>
+        // no need for efficient types -> use Row
+        // we cannot use efficient types if row arity > tuple arity or nullable
+        if (!useEfficientTypes || logicalFieldTypes.length > Tuple.MAX_ARITY || nullable) {
+          new RowTypeInfo(logicalFieldTypes)
+        }
+        // use efficient type tuple or atomic type
+        else {
+          if (logicalFieldTypes.length == 1) {
+            logicalFieldTypes.head
+          }
+          else {
+            new TupleTypeInfo[Any](logicalFieldTypes.toArray:_*)
+          }
+        }
+    }
+    returnType.asInstanceOf[TypeInformation[Any]]
+  }
 
 }
