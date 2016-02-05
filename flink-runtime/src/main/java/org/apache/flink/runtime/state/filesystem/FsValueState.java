@@ -94,6 +94,11 @@ public class FsValueState<K, N, V>
 			throw new RuntimeException("No key available.");
 		}
 
+		if (value == null) {
+			clear();
+			return;
+		}
+
 		if (currentNSState == null) {
 			currentNSState = new HashMap<>();
 			state.put(currentNamespace, currentNSState);
