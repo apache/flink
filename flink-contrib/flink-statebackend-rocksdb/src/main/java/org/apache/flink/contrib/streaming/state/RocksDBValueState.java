@@ -102,6 +102,10 @@ public class RocksDBValueState<K, N, V, Backend extends AbstractStateBackend>
 
 	@Override
 	public void update(V value) throws IOException {
+		if (value == null) {
+			clear();
+			return;
+		}
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 		try {
