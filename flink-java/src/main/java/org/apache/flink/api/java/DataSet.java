@@ -1378,8 +1378,8 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Locally sorts the partitions of the DataSet on the specified field in the specified order.
-	 * DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+	 * Locally sorts the partitions of the DataSet on the an extracted key in the specified order.
+	 * DataSet can be sorted on multiple values by returning a tuple.
 	 *
 	 * @param keyExtractor The KeySelector function which extracts the key values from the DataSet
 	 *                     on which the DataSet is sorted.

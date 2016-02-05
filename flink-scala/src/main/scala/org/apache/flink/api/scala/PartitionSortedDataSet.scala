@@ -17,9 +17,9 @@
  */
 package org.apache.flink.api.scala
 
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.SortPartitionOperator
 
 import scala.reflect.ClassTag
@@ -37,6 +37,10 @@ class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T])
    * Appends the given field and order to the sort-partition operator.
    */
   override def sortPartition(field: Int, order: Order): DataSet[T] = {
+    if (set.useKeySelector()) {
+      throw new InvalidProgramException("Expression keys cannot be appended after selector function keys")
+    }
+
     this.set.sortPartition(field, order)
     this
   }
@@ -45,21 +49,16 @@ class PartitionSortedDataSet[T: ClassTag](set: SortPartitionOperator[T])
    * Appends the given field and order to the sort-partition operator.
    */
   override def sortPartition(field: String, order: Order): DataSet[T] = {
+    if (set.useKeySelector()) {
+      throw new InvalidProgramException("Expression keys cannot be appended after selector function keys")
+    }
+
     this.set.sortPartition(field, order)
     this
   }
 
-  /**
-    * Appends the given field and order to the sort-partition operator.
-    */
   override def sortPartition[K: TypeInformation](fun: T => K, order: Order): DataSet[T] = {
-    val keyExtractor = new KeySelector[T, K] {
-      val cleanFun = clean(fun)
-      def getKey(in: T) = cleanFun(in)
-    }
-
-    this.set.sortPartition(keyExtractor, order)
-    this
+    throw new InvalidProgramException("KeySelector cannot be chained.")
   }
 
 }

@@ -201,6 +201,40 @@ public class SortPartitionTest {
 		}, Order.ASCENDING);
 	}
 
+	@Test(expected = InvalidProgramException.class)
+	public void testSortPartitionWithKeySelector3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// must not work
+		tupleDs
+			.sortPartition("f1", Order.ASCENDING)
+			.sortPartition(new KeySelector<Tuple4<Integer, Long, CustomType, Long[]>, CustomType>() {
+				@Override
+				public CustomType getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return value.f2;
+				}
+			}, Order.ASCENDING);
+	}
+
+	@Test
+	public void testSortPartitionWithKeySelector4() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple4<Integer, Long, CustomType, Long[]>> tupleDs = env.fromCollection(tupleWithCustomData, tupleWithCustomInfo);
+
+		// should work
+		try {
+			tupleDs.sortPartition(new KeySelector<Tuple4<Integer,Long,CustomType,Long[]>, Tuple2<Integer, Long>>() {
+				@Override
+				public Tuple2<Integer, Long> getKey(Tuple4<Integer, Long, CustomType, Long[]> value) throws Exception {
+					return new Tuple2<>(value.f0, value.f1);
+				}
+			}, Order.ASCENDING);
+		} catch (Exception e) {
+			Assert.fail();
+		}
+	}
+
 	public static class CustomType implements Serializable {
 		
 		public static class Nest {

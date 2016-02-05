@@ -28,7 +28,7 @@ import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.Arrays;
 
@@ -45,10 +45,16 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 
 	private final String sortLocationName;
 
+	// for key selector
+	private boolean useKeySelector;
+	private Order sortOrder;
+	private Keys<T> sortKey;
+
 
 	public SortPartitionOperator(DataSet<T> dataSet, int sortField, Order sortOrder, String sortLocationName) {
 		super(dataSet, dataSet.getType());
 		this.sortLocationName = sortLocationName;
+		this.useKeySelector = false;
 
 		int[] flatOrderKeys = getFlatFields(sortField);
 		this.appendSorting(flatOrderKeys, sortOrder);
@@ -57,17 +63,30 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 	public SortPartitionOperator(DataSet<T> dataSet, String sortField, Order sortOrder, String sortLocationName) {
 		super(dataSet, dataSet.getType());
 		this.sortLocationName = sortLocationName;
+		this.useKeySelector = false;
 
 		int[] flatOrderKeys = getFlatFields(sortField);
 		this.appendSorting(flatOrderKeys, sortOrder);
 	}
 
-	public <K> SortPartitionOperator(DataSet<T> dataSet, Keys.SelectorFunctionKeys<T, K> sortKey, Order sortOrder, String sortLocationName) {
+	public SortPartitionOperator(DataSet<T> dataSet, Keys<T> sortKey, Order sortOrder, String sortLocationName) {
 		super(dataSet, dataSet.getType());
 		this.sortLocationName = sortLocationName;
+		this.useKeySelector = true;
 
-		int[] flatOrderKeys = getFlatFields(sortKey);
-		this.appendSorting(flatOrderKeys, sortOrder);
+		if (sortKey instanceof Keys.SelectorFunctionKeys && !((Keys.SelectorFunctionKeys) sortKey).getKeyType().isSortKeyType()) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type");
+		}
+
+		this.sortKey = sortKey;
+		this.sortOrder = sortOrder;
+	}
+
+	/**
+	 * Returns whether using key selector or not.
+     */
+	public boolean useKeySelector() {
+		return useKeySelector;
 	}
 
 	/**
@@ -79,6 +98,9 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 	 * @return The DataSet with sorted local partitions.
 	 */
 	public SortPartitionOperator<T> sortPartition(int field, Order order) {
+		if (useKeySelector) {
+			throw new InvalidProgramException("Expression keys cannot be appended after selector function keys");
+		}
 
 		int[] flatOrderKeys = getFlatFields(field);
 		this.appendSorting(flatOrderKeys, order);
@@ -95,6 +117,10 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 	 * @return The DataSet with sorted local partitions.
 	 */
 	public SortPartitionOperator<T> sortPartition(String field, Order order) {
+		if (useKeySelector) {
+			throw new InvalidProgramException("Expression keys cannot be appended after selector function keys");
+		}
+
 		int[] flatOrderKeys = getFlatFields(field);
 		this.appendSorting(flatOrderKeys, order);
 		return this;
@@ -106,14 +132,11 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 	 *
 	 * @param keyExtractor The KeySelector function which extracts the key value of the additional
 	 *                     sort order of the local partition sorting.
-	 * @param order The order of the additional sort order of the local partition sorting.
+	 * @param order        The order of the additional sort order of the local partition sorting.
 	 * @return The DataSet with sorted local partitions.
 	 */
 	public <K> SortPartitionOperator<T> sortPartition(KeySelector<T, K> keyExtractor, Order order) {
-		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, getType());
-		int[] flatOrderKeys = getFlatFields(new Keys.SelectorFunctionKeys<>(clean(keyExtractor), getType(), keyType));
-		this.appendSorting(flatOrderKeys, order);
-		return this;
+		throw new InvalidProgramException("KeySelector cannot be chained.");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -138,14 +161,6 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 
 		Keys.ExpressionKeys<T> ek = new Keys.ExpressionKeys<>(fields, super.getType());
 		return ek.computeLogicalKeyPositions();
-	}
-
-	private <K> int[] getFlatFields(Keys.SelectorFunctionKeys<T, K> key) {
-		if (!key.getKeyType().isSortKeyType()) {
-			throw new InvalidProgramException("Selected sort key is not a sortable type");
-		}
-
-		return key.computeLogicalKeyPositions();
 	}
 
 	private void appendSorting(int[] flatOrderFields, Order order) {
@@ -177,6 +192,10 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 
 		String name = "Sort at " + sortLocationName;
 
+		if (useKeySelector) {
+			return translateToDataFlowWithKeyExtractor(input, (Keys.SelectorFunctionKeys<T, ?>) sortKey, name);
+		}
+
 		Ordering partitionOrdering = new Ordering();
 		for (int i = 0; i < this.sortKeyPositions.length; i++) {
 			partitionOrdering.appendOrdering(this.sortKeyPositions[i], null, this.sortOrders[i]);
@@ -196,6 +215,33 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 
 		return noop;
 
+	}
+
+	private <K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateToDataFlowWithKeyExtractor(
+		Operator<T> input, Keys.SelectorFunctionKeys<T, K> keys, String name) {
+		TypeInformation<Tuple2<K, T>> typeInfoWithKey = KeyFunctions.createTypeWithKey(keys);
+		Keys.ExpressionKeys<Tuple2<K, T>> newKey = new Keys.ExpressionKeys<>(0, typeInfoWithKey);
+		Operator<Tuple2<K, T>> keyedInput = KeyFunctions.appendKeyExtractor(input, keys);
+		appendSorting(newKey.computeLogicalKeyPositions(), sortOrder);
+
+		Ordering partitionOrdering = new Ordering();
+		for (int i = 0; i < this.sortKeyPositions.length; i++) {
+			partitionOrdering.appendOrdering(this.sortKeyPositions[i], null, this.sortOrders[i]);
+		}
+
+		// distinguish between partition types
+		UnaryOperatorInformation<Tuple2<K, T>, Tuple2<K, T>> operatorInfo = new UnaryOperatorInformation<>(typeInfoWithKey, typeInfoWithKey);
+		SortPartitionOperatorBase<Tuple2<K, T>> noop = new SortPartitionOperatorBase<>(operatorInfo, partitionOrdering, name);
+		noop.setInput(keyedInput);
+		if (this.getParallelism() < 0) {
+			// use parallelism of input if not explicitly specified
+			noop.setParallelism(input.getParallelism());
+		} else {
+			// use explicitly specified parallelism
+			noop.setParallelism(this.getParallelism());
+		}
+
+		return KeyFunctions.appendKeyRemover(noop, keys);
 	}
 
 }

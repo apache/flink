@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -191,6 +192,58 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 				.sortPartition(1, Order.DESCENDING).setParallelism(3) // change parallelism
 				.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
 				.distinct().collect();
+
+		String expected = "(true)\n";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testSortPartitionWithKeySelector1() throws Exception {
+		/*
+		 * Test sort partition on an extracted key
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		List<Tuple1<Boolean>> result = ds
+			.map(new IdMapper<Tuple3<Integer, Long, String>>()).setParallelism(4) // parallelize input
+			.sortPartition(new KeySelector<Tuple3<Integer, Long, String>, Integer>() {
+				@Override
+				public Integer getKey(Tuple3<Integer, Long, String> value) throws Exception {
+					return value.f0;
+				}
+			}, Order.DESCENDING)
+			.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+			.distinct().collect();
+
+		String expected = "(true)\n";
+
+		compareResultAsText(result, expected);
+	}
+
+	@Test
+	public void testSortPartitionWithKeySelector2() throws Exception {
+		/*
+		 * Test sort partition on an extracted key
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		List<Tuple1<Boolean>> result = ds
+			.map(new IdMapper<Tuple3<Integer, Long, String>>()).setParallelism(4) // parallelize input
+			.sortPartition(new KeySelector<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>>() {
+				@Override
+				public Tuple2<Integer, Long> getKey(Tuple3<Integer, Long, String> value) throws Exception {
+					return new Tuple2<>(value.f0, value.f1);
+				}
+			}, Order.DESCENDING)
+			.mapPartition(new OrderCheckMapper<>(new Tuple3Checker()))
+			.distinct().collect();
 
 		String expected = "(true)\n";
 
