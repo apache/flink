@@ -128,7 +128,6 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Experimental
 	public SingleOutputStreamOperator<T, O> forward() {
 		return (SingleOutputStreamOperator<T, O>) super.forward();
 	}

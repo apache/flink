@@ -417,7 +417,6 @@ public class DataStream<T> {
 	 *
 	 * @return The DataStream with forward partitioning set.
 	 */
-	@Experimental
 	public DataStream<T> forward() {
 		return setConnectionType(new ForwardPartitioner<T>());
 	}
