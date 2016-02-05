@@ -50,5 +50,5 @@ class IndentStringContext(sc: StringContext) {
 }
 
 object Indenter {
-  implicit  def toISC(sc: StringContext) = new IndentStringContext(sc)
+  implicit def toISC(sc: StringContext) = new IndentStringContext(sc)
 }

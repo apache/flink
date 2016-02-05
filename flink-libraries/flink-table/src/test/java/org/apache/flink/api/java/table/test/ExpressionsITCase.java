@@ -26,6 +26,7 @@ import org.apache.flink.api.java.table.TableEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.table.test.TableProgramsTestBase;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,17 +36,16 @@ import scala.NotImplementedError;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class ExpressionsITCase extends MultipleProgramsTestBase {
+public class ExpressionsITCase extends TableProgramsTestBase {
 
-
-	public ExpressionsITCase(TestExecutionMode mode){
-		super(mode);
+	public ExpressionsITCase(TestExecutionMode mode, TableConfigMode configMode) {
+		super(mode, configMode);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testArithmetic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSource<Tuple2<Integer, Integer>> input =
 				env.fromElements(new Tuple2<>(5, 10));
@@ -62,10 +62,10 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testLogic() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSource<Tuple2<Integer, Boolean>> input =
 				env.fromElements(new Tuple2<>(5, true));
@@ -82,10 +82,10 @@ public class ExpressionsITCase extends MultipleProgramsTestBase {
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = NotImplementedError.class)
+	@Test
 	public void testComparisons() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		TableEnvironment tableEnv = new TableEnvironment();
+		TableEnvironment tableEnv = getJavaTableEnvironment();
 
 		DataSource<Tuple3<Integer, Integer, Integer>> input =
 				env.fromElements(new Tuple3<>(5, 5, 4));

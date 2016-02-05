@@ -35,7 +35,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class AsITCase extends MultipleProgramsTestBase {
 
-
 	public AsITCase(TestExecutionMode mode){
 		super(mode);
 	}
