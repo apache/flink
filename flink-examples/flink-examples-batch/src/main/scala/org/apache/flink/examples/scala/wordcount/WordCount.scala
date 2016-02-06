@@ -60,8 +60,8 @@ object WordCount {
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
     val text =
-      if (params.has("output")) {
-        env.readTextFile(params.get("output"))
+      if (params.has("input")) {
+        env.readTextFile(params.get("input"))
       } else {
         env.fromCollection(WordCountData.WORDS)
       }
