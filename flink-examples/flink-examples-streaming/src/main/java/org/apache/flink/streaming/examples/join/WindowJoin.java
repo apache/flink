@@ -248,7 +248,7 @@ public class WindowJoin {
 
 	private static DataStream<Tuple3<Long, String, Integer>> getSalariesPath(StreamExecutionEnvironment env, ParameterTool params) {
 		if (params.has("salaries")) {
-			return env.readTextFile("salaries").map(new MySourceMap());
+			return env.readTextFile(params.get("salaries")).map(new MySourceMap());
 		} else {
 			return env.addSource(new SalarySource());
 		}
