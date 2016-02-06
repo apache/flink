@@ -85,7 +85,18 @@ object EnumTriangles {
     env.getConfig.setGlobalJobParameters(params)
 
     // read input data
-    val edges = getEdgeDataSet(env, params)
+    val edges =
+      if (params.has("edges")) {
+        env.readCsvFile[Edge](
+          filePath = params.get("edges"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1))
+      } else {
+        val edges = EnumTrianglesData.EDGES.map {
+          case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])
+        }
+        env.fromCollection(edges)
+      }
     
     // project edges by vertex id
     val edgesById = edges map(e => if (e.v1 < e.v2) e else Edge(e.v2, e.v1) )
@@ -148,19 +159,4 @@ object EnumTriangles {
     }
   }
 
-  // *************************************************************************
-  //     UTIL METHODS
-  // *************************************************************************
-
-  private def getEdgeDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[Edge] = {
-    if (params.has("edges")) {
-      env.readCsvFile[Edge](params.get("edges"), fieldDelimiter = " ", includedFields = Array(0, 1))
-    } else {
-      val edges = EnumTrianglesData.EDGES.map {
-        case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])
-      }
-      env.fromCollection(edges)
-    }
-  }
-  
 }

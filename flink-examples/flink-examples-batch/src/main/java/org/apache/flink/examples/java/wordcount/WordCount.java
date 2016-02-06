@@ -70,7 +70,14 @@ public class WordCount {
 		}
 
 		// get input data
-		DataSet<String> text = getTextDataSet(env, params);
+		DataSet<String> text;
+		if (params.has("input")) {
+			// read the text file from given input path
+			text = env.readTextFile(params.get("input"));
+		} else {
+			// get default test text data
+			text = WordCountData.getDefaultTextLineDataSet(env);
+		}
 
 		DataSet<Tuple2<String, Integer>> counts = 
 				// split up the lines in pairs (2-tuples) containing: (word,1)
@@ -115,18 +122,5 @@ public class WordCount {
 			}
 		}
 	}
-	
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-	
-	private static DataSet<String> getTextDataSet(ExecutionEnvironment env, ParameterTool params) {
-		if(params.has("input")) {
-			// read the text file from given input path
-			return env.readTextFile(params.get("input"));
-		} else {
-			// get default test text data
-			return WordCountData.getDefaultTextLineDataSet(env);
-		}
-	}
+
 }

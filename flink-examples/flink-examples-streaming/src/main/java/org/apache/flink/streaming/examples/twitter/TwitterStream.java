@@ -71,7 +71,14 @@ public class TwitterStream {
 		env.getConfig().setGlobalJobParameters(params);
 
 		// get input data
-		DataStream<String> streamSource = getTextDataStream(env, params);
+		DataStream<String> streamSource;
+		if (params.has("props")) {
+			// read the text file from given input path
+			streamSource = env.addSource(new TwitterSource(params.get("props")));
+		} else {
+			// get default test text data
+			streamSource = env.fromElements(TwitterStreamData.TEXTS);
+		}
 
 		DataStream<Tuple2<String, Integer>> tweets = streamSource
 				// selecting English tweets and splitting to (word, 1)
@@ -127,20 +134,6 @@ public class TwitterStream {
 			} catch (JSONException e) {
 				// the JSON was not parsed correctly
 			}
-		}
-	}
-
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env, ParameterTool params) {
-		if (params.has("props")) {
-			// read the text file from given input path
-			return env.addSource(new TwitterSource(params.get("props")));
-		} else {
-			// get default test text data
-			return env.fromElements(TwitterStreamData.TEXTS);
 		}
 	}
 

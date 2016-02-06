@@ -59,7 +59,12 @@ object WordCount {
 
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
-    val text = getTextDataSet(env, params)
+    val text =
+      if (params.has("output")) {
+        env.readTextFile(params.get("output"))
+      } else {
+        env.fromCollection(WordCountData.WORDS)
+      }
 
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
@@ -73,14 +78,6 @@ object WordCount {
       counts.print()
     }
 
-  }
-
-  private def getTextDataSet(env: ExecutionEnvironment, params: ParameterTool): DataSet[String] = {
-    if (params.has("output")) {
-      env.readTextFile(params.get("output"))
-    } else {
-      env.fromCollection(WordCountData.WORDS)
-    }
   }
 
 }

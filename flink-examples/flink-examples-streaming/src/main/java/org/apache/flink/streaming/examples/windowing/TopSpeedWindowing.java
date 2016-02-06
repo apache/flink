@@ -61,7 +61,12 @@ public class TopSpeedWindowing {
 		env.getConfig().setGlobalJobParameters(params);
 
 		@SuppressWarnings({"rawtypes", "serial"})
-		DataStream<Tuple4<Integer, Integer, Double, Long>> carData = getCarDataStream(params, env);
+		DataStream<Tuple4<Integer, Integer, Double, Long>> carData;
+		if (params.has("input")) {
+			carData = env.readTextFile(params.get("input")).map(new ParseCarData());
+		} else {
+			carData = env.addSource(CarSource.create(2));
+		}
 
 		int evictionSec = 10;
 		double triggerMeters = 50;
@@ -161,18 +166,6 @@ public class TopSpeedWindowing {
 		@Override
 		public long extractAscendingTimestamp(Tuple4<Integer, Integer, Double, Long> element, long previous) {
 			return element.f3;
-		}
-	}
-
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static DataStream<Tuple4<Integer, Integer, Double, Long>> getCarDataStream(ParameterTool params, StreamExecutionEnvironment env) {
-		if (params.has("input")) {
-			return env.readTextFile(params.get("input")).map(new ParseCarData());
-		} else {
-			return env.addSource(CarSource.create(2));
 		}
 	}
 

@@ -66,7 +66,14 @@ object TopSpeedWindowing {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
 
-    val cars = setCarsDataStream(env, params)
+    val cars =
+      if (params.has("input")) {
+        env.readTextFile(params.get("input"))
+          .map(parseMap(_))
+          .map(x => CarEvent(x._1, x._2, x._3, x._4))
+      } else {
+        env.fromCollection(genCarStream())
+      }
 
     val topSeed = cars
       .assignAscendingTimestamps( _.time )
@@ -114,21 +121,6 @@ object TopSpeedWindowing {
   def parseMap(line : String): (Int, Int, Double, Long) = {
     val record = line.substring(1, line.length - 1).split(",")
     (record(0).toInt, record(1).toInt, record(2).toDouble, record(3).toLong)
-  }
-
-  // *************************************************************************
-  // UTIL METHODS
-  // *************************************************************************
-
-  private def setCarsDataStream(env: StreamExecutionEnvironment, params: ParameterTool) :
-                     DataStream[CarEvent] = {
-    if (params.has("input")) {
-      env.readTextFile(params.get("input"))
-        .map(parseMap(_))
-        .map(x => CarEvent(x._1, x._2, x._3, x._4))
-    } else {
-      env.fromCollection(genCarStream())
-    }
   }
 
 }

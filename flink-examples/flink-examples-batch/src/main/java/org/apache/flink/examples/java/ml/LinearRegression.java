@@ -90,10 +90,19 @@ public class LinearRegression {
 		env.getConfig().setGlobalJobParameters(params);
 
 		// get input x data from elements
-		DataSet<Data> data = getDataSet(env, params);
+		DataSet<Data> data;
+		if (params.has("input")) {
+			// read data from CSV file
+			data = env.readCsvFile(params.get("input"))
+					.fieldDelimiter(" ")
+					.includeFields(true, true)
+					.pojoType(Data.class);
+		} else {
+			data = LinearRegressionData.getDefaultDataDataSet(env);
+		}
 
 		// get the parameters from elements
-		DataSet<Params> parameters = getParamsDataSet(env);
+		DataSet<Params> parameters = LinearRegressionData.getDefaultParamsDataSet(env);
 
 		// set number of bulk iterations for SGD linear Regression
 		IterativeDataSet<Params> loop = parameters.iterate(iterations);
@@ -248,27 +257,6 @@ public class LinearRegression {
 			return arg0.f0.div(arg0.f1);
 
 		}
-
-	}
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-
-	private static DataSet<Data> getDataSet(ExecutionEnvironment env, ParameterTool params) {
-		if(params.has("input")) {
-			// read data from CSV file
-			return env.readCsvFile(params.get("input"))
-					.fieldDelimiter(" ")
-					.includeFields(true, true)
-					.pojoType(Data.class);
-		} else {
-			return LinearRegressionData.getDefaultDataDataSet(env);
-		}
-	}
-
-	private static DataSet<Params> getParamsDataSet(ExecutionEnvironment env) {
-
-		return LinearRegressionData.getDefaultParamsDataSet(env);
 
 	}
 

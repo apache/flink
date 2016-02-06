@@ -75,7 +75,12 @@ public class IterateExample {
 		env.getConfig().setGlobalJobParameters(params);
 
 		// create input stream of integer pairs
-		DataStream<Tuple2<Integer, Integer>> inputStream = getInputStream(env, params);
+		DataStream<Tuple2<Integer, Integer>> inputStream;
+		if (params.has("input")) {
+			inputStream = env.readTextFile(params.get("input")).map(new FibonacciInputMap());
+		} else {
+			inputStream = env.addSource(new RandomFibonacciSource());
+		}
 
 		// create an iterative data stream from the input with 5 second timeout
 		IterativeStream<Tuple5<Integer, Integer, Integer, Integer, Integer>> it = inputStream.map(new InputMap())
@@ -215,18 +220,6 @@ public class IterateExample {
 				value) throws
 				Exception {
 			return new Tuple2<>(new Tuple2<>(value.f0, value.f1), value.f4);
-		}
-	}
-
-	// *************************************************************************
-	// UTIL METHODS
-	// *************************************************************************
-
-	private static DataStream<Tuple2<Integer,Integer>> getInputStream(StreamExecutionEnvironment env, ParameterTool params) {
-		if (params.has("input")) {
-			return env.readTextFile(params.get("input")).map(new FibonacciInputMap());
-		} else {
-			return env.addSource(new RandomFibonacciSource());
 		}
 	}
 

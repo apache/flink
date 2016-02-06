@@ -56,7 +56,12 @@ public class TransitiveClosureNaive implements ProgramDescription {
 
 		final int maxIterations = params.getInt("iterations", 10);
 
-		DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env, params);
+		DataSet<Tuple2<Long, Long>> edges;
+		if (params.has("edges")) {
+			edges = env.readCsvFile(params.get("edges")).fieldDelimiter(" ").types(Long.class, Long.class);
+		} else {
+			edges = ConnectedComponentsData.getDefaultEdgeDataSet(env);
+		}
 
 		IterativeDataSet<Tuple2<Long,Long>> paths = edges.iterate(maxIterations);
 
@@ -119,19 +124,6 @@ public class TransitiveClosureNaive implements ProgramDescription {
 	@Override
 	public String getDescription() {
 		return "Parameters: --edges <path> --output <path> --iterations <n>";
-	}
-
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-
-
-	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env, ParameterTool params) {
-		if (params.has("edges")) {
-			return env.readCsvFile(params.get("edges")).fieldDelimiter(" ").types(Long.class, Long.class);
-		} else {
-			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
-		}
 	}
 
 }

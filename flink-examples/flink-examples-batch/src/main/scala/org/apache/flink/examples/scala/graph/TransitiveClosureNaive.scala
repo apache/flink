@@ -42,7 +42,20 @@ object  TransitiveClosureNaive {
     // make parameters available in the web interface
     env.getConfig.setGlobalJobParameters(params)
 
-    val edges = getEdgesDataSet(env, params)
+    val edges =
+      if (params.has("edges")) {
+        env.readCsvFile[(Long, Long)](
+          filePath = params.get("edges"),
+          fieldDelimiter = " ",
+          includedFields = Array(0, 1))
+          .map { x => (x._1, x._2)}
+      } else {
+        val edgeData = ConnectedComponentsData.EDGES map {
+          case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
+        }
+        env.fromCollection(edgeData)
+      }
+
     val maxIterations = params.getInt("iterations", 10)
 
     val paths = edges.iterateWithTermination(maxIterations) { prevPaths: DataSet[(Long, Long)] =>
@@ -77,20 +90,4 @@ object  TransitiveClosureNaive {
 
   }
 
-  private def getEdgesDataSet(env: ExecutionEnvironment, params: ParameterTool):
-                      DataSet[(Long, Long)] = {
-    if (params.has("edges")) {
-      env.readCsvFile[(Long, Long)](
-        params.get("edges"),
-        fieldDelimiter = " ",
-        includedFields = Array(0, 1))
-        .map { x => (x._1, x._2)}
-    }
-    else {
-      val edgeData = ConnectedComponentsData.EDGES map {
-        case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
-      }
-      env.fromCollection(edgeData)
-    }
-  }
 }

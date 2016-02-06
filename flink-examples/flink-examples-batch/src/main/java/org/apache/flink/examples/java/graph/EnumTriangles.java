@@ -96,8 +96,17 @@ public class EnumTriangles {
 		env.getConfig().setGlobalJobParameters(params);
 	
 		// read input data
-		DataSet<Edge> edges = getEdgeDataSet(env, params);
-		
+		DataSet<Edge> edges;
+		if (params.has("edges")) {
+			edges = env.readCsvFile(params.get("edges"))
+					.fieldDelimiter(" ")
+					.includeFields(true, true)
+					.types(Integer.class, Integer.class)
+					.map(new TupleEdgeConverter());
+		} else {
+			edges = EnumTrianglesData.getDefaultEdgeDataSet(env);
+		}
+
 		// project edges by vertex id
 		DataSet<Edge> edgesById = edges
 				.map(new EdgeByIdProjector());
@@ -193,22 +202,6 @@ public class EnumTriangles {
 		@Override
 		public Triad join(Triad triad, Edge edge) throws Exception {
 			return triad;
-		}
-	}
-	
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-	
-	private static DataSet<Edge> getEdgeDataSet(ExecutionEnvironment env, ParameterTool params) {
-		if (params.has("edges")) {
-			return env.readCsvFile(params.get("edges"))
-						.fieldDelimiter(" ")
-						.includeFields(true, true)
-						.types(Integer.class, Integer.class)
-						.map(new TupleEdgeConverter());
-		} else {
-			return EnumTrianglesData.getDefaultEdgeDataSet(env);
 		}
 	}
 	
