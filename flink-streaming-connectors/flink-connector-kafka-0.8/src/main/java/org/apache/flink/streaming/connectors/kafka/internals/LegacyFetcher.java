@@ -576,7 +576,8 @@ public class LegacyFetcher implements Fetcher {
 
 		private static long getInvalidOffsetBehavior(Properties config) {
 			long timeType;
-			if (config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest").equals("latest")) {
+			String val = config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
+			if (val.equals("largest") || val.equals("latest")) { // largest is kafka 0.8, latest is kafka 0.9
 				timeType = OffsetRequest.LatestTime();
 			} else {
 				timeType = OffsetRequest.EarliestTime();
