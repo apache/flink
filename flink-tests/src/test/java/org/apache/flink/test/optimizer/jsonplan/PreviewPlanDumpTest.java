@@ -70,8 +70,8 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 			TPCHQuery3.main(new String[] {
 					"--lineitem", IN_FILE,
 					"--customer", IN_FILE,
-					"--orders", IN_FILE,
-					"--output", OUT_FILE});
+					"--orders", OUT_FILE,
+					"--output", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
@@ -110,8 +110,8 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 			org.apache.flink.examples.java.relational.WebLogAnalysis.main(new String[] {
 					"--documents", IN_FILE,
 					"--ranks", IN_FILE,
-					"--visits", IN_FILE,
-					"--output", OUT_FILE});
+					"--visits", OUT_FILE,
+					"--output", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {

@@ -109,8 +109,8 @@ public class DumpCompiledPlanTest extends CompilerTestBase {
 			WebLogAnalysis.main(new String[] {
 					"--documents", IN_FILE,
 					"--ranks", IN_FILE,
-					"--visits", IN_FILE,
-					"--output", OUT_FILE});
+					"--visits", OUT_FILE,
+					"--output", "123"});
 		} catch(OptimizerPlanEnvironment.ProgramAbortException pae) {
 			// all good.
 		} catch (Exception e) {
