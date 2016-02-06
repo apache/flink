@@ -70,7 +70,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *             <li>socket.timeout.ms</li>
  *             <li>socket.receive.buffer.bytes</li>
  *             <li>fetch.message.max.bytes</li>
- *             <li>auto.offset.reset with the values "latest", "earliest" (unlike 0.8.2 behavior)</li>
+ *             <li>auto.offset.reset with the values "largest", "smallest"</li>
  *             <li>fetch.wait.max.ms</li>
  *         </ul>
  *     </li>
