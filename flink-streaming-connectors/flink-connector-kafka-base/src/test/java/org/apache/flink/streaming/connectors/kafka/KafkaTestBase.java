@@ -66,7 +66,6 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static String brokerConnectionStrings;
 
-	protected static ConsumerConfig standardCC;
 	protected static Properties standardProps;
 	
 	protected static ForkableFlinkMiniCluster flink;
@@ -98,7 +97,6 @@ public abstract class KafkaTestBase extends TestLogger {
 		kafkaServer.prepare(NUMBER_OF_KAFKA_SERVERS);
 
 		standardProps = kafkaServer.getStandardProperties();
-		standardCC = kafkaServer.getStandardConsumerConfig();
 		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
 
 		// start also a re-usable Flink mini cluster
