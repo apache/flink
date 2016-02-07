@@ -16,15 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.trace;
+package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.api.common.JobID;
+import akka.actor.ActorSystem;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -51,13 +57,30 @@ import static org.mockito.Mockito.when;
  */
 public class StackTraceSampleCoordinatorTest {
 
+	private static ActorSystem system;
+
+	private StackTraceSampleCoordinator coord;
+
+	@BeforeClass
+	public static void setUp() throws Exception {
+		system = AkkaUtils.createLocalActorSystem(new Configuration());
+	}
+
+	@AfterClass
+	public static void tearDown() throws Exception {
+		if (system != null) {
+			system.shutdown();
+		}
+	}
+
+	@Before
+	public void init() throws Exception {
+		this.coord = new StackTraceSampleCoordinator(system, 60000);
+	}
+
 	/** Tests simple trigger and collect of stack trace samples. */
 	@Test
 	public void testTriggerStackTraceSample() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
@@ -79,14 +102,13 @@ public class StackTraceSampleCoordinatorTest {
 
 			TriggerStackTraceSample expectedMsg = new TriggerStackTraceSample(
 					0,
-					jobId,
 					expectedExecutionId,
 					numSamples,
 					delayBetweenSamples,
 					maxStackTraceDepth);
 
 			verify(vertex).sendMessageToCurrentExecution(
-					eq(expectedMsg), eq(expectedExecutionId));
+					eq(expectedMsg), eq(expectedExecutionId), any(AkkaActorGateway.class));
 		}
 
 		assertFalse(sampleFuture.isCompleted());
@@ -113,7 +135,6 @@ public class StackTraceSampleCoordinatorTest {
 		StackTraceSample sample = sampleFuture.value().get().get();
 
 		assertEquals(0, sample.getSampleId());
-		assertEquals(jobId, sample.getJobId());
 		assertTrue(sample.getEndTime() >= sample.getStartTime());
 
 		Map<ExecutionAttemptID, List<StackTraceElement[]>> tracesByTask = sample.getStackTraces();
@@ -136,10 +157,6 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests triggering for non-running tasks fails the future. */
 	@Test
 	public void testTriggerStackTraceSampleNotRunningTasks() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.DEPLOYING, true)
@@ -160,10 +177,6 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests triggering for reset tasks fails the future. */
 	@Test
 	public void testTriggerStackTraceSampleResetRunningTasks() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 				// Fails to send the message to the execution (happens when execution is reset)
@@ -184,11 +197,9 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests that samples time out if they don't finish in time. */
 	@Test
 	public void testTriggerStackTraceSampleTimeout() throws Exception {
-		JobID jobId = new JobID();
-
 		int timeout = 100;
 
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, timeout);
+		coord = new StackTraceSampleCoordinator(system, timeout);
 
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
@@ -227,19 +238,12 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests that collecting an unknown sample fails. */
 	@Test(expected = IllegalStateException.class)
 	public void testCollectStackTraceForUnknownSample() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
 		coord.collectStackTraces(0, new ExecutionAttemptID(), new ArrayList<StackTraceElement[]>());
 	}
 
 	/** Tests cancelling of a pending sample. */
 	@Test
 	public void testCancelStackTraceSample() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
@@ -262,10 +266,6 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests that collecting for a cancelled sample throws no Exception. */
 	@Test
 	public void testCollectStackTraceForCanceledSample() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
@@ -286,11 +286,7 @@ public class StackTraceSampleCoordinatorTest {
 
 	/** Tests that collecting for a cancelled sample throws no Exception. */
 	@Test
-	public void testCollectForDiscaredPendingSample() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
+	public void testCollectForDiscardedPendingSample() throws Exception {
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
@@ -313,10 +309,6 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests that collecting for a unknown task fails. */
 	@Test(expected = IllegalArgumentException.class)
 	public void testCollectStackTraceForUnknownTask() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
@@ -329,10 +321,6 @@ public class StackTraceSampleCoordinatorTest {
 	/** Tests that shut down fails all pending samples and future sample triggers. */
 	@Test
 	public void testShutDown() throws Exception {
-		JobID jobId = new JobID();
-
-		StackTraceSampleCoordinator coord = new StackTraceSampleCoordinator(jobId, 60000);
-
 		ExecutionVertex[] vertices = new ExecutionVertex[] {
 				mockExecutionVertex(new ExecutionAttemptID(), ExecutionState.RUNNING, true),
 		};
@@ -380,7 +368,8 @@ public class StackTraceSampleCoordinatorTest {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
 		when(vertex.getCurrentExecutionAttempt()).thenReturn(exec);
-		when(vertex.sendMessageToCurrentExecution(any(Serializable.class), any(ExecutionAttemptID.class)))
+		when(vertex.sendMessageToCurrentExecution(
+				any(Serializable.class), any(ExecutionAttemptID.class), any(AkkaActorGateway.class)))
 				.thenReturn(sendSuccess);
 
 		return vertex;

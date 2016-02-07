@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.trace;
+package org.apache.flink.runtime.webmonitor;
 
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import com.google.common.collect.Maps;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleFailure;
+import org.apache.flink.runtime.messages.StackTraceSampleMessages.ResponseStackTraceSampleSuccess;
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -56,8 +63,8 @@ public class StackTraceSampleCoordinator {
 
 	private final Object lock = new Object();
 
-	/** Job ID this coordinator belongs to. */
-	private final JobID jobId;
+	/** Actor for responses. */
+	private final ActorGateway responseActor;
 
 	/** Time out after the expected sampling duration. */
 	private final int sampleTimeout;
@@ -86,14 +93,15 @@ public class StackTraceSampleCoordinator {
 	/**
 	 * Creates a new coordinator for the job.
 	 *
-	 * @param jobId         Job ID this coordinator belongs to.
-	 * @param sampleTimeout Time out after the expected sampling duration. This
-	 *                      is added to the expected duration to a sample,
-	 *                      which is determined by the number of samples and
-	 *                      the delay between each sample.
+	 * @param sampleTimeout Time out after the expected sampling duration.
+	 *                      This is added to the expected duration of a
+	 *                      sample, which is determined by the number of
+	 *                      samples and the delay between each sample.
 	 */
-	public StackTraceSampleCoordinator(JobID jobId, int sampleTimeout) {
-		this.jobId = checkNotNull(jobId, "Job ID");
+	public StackTraceSampleCoordinator(ActorSystem actorSystem, int sampleTimeout) {
+		Props props = Props.create(StackTraceSampleCoordinatorActor.class, this);
+		this.responseActor = new AkkaActorGateway(actorSystem.actorOf(props), null);
+
 		checkArgument(sampleTimeout >= 0);
 		this.sampleTimeout = sampleTimeout;
 	}
@@ -106,7 +114,6 @@ public class StackTraceSampleCoordinator {
 	 * @param delayBetweenSamples Delay between consecutive samples.
 	 * @param maxStackTraceDepth  Maximum depth of the stack trace. 0 indicates
 	 *                            no maximum and keeps the complete stack trace.
-	 *
 	 * @return A future of the completed stack trace sample
 	 */
 	@SuppressWarnings("unchecked")
@@ -154,7 +161,7 @@ public class StackTraceSampleCoordinator {
 			LOG.debug("Triggering stack trace sample {}", sampleId);
 
 			final PendingStackTraceSample pending = new PendingStackTraceSample(
-					sampleId, jobId, triggerIds);
+					sampleId, triggerIds);
 
 			// Discard the sample if it takes too long. We don't send cancel
 			// messages to the task managers, but only wait for the responses
@@ -193,13 +200,15 @@ public class StackTraceSampleCoordinator {
 				for (int i = 0; i < tasksToSample.length; i++) {
 					TriggerStackTraceSample msg = new TriggerStackTraceSample(
 							sampleId,
-							jobId,
 							triggerIds[i],
 							numSamples,
 							delayBetweenSamples,
 							maxStackTraceDepth);
 
-					if (!tasksToSample[i].sendMessageToCurrentExecution(msg, triggerIds[i])) {
+					if (!tasksToSample[i].sendMessageToCurrentExecution(
+							msg,
+							triggerIds[i],
+							responseActor)) {
 						success = false;
 						break;
 					}
@@ -251,7 +260,7 @@ public class StackTraceSampleCoordinator {
 	public void shutDown() {
 		synchronized (lock) {
 			if (!isShutDown) {
-				LOG.info("Shutting down stack trace sample coordinator for " + jobId);
+				LOG.info("Shutting down stack trace sample coordinator.");
 
 				for (PendingStackTraceSample pending : pendingSamples.values()) {
 					pending.discard(new RuntimeException("Shut down"));
@@ -339,7 +348,6 @@ public class StackTraceSampleCoordinator {
 	private static class PendingStackTraceSample {
 
 		private final int sampleId;
-		private final JobID jobId;
 		private final long startTime;
 		private final Set<ExecutionAttemptID> pendingTasks;
 		private final Map<ExecutionAttemptID, List<StackTraceElement[]>> stackTracesByTask;
@@ -349,10 +357,8 @@ public class StackTraceSampleCoordinator {
 
 		PendingStackTraceSample(
 				int sampleId,
-				JobID jobId,
 				ExecutionAttemptID[] tasksToCollect) {
 
-			this.jobId = jobId;
 			this.sampleId = sampleId;
 			this.startTime = System.currentTimeMillis();
 			this.pendingTasks = new HashSet<>(Arrays.asList(tasksToCollect));
@@ -362,10 +368,6 @@ public class StackTraceSampleCoordinator {
 
 		int getSampleId() {
 			return sampleId;
-		}
-
-		JobID getJobId() {
-			return jobId;
 		}
 
 		long getStartTime() {
@@ -417,7 +419,6 @@ public class StackTraceSampleCoordinator {
 
 				StackTraceSample stackTraceSample = new StackTraceSample(
 						sampleId,
-						jobId,
 						startTime,
 						endTime,
 						stackTracesByTask);
@@ -433,4 +434,44 @@ public class StackTraceSampleCoordinator {
 			return stackTracePromise.future();
 		}
 	}
+
+	/**
+	 * Actor for stack trace sample responses.
+	 */
+	private static class StackTraceSampleCoordinatorActor extends FlinkUntypedActor {
+
+		StackTraceSampleCoordinator coordinator;
+
+		public StackTraceSampleCoordinatorActor(StackTraceSampleCoordinator coordinator) {
+			this.coordinator = checkNotNull(coordinator, "Stack trace sample coordinator");
+		}
+
+		@Override
+		protected void handleMessage(Object msg) throws Exception {
+			try {
+				if (msg instanceof ResponseStackTraceSampleSuccess) {
+					ResponseStackTraceSampleSuccess success = (ResponseStackTraceSampleSuccess) msg;
+
+					coordinator.collectStackTraces(
+							success.sampleId(),
+							success.executionId(),
+							success.samples());
+				} else if (msg instanceof ResponseStackTraceSampleFailure) {
+					ResponseStackTraceSampleFailure failure = (ResponseStackTraceSampleFailure) msg;
+
+					coordinator.cancelStackTraceSample(failure.sampleId(), failure.cause());
+				} else {
+					throw new IllegalArgumentException("Unexpected task sample message");
+				}
+			} catch (Throwable t) {
+				LOG.error("Error responding to message '" + msg + "': " + t.getMessage() + ".", t);
+			}
+		}
+
+		@Override
+		protected UUID getLeaderSessionID() {
+			return null;
+		}
+	}
+
 }

@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.trace;
+package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import java.util.Collections;
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A sample of stack traces for one or more tasks.
@@ -37,9 +35,6 @@ public class StackTraceSample {
 
 	/** ID of this sample (unique per job) */
 	private final int sampleId;
-
-	/** Job ID the sample belongs to. */
-	private final JobID jobId;
 
 	/** Time stamp, when the sample was triggered. */
 	private final long startTime;
@@ -54,7 +49,6 @@ public class StackTraceSample {
 	 * Creates a stack trace sample
 	 *
 	 * @param sampleId          ID of the sample.
-	 * @param jobId             ID of the job the sample belongs to.
 	 * @param startTime         Time stamp, when the sample was triggered.
 	 * @param endTime           Time stamp, when all stack traces were
 	 *                          collected at the JobManager.
@@ -62,7 +56,6 @@ public class StackTraceSample {
 	 */
 	public StackTraceSample(
 			int sampleId,
-			JobID jobId,
 			long startTime,
 			long endTime,
 			Map<ExecutionAttemptID, List<StackTraceElement[]>> stackTracesByTask) {
@@ -71,7 +64,6 @@ public class StackTraceSample {
 		checkArgument(startTime >= 0, "Negative start time");
 		checkArgument(endTime >= startTime, "End time before start time");
 
-		this.jobId = checkNotNull(jobId, "Job ID");
 		this.sampleId = sampleId;
 		this.startTime = startTime;
 		this.endTime = endTime;
@@ -85,15 +77,6 @@ public class StackTraceSample {
 	 */
 	public int getSampleId() {
 		return sampleId;
-	}
-
-	/**
-	 * Returns the ID of the job the sample belongs to.
-	 *
-	 * @return ID of the job the sample belongs to
-	 */
-	public JobID getJobId() {
-		return jobId;
 	}
 
 	/**

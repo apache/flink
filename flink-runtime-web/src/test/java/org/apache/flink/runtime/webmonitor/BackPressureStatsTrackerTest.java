@@ -25,8 +25,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.trace.StackTraceSample;
-import org.apache.flink.runtime.trace.StackTraceSampleCoordinator;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
@@ -84,8 +82,6 @@ public class BackPressureStatsTrackerTest {
 			}
 		});
 
-		when(graph.getStackTraceSampleCoordinator()).thenReturn(sampleCoordinator);
-
 		ExecutionVertex[] taskVertices = new ExecutionVertex[4];
 
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
@@ -103,7 +99,7 @@ public class BackPressureStatsTrackerTest {
 		FiniteDuration delayBetweenSamples = new FiniteDuration(100, TimeUnit.MILLISECONDS);
 
 		BackPressureStatsTracker tracker = new BackPressureStatsTracker(
-				9999, numSamples, delayBetweenSamples);
+				sampleCoordinator, 9999, numSamples, delayBetweenSamples);
 
 		// Trigger
 		tracker.triggerStackTraceSample(jobVertex);
@@ -145,7 +141,6 @@ public class BackPressureStatsTrackerTest {
 
 		StackTraceSample sample = new StackTraceSample(
 				sampleId,
-				new JobID(),
 				0,
 				endTime,
 				traces);

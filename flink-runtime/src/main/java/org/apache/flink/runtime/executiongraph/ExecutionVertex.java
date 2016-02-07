@@ -471,7 +471,17 @@ public class ExecutionVertex implements Serializable {
 		this.currentExecution.fail(t);
 	}
 
-	public boolean sendMessageToCurrentExecution(Serializable message, ExecutionAttemptID attemptID) {
+	public boolean sendMessageToCurrentExecution(
+			Serializable message,
+			ExecutionAttemptID attemptID) {
+
+		return sendMessageToCurrentExecution(message, attemptID, null);
+	}
+
+	public boolean sendMessageToCurrentExecution(
+			Serializable message,
+			ExecutionAttemptID attemptID,
+			ActorGateway sender) {
 		Execution exec = getCurrentExecutionAttempt();
 		
 		// check that this is for the correct execution attempt
@@ -482,7 +492,12 @@ public class ExecutionVertex implements Serializable {
 			if (slot != null) {
 				ActorGateway gateway = slot.getInstance().getActorGateway();
 				if (gateway != null) {
-					gateway.tell(message);
+					if (sender == null) {
+						gateway.tell(message);
+					} else {
+						gateway.tell(message, sender);
+					}
+
 					return true;
 				} else {
 					return false;

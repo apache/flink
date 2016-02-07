@@ -18,25 +18,24 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.api.common.JobID
+import akka.actor.ActorRef
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 
 import scala.concurrent.duration.FiniteDuration
 
 /**
-  * A set of messages exchanged between the job manager and task manager
-  * instances in order to sample the stack traces of running tasks.
+  * A set of messages exchanged with task manager instances in order to sample
+  * the stack traces of running tasks.
   */
 object StackTraceSampleMessages {
 
-  trait StackTraceSampleMessages extends RequiresLeaderSessionID {}
+  trait StackTraceSampleMessages
 
   /**
     * Triggers the sampling of a running task (sent by the job manager to the
     * task managers).
     *
     * @param sampleId ID of this sample.
-    * @param jobId ID of the job the sample belongs to.
     * @param executionId ID of the task to sample.
     * @param numSamples Number of stack trace samples to collect.
     * @param delayBetweenSamples Delay between consecutive samples.
@@ -46,7 +45,6 @@ object StackTraceSampleMessages {
     */
   case class TriggerStackTraceSample(
       sampleId: Int,
-      jobId: JobID,
       executionId: ExecutionAttemptID,
       numSamples: Int,
       delayBetweenSamples: FiniteDuration,
@@ -58,13 +56,11 @@ object StackTraceSampleMessages {
     * to the job manager).
     *
     * @param sampleId ID of the this sample.
-    * @param jobId ID of the job the sample belongs to.
     * @param executionId ID of the sampled task.
     * @param samples Stack trace samples (head is most recent sample).
     */
   case class ResponseStackTraceSampleSuccess(
       sampleId: Int,
-      jobId: JobID,
       executionId: ExecutionAttemptID,
       samples: java.util.List[Array[StackTraceElement]])
     extends StackTraceSampleMessages
@@ -74,21 +70,19 @@ object StackTraceSampleMessages {
     * the job manager).
     *
     * @param sampleId ID of the this sample.
-    * @param jobId ID of the job the sample belongs to.
     * @param executionId ID of the sampled task.
     * @param cause Failure cause.
     */
   case class ResponseStackTraceSampleFailure(
       sampleId: Int,
-      jobId: JobID,
       executionId: ExecutionAttemptID,
       cause: Exception)
     extends StackTraceSampleMessages
 
   /**
+    * Task manager internal sample message.
     *
     * @param sampleId ID of the this sample.
-    * @param jobId ID of the job the sample belongs to.
     * @param executionId ID of the task to sample.
     * @param delayBetweenSamples Delay between consecutive samples.
     * @param maxStackTraceDepth Maximum depth of the stack trace. 0 indicates
@@ -97,15 +91,16 @@ object StackTraceSampleMessages {
     * @param numRemainingSamples Number of remaining samples before this
     *                            sample is finished.
     * @param currentTraces The current list of gathered stack traces.
+    * @param sender Actor triggering this sample (receiver of result).
     */
   case class SampleTaskStackTrace(
       sampleId: Int,
-      jobId: JobID,
       executionId: ExecutionAttemptID,
       delayBetweenSamples: FiniteDuration,
       maxStackTraceDepth: Int,
       numRemainingSamples: Int,
-      currentTraces: java.util.List[Array[StackTraceElement]])
+      currentTraces: java.util.List[Array[StackTraceElement]],
+      sender: ActorRef)
     extends StackTraceSampleMessages
 
 }

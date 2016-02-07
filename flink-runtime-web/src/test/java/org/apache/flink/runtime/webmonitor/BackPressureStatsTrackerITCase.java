@@ -153,8 +153,12 @@ public class BackPressureStatsTrackerITCase {
 							ExecutionGraph executionGraph = executionGraphResponse.executionGraph();
 							ExecutionJobVertex vertex = executionGraph.getJobVertex(task.getID());
 
+							StackTraceSampleCoordinator coordinator = new StackTraceSampleCoordinator(
+									testActorSystem, 60000);
+
 							// Verify back pressure (clean up interval can be ignored)
 							BackPressureStatsTracker statsTracker = new BackPressureStatsTracker(
+									coordinator,
 									100 * 1000,
 									20,
 									new FiniteDuration(10, TimeUnit.MILLISECONDS));

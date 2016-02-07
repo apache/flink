@@ -23,11 +23,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Maps;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.trace.StackTraceSample;
-import org.apache.flink.runtime.trace.StackTraceSampleCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -77,6 +74,9 @@ public class BackPressureStatsTracker {
 	/** Lock guarding trigger operations. */
 	private final Object lock = new Object();
 
+	/* Stack trace sample coordinator. */
+	private final StackTraceSampleCoordinator coordinator;
+
 	/**
 	 * Completed stats. Important: Job vertex IDs need to be scoped by job ID,
 	 * because they are potentially constant across runs messing up the cached
@@ -107,9 +107,12 @@ public class BackPressureStatsTracker {
 	 * @param delayBetweenSamples Delay between samples when determining back pressure.
 	 */
 	public BackPressureStatsTracker(
+			StackTraceSampleCoordinator coordinator,
 			int cleanUpInterval,
 			int numSamples,
 			FiniteDuration delayBetweenSamples) {
+
+		this.coordinator = checkNotNull(coordinator, "Stack trace sample coordinator");
 
 		checkArgument(cleanUpInterval >= 0, "Clean up interval");
 		this.cleanUpInterval = cleanUpInterval;
@@ -158,9 +161,6 @@ public class BackPressureStatsTracker {
 			if (!pendingStats.contains(vertex)) {
 				pendingStats.add(vertex);
 
-				ExecutionGraph graph = vertex.getGraph();
-				StackTraceSampleCoordinator coordinator = graph.getStackTraceSampleCoordinator();
-
 				Future<StackTraceSample> sample = coordinator.triggerStackTraceSample(
 						vertex.getTaskVertices(),
 						numSamples,
@@ -168,7 +168,7 @@ public class BackPressureStatsTracker {
 						MAX_STACK_TRACE_DEPTH);
 
 				sample.onComplete(new StackTraceSampleCompletionCallback(
-						vertex), graph.getExecutionContext());
+						vertex), vertex.getGraph().getExecutionContext());
 			}
 		}
 	}
@@ -183,6 +183,11 @@ public class BackPressureStatsTracker {
 		operatorStatsCache.cleanUp();
 	}
 
+	/**
+	 * Shuts down the stats tracker.
+	 *
+	 * <p>Invalidates the cache and clears all pending stats.
+	 */
 	public void shutDown() {
 		synchronized (lock) {
 			if (!shutDown) {

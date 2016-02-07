@@ -992,12 +992,10 @@ public class TaskManagerTest extends TestLogger {
 					@Override
 					protected void run() {
 						try {
-							JobID jobId = new JobID();
 							ExecutionAttemptID taskId = new ExecutionAttemptID();
 
 							taskManager.tell(new TriggerStackTraceSample(
 											112223,
-											jobId,
 											taskId,
 											100,
 											d,
@@ -1013,7 +1011,6 @@ public class TaskManagerTest extends TestLogger {
 							ResponseStackTraceSampleFailure response = (ResponseStackTraceSampleFailure) msg[0];
 
 							assertEquals(112223, response.sampleId());
-							assertEquals(jobId, response.jobId());
 							assertEquals(taskId, response.executionId());
 							assertEquals(IllegalStateException.class, response.cause().getClass());
 						} catch (Exception e) {
@@ -1038,7 +1035,6 @@ public class TaskManagerTest extends TestLogger {
 
 								taskManager.tell(new TriggerStackTraceSample(
 												19230,
-												tdd.getJobID(),
 												tdd.getExecutionId(),
 												numSamples,
 												new FiniteDuration(100, TimeUnit.MILLISECONDS),
@@ -1055,7 +1051,6 @@ public class TaskManagerTest extends TestLogger {
 
 								// ---- Verify response ----
 								assertEquals(19230, response.sampleId());
-								assertEquals(tdd.getJobID(), response.jobId());
 								assertEquals(tdd.getExecutionId(), response.executionId());
 
 								List<StackTraceElement[]> traces = response.samples();
@@ -1112,7 +1107,6 @@ public class TaskManagerTest extends TestLogger {
 
 							taskManager.tell(new TriggerStackTraceSample(
 											1337,
-											tdd.getJobID(),
 											tdd.getExecutionId(),
 											numSamples,
 											new FiniteDuration(100, TimeUnit.MILLISECONDS),
@@ -1129,7 +1123,6 @@ public class TaskManagerTest extends TestLogger {
 
 							// ---- Verify response ----
 							assertEquals(1337, response.sampleId());
-							assertEquals(tdd.getJobID(), response.jobId());
 							assertEquals(tdd.getExecutionId(), response.executionId());
 
 							List<StackTraceElement[]> traces = response.samples();
@@ -1157,7 +1150,6 @@ public class TaskManagerTest extends TestLogger {
 							// during a sample
 							taskManager.tell(new TriggerStackTraceSample(
 											0,
-											tdd.getJobID(),
 											tdd.getExecutionId(),
 											10000,
 											new FiniteDuration(100, TimeUnit.MILLISECONDS),
@@ -1175,7 +1167,6 @@ public class TaskManagerTest extends TestLogger {
 
 							ResponseStackTraceSampleFailure response = (ResponseStackTraceSampleFailure) msg[0];
 
-							assertEquals(tdd.getJobID(), response.jobId());
 							assertEquals(tdd.getExecutionId(), response.executionId());
 							assertEquals(IllegalStateException.class, response.cause().getClass());
 						} catch (Exception e) {

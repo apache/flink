@@ -648,32 +648,33 @@ class TaskManager(
       // Triggers the sampling of a task
       case TriggerStackTraceSample(
         sampleId,
-        jobId,
         executionId,
         numSamples,
         delayBetweenSamples,
         maxStackTraceDepth) =>
 
-          log.debug(s"Triggering stack trace sample $sampleId for job $jobId.")
+          log.debug(s"Triggering stack trace sample $sampleId.")
 
-          self ! decorateMessage(SampleTaskStackTrace(
+          val senderRef = sender()
+
+          self ! SampleTaskStackTrace(
             sampleId,
-            jobId,
             executionId,
             delayBetweenSamples,
             maxStackTraceDepth,
             numSamples,
-            new java.util.ArrayList()))
+            new java.util.ArrayList(),
+            senderRef)
 
       // Repeatedly sent to self to sample a task
       case SampleTaskStackTrace(
         sampleId,
-        jobId,
         executionId,
         delayBetweenSamples,
         maxStackTraceDepth,
         remainingNumSamples,
-        currentTraces) =>
+        currentTraces,
+        sender) =>
 
         try {
           if (remainingNumSamples >= 1) {
@@ -686,28 +687,25 @@ class TaskManager(
                   // ---- Continue ----
                   val msg = SampleTaskStackTrace(
                     sampleId,
-                    jobId,
                     executionId,
                     delayBetweenSamples,
                     maxStackTraceDepth,
                     remainingNumSamples - 1,
-                    currentTraces)
+                    currentTraces,
+                    sender)
 
                   context.system.scheduler.scheduleOnce(
                     delayBetweenSamples,
                     self,
-                    decorateMessage(msg))(context.dispatcher)
+                    msg)(context.dispatcher)
                 } else {
                   // ---- Done ----
-                  log.debug(s"Done with stack trace sample $sampleId for job $jobId.")
+                  log.debug(s"Done with stack trace sample $sampleId.")
 
-                  val msg = ResponseStackTraceSampleSuccess(
+                  sender ! ResponseStackTraceSampleSuccess(
                     sampleId,
-                    jobId,
                     executionId,
                     currentTraces)
-
-                  currentJobManager.get ! decorateMessage(msg)
                 }
 
               case None =>
@@ -724,8 +722,7 @@ class TaskManager(
           }
         } catch {
           case e: Exception =>
-            val msg = ResponseStackTraceSampleFailure(sampleId, jobId, executionId, e)
-            currentJobManager.get ! decorateMessage(msg)
+            sender ! ResponseStackTraceSampleFailure(sampleId, executionId, e)
         }
 
       case _ => unhandled(message)

@@ -118,6 +118,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final File uploadDir;
 
+	private final StackTraceSampleCoordinator stackTraceSamples;
+
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
@@ -163,6 +165,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		// - Back pressure stats ----------------------------------------------
 
+		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem, 60000);
+
 		// Back pressure stats tracker config
 		int cleanUpInterval = config.getInteger(
 				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL,
@@ -183,7 +187,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		FiniteDuration delayBetweenSamples = new FiniteDuration(delay, TimeUnit.MILLISECONDS);
 
 		backPressureStatsTracker = new BackPressureStatsTracker(
-				cleanUpInterval, numSamples, delayBetweenSamples);
+				stackTraceSamples, cleanUpInterval, numSamples, delayBetweenSamples);
 
 		// --------------------------------------------------------------------
 
@@ -359,6 +363,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 					bootstrap.group().shutdownGracefully();
 				}
 			}
+
+			stackTraceSamples.shutDown();
 
 			backPressureStatsTracker.shutDown();
 

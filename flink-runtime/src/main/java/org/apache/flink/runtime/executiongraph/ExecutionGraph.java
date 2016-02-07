@@ -42,7 +42,6 @@ import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.stats.SimpleCheckpointStatsTracker;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.UnrecoverableException;
-import org.apache.flink.runtime.trace.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -239,9 +238,6 @@ public class ExecutionGraph implements Serializable {
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
 
-	/** Coordinator for triggering and collecting stack traces of running tasks */
-	private transient StackTraceSampleCoordinator stackTraceSampleCoordinator;
-
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private ExecutionConfig executionConfig;
 
@@ -308,8 +304,6 @@ public class ExecutionGraph implements Serializable {
 		this.requiredClasspaths = requiredClasspaths;
 
 		this.timeout = timeout;
-
-		this.stackTraceSampleCoordinator = new StackTraceSampleCoordinator(jobId, 60000);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -485,10 +479,6 @@ public class ExecutionGraph implements Serializable {
 
 	public CheckpointStatsTracker getCheckpointStatsTracker() {
 		return checkpointStatsTracker;
-	}
-
-	public StackTraceSampleCoordinator getStackTraceSampleCoordinator() {
-		return stackTraceSampleCoordinator;
 	}
 
 	private ExecutionVertex[] collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
@@ -1109,13 +1099,6 @@ public class ExecutionGraph implements Serializable {
 			if (coord != null) {
 				coord.shutdown();
 			}
-		} catch (Exception e) {
-			LOG.error("Error while cleaning up after execution", e);
-		}
-
-		try {
-			stackTraceSampleCoordinator.shutDown();
-			stackTraceSampleCoordinator = null;
 		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
