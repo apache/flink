@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import kafka.consumer.ConsumerConfig;
 import kafka.server.KafkaServer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -25,7 +24,6 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
-import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -45,7 +43,6 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract void createTestTopic(String topic, int numberOfPartitions, int replicationFactor);
 
-	public abstract ConsumerConfig getStandardConsumerConfig();
 
 	public abstract Properties getStandardProperties();
 
