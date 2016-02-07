@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -87,7 +88,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 			context.key = key;
 			context.window = window;
-			Trigger.TriggerResult triggerResult = context.onElement(element);
+			TriggerResult triggerResult = context.onElement(element);
 
 			processTriggerResult(triggerResult, key, window);
 		}
@@ -95,7 +96,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 	@Override
 	@SuppressWarnings("unchecked,rawtypes")
-	protected void processTriggerResult(Trigger.TriggerResult triggerResult, K key, W window) throws Exception {
+	protected void processTriggerResult(TriggerResult triggerResult, K key, W window) throws Exception {
 		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
 			// do nothing
 			return;

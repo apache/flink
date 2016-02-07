@@ -40,6 +40,8 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.apache.flink.streaming.runtime.operators.windowing.buffers.WindowBufferFactory;
@@ -243,13 +245,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			context.key = key;
 			context.window = window;
-			Trigger.TriggerResult triggerResult = context.onElement(element);
+			TriggerResult triggerResult = context.onElement(element);
 
 			processTriggerResult(triggerResult, key, window);
 		}
 	}
 
-	protected void processTriggerResult(Trigger.TriggerResult triggerResult, K key, W window) throws Exception {
+	protected void processTriggerResult(TriggerResult triggerResult, K key, W window) throws Exception {
 		if (!triggerResult.isFire() && !triggerResult.isPurge()) {
 			// do nothing
 			return;
@@ -293,7 +295,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				context.key = timer.key;
 				context.window = timer.window;
 				setKeyContext(timer.key);
-				Trigger.TriggerResult triggerResult = context.onEventTime(timer.timestamp);
+				TriggerResult triggerResult = context.onEventTime(timer.timestamp);
 				processTriggerResult(triggerResult, context.key, context.window);
 			} else {
 				fire = false;
@@ -320,7 +322,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				context.key = timer.key;
 				context.window = timer.window;
 				setKeyContext(timer.key);
-				Trigger.TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
+				TriggerResult triggerResult = context.onProcessingTime(timer.timestamp);
 				processTriggerResult(triggerResult, context.key, context.window);
 			} else {
 				fire = false;
@@ -338,7 +340,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in
 	 * the {@code Context}
 	 */
-	protected class Context implements Trigger.TriggerContext {
+	protected class Context implements TriggerContext {
 		protected K key;
 		protected W window;
 
@@ -427,15 +429,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		}
 
-		public Trigger.TriggerResult onElement(StreamRecord<IN> element) throws Exception {
+		public TriggerResult onElement(StreamRecord<IN> element) throws Exception {
 			return trigger.onElement(element.getValue(), element.getTimestamp(), window, this);
 		}
 
-		public Trigger.TriggerResult onProcessingTime(long time) throws Exception {
+		public TriggerResult onProcessingTime(long time) throws Exception {
 			return trigger.onProcessingTime(time, window, this);
 		}
 
-		public Trigger.TriggerResult onEventTime(long time) throws Exception {
+		public TriggerResult onEventTime(long time) throws Exception {
 			return trigger.onEventTime(time, window, this);
 		}
 
