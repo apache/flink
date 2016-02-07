@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.api.common.state.State;
@@ -39,12 +40,14 @@ import java.io.Serializable;
  * <p>
  * Triggers must not maintain state internally since they can be re-created or reused for
  * different keys. All necessary state should be persisted using the state abstraction
- * available on the {@link org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext}.
+ * available on the {@link TriggerContext}.
  *
  * @param <T> The type of elements on which this {@code Trigger} works.
  * @param <W> The type of {@link Window Windows} on which this {@code Trigger} can operate.
  */
-public interface Trigger<T, W extends Window> extends Serializable {
+public abstract class Trigger<T, W extends Window> implements Serializable {
+	
+	private static final long serialVersionUID = -4104633972991191369L;
 
 	/**
 	 * Called for every element that gets added to a pane. The result of this will determine
@@ -55,7 +58,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param window The window to which this pane belongs.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;
+	public abstract TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Called when a processing-time timer that was set using the trigger context fires.
@@ -63,7 +66,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;
+	public abstract TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Called when an event-time timer that was set using the trigger context fires.
@@ -71,102 +74,53 @@ public interface Trigger<T, W extends Window> extends Serializable {
 	 * @param time The timestamp at which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
 	 */
-	TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
+	public abstract TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception;
 
 	/**
 	 * Clears any state that the trigger might still hold for the given window. This is called
 	 * when a window is purged. Timers set using {@link TriggerContext#registerEventTimeTimer(long)}
 	 * and {@link TriggerContext#registerProcessingTimeTimer(long)} should be deleted here as
 	 * well as state acquired using {@link TriggerContext#getPartitionedState(StateDescriptor)}.
+	 * 
+	 * <p>By default, this method does nothing.
 	 */
-	void clear(W window, TriggerContext ctx) throws Exception;
+	public void clear(W window, TriggerContext ctx) throws Exception {}
 
+	// ------------------------------------------------------------------------
+	
 	/**
-	 * Result type for trigger methods. This determines what happens with the window.
-	 *
-	 * <p>
-	 * On {@code FIRE} the pane is evaluated and results are emitted. The contents of the window
-	 * are kept. {@code FIRE_AND_PURGE} acts like {@code FIRE} but the contents of the pane
-	 * are purged. On {@code CONTINUE} nothing happens, processing continues. On {@code PURGE}
-	 * the contents of the window are discarded and no result is emitted for the window.
-	 */
-	enum TriggerResult {
-		CONTINUE(false, false), FIRE_AND_PURGE(true, true), FIRE(true, false), PURGE(false, true);
-
-		private final boolean fire;
-		private final boolean purge;
-
-		TriggerResult(boolean fire, boolean purge) {
-			this.purge = purge;
-			this.fire = fire;
-		}
-
-		public boolean isFire() {
-			return fire;
-		}
-
-		public boolean isPurge() {
-			return purge;
-		}
-
-		/**
-		 * Merges two {@code TriggerResults}. This specifies what should happen if we have
-		 * two results from a Trigger, for example as a result from
-		 * {@link #onElement(Object, long, Window, TriggerContext)} and
-		 * {@link #onEventTime(long, Window, TriggerContext)}.
-		 *
-		 * <p>
-		 * For example, if one result says {@code CONTINUE} while the other says {@code FIRE}
-		 * then {@code FIRE} is the combined result;
-		 */
-		public static TriggerResult merge(TriggerResult a, TriggerResult b) {
-			if (a.purge || b.purge) {
-				if (a.fire || b.fire) {
-					return FIRE_AND_PURGE;
-				} else {
-					return PURGE;
-				}
-			} else if (a.fire || b.fire) {
-				return FIRE;
-			} else {
-				return CONTINUE;
-			}
-		}
-	}
-
-	/**
-	 * A context object that is given to {@code Trigger} methods to allow them to register timer
+	 * A context object that is given to {@link Trigger} methods to allow them to register timer
 	 * callbacks and deal with state.
 	 */
-	interface TriggerContext {
-
+	public interface TriggerContext {
+	
 		/**
 		 * Register a system time callback. When the current system time passes the specified
-		 * time {@link #onProcessingTime(long, Window, TriggerContext)} is called with the time specified here.
+		 * time {@link Trigger#onProcessingTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
-		 * @param time The time at which to invoke {@link #onProcessingTime(long, Window, TriggerContext)}
+		 * @param time The time at which to invoke {@link Trigger#onProcessingTime(long, Window, TriggerContext)}
 		 */
 		void registerProcessingTimeTimer(long time);
-
+	
 		/**
 		 * Register an event-time callback. When the current watermark passes the specified
-		 * time {@link #onEventTime(long, Window, TriggerContext)} is called with the time specified here.
+		 * time {@link Trigger#onEventTime(long, Window, TriggerContext)} is called with the time specified here.
 		 *
-		 * @param time The watermark at which to invoke {@link #onEventTime(long, Window, TriggerContext)}
+		 * @param time The watermark at which to invoke {@link Trigger#onEventTime(long, Window, TriggerContext)}
 		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 */
 		void registerEventTimeTimer(long time);
-
+	
 		/**
 		 * Delete the processing time trigger for the given time.
 		 */
 		void deleteProcessingTimeTimer(long time);
-
+	
 		/**
 		 * Delete the event-time trigger for the given time.
 		 */
 		void deleteEventTimeTimer(long time);
-
+	
 		/**
 		 * Retrieves an {@link State} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
@@ -180,7 +134,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		 *                                       function (function is not part os a KeyedStream).
 		 */
 		<S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
-
+	
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
@@ -199,8 +153,8 @@ public interface Trigger<T, W extends Window> extends Serializable {
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
-
-
+	
+	
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current

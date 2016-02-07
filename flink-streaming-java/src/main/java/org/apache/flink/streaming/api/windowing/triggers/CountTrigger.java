@@ -30,7 +30,7 @@ import java.io.IOException;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
-public class CountTrigger<W extends Window> implements Trigger<Object, W> {
+public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long maxCount;

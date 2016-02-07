@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 
 import java.util.Collection;
@@ -67,15 +68,12 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 	/**
 	 * A trigger that never fires, as default Trigger for GlobalWindows.
 	 */
-	private static class NeverTrigger implements Trigger<Object, GlobalWindow> {
+	private static class NeverTrigger extends Trigger<Object, GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public TriggerResult onElement(Object element,
-				long timestamp,
-				GlobalWindow window,
-				TriggerContext ctx) {
-				return TriggerResult.CONTINUE;
+		public TriggerResult onElement(Object element, long timestamp, GlobalWindow window, TriggerContext ctx) {
+			return TriggerResult.CONTINUE;
 		}
 
 		@Override

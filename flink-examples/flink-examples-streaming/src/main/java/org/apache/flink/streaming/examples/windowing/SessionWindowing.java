@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 
 import java.util.ArrayList;
@@ -95,7 +96,7 @@ public class SessionWindowing {
 		env.execute();
 	}
 
-	private static class SessionTrigger implements Trigger<Tuple3<String, Long, Integer>, GlobalWindow> {
+	private static class SessionTrigger extends Trigger<Tuple3<String, Long, Integer>, GlobalWindow> {
 
 		private static final long serialVersionUID = 1L;
 
