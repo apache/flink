@@ -19,6 +19,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.util.InstantiationUtil
 import org.slf4j.LoggerFactory
@@ -30,6 +31,7 @@ import org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
 import org.objectweb.asm.Opcodes._
 
 /* This code is originally from the Apache Spark project. */
+@Internal
 object ClosureCleaner {
   val LOG = LoggerFactory.getLogger(this.getClass)
 
@@ -226,6 +228,7 @@ object ClosureCleaner {
   }
 }
 
+@Internal
 private[flink]
 class ReturnStatementFinder extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
@@ -244,6 +247,7 @@ class ReturnStatementFinder extends ClassVisitor(ASM5) {
   }
 }
 
+@Internal
 private[flink]
 class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
@@ -271,6 +275,7 @@ class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor
   }
 }
 
+@Internal
 private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisitor(ASM5) {
   var myName: String = null
 

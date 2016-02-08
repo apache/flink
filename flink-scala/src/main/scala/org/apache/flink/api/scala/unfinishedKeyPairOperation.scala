@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Keys
 
@@ -41,6 +42,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
  * @tparam R Type of the right input [[DataSet]].
  * @tparam O The type of the resulting Operation.
  */
+@Internal
 private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
     private[flink] val leftInput: DataSet[L],
     private[flink] val rightInput: DataSet[R]) {
@@ -90,6 +92,7 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
   }
 }
 
+@Internal
 private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
     unfinished: UnfinishedKeyPairOperation[L, R, O], leftKey: Keys[L]) {
 

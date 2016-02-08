@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.hadoop.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.hadoop.security.Credentials;
@@ -31,6 +32,7 @@ import java.lang.reflect.Method;
 /**
  * A common base for both "mapred" and "mapreduce" Hadoop input formats.
  */
+@Internal
 public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit> extends RichInputFormat<T, SPITTYPE> {
 	protected transient Credentials credentials;
 

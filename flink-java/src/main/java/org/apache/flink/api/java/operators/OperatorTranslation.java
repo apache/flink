@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 
@@ -36,6 +37,7 @@ import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.configuration.Configuration;
 
+@Internal
 public class OperatorTranslation {
 	
 	/** The already translated operations */

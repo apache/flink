@@ -20,6 +20,7 @@ package org.apache.flink.api.java.functions;
 
 import java.util.Iterator;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.util.Collector;
 
@@ -32,6 +33,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
+@PublicEvolving
 public abstract class FlatMapIterator<IN, OUT> extends RichFlatMapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;

@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.sampling;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.util.Iterator;
@@ -31,6 +32,7 @@ import java.util.Random;
  * @param <T> The type of sample.
  * @see <a href="http://erikerlandson.github.io/blog/2014/09/11/faster-random-samples-with-gap-sampling/">Gap Sampling</a>
  */
+@Internal
 public class BernoulliSampler<T> extends RandomSampler<T> {
 
 	private final double fraction;

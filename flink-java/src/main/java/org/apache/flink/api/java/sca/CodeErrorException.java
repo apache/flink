@@ -17,9 +17,12 @@
  */
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Exception that is thrown if code errors could be found during analysis.
  */
+@PublicEvolving
 public class CodeErrorException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 

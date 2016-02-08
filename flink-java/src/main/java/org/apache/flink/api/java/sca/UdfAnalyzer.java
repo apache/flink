@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -61,6 +62,7 @@ import static org.apache.flink.api.java.sca.UdfAnalyzerUtils.removeUngroupedInpu
  * or bytecode instructions that haven't been considered the analyzer
  * will fallback to the ASM library (which removes TaggedValues).
  */
+@Internal
 public class UdfAnalyzer {
 	// necessary to prevent endless loops and stack overflows
 	private static final int MAX_NESTING = 20;

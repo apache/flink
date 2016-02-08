@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.sca;
 
+import org.apache.flink.annotation.Internal;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.Frame;
@@ -31,6 +32,7 @@ import java.util.Arrays;
  * Modified version of ASMs Frame. It allows to perform different merge
  * priorities and passes frame information to the Interpreter.
  */
+@Internal
 public class ModifiedASMFrame extends Frame {
 
 	public boolean mergePriority;

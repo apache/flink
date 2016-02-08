@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -24,6 +25,7 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 /**
  * Serializer for [[Enumeration]] values.
  */
+@Internal
 class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[E#Value] {
 
   type T = E#Value

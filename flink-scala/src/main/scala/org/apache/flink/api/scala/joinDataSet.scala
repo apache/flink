@@ -214,6 +214,7 @@ class JoinDataSet[L, R](
   }
 }
 
+@Internal
 private[flink] abstract class UnfinishedJoinOperationBase[L, R, O <: JoinFunctionAssigner[L, R]](
     leftSet: DataSet[L],
     rightSet: DataSet[R],

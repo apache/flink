@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.annotation.Public
+import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.functions.{CrossFunction, RichCrossFunction}
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -94,6 +94,7 @@ class CrossDataSet[L, R](
   }
 }
 
+@Internal
 private[flink] object CrossDataSet {
 
   /**

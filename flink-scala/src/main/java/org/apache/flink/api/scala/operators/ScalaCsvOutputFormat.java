@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.scala.operators;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.FileOutputFormat;
@@ -43,6 +44,7 @@ import scala.Product;
  * Record delimiter separate records from each other ('\n' is common). Field
  * delimiters separate fields within a record.
  */
+@PublicEvolving
 public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T> implements InputTypeConfigurable {
 	private static final long serialVersionUID = 1L;
 
