@@ -18,9 +18,12 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * An enumeration indicating the operating system that the JVM runs on.
  */
+@Internal
 public enum OperatingSystem {
 	
 	LINUX,

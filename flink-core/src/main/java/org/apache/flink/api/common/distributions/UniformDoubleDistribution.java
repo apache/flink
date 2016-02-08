@@ -20,11 +20,12 @@ package org.apache.flink.api.common.distributions;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.DoubleValue;
 
-
+@PublicEvolving
 public class UniformDoubleDistribution implements DataDistribution {
 
 	private static final long serialVersionUID = 1L;

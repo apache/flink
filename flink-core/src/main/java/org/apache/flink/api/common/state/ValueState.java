@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 
@@ -36,7 +36,7 @@ import java.io.IOException;
  * 
  * @param <T> Type of the value in the state.
  */
-@Public
+@PublicEvolving
 public interface ValueState<T> extends State, OperatorState<T> {
 
 	/**

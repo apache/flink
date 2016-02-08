@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -35,6 +37,7 @@ import java.util.Objects;
  * Note that memory segments should usually not be allocated manually, but rather through the
  * {@link MemorySegmentFactory}.
  */
+@Internal
 public final class HeapMemorySegment extends MemorySegment {
 
 	/** An extra reference to the heap memory, so we can let byte array checks fail 

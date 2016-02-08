@@ -23,11 +23,12 @@ import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-
+@Internal
 public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;

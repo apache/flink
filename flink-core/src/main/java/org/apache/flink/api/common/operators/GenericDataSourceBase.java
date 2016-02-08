@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -40,6 +41,7 @@ import org.apache.flink.util.Visitor;
  * @param <OUT> The output type of the data source
  * @param <T> The type of input format invoked by instances of this data source.
  */
+@Internal
 public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends Operator<OUT> {
 
 	private static final String DEFAULT_NAME = "<Unnamed Generic Data Source>";

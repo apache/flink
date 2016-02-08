@@ -48,6 +48,7 @@ import org.apache.flink.core.fs.Path;
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
+@PublicEvolving
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final TaskInfo taskInfo;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Specifies to which extent user-defined functions are analyzed in order
@@ -33,7 +33,7 @@ import org.apache.flink.annotation.Public;
  *  - Warnings if a tuple access uses a wrong index
  *  - Information about the number of object creations (for manual optimization)
  */
-@Public
+@PublicEvolving
 public enum CodeAnalysisMode {
 
 	/**

@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -33,6 +34,7 @@ import org.apache.flink.core.fs.Path;
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
+@Internal
 public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 
 	private final HashMap<String, Object> initializedBroadcastVars = new HashMap<String, Object>();

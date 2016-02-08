@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.common.distributions;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
 /**
@@ -24,6 +26,7 @@ import java.io.Serializable;
  *
  * @param <T> The boundary type.
  */
+@PublicEvolving
 public interface RangeBoundaries<T> extends Serializable {
 
 	/**

@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Exception indicating that the parsing of input contents has failed because the data
  * does not match the configured parser.
  */
+@PublicEvolving
 public class ParseException extends RuntimeException {
 	
 	private static final long serialVersionUID = -6721968786653128017L;

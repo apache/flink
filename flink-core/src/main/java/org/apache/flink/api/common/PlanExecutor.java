@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import java.net.URL;
@@ -38,6 +39,7 @@ import java.util.List;
  * a program is submitted to a plan executor that is not running, it will start up for that
  * program, and shut down afterwards.</p>
  */
+@Internal
 public abstract class PlanExecutor {
 
 	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";

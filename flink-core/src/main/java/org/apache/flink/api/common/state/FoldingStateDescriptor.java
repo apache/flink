@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,6 +33,7 @@ import static java.util.Objects.requireNonNull;
  * @param <T> Type of the values folded int othe state
  * @param <ACC> Type of the value in the state
  */
+@PublicEvolving
 public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState<T, ACC>, ACC> {
 	private static final long serialVersionUID = 1L;
 

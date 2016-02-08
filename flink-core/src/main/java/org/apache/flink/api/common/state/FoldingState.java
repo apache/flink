@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * {@link State} interface for folding state. Elements can be added to the state, they will
  * be successively added to the initial value using a
@@ -34,4 +36,5 @@ package org.apache.flink.api.common.state;
  * @param <T> Type of the values folded into the state
  * @param <ACC> Type of the value in the state
  */
+@PublicEvolving
 public interface FoldingState<T, ACC> extends MergingState<T, ACC> {}

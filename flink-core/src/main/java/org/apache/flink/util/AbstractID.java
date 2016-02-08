@@ -21,6 +21,7 @@ package org.apache.flink.util;
 import java.io.IOException;
 import java.util.Random;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -28,6 +29,7 @@ import org.apache.flink.core.memory.DataOutputView;
 /**
  * A statistically unique identification number.
  */
+@PublicEvolving
 public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;

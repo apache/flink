@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.IOException;
 
 /**
@@ -36,6 +38,7 @@ import java.io.IOException;
  * @param <IN> Type of the value that can be added to the state.
  * @param <OUT> Type of the value that can be retrieved from the state.
  */
+@PublicEvolving
 public interface MergingState<IN, OUT> extends State {
 
 	/**

@@ -21,8 +21,10 @@ package org.apache.flink.api.common.distributions;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.IOReadableWritable;
 
+@PublicEvolving
 public interface DataDistribution extends IOReadableWritable, Serializable {
 	
 	/**

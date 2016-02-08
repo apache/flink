@@ -19,11 +19,13 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.FloatValue;
 
 /**
  * Parses a text field into a {@link FloatValue}
  */
+@PublicEvolving
 public class FloatValueParser extends FieldParser<FloatValue> {
 	
 	private FloatValue result;

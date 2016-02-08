@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.LinkedList;
 import java.util.List;
 
 @SuppressWarnings("rawtypes")
+@PublicEvolving
 public abstract class CompositeTypeComparator<T> extends TypeComparator<T> {
 	
 	private static final long serialVersionUID = 1L;

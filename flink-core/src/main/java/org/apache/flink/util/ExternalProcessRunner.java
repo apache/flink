@@ -17,6 +17,8 @@
  */
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +38,7 @@ import java.util.List;
  * <p>Attention: The entry point class must be in the classpath of the currently running process,
  * otherwise the newly spawned process will not find it and fail.
  */
+@Internal
 public class ExternalProcessRunner {
 	private final String entryPointClassName;
 

@@ -19,11 +19,14 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Parses a decimal text field into a IntValue.
  * Only characters '1' to '0' and '-' are allowed.
  * The parser does not check for the maximum value.
  */
+@PublicEvolving
 public class IntParser extends FieldParser<Integer> {
 
 	private static final long OVERFLOW_BOUND = 0x7fffffffL;

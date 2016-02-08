@@ -19,9 +19,10 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
-
+@Internal
 public interface TypeSerializerFactory<T> {
 	
 	void writeParametersToConfig(Configuration config);

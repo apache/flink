@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 /**
  * Utility class to create instances from class objects and checking failure reasons.
  */
+@Internal
 public final class InstantiationUtil {
 	
 	/**

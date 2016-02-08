@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
@@ -47,6 +48,7 @@ import java.util.List;
  * This class is later processed by the compiler to generate the plan.
  * @see org.apache.flink.api.common.functions.CombineFunction
  */
+@Internal
 public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 

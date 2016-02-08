@@ -28,6 +28,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecordBase;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -56,6 +57,7 @@ import java.util.Set;
  * to provide custom serialization for their classes.
  * Also, there is a Java Annotation for adding a default serializer (@DefaultSerializer) to classes.
  */
+@Internal
 public class Serializers {
 
 	public static void recursivelyRegisterType(TypeInformation<?> typeInfo, ExecutionConfig config, Set<Class<?>> alreadySeen) {

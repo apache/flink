@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase;
@@ -62,6 +63,7 @@ import java.io.IOException;
  * @see org.apache.flink.api.common.operators.base.FilterOperatorBase
  * @see org.apache.flink.api.common.operators.base.MapPartitionOperatorBase
  */
+@PublicEvolving
 public final class ReplicatingInputFormat<OT, S extends InputSplit> extends RichInputFormat<OT, S> {
 
 	private static final long serialVersionUID = 1L;

@@ -26,11 +26,13 @@ import java.lang.reflect.Field;
 import java.util.Objects;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * Represent a field definition for {@link PojoTypeInfo} type of objects.
  */
+@Internal
 public class PojoField implements Serializable {
 
 	private static final long serialVersionUID = 1975295846436559363L;
