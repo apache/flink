@@ -22,10 +22,13 @@ import java.io.File
 import java.lang.reflect.Method
 import java.nio.ByteBuffer
 import java.util.Collections
+import java.util.concurrent.ExecutorService
 import java.util.{List => JavaList}
 
 import akka.actor.ActorRef
+
 import grizzled.slf4j.Logger
+
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -40,6 +43,7 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.yarn.YarnMessages._
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.DataOutputBuffer
@@ -55,7 +59,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.exceptions.YarnException
 import org.apache.hadoop.yarn.util.Records
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
@@ -64,7 +67,7 @@ import scala.util.Try
   * to start/administer/stop the Yarn session.
   *
   * @param flinkConfiguration Configuration object for the actor
-  * @param executionContext Execution context which is used to execute concurrent tasks in the
+  * @param executorService Execution context which is used to execute concurrent tasks in the
   *                         [[org.apache.flink.runtime.executiongraph.ExecutionGraph]]
   * @param instanceManager Instance manager to manage the registered
   *                        [[org.apache.flink.runtime.taskmanager.TaskManager]]
@@ -78,7 +81,7 @@ import scala.util.Try
   */
 class YarnJobManager(
     flinkConfiguration: FlinkConfiguration,
-    executionContext: ExecutionContext,
+    executorService: ExecutorService,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -91,7 +94,7 @@ class YarnJobManager(
     checkpointRecoveryFactory : CheckpointRecoveryFactory)
   extends JobManager(
     flinkConfiguration,
-    executionContext,
+    executorService,
     instanceManager,
     scheduler,
     libraryCacheManager,
@@ -587,7 +590,8 @@ class YarnJobManager(
 
   /**
    * Calculate the correct JVM heap memory limit.
-   * @param memoryLimit The maximum memory in megabytes.
+    *
+    * @param memoryLimit The maximum memory in megabytes.
    * @return A Tuple2 containing the heap and the offHeap limit in megabytes.
    */
   private def calculateMemoryLimits(memoryLimit: Long): Long = {

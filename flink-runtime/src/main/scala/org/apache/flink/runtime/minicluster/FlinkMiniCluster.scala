@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent._
+import scala.concurrent.forkjoin.ForkJoinPool
 
 /**
  * Abstract base class for Flink's mini cluster. The mini cluster starts a
@@ -82,7 +83,7 @@ abstract class FlinkMiniCluster(
 
   /** Future lock */
   val futureLock = new Object()
-
+  
   implicit val executionContext = ExecutionContext.global
 
   implicit val timeout = AkkaUtils.getTimeout(userConfiguration)
@@ -319,8 +320,6 @@ abstract class FlinkMiniCluster(
     val jmFutures = jobManagerActors map {
       _.map(gracefulStop(_, timeout))
     } getOrElse(Seq())
-
-    implicit val executionContext = ExecutionContext.global
 
     Await.ready(Future.sequence(jmFutures ++ tmFutures), timeout)
 

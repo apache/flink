@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
+
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -27,25 +28,17 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+import java.util.concurrent.ExecutorService
+
 /** JobManager implementation extended by testing messages
   *
-  * @param flinkConfiguration
-  * @param executionContext
-  * @param instanceManager
-  * @param scheduler
-  * @param libraryCacheManager
-  * @param archive
-  * @param defaultExecutionRetries
-  * @param delayBetweenRetries
-  * @param timeout
   */
 class TestingJobManager(
     flinkConfiguration: Configuration,
-    executionContext: ExecutionContext,
+    executorService: ExecutorService,
     instanceManager: InstanceManager,
     scheduler: Scheduler,
     libraryCacheManager: BlobLibraryCacheManager,
@@ -58,7 +51,7 @@ class TestingJobManager(
     checkpointRecoveryFactory : CheckpointRecoveryFactory)
   extends JobManager(
     flinkConfiguration,
-    executionContext,
+      executorService,
     instanceManager,
     scheduler,
     libraryCacheManager,
