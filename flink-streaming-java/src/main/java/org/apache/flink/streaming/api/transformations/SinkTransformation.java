@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -32,6 +33,7 @@ import java.util.List;
  *
  * @param <T> The type of the elements in the input {@code SinkTransformation}
  */
+@Internal
 public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	private final StreamTransformation<T> input;

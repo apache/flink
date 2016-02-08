@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -32,6 +33,7 @@ import static com.google.common.base.Preconditions.checkArgument;
  * 
  * @param <T> The type of elements written.
  */
+@Internal
 public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
 	/** Default name for teh output flush thread, if no name with a task reference is given */

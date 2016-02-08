@@ -18,10 +18,12 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 
 import java.io.IOException;
 
+@Internal
 public interface StreamingReader extends ReaderBase {
 
 	void cleanup() throws IOException;

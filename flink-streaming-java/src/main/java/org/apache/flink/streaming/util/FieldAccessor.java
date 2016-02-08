@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -42,6 +43,7 @@ import scala.Product;
  * or a field expression string. TypeInformation can also be requested for the field.
  * The position index might specify a field of a Tuple, an array, or a simple type (only "0th field").
  */
+@Internal
 public abstract class FieldAccessor<R, F> implements Serializable {
 
 	private static final long serialVersionUID = 1L;

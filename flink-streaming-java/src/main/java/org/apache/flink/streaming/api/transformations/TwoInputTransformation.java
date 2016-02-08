@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -35,6 +36,7 @@ import java.util.List;
  * @param <IN2> The type of the elements in the second input {@code StreamTransformation}
  * @param <OUT> The type of the elements that result from this {@code TwoInputTransformation}
  */
+@Internal
 public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<OUT> {
 
 	private final StreamTransformation<IN1> input1;

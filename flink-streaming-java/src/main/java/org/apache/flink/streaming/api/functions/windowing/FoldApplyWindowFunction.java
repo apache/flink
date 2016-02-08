@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,6 +34,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+@Internal
 public class FoldApplyWindowFunction<K, W extends Window, T, ACC>
 	extends WrappingFunction<WindowFunction<ACC, ACC, K, W>>
 	implements WindowFunction<Iterable<T>, ACC, K, W>, OutputTypeConfigurable<ACC> {

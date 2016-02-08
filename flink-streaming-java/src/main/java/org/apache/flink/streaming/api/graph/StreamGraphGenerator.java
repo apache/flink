@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -71,6 +72,7 @@ import java.util.Map;
  * We add the edge {@code 4 -> 3}. The {@code StreamGraph} resolved the actual node with ID 1 and
  * creates and edge {@code 1 -> 3} with the property HashPartition.
  */
+@Internal
 public class StreamGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphGenerator.class);

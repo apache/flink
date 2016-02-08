@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -49,6 +50,7 @@ import org.apache.flink.streaming.api.operators.StreamProject;
 
 import com.google.common.base.Preconditions;
 
+@PublicEvolving
 public class StreamProjection<IN> {
 
 	private DataStream<IN> dataStream;

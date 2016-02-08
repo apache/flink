@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.runtime.util.MathUtils;
 
@@ -41,6 +42,7 @@ import java.util.NoSuchElementException;
  *     <li>The map supports no removal/shrinking.</li>
  * </ul>
  */
+@Internal
 public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 	
 	/** The minimum table capacity, 64 entries */

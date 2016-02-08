@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -35,6 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * @param <OUT> Type of the output elements of this source.
  */
+@Internal
 public class SourceStreamTask<OUT> extends StreamTask<OUT, StreamSource<OUT>> {
 
 	@Override

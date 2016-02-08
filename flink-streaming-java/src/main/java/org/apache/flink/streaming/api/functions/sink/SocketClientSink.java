@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
@@ -41,6 +42,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * @param <IN> data to be written into the Socket.
  */
+@PublicEvolving
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;

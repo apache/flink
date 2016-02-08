@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.Public
+import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -39,6 +39,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   /**
    * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
    * the output to a common type. The transformation calls a
+ *
    * @param fun1 for each element of the first input and
    * @param fun2 for each element of the second input. Each
    * CoMapFunction call returns exactly one element.
@@ -114,11 +115,11 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   /**
    * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
    * maps the output to a common type. The transformation calls a
+ *
    * @param fun1 for each element of the first input
    * and @param fun2 for each element of the second
    * input. Each CoFlatMapFunction call returns any number of elements
    * including none.
-   *
    * @return The transformed { @link DataStream}
    */
   def flatMap[R: TypeInformation: ClassTag](fun1: (IN1, Collector[R]) => Unit, 
@@ -138,11 +139,11 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
   /**
    * Applies a CoFlatMap transformation on a {@link ConnectedStreams} and
    * maps the output to a common type. The transformation calls a
+ *
    * @param fun1 for each element of the first input
    * and @param fun2 for each element of the second
    * input. Each CoFlatMapFunction call returns any number of elements
    * including none.
-   *
    * @return The transformed { @link DataStream}
    */
   def flatMap[R: TypeInformation: ClassTag](fun1: IN1 => TraversableOnce[R],
@@ -356,6 +357,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
 }
 
+@Internal
 class KeySelectorWithType[IN, K](
         private[this] val fun: IN => K,
         private[this] val info: TypeInformation[K])

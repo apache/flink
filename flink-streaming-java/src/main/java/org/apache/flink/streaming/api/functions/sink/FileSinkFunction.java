@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
  * @param <IN>
  *            Input type
  */
+@PublicEvolving
 public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> implements
 	InputTypeConfigurable {
 	

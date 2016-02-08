@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
@@ -95,6 +96,7 @@ import org.slf4j.LoggerFactory;
  * @param <OUT>
  * @param <Operator>
  */
+@Internal
 public abstract class StreamTask<OUT, Operator extends StreamOperator<OUT>>
 		extends AbstractInvokable
 		implements StatefulTask<StreamTaskStateList> {

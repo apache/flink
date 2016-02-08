@@ -26,6 +26,7 @@ import java.nio.channels.FileChannel;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -48,6 +49,7 @@ import org.apache.flink.util.StringUtils;
  * <p>IMPORTANT: The SpilledBufferOrEventSequences created by this spiller all reuse the same
  * reading memory (to reduce overhead) and can consequently not be read concurrently.</p>
  */
+@Internal
 public class BufferSpiller {
 
 	/** The counter that selects the next directory to spill into */

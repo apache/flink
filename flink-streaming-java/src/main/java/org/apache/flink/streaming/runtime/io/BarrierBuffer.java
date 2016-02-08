@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
  * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until 
  * the blocks are released.</p>
  */
+@Internal
 public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);

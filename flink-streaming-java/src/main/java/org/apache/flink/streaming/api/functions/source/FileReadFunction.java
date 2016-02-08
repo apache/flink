@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -28,6 +29,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
 
+@PublicEvolving
 public class FileReadFunction implements FlatMapFunction<Tuple3<String, Long, Long>, String> {
 
 	private static final long serialVersionUID = 1L;

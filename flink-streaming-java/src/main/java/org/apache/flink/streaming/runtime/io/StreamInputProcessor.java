@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
  * 
  * @param <IN> The type of the record that can be read with this record reader.
  */
+@Internal
 public class StreamInputProcessor<IN> {
 	
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * {@link StreamOperator} for streaming sources.
  */
+@Internal
 public class StreamSource<T> extends AbstractUdfStreamOperator<T, SourceFunction<T>> implements StreamOperator<T> {
 
 	private static final long serialVersionUID = 1L;

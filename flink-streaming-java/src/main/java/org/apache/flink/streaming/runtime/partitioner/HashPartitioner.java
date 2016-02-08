@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * @param <T> Type of the elements in the Stream being partitioned
  */
+@Internal
 public class HashPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 

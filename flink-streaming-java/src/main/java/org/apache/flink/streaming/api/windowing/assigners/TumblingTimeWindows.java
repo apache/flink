@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -43,6 +44,7 @@ import java.util.Collections;
  *   keyed.window(TumblingTimeWindows.of(Time.minutes(1)));
  * } </pre>
  */
+@PublicEvolving
 public class TumblingTimeWindows extends WindowAssigner<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 

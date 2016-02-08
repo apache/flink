@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.operators.windowing;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
@@ -86,6 +87,7 @@ import static java.util.Objects.requireNonNull;
  * @param <OUT> The type of elements emitted by the {@code WindowFunction}.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
+@Internal
 public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	extends AbstractUdfStreamOperator<OUT, WindowFunction<ACC, OUT, K, W>>
 	implements OneInputStreamOperator<IN, OUT>, Triggerable, InputTypeConfigurable {

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -46,6 +47,7 @@ import static java.util.Objects.requireNonNull;
  * @param <F>
  *            The type of the user function
  */
+@PublicEvolving
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function> extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;

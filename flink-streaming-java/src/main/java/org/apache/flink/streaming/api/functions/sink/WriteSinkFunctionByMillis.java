@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * Implementation of WriteSinkFunction. Writes tuples to file in every millis
  * milliseconds.
@@ -24,6 +26,7 @@ package org.apache.flink.streaming.api.functions.sink;
  * @param <IN>
  *            Input tuple type
  */
+@PublicEvolving
 public class WriteSinkFunctionByMillis<IN> extends WriteSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 

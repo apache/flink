@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
 /**
@@ -41,6 +42,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  *
  * @param <OUT> The type of the records produced by this source.
  */
+@PublicEvolving
 public abstract class RichEventTimeSourceFunction<OUT> extends AbstractRichFunction implements EventTimeSourceFunction<OUT> {
 
 	private static final long serialVersionUID = 1L;

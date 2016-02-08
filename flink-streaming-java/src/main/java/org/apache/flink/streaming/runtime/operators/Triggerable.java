@@ -18,10 +18,13 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * This interface must be implemented by objects that are triggered by the timer service available
  * to stream operators in {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment}.
  */
+@Internal
 public interface Triggerable {
 
 	/**

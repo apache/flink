@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -60,6 +61,7 @@ import java.util.Collection;
  * @param <IN1> The type of the records that arrive on the first input
  * @param <IN2> The type of the records that arrive on the second input
  */
+@Internal
 public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;

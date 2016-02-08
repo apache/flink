@@ -17,10 +17,12 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+@Internal
 public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
 		implements OneInputStreamOperator<IN, Object> {
 

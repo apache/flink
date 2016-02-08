@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.ValueState;
@@ -32,6 +33,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+@Internal
 public class StreamGroupedFold<IN, OUT, KEY>
 		extends AbstractUdfStreamOperator<OUT, FoldFunction<IN, OUT>>
 		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {

@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 
+@Internal
 public class AggregatingProcessingTimeWindowOperator<KEY, IN> 
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, IN, IN, ReduceFunction<IN>> {
 

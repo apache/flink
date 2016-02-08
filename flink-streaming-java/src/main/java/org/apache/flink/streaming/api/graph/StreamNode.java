@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -32,6 +33,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 /**
  * Class representing the operators in the streaming programs, with all their properties.
  */
+@Internal
 public class StreamNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
