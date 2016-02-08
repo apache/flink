@@ -156,6 +156,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 		Configuration config = ZooKeeperTestUtils.createZooKeeperRecoveryModeConfig(ZooKeeper
 				.getConnectString(), FileStateBackendBasePath.getAbsoluteFile().toURI().toString());
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Parallelism);
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
 		ActorSystem testSystem = null;
 		JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
@@ -182,7 +183,8 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
-			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
+			taskManagerSystem = AkkaUtils.createActorSystem(
+					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
@@ -297,6 +299,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 				fileStateBackendPath);
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
 		JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
 		LeaderRetrievalService leaderRetrievalService = null;
@@ -321,7 +324,8 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			leaderRetrievalService.start(leaderListener);
 
 			// The task manager
-			taskManagerSystem = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
+			taskManagerSystem = AkkaUtils.createActorSystem(
+					config, Option.apply(new Tuple2<String, Object>("localhost", 0)));
 			TaskManager.startTaskManagerComponentsAndActor(
 					config, taskManagerSystem, "localhost",
 					Option.<String>empty(), Option.<LeaderRetrievalService>empty(),
