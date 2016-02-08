@@ -1,36 +1,38 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.util.HDFSCopyFromLocal;
 import org.apache.flink.util.HDFSCopyToLocal;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
 import org.rocksdb.BackupEngine;
 import org.rocksdb.BackupableDBOptions;
 import org.rocksdb.Env;
@@ -38,7 +40,7 @@ import org.rocksdb.Options;
 import org.rocksdb.RestoreOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.StringAppendOperator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,10 +62,9 @@ import static java.util.Objects.requireNonNull;
  * @param <N> The type of the namespace.
  * @param <S> The type of {@link State}.
  * @param <SD> The type of {@link StateDescriptor}.
- * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend>
-	implements KvState<K, N, S, SD, Backend>, State {
+public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, ?>>
+	implements KvState<K, N, S, SD, RocksDBStateBackend>, State {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
 
@@ -95,18 +96,17 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
 	 */
 	protected AbstractRocksDBState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		File dbPath,
-		String checkpointPath) {
+			TypeSerializer<N> namespaceSerializer,
+			File dbPath,
+			String checkpointPath,
+			Options options) {
+		
 		this.keySerializer = requireNonNull(keySerializer);
 		this.namespaceSerializer = namespaceSerializer;
 		this.dbPath = dbPath;
 		this.checkpointPath = checkpointPath;
 
 		RocksDB.loadLibrary();
-
-		Options options = new Options().setCreateIfMissing(true);
-		options.setMergeOperator(new StringAppendOperator());
 
 		if (!dbPath.exists()) {
 			if (!dbPath.mkdirs()) {
@@ -128,9 +128,6 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		} catch (RocksDBException e) {
 			throw new RuntimeException("Error while opening RocksDB instance.", e);
 		}
-
-		options.dispose();
-
 	}
 
 	/**
@@ -143,10 +140,11 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	 * @param restorePath The path to a backup directory from which to restore RocksDb database.
 	 */
 	protected AbstractRocksDBState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		File dbPath,
-		String checkpointPath,
-		String restorePath) {
+			TypeSerializer<N> namespaceSerializer,
+			File dbPath,
+			String checkpointPath,
+			String restorePath,
+			Options options) {
 
 		RocksDB.loadLibrary();
 
@@ -162,9 +160,6 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		this.dbPath = dbPath;
 		this.checkpointPath = checkpointPath;
 
-		Options options = new Options().setCreateIfMissing(true);
-		options.setMergeOperator(new StringAppendOperator());
-
 		if (!dbPath.exists()) {
 			if (!dbPath.mkdirs()) {
 				throw new RuntimeException("Could not create RocksDB data directory.");
@@ -176,8 +171,6 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		} catch (RocksDBException e) {
 			throw new RuntimeException("Error while opening RocksDB instance.", e);
 		}
-
-		options.dispose();
 	}
 
 	// ------------------------------------------------------------------------
@@ -211,12 +204,10 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		this.currentNamespace = namespace;
 	}
 
-	protected abstract KvStateSnapshot<K, N, S, SD, Backend> createRocksDBSnapshot(URI backupUri, long checkpointId);
+	protected abstract AbstractRocksDBSnapshot<K, N, S, SD> createRocksDBSnapshot(URI backupUri, long checkpointId);
 
 	@Override
-	final public KvStateSnapshot<K, N, S, SD, Backend> snapshot(
-		long checkpointId,
-		long timestamp) throws Exception {
+	public final AbstractRocksDBSnapshot<K, N, S, SD> snapshot(long checkpointId, long timestamp) throws Exception {
 		boolean success = false;
 
 		final File localBackupPath = new File(dbPath, "backup-" + checkpointId);
@@ -234,7 +225,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			}
 
 			HDFSCopyFromLocal.copyFromLocal(localBackupPath, backupUri);
-			KvStateSnapshot<K, N, S, SD, Backend> result = createRocksDBSnapshot(backupUri, checkpointId);
+			AbstractRocksDBSnapshot<K, N, S, SD> result = createRocksDBSnapshot(backupUri, checkpointId);
 			success = true;
 			return result;
 		} finally {
@@ -256,7 +247,9 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		}
 	}
 
-	public static abstract class AbstractRocksDBSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>, Backend extends AbstractStateBackend> implements KvStateSnapshot<K, N, S, SD, Backend> {
+	public static abstract class AbstractRocksDBSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>>
+			implements KvStateSnapshot<K, N, S, SD, RocksDBStateBackend>
+	{
 		private static final long serialVersionUID = 1L;
 
 		private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBSnapshot.class);
@@ -293,12 +286,13 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		protected final SD stateDesc;
 
 		public AbstractRocksDBSnapshot(File dbPath,
-			String checkpointPath,
-			URI backupUri,
-			long checkpointId,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			SD stateDesc) {
+				String checkpointPath,
+				URI backupUri,
+				long checkpointId,
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer,
+				SD stateDesc) {
+			
 			this.dbPath = dbPath;
 			this.checkpointPath = checkpointPath;
 			this.backupUri = backupUri;
@@ -309,19 +303,21 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			this.namespaceSerializer = namespaceSerializer;
 		}
 
-		protected abstract KvState<K, N, S, SD, Backend> createRocksDBState(TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			SD stateDesc,
-			File dbPath,
-			String backupPath,
-			String restorePath) throws Exception;
+		protected abstract KvState<K, N, S, SD, RocksDBStateBackend> createRocksDBState(
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer,
+				SD stateDesc,
+				File dbPath,
+				String backupPath,
+				String restorePath,
+				Options options) throws Exception;
 
 		@Override
-		public final KvState<K, N, S, SD, Backend> restoreState(
-			Backend stateBackend,
-			TypeSerializer<K> keySerializer,
-			ClassLoader classLoader,
-			long recoveryTimestamp) throws Exception {
+		public final KvState<K, N, S, SD, RocksDBStateBackend> restoreState(
+				RocksDBStateBackend stateBackend,
+				TypeSerializer<K> keySerializer,
+				ClassLoader classLoader,
+				long recoveryTimestamp) throws Exception {
 
 			// validity checks
 			if (!this.keySerializer.equals(keySerializer)) {
@@ -352,7 +348,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			}
 
 			HDFSCopyToLocal.copyToLocal(backupUri, dbPath);
-			return createRocksDBState(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath, localBackupPath.getAbsolutePath());
+			return createRocksDBState(keySerializer, namespaceSerializer, stateDesc, dbPath, 
+					checkpointPath, localBackupPath.getAbsolutePath(), stateBackend.getRocksDBOptions());
 		}
 
 		@Override
