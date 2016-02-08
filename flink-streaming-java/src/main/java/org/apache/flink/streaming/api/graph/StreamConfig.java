@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
@@ -38,7 +39,7 @@ import org.apache.flink.util.InstantiationUtil;
 public class StreamConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-
+	
 	// ------------------------------------------------------------------------
 	//  Config Keys
 	// ------------------------------------------------------------------------
@@ -191,19 +192,22 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setOutputSelectorWrapper(OutputSelectorWrapper<?> outputSelectorWrapper) {
+	public void setOutputSelectors(List<OutputSelector<?>> outputSelectors) {
 		try {
-			InstantiationUtil.writeObjectToConfig(outputSelectorWrapper, this.config, OUTPUT_SELECTOR_WRAPPER);
+			InstantiationUtil.writeObjectToConfig(outputSelectors, this.config, OUTPUT_SELECTOR_WRAPPER);
 		} catch (IOException e) {
-			throw new StreamTaskException("Cannot serialize OutputSelectorWrapper.", e);
+			throw new StreamTaskException("Could not serialize output selectors", e);
 		}
 	}
 	
-	public <T> OutputSelectorWrapper<T> getOutputSelectorWrapper(ClassLoader cl) {
+	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader userCodeClassloader) {
 		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, cl);
+			List<OutputSelector<T>> selectors = 
+					InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, userCodeClassloader);
+			return selectors == null ? Collections.<OutputSelector<T>>emptyList() : selectors;
+			
 		} catch (Exception e) {
-			throw new StreamTaskException("Cannot deserialize and instantiate OutputSelectorWrapper.", e);
+			throw new StreamTaskException("Could not read output selectors", e);
 		}
 	}
 
