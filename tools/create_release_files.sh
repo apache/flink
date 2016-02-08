@@ -101,12 +101,11 @@ prepare() {
 # create source package
 make_source_release() {
 
-  #find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
-  if [ "$(uname)" == "Darwin" ]; then
-      find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-  else
-      find . -name 'pom.xml' -type f -exec sed -i    's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-  fi
+  #change version in all pom files
+  find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+
+  #change version in quickstart archetypes
+  find . -name 'pom.xml' -type f -exec perl -pi -e 's#<flink.version>'$OLD_VERSION'</flink.version>#<flink.version>'$NEW_VERSION'</flink.version>#' {} \;
 
   git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
   git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
