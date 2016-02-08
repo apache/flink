@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -34,17 +33,21 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-public class FoldAllWindowFunction<W extends Window, T, R>
-		extends WrappingFunction<FoldFunction<T, R>>
-		implements AllWindowFunction<Iterable<T>, R, W>, OutputTypeConfigurable<R> {
+public class FoldApplyAllWindowFunction<W extends Window, T, ACC>
+	extends WrappingFunction<AllWindowFunction<ACC, ACC, W>>
+	implements AllWindowFunction<Iterable<T>, ACC, W>, OutputTypeConfigurable<ACC> {
+
 	private static final long serialVersionUID = 1L;
 
-	private byte[] serializedInitialValue;
-	private TypeSerializer<R> outSerializer;
-	private transient R initialValue;
+	private final FoldFunction<T, ACC> foldFunction;
 
-	public FoldAllWindowFunction(R initialValue, FoldFunction<T, R> reduceFunction) {
-		super(reduceFunction);
+	private byte[] serializedInitialValue;
+	private TypeSerializer<ACC> accSerializer;
+	private transient ACC initialValue;
+
+	public FoldApplyAllWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, AllWindowFunction<ACC, ACC, W> windowFunction) {
+		super(windowFunction);
+		this.foldFunction = foldFunction;
 		this.initialValue = initialValue;
 	}
 
@@ -54,37 +57,37 @@ public class FoldAllWindowFunction<W extends Window, T, R>
 
 		if (serializedInitialValue == null) {
 			throw new RuntimeException("No initial value was serialized for the fold " +
-					"window function. Probably the setOutputType method was not called.");
+				"window function. Probably the setOutputType method was not called.");
 		}
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-		initialValue = outSerializer.deserialize(in);
+		initialValue = accSerializer.deserialize(in);
 	}
 
 	@Override
-	public void apply(W window, Iterable<T> values, Collector<R> out) throws Exception {
-		R result = outSerializer.copy(initialValue);
+	public void apply(W window, Iterable<T> values, Collector<ACC> out) throws Exception {
+		ACC result = accSerializer.copy(initialValue);
 
 		for (T val: values) {
-			result = wrappedFunction.fold(result, val);
+			result = foldFunction.fold(result, val);
 		}
 
-		out.collect(result);
+		wrappedFunction.apply(window, result, out);
 	}
 
 	@Override
-	public void setOutputType(TypeInformation<R> outTypeInfo, ExecutionConfig executionConfig) {
-		outSerializer = outTypeInfo.createSerializer(executionConfig);
+	public void setOutputType(TypeInformation<ACC> outTypeInfo, ExecutionConfig executionConfig) {
+		accSerializer = outTypeInfo.createSerializer(executionConfig);
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
 
 		try {
-			outSerializer.serialize(initialValue, out);
+			accSerializer.serialize(initialValue, out);
 		} catch (IOException ioe) {
 			throw new RuntimeException("Unable to serialize initial value of type " +
-					initialValue.getClass().getSimpleName() + " of fold window function.", ioe);
+				initialValue.getClass().getSimpleName() + " of fold window function.", ioe);
 		}
 
 		serializedInitialValue = baos.toByteArray();

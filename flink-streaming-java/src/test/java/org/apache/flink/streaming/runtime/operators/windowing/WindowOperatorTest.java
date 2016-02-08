@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -34,7 +35,6 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.api.functions.windowing.ReduceWindowFunction;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -140,7 +140,7 @@ public class WindowOperatorTest {
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new ReduceWindowFunction<String, TimeWindow, Tuple2<String, Integer>>(),
+				new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>(),
 				EventTimeTrigger.create());
 
 		operator.setInputType(inputType, new ExecutionConfig());
@@ -271,7 +271,7 @@ public class WindowOperatorTest {
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new ReduceWindowFunction<String, TimeWindow, Tuple2<String, Integer>>(),
+				new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>(),
 				EventTimeTrigger.create());
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -344,7 +344,7 @@ public class WindowOperatorTest {
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new ReduceWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(),
+				new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(),
 				ContinuousEventTimeTrigger.of(Time.of(WINDOW_SIZE, TimeUnit.SECONDS)));
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse("Tuple2<String, Integer>"), new ExecutionConfig());
@@ -434,7 +434,7 @@ public class WindowOperatorTest {
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new ReduceWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(),
+				new PassThroughWindowFunction<String, GlobalWindow, Tuple2<String, Integer>>(),
 				PurgingTrigger.of(CountTrigger.of(WINDOW_SIZE)));
 
 		operator.setInputType(TypeInfoParser.<Tuple2<String, Integer>>parse(
