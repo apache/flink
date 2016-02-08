@@ -20,12 +20,14 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
@@ -49,6 +51,9 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	private final Grouping<IN> grouper;
 	
 	private final String defaultName;
+
+	// should be null in case of an all reduce
+	private CombineHint hint;
 	
 	/**
 	 * 
@@ -63,6 +68,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		this.function = function;
 		this.grouper = null;
 		this.defaultName = defaultName;
+		this.hint = null;
 	}
 	
 	
@@ -72,6 +78,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		this.function = function;
 		this.grouper = input;
 		this.defaultName = defaultName;
+		this.hint = CombineHint.OPTIMIZER_CHOOSES;
 
 		UdfOperatorUtils.analyzeSingleInputUdf(this, ReduceFunction.class, defaultName, function, grouper.keys);
 	}
@@ -128,9 +135,9 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			SelectorFunctionKeys<IN, ?> selectorKeys = (SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 
 			org.apache.flink.api.common.operators.SingleInputOperator<?, IN, ?> po =
-				translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, getParallelism());
+				translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, getParallelism(), hint);
 			((PlanUnwrappingReduceOperator<?, ?>) po.getInput()).setCustomPartitioner(grouper.getCustomPartitioner());
-			
+
 			return po;
 		}
 		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
@@ -145,6 +152,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			
 			po.setInput(input);
 			po.setParallelism(getParallelism());
+			po.setCombineHint(hint);
 			
 			return po;
 		}
@@ -152,7 +160,22 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
 	}
-	
+
+	/**
+	 * Sets the strategy to use for the combine phase of the reduce.
+	 *
+	 * If this method is not called, then the default hint will be used.
+	 * ({@link org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint.OPTIMIZER_CHOOSES})
+	 *
+	 * @param strategy The hint to use.
+	 * @return The ReduceOperator object, for function call chaining.
+	 */
+	@PublicEvolving
+	public ReduceOperator<IN> setCombineHint(CombineHint strategy) {
+		this.hint = strategy;
+		return this;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	private static <T, K> org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateSelectorFunctionReducer(
@@ -161,7 +184,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		TypeInformation<T> inputType,
 		String name,
 		Operator<T> input,
-		int parallelism)
+		int parallelism,
+		CombineHint hint)
 	{
 		@SuppressWarnings("unchecked")
 		final SelectorFunctionKeys<T, K> keys = (SelectorFunctionKeys<T, K>) rawKeys;
@@ -172,6 +196,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		PlanUnwrappingReduceOperator<T, K> reducer = new PlanUnwrappingReduceOperator<>(function, keys, name, inputType, typeInfoWithKey);
 		reducer.setInput(keyedInput);
 		reducer.setParallelism(parallelism);
+		reducer.setCombineHint(hint);
 
 		return KeyFunctions.appendKeyRemover(reducer, keys);
 	}

@@ -57,8 +57,11 @@ public enum DriverStrategy {
 
 	// grouping the inputs and apply the Reduce Function
 	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, 1),
-	// sorted partial reduce is the combiner for the Reduce. same function, but potentially not fully sorted
+	// sorted partial reduce is a combiner for the Reduce. same function, but potentially not fully sorted
 	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, 1),
+
+	// hashed partial reduce is a combiner for the Reduce
+	HASHED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, 1),
 	
 	// grouping the inputs and apply the GroupReduce function
 	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, 1),
