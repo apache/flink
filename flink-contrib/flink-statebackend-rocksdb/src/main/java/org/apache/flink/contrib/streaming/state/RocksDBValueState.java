@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,15 +6,16 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ValueState;
@@ -22,9 +23,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KvState;
-import org.apache.flink.runtime.state.KvStateSnapshot;
+
+import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
 
 import java.io.ByteArrayInputStream;
@@ -41,10 +42,9 @@ import static java.util.Objects.requireNonNull;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
- * @param <Backend> The type of the backend that snapshots this key/value state.
  */
-public class RocksDBValueState<K, N, V, Backend extends AbstractStateBackend>
-	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>, Backend>
+public class RocksDBValueState<K, N, V>
+	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>>
 	implements ValueState<V> {
 
 	/** Serializer for the values */
@@ -63,22 +63,26 @@ public class RocksDBValueState<K, N, V, Backend extends AbstractStateBackend>
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
 	 */
 	protected RocksDBValueState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc,
-		File dbPath,
-		String backupPath) {
-		super(keySerializer, namespaceSerializer, dbPath, backupPath);
+			TypeSerializer<N> namespaceSerializer,
+			ValueStateDescriptor<V> stateDesc,
+			File dbPath,
+			String backupPath,
+			Options options) {
+		
+		super(keySerializer, namespaceSerializer, dbPath, backupPath, options);
 		this.stateDesc = requireNonNull(stateDesc);
 		this.valueSerializer = stateDesc.getSerializer();
 	}
 
 	protected RocksDBValueState(TypeSerializer<K> keySerializer,
-		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<V> stateDesc,
-		File dbPath,
-		String backupPath,
-		String restorePath) {
-		super(keySerializer, namespaceSerializer, dbPath, backupPath, restorePath);
+			TypeSerializer<N> namespaceSerializer,
+			ValueStateDescriptor<V> stateDesc,
+			File dbPath,
+			String backupPath,
+			String restorePath,
+			Options options) {
+		
+		super(keySerializer, namespaceSerializer, dbPath, backupPath, restorePath, options);
 		this.stateDesc = stateDesc;
 		this.valueSerializer = stateDesc.getSerializer();
 	}
@@ -120,13 +124,16 @@ public class RocksDBValueState<K, N, V, Backend extends AbstractStateBackend>
 	}
 
 	@Override
-	protected KvStateSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, Backend> createRocksDBSnapshot(
-		URI backupUri,
-		long checkpointId) {
+	protected AbstractRocksDBSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>> createRocksDBSnapshot(
+			URI backupUri,
+			long checkpointId) {
+		
 		return new Snapshot<>(dbPath, checkpointPath, backupUri, checkpointId, keySerializer, namespaceSerializer, stateDesc);
 	}
 
-	private static class Snapshot<K, N, V, Backend extends AbstractStateBackend> extends AbstractRocksDBSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>, Backend> {
+	private static class Snapshot<K, N, V> 
+			extends AbstractRocksDBSnapshot<K, N, ValueState<V>, ValueStateDescriptor<V>>
+	{
 		private static final long serialVersionUID = 1L;
 
 		public Snapshot(File dbPath,
@@ -146,14 +153,17 @@ public class RocksDBValueState<K, N, V, Backend extends AbstractStateBackend>
 		}
 
 		@Override
-		protected KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, Backend> createRocksDBState(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			ValueStateDescriptor<V> stateDesc,
-			File dbPath,
-			String backupPath,
-			String restorePath) throws Exception {
-			return new RocksDBValueState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath, restorePath);
+		protected KvState<K, N, ValueState<V>, ValueStateDescriptor<V>, RocksDBStateBackend> createRocksDBState(
+				TypeSerializer<K> keySerializer,
+				TypeSerializer<N> namespaceSerializer,
+				ValueStateDescriptor<V> stateDesc,
+				File dbPath,
+				String backupPath,
+				String restorePath,
+				Options options) throws Exception {
+			
+			return new RocksDBValueState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, 
+					checkpointPath, restorePath, options);
 		}
 	}
 }
