@@ -150,7 +150,7 @@ public class NettyBufferPool implements ByteBufAllocator {
 			throws NoSuchFieldException, IllegalAccessException {
 
 		if (directArenas != null) {
-			int numChunks = 0;
+			long numChunks = 0;
 			for (Object arena : directArenas) {
 				numChunks += getNumberOfAllocatedChunks(arena, "qInit");
 				numChunks += getNumberOfAllocatedChunks(arena, "q000");
