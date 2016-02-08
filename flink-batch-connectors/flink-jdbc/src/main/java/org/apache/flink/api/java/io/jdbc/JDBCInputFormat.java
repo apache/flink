@@ -357,10 +357,10 @@ public class JDBCInputFormat<OUT extends Tuple> extends RichInputFormat<OUT, Inp
 				LOG.info("Password was not supplied separately.");
 			}
 			if (format.dbURL == null) {
-				throw new IllegalArgumentException("No dababase URL supplied.");
+				throw new IllegalArgumentException("No database URL supplied");
 			}
 			if (format.query == null) {
-				throw new IllegalArgumentException("No query suplied");
+				throw new IllegalArgumentException("No query supplied");
 			}
 			if (format.drivername == null) {
 				throw new IllegalArgumentException("No driver supplied");
