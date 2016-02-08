@@ -40,6 +40,12 @@ public class GenericListState<K, N, T, Backend extends AbstractStateBackend, W e
 
 	private final W wrappedState;
 
+	/**
+	 * Creates a new {@code ListState} that wraps the given {@link ValueState}. The
+	 * {@code ValueState} must have a default value of {@code null}.
+	 *
+	 * @param wrappedState The wrapped {@code ValueState}
+	 */
 	@SuppressWarnings("unchecked")
 	public GenericListState(ValueState<ArrayList<T>> wrappedState) {
 		if (!(wrappedState instanceof KvState)) {

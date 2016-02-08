@@ -22,7 +22,10 @@ import com.google.common.base.Joiner;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -410,6 +413,108 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 		}
 	}
 
+	@Test
+	@SuppressWarnings("unchecked,rawtypes")
+	public void testFoldingState() {
+		try {
+			backend.initializeForJob(new DummyEnvironment("test", 1, 0), "test_op", IntSerializer.INSTANCE);
+
+			FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
+				"Fold-Initial:",
+				new FoldFunction<Integer, String>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public String fold(String acc, Integer value) throws Exception {
+						return acc + "," + value;
+					}
+				},
+				String.class);
+			FoldingState<Integer, String> state = backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+
+			@SuppressWarnings("unchecked")
+			KvState<Integer, Void, FoldingState<Integer, String>, FoldingStateDescriptor<Integer, String>, B> kv =
+				(KvState<Integer, Void, FoldingState<Integer, String>, FoldingStateDescriptor<Integer, String>, B>) state;
+
+			Joiner joiner = Joiner.on(",");
+			// some modifications to the state
+			kv.setCurrentKey(1);
+			assertEquals("Fold-Initial:", state.get());
+			state.add(1);
+			kv.setCurrentKey(2);
+			assertEquals("Fold-Initial:", state.get());
+			state.add(2);
+			kv.setCurrentKey(1);
+			assertEquals("Fold-Initial:,1", state.get());
+
+			// draw a snapshot
+			KvStateSnapshot<Integer, Void, FoldingState<Integer, String>, FoldingStateDescriptor<Integer, String>, B> snapshot1 =
+				kv.snapshot(682375462378L, 2);
+
+			// make some more modifications
+			kv.setCurrentKey(1);
+			state.clear();
+			state.add(101);
+			kv.setCurrentKey(2);
+			state.add(102);
+			kv.setCurrentKey(3);
+			state.add(103);
+
+			// draw another snapshot
+			KvStateSnapshot<Integer, Void, FoldingState<Integer, String>, FoldingStateDescriptor<Integer, String>, B> snapshot2 =
+				kv.snapshot(682375462379L, 4);
+
+			// validate the original state
+			kv.setCurrentKey(1);
+			assertEquals("Fold-Initial:,101", state.get());
+			kv.setCurrentKey(2);
+			assertEquals("Fold-Initial:,2,102", state.get());
+			kv.setCurrentKey(3);
+			assertEquals("Fold-Initial:,103", state.get());
+
+			kv.dispose();
+
+			// restore the first snapshot and validate it
+			KvState<Integer, Void, FoldingState<Integer, String>, FoldingStateDescriptor<Integer, String>, B> restored1 = snapshot1.restoreState(
+				backend,
+				IntSerializer.INSTANCE,
+				this.getClass().getClassLoader(), 10);
+
+			snapshot1.discardState();
+
+			@SuppressWarnings("unchecked")
+			FoldingState<Integer, String> restored1State = (FoldingState<Integer, String>) restored1;
+
+			restored1.setCurrentKey(1);
+			assertEquals("Fold-Initial:,1", restored1State.get());
+			restored1.setCurrentKey(2);
+			assertEquals("Fold-Initial:,2", restored1State.get());
+
+			restored1.dispose();
+
+			// restore the second snapshot and validate it
+			KvState<Integer, Void, FoldingState<Integer, String>, FoldingStateDescriptor<Integer, String>, B> restored2 = snapshot2.restoreState(
+				backend,
+				IntSerializer.INSTANCE,
+				this.getClass().getClassLoader(), 20);
+
+			snapshot2.discardState();
+
+			@SuppressWarnings("unchecked")
+			FoldingState<Integer, String> restored2State = (FoldingState<Integer, String>) restored2;
+
+			restored2.setCurrentKey(1);
+			assertEquals("Fold-Initial:,101", restored2State.get());
+			restored2.setCurrentKey(2);
+			assertEquals("Fold-Initial:,2,102", restored2State.get());
+			restored2.setCurrentKey(3);
+			assertEquals("Fold-Initial:,103", restored2State.get());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 
 	@Test
 	public void testValueStateRestoreWithWrongSerializers() {

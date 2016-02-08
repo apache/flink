@@ -17,6 +17,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -27,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.GenericFoldingState;
 import org.apache.flink.runtime.state.GenericListState;
 import org.apache.flink.runtime.state.GenericReducingState;
 import org.apache.flink.runtime.state.StateHandle;
@@ -238,6 +241,21 @@ public class DbStateBackend extends AbstractStateBackend {
 		
 		ValueState<T> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
 		return new GenericReducingState<>(valueState, stateDesc.getReduceFunction());
+	}
+
+	@Override
+	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
+			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+
+		if (!stateDesc.isSerializerInitialized()) {
+			throw new IllegalArgumentException("state descriptor serializer not initialized");
+		}
+
+		ValueStateDescriptor<ACC> valueStateDescriptor = new ValueStateDescriptor<>(
+			stateDesc.getName(), stateDesc.getSerializer(), stateDesc.getDefaultValue());
+
+		ValueState<ACC> valueState = createValueState(namespaceSerializer, valueStateDescriptor);
+		return new GenericFoldingState<>(valueState, stateDesc.getFoldFunction());
 	}
 
 	@Override

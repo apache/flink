@@ -63,8 +63,9 @@ public class RocksDBReducingState<K, N, V>
 	 * @param keySerializer The serializer for the keys.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 *                     and can create a default state value.
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
+	 * @param backupPath The path where to store backups.
 	 */
 	protected RocksDBReducingState(TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
@@ -79,6 +80,17 @@ public class RocksDBReducingState<K, N, V>
 		this.reduceFunction = stateDesc.getReduceFunction();
 	}
 
+	/**
+	 * Creates a {@code RocksDBReducingState} by restoring from a directory.
+	 *
+	 * @param keySerializer The serializer for the keys.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param stateDesc The state identifier for the state. This contains name
+	 *                     and can create a default state value.
+	 * @param dbPath The path on the local system where RocksDB data should be stored.
+	 * @param backupPath The path where to store backups.
+	 * @param restorePath The path on the local file system that we are restoring from.
+	 */
 	protected RocksDBReducingState(TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<V> stateDesc,

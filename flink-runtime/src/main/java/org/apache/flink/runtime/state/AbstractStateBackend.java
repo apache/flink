@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -148,6 +150,18 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	protected abstract <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception;
 
 	/**
+	 * Creates and returns a new {@link FoldingState}.
+	 *
+	 * @param namespaceSerializer TypeSerializer for the state namespace.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <T> Type of the values folded into the state
+	 * @param <ACC> Type of the value in the state	 *
+	 */
+	abstract protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
+
+	/**
 	 * Sets the current key that is used for partitioned state.
 	 * @param currentKey The current key.
 	 */
@@ -223,6 +237,12 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			public <T> ReducingState<T> createReducingState(ReducingStateDescriptor<T> stateDesc) throws Exception {
 				return AbstractStateBackend.this.createReducingState(namespaceSerializer, stateDesc);
 			}
+
+			@Override
+			public <T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+				return AbstractStateBackend.this.createFoldingState(namespaceSerializer, stateDesc);
+			}
+
 		});
 
 		keyValueStatesByName.put(stateDescriptor.getName(), (KvState) kvstate);

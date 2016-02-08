@@ -20,11 +20,11 @@ package org.apache.flink.streaming.api.functions.windowing;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
-public class ReduceWindowFunction<K, W extends Window, T> implements WindowFunction<T, T, K, W> {
+public class PassThroughAllWindowFunction<W extends Window, T> implements AllWindowFunction<T, T, W> {
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void apply(K k, W window, T input, Collector<T> out) throws Exception {
+	public void apply(W window, T input, Collector<T> out) throws Exception {
 		out.collect(input);
 	}
 }
