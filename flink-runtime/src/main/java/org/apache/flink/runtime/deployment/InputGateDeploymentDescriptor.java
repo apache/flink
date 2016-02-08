@@ -83,7 +83,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
 	public String toString() {
 		return String.format("InputGateDeploymentDescriptor [result id: %s, " +
 						"consumed subpartition index: %d, input channels: %s]",
-				consumedResultId.toShortString(), consumedSubpartitionIndex,
+				consumedResultId.toString(), consumedSubpartitionIndex,
 				Arrays.toString(inputChannels));
 	}
 }

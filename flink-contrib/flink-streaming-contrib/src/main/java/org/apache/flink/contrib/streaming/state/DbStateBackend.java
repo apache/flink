@@ -17,14 +17,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.concurrent.Callable;
-
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -41,6 +33,14 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.Serializable;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.concurrent.Callable;
 
 import static org.apache.flink.contrib.streaming.state.SQLRetrier.retry;
 
@@ -75,6 +75,8 @@ public class DbStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------
 
 	private transient Environment env;
+
+	private transient String appId;
 
 	// ------------------------------------------------------
 
@@ -159,19 +161,14 @@ public class DbStateBackend extends AbstractStateBackend {
 					// store the checkpoint id and timestamp for bookkeeping
 					long handleId = rnd.nextLong();
 
-					// We use the ApplicationID here, because it is restored when
-					// the job is started from a savepoint (whereas the job ID
-					// changes with each submission).
-					String appIdShort = env.getApplicationID().toShortString();
-
 					byte[] serializedState = InstantiationUtil.serializeObject(state);
-					dbAdapter.setCheckpointInsertParams(appIdShort, insertStatement,
+					dbAdapter.setCheckpointInsertParams(appId, insertStatement,
 							checkpointID, timestamp, handleId,
 							serializedState);
 
 					insertStatement.executeUpdate();
 
-					return new DbStateHandle<>(appIdShort, checkpointID, timestamp, handleId,
+					return new DbStateHandle<>(appId, checkpointID, timestamp, handleId,
 							dbConfig, serializedState.length);
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -253,6 +250,7 @@ public class DbStateBackend extends AbstractStateBackend {
 
 		this.rnd = new Random();
 		this.env = env;
+		this.appId = env.getApplicationID().toString().substring(0, 16);
 
 		connections = dbConfig.createShardedConnection();
 
@@ -270,8 +268,8 @@ public class DbStateBackend extends AbstractStateBackend {
 		if (nonPartitionedStateBackend == null) {
 			insertStatement = retry(new Callable<PreparedStatement>() {
 				public PreparedStatement call() throws SQLException {
-					dbAdapter.createCheckpointsTable(env.getApplicationID().toShortString(), getConnections().getFirst());
-					return dbAdapter.prepareCheckpointInsert(env.getApplicationID().toShortString(),
+					dbAdapter.createCheckpointsTable(appId, getConnections().getFirst());
+					return dbAdapter.prepareCheckpointInsert(appId,
 							getConnections().getFirst());
 				}
 			}, numSqlRetries, sqlRetrySleep);
@@ -300,9 +298,10 @@ public class DbStateBackend extends AbstractStateBackend {
 	@Override
 	public void disposeAllStateForCurrentJob() throws Exception {
 		if (nonPartitionedStateBackend == null) {
-			dbAdapter.disposeAllStateForJob(env.getApplicationID().toShortString(), connections.getFirst());
+			dbAdapter.disposeAllStateForJob(appId, connections.getFirst());
 		} else {
 			nonPartitionedStateBackend.disposeAllStateForCurrentJob();
 		}
 	}
+
 }

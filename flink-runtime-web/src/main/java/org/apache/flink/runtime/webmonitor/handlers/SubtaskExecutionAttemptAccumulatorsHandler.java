@@ -48,7 +48,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 
 		gen.writeNumberField("subtask", execAttempt.getVertex().getParallelSubtaskIndex());
 		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
-		gen.writeStringField("id", execAttempt.getAttemptId().toShortString());
+		gen.writeStringField("id", execAttempt.getAttemptId().toString());
 		
 		gen.writeArrayFieldStart("user-accumulators");
 		for (StringifiedAccumulatorResult acc : accs) {

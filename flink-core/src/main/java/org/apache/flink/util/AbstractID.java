@@ -51,9 +51,6 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	/** The memoized value returned by toString() */
 	private String toString;
 
-	/** The memoized value returned by toShortString() */
-	private String toShortString;
-
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -145,7 +142,6 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 		this.upperPart = in.readLong();
 
 		this.toString = null;
-		this.toShortString = null;
 	}
 
 	@Override
@@ -187,17 +183,6 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 		}
 
 		return this.toString;
-	}
-
-	public String toShortString() {
-		if (this.toShortString == null) {
-			final byte[] ba = new byte[SIZE_OF_LONG];
-			longToByteArray(upperPart, ba, 0);
-
-			this.toShortString = StringUtils.byteToHexString(ba);
-		}
-
-		return this.toShortString;
 	}
 	
 	@Override

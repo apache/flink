@@ -136,14 +136,15 @@ public class DbStateBackendTest {
 
 		Environment env = new DummyEnvironment("test", 1, 0);
 		backend.initializeForJob(env, "dummy-setup-ser", StringSerializer.INSTANCE);
+		String appId = env.getApplicationID().toString().substring(0, 16);
 
 		assertNotNull(backend.getConnections());
 		assertTrue(
-				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + appId));
 
 		backend.disposeAllStateForCurrentJob();
 		assertFalse(
-				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
+				isTableCreated(backend.getConnections().getFirst(), "checkpoints_" + appId));
 		backend.close();
 
 		assertTrue(backend.getConnections().getFirst().isClosed());
@@ -153,6 +154,7 @@ public class DbStateBackendTest {
 	public void testSerializableState() throws Exception {
 		Environment env = new DummyEnvironment("test", 1, 0);
 		DbStateBackend backend = new DbStateBackend(conf);
+		String appId = env.getApplicationID().toString().substring(0, 16);
 
 		backend.initializeForJob(env, "dummy-ser-state", StringSerializer.INSTANCE);
 
@@ -173,12 +175,12 @@ public class DbStateBackendTest {
 		assertEquals(state2, handle2.getState(getClass().getClassLoader()));
 		handle2.discardState();
 
-		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
+		assertFalse(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + appId));
 
 		assertEquals(state3, handle3.getState(getClass().getClassLoader()));
 		handle3.discardState();
 
-		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + env.getApplicationID().toShortString()));
+		assertTrue(isTableEmpty(backend.getConnections().getFirst(), "checkpoints_" + appId));
 
 		backend.close();
 
