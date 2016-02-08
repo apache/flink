@@ -81,11 +81,11 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	private File getDbPath(String stateName) {
-		return new File(new File(new File(new File(dbBasePath), jobId.toShortString()), operatorIdentifier), stateName);
+		return new File(new File(new File(new File(dbBasePath), jobId.toString()), operatorIdentifier), stateName);
 	}
 
 	private String getCheckpointPath(String stateName) {
-		return checkpointDirectory + "/" + jobId.toShortString() + "/" + operatorIdentifier + "/" + stateName;
+		return checkpointDirectory + "/" + jobId.toString() + "/" + operatorIdentifier + "/" + stateName;
 	}
 
 	@Override
