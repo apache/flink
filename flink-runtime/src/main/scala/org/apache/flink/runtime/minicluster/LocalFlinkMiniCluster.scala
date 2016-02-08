@@ -48,6 +48,8 @@ class LocalFlinkMiniCluster(
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val config = getDefaultConfig
 
+    setDefaultCiConfig(config)
+
     config.addAll(userConfiguration)
     setMemory(config)
     initializeIOFormatClasses(config)
