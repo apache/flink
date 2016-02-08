@@ -33,8 +33,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.functions.windowing.FoldAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.PassThroughAllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.FoldApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceIterableAllWindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -144,7 +145,7 @@ public class AllWindowedStream<T, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 
 		String callLocation = Utils.getCallLocationName();
-		String udfName = "Reduce at " + callLocation;
+		String udfName = "AllWindowedStream." + callLocation;
 
 		SingleOutputStreamOperator<T, ?> result = createFastTimeOperatorIfValid(function, input.getType(), udfName);
 		if (result != null) {
@@ -185,13 +186,15 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the fold function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<T, R> function) {
-		//clean the closure
-		function = input.getExecutionEnvironment().clean(function);
+		if (function instanceof RichFunction) {
+			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction. " +
+				"Please use apply(FoldFunction, WindowFunction) instead.");
+		}
 
 		TypeInformation<R> resultType = TypeExtractor.getFoldReturnTypes(function, input.getType(),
-				Utils.getCallLocationName(), true);
+			Utils.getCallLocationName(), true);
 
-		return apply(new FoldAllWindowFunction<W, T, R>(initialValue, function), resultType);
+		return fold(initialValue, function, resultType);
 	}
 
 	/**
@@ -203,9 +206,12 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the fold function to the window.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<T, R> function, TypeInformation<R> resultType) {
-		//clean the closure
-		function = input.getExecutionEnvironment().clean(function);
-		return apply(new FoldAllWindowFunction<W, T, R>(initialValue, function), resultType);
+		if (function instanceof RichFunction) {
+			throw new UnsupportedOperationException("FoldFunction can not be a RichFunction. " +
+				"Please use apply(FoldFunction, WindowFunction) instead.");
+		}
+
+		return apply(initialValue, function, new PassThroughAllWindowFunction<W, R>(), resultType);
 	}
 
 	/**
@@ -244,7 +250,7 @@ public class AllWindowedStream<T, W extends Window> {
 		function = input.getExecutionEnvironment().clean(function);
 
 		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowApply at " + callLocation;
+		String udfName = "AllWindowedStream." + callLocation;
 
 		SingleOutputStreamOperator<R, ?> result = createFastTimeOperatorIfValid(function, resultType, udfName);
 		if (result != null) {
@@ -321,7 +327,7 @@ public class AllWindowedStream<T, W extends Window> {
 		preAggregator = input.getExecutionEnvironment().clean(preAggregator);
 
 		String callLocation = Utils.getCallLocationName();
-		String udfName = "WindowApply at " + callLocation;
+		String udfName = "AllWindowedStream." + callLocation;
 
 		String opName = "TriggerWindow(" + windowAssigner + ", " + trigger + ", " + udfName + ")";
 
@@ -342,6 +348,81 @@ public class AllWindowedStream<T, W extends Window> {
 				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
 				new PreAggregatingHeapWindowBuffer.Factory<>(preAggregator),
 				new ReduceApplyAllWindowFunction<>(preAggregator, function),
+				trigger).enableSetProcessingTime(setProcessingTime);
+		}
+
+		return input.transform(opName, resultType, operator).setParallelism(1);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each
+	 * evaluation of the window for each key individually. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * <p>
+	 * Arriving data is incrementally aggregated using the given fold function.
+	 *
+	 * @param initialValue The initial value of the fold.
+	 * @param foldFunction The fold function that is used for incremental aggregation.
+	 * @param function The window function.
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> apply(R initialValue, FoldFunction<T, R> foldFunction, AllWindowFunction<R, R, W> function) {
+		TypeInformation<R> resultType = TypeExtractor.getFoldReturnTypes(foldFunction, input.getType(),
+			Utils.getCallLocationName(), true);
+
+		return apply(initialValue, foldFunction, function, resultType);
+	}
+
+	/**
+	 * Applies the given window function to each window. The window function is called for each
+	 * evaluation of the window for each key individually. The output of the window function is
+	 * interpreted as a regular non-windowed stream.
+	 *
+	 * <p>
+	 * Arriving data is incrementally aggregated using the given fold function.
+	 *
+	 * @param initialValue The initial value of the fold.
+	 * @param foldFunction The fold function that is used for incremental aggregation.
+	 * @param function The window function.
+	 * @param resultType Type information for the result type of the window function
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> apply(R initialValue, FoldFunction<T, R> foldFunction, AllWindowFunction<R, R, W> function, TypeInformation<R> resultType) {
+		if (foldFunction instanceof RichFunction) {
+			throw new UnsupportedOperationException("ReduceFunction of apply can not be a RichFunction.");
+		}
+
+		//clean the closures
+		function = input.getExecutionEnvironment().clean(function);
+		foldFunction = input.getExecutionEnvironment().clean(foldFunction);
+
+		String callLocation = Utils.getCallLocationName();
+		String udfName = "AllWindowedStream." + callLocation;
+
+		String opName;
+
+		OneInputStreamOperator<T, R> operator;
+
+		boolean setProcessingTime = input.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+
+		if (evictor != null) {
+			opName = "NonParallelTriggerWindow(" + windowAssigner  + ", " + trigger + ", " + evictor + ", " + udfName + ")";
+
+			operator = new EvictingNonKeyedWindowOperator<>(windowAssigner,
+				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				new HeapWindowBuffer.Factory<T>(),
+				new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function),
+				trigger,
+				evictor).enableSetProcessingTime(setProcessingTime);
+
+		} else {
+			opName = "NonParallelTriggerWindow(" + windowAssigner  + ", " + trigger + ", " + udfName + ")";
+
+			operator = new NonKeyedWindowOperator<>(windowAssigner,
+				windowAssigner.getWindowSerializer(getExecutionEnvironment().getConfig()),
+				new HeapWindowBuffer.Factory<T>(),
+				new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function),
 				trigger).enableSetProcessingTime(setProcessingTime);
 		}
 

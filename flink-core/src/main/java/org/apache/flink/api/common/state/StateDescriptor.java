@@ -229,7 +229,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + 
-				"{ name=" + name +
+				"{name=" + name +
 				", defaultValue=" + defaultValue +
 				", serializer=" + serializer +
 				'}';
