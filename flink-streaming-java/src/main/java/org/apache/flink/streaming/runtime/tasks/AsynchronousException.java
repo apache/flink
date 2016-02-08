@@ -17,10 +17,13 @@
  */
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * {@code RuntimeException} for wrapping exceptions that are thrown in Threads that are not the
  * main compute Thread.
  */
+@Internal
 public class AsynchronousException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 

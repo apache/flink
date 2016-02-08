@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -53,6 +54,7 @@ import org.slf4j.LoggerFactory;
  * @param <OUT> The type of elements accepted by the chain, i.e., the input type of the chain's
  *              head operator.
  */
+@Internal
 public class OperatorChain<OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);

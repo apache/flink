@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -30,6 +31,7 @@ import java.io.IOException;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
+@PublicEvolving
 public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -30,7 +31,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import java.io.IOException;
 import java.util.ArrayList;
 
-
+@Internal
 public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT> 
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, ArrayList<IN>, WindowFunction<Iterable<IN>, OUT, KEY, TimeWindow>> {
 

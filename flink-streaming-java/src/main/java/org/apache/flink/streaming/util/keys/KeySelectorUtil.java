@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util.keys;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -39,6 +40,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Utility class that contains helper methods to manipulating {@link KeySelector} for streaming.
  */
+@Internal
 public final class KeySelectorUtil {
 
 	public static <X> KeySelector<X, Tuple> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+@PublicEvolving
 public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 

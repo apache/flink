@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -39,6 +40,7 @@ import java.util.Set;
  *
  * @param <T> The type of the elements on which this operator works.
  */
+@Internal
 public class BucketStreamSortOperator<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
 	private static final long serialVersionUID = 1L;
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -45,6 +46,7 @@ import java.io.Serializable;
  * @param <T> The type of elements on which this {@code Trigger} works.
  * @param <W> The type of {@link Window Windows} on which this {@code Trigger} can operate.
  */
+@PublicEvolving
 public abstract class Trigger<T, W extends Window> implements Serializable {
 	
 	private static final long serialVersionUID = -4104633972991191369L;

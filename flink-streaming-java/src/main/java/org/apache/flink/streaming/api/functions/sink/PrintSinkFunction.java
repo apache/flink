@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.sink;
 
 import java.io.PrintStream;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
  * @param <IN>
  *            Input record type
  */
+@PublicEvolving
 public class PrintSinkFunction<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 

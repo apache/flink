@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
 
@@ -27,6 +28,7 @@ import org.apache.flink.util.Collector;
  *
  * @param <T> The type of the elements that can be emitted.
  */
+@PublicEvolving
 public interface Output<T> extends Collector<T> {
 
 	/**

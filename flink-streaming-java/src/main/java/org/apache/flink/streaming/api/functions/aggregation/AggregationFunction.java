@@ -17,8 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 
+@Internal
 public abstract class AggregationFunction<T> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
 

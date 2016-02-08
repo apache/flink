@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.base.Preconditions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -93,6 +94,7 @@ import java.util.Collection;
  *
  * @param <T> The type of the elements that result from this {@code StreamTransformation}
  */
+@Internal
 public abstract class StreamTransformation<T> {
 
 	// This is used to assign a unique ID to every StreamTransformation

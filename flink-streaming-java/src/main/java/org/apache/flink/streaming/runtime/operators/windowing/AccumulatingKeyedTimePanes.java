@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.util.UnionIterator;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -28,7 +29,7 @@ import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 
-
+@Internal
 public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyedTimePanes<Type, Key, ArrayList<Type>, Result> {
 	
 	private final KeySelector<Type, Key> keySelector;

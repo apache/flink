@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
@@ -30,6 +31,7 @@ import org.apache.flink.util.Collector;
  *
  * @param <T> The type of the elments that can be emitted.
  */
+@Internal
 public class TimestampedCollector<T> implements Collector<T> {
 	
 	private final Output<StreamRecord<T>> output;

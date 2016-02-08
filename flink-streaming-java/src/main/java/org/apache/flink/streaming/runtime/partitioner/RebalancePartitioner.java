@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -26,6 +27,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * 
  * @param <T> Type of the elements in the Stream being rebalanced
  */
+@Internal
 public class RebalancePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 

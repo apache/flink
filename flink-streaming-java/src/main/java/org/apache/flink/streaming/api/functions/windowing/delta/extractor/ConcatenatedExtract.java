@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Combines two extractors which will be executed one after each other.
  *
@@ -29,6 +31,7 @@ package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
  *            The output type of the second extractor and the output type of the
  *            over all extraction.
  */
+@Internal
 public class ConcatenatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> {
 
 	/**

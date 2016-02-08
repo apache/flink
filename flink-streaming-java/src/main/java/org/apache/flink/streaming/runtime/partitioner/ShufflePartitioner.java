@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import java.util.Random;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
+@Internal
 public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
