@@ -32,6 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -65,6 +66,7 @@ import org.apache.flink.util.Visitor;
 /**
  * Execution utility for serial, local, collection-based executions of Flink programs.
  */
+@Internal
 public class CollectionExecutor {
 	
 	private static final boolean DEFAULT_MUTABLE_OBJECT_SAFE_MODE = true;

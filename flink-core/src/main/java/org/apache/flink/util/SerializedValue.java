@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -33,6 +35,7 @@ import java.util.Arrays;
  *
  * @param <T> The type of the value held.
  */
+@Internal
 public class SerializedValue<T> implements java.io.Serializable {
 
 	private static final long serialVersionUID = -3564011643393683761L;

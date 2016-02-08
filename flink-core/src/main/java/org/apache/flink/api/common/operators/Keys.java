@@ -23,6 +23,7 @@ import java.util.List;
 
 import com.google.common.base.Joiner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,6 +35,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import com.google.common.base.Preconditions;
 
+@Internal
 public abstract class Keys<T> {
 
 	public abstract int getNumberOfKeyFields();

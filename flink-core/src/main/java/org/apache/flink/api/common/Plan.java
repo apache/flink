@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
@@ -48,6 +49,7 @@ import org.apache.flink.util.Visitor;
  * <p>The dataflow is referenced by the data sinks, from which all connected
  * operators of the data flow can be reached via backwards traversal</p>.
  */
+@Internal
 public class Plan implements Visitable<Operator<?>> {
 
 	/** The default parallelism indicates to use the cluster's default */

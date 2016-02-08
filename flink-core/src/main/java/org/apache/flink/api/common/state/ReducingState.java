@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * {@link State} interface for reducing state. Elements can be added to the state, they will
  * be combined using a reduce function. The current state can be inspected.
@@ -32,4 +34,5 @@ package org.apache.flink.api.common.state;
  * 
  * @param <T> Type of the value in the operator state
  */
+@PublicEvolving
 public interface ReducingState<T> extends MergingState<T, T> {}

@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.log4j.PatternLayout;
 import org.apache.log4j.spi.LoggingEvent;
 
@@ -27,6 +28,7 @@ import org.apache.log4j.spi.LoggingEvent;
  * Use this layout when running tests via Maven in parallel and logging to the Console. When logging
  * to a file, you can use a separate file for each fork.
  */
+@Internal
 public class MavenForkNumberPrefixLayout extends PatternLayout {
 
 	/** Property name used to set fork number of the forked JVM. */

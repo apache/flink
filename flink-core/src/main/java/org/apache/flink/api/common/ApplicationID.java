@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.AbstractID;
 
 /**
@@ -26,6 +27,7 @@ import org.apache.flink.util.AbstractID;
  * <p>This is used to as a identifier across job submissions, which have changing job IDs (for
  * example after resuming an application). This is set for the execution graph.
  */
+@PublicEvolving
 public final class ApplicationID extends AbstractID {
 
 	private static final long serialVersionUID = 1L;

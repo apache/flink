@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -45,6 +46,7 @@ import java.util.Map;
 /**
  * @see org.apache.flink.api.common.functions.FlatJoinFunction
  */
+@Internal
 public class InnerJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN2, OUT>> extends JoinOperatorBase<IN1, IN2, OUT, FT> {
 
 	public InnerJoinOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo,

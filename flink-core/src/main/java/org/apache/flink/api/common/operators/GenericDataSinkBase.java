@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Collections;
 import java.util.Comparator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -44,6 +45,7 @@ import com.google.common.base.Preconditions;
  * Operator for nodes that act as data sinks, storing the data they receive.
  * The way the data is stored is handled by the {@link org.apache.flink.api.common.io.OutputFormat}.
  */
+@Internal
 public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 
 	protected final UserCodeWrapper<? extends OutputFormat<IN>> formatWrapper;

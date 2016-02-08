@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.IOException;
 
 /**
@@ -35,6 +37,7 @@ import java.io.IOException;
  * @deprecated OperatorState has been replaced by {@link ValueState}.
  */
 @Deprecated
+@PublicEvolving
 public interface OperatorState<T> extends State {
 
 	/**

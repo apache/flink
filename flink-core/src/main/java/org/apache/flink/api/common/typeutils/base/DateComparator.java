@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
 import java.util.Date;
 
-
+@Internal
 public final class DateComparator extends BasicTypeComparator<Date> {
 
 	private static final long serialVersionUID = 1L;

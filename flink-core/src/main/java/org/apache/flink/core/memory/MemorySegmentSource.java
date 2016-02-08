@@ -18,9 +18,12 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Interface describing entities that can provide memory segments.
  */
+@Internal
 public interface MemorySegmentSource {
 	
 	/**

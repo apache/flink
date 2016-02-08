@@ -19,7 +19,9 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 
+@PublicEvolving
 public class ByteParser extends FieldParser<Byte> {
 
 	private byte result;

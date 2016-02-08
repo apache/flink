@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -28,6 +29,7 @@ import java.io.IOException;
 /**
  * Convenience methods for Kryo
  */
+@Internal
 public class KryoUtils {
 
 	/**

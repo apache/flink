@@ -18,12 +18,15 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
+
 import java.lang.reflect.Field;
 import java.nio.ByteOrder;
 
 /**
  * Utility class for memory operations.
  */
+@Internal
 public class MemoryUtils {
 	
 	/** The "unsafe", which can be used to perform native memory accesses. */

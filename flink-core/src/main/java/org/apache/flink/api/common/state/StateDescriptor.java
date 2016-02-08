@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -43,6 +44,7 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <S> The type of the State objects created from this {@code StateDescriptor}.
  */
+@PublicEvolving
 public abstract class StateDescriptor<S extends State, T> implements Serializable {
 	private static final long serialVersionUID = 1L;
 

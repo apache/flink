@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * {@link State} interface for partitioned list state in Operations.
  * The state is accessed and modified by user functions, and checkpointed consistently
@@ -30,4 +32,5 @@ package org.apache.flink.api.common.state;
  * 
  * @param <T> Type of values that this list state keeps.
  */
+@PublicEvolving
 public interface ListState<T> extends MergingState<T, Iterable<T>> {}

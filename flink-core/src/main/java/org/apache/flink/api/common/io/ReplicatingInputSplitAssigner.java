@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 
@@ -28,6 +29,7 @@ import java.util.Collection;
  * Assigns each InputSplit to each requesting parallel instance.
  * This causes the input to be fully replicated, i.e., each parallel instance consumes the full input.
  */
+@Internal
 public class ReplicatingInputSplitAssigner implements InputSplitAssigner {
 
 	private InputSplit[] inputSplits;

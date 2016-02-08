@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators;
 
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
@@ -32,6 +33,7 @@ import org.apache.flink.util.Visitable;
  *
  * @param <OUT> Output type of the records output by this operator
 */
+@Internal
 public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	
 	protected final Configuration parameters;			// the parameters to parameterize the UDF

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  *
  * @param <T> The type of the values that the value state can hold.
  */
+@PublicEvolving
 public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	private static final long serialVersionUID = 1L;
 	

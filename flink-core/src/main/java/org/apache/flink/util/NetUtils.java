@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import com.google.common.collect.Iterators;
 import com.google.common.net.InetAddresses;
+import org.apache.flink.annotation.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+@Internal
 public class NetUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,6 +33,7 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <T> The type of the values that can be added to the list state.
  */
+@PublicEvolving
 public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>, T> {
 	private static final long serialVersionUID = 1L;
 	

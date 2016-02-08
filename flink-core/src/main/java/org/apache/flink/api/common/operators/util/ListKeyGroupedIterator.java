@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -29,6 +30,7 @@ import java.util.NoSuchElementException;
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  */
+@Internal
 public final class ListKeyGroupedIterator<E> {
 
 	private final List<E> input;

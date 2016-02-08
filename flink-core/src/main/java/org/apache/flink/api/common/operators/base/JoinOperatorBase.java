@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -26,11 +28,13 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
+@Internal
 public abstract class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 
 	/**
 	 * An enumeration of hints, optionally usable to tell the system how exactly execute the join.
 	 */
+	@Public
 	public static enum JoinHint {
 
 		/**

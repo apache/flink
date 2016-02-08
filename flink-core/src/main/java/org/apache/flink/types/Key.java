@@ -18,6 +18,8 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * This interface has to be implemented by all data types that act as key. Keys are used to establish
  * relationships between values. A key must always be {@link java.lang.Comparable} to other keys of
@@ -35,6 +37,7 @@ package org.apache.flink.types;
  *             in future versions as well.
  */
 @Deprecated
+@PublicEvolving
 public interface Key<T> extends Value, Comparable<T> {
 	
 	/**

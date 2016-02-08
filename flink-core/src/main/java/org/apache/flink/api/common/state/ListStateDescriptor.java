@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  *
  * @param <T> The type of the values that can be added to the list state.
  */
+@PublicEvolving
 public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	private static final long serialVersionUID = 1L;
 

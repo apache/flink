@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -46,6 +47,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 /**
  * @see org.apache.flink.api.common.functions.CoGroupFunction
  */
+@Internal
 public class CoGroupRawOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 
 	/**

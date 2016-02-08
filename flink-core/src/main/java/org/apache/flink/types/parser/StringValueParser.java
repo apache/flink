@@ -18,6 +18,7 @@
 
 package org.apache.flink.types.parser;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.StringValue;
 
 /**
@@ -27,6 +28,7 @@ import org.apache.flink.types.StringValue;
  * 
  * @see StringValue
  */
+@PublicEvolving
 public class StringValueParser extends FieldParser<StringValue> {
 
 	private boolean quotedStringParsing = false;

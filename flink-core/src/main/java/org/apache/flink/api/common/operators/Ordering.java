@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators;
 
 import java.util.ArrayList;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.types.Key;
@@ -28,6 +29,7 @@ import org.apache.flink.types.Key;
  * This class represents an ordering on a set of fields. It specifies the fields and order direction
  * (ascending, descending).
  */
+@Internal
 public class Ordering implements Cloneable {
 	
 	protected FieldList indexes = new FieldList();

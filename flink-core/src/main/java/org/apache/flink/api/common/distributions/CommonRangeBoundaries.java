@@ -17,8 +17,10 @@
  */
 package org.apache.flink.api.common.distributions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 
+@Internal
 public class CommonRangeBoundaries<T> implements RangeBoundaries<T> {
 	private final TypeComparator<T> typeComparator;
 	private final Object[][] boundaries;
