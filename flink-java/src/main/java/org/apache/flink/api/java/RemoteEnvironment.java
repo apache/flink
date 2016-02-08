@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -183,7 +183,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public void startNewSession() throws Exception {
 		dispose();
 		jobID = JobID.generate();

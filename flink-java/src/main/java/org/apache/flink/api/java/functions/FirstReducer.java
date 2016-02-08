@@ -17,6 +17,7 @@
  */
 
 package org.apache.flink.api.java.functions;
+
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;

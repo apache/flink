@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.typeutils
 import java.util
 import java.util.regex.{Pattern, Matcher}
 
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.operators.Keys
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -46,7 +46,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
-  @Experimental
+  @PublicEvolving
   override def getGenericParameters: java.util.List[TypeInformation[_]] = {
     typeParamTypeInfos.toList.asJava
   }
@@ -63,12 +63,12 @@ abstract class CaseClassTypeInfo[T <: Product](
     Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD)
   private val PATTERN_INT_FIELD: Pattern = Pattern.compile(REGEX_INT_FIELD)
 
-  @Experimental
+  @PublicEvolving
   def getFieldIndices(fields: Array[String]): Array[Int] = {
     fields map { x => fieldNames.indexOf(x) }
   }
 
-  @Experimental
+  @PublicEvolving
   override def getFlatFields(
       fieldExpression: String,
       offset: Int,
@@ -150,7 +150,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     }
   }
 
-  @Experimental
+  @PublicEvolving
   override def getTypeAt[X](fieldExpression: String) : TypeInformation[X] = {
 
     val matcher: Matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression)
@@ -193,10 +193,10 @@ abstract class CaseClassTypeInfo[T <: Product](
       "\" in type " + this + ".")
   }
 
-  @Experimental
+  @PublicEvolving
   override def getFieldNames: Array[String] = fieldNames.toArray
 
-  @Experimental
+  @PublicEvolving
   override def getFieldIndex(fieldName: String): Int = {
     val result = fieldNames.indexOf(fieldName)
     if (result != fieldNames.lastIndexOf(fieldName)) {
@@ -206,7 +206,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     }
   }
 
-  @Experimental
+  @PublicEvolving
   override def createTypeComparatorBuilder(): TypeComparatorBuilder[T] = {
     new CaseClassTypeComparatorBuilder
   }

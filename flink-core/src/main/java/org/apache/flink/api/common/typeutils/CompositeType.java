@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -42,7 +42,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	
 	private final Class<T> typeClass;
 
-	@Experimental
+	@PublicEvolving
 	public CompositeType(Class<T> typeClass) {
 		this.typeClass = Preconditions.checkNotNull(typeClass);
 	}
@@ -52,7 +52,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 *
 	 * @return Type class of the composite type
 	 */
-	@Experimental
+	@PublicEvolving
 	public Class<T> getTypeClass() {
 		return typeClass;
 	}
@@ -63,7 +63,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * @param fieldExpression The field expression for which the flat field descriptors are computed.
 	 * @return The list of descriptors for the flat fields which are specified by the field expression.
 	 */
-	@Experimental
+	@PublicEvolving
 	public List<FlatFieldDescriptor> getFlatFields(String fieldExpression) {
 		List<FlatFieldDescriptor> result = new ArrayList<FlatFieldDescriptor>();
 		this.getFlatFields(fieldExpression, 0, result);
@@ -77,7 +77,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * @param offset The offset to use when computing the positions of the flat fields.
 	 * @param result The list into which all flat field descriptors are inserted.
 	 */
-	@Experimental
+	@PublicEvolving
 	public abstract void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result);
 
 	/**
@@ -87,7 +87,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * @param fieldExpression The field expression for which the field of which the type is returned.
 	 * @return The type of the field at the given field expression.
 	 */
-	@Experimental
+	@PublicEvolving
 	public abstract <X> TypeInformation<X> getTypeAt(String fieldExpression);
 
 	/**
@@ -96,10 +96,10 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * @param pos The position of the (unnested) field in this composite type.
 	 * @return The type of the field at the given position.
 	 */
-	@Experimental
+	@PublicEvolving
 	public abstract <X> TypeInformation<X> getTypeAt(int pos);
 
-	@Experimental
+	@PublicEvolving
 	protected abstract TypeComparatorBuilder<T> createTypeComparatorBuilder();
 	
 	/**
@@ -107,7 +107,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * to create the actual comparators
 	 * @return The comparator
 	 */
-	@Experimental
+	@PublicEvolving
 	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset, ExecutionConfig config) {
 
 		TypeComparatorBuilder<T> builder = createTypeComparatorBuilder();
@@ -169,7 +169,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	@Experimental
+	@PublicEvolving
 	protected interface TypeComparatorBuilder<T> {
 		void initializeTypeComparatorBuilder(int size);
 
@@ -178,7 +178,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 		TypeComparator<T> createTypeComparator(ExecutionConfig config);
 	}
 
-	@Experimental
+	@PublicEvolving
 	public static class FlatFieldDescriptor {
 		private int keyPosition;
 		private TypeInformation<?> type;
@@ -209,13 +209,13 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	/**
 	 * Returns true when this type has a composite field with the given name.
 	 */
-	@Experimental
+	@PublicEvolving
 	public boolean hasField(String fieldName) {
 		return getFieldIndex(fieldName) >= 0;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isKeyType() {
 		for(int i=0;i<this.getArity();i++) {
 			if (!this.getTypeAt(i).isKeyType()) {
@@ -226,7 +226,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isSortKeyType() {
 		for(int i=0;i<this.getArity();i++) {
 			if (!this.getTypeAt(i).isSortKeyType()) {
@@ -240,7 +240,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * Returns the names of the composite fields of this type. The order of the returned array must
 	 * be consistent with the internal field index ordering.
 	 */
-	@Experimental
+	@PublicEvolving
 	public abstract String[] getFieldNames();
 
 	/**
@@ -252,7 +252,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * This is used when translating a DataSet or DataStream to an Expression Table, when
 	 * initially renaming the fields of the underlying type.
 	 */
-	@Experimental
+	@PublicEvolving
 	public boolean hasDeterministicFieldOrder() {
 		return false;
 	}
@@ -262,10 +262,10 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 *
 	 * @return The field index or -1 if this type does not have a field of the given name.
 	 */
-	@Experimental
+	@PublicEvolving
 	public abstract int getFieldIndex(String fieldName);
 
-	@Experimental
+	@PublicEvolving
 	public static class InvalidFieldReferenceException extends IllegalArgumentException {
 
 		private static final long serialVersionUID = 1L;

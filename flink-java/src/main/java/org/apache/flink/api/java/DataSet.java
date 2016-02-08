@@ -19,7 +19,7 @@
 package org.apache.flink.api.java;
 
 import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -1642,7 +1642,7 @@ public abstract class DataSet<T> {
 	 * @deprecated Use {@link #printOnTaskManager(String)} instead.
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public DataSink<T> print(String sinkIdentifier) {
 		return output(new PrintingOutputFormat<T>(sinkIdentifier, false));
 	}
@@ -1659,7 +1659,7 @@ public abstract class DataSet<T> {
 	 *             {@link PrintingOutputFormat} instead.
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public DataSink<T> printToErr(String sinkIdentifier) {
 		return output(new PrintingOutputFormat<T>(sinkIdentifier, true));
 	}

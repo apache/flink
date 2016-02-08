@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -41,7 +41,7 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	
 	private final Class<T> typeClass;
 
-	@Experimental
+	@PublicEvolving
 	public EnumTypeInfo(Class<T> typeClass) {
 		Preconditions.checkNotNull(typeClass, "Enum type class must not be null.");
 
@@ -53,49 +53,49 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		return new EnumComparator<T>(sortOrderAscending);
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getArity() {
 		return 1;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getTotalFields() {
 		return 1;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public Class<T> getTypeClass() {
 		return this.typeClass;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isKeyType() {
 		return true;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return new EnumSerializer<T>(typeClass);
 	}

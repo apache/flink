@@ -26,7 +26,7 @@ import java.lang.annotation.Retention;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -310,7 +310,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	@Experimental
+	@PublicEvolving
 	public @interface ReadFields {
 		String[] value();
 	}
@@ -341,7 +341,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	@Experimental
+	@PublicEvolving
 	public @interface ReadFieldsFirst {
 		String[] value();
 	}
@@ -372,7 +372,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	@Experimental
+	@PublicEvolving
 	public @interface ReadFieldsSecond {
 		String[] value();
 	}
@@ -389,7 +389,7 @@ public class FunctionAnnotation {
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	@Experimental
+	@PublicEvolving
 	public @interface SkipCodeAnalysis {
 	}
 

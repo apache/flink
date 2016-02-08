@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -77,7 +77,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * @param uid The unique user-specified ID of this transformation.
 	 * @return The operator with the specified ID.
 	 */
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> uid(String uid) {
 		transformation.setUid(uid);
 		return this;
@@ -121,7 +121,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> shuffle() {
 		return (SingleOutputStreamOperator<T, O>) super.shuffle();
 	}
@@ -140,14 +140,14 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> rescale() {
 		return (SingleOutputStreamOperator<T, O>) super.rescale();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> global() {
 		return (SingleOutputStreamOperator<T, O>) super.global();
 	}
@@ -161,7 +161,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 *            The selected {@link ChainingStrategy}
 	 * @return The operator with the modified chaining strategy
 	 */
-	@Experimental
+	@PublicEvolving
 	private SingleOutputStreamOperator<T, O> setChainingStrategy(ChainingStrategy strategy) {
 		this.transformation.setChainingStrategy(strategy);
 		return this;
@@ -176,7 +176,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator with chaining disabled
 	 */
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> disableChaining() {
 		return setChainingStrategy(ChainingStrategy.NEVER);
 	}
@@ -188,7 +188,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator with chaining set.
 	 */
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> startNewChain() {
 		return setChainingStrategy(ChainingStrategy.HEAD);
 	}
@@ -327,7 +327,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator as a part of a new resource group.
 	 */
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> startNewResourceGroup() {
 		transformation.setResourceStrategy(ResourceStrategy.NEWGROUP);
 		return this;
@@ -343,7 +343,7 @@ public class SingleOutputStreamOperator<T, O extends SingleOutputStreamOperator<
 	 * 
 	 * @return The operator with isolated resource group.
 	 */
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, O> isolateResources() {
 		transformation.setResourceStrategy(ResourceStrategy.ISOLATE);
 		return this;

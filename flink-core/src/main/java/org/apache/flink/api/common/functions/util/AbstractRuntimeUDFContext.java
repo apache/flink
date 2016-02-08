@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -176,21 +176,21 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
@@ -198,7 +198,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public <S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
@@ -206,7 +206,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public <S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");

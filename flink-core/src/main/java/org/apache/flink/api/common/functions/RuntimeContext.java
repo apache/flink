@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -125,31 +125,31 @@ public interface RuntimeContext {
 	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.
 	 */
-	@Experimental
+	@PublicEvolving
 	IntCounter getIntCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for longs.
 	 */
-	@Experimental
+	@PublicEvolving
 	LongCounter getLongCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for doubles.
 	 */
-	@Experimental
+	@PublicEvolving
 	DoubleCounter getDoubleCounter(String name);
 
 	/**
 	 * Convenience function to create a counter object for histograms.
 	 */
-	@Experimental
+	@PublicEvolving
 	Histogram getHistogram(String name);
 	
 	// --------------------------------------------------------------------------------------------
@@ -239,7 +239,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part of a KeyedStream).
 	 */
-	@Experimental
+	@PublicEvolving
 	<T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
 
 	/**
@@ -283,7 +283,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part os a KeyedStream).
 	 */
-	@Experimental
+	@PublicEvolving
 	<T> ListState<T> getListState(ListStateDescriptor<T> stateProperties);
 
 	/**
@@ -323,7 +323,7 @@ public interface RuntimeContext {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part of a KeyedStream).
 	 */
-	@Experimental
+	@PublicEvolving
 	<T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties);
 	
 	/**
@@ -383,7 +383,7 @@ public interface RuntimeContext {
 	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	<S> OperatorState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
 
 	/**
@@ -436,6 +436,6 @@ public interface RuntimeContext {
 	 * @deprecated Use the more expressive {@link #getState(ValueStateDescriptor)} instead.
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	<S> OperatorState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);
 }

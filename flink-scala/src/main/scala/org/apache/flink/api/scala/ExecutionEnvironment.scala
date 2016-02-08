@@ -19,7 +19,7 @@ package org.apache.flink.api.scala
 
 import com.esotericsoftware.kryo.Serializer
 import com.google.common.base.Preconditions
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -97,7 +97,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * effectively disables fault tolerance. A value of "-1" indicates that the system
    * default value (as defined in the configuration) should be used.
    */
-  @Experimental
+  @PublicEvolving
   def setNumberOfExecutionRetries(numRetries: Int): Unit = {
     javaEnv.setNumberOfExecutionRetries(numRetries)
   }
@@ -107,14 +107,14 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * of "-1" indicates that the system default value (as defined in the configuration)
    * should be used.
    */
-  @Experimental
+  @PublicEvolving
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   /**
    * Gets the UUID by which this environment is identified. The UUID sets the execution context
    * in the cluster or local environment.
    */
-  @Experimental
+  @PublicEvolving
   def getId: JobID = {
     javaEnv.getId
   }
@@ -127,7 +127,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Gets the UUID by which this environment is identified, as a string.
    */
-  @Experimental
+  @PublicEvolving
   def getIdString: String = {
     javaEnv.getIdString
   }
@@ -135,7 +135,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Starts a new session, discarding all intermediate results.
    */
-  @Experimental
+  @PublicEvolving
   def startNewSession() {
     javaEnv.startNewSession()
   }
@@ -143,9 +143,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Sets the session timeout to hold the intermediate results of a job. This only
    * applies the updated timeout in future executions.
+ *
    * @param timeout The timeout in seconds.
    */
-  @Experimental
+  @PublicEvolving
   def setSessionTimeout(timeout: Long) {
     javaEnv.setSessionTimeout(timeout)
   }
@@ -157,7 +158,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    *
    * @return The session timeout, in seconds.
    */
-  @Experimental
+  @PublicEvolving
   def getSessionTimeout: Long = {
     javaEnv.getSessionTimeout
   }
@@ -383,7 +384,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. The
    * given inputName is set on the given job.
    */
-  @Experimental
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapredInputFormat: MapredFileInputFormat[K, V],
       key: Class[K],
@@ -400,7 +401,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.FileInputFormat]]. A
    * [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
    */
-  @Experimental
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapredInputFormat: MapredFileInputFormat[K, V],
       key: Class[K],
@@ -414,7 +415,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a [[DataSet]] from [[org.apache.hadoop.mapred.SequenceFileInputFormat]]
    * A [[org.apache.hadoop.mapred.JobConf]] with the given inputPath is created.
    */
-  @Experimental
+  @PublicEvolving
   def readSequenceFile[K, V](
       key: Class[K],
       value: Class[V],
@@ -427,7 +428,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapred.InputFormat]].
    */
-  @Experimental
+  @PublicEvolving
   def createHadoopInput[K, V](
       mapredInputFormat: MapredInputFormat[K, V],
       key: Class[K],
@@ -442,7 +443,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]].
    * The given inputName is set on the given job.
    */
-  @Experimental
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
@@ -460,7 +461,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * [[org.apache.hadoop.mapreduce.lib.input.FileInputFormat]]. A
    * [[org.apache.hadoop.mapreduce.Job]] with the given inputPath will be created.
    */
-  @Experimental
+  @PublicEvolving
   def readHadoopFile[K, V](
       mapreduceInputFormat: MapreduceFileInputFormat[K, V],
       key: Class[K],
@@ -473,7 +474,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a [[DataSet]] from the given [[org.apache.hadoop.mapreduce.InputFormat]].
    */
-  @Experimental
+  @PublicEvolving
   def createHadoopInput[K, V](
       mapreduceInputFormat: MapreduceInputFormat[K, V],
       key: Class[K],
@@ -686,9 +687,10 @@ object ExecutionEnvironment {
    * Creates an execution environment that uses Java Collections underneath. This will execute in a
    * single thread in the current JVM. It is very fast but will fail if the data does not fit into
    * memory. This is useful during implementation and for debugging.
+ *
    * @return
    */
-  @Experimental
+  @PublicEvolving
   def createCollectionsEnvironment: ExecutionEnvironment = {
     new ExecutionEnvironment(new CollectionEnvironment)
   }

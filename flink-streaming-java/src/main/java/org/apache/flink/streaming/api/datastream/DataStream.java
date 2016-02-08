@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -406,7 +406,7 @@ public class DataStream<T> {
 	 *
 	 * @return The DataStream with shuffle partitioning set.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStream<T> shuffle() {
 		return setConnectionType(new ShufflePartitioner<T>());
 	}
@@ -452,7 +452,7 @@ public class DataStream<T> {
 	 *
 	 * @return The DataStream with rescale partitioning set.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStream<T> rescale() {
 		return setConnectionType(new RescalePartitioner<T>());
 	}
@@ -465,7 +465,7 @@ public class DataStream<T> {
 	 *
 	 * @return The DataStream with shuffle partitioning set.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStream<T> global() {
 		return setConnectionType(new GlobalPartitioner<T>());
 	}
@@ -497,7 +497,7 @@ public class DataStream<T> {
 	 *
 	 * @return The iterative data stream created.
 	 */
-	@Experimental
+	@PublicEvolving
 	public IterativeStream<T> iterate() {
 		return new IterativeStream<T>(this, 0);
 	}
@@ -533,7 +533,7 @@ public class DataStream<T> {
 	 *
 	 * @return The iterative data stream created.
 	 */
-	@Experimental
+	@PublicEvolving
 	public IterativeStream<T> iterate(long maxWaitTimeMillis) {
 		return new IterativeStream<T>(this, maxWaitTimeMillis);
 	}
@@ -621,7 +621,7 @@ public class DataStream<T> {
 	 * @see Tuple
 	 * @see DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public <R extends Tuple> SingleOutputStreamOperator<R, ?> project(int... fieldIndexes) {
 		return new StreamProjection<T>(this, fieldIndexes).projectTupleX();
 	}
@@ -733,7 +733,7 @@ public class DataStream<T> {
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public <W extends Window> AllWindowedStream<T, W> windowAll(WindowAssigner<? super T, W> assigner) {
 		return new AllWindowedStream<>(this, assigner);
 	}
@@ -752,7 +752,7 @@ public class DataStream<T> {
 	 *
 	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public SingleOutputStreamOperator<T, ?> assignTimestamps(TimestampExtractor<T> extractor) {
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
@@ -772,7 +772,7 @@ public class DataStream<T> {
 	 *
 	 * @return The closed DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> print() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>();
 		return addSink(printFunction);
@@ -787,7 +787,7 @@ public class DataStream<T> {
 	 *
 	 * @return The closed DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> printToErr() {
 		PrintSinkFunction<T> printFunction = new PrintSinkFunction<T>(true);
 		return addSink(printFunction);
@@ -805,7 +805,7 @@ public class DataStream<T> {
 	 *
 	 * @return The closed DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path) {
 		return write(new TextOutputFormat<T>(new Path(path)), 0L);
 	}
@@ -825,7 +825,7 @@ public class DataStream<T> {
 	 *
 	 * @return The closed DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, long millis) {
 		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(path));
 		return write(tof, millis);
@@ -846,7 +846,7 @@ public class DataStream<T> {
 	 *
 	 * @return The closed DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode) {
 		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(path));
 		tof.setWriteMode(writeMode);
@@ -870,7 +870,7 @@ public class DataStream<T> {
 	 *
 	 * @return The closed DataStream.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsText(String path, WriteMode writeMode, long millis) {
 		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(path));
 		tof.setWriteMode(writeMode);
@@ -889,7 +889,7 @@ public class DataStream<T> {
 	 *
 	 * @return the closed DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path) {
 		return writeAsCsv(path, null, 0L, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
@@ -909,7 +909,7 @@ public class DataStream<T> {
 	 *
 	 * @return the closed DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, long millis) {
 		return writeAsCsv(path, null, millis, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
@@ -929,7 +929,7 @@ public class DataStream<T> {
 	 *
 	 * @return the closed DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode) {
 		return writeAsCsv(path, writeMode, 0L, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
@@ -952,7 +952,7 @@ public class DataStream<T> {
 	 *
 	 * @return the closed DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeAsCsv(String path, WriteMode writeMode, long millis) {
 		return writeAsCsv(path, writeMode, millis, CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
 	}
@@ -980,7 +980,7 @@ public class DataStream<T> {
 	 * @return the closed DataStream
 	 */
 	@SuppressWarnings("unchecked")
-	@Experimental
+	@PublicEvolving
 	public <X extends Tuple> DataStreamSink<T> writeAsCsv(
 			String path,
 			WriteMode writeMode,
@@ -1015,7 +1015,7 @@ public class DataStream<T> {
 	 *            schema for serialization
 	 * @return the closed DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> writeToSocket(String hostName, int port, SerializationSchema<T> schema) {
 		DataStreamSink<T> returnStream = addSink(new SocketClientSink<T>(hostName, port, schema, 0));
 		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
@@ -1029,7 +1029,7 @@ public class DataStream<T> {
 	 * @param millis the write frequency
 	 * @return The closed DataStream
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> write(OutputFormat<T> format, long millis) {
 		return addSink(new FileSinkFunctionByMillis<T>(format, millis));
 	}
@@ -1048,7 +1048,7 @@ public class DataStream<T> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	@Experimental
+	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName, TypeInformation<R> outTypeInfo, OneInputStreamOperator<T, R> operator) {
 
 		// read the output type of the input Transform to coax out errors about MissingTypeInfo

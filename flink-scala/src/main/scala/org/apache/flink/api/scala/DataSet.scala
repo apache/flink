@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala
 
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
@@ -190,7 +190,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @param name The name under which the aggregator is registered.
    * @param aggregator The aggregator class.
    */
-  @Experimental
+  @PublicEvolving
   def registerAggregator(name: String, aggregator: Aggregator[_]): DataSet[T] = {
     javaSet match {
       case di: DeltaIterationResultSet[_, _] =>
@@ -1632,7 +1632,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @deprecated
-  @Experimental
+  @PublicEvolving
   def print(sinkIdentifier: String): DataSink[T] = {
     output(new PrintingOutputFormat[T](sinkIdentifier, false))
   }
@@ -1645,7 +1645,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @deprecated Use [[printOnTaskManager(String)]] instead.
    */
   @deprecated
-  @Experimental
+  @PublicEvolving
   def printToErr(sinkIdentifier: String): DataSink[T] = {
       output(new PrintingOutputFormat[T](sinkIdentifier, true))
   }
