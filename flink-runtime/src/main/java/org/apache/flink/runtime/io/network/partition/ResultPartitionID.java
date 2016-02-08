@@ -72,6 +72,6 @@ public final class ResultPartitionID implements Serializable {
 
 	@Override
 	public String toString() {
-		return partitionId.toShortString() + "@" + producerId.toShortString();
+		return partitionId.toString() + "@" + producerId.toString();
 	}
 }
