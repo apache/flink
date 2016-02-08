@@ -48,4 +48,12 @@ public interface StateBackend {
 	 */
 	<T> ReducingState<T> createReducingState(ReducingStateDescriptor<T> stateDesc) throws Exception;
 
+	/**
+	 * Creates and returns a new {@link FoldingState}.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <T> Type of the values folded into the state
+	 * @param <ACC> Type of the value in the state
+	 */
+	<T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
 }

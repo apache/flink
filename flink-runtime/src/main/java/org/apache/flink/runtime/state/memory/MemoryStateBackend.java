@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -95,6 +97,11 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	@Override
 	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
 		return new MemReducingState<>(keySerializer, namespaceSerializer, stateDesc);
+	}
+
+	@Override
+	public <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+		return new MemFoldingState<>(keySerializer, namespaceSerializer, stateDesc);
 	}
 
 	/**

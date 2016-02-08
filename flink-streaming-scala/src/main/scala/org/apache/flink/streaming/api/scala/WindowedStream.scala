@@ -272,6 +272,66 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     javaStream.apply(reducer, applyFunction, implicitly[TypeInformation[R]])
   }
 
+  /**
+    * Applies the given window function to each window. The window function is called for each
+    * evaluation of the window for each key individually. The output of the window function is
+    * interpreted as a regular non-windowed stream.
+    *
+    * Arriving data is incrementally aggregated using the given fold function.
+    *
+    * @param initialValue The initial value of the fold
+    * @param foldFunction The fold function that is used for incremental aggregation
+    * @param function The window function.
+    * @return The data stream that is the result of applying the window function to the window.
+    */
+  def apply[R: TypeInformation: ClassTag](
+      initialValue: R,
+      foldFunction: FoldFunction[T, R],
+      function: WindowFunction[R, R, K, W]): DataStream[R] = {
+    javaStream.apply(
+      initialValue,
+      clean(foldFunction),
+      clean(function),
+      implicitly[TypeInformation[R]])
+  }
+
+  /**
+    * Applies the given window function to each window. The window function is called for each
+    * evaluation of the window for each key individually. The output of the window function is
+    * interpreted as a regular non-windowed stream.
+    *
+    * Arriving data is incrementally aggregated using the given fold function.
+    *
+    * @param foldFunction The fold function that is used for incremental aggregation
+    * @param function The window function.
+    * @return The data stream that is the result of applying the window function to the window.
+    */
+  def apply[R: TypeInformation: ClassTag](
+      initialValue: R,
+      foldFunction: (R, T) => R,
+      function: (K, W, R, Collector[R]) => Unit): DataStream[R] = {
+    if (function == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    if (function == null) {
+      throw new NullPointerException("WindowApply function must not be null.")
+    }
+
+    val cleanFolder = clean(foldFunction)
+    val folder = new FoldFunction[T, R] {
+      def fold(acc: R, v: T) = { cleanFolder(acc, v) }
+    }
+
+    val cleanApply = clean(function)
+    val applyFunction = new WindowFunction[R, R, K, W] {
+      def apply(key: K, window: W, input: R, out: Collector[R]): Unit = {
+        cleanApply(key, window, input, out)
+      }
+    }
+    javaStream.apply(initialValue, folder, applyFunction, implicitly[TypeInformation[R]])
+  }
+
+
   // ------------------------------------------------------------------------
   //  Aggregations on the keyed windows
   // ------------------------------------------------------------------------
