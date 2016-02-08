@@ -103,6 +103,10 @@ public class FlinkYarnSessionCli {
 	}
 
 	public AbstractFlinkYarnClient createFlinkYarnClient(CommandLine cmd) {
+		return createFlinkYarnClient(cmd, null);
+	}
+
+	public AbstractFlinkYarnClient createFlinkYarnClient(CommandLine cmd, String programName) {
 
 		AbstractFlinkYarnClient flinkYarnClient = getFlinkYarnClient();
 		if (flinkYarnClient == null) {
@@ -225,6 +229,8 @@ public class FlinkYarnSessionCli {
 		}
 		if(cmd.hasOption(NAME.getOpt())) {
 			flinkYarnClient.setName(cmd.getOptionValue(NAME.getOpt()));
+		} else if (programName != null && !programName.isEmpty()) {
+			flinkYarnClient.setName("Flink Application: " + programName);
 		}
 		return flinkYarnClient;
 	}
