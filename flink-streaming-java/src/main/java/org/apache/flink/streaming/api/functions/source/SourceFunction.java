@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -132,7 +132,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * @param element The element to emit
 		 * @param timestamp The timestamp in milliseconds
 		 */
-		@Experimental
+		@PublicEvolving
 		public void collectWithTimestamp(T element, long timestamp);
 
 		/**
@@ -147,7 +147,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 *
 		 * @param mark The {@link Watermark} to emit
 		 */
-		@Experimental
+		@PublicEvolving
 		void emitWatermark(Watermark mark);
 
 

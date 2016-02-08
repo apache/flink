@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{WindowedStream => JavaWStream}
@@ -64,7 +64,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   /**
    * Sets the [[Trigger]] that should be used to trigger window emission.
    */
-  @Experimental
+  @PublicEvolving
   def trigger(trigger: Trigger[_ >: T, _ >: W]): WindowedStream[T, K, W] = {
     javaStream.trigger(trigger)
     this
@@ -76,7 +76,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * Note: When using an evictor window performance will degrade significantly, since
    * pre-aggregation of window results cannot be used.
    */
-  @Experimental
+  @PublicEvolving
   def evictor(evictor: Evictor[_ >: T, _ >: W]): WindowedStream[T, K, W] = {
     javaStream.evictor(evictor)
     this

@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 
 import com.google.common.base.Preconditions;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
@@ -74,7 +74,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	
 	private final int totalFields;
 
-	@Experimental
+	@PublicEvolving
 	public PojoTypeInfo(Class<T> typeClass, List<PojoField> fields) {
 		super(typeClass);
 
@@ -100,32 +100,32 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isBasicType() {
 		return false;
 	}
 
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getArity() {
 		return fields.length;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getTotalFields() {
 		return totalFields;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isSortKeyType() {
 		// Support for sorting POJOs that implement Comparable is not implemented yet.
 		// Since the order of fields in a POJO type is not well defined, sorting on fields
@@ -135,7 +135,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression);
@@ -212,7 +212,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Experimental
+	@PublicEvolving
 	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
@@ -253,7 +253,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public <X> TypeInformation<X> getTypeAt(int pos) {
 		if (pos < 0 || pos >= this.fields.length) {
 			throw new IndexOutOfBoundsException();
@@ -269,7 +269,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	// used for testing. Maybe use mockito here
-	@Experimental
+	@PublicEvolving
 	public PojoField getPojoFieldAt(int pos) {
 		if (pos < 0 || pos >= this.fields.length) {
 			throw new IndexOutOfBoundsException();
@@ -277,7 +277,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return this.fields[pos];
 	}
 
-	@Experimental
+	@PublicEvolving
 	public String[] getFieldNames() {
 		String[] result = new String[fields.length];
 		for (int i = 0; i < fields.length; i++) {
@@ -287,7 +287,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getFieldIndex(String fieldName) {
 		for (int i = 0; i < fields.length; i++) {
 			if (fields[i].getField().getName().equals(fieldName)) {
@@ -298,7 +298,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		if(config.isForceKryoEnabled()) {
 			return new KryoSerializer<T>(getTypeClass(), config);

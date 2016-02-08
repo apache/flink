@@ -17,27 +17,27 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
 @Public
 class UnitTypeInfo extends TypeInformation[Unit] {
-  @Experimental
+  @PublicEvolving
   override def isBasicType(): Boolean = false
-  @Experimental
+  @PublicEvolving
   override def isTupleType(): Boolean = false
-  @Experimental
+  @PublicEvolving
   override def getArity(): Int = 0
-  @Experimental
+  @PublicEvolving
   override def getTotalFields(): Int = 0
-  @Experimental
+  @PublicEvolving
   override def getTypeClass(): Class[Unit] = classOf[Unit]
-  @Experimental
+  @PublicEvolving
   override def isKeyType(): Boolean = false
 
-  @Experimental
+  @PublicEvolving
   override def createSerializer(config: ExecutionConfig): TypeSerializer[Unit] =
     (new UnitSerializer).asInstanceOf[TypeSerializer[Unit]]
 

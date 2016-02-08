@@ -19,7 +19,7 @@
 package org.apache.flink.api.common;
 
 import com.esotericsoftware.kryo.Serializer;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
@@ -153,7 +153,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @param interval The interval between watermarks in milliseconds.
 	 */
-	@Experimental
+	@PublicEvolving
 	public ExecutionConfig setAutoWatermarkInterval(long interval) {
 		enableTimestamps();
 		this.autoWatermarkInterval = interval;
@@ -171,7 +171,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #setAutoWatermarkInterval(long)
 	 */
-	@Experimental
+	@PublicEvolving
 	public ExecutionConfig enableTimestamps() {
 		this.timestampsEnabled = true;
 		return this;
@@ -182,7 +182,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #enableTimestamps()
 	 */
-	@Experimental
+	@PublicEvolving
 	public ExecutionConfig disableTimestamps() {
 		this.timestampsEnabled = false;
 		return this;
@@ -193,7 +193,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #enableTimestamps()
 	 */
-	@Experimental
+	@PublicEvolving
 	public boolean areTimestampsEnabled() {
 		return timestampsEnabled;
 	}
@@ -203,7 +203,7 @@ public class ExecutionConfig implements Serializable {
 	 *
 	 * @see #setAutoWatermarkInterval(long)
 	 */
-	@Experimental
+	@PublicEvolving
 	public long getAutoWatermarkInterval()  {
 		return this.autoWatermarkInterval;
 	}
@@ -385,7 +385,7 @@ public class ExecutionConfig implements Serializable {
 	 * 
 	 * @param codeAnalysisMode see {@link CodeAnalysisMode}
 	 */
-	@Experimental
+	@PublicEvolving
 	public void setCodeAnalysisMode(CodeAnalysisMode codeAnalysisMode) {
 		this.codeAnalysisMode = codeAnalysisMode;
 	}
@@ -393,7 +393,7 @@ public class ExecutionConfig implements Serializable {
 	/**
 	 * Returns the {@link CodeAnalysisMode} of the program.
 	 */
-	@Experimental
+	@PublicEvolving
 	public CodeAnalysisMode getCodeAnalysisMode() {
 		return codeAnalysisMode;
 	}

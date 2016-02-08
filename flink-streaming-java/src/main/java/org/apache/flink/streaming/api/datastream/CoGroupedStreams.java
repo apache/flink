@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -145,7 +145,7 @@ public class CoGroupedStreams<T1, T2> {
 			/**
 			 * Specifies the window on which the co-group operation works.
 			 */
-			@Experimental
+			@PublicEvolving
 			public <W extends Window> WithWindow<T1, T2, KEY, W> window(WindowAssigner<? super TaggedUnion<T1, T2>, W> assigner) {
 				return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType, assigner, null, null);
 			}
@@ -202,7 +202,7 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Sets the {@code Trigger} that should be used to trigger window emission.
 		 */
-		@Experimental
+		@PublicEvolving
 		public WithWindow<T1, T2, KEY, W> trigger(Trigger<? super TaggedUnion<T1, T2>, ? super W> newTrigger) {
 			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
 					windowAssigner, newTrigger, evictor);
@@ -215,7 +215,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * Note: When using an evictor window performance will degrade significantly, since
 		 * pre-aggregation of window results cannot be used.
 		 */
-		@Experimental
+		@PublicEvolving
 		public WithWindow<T1, T2, KEY, W> evictor(Evictor<? super TaggedUnion<T1, T2>, ? super W> newEvictor) {
 			return new WithWindow<>(input1, input2, keySelector1, keySelector2, keyType,
 					windowAssigner, trigger, newEvictor);

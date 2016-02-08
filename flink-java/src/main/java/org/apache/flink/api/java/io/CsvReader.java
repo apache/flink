@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -110,7 +110,7 @@ public class CsvReader {
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public CsvReader fieldDelimiter(char delimiter) {
 		this.fieldDelimiter = String.valueOf(delimiter);
 		return this;

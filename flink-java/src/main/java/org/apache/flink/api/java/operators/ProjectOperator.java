@@ -22,7 +22,7 @@ import java.util.Arrays;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -76,7 +76,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	 */
 	@SuppressWarnings("unchecked")
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public <R extends Tuple> ProjectOperator<IN, R> types(Class<?>... types) {
 		TupleTypeInfo<R> typeInfo = (TupleTypeInfo<R>)this.getResultType();
 

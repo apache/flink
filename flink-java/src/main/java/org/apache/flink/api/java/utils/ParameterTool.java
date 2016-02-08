@@ -20,7 +20,7 @@ package org.apache.flink.api.java.utils;
 import com.google.common.base.Preconditions;
 import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
@@ -191,7 +191,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
 	 * @see GenericOptionsParser
 	 */
-	@Experimental
+	@PublicEvolving
 	public static ParameterTool fromGenericOptionsParser(String[] args) throws IOException {
 		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
 		Map<String, String> map = new HashMap<String, String>();

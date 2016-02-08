@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -742,7 +742,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 */
 		@SuppressWarnings({ "unchecked", "hiding" })
 		@Deprecated
-		@Experimental
+		@PublicEvolving
 		public <OUT extends Tuple> JoinOperator<I1, I2, OUT> types(Class<?>... types) {
 			TupleTypeInfo<OUT> typeInfo = (TupleTypeInfo<OUT>)this.getResultType();
 

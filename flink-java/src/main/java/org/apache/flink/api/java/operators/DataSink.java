@@ -20,7 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
@@ -112,7 +112,7 @@ public class DataSink<T> {
 	 * @see Order
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public DataSink<T> sortLocalOutput(int field, Order order) {
 
 		// get flat keys
@@ -159,7 +159,7 @@ public class DataSink<T> {
 	 * @see Order
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public DataSink<T> sortLocalOutput(String fieldExpression, Order order) {
 
 		int numFields;

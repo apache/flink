@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -44,7 +44,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	
 	private final Class<T> typeClass;
 
-	@Experimental
+	@PublicEvolving
 	public WritableTypeInfo(Class<T> typeClass) {
 		this.typeClass = Preconditions.checkNotNull(typeClass);
 
@@ -55,7 +55,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if(Comparable.class.isAssignableFrom(typeClass)) {
 			return new WritableComparator(sortOrderAscending, typeClass);
@@ -67,43 +67,43 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getArity() {
 		return 1;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getTotalFields() {
 		return 1;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public Class<T> getTypeClass() {
 		return this.typeClass;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isKeyType() {
 		return Comparable.class.isAssignableFrom(typeClass);
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return new WritableSerializer<T>(typeClass);
 	}
@@ -139,7 +139,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	
 	// --------------------------------------------------------------------------------------------
 
-	@Experimental
+	@PublicEvolving
 	static <T extends Writable> TypeInformation<T> getWritableTypeInfo(Class<T> typeClass) {
 		if (Writable.class.isAssignableFrom(typeClass) && !typeClass.equals(Writable.class)) {
 			return new WritableTypeInfo<T>(typeClass);

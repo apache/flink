@@ -23,13 +23,18 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 
 /**
- * Interface to mark methods within stable, public APIs as experimental.
- * It also allows to mark types explicitly as experimental
+ * Annotation to mark classes and methods for public use but with evolving interfaces.
  *
- * An experimental API might change between minor releases.
+ * Classes and methods with this annotation are intended for public use and have stable behavior.
+ * However, their interfaces and signatures are not considered to be stable and might be changed
+ * across versions.
+ *
+ * This annotation also excludes methods and classes with evolving interfaces / signatures
+ * within classes annotated with {@link Public}.
+ *
  */
 @Documented
 @Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.CONSTRUCTOR })
 @Public
-public @interface Experimental {
+public @interface PublicEvolving {
 }

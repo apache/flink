@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.common.io.statistics;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 
 /**
@@ -31,19 +31,19 @@ public interface BaseStatistics {
 	/**
 	 * Constant indicating that the input size is unknown.
 	 */
-	@Experimental
+	@PublicEvolving
 	public static final long SIZE_UNKNOWN = -1;
 	
 	/**
 	 * Constant indicating that the number of records is unknown;
 	 */
-	@Experimental
+	@PublicEvolving
 	public static final long NUM_RECORDS_UNKNOWN = -1;
 	
 	/**
 	 * Constant indicating that average record width is unknown.
 	 */
-	@Experimental
+	@PublicEvolving
 	public static final float AVG_RECORD_BYTES_UNKNOWN = -1.0f;
 	
 	// --------------------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ public interface BaseStatistics {
 	 *   
 	 * @return The total size of the input, in bytes.
 	 */
-	@Experimental
+	@PublicEvolving
 	public long getTotalInputSize();
 	
 	/**
@@ -61,7 +61,7 @@ public interface BaseStatistics {
 	 * 
 	 * @return The number of records in the input.
 	 */
-	@Experimental
+	@PublicEvolving
 	public long getNumberOfRecords();
 	
 	/**
@@ -69,6 +69,6 @@ public interface BaseStatistics {
 	 * 
 	 * @return The average width of a record in bytes.
 	 */
-	@Experimental
+	@PublicEvolving
 	public float getAverageRecordWidth();
 }
