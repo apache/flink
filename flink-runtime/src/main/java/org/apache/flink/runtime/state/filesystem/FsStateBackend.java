@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -287,6 +289,11 @@ public class FsStateBackend extends AbstractStateBackend {
 		return new FsReducingState<>(this, keySerializer, namespaceSerializer, stateDesc);
 	}
 
+	@Override
+	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
+		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+		return new FsFoldingState<>(this, keySerializer, namespaceSerializer, stateDesc);
+	}
 
 	@Override
 	public <S extends Serializable> StateHandle<S> checkpointStateSerializable(

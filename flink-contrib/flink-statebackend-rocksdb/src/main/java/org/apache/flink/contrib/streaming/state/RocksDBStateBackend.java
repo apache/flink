@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -242,7 +244,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	
 	@Override
 	protected <N, T> ValueState<T> createValueState(TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<T> stateDesc) throws Exception {
+			ValueStateDescriptor<T> stateDesc) throws Exception {
+
 		File dbPath = getDbPath(stateDesc.getName());
 		String checkpointPath = getCheckpointPath(stateDesc.getName());
 		
@@ -252,7 +255,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	@Override
 	protected <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer,
-		ListStateDescriptor<T> stateDesc) throws Exception {
+			ListStateDescriptor<T> stateDesc) throws Exception {
+
 		File dbPath = getDbPath(stateDesc.getName());
 		String checkpointPath = getCheckpointPath(stateDesc.getName());
 		
@@ -262,12 +266,22 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	@Override
 	protected <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer,
-		ReducingStateDescriptor<T> stateDesc) throws Exception {
+			ReducingStateDescriptor<T> stateDesc) throws Exception {
+
 		File dbPath = getDbPath(stateDesc.getName());
 		String checkpointPath = getCheckpointPath(stateDesc.getName());
 		
 		return new RocksDBReducingState<>(keySerializer, namespaceSerializer, 
 				stateDesc, dbPath, checkpointPath, getRocksDBOptions());
+	}
+
+	@Override
+	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer,
+			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+
+		File dbPath = getDbPath(stateDesc.getName());
+		String checkpointPath = getCheckpointPath(stateDesc.getName());
+		return new RocksDBFoldingState<>(keySerializer, namespaceSerializer, stateDesc, dbPath, checkpointPath);
 	}
 
 	@Override

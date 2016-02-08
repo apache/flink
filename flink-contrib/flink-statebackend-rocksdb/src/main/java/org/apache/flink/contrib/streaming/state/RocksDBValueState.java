@@ -54,13 +54,14 @@ public class RocksDBValueState<K, N, V>
 	protected final ValueStateDescriptor<V> stateDesc;
 
 	/**
-	 * Creates a new {@code RocksDBReducingState}.
+	 * Creates a new {@code RocksDBValueState}.
 	 *
 	 * @param keySerializer The serializer for the keys.
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param stateDesc The state identifier for the state. This contains name
 	 *                           and can create a default state value.
 	 * @param dbPath The path on the local system where RocksDB data should be stored.
+	 * @param backupPath The path where to store backups.
 	 */
 	protected RocksDBValueState(TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
@@ -74,6 +75,17 @@ public class RocksDBValueState<K, N, V>
 		this.valueSerializer = stateDesc.getSerializer();
 	}
 
+	/**
+	 * Creates a {@code RocksDBValueState} by restoring from a directory.
+	 *
+	 * @param keySerializer The serializer for the keys.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param stateDesc The state identifier for the state. This contains name
+	 *                           and can create a default state value.
+	 * @param dbPath The path on the local system where RocksDB data should be stored.
+	 * @param backupPath The path where to store backups.
+	 * @param restorePath The path on the local file system that we are restoring from.
+	 */
 	protected RocksDBValueState(TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<V> stateDesc,

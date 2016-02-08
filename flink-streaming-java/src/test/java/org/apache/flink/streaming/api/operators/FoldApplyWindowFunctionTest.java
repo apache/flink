@@ -26,7 +26,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.windowing.FoldWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -34,13 +35,14 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
+import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class FoldWindowFunctionTest {
+public class FoldApplyWindowFunctionTest {
 
 	/**
 	 * Tests that the FoldWindowFunction gets the output type serializer set by the
@@ -54,7 +56,7 @@ public class FoldWindowFunctionTest {
 
 		int initValue = 1;
 
-		FoldWindowFunction<Integer, TimeWindow, Integer, Integer> foldWindowFunction = new FoldWindowFunction<>(
+		FoldApplyWindowFunction<Integer, TimeWindow, Integer, Integer> foldWindowFunction = new FoldApplyWindowFunction<>(
 			initValue,
 			new FoldFunction<Integer, Integer>() {
 				private static final long serialVersionUID = -4849549768529720587L;
@@ -62,6 +64,15 @@ public class FoldWindowFunctionTest {
 				@Override
 				public Integer fold(Integer accumulator, Integer value) throws Exception {
 					return accumulator + value;
+				}
+			},
+			new WindowFunction<Integer, Integer, Integer, TimeWindow>() {
+				@Override
+				public void apply(Integer integer,
+					TimeWindow window,
+					Integer input,
+					Collector<Integer> out) throws Exception {
+					out.collect(input);
 				}
 			}
 		);
