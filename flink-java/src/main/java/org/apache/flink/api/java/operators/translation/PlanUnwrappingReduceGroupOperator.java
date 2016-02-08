@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators.translation;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -31,6 +32,7 @@ import org.apache.flink.util.Collector;
  * A reduce operator that takes 2-tuples (key-value pairs), and applies the group reduce operation only
  * on the unwrapped values.
  */
+@Internal
 public class PlanUnwrappingReduceGroupOperator<IN, OUT, K> extends GroupReduceOperatorBase<Tuple2<K, IN>, OUT, GroupReduceFunction<Tuple2<K, IN>,OUT>> {
 
 	public PlanUnwrappingReduceGroupOperator(

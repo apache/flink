@@ -21,6 +21,7 @@ package org.apache.flink.api.java.hadoop.mapreduce.utils;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -30,6 +31,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 /**
  * Utility class to work with next generation of Apache Hadoop MapReduce classes.
  */
+@Internal
 public final class HadoopUtils {
 	
 	/**

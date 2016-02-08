@@ -18,8 +18,10 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Partitioner;
 
+@Internal
 public class IdPartitioner implements Partitioner<Integer> {
 
 	private static final long serialVersionUID = -1206233785103357568L;

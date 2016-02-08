@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.io;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+@Internal
 public class PojoCsvInputFormat<OUT> extends CsvInputFormat<OUT> {
 
 	private static final long serialVersionUID = 1L;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.hadoop.mapred;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -53,6 +54,7 @@ import java.util.ArrayList;
  * @param <V> Type of value
  * @param <T> The type iself
  */
+@Internal
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;

@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,6 +37,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 /**
  * An input format that returns objects from a collection.
  */
+@PublicEvolving
 public class CollectionInputFormat<T> extends GenericInputFormat<T> implements NonParallelInput {
 
 	private static final long serialVersionUID = 1L;

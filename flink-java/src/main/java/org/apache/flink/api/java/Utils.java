@@ -20,6 +20,7 @@ package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
@@ -40,6 +41,7 @@ import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAna
 /**
  * Utility class that contains helper methods to work with Java APIs.
  */
+@Internal
 public final class Utils {
 	
 	public static final Random RNG = new Random();

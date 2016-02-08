@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.BinaryInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -31,6 +32,7 @@ import java.io.IOException;
  * Reads elements by deserializing them with a given type serializer.
  * @param <T>
  */
+@PublicEvolving
 public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T> implements ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 2123068581665107480L;

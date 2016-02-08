@@ -19,6 +19,7 @@
 package org.apache.flink.api.java;
 
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 import org.objectweb.asm.ClassReader;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+@Internal
 public class ClosureCleaner {
 	private static Logger LOG = LoggerFactory.getLogger(ClosureCleaner.class);
 

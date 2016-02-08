@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticAnnotationException;
@@ -51,6 +52,7 @@ import java.util.regex.Pattern;
 /**
  * Utility class that contains helper methods to work with {@link SemanticProperties}.
  */
+@Internal
 public final class SemanticPropUtil {
 
 	private final static String REGEX_WILDCARD = "[\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR+"\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA+"]";

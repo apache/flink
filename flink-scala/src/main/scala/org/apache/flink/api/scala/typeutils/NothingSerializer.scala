@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 
@@ -25,6 +26,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
  * happens for OptionTypeInfo when None is used, or for Either when one of the type parameters
  * is Nothing.
  */
+@Internal
 class NothingSerializer extends TypeSerializer[Any] {
 
   override def duplicate: NothingSerializer = this

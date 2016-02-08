@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
@@ -34,6 +35,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
  * This class holds static utilities to append functions that extract and
  * prune keys.
  */
+@Internal
 public class KeyFunctions {
 
 	@SuppressWarnings("unchecked")
