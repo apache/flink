@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala
 
-import org.apache.flink.annotation.Experimental
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.Utils
 import org.apache.flink.api.java.Utils.ChecksumHashCode
@@ -37,7 +37,7 @@ package object utils {
    *
    * @param self Data Set
    */
-  @Experimental
+  @PublicEvolving
   implicit class DataSetUtils[T: TypeInformation : ClassTag](val self: DataSet[T]) {
 
     /**
@@ -118,7 +118,6 @@ package object utils {
       * as well as the checksum (sum over element hashes).
       *
       * @return A ChecksumHashCode with the count and checksum of elements in the data set.
-      *
       * @see [[org.apache.flink.api.java.Utils.ChecksumHashCodeHelper]]
       */
     def checksumHashCode(): ChecksumHashCode = {

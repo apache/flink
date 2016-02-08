@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -50,6 +50,7 @@ class DataStream[T](stream: JavaStream[T]) {
 
   /**
     * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
+ *
     * @return associated execution environment
     */
   def getExecutionEnvironment: StreamExecutionEnvironment =
@@ -60,7 +61,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * @return ID of the DataStream
    */
-  @Experimental
+  @PublicEvolving
   def getId = stream.getId
 
   /**
@@ -128,7 +129,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param uid The unique user-specified ID of this transformation.
     * @return The operator with the specified ID.
     */
-  @Experimental
+  @PublicEvolving
   def uid(uid: String) : DataStream[T] = javaStream match {
     case stream : SingleOutputStreamOperator[T,_] => stream.uid(uid)
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
@@ -142,7 +143,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * however it is not advised for performance considerations.
    *
    */
-  @Experimental
+  @PublicEvolving
   def disableChaining(): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.disableChaining();
@@ -158,7 +159,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * previous tasks even if possible.
    *
    */
-  @Experimental
+  @PublicEvolving
   def startNewChain(): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.startNewChain();
@@ -175,7 +176,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * All subsequent operators are assigned to the default resource group.
    *
    */
-  @Experimental
+  @PublicEvolving
   def isolateResources(): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.isolateResources();
@@ -196,7 +197,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * degree of parallelism for the operators must be decreased from the
    * default.
    */
-  @Experimental
+  @PublicEvolving
   def startNewResourceGroup(): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.startNewResourceGroup();
@@ -345,14 +346,14 @@ class DataStream[T](stream: JavaStream[T]) {
    * the first instance of the next processing operator. Use this setting with care
    * since it might cause a serious performance bottleneck in the application.
    */
-  @Experimental
+  @PublicEvolving
   def global: DataStream[T] = stream.global()
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are shuffled to the next component.
    */
-  @Experimental
+  @PublicEvolving
   def shuffle: DataStream[T] = stream.shuffle()
 
   /**
@@ -385,7 +386,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * In cases where the different parallelisms are not multiples of each other one or several
    * downstream operations will have a differing number of inputs from upstream operations.
    */
-  @Experimental
+  @PublicEvolving
   def rescale: DataStream[T] = stream.rescale()
 
   /**
@@ -408,7 +409,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * the keepPartitioning flag to true
    *
    */
-  @Experimental
+  @PublicEvolving
   def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),
                     maxWaitTimeMillis:Long = 0,
                     keepPartitioning: Boolean = false) : DataStream[R] = {
@@ -438,7 +439,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * to 0 then the iteration sources will indefinitely, so the job must be killed to stop.
    *
    */
-  @Experimental
+  @PublicEvolving
   def iterate[R, F: TypeInformation: ClassTag](stepFunction: ConnectedStreams[T, F] =>
     (DataStream[F], DataStream[R]), maxWaitTimeMillis:Long): DataStream[R] = {
     val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
@@ -625,7 +626,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @param assigner The `WindowAssigner` that assigns elements to windows.
    * @return The trigger windows data stream.
    */
-  @Experimental
+  @PublicEvolving
   def windowAll[W <: Window](assigner: WindowAssigner[_ >: T, W]): AllWindowedStream[T, W] = {
     new AllWindowedStream[T, W](new JavaAllWindowedStream[T, W](stream, assigner))
   }
@@ -640,7 +641,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * @see org.apache.flink.streaming.api.watermark.Watermark
    */
-  @Experimental
+  @PublicEvolving
   def assignTimestamps(extractor: TimestampExtractor[T]): DataStream[T] = {
     stream.assignTimestamps(clean(extractor))
   }
@@ -656,7 +657,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * @see org.apache.flink.streaming.api.watermark.Watermark
    */
-  @Experimental
+  @PublicEvolving
   def assignAscendingTimestamps(extractor: T => Long): DataStream[T] = {
     val cleanExtractor = clean(extractor)
     val extractorFunction = new AscendingTimestampExtractor[T] {
@@ -714,7 +715,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * written.
    *
    */
-  @Experimental
+  @PublicEvolving
   def print(): DataStreamSink[T] = stream.print()
 
   /**
@@ -725,7 +726,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * @return The closed DataStream.
    */
-  @Experimental
+  @PublicEvolving
   def printToErr() = stream.printToErr()
 
   /**
@@ -735,7 +736,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param path The path pointing to the location the text file is written to
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsText(path: String): DataStreamSink[T] =
     stream.writeAsText(path, 0L)
 
@@ -749,7 +750,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * @param millis The file update frequency
    * @return The closed DataStream
    */
-  @Experimental
+  @PublicEvolving
   def writeAsText(path: String, millis: Long): DataStreamSink[T] =
     stream.writeAsText(path, millis)
 
@@ -762,7 +763,7 @@ class DataStream[T](stream: JavaStream[T]) {
     *                  OVERWRITE.
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsText(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
     if (writeMode != null) {
       stream.writeAsText(path, writeMode)
@@ -782,7 +783,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param millis The file update frequency
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsText(
       path: String,
       writeMode: FileSystem.WriteMode,
@@ -802,7 +803,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param path Path to the location of the CSV file
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsCsv(path: String): DataStreamSink[T] = {
     writeAsCsv(
       path,
@@ -820,7 +821,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param millis File update frequency
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsCsv(path: String, millis: Long): DataStreamSink[T] = {
     writeAsCsv(
       path,
@@ -838,7 +839,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param writeMode Controls whether an existing file is overwritten or not
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsCsv(path: String, writeMode: FileSystem.WriteMode): DataStreamSink[T] = {
     writeAsCsv(
       path,
@@ -857,7 +858,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param millis File update frequency
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsCsv(path: String, writeMode: FileSystem.WriteMode, millis: Long): DataStreamSink[T] = {
     writeAsCsv(
       path,
@@ -878,7 +879,7 @@ class DataStream[T](stream: JavaStream[T]) {
     * @param fieldDelimiter Delimiter for consecutive fields
     * @return The closed DataStream
     */
-  @Experimental
+  @PublicEvolving
   def writeAsCsv(
       path: String,
       writeMode: FileSystem.WriteMode,
@@ -898,7 +899,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Writes a DataStream using the given [[OutputFormat]]. The
    * writing is performed periodically, in every millis milliseconds.
    */
-  @Experimental
+  @PublicEvolving
   def write(format: OutputFormat[T], millis: Long): DataStreamSink[T] = {
     stream.write(format, millis)
   }
@@ -907,7 +908,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * Writes the DataStream to a socket as a byte array. The format of the output is
    * specified by a [[SerializationSchema]].
    */
-  @Experimental
+  @PublicEvolving
   def writeToSocket(
       hostname: String,
       port: Integer,

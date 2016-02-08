@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
@@ -308,7 +308,7 @@ public class ConnectedStreams<IN1, IN2> {
 		return transform("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<>(inputStream1.clean(coFlatMapper)));
 	}
 
-	@Experimental
+	@PublicEvolving
 	public <OUT> SingleOutputStreamOperator<OUT, ?> transform(String functionName,
 			TypeInformation<OUT> outTypeInfo,
 			TwoInputStreamOperator<IN1, IN2, OUT> operator) {

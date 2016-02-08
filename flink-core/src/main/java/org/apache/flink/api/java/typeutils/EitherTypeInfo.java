@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -41,51 +41,51 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
 	private final TypeInformation<R> rightType;
 
-	@Experimental
+	@PublicEvolving
 	public EitherTypeInfo(TypeInformation<L> leftType, TypeInformation<R> rightType) {
 		this.leftType = leftType;
 		this.rightType = rightType;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isBasicType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getArity() {
 		return 1;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getTotalFields() {
 		return 1;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	@Experimental
+	@PublicEvolving
 	public Class<Either<L, R>> getTypeClass() {
 		return (Class<Either<L, R>>) (Class<?>) Either.class;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isKeyType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeSerializer<Either<L, R>> createSerializer(ExecutionConfig config) {
 		return new EitherSerializer<L, R>(leftType.createSerializer(config),
 				rightType.createSerializer(config));

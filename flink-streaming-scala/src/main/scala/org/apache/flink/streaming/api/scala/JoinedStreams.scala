@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.annotation.{Experimental, Public}
+import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{FlatJoinFunction, JoinFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
@@ -148,7 +148,7 @@ object JoinedStreams {
     /**
      * Specifies the window on which the join operation works.
      */
-    @Experimental
+    @PublicEvolving
     def window[W <: Window](
         assigner: WindowAssigner[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], W])
         : JoinedStreams.WithWindow[T1, T2, KEY, W] = {
@@ -197,7 +197,7 @@ object JoinedStreams {
     /**
      * Sets the [[Trigger]] that should be used to trigger window emission.
      */
-    @Experimental
+    @PublicEvolving
     def trigger(newTrigger: Trigger[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : JoinedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](
@@ -216,7 +216,7 @@ object JoinedStreams {
      * Note: When using an evictor window performance will degrade significantly, since
      * pre-aggregation of window results cannot be used.
      */
-    @Experimental
+    @PublicEvolving
     def evictor(newEvictor: Evictor[_ >: JavaCoGroupedStreams.TaggedUnion[T1, T2], _ >: W])
     : JoinedStreams.WithWindow[T1, T2, KEY, W] = {
       new WithWindow[T1, T2, KEY, W](

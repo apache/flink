@@ -20,7 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -204,7 +204,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @return The DeltaIteration itself, to allow chaining function calls.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DeltaIteration<ST, WT> registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.registerAggregator(name, aggregator);
 		return this;
@@ -215,7 +215,7 @@ public class DeltaIteration<ST, WT> {
 	 * 
 	 * @return The registry with all aggregators.
 	 */
-	@Experimental
+	@PublicEvolving
 	public AggregatorRegistry getAggregators() {
 		return this.aggregators;
 	}

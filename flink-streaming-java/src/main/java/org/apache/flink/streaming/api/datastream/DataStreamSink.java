@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -70,7 +70,7 @@ public class DataStreamSink<T> {
 	 * @param uid The unique user-specified ID of this transformation.
 	 * @return The operator with the specified ID.
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> uid(String uid) {
 		transformation.setUid(uid);
 		return this;
@@ -98,7 +98,7 @@ public class DataStreamSink<T> {
 	 *
 	 * @return The sink with chaining disabled
 	 */
-	@Experimental
+	@PublicEvolving
 	public DataStreamSink<T> disableChaining() {
 		this.transformation.setChainingStrategy(ChainingStrategy.NEVER);
 		return this;

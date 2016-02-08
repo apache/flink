@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.google.common.base.Preconditions;
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -100,7 +100,7 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	 * Returns whether this type should be automatically casted to
 	 * the target type in an arithmetic operation.
 	 */
-	@Experimental
+	@PublicEvolving
 	public boolean shouldAutocastTo(BasicTypeInfo<?> to) {
 		for (Class<?> possibleTo: possibleCastTargetTypes) {
 			if (possibleTo.equals(to.getTypeClass())) {
@@ -111,49 +111,49 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isBasicType() {
 		return true;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isTupleType() {
 		return false;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getArity() {
 		return 1;
 	}
 
 	@Override
-	@Experimental
+	@PublicEvolving
 	public int getTotalFields() {
 		return 1;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public Class<T> getTypeClass() {
 		return this.clazz;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public boolean isKeyType() {
 		return true;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return this.serializer;
 	}
 	
 	@Override
-	@Experimental
+	@PublicEvolving
 	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if (comparatorClass != null) {
 			return instantiateComparator(comparatorClass, sortOrderAscending);
@@ -196,7 +196,7 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	
 	// --------------------------------------------------------------------------------------------
 
-	@Experimental
+	@PublicEvolving
 	public static <X> BasicTypeInfo<X> getInfoFor(Class<X> type) {
 		if (type == null) {
 			throw new NullPointerException();

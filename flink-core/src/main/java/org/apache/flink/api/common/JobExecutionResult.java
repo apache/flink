@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
 
 import java.util.Collections;
@@ -104,7 +104,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @throws java.lang.ClassCastException Thrown, if the accumulator was not aggregating a {@link java.lang.Integer}
 	 */
 	@Deprecated
-	@Experimental
+	@PublicEvolving
 	public Integer getIntCounterResult(String accumulatorName) {
 		Object result = this.accumulatorResults.get(accumulatorName);
 		if (result == null) {
