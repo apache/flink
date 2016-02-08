@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -29,14 +28,17 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
-
 import org.apache.commons.io.FileUtils;
-
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
+import org.apache.flink.runtime.webmonitor.handlers.ClusterOverviewHandler;
 import org.apache.flink.runtime.webmonitor.handlers.ConstantTextHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobIdsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.CurrentJobsOverviewHandler;
+import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarAccessDeniedHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
@@ -46,29 +48,24 @@ import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobCancellationHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobCheckpointsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.CurrentJobsOverviewHandler;
-import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexAccumulatorsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexCheckpointsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobVertexDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
-import org.apache.flink.runtime.webmonitor.handlers.CurrentJobIdsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.ClusterOverviewHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtaskExecutionAttemptDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksAllAccumulatorsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.SubtasksTimesHandler;
 import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -121,8 +118,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final File uploadDir;
 
-	private AtomicBoolean cleanedUp = new AtomicBoolean();
+	private final StackTraceSampleCoordinator stackTraceSamples;
 
+	private final BackPressureStatsTracker backPressureStatsTracker;
+
+	private AtomicBoolean cleanedUp = new AtomicBoolean();
 
 	public WebRuntimeMonitor(
 			Configuration config,
@@ -163,6 +163,34 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder();
 
+		// - Back pressure stats ----------------------------------------------
+
+		stackTraceSamples = new StackTraceSampleCoordinator(actorSystem, 60000);
+
+		// Back pressure stats tracker config
+		int cleanUpInterval = config.getInteger(
+				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL);
+
+		int refreshInterval = config.getInteger(
+				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL);
+
+		int numSamples = config.getInteger(
+				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES);
+
+		int delay = config.getInteger(
+				ConfigConstants.JOB_MANAGER_WEB_BACK_PRESSURE_DELAY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY);
+
+		FiniteDuration delayBetweenSamples = new FiniteDuration(delay, TimeUnit.MILLISECONDS);
+
+		backPressureStatsTracker = new BackPressureStatsTracker(
+				stackTraceSamples, cleanUpInterval, numSamples, delayBetweenSamples);
+
+		// --------------------------------------------------------------------
+
 		router = new Router()
 			// config how to interact with this web server
 			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
@@ -187,7 +215,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/checkpoints", handler(new JobVertexCheckpointsHandler(currentGraphs)))
-
+			.GET("/jobs/:jobid/vertices/:vertexid/backpressure", handler(new JobVertexBackPressureHandler(
+							currentGraphs,
+							backPressureStatsTracker,
+							refreshInterval)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs)))
 			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs)))
@@ -298,6 +329,23 @@ public class WebRuntimeMonitor implements WebMonitor {
 		synchronized (startupShutdownLock) {
 			jobManagerAddressPromise.success(jobManagerAkkaUrl);
 			leaderRetrievalService.start(retriever);
+
+			long delay = backPressureStatsTracker.getCleanUpInterval();
+
+			// Scheduled back pressure stats tracker cache cleanup. We schedule
+			// this here repeatedly, because cache clean up only happens on
+			// interactions with the cache. We need it to make sure that we
+			// don't leak memory after completed jobs or long ago accessed stats.
+			bootstrap.childGroup().scheduleWithFixedDelay(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						backPressureStatsTracker.cleanUpOperatorStatsCache();
+					} catch (Throwable t) {
+						LOG.error("Error during back pressure stats cache cleanup.", t);
+					}
+				}
+			}, delay, delay, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -315,6 +363,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 					bootstrap.group().shutdownGracefully();
 				}
 			}
+
+			stackTraceSamples.shutDown();
+
+			backPressureStatsTracker.shutDown();
 
 			cleanup();
 		}

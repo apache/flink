@@ -272,7 +272,7 @@ object TestingUtils {
         actorSystem,
         Some(JobManager.JOB_MANAGER_NAME),
         Some(JobManager.ARCHIVE_NAME),
-        classOf[JobManager],
+        classOf[TestingJobManager],
         classOf[MemoryArchivist])
 
     new AkkaActorGateway(actor, null)

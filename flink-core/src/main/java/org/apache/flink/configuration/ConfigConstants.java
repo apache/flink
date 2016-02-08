@@ -357,7 +357,18 @@ public final class ConfigConstants {
 
 	/** Config parameter defining the number of checkpoints to remember for recent history. */
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
-	
+
+	/** Time after which cached stats are cleaned up if not accessed. */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = "jobmanager.web.backpressure.cleanup-interval";
+
+	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = "jobmanager.web.backpressure.refresh-interval";
+
+	/** Number of stack trace samples to take to determine back pressure. */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = "jobmanager.web.backpressure.num-samples";
+
+	/** Delay between stack trace samples to determine back pressure. */
+	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = "jobmanager.web.backpressure.delay-between-samples";
 
 	// ------------------------------ AKKA ------------------------------------
 
@@ -692,6 +703,18 @@ public final class ConfigConstants {
 
 	/** Default number of checkpoints to remember for recent history. */
 	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
+
+	/** Time after which cached stats are cleaned up. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = 10 * 60 * 1000;
+
+	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = 60 * 1000;
+
+	/** Number of samples to take to determine back pressure. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = 100;
+
+	/** Delay between samples to determine back pressure. */
+	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = 50;
 
 	// ------------------------------ Akka Values ------------------------------
 

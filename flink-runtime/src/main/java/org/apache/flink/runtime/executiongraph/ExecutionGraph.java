@@ -1089,8 +1089,7 @@ public class ExecutionGraph implements Serializable {
 
 			// We don't clean the checkpoint stats tracker, because we want
 			// it to be available after the job has terminated.
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
 
@@ -1100,8 +1099,7 @@ public class ExecutionGraph implements Serializable {
 			if (coord != null) {
 				coord.shutdown();
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			LOG.error("Error while cleaning up after execution", e);
 		}
 	}
@@ -1230,7 +1228,6 @@ public class ExecutionGraph implements Serializable {
 			this.executionListenerActors.add(listener);
 		}
 	}
-	
 	
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if (jobStatusListenerActors.size() > 0) {
