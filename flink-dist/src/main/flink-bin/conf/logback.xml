@@ -21,7 +21,7 @@
         <file>${log.file}</file>
         <append>false</append>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -29,3 +29,4 @@
         <appender-ref ref="file"/>
     </root>
 </configuration>
+
