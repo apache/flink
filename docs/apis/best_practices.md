@@ -279,7 +279,7 @@ Apache Flink is using [slf4j](http://www.slf4j.org/) as the logging abstraction 
 
 Sfl4j is a compile-time logging interface that can use different logging implementations at runtime, such as [log4j](http://logging.apache.org/log4j/2.x/) or [Logback](http://logback.qos.ch/).
 
-Flink is depending on Log4j by default. This page describes how to use Flink with Logback.
+Flink is depending on Log4j by default. This page describes how to use Flink with Logback. Users reported that they were also able to set up centralized logging with Graylog using this tutorial.
 
 To get a logger instance in the code, use the following code:
 
@@ -397,3 +397,7 @@ Next, you need to put the following jar files into the `lib/` folder:
  * `logback-classic.jar`
  * `logback-core.jar`
  * `log4j-over-slf4j.jar`: This bridge needs to be present in the classpath for redirecting logging calls from Hadoop (which is using Log4j) to Slf4j.
+
+Note that you need to explicitly set the `lib/` directory when using a per job YARN cluster.
+
+The command to submit Flink on YARN with a custom logger is: `./bin/flink run -yt $FLINK_HOME/lib <... remaining arguments ...>`
