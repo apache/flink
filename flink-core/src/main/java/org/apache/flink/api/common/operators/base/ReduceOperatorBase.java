@@ -54,6 +54,30 @@ import java.util.Map;
 @Internal
 public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
 
+	/**
+	 * An enumeration of hints, optionally usable to tell the system exactly how to execute the reduce.
+	 */
+	public enum ReduceHint {
+
+		/**
+		 * Leave the choice how to do the reduce to the optimizer. (This currently defaults to SORT.)
+		 */
+		OPTIMIZER_CHOOSES,
+
+		/**
+		 * Use a sort-based strategy.
+		 */
+		SORT,
+
+		/**
+		 * Use a hash-based strategy. This should be faster in most cases, especially if the number
+		 * of different keys is small, compared to the number of input elements (eg. 1/10).
+		 */
+		HASH
+	}
+
+	private ReduceHint hint;
+
 	private Partitioner<?> customPartitioner;
 	
 	
@@ -215,5 +239,16 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 			
 			return Collections.singletonList(aggregate);
 		}
+	}
+
+	public void setReduceHint(ReduceHint hint) {
+		if (hint == null) {
+			throw new IllegalArgumentException("Reduce Hint must not be null.");
+		}
+		this.hint = hint;
+	}
+
+	public ReduceHint getReduceHint() {
+		return hint;
 	}
 }

@@ -83,6 +83,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		this.collectingView = new SimpleCollectingOutputView(this.fullSegments, 
 						new ListMemorySegmentSource(this.emptySegments), memoryManager.getPageSize());
 		this.readView = new RandomAccessInputView(this.fullSegments, memoryManager.getPageSize());
+		this.readView.setReadPosition(0);
 		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Iterator initialized using " + numPages + " memory buffers.");

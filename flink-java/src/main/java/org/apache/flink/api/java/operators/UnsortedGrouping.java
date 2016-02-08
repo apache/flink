@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase.ReduceHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
@@ -135,10 +136,37 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see DataSet
 	 */
 	public ReduceOperator<T> reduce(ReduceFunction<T> reducer) {
+		return reduce(Utils.getCallLocationName(), reducer, ReduceHint.OPTIMIZER_CHOOSES);
+	}
+
+	/**
+	 * Applies a Reduce transformation on a grouped {@link DataSet}.<br>
+	 * For each group, the transformation consecutively calls a {@link org.apache.flink.api.common.functions.RichReduceFunction}
+	 *   until only a single element for each group remains.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *
+	 * @param reducer The ReduceFunction that is applied on each group of the DataSet.
+	 * @param strategy The strategy that should be used execute the reduce. If {@code null} is given, then the
+	 *                 optimizer will pick the reduce strategy.
+	 * @return A ReduceOperator that represents the reduced DataSet.
+	 *
+	 * @see org.apache.flink.api.common.functions.RichReduceFunction
+	 * @see ReduceOperator
+	 * @see DataSet
+	 */
+	public ReduceOperator<T> reduce(ReduceFunction<T> reducer, ReduceHint strategy) {
+		return reduce(Utils.getCallLocationName(), reducer, strategy);
+	}
+
+	/**
+	 * It couldn't be, that one of the two public overloads just simply delegates to the other,
+	 * because then the callLocationName would be wrong.
+	 */
+	private ReduceOperator<T> reduce(String callLocationName, ReduceFunction<T> reducer, ReduceHint strategy) {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, inputDataSet.clean(reducer), Utils.getCallLocationName());
+		return new ReduceOperator<T>(this, inputDataSet.clean(reducer), callLocationName, strategy);
 	}
 	
 	/**
@@ -208,18 +236,37 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @param fields Keys taken into account for finding the minimum.
 	 * @return A {@link ReduceOperator} representing the minimum.
 	 */
+	public ReduceOperator<T> minBy(int... fields) {
+		return minBy(Utils.getCallLocationName(), ReduceHint.OPTIMIZER_CHOOSES, fields);
+	}
+
+	/**
+	 * Applies a special case of a reduce transformation (minBy) on a grouped {@link DataSet}.<br>
+	 * The transformation consecutively calls a {@link ReduceFunction}
+	 * until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *
+	 * @param fields Keys taken into account for finding the minimum.
+	 * @param strategy The strategy that should be used execute the minBy. If {@code null} is given, then the
+	 *                 optimizer will pick the strategy.
+	 * @return A {@link ReduceOperator} representing the minimum.
+	 */
+	public ReduceOperator<T> minBy(ReduceHint strategy, int... fields) {
+		return minBy(Utils.getCallLocationName(), strategy, fields);
+	}
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public ReduceOperator<T> minBy(int... fields)  {
-		
+	private ReduceOperator<T> minBy(String callLocationName, ReduceHint strategy, int... fields)  {
+
 		// Check for using a tuple
 		if(!this.inputDataSet.getType().isTupleType()) {
-			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
+			throw new InvalidProgramException("Method minBy only works on tuples.");
 		}
-			
+
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.inputDataSet.getType(), fields), Utils.getCallLocationName());
+			(TupleTypeInfo) this.inputDataSet.getType(), fields), callLocationName, strategy);
 	}
-	
+
 	/**
 	 * Applies a special case of a reduce transformation (maxBy) on a grouped {@link DataSet}.<br>
 	 * The transformation consecutively calls a {@link ReduceFunction} 
@@ -229,17 +276,37 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @param fields Keys taken into account for finding the minimum.
 	 * @return A {@link ReduceOperator} representing the minimum.
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> maxBy(int... fields)  {
-		
+		return maxBy(Utils.getCallLocationName(), ReduceHint.OPTIMIZER_CHOOSES, fields);
+	}
+
+	/**
+	 * Applies a special case of a reduce transformation (maxBy) on a grouped {@link DataSet}.<br>
+	 * The transformation consecutively calls a {@link ReduceFunction}
+	 * until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *
+	 * @param fields Keys taken into account for finding the minimum.
+	 * @param strategy The strategy that should be used execute the maxBy. If {@code null} is given, then the
+	 *                 optimizer will pick the strategy.
+	 * @return A {@link ReduceOperator} representing the minimum.
+	 */
+	public ReduceOperator<T> maxBy(ReduceHint strategy, int... fields)  {
+		return maxBy(Utils.getCallLocationName(), strategy, fields);
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private ReduceOperator<T> maxBy(String callLocationName, ReduceHint strategy, int... fields)  {
+
 		// Check for using a tuple
 		if(!this.inputDataSet.getType().isTupleType()) {
 			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
 		}
-			
+
 		return new ReduceOperator<T>(this, new SelectByMaxFunction(
-				(TupleTypeInfo) this.inputDataSet.getType(), fields), Utils.getCallLocationName());
+			(TupleTypeInfo) this.inputDataSet.getType(), fields), callLocationName, strategy);
 	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations
 	// --------------------------------------------------------------------------------------------
