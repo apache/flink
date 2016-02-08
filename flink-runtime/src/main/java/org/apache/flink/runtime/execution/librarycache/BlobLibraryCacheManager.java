@@ -68,14 +68,16 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	/** The blob service to download libraries */
 	private final BlobService blobService;
 	
+	private final Timer cleanupTimer;
+	
 	// --------------------------------------------------------------------------------------------
 
 	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
 		this.blobService = blobService;
 
 		// Initializing the clean up task
-		Timer timer = new Timer(true);
-		timer.schedule(this, cleanupInterval);
+		this.cleanupTimer = new Timer(true);
+		this.cleanupTimer.schedule(this, cleanupInterval);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -199,6 +201,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void shutdown() throws IOException{
 		blobService.shutdown();
+		cleanupTimer.cancel();
 	}
 	
 	/**
