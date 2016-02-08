@@ -19,14 +19,7 @@ package org.apache.flink.streaming.api.collector.selector;
 
 import java.io.Serializable;
 
-import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Collector;
-
 public interface OutputSelectorWrapper<OUT> extends Serializable {
 
-	public void addCollector(Collector<StreamRecord<OUT>> output, StreamEdge edge);
-
-	public Iterable<Collector<StreamRecord<OUT>>> getSelectedOutputs(OUT record);
-
+	void sendOutputs(OUT record);
 }

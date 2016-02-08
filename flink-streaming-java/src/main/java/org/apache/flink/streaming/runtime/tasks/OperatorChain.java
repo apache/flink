@@ -24,15 +24,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.CollectorWrapper;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -45,6 +46,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The {@code OperatorChain} contains all operators that are executed as one chain within a single
+ * {@link StreamTask}.
+ * 
+ * @param <OUT> The type of elements accepted by the chain, i.e., the input type of the chain's
+ *              head operator.
+ */
 public class OperatorChain<OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
@@ -182,15 +190,14 @@ public class OperatorChain<OUT> {
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
 			List<StreamOperator<?>> allOperators)
 	{
-		// We create a wrapper that will encapsulate the chained operators and network outputs
-		OutputSelectorWrapper<T> outputSelectorWrapper = operatorConfig.getOutputSelectorWrapper(userCodeClassloader);
-		CollectorWrapper<T> wrapper = new CollectorWrapper<T>(outputSelectorWrapper);
-
+		List<Tuple2<Output<StreamRecord<T>>, StreamEdge>> allOutputs = new ArrayList<>(4);
+		
 		// create collectors for the network outputs
 		for (StreamEdge outputEdge : operatorConfig.getNonChainedOutputs(userCodeClassloader)) {
 			@SuppressWarnings("unchecked")
 			RecordWriterOutput<T> output = (RecordWriterOutput<T>) streamOutputs.get(outputEdge);
-			wrapper.addCollector(output, outputEdge);
+			
+			allOutputs.add(new Tuple2<Output<StreamRecord<T>>, StreamEdge>(output, outputEdge));
 		}
 
 		// Create collectors for the chained outputs
@@ -200,9 +207,37 @@ public class OperatorChain<OUT> {
 
 			Output<StreamRecord<T>> output = createChainedOperator(
 					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators);
-			wrapper.addCollector(output, outputEdge);
+			
+			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
-		return wrapper;
+		
+		// if there are multiple outputs, or the outputs are directed, we need to
+		// wrap them as one output
+		
+		List<OutputSelector<T>> selectors = operatorConfig.getOutputSelectors(userCodeClassloader);
+		
+		if (selectors == null || selectors.isEmpty()) {
+			// simple path, no selector necessary
+			if (allOutputs.size() == 1) {
+				return allOutputs.get(0).f0;
+			}
+			else {
+				// send to N outputs. Note that this includes teh special case
+				// of sending to zero outputs
+				@SuppressWarnings({"unchecked", "rawtypes"})
+				Output<StreamRecord<T>>[] asArray = new Output[allOutputs.size()];
+				for (int i = 0; i < allOutputs.size(); i++) {
+					asArray[i] = allOutputs.get(i).f0;
+				}
+				
+				return new BroadcastingOutputCollector<T>(asArray);
+			}
+		}
+		else {
+			// selector present, more complex routing necessary
+			return new DirectedOutput<T>(selectors, allOutputs);
+			
+		}
 	}
 	
 	private static <IN, OUT> Output<StreamRecord<IN>> createChainedOperator(
@@ -309,7 +344,6 @@ public class OperatorChain<OUT> {
 		@Override
 		public void collect(StreamRecord<T> record) {
 			try {
-
 				StreamRecord<T> copy = new StreamRecord<>(serializer.copy(record.getValue()), record.getTimestamp());
 
 				operator.setKeyContextElement1(copy);
@@ -317,6 +351,36 @@ public class OperatorChain<OUT> {
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Could not forward element to next operator", e);
+			}
+		}
+	}
+	
+	private static final class BroadcastingOutputCollector<T> implements Output<StreamRecord<T>> {
+		
+		private final Output<StreamRecord<T>>[] outputs;
+		
+		public BroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
+			this.outputs = outputs;
+		}
+
+		@Override
+		public void emitWatermark(Watermark mark) {
+			for (Output<StreamRecord<T>> output : outputs) {
+				output.emitWatermark(mark);
+			}
+		}
+
+		@Override
+		public void collect(StreamRecord<T> record) {
+			for (Output<StreamRecord<T>> output : outputs) {
+				output.collect(record);
+			}
+		}
+
+		@Override
+		public void close() {
+			for (Output<StreamRecord<T>> output : outputs) {
+				output.close();
 			}
 		}
 	}

@@ -26,15 +26,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
- * Class representing the operators in the streaming programs, with all their
- * properties.
- * 
+ * Class representing the operators in the streaming programs, with all their properties.
  */
 public class StreamNode implements Serializable {
 
@@ -166,10 +162,6 @@ public class StreamNode implements Serializable {
 
 	public List<OutputSelector<?>> getOutputSelectors() {
 		return outputSelectors;
-	}
-
-	public OutputSelectorWrapper<?> getOutputSelectorWrapper() {
-		return OutputSelectorWrapperFactory.create(getOutputSelectors());
 	}
 
 	public void addOutputSelector(OutputSelector<?> outputSelector) {
