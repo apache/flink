@@ -19,8 +19,10 @@ package org.apache.flink.streaming.api.functions.aggregation;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 
+@Internal
 public abstract class Comparator implements Serializable {
 
 	private static final long serialVersionUID = 1L;

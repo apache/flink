@@ -17,6 +17,7 @@
  */
 package org.apache.flink.streaming.api.functions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 
 /**
@@ -35,6 +36,7 @@ import org.apache.flink.api.common.functions.Function;
  *
  * @param <T> The type of the elements that this function can extract timestamps from
  */
+@PublicEvolving
 public interface TimestampExtractor<T> extends Function {
 
 	/**

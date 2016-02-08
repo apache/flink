@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
  * Extracts one or more fields of the type Double from a tuple and puts them
  * into a new double[]
  */
+@Internal
 public class FieldsFromTuple implements Extractor<Tuple, double[]> {
 
 	/**

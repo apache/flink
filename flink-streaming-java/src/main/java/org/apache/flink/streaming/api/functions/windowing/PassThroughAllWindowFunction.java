@@ -17,10 +17,13 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
+@Internal
 public class PassThroughAllWindowFunction<W extends Window, T> implements AllWindowFunction<T, T, W> {
+
 	private static final long serialVersionUID = 1L;
 
 	@Override

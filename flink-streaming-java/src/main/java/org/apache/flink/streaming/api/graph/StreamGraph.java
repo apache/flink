@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -65,6 +66,7 @@ import org.slf4j.LoggerFactory;
  * necessary to build the jobgraph for the execution.
  * 
  */
+@Internal
 public class StreamGraph extends StreamingPlan {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);

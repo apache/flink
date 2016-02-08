@@ -17,11 +17,13 @@
  */
 package org.apache.flink.streaming.api.functions.windowing;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
+@Internal
 public class ReduceApplyWindowFunction<K, W extends Window, T, R>
 	extends WrappingFunction<WindowFunction<T, R, K, W>>
 	implements WindowFunction<Iterable<T>, R, K, W> {

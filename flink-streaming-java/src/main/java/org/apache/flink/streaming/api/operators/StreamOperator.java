@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -39,6 +40,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
  * 
  * @param <OUT> The output type of the operator
  */
+@PublicEvolving
 public interface StreamOperator<OUT> extends Serializable {
 	
 	// ------------------------------------------------------------------------

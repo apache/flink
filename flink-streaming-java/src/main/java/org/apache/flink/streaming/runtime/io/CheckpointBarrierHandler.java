@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -29,6 +30,7 @@ import java.io.IOException;
  * Different implementations may either simply track barriers, or block certain inputs on
  * barriers.
  */
+@Internal
 public interface CheckpointBarrierHandler {
 
 	/**

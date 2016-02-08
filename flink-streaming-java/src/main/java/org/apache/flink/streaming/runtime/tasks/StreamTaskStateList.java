@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.state.StateHandle;
 
@@ -26,6 +27,7 @@ import java.util.HashMap;
 /**
  * List of task states for a chain of streaming tasks.
  */
+@Internal
 public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
 	private static final long serialVersionUID = 1L;

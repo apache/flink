@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * @param <T> The type of the input elements
  */
+@Internal
 public class ExtractTimestampsOperator<T>
 		extends AbstractUdfStreamOperator<T, TimestampExtractor<T>>
 		implements OneInputStreamOperator<T, T>, Triggerable {

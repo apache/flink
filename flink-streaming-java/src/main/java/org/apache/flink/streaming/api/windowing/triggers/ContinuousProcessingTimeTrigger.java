@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.windowing.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -32,12 +33,13 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
+@PublicEvolving
 public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<Object, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long interval;
 
-	private final ValueStateDescriptor<Long> stateDesc = 
+	private final ValueStateDescriptor<Long> stateDesc =
 			new ValueStateDescriptor<>("fire-timestamp", LongSerializer.INSTANCE, 0L);
 
 

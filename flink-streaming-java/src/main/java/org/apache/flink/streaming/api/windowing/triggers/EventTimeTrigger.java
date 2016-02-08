@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.triggers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 /**
@@ -26,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
  *
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
+@PublicEvolving
 public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -43,6 +44,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * @param <T> Type of the elements in the Stream being rescaled
  */
+@Internal
 public class RescalePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 

@@ -24,11 +24,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
 
+@Internal
 public class JSONGenerator {
 
 	public static final String STEPS = "step_function";

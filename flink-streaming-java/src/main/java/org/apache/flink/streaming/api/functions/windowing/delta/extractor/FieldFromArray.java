@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
+import org.apache.flink.annotation.Internal;
+
 import java.lang.reflect.Array;
 
 /**
@@ -25,6 +27,7 @@ import java.lang.reflect.Array;
  * @param <OUT>
  *            The type of the extracted field.
  */
+@Internal
 public class FieldFromArray<OUT> implements Extractor<Object, OUT> {
 
 	/**

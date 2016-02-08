@@ -18,11 +18,14 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
+
 import static java.util.Objects.requireNonNull;
 
 /**
  * A special exception that signifies that the cause exception came from a chained operator.
  */
+@Internal
 public class ExceptionInChainedOperatorException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;

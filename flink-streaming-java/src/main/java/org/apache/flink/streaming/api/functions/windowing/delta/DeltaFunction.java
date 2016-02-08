@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
 /**
@@ -28,6 +30,7 @@ import java.io.Serializable;
  * @param <DATA>
  *            The type of input data which can be compared using this function.
  */
+@PublicEvolving
 public interface DeltaFunction<DATA> extends Serializable {
 
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.state.KvStateSnapshot;
 
@@ -35,6 +36,7 @@ import java.util.Iterator;
  *     <li>The key/value state of the operator, if it executes on a KeyedDataStream.</li>
  * </ul>
  */
+@Internal
 public class StreamTaskState implements Serializable {
 
 	private static final long serialVersionUID = 1L;

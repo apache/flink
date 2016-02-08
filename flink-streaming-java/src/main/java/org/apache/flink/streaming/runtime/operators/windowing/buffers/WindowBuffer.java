@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.operators.windowing.buffers;
 
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -37,6 +38,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of elements that this {@code WindowBuffer} can store.
  */
+@Internal
 public interface WindowBuffer<T> extends Serializable {
 
 	/**

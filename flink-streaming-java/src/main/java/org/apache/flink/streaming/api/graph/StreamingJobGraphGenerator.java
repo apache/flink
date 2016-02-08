@@ -21,6 +21,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -69,6 +70,7 @@ import java.util.Set;
 
 import static org.apache.flink.util.StringUtils.byteToHexString;
 
+@Internal
 public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
