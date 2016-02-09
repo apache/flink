@@ -435,7 +435,7 @@ public class Execution implements Serializable {
 				return;
 			}
 			else if (current == CREATED || current == SCHEDULED) {
-				// from here, we can directly switch to cancelled, because the no task has been deployed
+				// from here, we can directly switch to cancelled, because no task has been deployed
 				if (transitionState(current, CANCELED)) {
 					
 					// we skip the canceling state. set the timestamp, for a consistent appearance
@@ -754,11 +754,10 @@ public class Execution implements Serializable {
 				return false;
 			}
 
-			if (current == CANCELED) {
-				// we are already aborting or are already aborted
+			if (current == CANCELED || current == FINISHED) {
+				// we are already aborting or are already aborted or we are already finished
 				if (LOG.isDebugEnabled()) {
-					LOG.debug(String.format("Ignoring transition of vertex %s to %s while being %s", 
-							getVertexWithAttempt(), FAILED, CANCELED));
+					LOG.debug("Ignoring transition of vertex {} to {} while being {}.", getVertexWithAttempt(), FAILED, current);
 				}
 				return false;
 			}
@@ -928,6 +927,11 @@ public class Execution implements Serializable {
 	}
 
 	private boolean transitionState(ExecutionState currentState, ExecutionState targetState, Throwable error) {
+		// sanity check
+		if (currentState.isTerminal()) {
+			throw new IllegalStateException("Cannot leave terminal state " + currentState + " to transition to " + targetState + ".");
+		}
+
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
 
