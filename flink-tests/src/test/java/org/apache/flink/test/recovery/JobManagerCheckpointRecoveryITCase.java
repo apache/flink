@@ -248,6 +248,10 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			}
 		}
 		catch (Throwable t) {
+			// Print early (in some situations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			// In case of an error, print the job manager process logs.
 			if (jobManagerProcess[0] != null) {
 				jobManagerProcess[0].printProcessLog();
@@ -400,6 +404,10 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			assertTrue("Did not find expected output in logs.", success);
 		}
 		catch (Throwable t) {
+			// Print early (in some situtations the process logs get too big
+			// for Travis and the root problem is not shown)
+			t.printStackTrace();
+
 			// In case of an error, print the job manager process logs.
 			if (jobManagerProcess[0] != null) {
 				jobManagerProcess[0].printProcessLog();
