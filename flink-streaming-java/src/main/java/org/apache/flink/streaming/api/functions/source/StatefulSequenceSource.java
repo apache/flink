@@ -74,10 +74,6 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 		isRunning = false;
 	}
 
-	public void stop() {
-		isRunning = false;
-	}
-
 	@Override
 	public Long snapshotState(long checkpointId, long checkpointTimestamp) {
 		return collected;

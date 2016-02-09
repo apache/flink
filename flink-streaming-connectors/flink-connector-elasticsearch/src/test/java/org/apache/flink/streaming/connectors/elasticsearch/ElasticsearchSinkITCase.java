@@ -185,11 +185,6 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 		public void cancel() {
 			running = false;
 		}
-
-		@Override
-		public void stop() {
-			running = false;
-		}
 	}
 
 	private static class TestIndexRequestBuilder implements IndexRequestBuilder<Tuple2<Integer, String>> {

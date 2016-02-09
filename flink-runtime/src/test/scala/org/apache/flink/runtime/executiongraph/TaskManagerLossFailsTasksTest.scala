@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph
 
 import org.apache.flink.api.common.JobID
-import org.apache.flink.api.common.JobType
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
@@ -50,10 +49,14 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
         sender.setInvokableClass(classOf[Tasks.NoOpInvokable])
         sender.setParallelism(20)
 
-        val jobGraph = new JobGraph("Pointwise job", JobType.BATCHING, sender)
+        val jobGraph = new JobGraph("Pointwise job", sender)
 
-        val eg = new ExecutionGraph(TestingUtils.defaultExecutionContext, new JobID(), "test job",
-          JobType.BATCHING, new Configuration(), AkkaUtils.getDefaultTimeout)
+        val eg = new ExecutionGraph(
+          TestingUtils.defaultExecutionContext,
+          new JobID(),
+          "test job",
+          new Configuration(),
+          AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(0)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
 

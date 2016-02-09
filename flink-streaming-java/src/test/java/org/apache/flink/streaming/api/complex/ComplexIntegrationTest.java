@@ -160,6 +160,7 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 	// Disabled, because it depends on strange behaviour, for example of the sum() function.
 	// This test evens fails, for example, if the order of only two lines in the "input" is changed.
+	@SuppressWarnings("unchecked")
 	@Ignore
 	@Test
 	public void complexIntegrationTest2() throws Exception {
@@ -525,10 +526,9 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public void cancel() {}
+		public void cancel() {
 
-		@Override
-		public void stop() {}
+		}
 	}
 
 	private static class TupleSource implements SourceFunction<Tuple2<Long, Tuple2<String, Long>>> {
@@ -543,10 +543,9 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public void cancel() {}
+		public void cancel() {
 
-		@Override
-		public void stop() {}
+		}
 	}
 
 	private class IncrementMap implements MapFunction<Tuple2<Long, Tuple2<String, Long>>, Tuple2<Long, Tuple2<String,
@@ -676,10 +675,8 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
-		public void cancel() {}
-
-		@Override
-		public void stop() {}
+		public void cancel() {
+		}
 	}
 
 	private static class RectangleMapFunction implements MapFunction<Rectangle, Tuple2<Rectangle, Integer>> {

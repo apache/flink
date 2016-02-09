@@ -61,9 +61,6 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-
-      def stop() {
-      }
     }).assignTimestamps(new WindowFoldITCase.Tuple2TimestampExtractor)
 
     source1
@@ -108,9 +105,6 @@ class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
       }
 
       def cancel() {
-      }
-
-      def stop() {
       }
     }).assignTimestamps(new WindowFoldITCase.Tuple2TimestampExtractor)
 

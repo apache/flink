@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.runtime;
 
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -97,7 +96,7 @@ public class NetworkStackThroughputITCase {
 
 		private JobGraph createJobGraph(int dataVolumeGb, boolean useForwarder, boolean isSlowSender,
 										boolean isSlowReceiver, int numSubtasks) {
-			JobGraph jobGraph = new JobGraph("Speed Test", JobType.BATCHING);
+			JobGraph jobGraph = new JobGraph("Speed Test");
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
 			JobVertex producer = new JobVertex("Speed Test Producer");

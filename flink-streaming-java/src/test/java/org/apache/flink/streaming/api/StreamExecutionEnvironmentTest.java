@@ -45,6 +45,7 @@ import org.junit.Test;
 public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTestBase {
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testFromCollectionParallelism() {
 		try {
 			TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
@@ -67,7 +68,7 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 
 			dataStream2.addSink(new NoOpSink<Integer>());
 
-			env.getExecutionPlan();
+			String plan = env.getExecutionPlan();
 
 			assertEquals("Parallelism of collection source must be 1.", 1, env.getStreamGraph().getStreamNode(dataStream1.getId()).getParallelism());
 			assertEquals("Parallelism of parallel collection source must be 4.",
@@ -92,10 +93,8 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		};
 		DataStreamSource<Integer> src1 = env.addSource(srcFun);
 		src1.addSink(new NoOpSink<Integer>());
@@ -124,7 +123,6 @@ public class StreamExecutionEnvironmentTest extends StreamingMultipleProgramsTes
 		return streamGraph.getStreamNode(dataStream.getId()).getOperator();
 	}
 
-	@SuppressWarnings("unchecked")
 	private static <T> SourceFunction<T> getFunctionFromDataSource(DataStreamSource<T> dataStreamSource) {
 		dataStreamSource.addSink(new NoOpSink<T>());
 		AbstractUdfStreamOperator<?, ?> operator =

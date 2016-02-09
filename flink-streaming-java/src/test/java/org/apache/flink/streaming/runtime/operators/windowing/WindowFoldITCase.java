@@ -72,10 +72,8 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 		source1
@@ -138,10 +136,8 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 		source1

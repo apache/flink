@@ -436,13 +436,9 @@ public class ChaosMonkeyITCase extends TestLogger {
 			current = state;
 		}
 
-		@Override
-		public void cancel() {
-			isRunning = false;
-		}
 
 		@Override
-		public void stop() {
+		public void cancel() {
 			isRunning = false;
 		}
 

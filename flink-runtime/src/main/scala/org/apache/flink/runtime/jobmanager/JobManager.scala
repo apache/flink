@@ -468,7 +468,10 @@ class JobManager(
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
           try {
-            if (executionGraph.getState() != JobStatus.CREATED
+            if (!executionGraph.isStoppable()) {
+              sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
+                " is not stoppable."))
+            } else if(executionGraph.getState() != JobStatus.CREATED
                 && executionGraph.getState() != JobStatus.RUNNING
                 && executionGraph.getState() != JobStatus.RESTARTING) {
               sender ! StoppingFailure(jobID, new IllegalStateException(s"Job with ID $jobID" +
@@ -937,7 +940,6 @@ class JobManager(
               executionContext,
               jobGraph.getJobID,
               jobGraph.getName,
-              jobGraph.getType,
               jobGraph.getJobConfiguration,
               timeout,
               jobGraph.getUserJarBlobKeys,

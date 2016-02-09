@@ -42,10 +42,4 @@ public class FromIteratorFunction<T> implements SourceFunction<T> {
 	public void cancel() {
 		isRunning = false;
 	}
-
-	@Override
-	public void stop() {
-		isRunning = false;
-	}
-
 }

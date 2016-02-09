@@ -19,7 +19,6 @@
 package org.apache.flink.test.failingPrograms;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -65,7 +64,7 @@ public class JobSubmissionFailsITCase {
 			
 			final JobVertex jobVertex = new JobVertex("Working job vertex.");
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
-			workingJobGraph = new JobGraph("Working testing job", JobType.BATCHING, jobVertex);
+			workingJobGraph = new JobGraph("Working testing job", jobVertex);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -116,8 +115,7 @@ public class JobSubmissionFailsITCase {
 			final JobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
 			failingJobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 
-			final JobGraph failingJobGraph = new JobGraph("Failing testing job", JobType.BATCHING,
-					failingJobVertex);
+			final JobGraph failingJobGraph = new JobGraph("Failing testing job", failingJobVertex);
 
 			try {
 				submitJob(failingJobGraph);
@@ -142,7 +140,7 @@ public class JobSubmissionFailsITCase {
 	@Test
 	public void testSubmitEmptyJobGraph() {
 		try {
-			final JobGraph jobGraph = new JobGraph("Testing job", JobType.BATCHING);
+			final JobGraph jobGraph = new JobGraph("Testing job");
 	
 			try {
 				submitJob(jobGraph);

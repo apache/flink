@@ -72,10 +72,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 		DataStream<Tuple2<String, Integer>> source2 = env.addSource(new SourceFunction<Tuple2<String, Integer>>() {
@@ -94,10 +92,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple2TimestampExtractor());
 
 
@@ -170,10 +166,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 		DataStream<Tuple3<String, String, Integer>> source2 = env.addSource(new SourceFunction<Tuple3<String, String, Integer>>() {
@@ -192,10 +186,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 
@@ -269,10 +261,8 @@ public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 			}
 
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		}).assignTimestamps(new Tuple3TimestampExtractor());
 
 		source1.join(source1)

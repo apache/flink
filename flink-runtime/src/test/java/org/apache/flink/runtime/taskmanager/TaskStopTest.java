@@ -34,7 +34,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.Stoppable;
+import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -80,7 +80,7 @@ public class TaskStopTest {
 
 	@Test(timeout = 10000)
 	public void testStopExecution() throws Exception {
-		StoppableTask taskMock = new StoppableTask();
+		StoppableTestTask taskMock = new StoppableTestTask();
 		doMocking(taskMock);
 
 		task.stopExecution();
@@ -98,7 +98,7 @@ public class TaskStopTest {
 		task.stopExecution();
 	}
 
-	private final static class StoppableTask extends AbstractInvokable implements Stoppable {
+	private final static class StoppableTestTask extends AbstractInvokable implements StoppableTask {
 		public volatile boolean stopCalled = false;
 
 		@Override

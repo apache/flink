@@ -76,8 +76,6 @@ class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
       }
 
       override def cancel(): Unit = {}
-
-      override def stop(): Unit = {}
     })
 
     val splittedResult = sourceStream

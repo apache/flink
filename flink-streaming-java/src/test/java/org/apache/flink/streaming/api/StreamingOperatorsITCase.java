@@ -176,7 +176,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 	private static class NonSerializable {
 		// This makes the type non-serializable
-		@SuppressWarnings("unused")
 		private final Object obj = new Object();
 
 		private final int value;
@@ -187,8 +186,6 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 	}
 
 	private static class NonSerializableTupleSource implements SourceFunction<Tuple2<Integer, NonSerializable>> {
-		private static final long serialVersionUID = 4246285509806813451L;
-
 		private final int numElements;
 
 		public NonSerializableTupleSource(int numElements) {
@@ -205,13 +202,9 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 
 		@Override
 		public void cancel() {}
-
-		@Override
-		public void stop() {}
 	}
 
 	private static class TupleSource implements SourceFunction<Tuple2<Integer, Integer>> {
-		private static final long serialVersionUID = -1125180651666737007L;
 
 		private final int numElements;
 		private final int numKeys;
@@ -230,9 +223,8 @@ public class StreamingOperatorsITCase extends StreamingMultipleProgramsTestBase 
 		}
 
 		@Override
-		public void cancel() {}
+		public void cancel() {
 
-		@Override
-		public void stop() {}
+		}
 	}
 }

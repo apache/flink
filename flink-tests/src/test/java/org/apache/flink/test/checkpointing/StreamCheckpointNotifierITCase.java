@@ -184,7 +184,7 @@ public class StreamCheckpointNotifierITCase {
 	}
 
 	static List<Long>[] createCheckpointLists(int parallelism) {
-		@SuppressWarnings("unchecked")
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		List<Long>[] lists = new List[parallelism];
 		for (int i = 0; i < parallelism; i++) {
 			lists[i] = new ArrayList<>();
@@ -255,11 +255,6 @@ public class StreamCheckpointNotifierITCase {
 
 		@Override
 		public void cancel() {
-			isRunning = false;
-		}
-
-		@Override
-		public void stop() {
 			isRunning = false;
 		}
 

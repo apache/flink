@@ -110,10 +110,9 @@ public class IncrementalLearningSkeleton {
 		}
 
 		@Override
-		public void cancel() {}
-
-		@Override
-		public void stop() {}
+		public void cancel() {
+			// No cleanup needed
+		}
 
 		private Integer getNewData() throws InterruptedException {
 			Thread.sleep(5);
@@ -138,10 +137,9 @@ public class IncrementalLearningSkeleton {
 		}
 
 		@Override
-		public void cancel() {}
-
-		@Override
-		public void stop() {}
+		public void cancel() {
+			// No cleanup needed
+		}
 
 		private Integer getTrainingData() throws InterruptedException {
 			counter++;

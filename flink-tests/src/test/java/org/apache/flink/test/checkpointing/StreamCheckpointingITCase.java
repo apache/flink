@@ -174,11 +174,6 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 			isRunning = false;
 		}
 
-		@Override
-		public void stop() {
-			isRunning = false;
-		}
-
 		private static String randomString(StringBuilder bld, Random rnd) {
 			final int len = rnd.nextInt(10) + 5;
 

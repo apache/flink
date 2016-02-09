@@ -143,10 +143,4 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 			IOUtils.closeSocket(theSocket);
 		}
 	}
-
-	@Override
-	public void stop() {
-		isRunning = false;
-	}
-
 }

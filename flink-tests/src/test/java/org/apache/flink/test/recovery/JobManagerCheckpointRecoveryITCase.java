@@ -20,9 +20,7 @@ package org.apache.flink.test.recovery;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -56,7 +54,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -369,7 +366,7 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 			// BLocking JobGraph
 			JobVertex blockingVertex = new JobVertex("Blocking vertex");
 			blockingVertex.setInvokableClass(Tasks.BlockingNoOpInvokable.class);
-			JobGraph jobGraph = new JobGraph(JobType.BATCHING, blockingVertex);
+			JobGraph jobGraph = new JobGraph(blockingVertex);
 
 			// Submit the job in detached mode
 			leader.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
@@ -516,11 +513,6 @@ public class JobManagerCheckpointRecoveryITCase extends TestLogger {
 
 		@Override
 		public void cancel() {
-			isRunning = false;
-		}
-
-		@Override
-		public void stop() {
 			isRunning = false;
 		}
 	}

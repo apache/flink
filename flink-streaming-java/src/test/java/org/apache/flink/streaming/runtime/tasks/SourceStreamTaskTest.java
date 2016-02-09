@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -27,9 +28,9 @@ import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -81,8 +82,8 @@ public class SourceStreamTaskTest {
 
 	@Test
 	public void testStop() {
-		final SourceStreamTask<Object> sourceTask = new SourceStreamTask<Object>();
-		sourceTask.headOperator = new StreamSource<Object>(new TestSource());
+		final StoppableSourceStreamTask<Object> sourceTask = new StoppableSourceStreamTask<Object>();
+		sourceTask.headOperator = new StoppableStreamSource<Object>(new StoppableSource());
 
 		sourceTask.stop();
 
@@ -116,24 +117,24 @@ public class SourceStreamTaskTest {
 			final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 			final SourceStreamTask<Tuple2<Long, Integer>> sourceTask = new SourceStreamTask<Tuple2<Long, Integer>>();
 			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
-	
+
 			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamSource<Tuple2<Long, Integer>> sourceOperator = new StreamSource<Tuple2<Long, Integer>>(new MockSource(NUM_ELEMENTS, SOURCE_CHECKPOINT_DELAY, SOURCE_READ_DELAY));
 			streamConfig.setStreamOperator(sourceOperator);
-			
-			// prepare the 
-			
+
+			// prepare the
+
 			Future<Boolean>[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
-	
+
 			// invoke this first, so the tasks are actually running when the checkpoints are scheduled
 			testHarness.invoke();
-			
+
 			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
 				checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));
 			}
-			
+
 			testHarness.waitForTaskCompletion();
-	
+
 			// Get the result from the checkpointers, if these threw an exception it
 			// will be rethrown here
 			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
@@ -144,7 +145,7 @@ public class SourceStreamTaskTest {
 					checkpointerResults[i].get();
 				}
 			}
-	
+
 			List<Tuple2<Long, Integer>> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 			Assert.assertEquals(NUM_ELEMENTS, resultElements.size());
 		}
@@ -153,7 +154,7 @@ public class SourceStreamTaskTest {
 		}
 	}
 
-	private static class TestSource extends RichSourceFunction<Object> {
+	private static class StoppableSource extends RichSourceFunction<Object> implements StoppableFunction {
 		private static final long serialVersionUID = 728864804042338806L;
 
 		@Override
@@ -212,11 +213,6 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {
-			isRunning = false;
-		}
-
-		@Override
-		public void stop() {
 			isRunning = false;
 		}
 
@@ -311,9 +307,6 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {}
-
-		@Override
-		public void stop() {}
 	}
 }
 

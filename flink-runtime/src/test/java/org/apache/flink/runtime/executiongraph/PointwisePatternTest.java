@@ -35,7 +35,6 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobType;
 
 
 public class PointwisePatternTest {
@@ -58,8 +57,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -94,8 +97,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -131,8 +138,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -169,8 +180,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -205,8 +220,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -261,8 +280,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -308,8 +331,12 @@ public class PointwisePatternTest {
 	
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+		ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				jobId,
+				jobName,
+				cfg,
+				AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}

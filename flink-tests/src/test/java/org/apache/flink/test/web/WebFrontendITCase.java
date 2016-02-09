@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.commons.io.FileUtils;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -80,7 +79,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 	@Parameterized.Parameters(name = "Execution mode = {0}")
 	public static Collection<Object[]> executionModes() {
 		return Arrays.<Object[]>asList(
-				new Object[] { TestExecutionMode.CLUSTER } );
+			new Object[] { TestExecutionMode.CLUSTER } );
 	}
 
 	@Test
@@ -163,8 +162,8 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 			assertTrue(conf.get(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY).startsWith(logDir.toString()));
 			assertEquals(
-					cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
-					conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
+				cluster.configuration().getString("taskmanager.numberOfTaskSlots", null),
+				conf.get(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -179,7 +178,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		sender.setParallelism(2);
 		sender.setInvokableClass(StoppableInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", JobType.STREAMING, sender);
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
 		final JobID jid = jobGraph.getJobID();
 
 		cluster.submitJobDetached(jobGraph);
@@ -207,8 +206,7 @@ public class WebFrontendITCase extends MultipleProgramsTestBase {
 		sender.setParallelism(2);
 		sender.setInvokableClass(StoppableInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", JobType.STREAMING,
-				sender);
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
 		final JobID jid = jobGraph.getJobID();
 
 		cluster.submitJobDetached(jobGraph);

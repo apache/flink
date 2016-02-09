@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.DummyActorGateway;
@@ -182,7 +181,7 @@ public class TerminalStateDeadlockTest {
 		private volatile boolean done;
 
 		TestExecGraph(JobID jobId) {
-			super(TestingUtils.defaultExecutionContext(), jobId, "test graph", JobType.BATCHING, EMPTY_CONFIG, TIMEOUT);
+			super(TestingUtils.defaultExecutionContext(), jobId, "test graph", EMPTY_CONFIG, TIMEOUT);
 		}
 
 		@Override

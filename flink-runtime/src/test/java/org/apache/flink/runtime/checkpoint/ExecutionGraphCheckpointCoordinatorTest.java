@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -47,7 +46,6 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				TestingUtils.defaultExecutionContext(),
 				new JobID(),
 				"test",
-				JobType.BATCHING,
 				new Configuration(),
 				new FiniteDuration(1, TimeUnit.DAYS),
 				Collections.<BlobKey>emptyList(),

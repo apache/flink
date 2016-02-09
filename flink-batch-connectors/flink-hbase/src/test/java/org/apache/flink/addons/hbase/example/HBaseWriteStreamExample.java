@@ -63,11 +63,6 @@ public class HBaseWriteStreamExample {
 			public void cancel() {
 				isRunning = false;
 			}
-
-			@Override
-			public void stop() {
-				isRunning = false;
-			}
 		});
 		dataStream.write(new HBaseOutputFormat(), 0L);
 

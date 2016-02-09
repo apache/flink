@@ -137,11 +137,6 @@ public class WindowJoin {
 		public void cancel() {
 			isRunning = false;
 		}
-
-		@Override
-		public void stop() {
-			isRunning = false;
-		}
 	}
 
 	/**
@@ -162,6 +157,7 @@ public class WindowJoin {
 			isRunning = true;
 		}
 
+
 		@Override
 		public void run(SourceContext<Tuple3<Long, String, Integer>> ctx) throws Exception {
 			while (isRunning && counter < 100) {
@@ -176,11 +172,6 @@ public class WindowJoin {
 
 		@Override
 		public void cancel() {
-			isRunning = false;
-		}
-
-		@Override
-		public void stop() {
 			isRunning = false;
 		}
 	}

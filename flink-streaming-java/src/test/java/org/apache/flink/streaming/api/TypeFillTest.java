@@ -102,13 +102,13 @@ public class TypeFillTest extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void run(SourceContext<T> ctx) throws Exception {
+
 		}
 
 		@Override
-		public void cancel() {}
-		
-		@Override
-		public void stop() {}
+		public void cancel() {
+
+		}
 	}
 
 	private class TestMap<T, O> implements MapFunction<T, O> {

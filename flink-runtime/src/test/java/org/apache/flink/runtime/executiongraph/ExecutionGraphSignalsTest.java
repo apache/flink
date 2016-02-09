@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -123,7 +122,7 @@ public class ExecutionGraphSignalsTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 		eg = new ExecutionGraph(TestingUtils.defaultExecutionContext(), jobId, jobName,
-				JobType.BATCHING, cfg, AkkaUtils.getDefaultTimeout());
+				cfg, AkkaUtils.getDefaultTimeout());
 		eg.attachJobGraph(ordered);
 
 		f = eg.getClass().getDeclaredField("state");
@@ -196,9 +195,9 @@ public class ExecutionGraphSignalsTest {
 	// test that all non-source tasks do not receive STOP signal
 	@Test
 	public void testStop() throws Exception {
-		Field f = eg.getClass().getDeclaredField("jobType");
+		Field f = eg.getClass().getDeclaredField("isStoppable");
 		f.setAccessible(true);
-		f.set(eg, JobType.STREAMING);
+		f.set(eg, true);
 
 		eg.stop();
 
@@ -215,7 +214,7 @@ public class ExecutionGraphSignalsTest {
 		}
 	}
 
-	// STOP only supported for streaming job -- used ExecutionGraph has JobType.BATCHING
+	// STOP only supported if all sources are stoppable 
 	@Test(expected = StoppingException.class)
 	public void testStopBatching() throws StoppingException {
 		eg.stop();

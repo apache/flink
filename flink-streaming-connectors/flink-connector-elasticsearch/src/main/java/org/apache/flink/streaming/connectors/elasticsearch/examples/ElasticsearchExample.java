@@ -56,11 +56,6 @@ public class ElasticsearchExample {
 			public void cancel() {
 				running = false;
 			}
-
-			@Override
-			public void stop() {
-				running = false;
-			}
 		});
 
 		Map<String, String> config = Maps.newHashMap();
@@ -68,8 +63,6 @@ public class ElasticsearchExample {
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
 		source.addSink(new ElasticsearchSink<>(config, new IndexRequestBuilder<String>() {
-			private static final long serialVersionUID = -3191445749323824353L;
-
 			@Override
 			public IndexRequest createIndexRequest(String element, RuntimeContext ctx) {
 				Map<String, Object> json = new HashMap<>();

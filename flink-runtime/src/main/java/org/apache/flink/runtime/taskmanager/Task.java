@@ -49,7 +49,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.jobgraph.tasks.Stoppable;
+import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.messages.TaskMessages.FailTask;
@@ -61,6 +61,7 @@ import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -749,22 +750,22 @@ public class Task implements Runnable {
 	// ----------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Stops the executing task by calling {@link Stoppable#stop()}.
+	 * Stops the executing task by calling {@link StoppableTask#stop()}.
 	 * <p>
 	 * This method never blocks.
 	 * </p>
 	 * 
 	 * @throws UnsupportedOperationException
-	 *             if the {@link AbstractInvokable} does not implement {@link Stoppable}
+	 *             if the {@link AbstractInvokable} does not implement {@link StoppableTask}
 	 */
 	public void stopExecution() throws UnsupportedOperationException {
 		LOG.info("Attempting to stop task " + taskNameWithSubtask);
-		if(this.invokable instanceof Stoppable) {
+		if(this.invokable instanceof StoppableTask) {
 			Runnable runnable = new Runnable() {
 				@Override
 				public void run() {
 					try {
-						((Stoppable)Task.this.invokable).stop();
+						((StoppableTask)Task.this.invokable).stop();
 					} catch(RuntimeException e) {
 						LOG.error("Stopping task " + taskNameWithSubtask + " failed.", e);
 						taskManager.tell(new FailTask(executionId, e));

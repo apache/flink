@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -104,7 +103,7 @@ public class SlotCountExceedingParallelismTest {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph(jobName, JobType.BATCHING, sender, receiver);
+		final JobGraph jobGraph = new JobGraph(jobName, sender, receiver);
 
 		// We need to allow queued scheduling, because there are not enough slots available
 		// to run all tasks at once. We queue tasks and then let them finish/consume the blocking

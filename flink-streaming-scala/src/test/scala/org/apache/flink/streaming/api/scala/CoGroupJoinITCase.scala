@@ -57,9 +57,6 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-
-      def stop() {
-      }
     }).assignTimestamps(new CoGroupJoinITCase.Tuple2TimestampExtractor)
 
     val source2 = env.addSource(new SourceFunction[(String, Int)]() {
@@ -73,9 +70,6 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
       }
 
       def cancel() {
-      }
-
-      def stop() {
       }
     }).assignTimestamps(new CoGroupJoinITCase.Tuple2TimestampExtractor)
 
@@ -127,9 +121,6 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
 
       def cancel() {
       }
-
-      def stop() {
-      }
     }).assignTimestamps(new CoGroupJoinITCase.Tuple3TimestampExtractor)
 
     val source2 = env.addSource(new SourceFunction[(String, String, Int)]() {
@@ -145,9 +136,6 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
       }
 
       def cancel() {
-      }
-
-      def stop() {
       }
     }).assignTimestamps(new CoGroupJoinITCase.Tuple3TimestampExtractor)
 
@@ -208,9 +196,6 @@ class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
       }
 
       def cancel() {
-      }
-
-      def stop() {
       }
     }).assignTimestamps(new CoGroupJoinITCase.Tuple3TimestampExtractor)
 

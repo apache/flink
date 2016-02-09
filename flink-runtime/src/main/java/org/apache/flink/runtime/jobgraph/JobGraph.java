@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -79,9 +78,6 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	/** Type of this job. */
-	private JobType jobType;
-
 	/** The number of times that failed tasks should be re-executed */
 	private int numExecutionRetries;
 
@@ -107,21 +103,18 @@ public class JobGraph implements Serializable {
 
 	/**
 	 * Constructs a new job graph with no name and a random job ID.
-	 * 
-	 * @param The type of the job
 	 */
-	public JobGraph(JobType jobType) {
-		this((String) null, jobType);
+	public JobGraph() {
+		this((String) null);
 	}
 
 	/**
 	 * Constructs a new job graph with the given name, a random job ID.
 	 *
 	 * @param jobName The name of the job
-	 * @param The type of the job
 	 */
-	public JobGraph(String jobName, JobType jobType) {
-		this(null, jobName, jobType);
+	public JobGraph(String jobName) {
+		this(null, jobName);
 	}
 
 	/**
@@ -129,33 +122,29 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
 	 * @param jobName The name of the job.
-	 * @param jobType The type of the job.
 	 */
-	public JobGraph(JobID jobId, String jobName, JobType jobType) {
+	public JobGraph(JobID jobId, String jobName) {
 		this.jobID = jobId == null ? new JobID() : jobId;
 		this.jobName = jobName == null ? "(unnamed job)" : jobName;
-		this.jobType = jobType;
 	}
 
 	/**
 	 * Constructs a new job graph with no name and a random job ID if null supplied as an id.
-	 * 
-	 * @param jobType The type of the job.
+	 *
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(JobType jobType, JobVertex... vertices) {
-		this(null, jobType, vertices);
+	public JobGraph(JobVertex... vertices) {
+		this(null, vertices);
 	}
 
 	/**
 	 * Constructs a new job graph with the given name and a random job ID.
 	 *
 	 * @param jobName The name of the job.
-	 * @param jobType The type of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(String jobName, JobType jobType, JobVertex... vertices) {
-		this(null, jobName, jobType, vertices);
+	public JobGraph(String jobName, JobVertex... vertices) {
+		this(null, jobName, vertices);
 	}
 
 	/**
@@ -163,12 +152,11 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
 	 * @param jobName The name of the job.
-	 * @param jobType The type of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(JobID jobId, String jobName, JobType jobType, JobVertex... vertices) {
-		this(jobId, jobName, jobType);
-		
+	public JobGraph(JobID jobId, String jobName, JobVertex... vertices) {
+		this(jobId, jobName);
+
 		for (JobVertex vertex : vertices) {
 			addVertex(vertex);
 		}
@@ -192,33 +180,6 @@ public class JobGraph implements Serializable {
 	 */
 	public String getName() {
 		return this.jobName;
-	}
-
-	/**
-	 * Returns the type of the job graph.
-	 * 
-	 * @return the type of the job graph
-	 */
-	public JobType getType() {
-		return this.jobType;
-	}
-
-	/**
-	 * Returns {@code true} if the job is a batch job.
-	 * 
-	 * @return {@code true} for batch jobs -- {@code false} otherwise
-	 */
-	public boolean isBatchJob() {
-		return this.jobType == JobType.BATCHING;
-	}
-
-	/**
-	 * Returns {@code true} if the job is a streaming job.
-	 * 
-	 * @return {@code true} for streaming jobs -- {@code false} otherwise
-	 */
-	public boolean isStreamingJob() {
-		return this.jobType == JobType.STREAMING;
 	}
 
 	/**

@@ -277,6 +277,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				int cnt = getRuntimeContext().getIndexOfThisSubtask() * elementsPerPartition;
 				int limit = cnt + elementsPerPartition;
 
+
 				while (running && cnt < limit) {
 					ctx.collect(new Tuple2<>(1000L + cnt, "kafka-" + cnt));
 					cnt++;
@@ -288,11 +289,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			@Override
 			public void cancel() {
-				running = false;
-			}
-
-			@Override
-			public void stop() {
 				running = false;
 			}
 		});
@@ -860,11 +856,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void cancel() {
 				running = false;
 			}
-
-			@Override
-			public void stop() {
-				running = false;
-			}
 		});
 
 		stream.addSink(kafkaServer.getProducer(topic, new KeyedSerializationSchemaWrapper<>(serSchema), producerProps, null));
@@ -949,12 +940,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					ctx.collect(new Tuple2<>(key, pojo));
 				}
 			}
-
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		});
 
 		KeyedSerializationSchema<Tuple2<Long, PojoValue>> schema = new TypeInformationKeyValueSerializationSchema<>(Long.class, PojoValue.class, env.getConfig());
@@ -1030,12 +1018,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 					ctx.collect(new Tuple2<>(key, (PojoValue) null));
 				}
 			}
-
 			@Override
-			public void cancel() {}
-
-			@Override
-			public void stop() {}
+			public void cancel() {
+			}
 		});
 
 		TypeInformationKeyValueSerializationSchema<byte[], PojoValue> schema = new TypeInformationKeyValueSerializationSchema<>(byte[].class, PojoValue.class, env.getConfig());
@@ -1231,12 +1216,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			public void cancel() {
 				running = false;
 			}
-
-			@Override
-			public void stop() {
-				running = false;
-			}
-
 		}).setParallelism(parallelism);
 		
 		stream.addSink(kafkaServer.getProducer(topicName,

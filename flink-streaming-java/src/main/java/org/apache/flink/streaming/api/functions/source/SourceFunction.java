@@ -99,40 +99,21 @@ public interface SourceFunction<T> extends Function, Serializable {
 	void run(SourceContext<T> ctx) throws Exception;
 
 	/**
-	 * Cancels the source. Most sources will have a while loop inside the {@link #run} method. You need to ensure that
-	 * the source will break out of this loop. This can be achieved by having a volatile field "isRunning" that is
-	 * checked in the loop and that is set to false in this method.
-	 * <p>
-	 * In contrast to {@link #stop()} the source should not emit any more data. Consumers will be canceled too and will
-	 * not process any more incoming data. Only a clean up of internally used recourses (eg, closing open ports) should
-	 * be performed.
-	 * <p>
-	 * <strong>The call to {@code cancel()} should not block.</strong>
+	 * Cancels the source. Most sources will have a while loop inside the
+	 * {@link #run} method. You need to ensure that the source will break out of this loop. This
+	 * can be achieved by having a volatile field "isRunning" that is checked in the loop and that
+	 * is set to false in this method.
 	 */
 	void cancel();
 
 	/**
-	 * Stops the source. In contrast to {@link #cancel()} this is a request to the source function to shut down
-	 * gracefully. Pending data can still be emitted and it is not required to stop immediately -- however, in the near
-	 * future. The job will keep running until all emitted data is processed completely.
-	 * <p>
-	 * Most sources will have a while loop inside the {@link #run} method. You need to ensure that the source will break
-	 * out of this loop. This can be achieved by having a volatile field "isRunning" that is checked in the loop and
-	 * that is set to false in this method.
-	 * <p>
-	 * <strong>The call to {@code stop()} should not block and not throw any exception.</strong>
-	 */
-	void stop();
-
-	/**
-	 * Interface that source functions use to communicate with the outside world. Normally sources would just emit
-	 * elements in a loop using {@link #collect}. If the source is a
-	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed} source it must retrieve the checkpoint lock object
-	 * and use it to protect state updates and element emission as described in
-	 * {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
-	 * 
-	 * @param <T>
-	 *            The type of the elements produced by the source.
+	 * Interface that source functions use to communicate with the outside world. Normally
+	 * sources would just emit elements in a loop using {@link #collect}. If the source is a
+	 * {@link org.apache.flink.streaming.api.checkpoint.Checkpointed} source it must retrieve
+	 * the checkpoint lock object and use it to protect state updates and element emission as
+	 * described in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
+	 *
+	 * @param <T> The type of the elements produced by the source.
 	 */
 	@Public // Interface might be extended in the future with additional methods.
 	public static interface SourceContext<T> {
@@ -174,7 +155,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 		 * Returns the checkpoint lock. Please refer to the explanation about checkpointed sources
 		 * in {@link org.apache.flink.streaming.api.functions.source.SourceFunction}.
 		 * 
-		 * @return The object to use as the lock.
+		 * @return The object to use as the lock. 
 		 */
 		Object getCheckpointLock();
 

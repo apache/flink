@@ -98,6 +98,8 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class TaskManagerTest extends TestLogger {
 
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerTest.class);
+	
 	private static final FiniteDuration timeout = new FiniteDuration(1, TimeUnit.MINUTES);
 
 	private static final FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);

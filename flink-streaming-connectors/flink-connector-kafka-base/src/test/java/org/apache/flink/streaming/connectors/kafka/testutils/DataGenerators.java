@@ -70,11 +70,6 @@ public class DataGenerators {
 					public void cancel() {
 						running = false;
 					}
-
-					@Override
-					public void stop() {
-						running = false;
-					}
 				});
 
 		stream.addSink(testServer.getProducer(topic,
@@ -134,11 +129,6 @@ public class DataGenerators {
 
 					@Override
 					public void cancel() {
-						running = false;
-					}
-
-					@Override
-					public void stop() {
 						running = false;
 					}
 				});

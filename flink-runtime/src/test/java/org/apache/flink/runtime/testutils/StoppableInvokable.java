@@ -13,9 +13,9 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.Stoppable;
+import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 
-public final class StoppableInvokable extends AbstractInvokable implements Stoppable {
+public final class StoppableInvokable extends AbstractInvokable implements StoppableTask {
 	private boolean isRunning = true;
 
 	@Override

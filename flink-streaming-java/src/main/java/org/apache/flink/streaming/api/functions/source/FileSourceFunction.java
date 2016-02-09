@@ -48,6 +48,7 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		this.provider = context.getInputSplitProvider();
@@ -131,11 +132,6 @@ public class FileSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
 
 	@Override
 	public void cancel() {
-		isRunning = false;
-	}
-
-	@Override
-	public void stop() {
 		isRunning = false;
 	}
 

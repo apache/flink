@@ -53,7 +53,6 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 	final long NUM_STRINGS = 10_000_000L;
 	final static int NUM_KEYS = 40;
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void testProgram(StreamExecutionEnvironment env) {
 		assertTrue("Broken test setup", (NUM_STRINGS/2) % NUM_KEYS == 0);
@@ -130,11 +129,6 @@ public class PartitionedStateCheckpointingITCase extends StreamFaultToleranceTes
 
 		@Override
 		public void cancel() {
-			isRunning = false;
-		}
-
-		@Override
-		public void stop() {
 			isRunning = false;
 		}
 
