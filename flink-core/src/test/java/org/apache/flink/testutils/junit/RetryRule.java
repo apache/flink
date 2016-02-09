@@ -113,7 +113,7 @@ public class RetryRule implements TestRule {
 					break; // success
 				}
 				catch (Throwable t) {
-					LOG.debug(String.format("Test run failed (%d/%d).",
+					LOG.warn(String.format("Test run failed (%d/%d).",
 							currentRun, timesOnFailure + 1), t);
 
 					// Throw the failure if retried too often
@@ -156,7 +156,7 @@ public class RetryRule implements TestRule {
 					break; // success
 				}
 				catch (Throwable t) {
-					LOG.debug(String.format("Test run failed (%d/%d).", currentRun, timesOnFailure + 1), t);
+					LOG.warn(String.format("Test run failed (%d/%d).", currentRun, timesOnFailure + 1), t);
 
 					if (!exceptionClass.isAssignableFrom(t.getClass()) || currentRun >= timesOnFailure) {
 						// Throw the failure if retried too often, or if it is the wrong exception
